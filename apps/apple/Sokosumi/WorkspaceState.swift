@@ -135,13 +135,11 @@ final class WorkspaceState: ObservableObject {
   /// Last minted Ably token. Nil until the first mint; membership changes
   /// remint once a token exists or the socket is live, so idle windows
   /// never pay for one.
-  @Published private(set) var ablyToken: Components.Schemas.AblyTokenRequest?
   /// Factory for the live socket. Set by the app at launch (ably-cocoa);
   /// nil in tests unless a fake is installed. Without one the transcript
   /// stays HTTP-only and every realtime call below no-ops.
   var realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
   private var realtime: (any RealtimeConnection)?
-  private weak var realtimeAuth: AuthState?
   private var realtimeStreamTask: Task<Void, Never>?
   private var realtimeContinuation: AsyncStream<ResolvedRealtimeDelivery>.Continuation?
 
@@ -161,6 +159,13 @@ final class WorkspaceState: ObservableObject {
 
   /// Envelope arrived while history, older-page, or a refetch was in flight.
   private var pendingTranscriptRefresh = false
+  let transcriptRecovery = ChatRefreshScheduler()
+  let sidebarRecovery = ChatRefreshScheduler()
+  private var connectionHealthy = false
+  private(set) var roomsRefreshTask: Task<Void, Never>?
+  private var roomsRefreshID = UUID()
+  private var sidebarRecoveryGeneration = UUID()
+  private var transcriptRealtimeHealthy = false
 
   private let service = ChatService()
   private var hasLoaded = false
@@ -196,10 +201,6 @@ final class WorkspaceState: ObservableObject {
 
   /// Test seam: when set, replaces `auth.coreClient()` as the client source.
   var clientResolver: (() -> Client?)?
-  /// Test seam: when set, replaces `auth.oauthSession` as the Ably token
-  /// source for the live socket.
-  var realtimeSessionOverride: OAuthSession?
-
   private func resolveClient(auth: AuthState) -> Client? {
     clientResolver?() ?? auth.coreClient()
   }
@@ -231,7 +232,6 @@ final class WorkspaceState: ObservableObject {
     sidebar.reset()
     rooms = []
     roomsLoading = false
-    ablyToken = nil
     switchError = nil
     selectedRoomId = nil
     stopRealtime()
@@ -263,6 +263,8 @@ final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    transcriptRealtimeHealthy = false
+    transcriptRecovery.stop()
     readAttention.roomChanged()
     timeline.reset()
     transcriptLoadTask = nil
@@ -279,6 +281,7 @@ final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
     timeline.reset(roomId: room.id)
     olderPageTask = nil
@@ -288,6 +291,38 @@ final class WorkspaceState: ObservableObject {
     clearOutbound()
     realtime?.watchRoom(room.id)
     transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
+    transcriptRecovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
+      guard let self, let auth else { return }
+      await recoverTranscript(auth: auth, generation: generation)
+    }
+  }
+
+  func setWindowVisible(_ visible: Bool, window: UUID) {
+    let wasVisible = readAttention.isVisible
+    readAttention.setVisible(visible, window: window)
+    transcriptRecovery.setForeground(readAttention.isVisible)
+    sidebarRecovery.setForeground(readAttention.isVisible)
+    if !wasVisible, readAttention.isVisible {
+      realtime?.refreshMembership()
+    }
+  }
+
+  /// Wait for history/pagination before the recovery read. The scheduler's
+  /// interval starts after the HTTP request and read-attention work finish.
+  private func recoverTranscript(auth: AuthState, generation: Int) async {
+    while generation == transcriptGeneration,
+          let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
+      await task.value
+    }
+    guard generation == transcriptGeneration else { return }
+    guard readAttention.isVisible else {
+      transcriptRecovery.requestRefresh()
+      return
+    }
+    refreshTranscript(auth: auth)
+    while generation == transcriptGeneration, let task = transcriptRefreshTask {
+      await task.value
+    }
   }
 
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
@@ -328,33 +363,19 @@ final class WorkspaceState: ObservableObject {
 
   // MARK: - Live realtime (SOK-976)
 
-  /// Opens the socket once rooms are ready. Returns whether this call
-  /// connected: callers skip their remint then, because the connect-time
-  /// auth already minted. No factory (tests, HTTP-only mode) means no live.
-  @discardableResult
-  private func startRealtimeIfNeeded(auth: AuthState) -> Bool {
+  /// Opens one socket for the signed-in client; membership owns authorization.
+  private func startRealtimeIfNeeded(auth: AuthState) {
     guard realtime == nil,
           let factory = realtimeConnectionFactory,
-          let session = realtimeSessionOverride ?? auth.oauthSession,
+          let client = resolveClient(auth: auth),
           !currentUserId.isEmpty
     else {
-      return false
+      return
     }
-    realtimeAuth = auth
     let instanceId = ablyClientInstanceId
-    let baseURL = CoreSettings.baseURL
-    // Sendable by construction: the session actor plus values only, never
-    // MainActor state. The slug rides as a parameter because switches
-    // retarget it after connect.
+    let service = service
     let provider: RealtimeTokenProvider = { slug in
-      let client = Client.connecting(
-        to: baseURL,
-        middlewares: [
-          BearerAuthMiddleware(session: session),
-          ExplicitNullPreferredOrganizationMiddleware()
-        ]
-      )
-      let token = try await ChatService().fetchAblyToken(
+      let token = try await service.fetchAblyToken(
         client: client,
         clientInstanceId: instanceId,
         organizationSlug: slug
@@ -371,69 +392,68 @@ final class WorkspaceState: ObservableObject {
       tokenProvider: provider,
       onEvent: { event in continuation.yield(event) }
     )
+    connection.setMembershipRooms(Set(rooms.map(\.id)))
     realtimeStreamTask?.cancel()
     realtimeStreamTask = Task {
       for await event in stream {
+        guard !Task.isCancelled else { break }
         handleRealtimeEvent(event)
       }
     }
-    return true
   }
 
   /// Closes the socket and drops the event stream. Sign-out and teardown go
   /// through here; room changes only detach via `watchRoom`.
   private func stopRealtime() {
+    sidebarRecoveryGeneration = UUID()
+    sidebarRecovery.stop()
+    roomsRefreshTask?.cancel()
+    roomsRefreshTask = nil
+    roomsRefreshID = UUID()
+    connectionHealthy = false
     realtimeContinuation?.finish()
     realtimeContinuation = nil
     realtimeStreamTask?.cancel()
     realtimeStreamTask = nil
     realtime?.disconnect()
     realtime = nil
-    realtimeAuth = nil
   }
 
   private func handleRealtimeEvent(_ event: ResolvedRealtimeDelivery) {
-    switch event {
+    switch event.personalized(for: currentUserId) {
     case let .message(roomId, eventType, message):
       applyRealtimeMessage(roomId: roomId, eventType: eventType, message: message)
+    case let .patch(patch):
+      guard patch.roomId == transcriptRoomId else { return }
+      transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
+    case let .pin(roomId, messageId, isPinned, count):
+      applyRealtimePin(roomId: roomId, messageId: messageId, isPinned: isPinned, count: count)
+    case let .roomHealth(roomId, healthy, continuityLost):
+      applyRealtimeHealth(roomId: roomId, healthy: healthy, continuityLost: continuityLost)
+    case let .connectionHealth(healthy):
+      connectionHealthy = healthy
+      sidebarRecovery.setHealthy(healthy)
     case let .envelope(envelope):
-      guard let auth = realtimeAuth else { return }
-      applyRealtimeEnvelope(envelope, auth: auth)
+      applyRealtimeEnvelope(envelope)
     case let .revoked(roomId):
-      guard let auth = realtimeAuth else { return }
-      applyMembershipRevoked(roomId: roomId, auth: auth)
+      applyMembershipRevoked(roomId: roomId)
     case .ignored:
       break
     }
   }
 
-  /// Mint (or remint) the Ably token for the current workspace. The socket
-  /// auth callback mints through its own provider; this path serves explicit
-  /// refresh and membership changes, then pushes the new caps into the live
-  /// socket. A 401 signs out; any other failure keeps the previous token so
-  /// a transient mint never drops a live subscription.
-  func refreshAblyToken(auth: AuthState) async {
-    guard let client = resolveClient(auth: auth) else { return }
-    let generation = workspaceGeneration
-    let slug = selection?.workspace.organizationSlug
-    do {
-      let token = try await service.fetchAblyToken(
-        client: client,
-        clientInstanceId: ablyClientInstanceId,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard generation == workspaceGeneration, slug == selection?.workspace.organizationSlug else { return }
-      ablyToken = token
-      realtime?.reauthorize(token: AblyTokenFields(token))
-    } catch let error as ChatServiceError {
-      guard generation == workspaceGeneration, slug == selection?.workspace.organizationSlug else { return }
-      if case let .unauthorized(message) = error {
-        auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
-      } else {
-        NSLog("Sokosumi Ably token mint failed: %@", String(describing: error))
-      }
-    } catch {
-      NSLog("Sokosumi Ably token mint failed: %@", String(describing: error))
+  private func applyRealtimePin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
+    guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
+    rooms[index].pinnedMessageCount = count
+    timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
+  }
+
+  private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
+    guard roomId == transcriptRoomId else { return }
+    transcriptRealtimeHealthy = healthy
+    transcriptRecovery.setHealthy(healthy)
+    if continuityLost {
+      transcriptRecovery.requestRefresh()
     }
   }
 
@@ -447,6 +467,9 @@ final class WorkspaceState: ObservableObject {
     eventType: ChatRoomMessageRealtimeEventType,
     message: Components.Schemas.ChatRoomMessage
   ) {
+    if eventType == .create, roomId != transcriptRoomId {
+      sidebarRecovery.requestRefresh()
+    }
     guard roomId == transcriptRoomId, message.roomId == transcriptRoomId else { return }
     let result = applyRealtimeFullEvent(
       messages: transcriptMessages,
@@ -461,14 +484,17 @@ final class WorkspaceState: ObservableObject {
   /// Apply an id envelope (ADR 0014): delete tombstones the on-screen row,
   /// create/update refetch history for the focused room, everything else is
   /// ignored. The refetch merges — it never invents a row.
-  func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope, auth: AuthState) {
+  func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: transcriptRoomId) {
     case .ignore:
+      if envelope.eventType == .create {
+        sidebarRecovery.requestRefresh()
+      }
       return
     case let .tombstone(messageId):
       transcriptMessages = applyRealtimeTombstone(messages: transcriptMessages, messageId: messageId)
     case .needsRefetch:
-      refreshTranscript(auth: auth)
+      transcriptRecovery.requestRefresh()
     }
   }
 
@@ -521,7 +547,12 @@ final class WorkspaceState: ObservableObject {
   /// When the open room is revoked its transcript clears — posting there is
   /// over — and the saved pick is left alone so relaunch does not reopen a
   /// room that is gone. Remints the token when one exists so caps drop.
-  func applyMembershipRevoked(roomId revokedRoomId: String, auth: AuthState) {
+  func applyMembershipRevoked(roomId revokedRoomId: String) {
+    workspaceSession.applyMembershipRevoked(roomId: revokedRoomId)
+    sidebar.invalidateRefresh()
+    roomsRefreshTask?.cancel()
+    roomsRefreshTask = nil
+    roomsRefreshID = UUID()
     let result = SokosumiChat.applyMembershipRevoked(
       rooms: rooms,
       selectedRoomId: selectedRoomId,
@@ -532,9 +563,7 @@ final class WorkspaceState: ObservableObject {
     if transcriptRoomId == revokedRoomId {
       clearTranscript()
     }
-    if realtime != nil || ablyToken != nil {
-      Task { await refreshAblyToken(auth: auth) }
-    }
+    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
   }
 
   private func clearOutbound() {
@@ -698,7 +727,8 @@ final class WorkspaceState: ObservableObject {
     do {
       guard let loaded = try await workspaceSession.load(client: client), generation == workspaceGeneration else { return }
       rooms = loaded
-      _ = startRealtimeIfNeeded(auth: auth)
+      startRealtimeIfNeeded(auth: auth)
+      startSidebarRecovery(auth: auth)
       ensureRoomSelection(auth: auth)
     } catch {
       guard generation == workspaceGeneration else { return }
@@ -707,6 +737,9 @@ final class WorkspaceState: ObservableObject {
   }
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
+    roomsRefreshTask?.cancel()
+    roomsRefreshTask = nil
+    roomsRefreshID = UUID()
     sidebar.invalidateRefresh()
     let generation = workspaceGeneration
     roomsLoading = true
@@ -724,10 +757,9 @@ final class WorkspaceState: ObservableObject {
       rooms = loaded
       switchError = nil
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)
-      let justConnected = startRealtimeIfNeeded(auth: auth)
-      if !justConnected, realtime != nil || ablyToken != nil {
-        await refreshAblyToken(auth: auth)
-      }
+      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+      startRealtimeIfNeeded(auth: auth)
+      startSidebarRecovery(auth: auth)
       guard generation == workspaceGeneration else { return }
       ensureRoomSelection(auth: auth)
     } catch {
@@ -738,9 +770,42 @@ final class WorkspaceState: ObservableObject {
   }
 
   func refreshRooms(auth: AuthState) async {
+    if let task = roomsRefreshTask {
+      await task.value
+      return
+    }
+    let id = UUID()
+    roomsRefreshID = id
+    let task = Task {
+      await readRooms(auth: auth)
+      if roomsRefreshID == id {
+        roomsRefreshTask = nil
+      }
+    }
+    roomsRefreshTask = task
+    await task.value
+  }
+
+  private func startSidebarRecovery(auth: AuthState) {
+    let generation = UUID()
+    sidebarRecoveryGeneration = generation
+    sidebarRecovery.start(foreground: readAttention.isVisible, healthy: connectionHealthy,
+                          fallbackInterval: .seconds(15), refreshOnRecovery: true) { [weak self, weak auth] in
+      guard let self, let auth else { return }
+      await roomsRefreshTask?.value
+      guard generation == sidebarRecoveryGeneration else { return }
+      guard readAttention.isVisible else { sidebarRecovery.requestRefresh()
+        return
+      }
+      await refreshRooms(auth: auth)
+    }
+  }
+
+  private func readRooms(auth: AuthState) async {
     guard phase == .ready, !roomsLoading, let client = resolveClient(auth: auth) else { return }
     do {
       guard try await sidebar.refresh(client: client, organizationSlug: selection?.workspace.organizationSlug) else { return }
+      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
       // Preserve a visible transcript on refresh; open a replacement only if
       // the previous room is no longer membership-visible.
       if selectedRoomId == nil || !rooms.contains(where: { $0.id == selectedRoomId }) {
