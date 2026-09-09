@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   TASK_DETAIL_GRID_CLASS,
   TASK_DETAIL_SHELL_CLASS,
+  TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
 
 const tasksDir = path.resolve(
@@ -75,7 +76,7 @@ describe("task detail layout contract", () => {
       'className={cn("space-y-4 md:pt-4", APP_MAIN_MOBILE_PT_CLASS)}',
     );
     const sidebarIdx = share.indexOf(
-      "<aside className={TASK_DETAIL_SIDEBAR_CLASS}>",
+      '<aside className={cn(TASK_DETAIL_SIDEBAR_CLASS, "md:pt-4")}>',
     );
     const filesIdx = share.indexOf("<TaskFiles");
 
@@ -91,5 +92,12 @@ describe("task detail layout contract", () => {
     expect(share).not.toContain("md:hidden");
     expect(share).not.toContain("sticky top-20");
     expect(share).toContain("TASK_DETAIL_SIDEBAR_CLASS");
+  });
+
+  it("share view aside applies md:pt-4 without padding the shared sidebar constant", () => {
+    const share = readFileSync(shareViewPath, "utf8");
+
+    expect(share).toContain('cn(TASK_DETAIL_SIDEBAR_CLASS, "md:pt-4")');
+    expect(TASK_DETAIL_SIDEBAR_CLASS).not.toContain("pt-");
   });
 });

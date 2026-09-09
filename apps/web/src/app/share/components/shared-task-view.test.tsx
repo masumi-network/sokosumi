@@ -52,4 +52,12 @@ describe("SharedTaskView", () => {
     expect(screen.queryByText(/BRIEFING.md/)).not.toBeInTheDocument();
     expect(screen.queryByText(/DESIGN.md/)).not.toBeInTheDocument();
   });
+
+  it("applies md:pt-4 on the metadata aside", async () => {
+    const { container } = render(await SharedTaskView({ task }));
+    const aside = container.querySelector("aside");
+
+    expect(aside).not.toBeNull();
+    expect(aside?.className.split(/\s+/)).toContain("md:pt-4");
+  });
 });

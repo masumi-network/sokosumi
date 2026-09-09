@@ -162,7 +162,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           </section>
         </div>
 
-        <aside className={TASK_DETAIL_SIDEBAR_CLASS}>{propertiesPanel}</aside>
+        <aside className={cn(TASK_DETAIL_SIDEBAR_CLASS, "md:pt-4")}>
+          {propertiesPanel}
+        </aside>
 
         <div className={cn(TASK_DETAIL_MAIN_CLASS, "pb-20")}>
           <TaskFiles title={tTaskDetail("files")} files={task.files ?? []} />
