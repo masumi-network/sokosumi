@@ -4,8 +4,6 @@ import {
   buildSokoBotAvatarBlobPathname,
   rewriteLegacySokoBotAvatarBlobPath,
   SOKO_BOT_AVATAR_BLOB_DIR,
-  SOKO_BOT_AVATAR_BLOB_SQL_FROM,
-  SOKO_BOT_AVATAR_BLOB_SQL_TO,
   SOKO_BOT_AVATAR_LEGACY_BLOB_DIR,
 } from "./soko-bot-avatar-blob-path";
 
@@ -17,8 +15,6 @@ describe("soko-bot avatar blob path", () => {
   it("encodes the new pool pathname as soko-bots/avatars/{key}-{hash12}.png", () => {
     expect(SOKO_BOT_AVATAR_BLOB_DIR).toBe("soko-bots/avatars");
     expect(SOKO_BOT_AVATAR_LEGACY_BLOB_DIR).toBe("soko-bot-avatars");
-    expect(SOKO_BOT_AVATAR_BLOB_SQL_FROM).toBe("/soko-bot-avatars/");
-    expect(SOKO_BOT_AVATAR_BLOB_SQL_TO).toBe("/soko-bots/avatars/");
     expect(buildSokoBotAvatarBlobPathname(KEY, SHA256_HEX)).toBe(
       `soko-bots/avatars/${KEY}-${HASH12}.png`,
     );

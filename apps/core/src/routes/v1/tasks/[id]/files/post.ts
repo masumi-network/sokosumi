@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
-import { requireTaskFileUploadAccess } from "@/helpers/access-control";
+import { requireTaskCollaboration } from "@/helpers/access-control";
 import {
   badRequest,
   payloadTooLarge,
@@ -86,7 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const { authContext } = c.var;
 
-    await requireTaskFileUploadAccess(authContext, taskId);
+    await requireTaskCollaboration(authContext, taskId);
 
     const env = getEnv();
     const token = env.BLOB_READ_WRITE_TOKEN;
