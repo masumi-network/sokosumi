@@ -4,6 +4,7 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -118,7 +119,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Room not found");
       }
 
-      return { id: existing.id, archivedAt };
+      return {
+        id: existing.id,
+        archivedAt,
+        memberUserIds: existing.userMembers.map((member) => member.userId),
+      };
+    });
+
+    // After commit: every member's other tabs move the room to Archived.
+    await publishChatRoomsChanged({
+      userIds: archived.memberUserIds,
+      collections: ["active", "archived"],
+      roomId: archived.id,
     });
 
     return ok(

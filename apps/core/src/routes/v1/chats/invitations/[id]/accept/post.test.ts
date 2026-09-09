@@ -28,6 +28,7 @@ const {
   executeRawMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
+  publishChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   invitationFindUniqueMock: vi.fn(),
@@ -42,6 +43,11 @@ const {
   executeRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomsChangedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: publishChatRoomsChangedMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -242,6 +248,12 @@ describe("POST /chats/invitations/{id}/accept", () => {
     // No org Member create — only the host-membership check.
     expect(memberFindUniqueMock).toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledOnce();
+    // Sidebar invalidation for the acceptor's other tabs (SOK-986).
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledWith({
+      userIds: [GUEST_ID],
+      collections: ["active", "invitations"],
+      roomId: ROOM_ID,
+    });
   });
 
   it("accept rejects email mismatch", async () => {

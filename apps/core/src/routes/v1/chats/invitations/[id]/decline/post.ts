@@ -7,6 +7,7 @@ import {
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -138,6 +139,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         { status: CHAT_ROOM_INVITATION_STATUS.DECLINED },
       );
+    });
+
+    // The decliner's other tabs drop the pending row.
+    await publishChatRoomsChanged({
+      userIds: [userContext.userId],
+      collections: ["invitations"],
+      roomId: invitation.roomId,
     });
 
     return ok(c, invitation);

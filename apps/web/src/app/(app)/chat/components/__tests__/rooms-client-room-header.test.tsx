@@ -92,6 +92,10 @@ vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: () => undefined,
 }));
 
+vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
+  useSelectedRoomChannelHealth: () => undefined,
+}));
+
 vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
   useClientLocalCalendarReady: () => true,
 }));
