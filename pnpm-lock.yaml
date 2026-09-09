@@ -172,7 +172,7 @@ importers:
         version: 1.6.3(hono@4.13.7)(zod@4.5.4)
       '@openrouter/ai-sdk-provider':
         specifier: 3.0.0
-        version: 3.0.0(ai@7.0.93(zod@4.5.4))(zod@4.5.4)
+        version: 3.0.0(ai@7.0.94(zod@4.5.4))(zod@4.5.4)
       '@scalar/hono-api-reference':
         specifier: 0.12.1
         version: 0.12.1(hono@4.13.7)
@@ -213,8 +213,8 @@ importers:
         specifier: 2.8.0
         version: 2.8.0
       '@vercel/functions':
-        specifier: 3.9.5
-        version: 3.9.5(ws@8.21.0)
+        specifier: 3.9.6
+        version: 3.9.6(ws@8.21.0)
       '@vercel/related-projects':
         specifier: 1.1.1
         version: 1.1.1
@@ -222,8 +222,8 @@ importers:
         specifier: 2.28.0
         version: 2.28.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: 7.0.93
-        version: 7.0.93(zod@4.5.4)
+        specifier: 7.0.94
+        version: 7.0.94(zod@4.5.4)
       better-auth:
         specifier: 1.7.3
         version: 1.7.3(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(typescript@7.0.2))(mysql2@3.15.3)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(prisma@7.10.0(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@5.0.0(patch_hash=10f29b4036a5ade26149792926fbbb50ccf92b2c738e6dd41d7af5fa919d2b6c)(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(happy-dom@20.12.0)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0)))(vue@3.5.41(typescript@7.0.2))
@@ -235,7 +235,7 @@ importers:
         version: 17.4.2
       evlog:
         specifier: 2.28.1
-        version: 2.28.1(ai@7.0.93(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))
+        version: 2.28.1(ai@7.0.94(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))
       hono:
         specifier: 4.13.7
         version: 4.13.7
@@ -275,7 +275,7 @@ importers:
     devDependencies:
       '@evlog/cli':
         specifier: 0.6.2
-        version: 0.6.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(ai@7.0.93(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))
+        version: 0.6.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(ai@7.0.94(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -298,8 +298,8 @@ importers:
   apps/web:
     dependencies:
       '@ai-sdk/react':
-        specifier: 4.0.96
-        version: 4.0.96(react@19.2.8)(zod@4.5.4)
+        specifier: 4.0.97
+        version: 4.0.97(react@19.2.8)(zod@4.5.4)
       '@better-auth/api-key':
         specifier: 1.7.3
         version: 1.7.3(df965f5eed33bfa157a19f667a78ef04)
@@ -391,8 +391,8 @@ importers:
         specifier: 2.28.0
         version: 2.28.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: 7.0.93
-        version: 7.0.93(zod@4.5.4)
+        specifier: 7.0.94
+        version: 7.0.94(zod@4.5.4)
       better-auth:
         specifier: 1.7.3
         version: 1.7.3(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(typescript@7.0.2))(mysql2@3.15.3)(next@16.3.4(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(prisma@7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@5.0.0(patch_hash=10f29b4036a5ade26149792926fbbb50ccf92b2c738e6dd41d7af5fa919d2b6c)(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(happy-dom@20.14.0)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0)))(vue@3.5.41(typescript@7.0.2))
@@ -439,8 +439,8 @@ importers:
         specifier: 3.34.1
         version: 3.34.1
       lucide-react:
-        specifier: 1.42.0
-        version: 1.42.0(react@19.2.8)
+        specifier: 1.43.0
+        version: 1.43.0(react@19.2.8)
       marked:
         specifier: 18.0.12
         version: 18.0.12
@@ -626,8 +626,8 @@ importers:
   packages/ai-provider:
     dependencies:
       '@ai-sdk/provider':
-        specifier: 4.0.10
-        version: 4.0.10
+        specifier: 4.0.11
+        version: 4.0.11
       '@sokosumi/chat':
         specifier: workspace:*
         version: link:../chat
@@ -636,8 +636,8 @@ importers:
         version: link:../utils
     devDependencies:
       '@ai-sdk/provider-utils':
-        specifier: 5.0.36
-        version: 5.0.36(zod@4.5.4)
+        specifier: 5.0.37
+        version: 5.0.37(zod@4.5.4)
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -733,8 +733,8 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
       react-email:
-        specifier: 6.9.3
-        version: 6.9.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1)
+        specifier: 6.9.5
+        version: 6.9.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1)
       use-intl:
         specifier: 4.14.2
         version: 4.14.2(react@19.2.8)
@@ -869,30 +869,30 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@ai-sdk/gateway@4.0.75':
-    resolution: {integrity: sha512-HOnhw3oXtBnboBF7kAKipjToCN6+5w6EuukiUKiULcxBitS+vbHRRv9IUBcq+Z1wkXcJjfywKrt5r++I6OYyXg==}
+  '@ai-sdk/gateway@4.0.76':
+    resolution: {integrity: sha512-hWNtiveILLtkXm1t5tNmzeII8p+j/mzxlL2OtPAgU/0h4ZInkIVILX8Svx4SzI5U9d80B59gCPaKRAhb7jTtAw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/mcp@2.0.45':
-    resolution: {integrity: sha512-ROukI/LfoPHf5F4gi1GKQebK5658fR1EG3kt0P0vzrfSy1FAGQ5FyKr9j2lbkXAV9X3kfpf9LJdif7w67XDtgw==}
+  '@ai-sdk/mcp@2.0.46':
+    resolution: {integrity: sha512-IPA6lQTZf0j3w9OxHguse1Ur/YQ34oL4P6bRDtfM2BK0VacjcbfXGc4qecio4xbwh8AVQepxoa5R8VMX5/1CVA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.36':
-    resolution: {integrity: sha512-MFXBn6XDyf37PNQAge/HTatPJE8Vmg/g/w4WPtjSV53jq8FKAzoaN5+43hsdQa9bqgN+/13jxug9ChvsG+godQ==}
+  '@ai-sdk/provider-utils@5.0.37':
+    resolution: {integrity: sha512-WzLQPWtpLpunKBanq/TX8+rbBz7JdKpl8Io4nl/g+bLvePbxMlMuxLrxT8JzquxJmgWKbW4nfFrQ5mnX4A8mpw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider@4.0.10':
-    resolution: {integrity: sha512-fX2ENAc7iDpZ+Wp4+Rk06Usn/Ys7dI9uAkGv0jlF6XVrW13NkRWx5Ou+U6lIM2E1fTLkCs16GGrUAaVvroag7A==}
+  '@ai-sdk/provider@4.0.11':
+    resolution: {integrity: sha512-A/Cyjma9RLTLsF9xv/2OSaw9eyFhOIBqzoeOVZhp+xKZD8wv5opN+qyIa83NE4Jug2SjQ/Kaf08w1JX6CESR/w==}
     engines: {node: '>=22'}
 
-  '@ai-sdk/react@4.0.96':
-    resolution: {integrity: sha512-m4823/q+obDgJot9+UOtVFij3DJIEYdv7x/AC4rc6KCMfRP4GR030DJyKjhtzC9xfDmTGttv3tMpqbknh6uUXA==}
+  '@ai-sdk/react@4.0.97':
+    resolution: {integrity: sha512-eFQ6oiP/5DAf2bIWfrIC01ZTY2L9Q7dzo/DEsq3Zwj/A2MHYZu/JJLoJ1hMmSbO0LKwOaxOUVOkOk5Jd0cN//w==}
     engines: {node: '>=22'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
@@ -5334,12 +5334,15 @@ packages:
   '@vercel/cli-config@0.2.4':
     resolution: {integrity: sha512-kZ5SojbrV06GHoU6QIWGwDXLov+s9rWZ7QqdqKfJfBGCNUieGfgaCjeeenNy8Y+QC0bwC0dZ2B4l5Hvdmrgpdw==}
 
+  '@vercel/cli-config@0.2.5':
+    resolution: {integrity: sha512-WniFxgznIPZ3h1USCLxArTyvR2a3/lvZW5mSSkuI2r8rQWEzUV8qnKXJEOFrVnVWe2YDxeCVMgZoxIH4kHA92Q==}
+
   '@vercel/cli-exec@1.0.1':
     resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
     engines: {node: '>= 18'}
 
-  '@vercel/functions@3.9.5':
-    resolution: {integrity: sha512-EUfqlb7AzoEh7URlMNAO4jbJiLWz9grDBHvfjKTDvEP9c8y3DqX3SWPvfaQkUjtkm3b83flhaUUMuewdHa+qmw==}
+  '@vercel/functions@3.9.6':
+    resolution: {integrity: sha512-00NG7F+VItu1UygM0IL6QqmGrzUAeHMCUNMq89bcsbnBqoE3Gpya9yn3g+TBGDbAFjuaojJCzLNYUVFt+reSnQ==}
     engines: {node: '>= 20'}
     peerDependencies:
       '@aws-sdk/credential-provider-web-identity': '*'
@@ -5356,6 +5359,10 @@ packages:
 
   '@vercel/oidc@3.8.5':
     resolution: {integrity: sha512-RwXYtnt6za+5UO4IaLywN/6B95AlLqynPRUWRJxeJ/qufwkcLUbZNUxYtzT0uMpuraWhlNcGqPNGkTnZr4BGBw==}
+    engines: {node: '>= 20'}
+
+  '@vercel/oidc@3.8.6':
+    resolution: {integrity: sha512-0gAPrFB1eVCLBVDDG1PUxs+G5OS97260GK2TEcUB2TeEeWM+17P4U9xC7ASp6f9rv/pu8tBceH5cmRV0MpUhGA==}
     engines: {node: '>= 20'}
 
   '@vercel/related-projects@1.1.1':
@@ -5624,8 +5631,8 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  ai@7.0.93:
-    resolution: {integrity: sha512-CJss6zb9mlltk/mCr8qom20NBnqEQxVawkqwtT62tCwsxilZpXfHNRMRwcS3XRpzdP1kEluVuDBUayYWEEd95g==}
+  ai@7.0.94:
+    resolution: {integrity: sha512-N70qu4y53SjhA+kHYQCGLNTXLsztV+Rh28l2JDuEzALY5EgNWloYvUDjssL2Pi1Ie2nILcgWShLRgTpU1HxGHg==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -7702,8 +7709,8 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@1.42.0:
-    resolution: {integrity: sha512-b3jprplnoLS8n5etw1z8xODe3hF/yjKATrTitsrKrnjUhCef5BdDct6Ppv3zVvzFwmtfWgLO6XNM3C9fAD93ug==}
+  lucide-react@1.43.0:
+    resolution: {integrity: sha512-ubtnda1fVK5ky0PNEpOmB0wiwhpZUyJiol4K14KCm+QKvuCkfUu54Et/rIjyupJpwiJ5Hg+BLQE86/GEsS+IgQ==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -8774,8 +8781,8 @@ packages:
     peerDependencies:
       react: '>= 16.8'
 
-  react-email@6.9.3:
-    resolution: {integrity: sha512-z2YOtq5EDNeMMz8uuZtVxmtB43nIkoPWEr8Heajkljm2clKlfE8oODtI6Me2NunmqXWaYfpv4aEFOr4ZiLmk+g==}
+  react-email@6.9.5:
+    resolution: {integrity: sha512-XkUFa4S3XGbVQegdGSvkShsEOn/j9t3yL5MXRf5A2l4K+RzXNPK2TZLOgI/bXfWu2WRyKWb9aVDtfLLuyBMi2A==}
     engines: {node: '>=20.0.0'}
     hasBin: true
     peerDependencies:
@@ -10188,40 +10195,40 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@ai-sdk/gateway@4.0.75(zod@4.5.4)':
+  '@ai-sdk/gateway@4.0.76(zod@4.5.4)':
     dependencies:
-      '@ai-sdk/provider': 4.0.10
-      '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
+      '@ai-sdk/provider': 4.0.11
+      '@ai-sdk/provider-utils': 5.0.37(zod@4.5.4)
       '@vercel/oidc': 3.2.0
       zod: 4.5.4
 
-  '@ai-sdk/mcp@2.0.45(zod@4.5.4)':
+  '@ai-sdk/mcp@2.0.46(zod@4.5.4)':
     dependencies:
-      '@ai-sdk/provider': 4.0.10
-      '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
+      '@ai-sdk/provider': 4.0.11
+      '@ai-sdk/provider-utils': 5.0.37(zod@4.5.4)
       cross-spawn: 7.0.6
       pkce-challenge: 5.0.1
       zod: 4.5.4
 
-  '@ai-sdk/provider-utils@5.0.36(zod@4.5.4)':
+  '@ai-sdk/provider-utils@5.0.37(zod@4.5.4)':
     dependencies:
-      '@ai-sdk/provider': 4.0.10
+      '@ai-sdk/provider': 4.0.11
       '@standard-schema/spec': 1.1.0
       '@workflow/serde': 4.1.0
       eventsource-parser: 3.1.1
       undici: 7.29.0
       zod: 4.5.4
 
-  '@ai-sdk/provider@4.0.10':
+  '@ai-sdk/provider@4.0.11':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@4.0.96(react@19.2.8)(zod@4.5.4)':
+  '@ai-sdk/react@4.0.97(react@19.2.8)(zod@4.5.4)':
     dependencies:
-      '@ai-sdk/mcp': 2.0.45(zod@4.5.4)
-      '@ai-sdk/provider': 4.0.10
-      '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
-      ai: 7.0.93(zod@4.5.4)
+      '@ai-sdk/mcp': 2.0.46(zod@4.5.4)
+      '@ai-sdk/provider': 4.0.11
+      '@ai-sdk/provider-utils': 5.0.37(zod@4.5.4)
+      ai: 7.0.94(zod@4.5.4)
       react: 19.2.8
       swr: 2.5.1(react@19.2.8)
       throttleit: 2.1.0
@@ -10927,12 +10934,12 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@evlog/cli@0.6.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(ai@7.0.93(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))':
+  '@evlog/cli@0.6.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(ai@7.0.94(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))':
     dependencies:
       '@clack/prompts': 1.7.0
       '@evlog/telemetry': 0.3.1
       citty: 0.2.2
-      evlog: 2.28.1(ai@7.0.93(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))
+      evlog: 2.28.1(ai@7.0.94(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0))
       oxc-parser: 0.82.3(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
       tinyglobby: 0.2.17
     transitivePeerDependencies:
@@ -11383,7 +11390,7 @@ snapshots:
       immer: 11.1.8
       katex: 0.16.47
       leva: 0.10.1(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      lucide-react: 1.42.0(react@19.2.8)
+      lucide-react: 1.43.0(react@19.2.8)
       marked: 17.0.6
       mermaid: 11.15.0
       motion: 13.2.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -11616,9 +11623,9 @@ snapshots:
 
   '@noble/hashes@2.3.0': {}
 
-  '@openrouter/ai-sdk-provider@3.0.0(ai@7.0.93(zod@4.5.4))(zod@4.5.4)':
+  '@openrouter/ai-sdk-provider@3.0.0(ai@7.0.94(zod@4.5.4))(zod@4.5.4)':
     dependencies:
-      ai: 7.0.93(zod@4.5.4)
+      ai: 7.0.94(zod@4.5.4)
       zod: 4.5.4
 
   '@opentelemetry/api-logs@0.220.0':
@@ -14702,13 +14709,18 @@ snapshots:
       xdg-app-paths: 5.5.1
       zod: 4.1.11
 
+  '@vercel/cli-config@0.2.5':
+    dependencies:
+      xdg-app-paths: 5.5.1
+      zod: 4.1.11
+
   '@vercel/cli-exec@1.0.1':
     dependencies:
       execa: 5.1.1
 
-  '@vercel/functions@3.9.5(ws@8.21.0)':
+  '@vercel/functions@3.9.6(ws@8.21.0)':
     dependencies:
-      '@vercel/oidc': 3.8.5
+      '@vercel/oidc': 3.8.6
     optionalDependencies:
       ws: 8.21.0
 
@@ -14717,6 +14729,12 @@ snapshots:
   '@vercel/oidc@3.8.5':
     dependencies:
       '@vercel/cli-config': 0.2.4
+      '@vercel/cli-exec': 1.0.1
+      jose: 5.10.0
+
+  '@vercel/oidc@3.8.6':
+    dependencies:
+      '@vercel/cli-config': 0.2.5
       '@vercel/cli-exec': 1.0.1
       jose: 5.10.0
 
@@ -15057,11 +15075,11 @@ snapshots:
       screenfull: 5.2.0
       tslib: 2.8.1
 
-  ai@7.0.93(zod@4.5.4):
+  ai@7.0.94(zod@4.5.4):
     dependencies:
-      '@ai-sdk/gateway': 4.0.75(zod@4.5.4)
-      '@ai-sdk/provider': 4.0.10
-      '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
+      '@ai-sdk/gateway': 4.0.76(zod@4.5.4)
+      '@ai-sdk/provider': 4.0.11
+      '@ai-sdk/provider-utils': 5.0.37(zod@4.5.4)
       zod: 4.5.4
 
   ajv-formats@2.1.1(ajv@8.20.0):
@@ -16180,9 +16198,9 @@ snapshots:
 
   eventsource-parser@3.1.1: {}
 
-  evlog@2.28.1(ai@7.0.93(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0)):
+  evlog@2.28.1(ai@7.0.94(zod@4.5.4))(hono@4.13.7)(next@16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.13)(yaml@2.9.0)):
     optionalDependencies:
-      ai: 7.0.93(zod@4.5.4)
+      ai: 7.0.94(zod@4.5.4)
       hono: 4.13.7
       next: 16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
@@ -17199,7 +17217,7 @@ snapshots:
     dependencies:
       react: 19.2.8
 
-  lucide-react@1.42.0(react@19.2.8):
+  lucide-react@1.43.0(react@19.2.8):
     dependencies:
       react: 19.2.8
 
@@ -18694,7 +18712,7 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.8
 
-  react-email@6.9.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1):
+  react-email@6.9.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1):
     dependencies:
       '@babel/parser': 7.29.2
       '@babel/traverse': 7.29.0(supports-color@8.1.1)
