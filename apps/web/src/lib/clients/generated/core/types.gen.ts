@@ -3756,7 +3756,7 @@ export type NotificationPreference = {
 
 export type PreferredOrganization = {
     /**
-     * Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
+     * Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
      */
     organizationId: string | null;
 };
@@ -17600,7 +17600,7 @@ export type GetChatsRoomsByIdMessagesData = {
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Cursor for pagination (ID of the last message from previous page)
          */
         cursor?: string;
         /**
@@ -23005,6 +23005,95 @@ export type PatchUsersByIdPreferencesResponses = {
 };
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
+
+export type GetUsersByIdPreferredOrganizationData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferred-organization';
+};
+
+export type GetUsersByIdPreferredOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationError = GetUsersByIdPreferredOrganizationErrors[keyof GetUsersByIdPreferredOrganizationErrors];
+
+export type GetUsersByIdPreferredOrganizationResponses = {
+    /**
+     * The resolved organization selection for workspace restoration
+     */
+    200: {
+        data: PreferredOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationResponse = GetUsersByIdPreferredOrganizationResponses[keyof GetUsersByIdPreferredOrganizationResponses];
 
 export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
@@ -31102,20 +31191,6 @@ export type GetJobsByIdEventsResponse = GetJobsByIdEventsResponses[keyof GetJobs
 
 export type DeleteJobsByIdShareData = {
     body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
     path: {
         id: string;
     };
@@ -31191,20 +31266,6 @@ export type DeleteJobsByIdShareResponse = DeleteJobsByIdShareResponses[keyof Del
 export type PutJobsByIdShareData = {
     body?: {
         allowSearchIndexing: boolean;
-    };
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;

@@ -24,6 +24,7 @@ import {
   requireJobOwnership,
   requireJobRead,
   requireJobReadForRouteVars,
+  requireMutableJobOwnership,
   requireMutableTaskOwnership,
   requireTaskArchiveAccess,
   requireTaskAssignableCoworker,
@@ -1994,6 +1995,80 @@ describe("requireJobOwnership", () => {
     await expect(
       requireJobOwnership(sessionUserContext, "job_123", tx),
     ).rejects.toThrow("You can only access your own jobs");
+  });
+});
+
+describe("requireMutableJobOwnership", () => {
+  it("rejects a job whose parent task is parked", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      status: TaskStatus.GRANT_PENDING,
+    } as never);
+
+    await expect(
+      requireMutableJobOwnership(sessionUserContext, "job_123", tx),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "task_parked",
+      });
+      return true;
+    });
+  });
+
+  it("rejects a job whose parent task is missing", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireMutableJobOwnership(sessionUserContext, "job_123", tx),
+    ).rejects.toThrow("Task not found");
+  });
+
+  it("rejects a job that is not owned by the current user", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireMutableJobOwnership(sessionUserContext, "job_123", tx),
+    ).rejects.toThrow("You can only access your own jobs");
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows an owned job whose parent task is not parked", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      status: TaskStatus.COMPLETED,
+    } as never);
+
+    await expect(
+      requireMutableJobOwnership(sessionUserContext, "job_123", tx),
+    ).resolves.toMatchObject({ id: "job_123" });
+  });
+
+  it("allows an owned job with no parent task", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: null,
+    } as never);
+
+    await expect(
+      requireMutableJobOwnership(sessionUserContext, "job_123", tx),
+    ).resolves.toMatchObject({ id: "job_123" });
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
   });
 });
 

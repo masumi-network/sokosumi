@@ -65,6 +65,22 @@ export async function requireJobOwnership(
 }
 
 /**
+ * Owner mutations that must not run while the job's parent task is parked
+ * awaiting vendor workspace grant approval (share create/delete, …).
+ * Routes must pair this with {@link requireOwnerUserContext}; jobs have no
+ * soft-archive equivalent.
+ */
+export async function requireMutableJobOwnership(
+  userContext: UserContext,
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job> {
+  const job = await requireJobOwnership(userContext, jobId, tx);
+  await requireParentTaskNotParked(job, tx);
+  return job;
+}
+
+/**
  * Validates that the task exists, is not archived, and is owned by the authenticated user.
  *
  * @throws {notFound} If the task does not exist or is not owned by the user

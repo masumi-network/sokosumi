@@ -9,7 +9,7 @@ const {
   authContextState,
   prismaTransactionMock,
   deleteByJobIdMock,
-  requireJobCollaborationMock,
+  requireMutableJobOwnershipMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -17,82 +17,72 @@ const {
       userId: "user_123",
       organizationId: "org_123",
       role: "user",
-    } as {
-      actor: "user";
-      userId: string;
-      organizationId: string | null;
-      role: string;
-    } | null,
+    } as
+      | {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+          role: string;
+        }
+      | {
+          actor: "coworker";
+          coworkerId: string;
+          vendorId: string;
+          context: { userId: string; organizationId: string | null };
+        }
+      | {
+          actor: "sokoBot";
+          sokoBotId: string;
+          userId: string;
+          workspaceId: string;
+          organizationId: string | null;
+        }
+      | null,
   },
   prismaTransactionMock: vi.fn(),
   deleteByJobIdMock: vi.fn(),
-  requireJobCollaborationMock: vi.fn(),
+  requireMutableJobOwnershipMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireJobCollaboration: requireJobCollaborationMock,
+  requireMutableJobOwnership: (...args: unknown[]) =>
+    requireMutableJobOwnershipMock(...args),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  authMiddleware: async (
-    c: {
-      json: (body: unknown, status: number) => unknown;
-      req: { path: string; method: string };
-      set: (key: string, value: unknown) => void;
-    },
-    next: () => Promise<unknown>,
-  ) => {
-    if (!authContextState.current) {
-      return c.json(
-        {
-          error: "Unauthorized",
-          message: "Unauthorized",
-          meta: {
-            timestamp: new Date().toISOString(),
-            requestId: "req_123",
-            path: c.req.path,
-            method: c.req.method,
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  return {
+    ...actual,
+    authMiddleware: async (
+      c: {
+        json: (body: unknown, status: number) => unknown;
+        req: { path: string; method: string };
+        set: (key: string, value: unknown) => void;
+      },
+      next: () => Promise<unknown>,
+    ) => {
+      if (!authContextState.current) {
+        return c.json(
+          {
+            error: "Unauthorized",
+            message: "Unauthorized",
+            meta: {
+              timestamp: new Date().toISOString(),
+              requestId: "req_123",
+              path: c.req.path,
+              method: c.req.method,
+            },
           },
-        },
-        401,
-      );
-    }
+          401,
+        );
+      }
 
-    c.set("isAuthenticated", true);
-    c.set("authContext", authContextState.current);
-    return await next();
-  },
-  requireUserContext: (authContext: unknown) => {
-    const a = authContext as {
-      actor: string;
-      userId: string;
-      organizationId: string | null;
-      role: string;
-      context?: { userId: string; organizationId: string | null };
-    };
-    if (a.actor === "user") {
-      return {
-        source: "session" as const,
-        actor: "user",
-        userId: a.userId,
-        organizationId: a.organizationId,
-        role: a.role,
-      };
-    }
-    if (a.actor === "coworker" && a.context) {
-      return {
-        source: "context" as const,
-        userId: a.context.userId,
-        organizationId: a.context.organizationId,
-      };
-    }
-    throw new Error("mock requireUserContext: unsupported auth context");
-  },
-  isUserAuthContext: (authContext: { actor: string }) =>
-    authContext.actor === "user",
-  isCoworkerAuthContext: (authContext: { actor: string }) =>
-    authContext.actor === "coworker",
-}));
+      c.set("isAuthenticated", true);
+      c.set("authContext", authContextState.current);
+      return await next();
+    },
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   publicShareRepository: {
@@ -124,7 +114,7 @@ describe("DELETE /jobs/{id}/share", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
     );
-    requireJobCollaborationMock.mockResolvedValue({
+    requireMutableJobOwnershipMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",
       taskId: null,
@@ -141,6 +131,11 @@ describe("DELETE /jobs/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(requireMutableJobOwnershipMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_123" }),
+      "job_123",
+      expect.any(Object),
+    );
     expect(deleteByJobIdMock).toHaveBeenCalledWith(
       "job_123",
       expect.any(Object),
@@ -161,7 +156,7 @@ describe("DELETE /jobs/{id}/share", () => {
   });
 
   it("returns 403 when the job is owned by another user", async () => {
-    requireJobCollaborationMock.mockRejectedValueOnce(
+    requireMutableJobOwnershipMock.mockRejectedValueOnce(
       forbidden("You can only access your own jobs"),
     );
     const app = createApp();
@@ -175,7 +170,7 @@ describe("DELETE /jobs/{id}/share", () => {
   });
 
   it("returns 403 when the job does not exist (no existence leak)", async () => {
-    requireJobCollaborationMock.mockRejectedValueOnce(
+    requireMutableJobOwnershipMock.mockRejectedValueOnce(
       forbidden("You can only access your own jobs"),
     );
     const app = createApp();
@@ -185,6 +180,42 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
+    expect(deleteByJobIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
+    authContextState.current = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: "org_123" },
+    };
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123/share", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireMutableJobOwnershipMock).not.toHaveBeenCalled();
+    expect(deleteByJobIdMock).not.toHaveBeenCalled();
+  });
+  it("returns 403 for soko bot authentication acting as the owner", async () => {
+    authContextState.current = {
+      actor: "sokoBot",
+      sokoBotId: "bot_123",
+      userId: "user_123",
+      workspaceId: "ws_123",
+      organizationId: "org_123",
+    };
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123/share", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireMutableJobOwnershipMock).not.toHaveBeenCalled();
     expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 });

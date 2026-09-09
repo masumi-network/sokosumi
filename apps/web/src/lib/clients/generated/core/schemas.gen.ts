@@ -12717,7 +12717,7 @@ export const PreferredOrganizationSchema = {
                 'null'
             ],
             example: 'org_123',
-            description: 'Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.'
+            description: 'Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.'
         }
     },
     required: [
