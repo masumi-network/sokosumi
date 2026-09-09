@@ -15,7 +15,6 @@ private let messageTimeFormatter: DateFormatter = {
 struct TranscriptView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
-  @State private var draft = ""
   /// Eager first layout can report near-top before the bottom anchor
   /// lands. Require a trip away from the top before auto-loading.
   @State private var transcriptWasAwayFromTop = false
@@ -38,7 +37,12 @@ struct TranscriptView: View {
       }
       transcriptBody
       Divider()
-      composer
+      RoomComposer(
+        userId: workspaces.currentUserId,
+        organizationId: workspaces.selection?.workspace.organizationId,
+        roomId: roomId
+      )
+      .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
     }
     .onChange(of: roomId) { _, _ in
       transcriptWasAwayFromTop = false
@@ -162,6 +166,24 @@ struct TranscriptView: View {
       Button("Retry", action: retry)
     }
   }
+}
+
+/// Owns typing state so edits do not invalidate the transcript. The parent
+/// gives each account/workspace/room a distinct identity before loading its draft.
+private struct RoomComposer: View {
+  @EnvironmentObject private var workspaces: WorkspaceState
+  @EnvironmentObject private var auth: AuthState
+  @State private var draft: String
+
+  private let savedDraft: SavedComposeDraft
+  private let roomId: String
+
+  init(userId: String, organizationId: String?, roomId: String) {
+    self.roomId = roomId
+    let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId)
+    self.savedDraft = savedDraft
+    _draft = State(initialValue: savedDraft.load())
+  }
 
   private var canSend: Bool {
     !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -170,11 +192,17 @@ struct TranscriptView: View {
       && workspaces.transcriptRoomId == roomId
   }
 
-  private var composer: some View {
+  var body: some View {
     HStack {
-      TextField("Message", text: $draft)
-        .textFieldStyle(.roundedBorder)
-        .onSubmit(sendDraft)
+      TextField("Message", text: Binding(
+        get: { draft },
+        set: { text in
+          draft = text
+          savedDraft.save(text)
+        }
+      ))
+      .textFieldStyle(.roundedBorder)
+      .onSubmit(sendDraft)
       Button("Send", action: sendDraft)
         .disabled(!canSend)
     }
@@ -185,6 +213,7 @@ struct TranscriptView: View {
     guard canSend else { return }
     let content = draft
     draft = ""
+    savedDraft.save("")
     workspaces.sendMessage(content, auth: auth)
   }
 }
