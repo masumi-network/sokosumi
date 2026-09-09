@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { initMock, nodeProfilingIntegrationMock, requestDataIntegrationMock } =
-  vi.hoisted(() => ({
-    initMock: vi.fn(),
-    nodeProfilingIntegrationMock: vi.fn(() => ({ name: "ProfilingNode" })),
-    requestDataIntegrationMock: vi.fn(() => ({ name: "RequestData" })),
-  }));
+const {
+  httpIntegrationMock,
+  initMock,
+  nodeProfilingIntegrationMock,
+  requestDataIntegrationMock,
+} = vi.hoisted(() => ({
+  httpIntegrationMock: vi.fn(() => ({ name: "Http" })),
+  initMock: vi.fn(),
+  nodeProfilingIntegrationMock: vi.fn(() => ({ name: "ProfilingNode" })),
+  requestDataIntegrationMock: vi.fn(() => ({ name: "RequestData" })),
+}));
 
 vi.mock("@sentry/node", () => ({
+  httpIntegration: httpIntegrationMock,
   init: initMock,
   requestDataIntegration: requestDataIntegrationMock,
 }));
@@ -47,6 +53,20 @@ describe("initSentry", () => {
 
     const options = initMock.mock.calls[0]?.[0];
     expect(options.integrations).toContainEqual({ name: "RequestData" });
-    expect(options.integrations).toContainEqual({ name: "ProfilingNode" });
+  });
+
+  it("drops the auto server span, whose name and url attributes are the raw path", () => {
+    initSentry();
+
+    // The span is built from the node request before any middleware runs, so
+    // no scope write can redact it, and beforeSend never sees a transaction
+    // event. sentryMiddleware opens a replacement span named after the route
+    // template. Outgoing spans and sessions are unaffected by this option.
+    expect(httpIntegrationMock).toHaveBeenCalledWith({
+      disableIncomingRequestSpans: true,
+    });
+
+    const options = initMock.mock.calls[0]?.[0];
+    expect(options.integrations).toContainEqual({ name: "Http" });
   });
 });

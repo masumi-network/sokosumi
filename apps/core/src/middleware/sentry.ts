@@ -2,10 +2,7 @@ import * as Sentry from "@sentry/node";
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 
-import {
-  matchedRouteTemplate,
-  UNMATCHED_ROUTE,
-} from "../lib/route-template.js";
+import { matchedRouteTemplate, UNMATCHED_ROUTE } from "@/lib/route-template";
 import type { AuthVariables } from "./auth.js";
 
 const REDACTED_VALUE = "[REDACTED]";
@@ -54,8 +51,9 @@ export function sentryMiddleware(): MiddlewareHandler<{
       // The SDK's own http server subscription already put the raw request on
       // this scope before any middleware ran: `normalizedRequest` feeds
       // `requestDataIntegration` (which writes `event.request.url`), and the
-      // transaction name is the raw path. Overwrite both at the source, so no
-      // integration can read the concrete path back out.
+      // transaction name is the raw path on error events. Overwrite both.
+      // This does NOT reach the auto server span, whose attributes come from
+      // the node request; that span is disabled in `initSentry` instead.
       isolationScope.setTransactionName(`${c.req.method} ${routeTemplate}`);
       isolationScope.setSDKProcessingMetadata({
         normalizedRequest: {
