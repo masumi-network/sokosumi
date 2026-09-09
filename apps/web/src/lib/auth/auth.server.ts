@@ -7,7 +7,6 @@ import { err, ok, type Result } from "neverthrow";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import type { ActiveSubscription } from "@/components/billing/subscription-plan-utils";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
@@ -25,11 +24,6 @@ interface GetSessionOptions {
   refresh?: boolean;
 }
 
-interface ListActiveSubscriptionsOptions {
-  customerType?: "organization" | "user";
-  referenceId?: string;
-}
-
 export interface OAuthClientPublic {
   client_id?: string;
   client_name?: string;
@@ -37,7 +31,6 @@ export interface OAuthClientPublic {
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";
 const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
-const CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH = "/auth/subscription/list";
 const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
 const CORE_AUTH_REQUEST_TIMEOUT_MS = 5000;
 
@@ -286,49 +279,6 @@ export async function listUserAccounts(): Promise<
   Result<Account[], CoreAuthReadError>
 > {
   return getCachedUserAccounts();
-}
-
-// Keyed on primitive args so React `cache` dedupes across call sites that pass
-// equivalent options as separate object literals.
-const getCachedActiveSubscriptions = cache(
-  async (
-    customerType?: "organization" | "user",
-    referenceId?: string,
-  ): Promise<Result<ActiveSubscription[], CoreAuthReadError>> => {
-    const result = await fetchCoreAuth<unknown>(
-      CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
-      await getRequestHeaders(),
-      {
-        failureLogMessage: "Failed to fetch active subscriptions from Core",
-        searchParams: {
-          customerType,
-          referenceId,
-        },
-      },
-    );
-
-    return parseCoreAuthArrayResponse<ActiveSubscription>(
-      CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
-      "Failed to fetch active subscriptions from Core",
-      result,
-    );
-  },
-);
-
-/**
- * Lists active Stripe-backed subscriptions for the current user or organization.
- *
- * Core (`GET /auth/subscription/list`) always responds with a JSON array on 200 —
- * empty means `[]`, not `null`. A non-array 200 body is treated as
- * `invalid_json`. Auth failures are non-ok HTTP responses.
- */
-export async function listActiveSubscriptions(
-  options?: ListActiveSubscriptionsOptions,
-): Promise<Result<ActiveSubscription[], CoreAuthReadError>> {
-  return getCachedActiveSubscriptions(
-    options?.customerType,
-    options?.referenceId,
-  );
 }
 
 const getCachedOAuthClientPublic = cache(

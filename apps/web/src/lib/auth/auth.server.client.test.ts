@@ -178,55 +178,6 @@ describe("authServerClient", () => {
   });
 });
 
-describe("updateCurrentUserViaCore", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.clearAllMocks();
-  });
-
-  it("delegates to authServerClient.updateUser", async () => {
-    const updateUserMock = vi.fn().mockResolvedValue({ data: {}, error: null });
-
-    vi.doMock("./auth.server.client", () => ({
-      getAuthServerClient: () => ({
-        updateUser: updateUserMock,
-      }),
-    }));
-
-    const { updateCurrentUserViaCore } = await import(
-      "./core-auth-http.server"
-    );
-
-    await updateCurrentUserViaCore({ name: "Ada" });
-
-    expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada" });
-  });
-
-  it("throws when authServerClient.updateUser returns an error", async () => {
-    const updateUserMock = vi.fn().mockResolvedValue({
-      data: null,
-      error: {
-        message: "bad request",
-        status: 400,
-      },
-    });
-
-    vi.doMock("./auth.server.client", () => ({
-      getAuthServerClient: () => ({
-        updateUser: updateUserMock,
-      }),
-    }));
-
-    const { updateCurrentUserViaCore } = await import(
-      "./core-auth-http.server"
-    );
-
-    await expect(updateCurrentUserViaCore({ name: "Ada" })).rejects.toThrow(
-      "bad request",
-    );
-  });
-});
-
 describe("setPasswordViaCore", () => {
   beforeEach(() => {
     vi.resetModules();

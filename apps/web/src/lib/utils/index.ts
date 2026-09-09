@@ -55,5 +55,4 @@ export * from "./duration";
 export * from "./email";
 export * from "./gradient";
 export * from "./parse-date";
-export * from "./usdm-unit";
 export * from "./user-agent";
