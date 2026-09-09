@@ -85,6 +85,9 @@ public final class RoomReadAttention: ObservableObject {
 
   public func roomChanged() {
     marker = nil
+    // A mark-unread failure belongs to the room it targeted; don't let its
+    // alert survive navigation.
+    errorMessage = nil
   }
 
   public func applying(to rooms: [Components.Schemas.ChatRoom]) -> [Components.Schemas.ChatRoom] {
@@ -163,10 +166,10 @@ public final class RoomReadAttention: ObservableObject {
       if marker == next {
         marker = nil
       }
-      if Task.isCancelled {
-        return false
-      }
-      errorMessage = friendlyMessage(for: error)
+      // Background reads fail silently (web parity: `readRoom` returns
+      // false and the reset marker retries on the next change). Only
+      // user-initiated mark-unread surfaces `errorMessage`. The error
+      // still throws so callers can sign out on 401.
       throw error
     }
   }

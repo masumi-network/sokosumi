@@ -86,6 +86,9 @@ struct RoomReadAttentionTests {
     await #expect(throws: ChatServiceError.self) {
       try await state.readIfNeeded(room: room, messages: [], historyReadable: true, client: makeTestClient(transport), organizationSlug: nil)
     }
+    // Background read failures stay silent (web parity); only mark-unread
+    // failures surface `errorMessage`.
+    #expect(state.errorMessage == nil)
     #expect(state.applying(to: [room])[0].unreadCount == 4)
     #expect(try await state.readIfNeeded(room: room, messages: [], historyReadable: true, client: makeTestClient(transport), organizationSlug: nil))
     #expect(state.applying(to: [room])[0].unreadCount == 1)
@@ -104,6 +107,11 @@ struct RoomReadAttentionTests {
       try await state.markUnread(room: room, activeRoomId: nil, client: makeTestClient(transport), organizationSlug: "acme")
     }
     #expect(!state.applying(to: [room])[0].markedUnread)
+    // User-initiated mark-unread surfaces the failure, but the stale alert
+    // doesn't survive navigation.
+    #expect(state.errorMessage != nil)
+    state.roomChanged()
+    #expect(state.errorMessage == nil)
     try await state.markUnread(room: room, activeRoomId: nil, client: makeTestClient(transport), organizationSlug: "acme")
     #expect(state.applying(to: [room])[0].markedUnread)
     #expect(transport.requests.allSatisfy { $0.operationID == "post/chats/rooms/{id}/unread" })

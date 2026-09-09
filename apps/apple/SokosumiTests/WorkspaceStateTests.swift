@@ -572,10 +572,11 @@ struct WorkspaceStateTests {
     ])
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
-    // History resolved before the read failed: it stays on screen with a
-    // banner, and unread chrome is untouched (no DTO to apply).
+    // History resolved before the read failed: it stays on screen with no
+    // modal (background reads fail silently), and unread chrome is
+    // untouched (no DTO to apply).
     #expect(state.transcriptMessages.map(\.content) == ["visible"])
-    #expect(state.readAttention.errorMessage != nil)
+    #expect(state.readAttention.errorMessage == nil)
     #expect(state.rooms.first?.unreadCount == 2)
     #expect(transport.operationIDs.suffix(2) == [
       "get/chats/rooms/{id}/messages",

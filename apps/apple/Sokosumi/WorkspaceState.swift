@@ -637,8 +637,9 @@ final class WorkspaceState: ObservableObject {
         organizationSlug: selection?.workspace.organizationSlug
       )
     } catch {
+      // Background reads stay silent; only a dead session needs action.
       if let error = error as? ChatServiceError {
-        _ = transcriptFailureMessage(error, auth: auth)
+        signOutIfUnauthorized(error, auth: auth)
       }
     }
   }
@@ -648,8 +649,9 @@ final class WorkspaceState: ObservableObject {
     do {
       try await readAttention.markUnread(room: room, activeRoomId: selectedRoomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
     } catch {
-      if let error = error as? ChatServiceError {
-        _ = transcriptFailureMessage(error, auth: auth)
+      if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
+        // The auth card takes over; the modal alert would double-surface.
+        readAttention.clearError()
       }
     }
   }
@@ -696,11 +698,21 @@ final class WorkspaceState: ObservableObject {
   /// Maps a transcript failure to UI text. A 401 signs out (nil message —
   /// the auth card takes over); everything else becomes window-safe text.
   private func transcriptFailureMessage(_ error: ChatServiceError, auth: AuthState) -> String? {
-    if case let .unauthorized(message) = error {
-      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+    if signOutIfUnauthorized(error, auth: auth) {
       return nil
     }
     return friendlyMessage(for: error)
+  }
+
+  /// Signs out when Core rejects the session. Returns whether it did, so
+  /// silent callers (attention sync) can keep the side effect explicit.
+  @discardableResult
+  private func signOutIfUnauthorized(_ error: ChatServiceError, auth: AuthState) -> Bool {
+    if case let .unauthorized(message) = error {
+      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+      return true
+    }
+    return false
   }
 
   func select(_ option: WorkspaceOption, auth: AuthState) {
