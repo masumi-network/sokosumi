@@ -376,7 +376,6 @@ export {
 } from "./task-schedule.js";
 export {
   AGENT_ONLY_TASK_STATUSES,
-  canUserTransitionTaskStatus,
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   type UserTransitionTaskStatus,

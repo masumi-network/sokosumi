@@ -37,7 +37,6 @@ import {
   type CascadedCancelChild,
   cascadeCancelNonTerminalScheduleRuns,
   mapTaskEvent,
-  taskAssigneeKind,
   taskEventApiInclude,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -409,12 +408,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (status !== undefined) {
-        validateStatusTransition(
-          authContext,
-          task.status,
-          status,
-          taskAssigneeKind(task),
-        );
+        validateStatusTransition(task.status, status);
         validateTaskAssigneeAssignment({
           status,
           assigneeId: task.assigneeId,

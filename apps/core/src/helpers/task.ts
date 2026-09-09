@@ -8,8 +8,6 @@ import {
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 
-import type { AuthenticationContext } from "@/middleware/auth";
-import { isAgentAuthContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
   type TaskDetailPayload,
@@ -153,172 +151,6 @@ export function taskAssigneeKind(task: {
     return "human";
   }
   return "unset";
-}
-
-function getAllowedTransitions(
-  authContext: AuthenticationContext,
-  assigneeKind: TaskAssigneeKind = "coworker",
-): Record<TaskStatus, TaskStatus[]> {
-  // Human and unset tasks always use the human table, regardless of actor:
-  // agents gated onto such tasks must not reach agent-only statuses.
-  if (assigneeKind === "human" || assigneeKind === "unset") {
-    return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
-      [TaskStatus.QUEUED]: [],
-      [TaskStatus.READY]: [
-        TaskStatus.DRAFT,
-        TaskStatus.CANCELED,
-        TaskStatus.RUNNING,
-      ],
-      [TaskStatus.GRANT_PENDING]: [],
-      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
-      [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
-      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
-      [TaskStatus.OUT_OF_CREDITS]: [TaskStatus.CANCELED],
-      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
-      [TaskStatus.RUNNING]: [
-        TaskStatus.READY,
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.COMPLETED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.AWAITING_EXTERNAL]: [
-        TaskStatus.RUNNING,
-        TaskStatus.READY,
-        TaskStatus.COMPLETED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.COMPLETED]: [TaskStatus.READY],
-      [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCELED]: [TaskStatus.READY],
-    };
-  }
-
-  // A coworker acting as itself (the agent) uses the agent transition table.
-  // A delegated coworker acts as the user, so it falls through to the user table.
-  if (isAgentAuthContext(authContext)) {
-    return {
-      [TaskStatus.DRAFT]: [],
-      [TaskStatus.QUEUED]: [
-        TaskStatus.RUNNING,
-        TaskStatus.DRAFT,
-        TaskStatus.READY,
-      ],
-      [TaskStatus.READY]: [
-        TaskStatus.RUNNING,
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.COMPLETED,
-        TaskStatus.FAILED,
-        TaskStatus.INPUT_REQUIRED,
-        TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.CANCELED,
-        TaskStatus.QUEUED,
-      ],
-      [TaskStatus.GRANT_PENDING]: [],
-      [TaskStatus.INPUT_REQUIRED]: [
-        TaskStatus.RUNNING,
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.COMPLETED,
-        TaskStatus.FAILED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.APPROVAL_REQUIRED]: [
-        TaskStatus.RUNNING,
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.INPUT_REQUIRED,
-        TaskStatus.COMPLETED,
-        TaskStatus.FAILED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.AUTHENTICATION_REQUIRED]: [
-        TaskStatus.RUNNING,
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.INPUT_REQUIRED,
-        TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.COMPLETED,
-        TaskStatus.FAILED,
-        TaskStatus.CANCELED,
-      ],
-      // OUT_OF_CREDITS is system-set when a billed event fails for insufficient
-      // balance — coworkers must not set it manually.
-      [TaskStatus.OUT_OF_CREDITS]: [
-        TaskStatus.CANCELED,
-        TaskStatus.FAILED,
-        TaskStatus.COMPLETED,
-      ],
-      [TaskStatus.CREDITS_TOPPED_UP]: [
-        TaskStatus.RUNNING,
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.INPUT_REQUIRED,
-        TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.COMPLETED,
-        TaskStatus.FAILED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.RUNNING]: [
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.INPUT_REQUIRED,
-        TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.COMPLETED,
-        TaskStatus.FAILED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.AWAITING_EXTERNAL]: [
-        TaskStatus.RUNNING,
-        TaskStatus.INPUT_REQUIRED,
-        TaskStatus.APPROVAL_REQUIRED,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.COMPLETED,
-        TaskStatus.FAILED,
-        TaskStatus.CANCELED,
-      ],
-      // Agents may reopen COMPLETED → RUNNING (SOK-581).
-      [TaskStatus.COMPLETED]: [TaskStatus.RUNNING],
-      [TaskStatus.FAILED]: [],
-      // Agents may reopen CANCELED → RUNNING (SOK-581).
-      [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
-    };
-  }
-
-  return {
-    [TaskStatus.DRAFT]: [
-      TaskStatus.READY,
-      TaskStatus.CANCELED,
-      TaskStatus.QUEUED,
-    ],
-    [TaskStatus.QUEUED]: [
-      TaskStatus.DRAFT,
-      TaskStatus.READY,
-      TaskStatus.CANCELED,
-    ],
-    [TaskStatus.READY]: [
-      TaskStatus.DRAFT,
-      TaskStatus.CANCELED,
-      TaskStatus.QUEUED,
-    ],
-    [TaskStatus.GRANT_PENDING]: [],
-    [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
-    [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
-    [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
-    [TaskStatus.OUT_OF_CREDITS]: [
-      TaskStatus.CREDITS_TOPPED_UP,
-      TaskStatus.CANCELED,
-    ],
-    [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
-    [TaskStatus.RUNNING]: [TaskStatus.CANCELED],
-    [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCELED],
-    // Users may reopen COMPLETED → READY with a required comment (SOK-631).
-    [TaskStatus.COMPLETED]: [TaskStatus.READY],
-    [TaskStatus.FAILED]: [],
-    // Users may reopen CANCELED → READY with a required comment (SOK-631).
-    [TaskStatus.CANCELED]: [TaskStatus.READY],
-  };
 }
 
 export const TERMINAL_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
@@ -487,21 +319,16 @@ export async function cascadeArchiveScheduleParentChildren({
   return archivedChildIds;
 }
 
+/**
+ * Status changes are free between any distinct statuses (SOK-1028).
+ * Authorization, assignee rules, reopen comments, parked/seat gates live elsewhere.
+ */
 export function validateStatusTransition(
-  authContext: AuthenticationContext,
   from: TaskStatus,
   to: TaskStatus,
-  assigneeKind: TaskAssigneeKind = "coworker",
 ): void {
   if (from === to) {
     throw unprocessableEntity("Invalid status transition: same status");
-  }
-
-  const allowedTransitions = getAllowedTransitions(authContext, assigneeKind);
-  if (!allowedTransitions[from].includes(to)) {
-    throw unprocessableEntity(
-      `Invalid status transition from ${from} to ${to}`,
-    );
   }
 }
 

@@ -396,13 +396,17 @@ describe("POST /{id}/events", () => {
     requireTaskCancelAccessMock.mockResolvedValue(createTask());
   });
 
-  it("rejects coworkers creating OUT_OF_CREDITS events manually", async () => {
+  it("allows assigned coworkers to set OUT_OF_CREDITS", async () => {
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.OUT_OF_CREDITS,
+      comment: "Need top-up",
+    });
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue(createdEvent),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
@@ -425,9 +429,9 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(422);
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
-    expect(tx.task.updateMany).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalled();
+    expect(tx.task.updateMany).toHaveBeenCalled();
   });
 
   it("creates an in-app notification for user-meaningful status transitions", async () => {
@@ -560,7 +564,14 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(500);
   });
 
-  it("rejects OUT_OF_CREDITS for users", async () => {
+  it("rejects OUT_OF_CREDITS when no agent assignee", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ assigneeId: null }),
+    );
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
+      createTask({ assigneeId: null }),
+    );
+
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn(),
@@ -1352,13 +1363,18 @@ describe("POST /{id}/events", () => {
     });
   });
 
-  it("rejects agent COMPLETED → READY (agent reopen is to RUNNING only)", async () => {
+  it("allows agent COMPLETED → READY without a comment", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            comment: null,
+          }),
+        ),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
@@ -1378,12 +1394,17 @@ describe("POST /{id}/events", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status: TaskStatus.READY,
-        comment: "Agent should not reopen to ready",
       }),
     });
 
-    expect(response.status).toBe(422);
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+        }),
+      }),
+    );
   });
 
   it("reopens COMPLETED → RUNNING without credits", async () => {
@@ -1619,13 +1640,17 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects FAILED → RUNNING reopen", async () => {
+  it("allows FAILED → RUNNING for assigned coworker", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+          }),
+        ),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
@@ -1648,8 +1673,8 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(422);
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalled();
   });
 
   it("rejects credit-only events from non-agent callers", async () => {
@@ -2764,17 +2789,21 @@ describe("POST /{id}/events", () => {
     );
   });
 
-  it("rejects an agent-only transition for a delegated coworker", async () => {
+  it("allows READY → RUNNING for a delegated coworker when assigned", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({ status: TaskStatus.READY }),
     );
 
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+          }),
+        ),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
@@ -2798,9 +2827,9 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(422);
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
-    expect(tx.task.updateMany).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalled();
+    expect(tx.task.updateMany).toHaveBeenCalled();
   });
 
   it("rejects credits from a delegated coworker canceling a task", async () => {

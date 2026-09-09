@@ -10,7 +10,6 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
-  canUserTransitionTaskStatus,
   makeAgentJobsChannelName,
   makeUserTasksChannelName,
   userTaskStatusTransitionRequiresComment,
@@ -795,9 +794,6 @@ export function TasksView({
 
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
-    if (!canUserTransitionTaskStatus(draggedTask.status, desiredStatus)) {
-      return;
-    }
 
     // Preserve the task's prior status on rollback when a drag update fails.
     const previousStatus = draggedTask.status;
