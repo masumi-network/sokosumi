@@ -56,6 +56,10 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
       case .signingIn:
         ProgressView("Contacting Sokosumi…")
+        Button("Cancel") {
+          auth.cancelSignIn()
+        }
+        .keyboardShortcut(.cancelAction)
       case .signedIn:
         EmptyView()
       }

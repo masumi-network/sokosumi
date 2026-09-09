@@ -2,17 +2,18 @@
 
 ## Scope and audit baseline
 
-Iteration 0: source audit only, awaiting approval. Audited web and Apple source at `85d85776deaa128a3d4177bb58b6545684e7c1ac` (2026-09-09). This document is the chat parity boundary for subsequent PRs. It expands the older [Mac tracer](MAC-TRACER.md) scope to the chat capabilities below; it does not authorize the rest of [VISION.md](VISION.md) or the web product.
+Iteration 0 approved and merged in [PR #4303](https://github.com/masumi-network/sokosumi/pull/4303). Audited web and Apple source at `85d85776deaa128a3d4177bb58b6545684e7c1ac` (2026-09-09). This document is the chat parity boundary for subsequent PRs. It expands the older [Mac tracer](MAC-TRACER.md) scope to the chat capabilities below; it does not authorize the rest of [VISION.md](VISION.md) or the web product.
 
-Target macOS 26 now, iOS 17+ later. Use SwiftUI native navigation and controls. All models, networking, view models and persistence belong in platform-agnostic, UI-free packages. Shared code must use the iOS 17/macOS 14 API generation. Newer Mac APIs belong only in Mac-specific views, guarded by platform/availability checks. Isolate unavoidable AppKit behind a Mac adapter. Do not add dependencies or change the shared API contract without a separate PR and explicit approval. Never modify `apps/web`.
+Target macOS 26 now, iOS 17+ later. Use SwiftUI native navigation and controls. All models, networking, view models and persistence belong in platform-agnostic, UI-free packages. Shared packages target macOS 26 and iOS 17, per the baseline update requested after iteration 0. Shared code must remain available on iOS 17; verify this with an iOS 17 build. Newer Mac APIs belong only in Mac-specific views, guarded by platform/availability checks. Isolate unavoidable AppKit behind a Mac adapter. Do not add dependencies or change the shared API contract without a separate PR and explicit approval. Never modify `apps/web`.
 
 “Conversation” includes channels, human/group Directs, coworker Directs and personal-assistant Directs exposed by web chat. “Reply thread” means replies under a parent message, not the whole conversation. Chat guest access and the existing Drive attachment picker are explicitly in scope. Linked non-chat destinations open on web; their native screens are not implied.
 
 ## Status and iteration rules
 
 - **Partial**: existing Apple implementation covers part of the row; complete parity and current build/test evidence are still required.
+- **In review**: implementation and verification recorded below; awaiting PR merge.
 - **Todo**: no complete Apple slice found. **Blocked**: record a concrete ambiguity or missing API and ask the user before implementing. **Done**: merged PR, matching behavior, clean build and passing tests with new feature coverage recorded here. **N/A**: web-only concern.
-- No capability is marked Done by this source-only audit. Existing tests are evidence of intent, not fresh execution results.
+- No capability is marked Done solely by the initial source audit. Existing tests are evidence of intent, not fresh execution results.
 - Read in numeric order (09a before 09b); dependency IDs are prerequisites. Pick the earliest unfinished row whose dependencies are complete after rebasing on `main`. Each row is a proposed feature slice, not a license to omit its sub-capabilities.
 - One complete vertical slice (model, networking, view and tests) per PR. If a row contains genuinely independent features, record child IDs and dependencies here before splitting. Size alone is not a reason to split.
 - Update the row with PR link, exact verification commands/results and remaining gaps. Describe feature, linked web sources, included/excluded behavior and how to test. Open draft by default.
@@ -24,7 +25,7 @@ Source links are relative to this file. The shared web service boundary is [chat
 
 | ID | User-facing capability / acceptance scope | Depends on | Status | Web source files |
 | --- | --- | --- | --- | --- |
-| 01 | Sign in through system-browser OAuth; cancellation, errors, restore session, refresh/revocation, sign out. Move session state and persistence into portable packages; isolate the presentation adapter. | — | Partial | [form.tsx](<../web/src/app/(auth)/signin/components/form.tsx>), [page.tsx](<../web/src/app/(auth)/auth/callback/signin/page.tsx>) |
+| 01 | Sign in through system-browser OAuth; cancellation, errors, restore session, refresh/revocation, sign out. Move session state and persistence into portable packages; isolate the presentation adapter. | — | In review | [form.tsx](<../web/src/app/(auth)/signin/components/form.tsx>), [page.tsx](<../web/src/app/(auth)/auth/callback/signin/page.tsx>) |
 | 02 | Workspace access gate, personal/org selection and restoration, unseated chat access, workspace switch with isolated room/draft state. Setup-required state opens web. | 01 | Partial | [workspace-access-gate.tsx](<../web/src/app/(app)/components/workspace-access-gate.tsx>), [workspace-switcher.tsx](<../web/src/app/(app)/components/user-avatar/workspace-switcher.tsx>), [workspace.service.ts](<../web/src/lib/services/workspace.service.ts>) |
 | 03 | Conversation sidebar: all membership-visible pages, Channels/Directs/External groups, names, avatars, participant ordering, selection, activity order, empty/loading/error/retry, collapsed sections. | 02 | Partial | [organization-chat-list.client.tsx](<../web/src/components/chat/organization-chat-list.client.tsx>), [partition-rooms-for-sidebar.ts](<../web/src/components/chat/partition-rooms-for-sidebar.ts>), [chat-room-sidebar-row.tsx](<../web/src/components/chat/chat-room-sidebar-row.tsx>), [direct-room-avatar-stack.tsx](<../web/src/components/chat/direct-room-avatar-stack.tsx>) |
 | 04 | Room timeline: ordered paginated history, older-page loading without losing position, grouping, sender/avatar/time, local day separators, membership events, deleted/edited labels, empty/error/retry; follow latest without stealing reading position. | 03 | Partial | [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [use-stick-to-bottom.ts](<../web/src/app/(app)/chat/hooks/use-stick-to-bottom.ts>), [load-room-messages.ts](<../web/src/app/(app)/chat/load-room-messages.ts>) |
@@ -73,14 +74,14 @@ Streaming was split into 09a (Directs) and 09b (reply threads) because Direct st
 | Owner | Existing behavior and remaining audit work |
 | --- | --- |
 | [CoreAPI](Packages/CoreAPI/Package.swift) | Generated Core client and HTTP transport. Reuse DTOs and generation; never hand-edit generated output. Compare the checked-in snapshot with current Core before each API-dependent slice. |
-| [SokosumiAuth](Packages/SokosumiAuth/Package.swift), [AuthState](Sokosumi/AuthState.swift), [KeychainTokenStore](Sokosumi/KeychainTokenStore.swift) | OAuth/PKCE, bearer middleware, refresh, token storage and sign-in UI integration exist. `AuthState` directly imports AppKit for its presentation anchor. Move portable session state/persistence to the existing package and isolate the Mac presentation adapter in slice 01. Browser authentication remains the entry point, including existing sign-in methods and recovery. |
+| [SokosumiAuth](Packages/SokosumiAuth/Package.swift), [AuthState](Packages/SokosumiAuth/Sources/SokosumiAuth/AuthState.swift), [KeychainTokenStore](Packages/SokosumiAuth/Sources/SokosumiAuth/KeychainTokenStore.swift) | OAuth/PKCE, bearer middleware, refresh, observable session state and Keychain persistence live in the existing package. [MacOAuthBrowser](Sokosumi/MacOAuthBrowser.swift) isolates AppKit presentation; [app composition](Sokosumi/AuthState+App.swift) wires configuration and the Core client. Slice 01 adds cancellation, late-response protection and shared refresh. Browser authentication remains the entry point, including existing sign-in methods and recovery. |
 | [SokosumiChat](Packages/SokosumiChat/Package.swift), [WorkspaceState](Sokosumi/WorkspaceState.swift) | Workspace selection, room listing, transcript pagination, outbound shells, presentation helpers and saved drafts exist. `WorkspaceState` remains in the app target; move portable workspace/chat state into the existing packages as slices 02–08 complete. Avoid a second state implementation. |
 | [SokosumiRealtime](Packages/SokosumiRealtime/Package.swift) | Existing Ably dependency and transport seam cover focused-room deliveries and membership control. Reuse them; complete patch/recovery/thread/sidebar behavior against the web event contracts. |
 | [ContentView](Sokosumi/ContentView.swift), [TranscriptView](Sokosumi/TranscriptView.swift) | Native split view, sidebar, avatars, text transcript, grouping, pagination and simple composer exist. Rich rendering, reply threads and interactive message actions remain incomplete. Avatar loading currently lives in a view file; networking belongs in a portable module. |
 | [SokosumiApp](Sokosumi/SokosumiApp.swift), [SettingsView](Sokosumi/SettingsView.swift) | `WindowGroup`, Settings and Sign out command exist. App-level workspace state is shared across windows; independent per-window conversation selection is not established. |
 | [App tests](SokosumiTests), package `Tests/` directories | Existing state, transport, auth, presentation and realtime tests are reusable. Extend the relevant suite for each slice and run all suites before claiming Done. |
 
-All four package manifests currently declare macOS 26 and iOS 17. That does not prove the required shared API ceiling. Lower/check the shared macOS baseline to 14 when making the portable ownership changes, while keeping the app deployment target at 26. Keep new Mac-only APIs isolated and audit existing view calls such as `onScrollGeometryChange`; do not move those calls into shared code. No dependency additions or version changes are authorized by this inventory.
+All four shared packages declare macOS 26 and iOS 17. The app deployment target remains macOS 26. The user explicitly raised the shared macOS baseline to 26 after iteration 0; do not lower it to macOS 14. Verify shared-module iOS compatibility with an iOS 17 build rather than a macOS 14 build. Keep new Mac-only APIs isolated and audit existing view calls such as `onScrollGeometryChange`; do not move those calls into shared code. No dependency additions or dependency version changes are authorized by this inventory.
 
 ## Contract checkpoints
 
@@ -132,7 +133,7 @@ These additions belong in the related feature PR where cohesive; otherwise give 
 
 ## Verification and approval record
 
-Iteration 0 changes only this Markdown file. Validate every local source link, dependency ordering and the diff boundary; no Swift build/test result is claimed by this audit.
+Iteration 0 changed only this Markdown file. Its source links, dependency order and diff boundary were validated; it did not claim Swift build/test results.
 
 For every implementation PR, run from `apps/apple/`:
 
@@ -145,14 +146,27 @@ xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
 xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
   -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- \
-  test -only-testing:SokosumiTests
+  test -only-testing:SokosumiTests -enableCodeCoverage NO
 swift test --package-path Packages/CoreAPI
 swift test --package-path Packages/SokosumiAuth
 swift test --package-path Packages/SokosumiChat
 swift test --package-path Packages/SokosumiRealtime
 ```
 
-Add feature tests at the existing transport/state boundary, including failures and stale workspace/session results. Verify the affected behavior against web, exercise native UI and inspect SwiftUI runtime warnings. Shared-module changes also need an iOS 17/macOS 14 availability check; merely building the macOS 26 app is insufficient. Record concrete commands/results and manual evidence in the feature PR. No new tests are required for this documentation-only iteration.
+Coverage is disabled for app tests to match Apple CI: the existing Ably C dependencies fail to link the profile runtime with coverage enabled.
 
-- Iteration 0 approval: **pending**.
-- Next feature after approval and merge: **01 — portable authenticated session lifecycle**.
+Add feature tests at the existing transport/state boundary, including failures and stale workspace/session results. Verify the affected behavior against web, exercise native UI and inspect SwiftUI runtime warnings. Shared-module changes also need an iOS 17 availability check; merely building the macOS 26 app is insufficient. Record concrete commands/results and manual evidence in the feature PR. The documentation-only iteration 0 required no new tests; each implementation slice requires feature coverage.
+
+- Iteration 0 approval: **merged**, [PR #4303](https://github.com/masumi-network/sokosumi/pull/4303).
+- Current feature: **01 — portable authenticated session lifecycle**, implemented and awaiting PR review/merge. See verification below.
+- Next feature after slice 01 merges: **02 — workspace access and selection**.
+
+### Slice 01 verification — portable authenticated session lifecycle
+
+- Ownership: `SokosumiAuth` owns observable auth state and Keychain persistence. The app retains configuration/Core wiring and the `#if os(macOS)` system-browser adapter. Existing Keychain service/account, OAuth scopes, callback URI and ephemeral browser behavior are preserved.
+- Lifecycle: explicit cancel, visible browser/network/persistence failures, restoration, durable sign-out, late-response invalidation and one refresh for concurrent requests. Regression tests first reproduced token resurrection after sign-out, then passed with the fix.
+- Local verification: Xcode 26.6. Auth package: 34 tests; CoreAPI: 1; chat: 80; realtime: 8; app target: 36. SwiftFormat and strict SwiftLint passed. Xcode build and app tests passed with code coverage disabled as in CI.
+- iOS portability: `swift build --package-path Packages/SokosumiAuth --triple arm64-apple-ios17.0 --sdk "$(xcrun --sdk iphoneos --show-sdk-path)" --scratch-path /tmp/sokosumi-auth-ios17` passed. Both app and package baselines are macOS 26; no macOS 14 deployment support is required.
+- Native smoke check: the built app restored the existing Keychain session and loaded workspace/room history. The system-browser success/cancel/failure transitions are covered through an injected browser in package tests; a fresh interactive login was not performed on the user's active account.
+- Runtime inspection: the test host logged a QoS priority-inversion diagnostic; no view-update publication warning was observed in the inspected run. Generated Core schema warnings remain outside this auth slice.
+- Out of scope for this PR: workspace state extraction (02), remaining chat features, dependencies and API changes. Row 01 remains In review until merge.

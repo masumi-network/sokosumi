@@ -1,3 +1,4 @@
+import SokosumiAuth
 import SwiftUI
 
 /// Minimal Settings: account identity plus the Core endpoint in use.
