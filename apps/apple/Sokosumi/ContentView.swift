@@ -227,12 +227,14 @@ struct ContentView: View {
         .navigationSplitViewColumnWidth(min: 220, ideal: 260)
       } detail: {
         if let selectedRoomId = workspaces.selectedRoomId,
-           workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
+           let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
           TranscriptView(roomId: selectedRoomId)
+            .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
         } else {
           Text("Pick a room to read it.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationTitle(workspaces.selection?.title ?? "")
         }
       }
     }

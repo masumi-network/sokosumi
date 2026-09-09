@@ -33,14 +33,6 @@ import SwiftUI
 
     var body: some View {
       VStack(spacing: 0) {
-        if let room {
-          Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
-            .font(.headline)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-          Divider()
-        }
         transcriptBody
         Divider()
         RoomComposer(
