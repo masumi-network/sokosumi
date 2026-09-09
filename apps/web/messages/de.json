@@ -1913,7 +1913,8 @@
           "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
           "quarantined": "Dieser Zeitplan ist zur Reparatur pausiert und kann nicht geändert werden. Wende dich an den Support, um ihn wiederherzustellen.",
           "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
-          "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan."
+          "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan.",
+          "unknownCount": "Wir konnten nicht prüfen, welche bevorstehenden Läufe eine neue Regel abbrechen würde. Lade die Seite neu, öffne den Zeitplan erneut und versuche es noch einmal."
         },
         "option": {
           "oneTime": "One-time",

@@ -10,7 +10,6 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
-  CORE_API_ERROR_KINDS,
   makeAgentJobsChannelName,
   makeUserTasksChannelName,
   userTaskStatusTransitionRequiresComment,
@@ -82,10 +81,7 @@ import {
   type TaskEventData,
   taskEventDataSchema,
 } from "@/lib/ably";
-import {
-  setTaskStatusFromDrag,
-  type TaskMutationErrorKind,
-} from "@/lib/actions/task/action";
+import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
   AgentJobStatus,
   SokosumiJobStatus,
@@ -101,6 +97,10 @@ import {
   type TasksViewMode,
 } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
+import {
+  type TaskMutationErrorKind,
+  taskScheduleSeriesFeedbackKey,
+} from "@/lib/utils/task-schedule-feedback";
 import {
   CreateTaskModal,
   CreateTaskModalProvider,
@@ -363,17 +363,23 @@ export function TasksView({
   const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   /**
-   * The board already restored the card by the time this runs. A live series
-   * owns the Task's status, so say that instead of the generic drag failure —
-   * and keep the reload modal for a stale client.
+   * The board already restored the card by the time this runs. Every stable
+   * series kind gets its own recovery — the refused move is named in the
+   * board's own words — and only a stale client gets the reload modal.
    */
   const reportDragRejection = (kind: TaskMutationErrorKind) => {
-    if (kind === CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE) {
-      toast.error(labels.scheduleActiveError);
+    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
+    if (!feedbackKey) {
+      showCalendarClientUpgradeModal();
       return;
     }
-    showCalendarClientUpgradeModal();
+    toast.error(
+      feedbackKey === "activeSeries"
+        ? labels.scheduleActiveError
+        : tSeries(feedbackKey),
+    );
   };
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
     [],

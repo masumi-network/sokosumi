@@ -9,7 +9,11 @@ import timeGridPlugin from "@fullcalendar/react/timegrid";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
-import { isValidTimezone } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  hasActiveTaskSchedule,
+  isValidTimezone,
+} from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
@@ -78,7 +82,6 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
   saveCalendarTaskSchedule,
-  type TaskMutationErrorKind,
 } from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
@@ -100,7 +103,10 @@ import {
   schedulableOnceLocalIso,
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
-import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
+import {
+  type TaskMutationErrorKind,
+  taskScheduleSeriesFeedbackKey,
+} from "@/lib/utils/task-schedule-feedback";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
@@ -452,8 +458,11 @@ interface CalendarEditDialogProps {
   task: Task;
   /** Revision observed when the editor opened; the mutation precondition. */
   scheduleRevision: number;
-  /** Durable future exceptions this edit would cancel, read with the revision. */
-  futureExceptionCount: number;
+  /**
+   * Durable future exceptions this edit would cancel, read with the revision,
+   * or `null` when the ledger could not be read.
+   */
+  futureExceptionCount: number | null;
 }
 
 function CalendarEditDialog({
@@ -461,7 +470,7 @@ function CalendarEditDialog({
   onClose,
   task,
   scheduleRevision,
-  futureExceptionCount,
+  futureExceptionCount: observedFutureExceptionCount,
 }: CalendarEditDialogProps) {
   const t = useTranslations("App.Calendar");
   const tSeries = useTranslations("App.Tasks.Schedule.series");
@@ -472,6 +481,12 @@ function CalendarEditDialog({
   const [error, setError] = useState<string | null>(null);
   const [pendingDiscard, setPendingDiscard] =
     useState<TaskScheduleSelection | null>(null);
+  // A revision conflict proves the observed count describes a series that has
+  // since moved on, so from then on this editor treats it as unknown.
+  const [isCountStale, setIsCountStale] = useState(false);
+  const futureExceptionCount = isCountStale
+    ? null
+    : observedFutureExceptionCount;
   const clearRequestPending = useRef(false);
   // One UUID per distinct submitted schedule: a retry of the same rule replays
   // on Core, while editing the rule again is a new operation.
@@ -508,6 +523,13 @@ function CalendarEditDialog({
         schedule,
       });
       if (!result.ok) {
+        if (
+          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
+        ) {
+          // The series moved on, so the count read with the old revision no
+          // longer describes it. Nothing here may reuse it as "zero".
+          setIsCountStale(true);
+        }
         setError(resolveMutationError(result.error.kind, t("edit.saveError")));
         return;
       }
@@ -524,6 +546,14 @@ function CalendarEditDialog({
     // untouched rule would churn the audit trail and reset consumed runs.
     if (!hasTaskScheduleChanged(initialSelection, schedule, true)) {
       onClose();
+      return;
+    }
+
+    // An unreadable count cannot say what a new rule would cancel, so the edit
+    // is refused instead of discarding silently. Removal states its own
+    // consequence in its confirmation and still proceeds.
+    if (futureExceptionCount === null) {
+      setError(tSeries("unknownCount"));
       return;
     }
 
@@ -624,11 +654,13 @@ function CalendarEditDialog({
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {tSeries("discardTitle", { count: futureExceptionCount })}
+                  {tSeries("discardTitle", {
+                    count: futureExceptionCount ?? 0,
+                  })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {tSeries("discardDescription", {
-                    count: futureExceptionCount,
+                    count: futureExceptionCount ?? 0,
                   })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -691,7 +723,7 @@ interface CalendarEditState {
   requestId: number;
   task: Task;
   scheduleRevision: number;
-  futureExceptionCount: number;
+  futureExceptionCount: number | null;
 }
 
 export function WorkspaceCalendar({
@@ -877,8 +909,8 @@ export function WorkspaceCalendar({
   /**
    * The ledger read carries both the mutation precondition and the exact number
    * of future exceptions an edit would discard. It is Calendar-beta gated while
-   * removal deliberately is not, so a failure degrades to the Task's own
-   * revision and no discard warning instead of keeping the editor shut.
+   * removal deliberately is not, so a failure keeps the Task's own revision —
+   * removal still works — while the count stays unknown rather than zero.
    */
   async function readSeriesPrecondition(taskId: string) {
     try {
@@ -915,7 +947,13 @@ export function WorkspaceCalendar({
           occurrencePage?.data.scheduleRevision ??
           result.data.scheduleRevision ??
           0,
-        futureExceptionCount: occurrencePage?.data.futureExceptionCount ?? 0,
+        futureExceptionCount:
+          occurrencePage?.data.futureExceptionCount ??
+          // A Task with no live rule has nothing to discard, so an unread
+          // ledger only leaves the count unknown for a series that has one.
+          (hasActiveTaskSchedule(result.data.metadata, result.data.nextRunAt)
+            ? null
+            : 0),
       });
     } catch {
       if (requestId === eventRequestId.current) {

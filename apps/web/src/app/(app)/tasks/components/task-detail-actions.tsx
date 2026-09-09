@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
   isTaskEditableStatus,
   type TaskAssigneeKind,
@@ -33,10 +32,7 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  canArchiveParkedTaskForViewer,
-  canManageTaskLifecycleForViewer,
-} from "@/app/tasks/utils/task-read-only";
+import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   AlertDialog,
@@ -66,7 +62,6 @@ import {
   deleteTask,
   deleteTaskLink,
   setTaskStatusFromDrag,
-  type TaskMutationErrorKind,
 } from "@/lib/actions/task/action";
 import type {
   MemberWithOrganization,
@@ -79,6 +74,10 @@ import {
 } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import {
+  type TaskMutationErrorKind,
+  taskScheduleSeriesFeedbackKey,
+} from "@/lib/utils/task-schedule-feedback";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
@@ -179,6 +178,7 @@ export function TaskDetailActions({
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
@@ -220,9 +220,7 @@ export function TaskDetailActions({
   // Status, archive, and workspace move belong to the schedule series while one
   // is live — Core rejects them with `schedule_active`. Editing fields and
   // managing relations stay available.
-  const canManageLifecycle = canManageTaskLifecycleForViewer({
-    hasActiveSchedule,
-  });
+  const canManageLifecycle = !hasActiveSchedule;
   const availableStatusActions = canManageLifecycle
     ? getTaskStatusActions(status, labels, {
         assigneeKind:
@@ -333,15 +331,17 @@ export function TaskDetailActions({
   };
 
   /**
-   * A rejected status write is a state, not a crash: a stale client gets the
-   * reload modal, and a live series gets the localized reason it was refused.
+   * A rejected status write is a state, not a crash: every stable series kind
+   * gets its own localized recovery, and only a stale client gets the reload
+   * modal.
    */
   const reportStatusRejection = (kind: TaskMutationErrorKind) => {
-    if (kind === CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE) {
-      toast.error(tTasks("Errors.scheduleActive"));
+    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
+    if (!feedbackKey) {
+      showCalendarClientUpgradeModal();
       return;
     }
-    showCalendarClientUpgradeModal();
+    toast.error(tSeries(feedbackKey));
   };
 
   const handleStatusToggle = (action: TaskStatusAction) => {

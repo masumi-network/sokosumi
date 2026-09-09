@@ -1,4 +1,20 @@
-import type { TaskMutationErrorKind } from "@/lib/actions/task/action";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+
+/**
+ * The stable Core error kinds a Task mutation reports back to its caller as a
+ * result instead of throwing. They are a Core-contract concept, so they live
+ * beside the copy they map to rather than in the server action that returns
+ * them; `@/lib/actions/task/action` imports this list.
+ */
+export const TASK_MUTATION_ERROR_KINDS = [
+  CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED,
+  CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT,
+  CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED,
+  CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE,
+  CORE_API_ERROR_KINDS.IDEMPOTENCY_CONFLICT,
+] as const;
+
+export type TaskMutationErrorKind = (typeof TASK_MUTATION_ERROR_KINDS)[number];
 
 export type TaskScheduleSeriesFeedbackKey =
   | "revisionConflict"

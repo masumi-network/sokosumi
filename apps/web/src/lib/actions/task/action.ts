@@ -37,6 +37,10 @@ import {
   hasTaskScheduleChanged,
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
+import {
+  TASK_MUTATION_ERROR_KINDS,
+  type TaskMutationErrorKind,
+} from "@/lib/utils/task-schedule-feedback";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import { isUuidString } from "@/lib/utils/uuid";
 import {
@@ -106,21 +110,6 @@ interface ClearTaskScheduleParameters
     TaskScheduleSeriesPrecondition {
   taskId: string;
 }
-
-/**
- * The stable Core error kinds a Task mutation reports back to its caller as a
- * result instead of throwing. Each one has its own recovery in the UI, so they
- * are matched by kind and never by message.
- */
-const TASK_MUTATION_ERROR_KINDS = [
-  CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED,
-  CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT,
-  CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED,
-  CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE,
-  CORE_API_ERROR_KINDS.IDEMPOTENCY_CONFLICT,
-] as const;
-
-export type TaskMutationErrorKind = (typeof TASK_MUTATION_ERROR_KINDS)[number];
 
 export interface TaskMutationError {
   kind: TaskMutationErrorKind;
@@ -366,6 +355,18 @@ function requireOperationId(operationId: string | undefined): string {
     throw new Error("Operation ID must be a UUID");
   }
   return operationId;
+}
+
+/**
+ * A live series is only written with a revision Core actually reported. Sending
+ * an invented one would be presented to the user as "someone else changed this
+ * schedule", so a missing revision fails here instead.
+ */
+function requireScheduleRevision(revision: number | undefined): number {
+  if (typeof revision !== "number") {
+    throw new Error("Core returned no scheduleRevision for an active series");
+  }
+  return revision;
 }
 
 function getActiveScheduleBody(schedule: TaskScheduleSelection) {
@@ -885,8 +886,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         statusAfterSchedule = hadSchedule
           ? await applyTaskSeriesChange(taskId, schedule, {
               operationId: requireOperationId(scheduleOperationId),
-              expectedScheduleRevision:
-                patchedTask.scheduleRevision ?? expectedScheduleRevision ?? 0,
+              expectedScheduleRevision: requireScheduleRevision(
+                patchedTask.scheduleRevision ?? expectedScheduleRevision,
+              ),
             })
           : await armTaskSchedule(taskId, schedule);
         scheduleActiveOnServer = schedule.mode !== "none";
@@ -909,13 +911,15 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         });
       }
 
-      revalidatePath("/tasks");
-      revalidatePath(`/tasks/${taskId}`);
+      if (scheduleWasMutated) {
+        // Already covers both Task routes, plus the Calendar ones.
+        revalidateCalendarTaskMutationRoutes(patchedTask);
+      } else {
+        revalidatePath("/tasks");
+        revalidatePath(`/tasks/${taskId}`);
+      }
       if (typeof normalizedProjectId !== "undefined") {
         revalidatePath("/projects");
-      }
-      if (scheduleWasMutated) {
-        revalidateCalendarTaskMutationRoutes(patchedTask);
       }
       return taskMutationSuccess({ taskId });
     } catch (error) {

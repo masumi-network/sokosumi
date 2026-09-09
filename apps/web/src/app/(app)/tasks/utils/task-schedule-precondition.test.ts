@@ -58,12 +58,12 @@ describe("readTaskScheduleSeriesPrecondition", () => {
     expect(listOccurrencesMock).not.toHaveBeenCalled();
   });
 
-  it("degrades to the Task revision and no discard warning when the read is refused", async () => {
+  it("reports an unknown exception count when the read is refused", async () => {
     listOccurrencesMock.mockRejectedValue(new Error("beta access required"));
 
     await expect(
       readTaskScheduleSeriesPrecondition(buildTask(ACTIVE_SERIES)),
-    ).resolves.toEqual({ scheduleRevision: 4, futureExceptionCount: 0 });
+    ).resolves.toEqual({ scheduleRevision: 4, futureExceptionCount: null });
   });
 
   it("treats a Task without a revision as revision zero", async () => {

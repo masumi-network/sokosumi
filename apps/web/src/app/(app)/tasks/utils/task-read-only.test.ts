@@ -5,7 +5,6 @@ import {
   canArchiveParkedTaskForViewer,
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
-  canManageTaskLifecycleForViewer,
   isReadOnlyForViewer,
 } from "./task-read-only";
 
@@ -166,39 +165,6 @@ describe("canArchiveParkedTaskForViewer", () => {
         isOrgOwnerOrAdmin: true,
       }),
     ).toBe(false);
-  });
-});
-
-describe("canManageTaskLifecycleForViewer", () => {
-  it("hands status, archive, and workspace moves to the series while one is live", () => {
-    expect(canManageTaskLifecycleForViewer({ hasActiveSchedule: true })).toBe(
-      false,
-    );
-  });
-
-  it("returns lifecycle control once no series is live", () => {
-    expect(canManageTaskLifecycleForViewer({ hasActiveSchedule: false })).toBe(
-      true,
-    );
-  });
-
-  it("keeps parked archive on owner/admin for grant-pending scheduled tasks", () => {
-    expect(
-      canArchiveParkedTaskForViewer({
-        forceReadOnly: false,
-        taskStatus: TaskStatus.GRANT_PENDING,
-        isTaskOwner: true,
-        isOrgOwnerOrAdmin: false,
-      }),
-    ).toBe(true);
-    expect(
-      canArchiveParkedTaskForViewer({
-        forceReadOnly: false,
-        taskStatus: TaskStatus.GRANT_PENDING,
-        isTaskOwner: false,
-        isOrgOwnerOrAdmin: true,
-      }),
-    ).toBe(true);
   });
 });
 

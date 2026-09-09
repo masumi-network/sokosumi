@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CORE_API_ERROR_KINDS,
   formatTaskAttachmentMarkdown,
   isAgentOnlyTaskStatus,
 } from "@sokosumi/utils";
@@ -282,9 +283,11 @@ interface TaskFormProps {
   scheduleRevision?: number;
   /**
    * Durable future exceptions a full-series edit would cancel, read with
-   * {@link scheduleRevision}. Above zero the save asks to confirm the discard.
+   * {@link scheduleRevision}. Above zero the save asks to confirm the discard;
+   * `null` means the ledger could not be read, and a full-series edit is
+   * refused rather than sent without that warning.
    */
-  futureExceptionCount?: number;
+  futureExceptionCount?: number | null;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   projectOptions?: ProjectFilterOption[];
   lockProjectSelection?: boolean;
@@ -308,7 +311,7 @@ export function TaskForm({
   taskId,
   initialValues,
   scheduleRevision,
-  futureExceptionCount = 0,
+  futureExceptionCount: observedFutureExceptionCount = 0,
   initialDesignMdAttachment,
   projectOptions,
   lockProjectSelection = false,
@@ -480,6 +483,12 @@ export function TaskForm({
   const originalScheduleSelection = useRef(scheduleSelection);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [seriesError, setSeriesError] = useState<string | null>(null);
+  // A revision conflict proves the observed count describes a series that has
+  // since moved on, so from then on this mount treats it as unknown.
+  const [isSeriesCountStale, setIsSeriesCountStale] = useState(false);
+  const futureExceptionCount = isSeriesCountStale
+    ? null
+    : observedFutureExceptionCount;
   const [pendingSeriesConfirmation, setPendingSeriesConfirmation] = useState<
     "discard" | "remove" | null
   >(null);
@@ -712,6 +721,8 @@ export function TaskForm({
    * What a save would do to a live series. Replacing the rule always retires
    * its future exceptions, and setting no schedule removes the series outright
    * — both are destructive enough to confirm before they leave the browser.
+   * With an unreadable count the replacement cannot say what it would destroy,
+   * so it is refused; removal states its own consequence and still proceeds.
    */
   const pendingSeriesChange = useMemo(() => {
     if (
@@ -726,12 +737,17 @@ export function TaskForm({
     }
 
     if (scheduleSelection.mode === "none") return "remove" as const;
+    if (futureExceptionCount === null) return "unknown" as const;
     return futureExceptionCount > 0 ? ("discard" as const) : null;
   }, [futureExceptionCount, hasActiveSeries, scheduleSelection]);
 
   const handleSave = useCallback(
     async (confirmedSeriesChange = false) => {
       if (isSaveDisabled || (useWizard && step === 1)) return;
+      if (pendingSeriesChange === "unknown") {
+        setSeriesError(tSeries("unknownCount"));
+        return;
+      }
       if (pendingSeriesChange && !confirmedSeriesChange) {
         setSeriesError(null);
         setPendingSeriesConfirmation(pendingSeriesChange);
@@ -783,7 +799,16 @@ export function TaskForm({
             schedule: scheduleSelection,
           });
           if (!result.ok) {
-            showCalendarClientUpgradeModal();
+            // A create can now be refused with the same stable kinds an edit
+            // can, and only a stale client belongs in the reload modal.
+            const feedbackKey = taskScheduleSeriesFeedbackKey(
+              result.error.kind,
+            );
+            if (!feedbackKey) {
+              showCalendarClientUpgradeModal();
+              return;
+            }
+            setSeriesError(tSeries(feedbackKey));
             return;
           }
           const createdTask = result.value;
@@ -853,6 +878,14 @@ export function TaskForm({
           originalSchedule: originalScheduleSelection.current,
         });
         if (!result.ok) {
+          if (
+            result.error.kind ===
+            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
+          ) {
+            // The series moved on, so the count read with the old revision no
+            // longer describes it. Nothing here may reuse it as "zero".
+            setIsSeriesCountStale(true);
+          }
           const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
           if (!feedbackKey) {
             showCalendarClientUpgradeModal();
@@ -1442,13 +1475,15 @@ export function TaskForm({
                 <AlertDialogTitle>
                   {pendingSeriesConfirmation === "remove"
                     ? tSeries("removeTitle")
-                    : tSeries("discardTitle", { count: futureExceptionCount })}
+                    : tSeries("discardTitle", {
+                        count: futureExceptionCount ?? 0,
+                      })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {pendingSeriesConfirmation === "remove"
                     ? tSeries("removeDescription")
                     : tSeries("discardDescription", {
-                        count: futureExceptionCount,
+                        count: futureExceptionCount ?? 0,
                       })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -1511,21 +1546,30 @@ export function TaskForm({
                   ))}
                 </SelectContent>
               </Select>
-              {seriesError ? (
-                <p
-                  role="alert"
-                  className="text-destructive flex min-w-0 items-start gap-2 text-sm"
-                >
-                  <TriangleAlert
-                    className="mt-0.5 size-4 shrink-0"
-                    aria-hidden
-                  />
-                  <span>{seriesError}</span>
-                </p>
-              ) : hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
-                <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
-                  <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
-                  <span className="truncate">{scheduleLabel}</span>
+              {seriesError ||
+              (hasSchedule && scheduleLabel && ScheduleFooterIcon) ? (
+                <div className="flex min-w-0 flex-col gap-1">
+                  {seriesError ? (
+                    <p
+                      role="alert"
+                      className="text-destructive flex min-w-0 items-start gap-2 text-sm"
+                    >
+                      <TriangleAlert
+                        className="mt-0.5 size-4 shrink-0"
+                        aria-hidden
+                      />
+                      <span>{seriesError}</span>
+                    </p>
+                  ) : null}
+                  {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
+                    <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+                      <ScheduleFooterIcon
+                        className="size-4 shrink-0"
+                        aria-hidden
+                      />
+                      <span className="truncate">{scheduleLabel}</span>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>

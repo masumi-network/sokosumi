@@ -1913,7 +1913,8 @@
           "revisionConflict": "Esta programación cambió en otro lugar. Recarga la tarea, vuelve a abrir la programación y aplica tu cambio de nuevo.",
           "quarantined": "Esta programación está en pausa para reparación y no se puede cambiar. Contacta con soporte para restaurarla.",
           "operationConflict": "Este guardado ya se envió con otros datos. Vuelve a abrir la programación e inténtalo de nuevo.",
-          "activeSeries": "Esta tarea se ejecuta según una programación. Cambia o elimina primero su programación."
+          "activeSeries": "Esta tarea se ejecuta según una programación. Cambia o elimina primero su programación.",
+          "unknownCount": "No pudimos comprobar qué próximas ejecuciones cancelaría una nueva regla. Recarga la página, vuelve a abrir la programación e inténtalo de nuevo."
         },
         "option": {
           "oneTime": "One-time",
