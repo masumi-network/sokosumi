@@ -224,7 +224,7 @@ Core prerequisite verification (2026-09-09): `pnpm --filter core test` passed (4
 
 - Portable `RoomReadAttention` owns content snapshots, optimistic counters, failure rollback, pending expiry, and refresh revisions. Native scene visibility gates reads; successful history refreshes resynchronize even when content is unchanged after a failed attempt.
 - Active and muted rooms suppress unread chrome. The sidebar offers Mark unread for inactive, unmuted rooms through the existing Core endpoint. Core's residual thread counts are retained; thread look writes remain in slice 08.
-- The Apple Development signed macOS build passed. Interactive verification of the new context menu remains pending.
+- The Apple Development signed macOS build passed. Native smoke check: the signed app restored its session; Mark unread was enabled and invoked for an inactive room, and disabled after selecting that room. The original conversation was restored afterward. Runtime logs showed AppKit negative-geometry diagnostics during interaction; their source is not yet established.
 - Local verification: 110 chat, 34 auth, 1 CoreAPI, 8 realtime, and 42 app tests passed. Strict SwiftLint passed with zero violations; SwiftFormat passed. The shared chat package builds for `arm64-apple-ios17.0`.
 - New coverage includes hidden/unresolved history, same-ID content changes, read failure/retry, manual unread failure/rollback, stale refreshes and settlements, workspace reset, pending expiry, active/muted attention, and a successful refresh retry with unchanged visible content.
 - Independent review found a missed refresh-retry read; fixed with app integration coverage. Follow-up review found no remaining actionable issues.
