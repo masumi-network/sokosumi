@@ -187,6 +187,7 @@ private func realtimeState(
     savedRoom: SavedRoomSelection(defaults: defaults),
     instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
   )
+  state.readAttention.setVisible(true, window: UUID())
   state.clientResolver = { client }
   return (state, AuthState(store: RealtimeMemoryTokenStore()), transport)
 }
@@ -408,7 +409,8 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [], nextCursor: "older")),
       (200, realtimeReadBody(id: roomA)),
       (200, realtimePageBody(messages: [])),
-      (200, realtimePageBody(messages: [realtimeMessageJSON(id: messageId, roomId: roomA, content: "arrived")]))
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: messageId, roomId: roomA, content: "arrived")])),
+      (200, realtimeReadBody(id: roomA))
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
@@ -438,7 +440,8 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old edited", editedAt: realtimeTimestamp),
         realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize body", createdAt: "2026-01-01T00:00:01.000Z")
-      ]))
+      ])),
+      (200, realtimeReadBody(id: roomA))
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
@@ -449,9 +452,9 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     #expect(state.transcriptMessages.map(\.content) == ["old edited", "oversize body"])
     #expect(state.transcriptError == nil)
-    // Refetch only: history re-read once, mark-read never re-posted.
+    // Refreshed visible content advances room attention again.
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
-    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 2)
   }
 
   @Test func envelopeCreateDuringHistoryLoadRefetchesAfterResolve() async throws {
@@ -468,7 +471,8 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
         realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize body", createdAt: "2026-01-01T00:00:01.000Z")
-      ]))
+      ])),
+      (200, realtimeReadBody(id: roomA))
     ])
     transport.pauseNextMessagesGET = true
     await state.reload(auth: auth)
@@ -498,18 +502,20 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
-      (200, realtimePageBody(messages: [
-        realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
-        realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize")
-      ])),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
       """),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
+        realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize")
+      ])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [
+        realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
         realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize"),
         realtimeMessageJSON(id: laterId, roomId: roomA, content: "later", createdAt: "2026-01-01T00:00:02.000Z")
-      ]))
+      ])),
+      (200, realtimeReadBody(id: roomA))
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
