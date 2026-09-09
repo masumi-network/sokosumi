@@ -16,14 +16,13 @@ import {
 } from "@/components/ui/select";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
-import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskStatusBadge } from "./task-status-badge";
 
-interface TaskMetadataStatusFieldLabels {
-  statusLabels: Record<TaskStatusType, string>;
+export interface TaskMetadataStatusFieldLabels {
+  statusLabels: Record<TaskStatus, string>;
   reopenToReadyTitle: string;
   reopenToReadyDescription: string;
   reopenToReadyCommentLabel: string;
@@ -37,7 +36,7 @@ interface TaskMetadataStatusFieldLabels {
 
 interface TaskMetadataStatusFieldProps {
   taskId: string;
-  status: TaskStatusType;
+  status: TaskStatus;
   labels: TaskMetadataStatusFieldLabels;
 }
 
@@ -50,13 +49,11 @@ export function TaskMetadataStatusField({
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const [currentStatus, setCurrentStatus] = useState(status);
   const [isPending, startTransition] = useTransition();
-  const [pendingStatus, setPendingStatus] = useState<TaskStatusType | null>(
-    null,
-  );
+  const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
 
-  function applyStatusChange(desiredStatus: TaskStatusType, comment?: string) {
+  function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
     setPendingStatus(desiredStatus);
 
     startTransition(async () => {
@@ -84,7 +81,7 @@ export function TaskMetadataStatusField({
     });
   }
 
-  function handleStatusSelect(nextStatus: TaskStatusType) {
+  function handleStatusSelect(nextStatus: TaskStatus) {
     if (nextStatus === currentStatus) return;
 
     if (userTaskStatusTransitionRequiresComment(currentStatus, nextStatus)) {
@@ -117,7 +114,7 @@ export function TaskMetadataStatusField({
     <>
       <Select
         value={displayStatus}
-        onValueChange={(value) => handleStatusSelect(value as TaskStatusType)}
+        onValueChange={(value) => handleStatusSelect(value as TaskStatus)}
         disabled={isPending}
       >
         <SelectTrigger

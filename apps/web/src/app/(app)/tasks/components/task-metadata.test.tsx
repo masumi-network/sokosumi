@@ -298,4 +298,24 @@ describe("TaskMetadata", () => {
 
     expect(screen.getByText("Member")).toBeInTheDocument();
   });
+
+  it("renders an inline status select when editable", () => {
+    const statusLabels = {
+      ...baseStatusLabels,
+      [TaskStatus.DRAFT]: "Draft",
+      [TaskStatus.READY]: "Ready",
+      [TaskStatus.COMPLETED]: "Completed",
+    } as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
+
+    renderTaskMetadata({
+      task: createTask(),
+      editable: true,
+      labels: { ...baseLabels, statusLabels },
+      statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
+    });
+
+    expect(
+      screen.getByRole("combobox", { name: "Running" }),
+    ).toBeInTheDocument();
+  });
 });

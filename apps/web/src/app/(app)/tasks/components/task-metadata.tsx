@@ -10,21 +10,11 @@ import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
-import { TaskMetadataStatusField } from "./task-metadata-status-field";
+import {
+  TaskMetadataStatusField,
+  type TaskMetadataStatusFieldLabels,
+} from "./task-metadata-status-field";
 import { TaskStatusBadge } from "./task-status-badge";
-
-interface TaskMetadataStatusFieldLabels {
-  statusLabels: Record<TaskStatus, string>;
-  reopenToReadyTitle: string;
-  reopenToReadyDescription: string;
-  reopenToReadyCommentLabel: string;
-  reopenToReadyCommentPlaceholder: string;
-  reopenToReadyCommentRequired: string;
-  reopenToReadyConfirm: string;
-  cancel: string;
-  updateStatusSuccess: string;
-  updateStatusError: string;
-}
 
 interface TaskMetadataLabels {
   status: string;
