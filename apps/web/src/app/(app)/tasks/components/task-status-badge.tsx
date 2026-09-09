@@ -95,8 +95,22 @@ const STATUS_PILL_STYLES: Partial<
   },
 };
 
+export function getTaskStatusPillTone(status: TaskStatus): {
+  bg: string;
+  text: string;
+  dot: string;
+} {
+  return (
+    STATUS_PILL_STYLES[status] ?? {
+      bg: "bg-muted",
+      text: "text-muted-foreground",
+      dot: "bg-muted-foreground",
+    }
+  );
+}
+
 export function getTaskStatusDotColorClass(status: TaskStatus): string {
-  return STATUS_PILL_STYLES[status]?.dot ?? "bg-muted-foreground";
+  return getTaskStatusPillTone(status).dot;
 }
 
 export function getTaskStatusBorderColorClass(status: TaskStatus): string {
@@ -143,11 +157,7 @@ export function TaskStatusBadge({
   showDot,
   showLabel = true,
 }: TaskStatusBadgeProps) {
-  const styles = STATUS_PILL_STYLES[status] ?? {
-    bg: "bg-muted",
-    text: "text-muted-foreground",
-    dot: "bg-muted-foreground",
-  };
+  const styles = getTaskStatusPillTone(status);
   const showIcon = shouldShowWarningIcon(status);
   const showStatusDot = shouldShowStatusDot(showDot);
 
