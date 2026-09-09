@@ -71,6 +71,37 @@ struct WorkspaceSessionTests {
     Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
   }
 
+  @Test func sidebarRefreshIgnoresResponseAfterWorkspaceReset() async throws {
+    let transport = WorkspaceTransport()
+    await transport.configure(pauseRooms: true)
+    let sidebar = ConversationSidebar()
+    let task = Task { try await sidebar.refresh(client: client(transport), organizationSlug: "acme") }
+    await transport.waitForPause()
+    #expect(sidebar.isLoading)
+    sidebar.reset()
+    await transport.release()
+    #expect(try await task.value == false)
+    #expect(sidebar.rooms.isEmpty)
+    #expect(!sidebar.isLoading)
+    #expect(sidebar.errorMessage == nil)
+  }
+
+  @Test func sidebarRefreshFailureOffersRetry() async throws {
+    let transport = WorkspaceTransport()
+    await transport.configure(failRooms: true)
+    let sidebar = ConversationSidebar()
+    sidebar.selectedRoomId = "existing"
+    await #expect(throws: ChatServiceError.self) {
+      try await sidebar.refresh(client: client(transport), organizationSlug: nil)
+    }
+    #expect(sidebar.selectedRoomId == "existing")
+    #expect(sidebar.errorMessage == "Core rejected the request (500): Unavailable")
+    #expect(!sidebar.isLoading)
+    await transport.configure()
+    #expect(try await sidebar.refresh(client: client(transport), organizationSlug: nil))
+    #expect(sidebar.errorMessage == nil)
+  }
+
   @Test func restoresServerOrganizationWithoutSeatFilteringOrWrites() async throws {
     let transport = WorkspaceTransport()
     let state = WorkspaceSession()

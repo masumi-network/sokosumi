@@ -198,11 +198,11 @@ public struct ChatService: Sendable {
       switch response {
       case let .ok(okResponse):
         let payload = try okResponse.body.json
-        rooms.append(contentsOf: payload.data)
         let nextCursor = payload.meta.pagination.nextCursor
         if let current = cursor, nextCursor == current {
           return rooms
         }
+        rooms.append(contentsOf: payload.data)
         guard let next = nextCursor else {
           return rooms
         }

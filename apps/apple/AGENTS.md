@@ -6,7 +6,7 @@
 
 **Stack**: One Xcode project (`Sokosumi.xcodeproj`, product `Sokosumi`), macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession, scoped room/draft persistence, rooms/chat flows), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar, avatar loading, scoped room/draft persistence, rooms/chat flows), `SokosumiTests/` (app-target tests).
 
 ## App-Specific Conventions
 
@@ -51,3 +51,7 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 - **Bumping tool versions is deliberate.** `Mintfile` pins `swiftlint`/`swiftformat` exactly. To upgrade: bump the pin, run `mint bootstrap`, run both checks, commit the pin together with any tree/config fallout. Never float the pin to chase a single new rule.
 - **Xcode template code ships 4-space indent.** Run `swiftformat .` on new files from templates.
 - **Hop `@Published` writes off the current view update.** `List(selection:)` setters, `onScrollGeometryChange` / preference callbacks, `onAppear`, and `onChange` schedule `Task { @MainActor in … }` before calling `WorkspaceState` / `AuthState`. Button and Menu actions publish in place. The models stay synchronous so tests call them directly. Lint and `xcodebuild test` do not catch this; a debug run's Issue navigator (purple SwiftUI) or `/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.apple.runtime-issues" AND process == "Sokosumi"'` does. A burst of the same fault in one millisecond is this pattern.
+
+### Interactive signing
+
+For interactive launches use the configured Apple Development identity and team `Y3ZJFLUYRB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=Y3ZJFLUYRB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.

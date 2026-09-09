@@ -73,6 +73,40 @@ private func makeRoom(
 }
 
 struct SidebarRoomsTests {
+  @MainActor @Test func sidebarRestoresValidSelectionAndFallsBackToDisplayOrder() throws {
+    let suite = "sidebar-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let saved = SavedRoomSelection(defaults: defaults)
+    let state = ConversationSidebar(savedRoom: saved)
+    state.rooms = [makeRoom(id: "old", name: "Old"), makeRoom(id: "new", name: "New", updatedAt: baseDate.addingTimeInterval(10))]
+    #expect(state.restoredSelection(userId: "me", organizationId: nil) == "new")
+    state.select("old", userId: "me", organizationId: nil)
+    state.selectedRoomId = nil
+    #expect(state.restoredSelection(userId: "me", organizationId: nil) == "old")
+    #expect(state.restoredSelection(userId: "other", organizationId: nil) == "new")
+    state.select("missing", userId: "me", organizationId: nil)
+    #expect(state.selectedRoomId == nil)
+    state.rooms.removeAll { $0.id == "old" }
+    #expect(state.restoredSelection(userId: "me", organizationId: nil) == "new")
+  }
+
+  @MainActor @Test func sectionCollapsePreservesSelectionAndResetsWithAccount() {
+    let state = ConversationSidebar()
+    state.rooms = [makeRoom(id: "one", name: "One")]
+    state.selectedRoomId = "one"
+    state.setExpanded(false, section: .channels)
+    #expect(state.collapsedSections == [.channels])
+    #expect(state.selectedRoomId == "one")
+    state.setExpanded(true, section: .channels)
+    #expect(state.collapsedSections.isEmpty)
+    state.setExpanded(false, section: .directs)
+    state.reset()
+    #expect(state.rooms.isEmpty)
+    #expect(state.selectedRoomId == nil)
+    #expect(state.collapsedSections.isEmpty)
+  }
+
   @Test func partitionsChannelsDirectsAndExternal() {
     let rooms = [
       makeRoom(id: "c1", name: "general"),
