@@ -309,6 +309,50 @@ export function buildTaskScheduleMetadataV2(
   };
 }
 
+function taskScheduleRuleMatchesInput(
+  metadata: TaskScheduleMetadataV2,
+  input: TaskScheduleInput,
+): boolean {
+  if (metadata.mode !== input.mode) {
+    return false;
+  }
+
+  if (metadata.mode === "once" && input.mode === "once") {
+    return metadata.effectiveRunAt === input.runAt;
+  }
+  if (metadata.mode !== "recurring" || input.mode !== "recurring") {
+    return false;
+  }
+
+  const remainingOccurrences =
+    metadata.targetReleaseCount == null
+      ? undefined
+      : metadata.targetReleaseCount - metadata.epochReleaseCount;
+  const intervalDays = input.intervalDays ?? undefined;
+  return (
+    metadata.expr === input.expr &&
+    metadata.timezone === (input.timezone ?? "UTC") &&
+    metadata.endsMode === (input.endsMode ?? "never") &&
+    metadata.endsOn === input.endsOn &&
+    remainingOccurrences === input.occurrences &&
+    metadata.intervalDays === intervalDays &&
+    (intervalDays == null ||
+      intervalDays <= 1 ||
+      metadata.anchorAt === input.anchorAt)
+  );
+}
+
+export function buildUpdatedTaskScheduleMetadataV2(
+  input: TaskScheduleInput,
+  current: TaskScheduleMetadataV2,
+  changedAt: Date,
+  nextEpochId: string,
+): TaskScheduleMetadataV2 {
+  return taskScheduleRuleMatchesInput(current, input)
+    ? current
+    : buildTaskScheduleMetadataV2(input, changedAt, nextEpochId);
+}
+
 export function computeScheduleNextRun(
   metadata: TaskScheduleMetadata,
   from?: Date,
