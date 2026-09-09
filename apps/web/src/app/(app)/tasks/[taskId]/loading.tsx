@@ -37,13 +37,7 @@ export default function TaskDetailLoading() {
   );
 }
 
-function TaskSectionSkeleton({
-  name,
-  rows,
-}: {
-  name: string;
-  rows: number;
-}) {
+function TaskSectionSkeleton({ name, rows }: { name: string; rows: number }) {
   return (
     <section className="space-y-4">
       <Skeleton className="h-3 w-24" />

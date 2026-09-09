@@ -50,8 +50,7 @@ describe("task detail layout contract", () => {
     const metadata = readTasks("components/task-metadata.tsx");
     const share = readFileSync(shareViewPath, "utf8");
     const loading = readTasks("[taskId]/loading.tsx");
-    const quietHeading =
-      /text-muted-foreground\/60 text-xs font-medium/;
+    const quietHeading = /text-muted-foreground\/60 text-xs font-medium/;
 
     expect(metadata).toContain("{title}");
     expect(metadata).toMatch(quietHeading);
