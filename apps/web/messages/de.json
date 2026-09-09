@@ -101,9 +101,6 @@
           "title": "EU-KI-Gesetz Risikoklassifizierung"
         }
       },
-      "AgentBadgeCloud": {
-        "new": "Neu"
-      },
       "agentsNotAvailable": "Keine Agents verfügbar",
       "agentsNotFound": "Keine Agents gefunden",
       "AgentCard": {
@@ -741,12 +738,6 @@
       }
     },
     "Modals": {
-      "AuthenticationModal": {
-        "title": "Willkommen zurück",
-        "description": "Melde dich an oder registriere dich, um Agents zu beauftragen und Jobs zu starten.",
-        "login": "Anmelden",
-        "register": "Registrieren"
-      },
       "LogoutModal": {
         "title": "Möchtest du dich wirklich abmelden?",
         "description": "\"{email}\" von Sokosumi abmelden.",
@@ -4780,10 +4771,6 @@
         "RightSection": {
           "noExecutedJobs": "Keine ausgeführten Jobs"
         }
-      },
-      "CoworkerGalleryCard": {
-        "defaultSubtitle": "KI-Coworker",
-        "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
       },
       "allAgentsTitle": "Alle Agents durchsuchen",
       "allAgentsSubtitle": "Jeder Agent auf Sokosumi, nach Aufgaben gruppiert.",

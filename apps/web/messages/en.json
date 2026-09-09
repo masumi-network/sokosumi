@@ -101,9 +101,6 @@
           "title": "EU AI Act Risk Classification"
         }
       },
-      "AgentBadgeCloud": {
-        "new": "New"
-      },
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
       "AgentCard": {
@@ -757,12 +754,6 @@
       }
     },
     "Modals": {
-      "AuthenticationModal": {
-        "title": "Welcome back",
-        "description": "Log in or register to hire agents and start the jobs.",
-        "login": "Login",
-        "register": "Register"
-      },
       "LogoutModal": {
         "title": "Do you really want to log out?",
         "description": "Log out \"{email}\" from Sokosumi.",
@@ -4811,10 +4802,6 @@
         "RightSection": {
           "noExecutedJobs": "No executed jobs"
         }
-      },
-      "CoworkerGalleryCard": {
-        "defaultSubtitle": "AI Coworker",
-        "defaultDescription": "An AI-powered coworker ready to assist you."
       },
       "allAgentsTitle": "Browse all agents",
       "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",

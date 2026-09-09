@@ -18,11 +18,29 @@ func testMessageJSON(
   content: String,
   sender: String,
   createdAt: String = testTimestamp,
-  membership: String? = nil
+  membership: String? = nil,
+  metadata: String? = nil
 ) -> String {
   let membershipJSON = membership ?? "null"
+  let metadataJSON = metadata ?? "null"
   return """
-  {"id":"\(id)","roomId":"\(testRoomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":null,"editedAt":null,"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":null,"quote":null,"membership":\(membershipJSON),"unfurls":null}
+  {"id":"\(id)","roomId":"\(testRoomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":null,"editedAt":null,"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadataJSON),"quote":null,"membership":\(membershipJSON),"unfurls":null}
+  """
+}
+
+func testCreatedMessageBody(
+  id: String,
+  content: String,
+  clientMessageId: String
+) -> String {
+  let message = testMessageJSON(
+    id: id,
+    content: content,
+    sender: testUserSender(name: "Me", email: "me@example.com"),
+    metadata: "{\"client_message_id\":\"\(clientMessageId)\"}"
+  )
+  return """
+  {"data":\(message),"meta":{"timestamp":"\(testTimestamp)","requestId":"req-1"}}
   """
 }
 
@@ -40,6 +58,7 @@ final class TestTransport: ClientTransport, @unchecked Sendable {
   }
 
   private(set) var requests: [Recorded] = []
+  private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
 
   init(_ responses: [(Int, String)]) {
@@ -48,11 +67,16 @@ final class TestTransport: ClientTransport, @unchecked Sendable {
 
   func send(
     _ request: HTTPRequest,
-    body _: HTTPBody?,
+    body: HTTPBody?,
     baseURL _: URL,
     operationID: String
   ) async throws -> (HTTPResponse, HTTPBody?) {
     requests.append(.init(operationID: operationID, request: request))
+    if let body, let bytes = try? await Array(collecting: body, upTo: 1_000_000) {
+      bodies.append(Data(bytes))
+    } else {
+      bodies.append(Data())
+    }
     guard !responses.isEmpty else {
       Issue.record("unexpected request \(operationID): no stubbed response left")
       return (HTTPResponse(status: .internalServerError), HTTPBody("{}"))
@@ -60,6 +84,10 @@ final class TestTransport: ClientTransport, @unchecked Sendable {
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
   }
+}
+
+func testRequestJSON(_ data: Data) -> [String: Any] {
+  (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
 }
 
 func testOrgSlugHeader(_ request: HTTPRequest) -> String? {
