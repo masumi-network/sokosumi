@@ -6,7 +6,7 @@
 
 **Stack**: One Xcode project (`Sokosumi.xcodeproj`, product `Sokosumi`), macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth state, workspace state, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (OAuth session, Keychain-adjacent auth), `Packages/SokosumiChat/` (workspace/rooms/chat flows), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace state, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (workspace/rooms/chat flows), `SokosumiTests/` (app-target tests).
 
 ## App-Specific Conventions
 

@@ -2,6 +2,11 @@ name: Linting
 on:
   pull_request:
 
+concurrency:
+  # A new push to the same PR cancels the queued or running run for the old commit.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
