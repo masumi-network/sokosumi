@@ -79,6 +79,8 @@ public struct ChatService: Sendable {
       throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
     case let .notFound(notFound):
       throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+    case let .unprocessableContent(invalid):
+      throw try ChatServiceError.unprocessable(statusCode: 422, message: invalid.body.json.message)
     case let .internalServerError(serverError):
       throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
     case let .undocumented(statusCode, payload):

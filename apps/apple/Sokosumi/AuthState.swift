@@ -127,7 +127,14 @@ final class AuthState: ObservableObject {
     }
   }
 
-  /// Generated Core client with the session's Bearer middleware attached.
+  /// OAuth session actor for realtime token minting (SOK-976). The actor
+  /// crosses isolation, so the Ably auth callback stays `Sendable` without
+  /// touching MainActor state. Nil when sign-in is not configured.
+  var oauthSession: OAuthSession? {
+    session
+  }
+
+  /// Generated Core client with the session's bearer attached.
   /// Nil when the OAuth client ID is not configured.
   func coreClient() -> Client? {
     guard let session else {
