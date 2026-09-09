@@ -46,15 +46,32 @@ describe("task detail layout contract", () => {
     );
   });
 
-  it("metadata UI no longer renders a Properties section heading", () => {
+  it("metadata UI renders a quiet Properties section heading on auth and share", () => {
     const metadata = readTasks("components/task-metadata.tsx");
     const share = readFileSync(shareViewPath, "utf8");
+    const loading = readTasks("[taskId]/loading.tsx");
+    const quietHeading = /text-muted-foreground text-xs font-medium/;
 
+    expect(metadata).toContain("{title}");
+    expect(metadata).toMatch(quietHeading);
     expect(metadata).not.toContain("propertiesTitle");
     expect(metadata).not.toMatch(
       /tracking-wider uppercase[\s\S]{0,80}properties/i,
     );
-    expect(share).not.toContain('tTaskDetail("properties")');
+
+    expect(share).toContain('tTaskDetail("properties")');
+    expect(share).toMatch(quietHeading);
+    expect(share).not.toMatch(
+      /tracking-wider uppercase[\s\S]{0,120}tTaskDetail\("properties"\)/,
+    );
+
+    expect(loading).toContain('name="properties"');
+    expect(loading).not.toContain("showTitle={false}");
+
+    const view = readTasks("components/task-detail-view.tsx");
+    expect(view).toContain(
+      '<TaskSectionFallback title={t("properties")} rows={4} />',
+    );
   });
 
   it("single-column source order keeps metadata after description and before later sections", () => {
