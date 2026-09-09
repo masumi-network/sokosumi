@@ -23,25 +23,24 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+// `@/helpers/access-control` stays real so the route's access chain is the one
+// under test: ownership without the mutation-only parked-task guard.
 const {
   memberFindFirstMock,
-  requireTaskCollaborationMock,
+  taskFindFirstMock,
   occurrenceCountMock,
   occurrenceFindManyMock,
 } = vi.hoisted(() => ({
   memberFindFirstMock: vi.fn(),
-  requireTaskCollaborationMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
   occurrenceCountMock: vi.fn(),
   occurrenceFindManyMock: vi.fn(),
-}));
-
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskCollaboration: requireTaskCollaborationMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     member: { findFirst: memberFindFirstMock },
+    task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: {
       count: occurrenceCountMock,
       findMany: occurrenceFindManyMock,
@@ -115,7 +114,12 @@ async function readBody(response: Response) {
         isMissed: boolean;
         effectiveScheduledAt: string;
         sourceId: string;
-        releasedTask: { id: string; name: string; status: string } | null;
+        releasedTask: {
+          id: string;
+          name: string;
+          status: string;
+          archivedAt: string | null;
+        } | null;
       }[];
     };
     meta: {
@@ -135,9 +139,10 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
-    requireTaskCollaborationMock.mockResolvedValue({
+    taskFindFirstMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
+      ownerId: "user_123",
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: 4,
@@ -161,7 +166,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     const response = await app.request(request());
 
     expect(response.status).toBe(403);
-    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
@@ -171,18 +176,39 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     const response = await createApp().request(request());
 
     expect(response.status).toBe(403);
-    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("requires Task collaboration and surfaces a missing Task as 404", async () => {
-    const { notFound } = await import("@/helpers/error");
-    requireTaskCollaborationMock.mockRejectedValue(notFound("Task not found"));
+  it("requires Task ownership and surfaces a missing Task as 404", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(request());
 
     expect(response.status).toBe(404);
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: { id: TASK_ID, ownerId: "user_123", archivedAt: null },
+    });
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("lets the owner read history while the Task is parked awaiting a grant", async () => {
+    // The mutation gate would reject GRANT_PENDING with "cannot be modified";
+    // reading the ledger modifies nothing.
+    taskFindFirstMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.GRANT_PENDING,
+      ownerId: "user_123",
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: 4,
+    });
+    occurrenceFindManyMock.mockResolvedValue([createRow()]);
+
+    const response = await createApp().request(request("?view=history"));
+
+    expect(response.status).toBe(200);
+    expect((await readBody(response)).data.occurrences).toHaveLength(1);
   });
 
   it("returns an empty page with the current revision when the series was removed", async () => {
@@ -256,6 +282,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
           id: "tsk_released",
           name: "Prepare release notes",
           status: TaskStatus.COMPLETED,
+          archivedAt: null,
         },
       }),
       createRow({
@@ -279,6 +306,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
         id: "tsk_released",
         name: "Prepare release notes",
         status: "COMPLETED",
+        archivedAt: null,
       },
     });
     // A past PLANNED row never released, so history shows it as missed.
@@ -476,6 +504,56 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     expect(response.status).toBe(400);
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a decodable cursor whose id is not a uuid", async () => {
+    // The id keys a uuid column; without this guard the value would reach
+    // Postgres and fail there as a 500 instead of as client input.
+    const cursor = encodeTaskScheduleOccurrenceCursor({
+      view: "upcoming",
+      scheduleRevision: 4,
+      effectiveScheduledAt: "2026-06-11T09:00:00.000Z",
+      id: "not-a-uuid",
+    });
+
+    const response = await createApp().request(
+      request(`?view=upcoming&cursor=${encodeURIComponent(cursor)}`),
+    );
+
+    expect(response.status).toBe(400);
+    expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an archived released Task in history and marks it archived", async () => {
+    occurrenceFindManyMock.mockResolvedValue([
+      createRow({
+        state: TaskScheduleOccurrenceState.RELEASED,
+        effectiveScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
+        releasedTask: {
+          id: "tsk_released",
+          name: "Prepare release notes",
+          status: TaskStatus.COMPLETED,
+          archivedAt: new Date("2026-06-09T12:00:00.000Z"),
+        },
+      }),
+    ]);
+
+    const response = await createApp().request(request("?view=history"));
+
+    expect(response.status).toBe(200);
+    const body = await readBody(response);
+    expect(body.data.occurrences[0]?.releasedTask).toEqual({
+      id: "tsk_released",
+      name: "Prepare release notes",
+      status: "COMPLETED",
+      archivedAt: "2026-06-09T12:00:00.000Z",
+    });
+    const [args] = occurrenceFindManyMock.mock.calls[0] as [
+      { select: { releasedTask: { select: Record<string, boolean> } } },
+    ];
+    expect(args.select.releasedTask.select).toMatchObject({
+      archivedAt: true,
+    });
   });
 
   it("rejects a limit above the shared maximum", async () => {
