@@ -82,7 +82,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
 
   const propertiesPanel = (
     <section className="space-y-3">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {tTaskDetail("properties")}
       </h2>
       <div className="flex items-center justify-between gap-4">
@@ -229,7 +229,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           ) : null}
 
           <section className="space-y-4">
-            <h2 className="text-muted-foreground/60 text-xs font-medium">
+            <h2 className="text-muted-foreground text-xs font-medium">
               {tTaskDetail("activity")}
             </h2>
             {visibleEvents.length === 0 ? (

@@ -185,7 +185,7 @@ export function TaskMetadata({
 
   return (
     <section className="space-y-3">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.status}</span>
         <TaskStatusBadge

@@ -377,7 +377,7 @@ export function TaskActivitySection({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
 
       {canComment ? (
         <form

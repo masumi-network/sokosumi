@@ -94,7 +94,7 @@ describe("TaskMetadata", () => {
       name: "Properties",
     });
     expect(heading).toHaveClass(
-      "text-muted-foreground/60",
+      "text-muted-foreground",
       "text-xs",
       "font-medium",
     );

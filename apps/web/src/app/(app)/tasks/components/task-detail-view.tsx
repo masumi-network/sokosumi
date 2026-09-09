@@ -776,9 +776,7 @@ function TaskSectionFallback({
   return (
     <section className="space-y-4">
       {title ? (
-        <h2 className="text-muted-foreground/60 text-xs font-medium">
-          {title}
-        </h2>
+        <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       ) : null}
       <div className="space-y-3">
         {Array.from({ length: rows }, (_, index) => (
