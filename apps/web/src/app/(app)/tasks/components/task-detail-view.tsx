@@ -1,11 +1,12 @@
 import {
   hasActiveTaskSchedule,
+  parseTaskScheduleMetadata,
   resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
@@ -16,6 +17,8 @@ import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
+import { TaskScheduleOccurrences } from "@/app/tasks/components/task-schedule-occurrences";
+import { TaskScheduleSeries } from "@/app/tasks/components/task-schedule-series";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
@@ -41,7 +44,13 @@ import {
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
+import { TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
+import {
+  computeScheduleTitleInfo,
+  formatScheduleTitle,
+} from "@/components/schedules/format";
 import { getSession } from "@/lib/auth/auth.server";
+import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -49,8 +58,12 @@ import { designMdService } from "@/lib/services/design-md.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import { userService } from "@/lib/services/user.service";
-import { formatShortDateTime } from "@/lib/utils/datetime";
+import {
+  formatShortDateTime,
+  HYDRATION_STABLE_TIME_ZONE,
+} from "@/lib/utils/datetime";
 import {
   buildVendorGrantReviewHref,
   canApproveVendorGrants,
@@ -68,6 +81,9 @@ type OwnerBotResult = Awaited<ReturnType<typeof sokoBotService.getMine>>;
 type MembersResult = Awaited<
   ReturnType<typeof userService.getMyMembersWithOrganizations>
 >;
+type ProjectResult = Awaited<
+  ReturnType<typeof projectService.getProjectById>
+> | null;
 
 interface TaskDetailViewProps {
   task: Task;
@@ -106,6 +122,9 @@ export async function TaskDetailView({
     ? Promise.resolve(false)
     : hasAssignedOrganizationSeat(task.workspace.organizationId ?? null);
   const translationsPromise = getTranslations("App.Tasks.Detail");
+  const projectPromise = task.projectId
+    ? projectService.getProjectById(task.projectId).catch(() => null)
+    : Promise.resolve(null);
   const linkedTasks = mapVisibleTaskLinks(task.links);
   const parentTask = linkedTasks.find(
     (link) => link.relation === "child" || link.relation === "schedule_series",
@@ -194,6 +213,14 @@ export async function TaskDetailView({
           </aside>
 
           <div className={TASK_DETAIL_MAIN_CLASS}>
+            <Suspense fallback={null}>
+              <TaskScheduleSeriesSection
+                task={task}
+                forceReadOnly={forceReadOnly}
+                projectPromise={projectPromise}
+              />
+            </Suspense>
+
             <TaskRelatedTasks
               title={t("linkedTasksTitle")}
               emptyLabel={t("linkedTasksEmpty")}
@@ -460,6 +487,136 @@ async function TaskMetadataSection({
         updateStatusError: tTasks("Errors.updateStatus"),
       }}
     />
+  );
+}
+
+/**
+ * The Calendar schedule series lives here: Task detail is its canonical home.
+ * The section is server-rendered down to the first page of each occurrence
+ * view; only the tabs and "load more" below need the client.
+ *
+ * Skipped for the admin read-only route — the occurrence ledger is scoped to
+ * the Task's owner, so an admin read would only produce a 403.
+ */
+async function TaskScheduleSeriesSection({
+  task,
+  forceReadOnly,
+  projectPromise,
+}: {
+  task: Task;
+  forceReadOnly: boolean;
+  projectPromise: Promise<ProjectResult>;
+}) {
+  const isActive = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
+  // A Task that never carried a schedule has nothing to show. A removed series
+  // keeps its revision, and with it the history the removal preserved.
+  if (forceReadOnly || (!isActive && (task.scheduleRevision ?? 0) === 0)) {
+    return null;
+  }
+
+  if (!(await hasCurrentUserCalendarBetaAccess())) {
+    return null;
+  }
+
+  // Both first pages are server-rendered. The rest of Task detail must still
+  // render if the ledger read fails, so a failure drops the section instead of
+  // failing the route.
+  const pages = await Promise.all([
+    taskScheduleService.listOccurrences(task.id, {
+      view: "upcoming",
+      limit: TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
+    }),
+    taskScheduleService.listOccurrences(task.id, {
+      view: "history",
+      limit: TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
+    }),
+  ]).catch(() => null);
+
+  if (!pages) {
+    return null;
+  }
+
+  const [upcoming, history] = pages;
+  const [project, t, tDetail, tSchedule, tSource, formatter] =
+    await Promise.all([
+      projectPromise,
+      getTranslations("App.Tasks.Detail.ScheduleSeries"),
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("App.Tasks.Schedule"),
+      getTranslations("App.Calendar.source"),
+      getFormatter(),
+    ]);
+  const scheduleMetadata = parseTaskScheduleMetadata(task.metadata);
+  // Only a v1 one-time rule carries no zone of its own.
+  const timezone =
+    scheduleMetadata && "timezone" in scheduleMetadata
+      ? scheduleMetadata.timezone
+      : null;
+
+  return (
+    <TaskScheduleSeries
+      labels={{
+        title: t("title"),
+        calendar: t("calendar"),
+        repeats: t("repeats"),
+        timezone: t("timezone"),
+        nextRun: t("nextRun"),
+        removed: t("removed"),
+      }}
+      calendar={
+        project
+          ? {
+              name: project.name,
+              href: `/projects/${project.id}/calendar`,
+              sourceLabel: tSource("PROJECT"),
+            }
+          : {
+              name: task.organization?.name ?? tDetail("personalWorkspace"),
+              href: "/calendar",
+              sourceLabel: tSource("WORKSPACE"),
+            }
+      }
+      recurrenceLabel={
+        scheduleMetadata
+          ? formatScheduleTitle(
+              computeScheduleTitleInfo({
+                scheduleType:
+                  scheduleMetadata.mode === "once" ? "ONE_TIME" : "CRON",
+                cron:
+                  scheduleMetadata.mode === "recurring"
+                    ? scheduleMetadata.expr
+                    : null,
+                timezone: timezone ?? HYDRATION_STABLE_TIME_ZONE,
+              }),
+              tSchedule,
+            )
+          : null
+      }
+      timezone={timezone}
+      nextRunLabel={
+        task.nextRunAt
+          ? formatter.dateTime(task.nextRunAt, {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              timeZone: timezone ?? HYDRATION_STABLE_TIME_ZONE,
+            })
+          : null
+      }
+      isActive={isActive}
+    >
+      <TaskScheduleOccurrences
+        // The pages are a keyset into one revision of the ledger. When the
+        // series moves on, the whole island remounts rather than merging
+        // pages that no longer describe the same ordering.
+        key={upcoming.scheduleRevision}
+        taskId={task.id}
+        upcoming={upcoming}
+        history={history}
+        hasActiveSchedule={isActive}
+      />
+    </TaskScheduleSeries>
   );
 }
 

@@ -5536,7 +5536,7 @@ export type TaskLinkDeleted = {
     deleted: true;
 };
 
-export type PutTaskScheduleRequest = {
+export type PutCalendarTaskScheduleRequest = {
     /**
      * Idempotency identity for this series edit
      */
@@ -5550,7 +5550,9 @@ export type PutTaskScheduleRequest = {
      */
     discardFutureExceptions: true;
     schedule: TaskScheduleInput;
-} | {
+};
+
+export type PutTaskScheduleRequest = PutCalendarTaskScheduleRequest | {
     mode: 'once';
     /**
      * When the one-time schedule should run
@@ -5584,6 +5586,85 @@ export type PutTaskScheduleRequest = {
      */
     anchorAt?: Date;
 };
+
+export type TaskScheduleOccurrencePage = {
+    /**
+     * Series revision this page was read at
+     */
+    scheduleRevision: number;
+    occurrences: Array<TaskScheduleOccurrence>;
+};
+
+export type TaskScheduleOccurrence = {
+    /**
+     * Ledger row identity, also the pagination tie-breaker
+     */
+    id: string;
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * 1 for legacy display-only projections, 2 for epoch-backed rows
+     */
+    scheduleVersion: number;
+    /**
+     * Rule epoch that projected this occurrence, when known
+     */
+    epochId: string | null;
+    /**
+     * Time the rule originally projected, when the ledger captured it
+     */
+    originalScheduledAt: Date | null;
+    /**
+     * Time the occurrence actually holds; the ordering key
+     */
+    effectiveScheduledAt: Date;
+    /**
+     * IANA timezone captured with the rule
+     */
+    timezone: string | null;
+    /**
+     * A planned occurrence whose effective time has passed without a release. Derived server-side so clients never depend on their own clock.
+     */
+    isMissed: boolean;
+    /**
+     * Canonical Calendar source identity
+     */
+    sourceId: string;
+    /**
+     * Workspace captured as the Calendar source
+     */
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    /**
+     * Project captured as the Calendar source, when applicable
+     */
+    sourceProjectId: string | null;
+    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
+    timeAccuracy: 'EXACT' | 'APPROXIMATE';
+    releasedTask: TaskScheduleOccurrenceReleasedTask;
+};
+
+/**
+ * Independent Task this occurrence released, when it did
+ */
+export type TaskScheduleOccurrenceReleasedTask = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+    /**
+     * Set when the released Task was archived; it is no longer readable, so the summary is not navigable
+     */
+    archivedAt: Date | null;
+} | null;
+
+/**
+ * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+ */
+export const TaskScheduleOccurrenceView = { UPCOMING: 'upcoming', HISTORY: 'history' } as const;
+
+/**
+ * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+ */
+export type TaskScheduleOccurrenceView = typeof TaskScheduleOccurrenceView[keyof typeof TaskScheduleOccurrenceView];
 
 export type TaskWorkspace = {
     /**
@@ -17600,7 +17681,7 @@ export type GetChatsRoomsByIdMessagesData = {
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Cursor for pagination (ID of the last message from previous page)
          */
         cursor?: string;
         /**
@@ -29325,6 +29406,20 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type DeleteProjectsByIdTasksByTaskIdError = DeleteProjectsByIdTasksByTaskIdErrors[keyof DeleteProjectsByIdTasksByTaskIdErrors];
@@ -37458,6 +37553,7 @@ export type PatchTasksByIdData = {
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
+        expectedScheduleRevision?: number;
     };
     path: {
         id: string;
@@ -37558,7 +37654,7 @@ export type PatchTasksByIdResponses = {
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
 
 export type PutTasksByIdCalendarScheduleData = {
-    body?: PutTaskScheduleRequest;
+    body?: PutCalendarTaskScheduleRequest;
     path: {
         id: string;
     };
@@ -37673,6 +37769,16 @@ export type PutTasksByIdCalendarScheduleResponse = PutTasksByIdCalendarScheduleR
 
 export type DeleteTasksByIdScheduleData = {
     body?: never;
+    headers: {
+        /**
+         * Idempotency identity for this series removal
+         */
+        'idempotency-key': string;
+        /**
+         * Schedule revision observed by the caller, as an entity tag
+         */
+        'if-match': string;
+    };
     path: {
         id: string;
     };
@@ -37727,6 +37833,20 @@ export type DeleteTasksByIdScheduleErrors = {
      * Conflict
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -37870,6 +37990,133 @@ export type PutTasksByIdScheduleResponses = {
 };
 
 export type PutTasksByIdScheduleResponse = PutTasksByIdScheduleResponses[keyof PutTasksByIdScheduleResponses];
+
+export type GetTasksByIdScheduleOccurrencesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+         */
+        view?: TaskScheduleOccurrenceView;
+        /**
+         * Opaque cursor from a previous page of the same view. A cursor minted before the schedule revision changed is rejected with kind schedule_cursor_stale.
+         */
+        cursor?: string;
+        /**
+         * Number of occurrences to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/tasks/{id}/schedule/occurrences';
+};
+
+export type GetTasksByIdScheduleOccurrencesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleOccurrencesError = GetTasksByIdScheduleOccurrencesErrors[keyof GetTasksByIdScheduleOccurrencesErrors];
+
+export type GetTasksByIdScheduleOccurrencesResponses = {
+    /**
+     * Task schedule occurrences
+     */
+    200: {
+        data: TaskScheduleOccurrencePage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleOccurrencesResponse = GetTasksByIdScheduleOccurrencesResponses[keyof GetTasksByIdScheduleOccurrencesResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;
