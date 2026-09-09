@@ -14,6 +14,7 @@ public final class RoomOutbox: ObservableObject {
   }
 
   @Published public private(set) var shells: [OutboundShell] = []
+  @Published public private(set) var sentAt: [String: Date] = [:]
   @Published private var active: UUID?
   public var isSending: Bool {
     active != nil
@@ -56,7 +57,12 @@ public final class RoomOutbox: ObservableObject {
   }
 
   /// Realtime confirmation can remove a shell before its HTTP result arrives.
-  public func reconcile(_ remaining: [OutboundShell]) {
+  public func reconcile(_ remaining: [OutboundShell], confirmed message: Message? = nil) {
+    if let message, let id = realtimeClientTurnId(message),
+       let shell = shells.first(where: { $0.clientTurnId == id }),
+       !remaining.contains(where: { $0.clientTurnId == id }) {
+      recordConfirmation(message.id, shell: shell)
+    }
     shells = remaining
   }
 
@@ -70,6 +76,18 @@ public final class RoomOutbox: ObservableObject {
     queue = []
     jobs = [:]
     shells = []
+    sentAt = [:]
+  }
+
+  private func recordConfirmation(_ messageId: String, shell: OutboundShell) {
+    let now = Date()
+    guard now.timeIntervalSince(shell.createdAt) >= 0.5 else { return }
+    sentAt[messageId] = now
+    Task { [weak self] in
+      try? await Task.sleep(for: .milliseconds(1600))
+      guard self?.sentAt[messageId] == now else { return }
+      self?.sentAt[messageId] = nil
+    }
   }
 
   private func startNext() {
@@ -111,6 +129,9 @@ public final class RoomOutbox: ObservableObject {
     if shells.contains(where: { $0.clientTurnId == id }) {
       switch result {
       case let .success(message):
+        if let shell = shells.first(where: { $0.clientTurnId == id }) {
+          recordConfirmation(message.id, shell: shell)
+        }
         shells.removeAll { $0.clientTurnId == id }
         jobs[id] = nil
         job.confirmed(message)

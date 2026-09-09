@@ -10,6 +10,60 @@ struct RoomOutboxTests {
           sender: .init(id: "me", name: "Me", email: "me@example.com", presence: .online))
   }
 
+  @Test func slowHTTPConfirmationShowsThenExpiresSentFeedback() async throws {
+    let outbox = RoomOutbox()
+    var pending = shell("slow")
+    pending.createdAt = Date().addingTimeInterval(-1)
+    var response = chatRoomMessage(from: pending)
+    response.id = "confirmed"
+    let confirmed = response
+    outbox.enqueue(pending, send: { confirmed }, confirmed: { _ in }, failed: { _ in Issue.record("Unexpected failure") })
+    while outbox.isSending {
+      await Task.yield()
+    }
+    #expect(outbox.sentAt[confirmed.id] != nil)
+    try await Task.sleep(for: .milliseconds(1700))
+    #expect(outbox.sentAt.isEmpty)
+  }
+
+  @Test func fastConfirmationSkipsSentFeedback() async {
+    let outbox = RoomOutbox()
+    let pending = shell("fast")
+    let response = chatRoomMessage(from: pending)
+    outbox.enqueue(pending, send: { response }, confirmed: { _ in }, failed: { _ in Issue.record("Unexpected failure") })
+    while outbox.isSending {
+      await Task.yield()
+    }
+    #expect(outbox.sentAt.isEmpty)
+  }
+
+  @Test func realtimeConfirmationShowsSentWithoutRestartingOnHTTPAndResetClearsIt() async {
+    let outbox = RoomOutbox()
+    var pending = shell("realtime")
+    pending.createdAt = Date().addingTimeInterval(-1)
+    var response = chatRoomMessage(from: pending)
+    response.id = "confirmed"
+    let confirmed = response
+    var gate: CheckedContinuation<Void, Never>?
+    outbox.enqueue(pending, send: {
+      await withCheckedContinuation { gate = $0 }
+      return confirmed
+    }, confirmed: { _ in }, failed: { _ in Issue.record("Unexpected failure") })
+    while gate == nil {
+      await Task.yield()
+    }
+    outbox.reconcile([], confirmed: confirmed)
+    let first = outbox.sentAt[confirmed.id]
+    #expect(first != nil)
+    gate?.resume()
+    while outbox.isSending {
+      await Task.yield()
+    }
+    #expect(outbox.sentAt[confirmed.id] == first)
+    outbox.reset()
+    #expect(outbox.sentAt.isEmpty)
+  }
+
   @Test func queuesSendsWithoutBlockingComposition() async throws {
     let outbox = RoomOutbox()
     let response = try #require(await fetchTestMessages([testMessageJSON(id: testRoomId, content: "sent", sender: testUserSender(name: "Me", email: "me@example.com"))]).first)

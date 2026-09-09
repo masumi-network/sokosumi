@@ -112,6 +112,7 @@ import SwiftUI
                     message: message,
                     isContinuation: isMessageContinuation(previous: previous, current: message),
                     outbound: outbound,
+                    sentAt: workspaces.outbox.sentAt[message.id],
                     onRetry: outbound.map { shell in
                       { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
                     },
@@ -227,6 +228,11 @@ import SwiftUI
       _draft = State(initialValue: savedDraft.load())
     }
 
+    private var composerPlaceholder: String {
+      guard let room = workspaces.rooms.first(where: { $0.id == roomId }) else { return "Message" }
+      return "Message \(roomDisplayName(room, currentUserId: workspaces.currentUserId))"
+    }
+
     private var canSend: Bool {
       ComposerContent(draft).canSend
         && !workspaces.transcriptLoading
@@ -241,7 +247,7 @@ import SwiftUI
             draft = text
             savedDraft.save(text)
           }
-        ), submit: sendDraft)
+        ), submit: sendDraft, placeholder: composerPlaceholder)
         if ComposerContent(draft).showsCounter {
           Text("\(ComposerContent(draft).count)/\(ComposerContent.maximumLength)")
             .font(.caption)
@@ -302,6 +308,35 @@ import SwiftUI
 
   /// One chat bubble row: avatar rail plus sender header, or a bare
   /// continuation rail when the burst continues. Plain text body only.
+  private struct DeliveryFeedback: View {
+    let pendingSince: Date?
+    let sentAt: Date?
+    @State private var showSending = false
+
+    var body: some View {
+      HStack(spacing: 4) {
+        if pendingSince != nil, showSending {
+          HStack(spacing: 4) {
+            ProgressView().controlSize(.mini)
+            Text("Sending…")
+          }
+          .accessibilityElement(children: .combine)
+        } else if sentAt != nil {
+          Label("Sent", systemImage: "checkmark")
+        }
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .task(id: pendingSince) {
+        showSending = false
+        guard let pendingSince else { return }
+        let remaining = max(0, 0.5 - Date().timeIntervalSince(pendingSince))
+        do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+        showSending = true
+      }
+    }
+  }
+
   struct MessageRow: View {
     /// Avatar edge: web uses 32px, but that reads oversized next to the
     /// native sidebar (28pt "me" avatar), so the transcript matches in-app.
@@ -310,6 +345,7 @@ import SwiftUI
     let message: Components.Schemas.ChatRoomMessage
     let isContinuation: Bool
     let outbound: OutboundShell?
+    var sentAt: Date?
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
 
@@ -350,6 +386,10 @@ import SwiftUI
           } else {
             Text(message.content)
               .textSelection(.enabled)
+          }
+          if outbound?.status == .pending || sentAt != nil {
+            DeliveryFeedback(pendingSince: outbound?.status == .pending ? outbound?.createdAt : nil,
+                             sentAt: sentAt)
           }
           if let outbound, outbound.status == .failed {
             if let error = outbound.errorMessage, !error.isEmpty {

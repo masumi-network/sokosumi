@@ -6,9 +6,10 @@ import SwiftUI
   struct ComposerInput: View {
     @Binding var text: String
     let submit: () -> Bool
+    var placeholder = "Message"
 
     var body: some View {
-      MacComposerTextInput(text: $text, submit: submit)
+      MacComposerTextInput(text: $text, submit: submit, placeholder: placeholder)
         .padding(4)
         .background(.background, in: .rect(cornerRadius: 5))
         .overlay {

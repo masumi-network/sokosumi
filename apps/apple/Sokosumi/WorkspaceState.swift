@@ -300,8 +300,8 @@ final class WorkspaceState: ObservableObject {
     let id = UUID().uuidString
     let slug = selection?.workspace.organizationSlug
     let shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
-    outbox.enqueue(shell, send: {
-      try await ChatService().createMessage(
+    outbox.enqueue(shell, send: { [service] in
+      try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
         clientMessageId: id, organizationSlug: slug
       )
@@ -455,7 +455,7 @@ final class WorkspaceState: ObservableObject {
       message: message
     )
     transcriptMessages = result.messages
-    outbox.reconcile(result.shells)
+    outbox.reconcile(result.shells, confirmed: message)
   }
 
   /// Apply an id envelope (ADR 0014): delete tombstones the on-screen row,

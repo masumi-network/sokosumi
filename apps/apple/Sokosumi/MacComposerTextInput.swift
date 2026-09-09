@@ -6,6 +6,7 @@
   struct MacComposerTextInput: NSViewRepresentable {
     @Binding var text: String
     let submit: () -> Bool
+    var placeholder = "Message"
 
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
@@ -32,6 +33,7 @@
       input.setAccessibilityLabel("Message")
       input.delegate = context.coordinator
       input.submit = submit
+      input.placeholder = placeholder
       scroll.documentView = input
       return scroll
     }
@@ -40,6 +42,7 @@
       context.coordinator.parent = self
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
+      input.placeholder = placeholder
       if input.string != text, !input.hasMarkedText() {
         input.string = text
       }
@@ -99,6 +102,20 @@
 
     final class InputView: NSTextView {
       var submit: () -> Bool = { false }
+      var placeholder = "Message" {
+        didSet { needsDisplay = true }
+      }
+
+      override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard string.isEmpty else { return }
+        let prompt = NSAttributedString(string: placeholder, attributes: [
+          .font: font ?? .preferredFont(forTextStyle: .body),
+          .foregroundColor: NSColor.placeholderTextColor
+        ])
+        prompt.draw(at: NSPoint(x: textContainerInset.width + (textContainer?.lineFragmentPadding ?? 5),
+                                y: textContainerInset.height))
+      }
 
       override func performKeyEquivalent(with event: NSEvent) -> Bool {
         // AppKit otherwise consumes Control-Return as a contextual-menu shortcut.
