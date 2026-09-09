@@ -61,6 +61,33 @@ describe("metadataToSelection", () => {
       endAfterOccurrences: 3,
     });
   });
+
+  it("submits the remaining occurrence count, not the original target", () => {
+    // A full-series edit starts a new epoch and resets `epochReleaseCount`, so
+    // resubmitting the original target would restore already-consumed runs.
+    const selection = metadataToSelection(
+      JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174001",
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "after",
+        targetReleaseCount: 5,
+        epochReleaseCount: 2,
+        anchorAt: "2026-06-01T09:00:00.000Z",
+      }),
+      "Europe/Berlin",
+    );
+
+    expect(selectionToApiBody(selection)).toMatchObject({
+      mode: "recurring",
+      endsMode: "after",
+      occurrences: 3,
+    });
+  });
 });
 
 describe("selectionToApiBody", () => {

@@ -10,10 +10,12 @@ import {
   Command,
   CornerDownLeft,
   Loader2,
+  TriangleAlert,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -32,6 +34,16 @@ import { AssistantOrb } from "@/components/aurora-orb";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,7 +82,12 @@ import {
   extractTaskAttachmentUrls,
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
-import { metadataToSelection } from "@/lib/utils/task-schedule";
+import {
+  hasTaskScheduleChanged,
+  metadataToSelection,
+  selectionToApiBody,
+} from "@/lib/utils/task-schedule";
+import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 import {
   canSelectQueuedTaskStatus,
   getManualTaskStatusSelectOptions,
@@ -217,6 +234,25 @@ function getTaskFormStatusLabel(
   );
 }
 
+/**
+ * The operation identity of a series save, keyed to the schedule it submits:
+ * retrying the same save replays on Core, while editing the rule again starts
+ * a new operation. Minted in the browser and never on the server.
+ */
+function seriesOperationIdFor(
+  selection: TaskScheduleSelection,
+  operation: RefObject<{ key: string; operationId: string } | null>,
+): string {
+  const key =
+    selection.mode === "none"
+      ? "none"
+      : JSON.stringify(selectionToApiBody(selection));
+  if (operation.current?.key !== key) {
+    operation.current = { key, operationId: crypto.randomUUID() };
+  }
+  return operation.current.operationId;
+}
+
 export interface TaskFormCreateInput {
   description: string;
   assigneeId: string | null;
@@ -239,6 +275,16 @@ interface TaskFormProps {
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
+  /**
+   * Schedule revision observed when this edit surface was rendered. It is the
+   * precondition for every write while the Task has a live series.
+   */
+  scheduleRevision?: number;
+  /**
+   * Durable future exceptions a full-series edit would cancel, read with
+   * {@link scheduleRevision}. Above zero the save asks to confirm the discard.
+   */
+  futureExceptionCount?: number;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   projectOptions?: ProjectFilterOption[];
   lockProjectSelection?: boolean;
@@ -261,6 +307,8 @@ export function TaskForm({
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
+  scheduleRevision,
+  futureExceptionCount = 0,
   initialDesignMdAttachment,
   projectOptions,
   lockProjectSelection = false,
@@ -277,8 +325,18 @@ export function TaskForm({
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const formatter = useFormatter();
-  const hasProjectSelection = projectOptions !== undefined;
+  // The Task already had a schedule when this form opened, so every schedule
+  // write below is a change to a live series rather than arming a new one.
+  const hadSchedule = Boolean(
+    initialValues?.metadata ||
+      (initialValues?.nextRunAt && initialValues.nextRunAt.length > 0),
+  );
+  // A live series owns the Task's status and Calendar source: Core rejects
+  // status changes with `schedule_active`, and moving the source is SOK-887.
+  const hasActiveSeries = mode === "edit" && hadSchedule;
+  const hasProjectSelection = projectOptions !== undefined && !hasActiveSeries;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
@@ -421,13 +479,14 @@ export function TaskForm({
 
   const originalScheduleSelection = useRef(scheduleSelection);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const hadSchedule = useMemo(
-    () =>
-      Boolean(
-        initialValues?.metadata ||
-          (initialValues?.nextRunAt && initialValues.nextRunAt.length > 0),
-      ),
-    [initialValues?.metadata, initialValues?.nextRunAt],
+  const [seriesError, setSeriesError] = useState<string | null>(null);
+  const [pendingSeriesConfirmation, setPendingSeriesConfirmation] = useState<
+    "discard" | "remove" | null
+  >(null);
+  // One UUID per distinct submitted schedule, so a retry of the same save
+  // replays on Core while a re-edited rule becomes a new operation.
+  const seriesOperation = useRef<{ key: string; operationId: string } | null>(
+    null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTask, setCreatedTask] = useState<{
@@ -649,28 +708,127 @@ export function TaskForm({
       ? CREATE_STATUS_OPTIONS
       : getManualTaskStatusSelectOptions(status);
 
-  const handleSave = useCallback(async () => {
-    if (isSaveDisabled || (useWizard && step === 1)) return;
+  /**
+   * What a save would do to a live series. Replacing the rule always retires
+   * its future exceptions, and setting no schedule removes the series outright
+   * — both are destructive enough to confirm before they leave the browser.
+   */
+  const pendingSeriesChange = useMemo(() => {
     if (
-      shouldShowProjectSelect &&
-      projectId === undefined &&
-      labels.projectRequired
+      !hasActiveSeries ||
+      !hasTaskScheduleChanged(
+        originalScheduleSelection.current,
+        scheduleSelection,
+        true,
+      )
     ) {
-      setIsProjectMissing(true);
-      return;
+      return null;
     }
-    setIsSubmitting(true);
-    try {
-      const trimmedDescription = description.trim();
-      const desiredStatus = status;
+
+    if (scheduleSelection.mode === "none") return "remove" as const;
+    return futureExceptionCount > 0 ? ("discard" as const) : null;
+  }, [futureExceptionCount, hasActiveSeries, scheduleSelection]);
+
+  const handleSave = useCallback(
+    async (confirmedSeriesChange = false) => {
+      if (isSaveDisabled || (useWizard && step === 1)) return;
+      if (pendingSeriesChange && !confirmedSeriesChange) {
+        setSeriesError(null);
+        setPendingSeriesConfirmation(pendingSeriesChange);
+        return;
+      }
       if (
-        mode === "create" &&
-        (desiredStatus === TaskStatus.DRAFT ||
-          desiredStatus === TaskStatus.READY ||
-          desiredStatus === TaskStatus.QUEUED)
+        shouldShowProjectSelect &&
+        projectId === undefined &&
+        labels.projectRequired
       ) {
-        const createTaskHandler = onCreateTask ?? createTask;
-        const result = await createTaskHandler({
+        setIsProjectMissing(true);
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        const trimmedDescription = description.trim();
+        const desiredStatus = status;
+        if (
+          mode === "create" &&
+          (desiredStatus === TaskStatus.DRAFT ||
+            desiredStatus === TaskStatus.READY ||
+            desiredStatus === TaskStatus.QUEUED)
+        ) {
+          const createTaskHandler = onCreateTask ?? createTask;
+          const result = await createTaskHandler({
+            description: trimmedDescription,
+            ...resolveTaskAssigneeFields(
+              assigneeId,
+              coworkerOptions,
+              knownSokoBotId,
+              initialValues?.assigneeUserId,
+            ),
+            context: {
+              brand: {
+                enabled: contextSelection.brand.enabled,
+                source: contextSelection.brand.source,
+                custom: contextSelection.brand.custom
+                  ? { url: contextSelection.brand.custom.url }
+                  : null,
+              },
+              briefingEnabled: contextSelection.briefingEnabled,
+              contextMdEnabled: contextSelection.contextMdEnabled,
+            },
+            ...(hasProjectSelection ? { projectId } : {}),
+            status: desiredStatus as Extract<
+              TaskStatus,
+              "DRAFT" | "READY" | "QUEUED"
+            >,
+            schedule: scheduleSelection,
+          });
+          if (!result.ok) {
+            showCalendarClientUpgradeModal();
+            return;
+          }
+          const createdTask = result.value;
+          // Confirm success in place and let the user choose when to navigate;
+          // the redirect target is prefetched so it lands fast.
+          const assigneeFields = resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownSokoBotId,
+            initialValues?.assigneeUserId,
+          );
+          const createdStatus = resolveCelebrationStatus({
+            desiredStatus,
+            isAgent: isAgentAssigneeFields(assigneeFields),
+            hasSchedule: scheduleSelection.mode !== "none",
+          });
+          router.prefetch(`/tasks/${createdTask.taskId}`);
+          setCreatedTask({
+            id: createdTask.taskId,
+            name: createdTask.name.trim() || "Untitled task",
+            status: createdStatus,
+            statusLabel:
+              createdStatus === "QUEUED"
+                ? (labels.statusQueued ?? "Queued")
+                : createdStatus === "DRAFT"
+                  ? labels.statusDraft
+                  : labels.statusReady,
+            scheduleLabel:
+              scheduleSelection.mode !== "none" &&
+              desiredStatus !== TaskStatus.DRAFT
+                ? (scheduleLabel ?? undefined)
+                : undefined,
+          });
+          onCreated?.(createdTask.taskId);
+          return;
+        }
+
+        if (!taskId) {
+          throw new Error("Task ID is required");
+        }
+
+        const trimmedName = name.trim();
+        const result = await updateTask({
+          taskId,
+          name: trimmedName,
           description: trimmedDescription,
           ...resolveTaskAssigneeFields(
             assigneeId,
@@ -678,136 +836,87 @@ export function TaskForm({
             knownSokoBotId,
             initialValues?.assigneeUserId,
           ),
-          context: {
-            brand: {
-              enabled: contextSelection.brand.enabled,
-              source: contextSelection.brand.source,
-              custom: contextSelection.brand.custom
-                ? { url: contextSelection.brand.custom.url }
-                : null,
-            },
-            briefingEnabled: contextSelection.briefingEnabled,
-            contextMdEnabled: contextSelection.contextMdEnabled,
-          },
           ...(hasProjectSelection ? { projectId } : {}),
-          status: desiredStatus as Extract<
-            TaskStatus,
-            "DRAFT" | "READY" | "QUEUED"
-          >,
+          currentStatus: originalStatus,
+          desiredStatus,
           schedule: scheduleSelection,
+          hadSchedule,
+          ...(hasActiveSeries
+            ? {
+                expectedScheduleRevision: scheduleRevision,
+                scheduleOperationId: seriesOperationIdFor(
+                  scheduleSelection,
+                  seriesOperation,
+                ),
+              }
+            : {}),
+          originalSchedule: originalScheduleSelection.current,
         });
         if (!result.ok) {
-          showCalendarClientUpgradeModal();
+          const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
+          if (!feedbackKey) {
+            showCalendarClientUpgradeModal();
+            return;
+          }
+          // Keep the form and its operation identity so the user can reload,
+          // reopen, and retry the same edit rather than starting a new one.
+          setSeriesError(tSeries(feedbackKey));
           return;
         }
-        const createdTask = result.value;
-        // Confirm success in place and let the user choose when to navigate;
-        // the redirect target is prefetched so it lands fast.
-        const assigneeFields = resolveTaskAssigneeFields(
-          assigneeId,
-          coworkerOptions,
-          knownSokoBotId,
-          initialValues?.assigneeUserId,
+        setSeriesError(null);
+        if (onSuccess) {
+          onSuccess(taskId);
+          return;
+        }
+        router.push(`/tasks/${taskId}`);
+      } catch (error) {
+        console.error("Failed to save task", error);
+        toast.error(
+          error instanceof Error && error.message === "Invalid schedule"
+            ? tSchedule("errors.futureDateTime")
+            : "Failed to save task",
         );
-        const createdStatus = resolveCelebrationStatus({
-          desiredStatus,
-          isAgent: isAgentAssigneeFields(assigneeFields),
-          hasSchedule: scheduleSelection.mode !== "none",
-        });
-        router.prefetch(`/tasks/${createdTask.taskId}`);
-        setCreatedTask({
-          id: createdTask.taskId,
-          name: createdTask.name.trim() || "Untitled task",
-          status: createdStatus,
-          statusLabel:
-            createdStatus === "QUEUED"
-              ? (labels.statusQueued ?? "Queued")
-              : createdStatus === "DRAFT"
-                ? labels.statusDraft
-                : labels.statusReady,
-          scheduleLabel:
-            scheduleSelection.mode !== "none" &&
-            desiredStatus !== TaskStatus.DRAFT
-              ? (scheduleLabel ?? undefined)
-              : undefined,
-        });
-        onCreated?.(createdTask.taskId);
-        return;
+      } finally {
+        setIsSubmitting(false);
       }
-
-      if (!taskId) {
-        throw new Error("Task ID is required");
-      }
-
-      const trimmedName = name.trim();
-      const result = await updateTask({
-        taskId,
-        name: trimmedName,
-        description: trimmedDescription,
-        ...resolveTaskAssigneeFields(
-          assigneeId,
-          coworkerOptions,
-          knownSokoBotId,
-          initialValues?.assigneeUserId,
-        ),
-        ...(hasProjectSelection ? { projectId } : {}),
-        currentStatus: originalStatus,
-        desiredStatus,
-        schedule: scheduleSelection,
-        hadSchedule,
-        originalSchedule: originalScheduleSelection.current,
-      });
-      if (!result.ok) {
-        showCalendarClientUpgradeModal();
-        return;
-      }
-      if (onSuccess) {
-        onSuccess(taskId);
-        return;
-      }
-      router.push(`/tasks/${taskId}`);
-    } catch (error) {
-      console.error("Failed to save task", error);
-      toast.error(
-        error instanceof Error && error.message === "Invalid schedule"
-          ? tSchedule("errors.futureDateTime")
-          : "Failed to save task",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [
-    description,
-    isSaveDisabled,
-    mode,
-    step,
-    useWizard,
-    name,
-    assigneeId,
-    coworkerOptions,
-    knownSokoBotId,
-    initialValues?.assigneeUserId,
-    projectId,
-    hasProjectSelection,
-    shouldShowProjectSelect,
-    originalStatus,
-    router,
-    status,
-    taskId,
-    onSuccess,
-    onCreated,
-    onCreateTask,
-    showCalendarClientUpgradeModal,
-    scheduleSelection,
-    scheduleLabel,
-    hadSchedule,
-    contextSelection,
-    labels.projectRequired,
-    labels.statusDraft,
-    labels.statusQueued,
-    labels.statusReady,
-    tSchedule,
-  ]);
+    },
+    [
+      description,
+      isSaveDisabled,
+      mode,
+      step,
+      useWizard,
+      name,
+      assigneeId,
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+      projectId,
+      hasProjectSelection,
+      shouldShowProjectSelect,
+      originalStatus,
+      router,
+      status,
+      taskId,
+      onSuccess,
+      onCreated,
+      onCreateTask,
+      showCalendarClientUpgradeModal,
+      scheduleSelection,
+      scheduleLabel,
+      hadSchedule,
+      hasActiveSeries,
+      scheduleRevision,
+      pendingSeriesChange,
+      contextSelection,
+      labels.projectRequired,
+      labels.statusDraft,
+      labels.statusQueued,
+      labels.statusReady,
+      tSchedule,
+      tSeries,
+    ],
+  );
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1323,6 +1432,47 @@ export function TaskForm({
           />
         ) : null}
 
+        {pendingSeriesConfirmation ? (
+          <AlertDialog
+            open
+            onOpenChange={(open) => !open && setPendingSeriesConfirmation(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {pendingSeriesConfirmation === "remove"
+                    ? tSeries("removeTitle")
+                    : tSeries("discardTitle", { count: futureExceptionCount })}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pendingSeriesConfirmation === "remove"
+                    ? tSeries("removeDescription")
+                    : tSeries("discardDescription", {
+                        count: futureExceptionCount,
+                      })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  {pendingSeriesConfirmation === "remove"
+                    ? tSeries("removeCancel")
+                    : tSeries("discardCancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    setPendingSeriesConfirmation(null);
+                    void handleSave(true);
+                  }}
+                >
+                  {pendingSeriesConfirmation === "remove"
+                    ? tSeries("removeConfirm")
+                    : tSeries("discardConfirm")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : null}
+
         {showTaskStep && shouldShowProjectSelect ? (
           <InlineCreateProjectModal
             open={isCreateProjectModalOpen}
@@ -1361,7 +1511,18 @@ export function TaskForm({
                   ))}
                 </SelectContent>
               </Select>
-              {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
+              {seriesError ? (
+                <p
+                  role="alert"
+                  className="text-destructive flex min-w-0 items-start gap-2 text-sm"
+                >
+                  <TriangleAlert
+                    className="mt-0.5 size-4 shrink-0"
+                    aria-hidden
+                  />
+                  <span>{seriesError}</span>
+                </p>
+              ) : hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
                 <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
                   <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
                   <span className="truncate">{scheduleLabel}</span>

@@ -71,6 +71,13 @@ interface TaskScheduleOccurrenceRetireClient {
   >;
 }
 
+interface TaskScheduleOccurrenceReadClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "findMany"
+  >;
+}
+
 interface TaskScheduleOccurrenceRefreshClient
   extends TaskScheduleOccurrenceIndexClient {
   taskScheduleQuarantine: Pick<
@@ -262,6 +269,43 @@ export async function retireTaskScheduleFutureOccurrences(
   }
 
   return { canceledCount: canceledIds.length };
+}
+
+/**
+ * How many durable exceptions a full-series edit or removal would cancel right
+ * now.
+ *
+ * It reads the same bounded future candidate set as
+ * {@link retireTaskScheduleFutureOccurrences} and applies the same predicate,
+ * so the number a confirmation dialog shows is exactly the number the mutation
+ * would retire — a `count` with its own hand-written predicate could drift
+ * from the retirement rule.
+ */
+export async function countTaskScheduleFutureExceptions(
+  tx: TaskScheduleOccurrenceReadClient,
+  seriesTaskId: string,
+  now = new Date(),
+): Promise<number> {
+  const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      seriesTaskId,
+      effectiveScheduledAt: { gte: now },
+      state: {
+        in: [
+          TaskScheduleOccurrenceState.PLANNED,
+          TaskScheduleOccurrenceState.SKIPPED,
+        ],
+      },
+    },
+    select: {
+      state: true,
+      scheduleVersion: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
+
+  return futureOccurrences.filter(isDurableScheduleException).length;
 }
 
 export async function refreshTaskSchedulePlannedOccurrences(

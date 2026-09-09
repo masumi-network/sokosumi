@@ -389,6 +389,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           add: t("Actions.add"),
           addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
+          scheduleActiveError: t("Errors.scheduleActive"),
           loadMoreError: t("Errors.loadMore"),
           loadJobsError: t("Errors.loadJobs"),
           reopenToReady: {

@@ -8,6 +8,12 @@ import type {
 } from "@/lib/clients/generated/core";
 
 const getTaskByIdMock = vi.hoisted(() => vi.fn());
+const getTaskScheduleOccurrencesMock = vi.hoisted(() =>
+  vi.fn(async () => ({
+    data: { scheduleRevision: 3, futureExceptionCount: 0, occurrences: [] },
+    meta: { pagination: { nextCursor: null } },
+  })),
+);
 const pushMock = vi.hoisted(() => vi.fn());
 const clearTaskScheduleMock = vi.hoisted(() => vi.fn());
 const openCreateTaskModalMock = vi.hoisted(() => vi.fn());
@@ -59,6 +65,7 @@ vi.mock("@/lib/actions/task/action", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getTaskById: getTaskByIdMock,
+    getTaskScheduleOccurrences: getTaskScheduleOccurrencesMock,
     getWorkspaceCalendar: vi.fn(),
   },
 }));

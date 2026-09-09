@@ -135,6 +135,11 @@ export const taskScheduleOccurrencePageSchema = z
       description: "Series revision this page was read at",
       example: 4,
     }),
+    futureExceptionCount: z.number().int().nonnegative().openapi({
+      description:
+        "Durable future exceptions a full-series edit or removal would cancel, counted across the whole series at this read's instant. 0 for a series with no live rule. Clients confirm a destructive discard only when this is above zero.",
+      example: 0,
+    }),
     occurrences: z.array(taskScheduleOccurrenceSchema),
   })
   .openapi("TaskScheduleOccurrencePage");

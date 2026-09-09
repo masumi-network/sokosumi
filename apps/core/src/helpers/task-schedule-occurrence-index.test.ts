@@ -2,6 +2,7 @@ import { TaskScheduleQuarantineReason, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  countTaskScheduleFutureExceptions,
   createTaskSchedulePlannedOccurrences,
   refreshTaskSchedulePlannedOccurrences,
   replaceTaskSchedulePlannedOccurrences,
@@ -148,6 +149,79 @@ describe("retireTaskScheduleFutureOccurrences", () => {
 
     expect(updateMany).not.toHaveBeenCalled();
     expect(deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("countTaskScheduleFutureExceptions", () => {
+  const NOW = new Date("2026-06-10T00:00:00.000Z");
+
+  function createCountClient(
+    rows: Array<{
+      state: "PLANNED" | "SKIPPED";
+      scheduleVersion: number;
+      originalScheduledAt: Date | null;
+      effectiveScheduledAt: Date;
+    }>,
+  ) {
+    const findMany = vi.fn().mockResolvedValue(rows);
+    return {
+      client: { taskScheduleOccurrence: { findMany } },
+      findMany,
+    };
+  }
+
+  it("reads the same bounded future candidate set the retirement uses", async () => {
+    const { client, findMany } = createCountClient([]);
+
+    await expect(
+      countTaskScheduleFutureExceptions(client, "tsk_series", NOW),
+    ).resolves.toBe(0);
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        seriesTaskId: "tsk_series",
+        effectiveScheduledAt: { gte: NOW },
+        state: { in: ["PLANNED", "SKIPPED"] },
+      },
+      select: {
+        state: true,
+        scheduleVersion: true,
+        originalScheduledAt: true,
+        effectiveScheduledAt: true,
+      },
+    });
+  });
+
+  it("counts exactly the rows a full-series edit would cancel", async () => {
+    const { client } = createCountClient([
+      {
+        state: "SKIPPED",
+        scheduleVersion: 2,
+        originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+      },
+      {
+        state: "PLANNED",
+        scheduleVersion: 2,
+        originalScheduledAt: new Date("2026-06-12T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-13T15:00:00.000Z"),
+      },
+      {
+        state: "PLANNED",
+        scheduleVersion: 2,
+        originalScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+      },
+      {
+        state: "SKIPPED",
+        scheduleVersion: 1,
+        originalScheduledAt: new Date("2026-06-15T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-15T09:00:00.000Z"),
+      },
+    ]);
+
+    await expect(
+      countTaskScheduleFutureExceptions(client, "tsk_series", NOW),
+    ).resolves.toBe(2);
   });
 });
 

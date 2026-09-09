@@ -79,6 +79,7 @@ import type {
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
+  PutCalendarTaskScheduleRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
@@ -3399,7 +3400,7 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   async function putTaskCalendarSchedule(
     id: string,
-    body: PutTaskScheduleRequest,
+    body: PutCalendarTaskScheduleRequest,
   ) {
     return executeCoreOperation(
       getClient,
@@ -3415,13 +3416,28 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function deleteTaskSchedule(id: string) {
+  /**
+   * Series removal has no body, so its idempotency identity and observed
+   * revision travel as request metadata. Core matches the entity tag exactly,
+   * quotes included.
+   */
+  async function deleteTaskSchedule(
+    id: string,
+    precondition: {
+      operationId: string;
+      expectedScheduleRevision: number;
+    },
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteTasksByIdSchedule({
           client,
           path: { id },
+          headers: {
+            "idempotency-key": precondition.operationId,
+            "if-match": `"schedule-revision:${precondition.expectedScheduleRevision}"`,
+          },
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
         }),

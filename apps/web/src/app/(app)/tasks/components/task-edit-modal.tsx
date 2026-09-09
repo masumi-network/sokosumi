@@ -28,6 +28,10 @@ interface TaskEditModalProps {
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
+  /** Precondition for every schedule write made from this render. */
+  scheduleRevision: number;
+  /** Durable future exceptions a full-series edit would cancel. */
+  futureExceptionCount: number;
 }
 
 export function TaskEditModal({
@@ -38,6 +42,8 @@ export function TaskEditModal({
   projectOptions,
   agentNameById,
   labels,
+  scheduleRevision,
+  futureExceptionCount,
 }: TaskEditModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -67,6 +73,8 @@ export function TaskEditModal({
         agentNameById={agentNameById}
         taskId={taskId}
         initialValues={initialValues}
+        scheduleRevision={scheduleRevision}
+        futureExceptionCount={futureExceptionCount}
         onCancel={handleClose}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={handleClose}

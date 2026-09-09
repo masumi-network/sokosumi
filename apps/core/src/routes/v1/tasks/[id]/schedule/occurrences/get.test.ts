@@ -133,6 +133,44 @@ async function readBody(response: Response) {
   };
 }
 
+async function readPage(response: Response) {
+  return (await response.json()) as {
+    data: { scheduleRevision: number; futureExceptionCount: number };
+  };
+}
+
+/**
+ * The ledger page and the future-exception count read the same table with
+ * different projections; the count read is the one that does not select `id`.
+ */
+function answerOccurrenceReads(options: {
+  page: ReturnType<typeof createRow>[];
+  exceptions: Record<string, unknown>[];
+}) {
+  occurrenceFindManyMock.mockImplementation(
+    async (args: { select: Record<string, boolean> }) =>
+      args.select.id ? options.page : options.exceptions,
+  );
+}
+
+function activeSeriesTask() {
+  return {
+    id: TASK_ID,
+    status: TaskStatus.QUEUED,
+    ownerId: "user_123",
+    workspaceId: WORKSPACE_ID,
+    projectId: null,
+    scheduleRevision: 4,
+    metadata: JSON.stringify({
+      version: 2,
+      mode: "recurring",
+      expr: "0 9 * * *",
+      timezone: "Europe/Berlin",
+    }),
+    nextRunAt: new Date("2026-06-11T09:00:00.000Z"),
+  };
+}
+
 describe("GET /tasks/{id}/schedule/occurrences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -216,7 +254,11 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     expect(response.status).toBe(200);
     const body = await readBody(response);
-    expect(body.data).toEqual({ scheduleRevision: 4, occurrences: [] });
+    expect(body.data).toEqual({
+      scheduleRevision: 4,
+      futureExceptionCount: 0,
+      occurrences: [],
+    });
     expect(body.meta.pagination).toEqual({
       cursor: null,
       limit: 20,
@@ -554,6 +596,95 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     expect(args.select.releasedTask.select).toMatchObject({
       archivedAt: true,
     });
+  });
+
+  it("reports no future exceptions for a series that was removed", async () => {
+    const response = await createApp().request(request("?view=history"));
+
+    expect(response.status).toBe(200);
+    expect((await readPage(response)).data.futureExceptionCount).toBe(0);
+    // Nothing can be discarded, so the count costs no extra read.
+    expect(occurrenceFindManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts every durable future exception of the active series, not just this page", async () => {
+    taskFindFirstMock.mockResolvedValue(activeSeriesTask());
+    answerOccurrenceReads({
+      page: [createRow()],
+      exceptions: [
+        {
+          state: TaskScheduleOccurrenceState.SKIPPED,
+          scheduleVersion: 2,
+          originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+          effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+        },
+        {
+          state: TaskScheduleOccurrenceState.PLANNED,
+          scheduleVersion: 2,
+          originalScheduledAt: new Date("2026-06-12T09:00:00.000Z"),
+          effectiveScheduledAt: new Date("2026-06-13T15:00:00.000Z"),
+        },
+        {
+          state: TaskScheduleOccurrenceState.PLANNED,
+          scheduleVersion: 2,
+          originalScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+          effectiveScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+        },
+      ],
+    });
+
+    const response = await createApp().request(request("?limit=1"));
+
+    expect(response.status).toBe(200);
+    const body = await readPage(response);
+    expect(body.data.futureExceptionCount).toBe(2);
+
+    const countArgs = occurrenceFindManyMock.mock.calls
+      .map(([args]) => args as { select: Record<string, boolean> })
+      .find((args) => !args.select.id) as
+      | { where: Record<string, unknown>; take?: number }
+      | undefined;
+    expect(countArgs).toBeDefined();
+    // A page limit must never shorten the count the edit confirmation shows.
+    expect(countArgs?.take).toBeUndefined();
+    expect(countArgs?.where).toEqual({
+      seriesTaskId: TASK_ID,
+      effectiveScheduledAt: { gte: NOW },
+      state: {
+        in: [
+          TaskScheduleOccurrenceState.PLANNED,
+          TaskScheduleOccurrenceState.SKIPPED,
+        ],
+      },
+    });
+  });
+
+  it("counts the same exceptions on a later cursor page", async () => {
+    taskFindFirstMock.mockResolvedValue(activeSeriesTask());
+    answerOccurrenceReads({
+      page: [],
+      exceptions: [
+        {
+          state: TaskScheduleOccurrenceState.SKIPPED,
+          scheduleVersion: 2,
+          originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+          effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+        },
+      ],
+    });
+    const cursor = encodeTaskScheduleOccurrenceCursor({
+      view: "upcoming",
+      scheduleRevision: 4,
+      effectiveScheduledAt: "2026-06-11T09:00:00.000Z",
+      id: "33333333-3333-7333-8333-333333333331",
+    });
+
+    const response = await createApp().request(
+      request(`?view=upcoming&cursor=${encodeURIComponent(cursor)}`),
+    );
+
+    expect(response.status).toBe(200);
+    expect((await readPage(response)).data.futureExceptionCount).toBe(1);
   });
 
   it("rejects a limit above the shared maximum", async () => {

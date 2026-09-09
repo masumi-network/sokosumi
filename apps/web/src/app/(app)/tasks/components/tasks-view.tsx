@@ -10,6 +10,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
+  CORE_API_ERROR_KINDS,
   makeAgentJobsChannelName,
   makeUserTasksChannelName,
   userTaskStatusTransitionRequiresComment,
@@ -81,7 +82,10 @@ import {
   type TaskEventData,
   taskEventDataSchema,
 } from "@/lib/ably";
-import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
+import {
+  setTaskStatusFromDrag,
+  type TaskMutationErrorKind,
+} from "@/lib/actions/task/action";
 import {
   AgentJobStatus,
   SokosumiJobStatus,
@@ -313,6 +317,7 @@ interface TasksViewProps {
     loadMore: string;
     loading: string;
     dragError: string;
+    scheduleActiveError: string;
     loadMoreError: string;
     loadJobsError: string;
     reopenToReady: TaskReopenToReadyDialogLabels & {
@@ -358,6 +363,18 @@ export function TasksView({
   const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
+  /**
+   * The board already restored the card by the time this runs. A live series
+   * owns the Task's status, so say that instead of the generic drag failure —
+   * and keep the reload modal for a stale client.
+   */
+  const reportDragRejection = (kind: TaskMutationErrorKind) => {
+    if (kind === CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE) {
+      toast.error(labels.scheduleActiveError);
+      return;
+    }
+    showCalendarClientUpgradeModal();
+  };
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
     [],
   );
@@ -828,7 +845,7 @@ export function TasksView({
         });
         if (!result.ok) {
           rollbackMove();
-          showCalendarClientUpgradeModal();
+          reportDragRejection(result.error.kind);
           return;
         }
         if (
@@ -896,7 +913,7 @@ export function TasksView({
           rollbackBoardReopen(pending);
           setPendingBoardReopen(null);
           setReopenComment("");
-          showCalendarClientUpgradeModal();
+          reportDragRejection(result.error.kind);
           return;
         }
         if (

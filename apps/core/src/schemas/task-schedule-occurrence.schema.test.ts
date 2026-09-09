@@ -156,15 +156,42 @@ describe("taskScheduleOccurrencePageSchema", () => {
   it("carries the observed schedule revision alongside an empty page", () => {
     const parsed = taskScheduleOccurrencePageSchema.parse({
       scheduleRevision: 4,
+      futureExceptionCount: 0,
       occurrences: [],
     });
 
-    expect(parsed).toEqual({ scheduleRevision: 4, occurrences: [] });
+    expect(parsed).toEqual({
+      scheduleRevision: 4,
+      futureExceptionCount: 0,
+      occurrences: [],
+    });
   });
 
   it("requires the schedule revision", () => {
     expect(
-      taskScheduleOccurrencePageSchema.safeParse({ occurrences: [] }).success,
+      taskScheduleOccurrencePageSchema.safeParse({
+        futureExceptionCount: 0,
+        occurrences: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires the future exception count so an edit never guesses it", () => {
+    expect(
+      taskScheduleOccurrencePageSchema.safeParse({
+        scheduleRevision: 4,
+        occurrences: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a negative future exception count", () => {
+    expect(
+      taskScheduleOccurrencePageSchema.safeParse({
+        scheduleRevision: 4,
+        futureExceptionCount: -1,
+        occurrences: [],
+      }).success,
     ).toBe(false);
   });
 });

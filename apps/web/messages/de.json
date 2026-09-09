@@ -1512,7 +1512,8 @@
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
         "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
-        "loadJobs": "Jobs konnten nicht geladen werden"
+        "loadJobs": "Jobs konnten nicht geladen werden",
+        "scheduleActive": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne den Zeitplan, bevor du sie verschiebst."
       },
       "Card": {
         "comments": "Kommentare",
@@ -1900,6 +1901,20 @@
         "title": "Zeitplan",
         "description": "Einmalige oder wiederkehrende Ausführung planen.",
         "clearSchedule": "Zeitplan entfernen",
+        "series": {
+          "discardTitle": "{count, plural, one {# geänderten Lauf} other {# geänderte Läufe}} verwerfen?",
+          "discardDescription": "Wenn du eine neue Regel für die gesamte Serie speicherst, {count, plural, one {wird der verschobene oder übersprungene bevorstehende Lauf abgebrochen} other {werden die # verschobenen oder übersprungenen bevorstehenden Läufe abgebrochen}}. Bereits erfolgte Läufe bleiben erhalten.",
+          "discardCancel": "Aktuellen Zeitplan behalten",
+          "discardConfirm": "Speichern und verwerfen",
+          "removeTitle": "Diesen Zeitplan entfernen?",
+          "removeDescription": "Diese Aufgabe läuft dann nicht mehr nach einem Zeitplan. Bereits erfolgte Läufe bleiben erhalten, bevorstehende Läufe werden abgebrochen.",
+          "removeCancel": "Zeitplan behalten",
+          "removeConfirm": "Zeitplan entfernen",
+          "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
+          "quarantined": "Dieser Zeitplan ist zur Reparatur pausiert und kann nicht geändert werden. Wende dich an den Support, um ihn wiederherzustellen.",
+          "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
+          "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan."
+        },
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

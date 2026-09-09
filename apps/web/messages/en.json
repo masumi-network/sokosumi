@@ -1512,7 +1512,8 @@
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
         "loadCreateTask": "Failed to load create task form",
-        "loadJobs": "Failed to load jobs"
+        "loadJobs": "Failed to load jobs",
+        "scheduleActive": "This task runs on a schedule. Change or remove its schedule before moving it."
       },
       "Card": {
         "comments": "Comments",
@@ -1900,6 +1901,20 @@
         "title": "Schedule",
         "description": "Plan a one-time or recurring run.",
         "clearSchedule": "Remove schedule",
+        "series": {
+          "discardTitle": "Discard {count, plural, one {# changed run} other {# changed runs}}?",
+          "discardDescription": "Saving a new rule for the whole series cancels {count, plural, one {the upcoming run you moved or skipped} other {the # upcoming runs you moved or skipped}}. Runs that already happened are kept.",
+          "discardCancel": "Keep current schedule",
+          "discardConfirm": "Save and discard",
+          "removeTitle": "Remove this schedule?",
+          "removeDescription": "This task will stop running on a schedule. Runs that already happened are kept, and upcoming runs are canceled.",
+          "removeCancel": "Keep the schedule",
+          "removeConfirm": "Remove schedule",
+          "revisionConflict": "This schedule changed somewhere else. Reload the task, reopen the schedule, and apply your change again.",
+          "quarantined": "This schedule is paused for repair and cannot be changed. Contact support to restore it.",
+          "operationConflict": "This save was already sent with different details. Reopen the schedule and try again.",
+          "activeSeries": "This task runs on a schedule. Change or remove its schedule first."
+        },
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

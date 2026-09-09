@@ -4,11 +4,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getTaskScheduleOccurrencesMock = vi.fn();
+const putTaskCalendarScheduleMock = vi.fn();
+const putTaskScheduleMock = vi.fn();
+const deleteTaskScheduleMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getTaskScheduleOccurrences: (...args: unknown[]) =>
       getTaskScheduleOccurrencesMock(...args),
+    putTaskCalendarSchedule: (...args: unknown[]) =>
+      putTaskCalendarScheduleMock(...args),
+    putTaskSchedule: (...args: unknown[]) => putTaskScheduleMock(...args),
+    deleteTaskSchedule: (...args: unknown[]) => deleteTaskScheduleMock(...args),
   },
 }));
 
@@ -41,7 +48,11 @@ describe("taskScheduleService.listOccurrences", () => {
 
   it("reads the first page of a view and returns the observed revision", async () => {
     getTaskScheduleOccurrencesMock.mockResolvedValue({
-      data: { scheduleRevision: 4, occurrences: [occurrence] },
+      data: {
+        scheduleRevision: 4,
+        futureExceptionCount: 2,
+        occurrences: [occurrence],
+      },
       meta: { pagination: { nextCursor: "cursor-2" } },
     });
 
@@ -57,6 +68,7 @@ describe("taskScheduleService.listOccurrences", () => {
     });
     expect(page).toEqual({
       scheduleRevision: 4,
+      futureExceptionCount: 2,
       occurrences: [occurrence],
       nextCursor: "cursor-2",
     });
@@ -64,7 +76,7 @@ describe("taskScheduleService.listOccurrences", () => {
 
   it("forwards a cursor page and reports the end of the view as a null cursor", async () => {
     getTaskScheduleOccurrencesMock.mockResolvedValue({
-      data: { scheduleRevision: 4, occurrences: [] },
+      data: { scheduleRevision: 4, futureExceptionCount: 0, occurrences: [] },
       meta: { pagination: { nextCursor: null } },
     });
 
@@ -85,13 +97,14 @@ describe("taskScheduleService.listOccurrences", () => {
 
   it("treats a response without pagination metadata as the last page", async () => {
     getTaskScheduleOccurrencesMock.mockResolvedValue({
-      data: { scheduleRevision: 0, occurrences: [] },
+      data: { scheduleRevision: 0, futureExceptionCount: 0, occurrences: [] },
     });
 
     await expect(
       taskScheduleService.listOccurrences("task_1", { view: "history" }),
     ).resolves.toEqual({
       scheduleRevision: 0,
+      futureExceptionCount: 0,
       occurrences: [],
       nextCursor: null,
     });
@@ -114,5 +127,64 @@ describe("taskScheduleService.listOccurrences", () => {
       kind: CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE,
       status: 409,
     });
+  });
+});
+
+describe("taskScheduleService series mutations", () => {
+  const operationId = "123e4567-e89b-42d3-a456-426614174000";
+  const recurring = {
+    mode: "recurring" as const,
+    expr: "0 9 * * *",
+    timezone: "UTC",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("edits an active series with its operation, observed revision, and discard confirmation", async () => {
+    putTaskCalendarScheduleMock.mockResolvedValue({
+      data: { id: "task_1", scheduleRevision: 5 },
+    });
+
+    const task = await taskScheduleService.editCalendarSeries(
+      "task_1",
+      { operationId, expectedScheduleRevision: 4 },
+      recurring,
+    );
+
+    expect(putTaskCalendarScheduleMock).toHaveBeenCalledWith("task_1", {
+      operationId,
+      expectedScheduleRevision: 4,
+      discardFutureExceptions: true,
+      schedule: recurring,
+    });
+    expect(task).toEqual({ id: "task_1", scheduleRevision: 5 });
+  });
+
+  it("removes a series through the revision-safe precondition", async () => {
+    deleteTaskScheduleMock.mockResolvedValue({
+      data: { id: "task_1", scheduleRevision: 5 },
+    });
+
+    const task = await taskScheduleService.removeCalendarSeries("task_1", {
+      operationId,
+      expectedScheduleRevision: 4,
+    });
+
+    expect(deleteTaskScheduleMock).toHaveBeenCalledWith("task_1", {
+      operationId,
+      expectedScheduleRevision: 4,
+    });
+    expect(task).toEqual({ id: "task_1", scheduleRevision: 5 });
+  });
+
+  it("keeps the legacy bare schedule write for a Task that has no series yet", async () => {
+    putTaskScheduleMock.mockResolvedValue({ data: { id: "task_1" } });
+
+    await taskScheduleService.setSchedule("task_1", recurring);
+
+    expect(putTaskScheduleMock).toHaveBeenCalledWith("task_1", recurring);
+    expect(putTaskCalendarScheduleMock).not.toHaveBeenCalled();
   });
 });

@@ -796,8 +796,9 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
-  it("shows archive for org member on a scheduled task they do not own", async () => {
-    const user = userEvent.setup();
+  it("hides archive for org member on a scheduled task they do not own", async () => {
+    // Core rejects archiving a Task whose series is still live, so the menu
+    // must not offer it.
     renderActions({
       status: TaskStatus.READY,
       isReadOnly: true,
@@ -808,12 +809,9 @@ describe("TaskDetailActions", () => {
       organizations: undefined,
     });
 
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-
     expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides archive for plain org member on grant-pending scheduled task", async () => {
@@ -833,8 +831,7 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
   });
 
-  it("shows cancel and archive for org member on a queued scheduled task they do not own", async () => {
-    const user = userEvent.setup();
+  it("hides cancel and archive on a queued scheduled task while its series is live", async () => {
     renderActions({
       status: TaskStatus.QUEUED,
       isReadOnly: true,
@@ -846,15 +843,57 @@ describe("TaskDetailActions", () => {
       organizations: undefined,
     });
 
+    expect(
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps editing and relations available to the owner while a series is live", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.QUEUED,
+      isTaskOwner: true,
+      hasActiveSchedule: true,
+      currentOrganizationId: "org-current",
+    });
+
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
+    // Fields and relations stay editable; only the lifecycle paths the series
+    // owns disappear.
+    expect(screen.getByRole("link", { name: labels.edit })).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: labels.cancel }),
+      screen.getByRole("menuitem", { name: "Mark as" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
+      screen.getByRole("menuitem", { name: "Create related" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: labels.cancel })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: labels.revertToDraft }),
+    ).toBeNull();
+  });
+
+  it("explains a schedule_active rejection instead of opening the upgrade modal", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce({
+      ok: false,
+      error: { kind: "schedule_active" },
+    });
+
+    renderActions({ status: TaskStatus.DRAFT, organizations: undefined });
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Errors.scheduleActive"),
+    );
+    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("hides share and overflow actions in read-only workspace mode", () => {
