@@ -14,6 +14,8 @@ const {
   setAttributeMock,
   setContextMock,
   setUserMock,
+  setSdkProcessingMetadataMock,
+  setTransactionNameMock,
   startSpanMock,
   withIsolationScopeMock,
 } = vi.hoisted(() => ({
@@ -23,6 +25,8 @@ const {
   setAttributeMock: vi.fn(),
   setContextMock: vi.fn(),
   setUserMock: vi.fn(),
+  setSdkProcessingMetadataMock: vi.fn(),
+  setTransactionNameMock: vi.fn(),
   startSpanMock: vi.fn(),
   withIsolationScopeMock: vi.fn(),
 }));
@@ -91,7 +95,12 @@ describe("sentryMiddleware", () => {
     vi.clearAllMocks();
 
     withIsolationScopeMock.mockImplementation(async (callback) => {
-      return await callback();
+      // The real helper hands the isolation scope to the callback; the http
+      // server subscription has already written the raw request onto it.
+      return await callback({
+        setTransactionName: setTransactionNameMock,
+        setSDKProcessingMetadata: setSdkProcessingMetadataMock,
+      });
     });
     startSpanMock.mockImplementation(async (_spanConfig, callback) => {
       return await callback();
@@ -305,6 +314,50 @@ describe("sentryMiddleware", () => {
     expect(
       JSON.stringify([startSpanMock.mock.calls, setContextMock.mock.calls]),
     ).not.toContain(rawPath);
+  });
+
+  it("overwrites the raw request the sdk put on the isolation scope", async () => {
+    const app = new Hono<{
+      Variables: { requestId: string } & Partial<AuthVariables>;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("requestId", "req_123");
+      return await next();
+    });
+    app.use("*", sentryMiddleware());
+    app.get("/v1/share/:token", (c) => c.text("ok"));
+
+    const pathToken = "share-capability-token";
+    const queryValue = "super-secret-query-value";
+    const response = await app.request(
+      `http://localhost/v1/share/${pathToken}?ref=${queryValue}`,
+      { headers: { authorization: "Bearer secret-api-key" } },
+    );
+
+    expect(response.status).toBe(200);
+
+    // The sdk's http server subscription names the transaction after the raw
+    // path and stores the raw url for requestDataIntegration. Both must be
+    // replaced before any event leaves the process.
+    expect(setTransactionNameMock).toHaveBeenCalledWith("GET /v1/share/:token");
+    expect(setSdkProcessingMetadataMock).toHaveBeenCalledWith({
+      normalizedRequest: {
+        method: "GET",
+        url: "http://localhost/v1/share/:token",
+        query_string: undefined,
+        headers: { authorization: "[REDACTED]" },
+        cookies: undefined,
+        data: undefined,
+      },
+    });
+
+    expect(
+      JSON.stringify([
+        setTransactionNameMock.mock.calls,
+        setSdkProcessingMetadataMock.mock.calls,
+      ]),
+    ).not.toContain(pathToken);
   });
 
   it("keeps the concrete route when a mounted router wildcard matches last", async () => {

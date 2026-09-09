@@ -11,7 +11,7 @@ import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import {
-  bindCoreRequestId,
+  bindCoreRequestContext,
   coreEvlogMiddleware,
   initCoreLogger,
 } from "@/lib/evlog";
@@ -40,7 +40,7 @@ const app = new OpenAPIHono<{
 
 app.use(requestId());
 app.use(coreEvlogMiddleware());
-app.use(bindCoreRequestId());
+app.use(bindCoreRequestContext());
 app.use(betterAuthEvlogMiddleware());
 app.use(maintenanceMiddleware());
 app.use(sentryMiddleware());

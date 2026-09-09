@@ -17,7 +17,23 @@ export function initSentry() {
     sendDefaultPii: true,
     tracesSampleRate: 0.005,
     profilesSampleRate: 0.005,
-    integrations: [nodeProfilingIntegration()],
+    integrations: [
+      nodeProfilingIntegration(),
+      // The default RequestData integration attaches the raw request URL to
+      // every event, and `sendDefaultPii: true` adds the request headers and
+      // cookies with it. Paths carry capability tokens (share links, invite
+      // links, password reset links) and the headers carry the Authorization
+      // and Cookie values, so none of it may be sent. `sentryMiddleware`
+      // already reports a redacted URL and redacted headers itself.
+      Sentry.requestDataIntegration({
+        include: {
+          url: false,
+          query_string: false,
+          headers: false,
+          cookies: false,
+        },
+      }),
+    ],
     debug: false,
     // Last line of defence, not the first. Error text assembled from a far
     // side's response body can carry our own credential back to us: a gateway

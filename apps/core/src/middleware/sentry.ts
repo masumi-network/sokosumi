@@ -1,8 +1,11 @@
 import * as Sentry from "@sentry/node";
-import type { Context, MiddlewareHandler } from "hono";
+import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
-import { matchedRoutes } from "hono/route";
 
+import {
+  matchedRouteTemplate,
+  UNMATCHED_ROUTE,
+} from "../lib/route-template.js";
 import type { AuthVariables } from "./auth.js";
 
 const REDACTED_VALUE = "[REDACTED]";
@@ -14,11 +17,6 @@ const SENSITIVE_HEADER_NAMES = new Set([
   "x-api-key",
 ]);
 
-// Requests that matched no concrete route only carry wildcard middleware
-// entries. Reporting their raw path would send unknown paths, and any
-// capability tokens in them, to Sentry.
-const UNMATCHED_ROUTE = "UNMATCHED";
-
 function redactHeaders(
   headers: IterableIterator<[string, string]>,
 ): Record<string, string> {
@@ -28,24 +26,6 @@ function redactHeaders(
       SENSITIVE_HEADER_NAMES.has(key.toLowerCase()) ? REDACTED_VALUE : value,
     ]),
   );
-}
-
-// Paths can carry capability tokens (share links, invite links, password
-// reset). Only the matched route template is safe to report.
-function matchedRouteTemplate(c: Context): string {
-  try {
-    // Wildcard entries are the middleware mounts (`/*`, `/v1/*`). Skipping
-    // them keeps the concrete route even when a `use("*")` is registered
-    // below the routes it wraps, where the last entry is the wildcard.
-    const path = matchedRoutes(c).findLast(
-      (route) => !route.path.endsWith("*"),
-    )?.path;
-    return path ?? UNMATCHED_ROUTE;
-  } catch {
-    // matchedRoutes reads a hono internal. Observability must not 500 a
-    // request if that internal ever moves.
-    return UNMATCHED_ROUTE;
-  }
 }
 
 // The concrete URL can carry capability tokens in the path and secrets in
@@ -68,7 +48,26 @@ export function sentryMiddleware(): MiddlewareHandler<{
     const routeTemplate = matchedRouteTemplate(c);
     const url = redactedUrl(c.req.url, routeTemplate);
 
-    return await Sentry.withIsolationScope(async () => {
+    return await Sentry.withIsolationScope(async (isolationScope) => {
+      const redactedHeaders = redactHeaders(c.req.raw.headers.entries());
+
+      // The SDK's own http server subscription already put the raw request on
+      // this scope before any middleware ran: `normalizedRequest` feeds
+      // `requestDataIntegration` (which writes `event.request.url`), and the
+      // transaction name is the raw path. Overwrite both at the source, so no
+      // integration can read the concrete path back out.
+      isolationScope.setTransactionName(`${c.req.method} ${routeTemplate}`);
+      isolationScope.setSDKProcessingMetadata({
+        normalizedRequest: {
+          method: c.req.method,
+          url,
+          query_string: undefined,
+          headers: redactedHeaders,
+          cookies: undefined,
+          data: undefined,
+        },
+      });
+
       return await Sentry.startSpan(
         {
           op: "http.server",
@@ -88,7 +87,7 @@ export function sentryMiddleware(): MiddlewareHandler<{
             url,
             path: routeTemplate,
             requestId: c.var.requestId,
-            headers: redactHeaders(c.req.raw.headers.entries()),
+            headers: redactedHeaders,
           });
 
           try {
