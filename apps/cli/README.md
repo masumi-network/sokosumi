@@ -79,12 +79,6 @@ sokosumi
 
 The npm package is `sokosumi`. Do not publish the sibling `masumi-network/sokosumi-cli` repository as a second product.
 
-Release from the repository root:
-
-```bash
-pnpm cli:publish
-pnpm cli:publish -- --publish
-```
 
 Local Core (after the first-party `sokosumi_cli` client is seeded):
 
