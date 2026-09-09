@@ -82,7 +82,7 @@
 - [ ] Add failing Calendar PUT route tests for revision mismatch, missing confirmation, exact idempotent replay, conflicting operation reuse, new epoch metadata, one revision increment, and durable-exception cancellation under existing locks.
 - [ ] Reuse the scheduled-Task-create canonical SHA-256 fingerprint pattern. Store fingerprint plus Task identity in the unique operation event, emit stable `idempotency_conflict` for semantic reuse, and re-read/map the Task on exact replay; never persist a full API response in public `schedulePayload`.
 - [ ] Add failing DELETE route tests for required UUID `Idempotency-Key`, exact `If-Match: "schedule-revision:{n}"`, revision conflict, exact retry, conflicting reuse, Draft restoration from READY as well as QUEUED, metadata clearing, one revision increment, and history preservation.
-- [ ] Align PUT, DELETE, and occurrence-read authorization on interactive human + Task collaboration + Calendar beta access.
+- [ ] Align PUT and DELETE authorization on interactive human + Task collaboration + Calendar beta access; Task 3 must apply the identical access chain to the occurrence read when it creates that route.
 - [ ] Implement both mutation paths in the existing routes/helpers and standard response/error envelopes.
 - [ ] Run:
   `pnpm --filter @sokosumi/core test src/schemas/task-schedule.schema.test.ts src/helpers/task-schedule-occurrence-index.test.ts src/services/task-schedule-create.service.test.ts 'src/routes/v1/tasks/[id]/calendar-schedule/put.test.ts' 'src/routes/v1/tasks/[id]/schedule/delete.test.ts'`
