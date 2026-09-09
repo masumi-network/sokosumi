@@ -27,6 +27,7 @@ test("TestV25 successful OAuth callback clears the browser URL", async () => {
     if (!redirectUri || !state) throw new Error("OAuth URL was incomplete");
     callbackResponsePromise = fetch(
       `${redirectUri}?code=auth-code&state=${encodeURIComponent(state)}`,
+      { headers: { connection: "close" } },
     );
   };
 
@@ -67,10 +68,15 @@ test("completes browser OAuth through the loopback callback", async () => {
     const redirectUri = authorization.searchParams.get("redirect_uri");
     const state = authorization.searchParams.get("state");
     if (!redirectUri || !state) throw new Error("OAuth URL was incomplete");
-    setImmediate(() => {
-      fetch(
-        `${redirectUri}?code=auth-code&state=${encodeURIComponent(state)}`,
-      ).catch(() => {});
+    await new Promise<void>((resolve, reject) => {
+      setImmediate(() => {
+        void fetch(
+          `${redirectUri}?code=auth-code&state=${encodeURIComponent(state)}`,
+          { headers: { connection: "close" } },
+        )
+          .then((response) => response.arrayBuffer())
+          .then(() => resolve(), reject);
+      });
     });
   };
 

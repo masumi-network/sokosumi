@@ -14,7 +14,7 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - API-key login target → reserved key prefix. Legacy untagged key → explicit target. ⊥ cross-target bearer probing.
 - API-key input ∉ argv. Use env or stdin.
 - signup/login ∈ web `/signin` during OAuth authorize. ⊥ CLI email/password form.
-- public native client IDs target-scoped. OAuth flow uses PKCE. loopback `http://127.0.0.1/oauth/callback` + `http://[::1]/oauth/callback`. ⊥ `localhost`.
+- public native client ID defaults to `sokosumi_cli`; target-specific environment values and `--client-id` override it. OAuth flow uses PKCE. loopback `http://127.0.0.1/oauth/callback` + `http://[::1]/oauth/callback`. ⊥ `localhost`.
 - consent on (`skipConsent: false`). scopes `openid sokosumi:api offline_access`.
 - TUI menus use arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
 - Biome format. Conventional Commits. pinned deps (no semver ranges).
@@ -29,7 +29,7 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - cmd: `discover` → command catalog + Core resource snapshot; partial resource failure → JSON/text errors
 - cmd: `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get` → Core HTTP; `--json` → JSON-only stdout
 - global: `--json`, `--api-url`, `--preprod`, `--client-id`, `--api-key-stdin`
-- env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`
+- env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`; hosted OAuth default client: `sokosumi_cli`
 - file: `~/.sokosumi/config.json` → non-secret preferences only
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
 - pkg: npm `sokosumi` → workspace filter `sokosumi-cli` → bin `sokosumi`; install → CLI commands
@@ -50,7 +50,7 @@ V12: user-key mint/rotate/revoke → Core feature with trusted CLI OAuth guard. 
 V13: signed-in identity copy = auth method + target + signed-in state. ⊥ email/name on status screen.
 V14: Register menu presets ∈ {pi-sokosumi, Eve, Hermes, OpenClaw}. Those are Coworker runtimes. ⊥ Hire Agent. Workspace connect later.
 V15: vault writes use native secret setters or stdin; credential values ∉ child-process argv and error output.
-V16: hosted target OAuth launch/refresh → target client ID configured; missing ID → pre-browser error, no fallback refresh.
+V16: hosted target OAuth launch/refresh → client ID `sokosumi_cli` by default; explicit flag, target-specific, or generic client ID overrides; the resolved ID stays consistent through refresh.
 V17: home config parser accepts only listed non-secret preference keys. ⊥ API key, access token, refresh token, client secret persistence.
 V18: resource command data path → Core HTTP client → typed service. ⊥ direct database access.
 V19: `--json` command → one parseable JSON document on stdout. ⊥ progress/text mixing.
@@ -68,6 +68,7 @@ V30: explicit API target (flag/env) → precedes API-key target inference
 V31: mainnet/preprod resource request → API-key target matches selected target before bearer
 V32: TUI hosted target selection → explicit selected API URL
 V33: direct browser GET `/auth/oauth2/authorize` → HTTP redirect to Better Auth's returned URL; other auth responses keep their JSON envelope.
+V34: TUI hosted target selection → preserve explicit `--client-id`; without an override, resolve the selected target's client ID and default.
 
 ## §T TASKS
 
@@ -115,3 +116,4 @@ B12|2026-09-08|resource command skipped API-key target validation ∴ mismatched
 B13|2026-09-08|target-coded key overrode configured API URL ∴ request routed to wrong Core|V30
 B14|2026-09-08|TUI Mainnet choice retained preprod API URL ∴ target selection did not switch host|V32
 B15|2026-09-09|hosted CLI OAuth authorization received Better Auth's `{redirect,url}` envelope as JSON, so browser navigation did not reach consent|V33
+B16|2026-09-09|TUI hosted target selection rebuilt config without carrying explicit `--client-id` ∴ a valid override was lost before browser launch|V34

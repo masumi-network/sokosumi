@@ -15,18 +15,18 @@
 - Source of truth is `apps/cli`; do not add new product code to `/Volumes/Sarthi MAC/Soko/sokosumi-cli`.
 - CLI database access is forbidden. Use Core HTTP routes only.
 - External package versions in `package.json` stay exact and pinned.
-- OAuth client IDs are public target-scoped values. OAuth tokens, API keys, and client secrets never enter plaintext config files.
+- OAuth client ID `sokosumi_cli` is a public first-party value for hosted targets. Explicit client IDs remain optional overrides. OAuth tokens, API keys, and client secrets never enter plaintext config files.
 - API-key values never enter process arguments or diagnostic errors.
-- Hosted targets fail before browser launch when their OAuth client ID is missing.
+- The first-party OAuth client must exist in each hosted Core database before publishing the CLI.
 - TUI menus use arrow keys and Enter. Back uses Esc. Quit uses q. Letter aliases do not select menu items.
 - Tests must cover observable behavior, target precedence, secret boundaries, and failure before side effects.
 - Do not hand-edit generated files.
 
 ## Evidence and Decisions
 
-- VERIFIED: `apps/cli/src/auth/config.ts` currently falls back to `sokosumi_cli` for hosted targets when target configuration is absent.
-- VERIFIED: `apps/cli/.env` contains target OAuth client IDs, but the CLI did not load that file before this plan.
-- VERIFIED: Running the built CLI without the loaded client ID produced an OAuth flow ending at `error=invalid_client&error_description=client_id+is+required`.
+- VERIFIED: Before this change, `apps/cli/src/auth/config.ts` returned an empty client ID for hosted targets when no target-specific or generic value existed; only custom targets used the `sokosumi_cli` fallback.
+- VERIFIED: `apps/cli/.env` contains target OAuth client IDs, and the CLI now loads local `.env` values below explicit process environment values.
+- VERIFIED: Before this change, running the built CLI without a loaded client ID produced an OAuth flow ending at `error=invalid_client&error_description=client_id+is+required`.
 - VERIFIED: `apps/cli/src/auth/secure-store.ts` now keeps credential payloads out of macOS process arguments and sanitizes native vault errors. Commit `df3895398` contains that fix.
 - VERIFIED: The sibling CLI writes an API key into `~/.sokosumi/config.json` and loads it as an environment value. That path is excluded from the port.
 - REPORTED: The sibling advisor recommends one canonical `apps/cli` source, non-secret home preferences, and OS-vault secrets. The recommendation cites `apps/cli/SPEC.md`, `apps/cli/src/auth/secure-store.ts`, and the sibling `src/utils/env.mjs`.
@@ -36,9 +36,9 @@
 
 - `apps/cli/src/config/loader.ts`: Read non-secret home preferences and local `.env` values. Merge them below explicit process environment values.
 - `apps/cli/src/config/loader.test.ts`: Prove precedence, target keys, and the exclusion of secret fields.
-- `apps/cli/src/auth/config.ts`: Resolve target URLs and OAuth IDs from the merged environment. Hosted targets have no silent OAuth client fallback.
-- `apps/cli/src/cli/index.ts`: Load configuration before command dispatch and retain flag-over-environment precedence.
-- `apps/cli/src/cli/auth-login.ts`: Reject hosted OAuth login before `loginWithBrowser` when no target client ID exists.
+- `apps/cli/src/auth/config.ts`: Resolve target URLs and OAuth IDs from the merged environment. Hosted targets use the first-party client by default.
+- `apps/cli/src/cli/index.ts`: Load configuration before command dispatch and retain flag-over-environment precedence, including the explicit client ID passed to the TUI.
+- `apps/cli/src/cli/auth-login.ts`: Use the resolved public client ID when calling `loginWithBrowser`.
 - `apps/cli/src/tui/select-input.ts`: Shared arrow-key and Enter selector for Ink screens.
 - `apps/cli/src/tui/status-app.ts`: Replace numeric and letter menu aliases with selectors and clear navigation help.
 - `apps/cli/src/tui/resource-view.tsx`: Read-only Dashboard, Agents, Coworkers, Tasks, Jobs, and Account views.
@@ -90,18 +90,17 @@ export function loadCliEnvironment(options?: CliConfigLoadOptions): Record<strin
 
 ## Task 2: Fix hosted OAuth resolution
 
-**Files:** Modify `apps/cli/src/auth/config.ts`, `apps/cli/src/cli/auth-login.ts`, and `apps/cli/src/cli/index.ts`. Extend `apps/cli/test/cli/auth-login.test.ts` and `apps/cli/test/cli/index.test.ts`.
+**Files:** Modify `apps/cli/src/auth/config.ts`, `apps/cli/src/cli/auth-login.ts`, `apps/cli/src/cli/index.ts`, and `apps/cli/src/tui/status-app.ts`. Extend `apps/cli/test/cli/auth-login.test.ts`, `apps/cli/test/cli/index.test.ts`, and `apps/cli/test/tui/status-app.test.ts`.
 
-**Interface:** `resolveCliConfig()` continues returning `CliTargetConfig`. `clientId` is empty for hosted targets when no explicit target or generic client ID exists. Custom targets may retain `sokosumi_cli` for local development.
+**Interface:** `resolveCliConfig()` continues returning `CliTargetConfig`. `clientId` defaults to the public first-party value `sokosumi_cli`; explicit flags, target-specific environment values, and generic environment values override it.
 
 **Steps:**
 
 - [x] Preserve flag precedence for `--client-id` and target-specific environment precedence.
-- [x] Use `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID` for mainnet and `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID` for preprod.
-- [x] Remove the silent hosted-target fallback to `sokosumi_cli`.
-- [x] Before constructing the browser login side effect, throw a clear error naming the target and exact environment key when `clientId` is empty.
-- [x] Add a test that the configured mainnet client ID reaches the browser login request.
-- [x] Add a test that missing hosted configuration rejects and does not call the injected login function.
+- [x] Use `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID` for mainnet and `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID` for preprod as optional overrides.
+- [x] Use the stable first-party fallback `sokosumi_cli` when no override exists.
+- [x] Preserve an explicit `--client-id` when the TUI changes hosted targets.
+- [x] Add tests that hosted OAuth uses the first-party client without configuration and that explicit overrides reach the target selection.
 - [x] Keep API-key login independent of OAuth client ID availability.
 
 - **Verification:** `pnpm --filter sokosumi-cli test -- test/cli/auth-login.test.ts test/cli/index.test.ts`.
@@ -226,4 +225,4 @@ export function createHttpClient(options: HttpClientOptions): {
 
 1. The standard-library `.env` parser may need one additional escaping rule if real deployment files use multiline or export-prefixed values.
 2. Resource views remain read-only. Input-request submission stays headless until a tested interactive flow exists.
-3. Hosted targets should require target-specific OAuth client IDs. This prevents the observed invalid-client flow, but a public fallback may be appropriate only after Core registers and documents one.
+3. The hosted Core seed and hourly repair route must run in both hosted environments before the published CLI relies on the first-party client.

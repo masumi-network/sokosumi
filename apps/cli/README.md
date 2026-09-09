@@ -59,7 +59,7 @@ The CLI reads non-secret preferences from `~/.sokosumi/config.json`:
 
 Do not put API keys, OAuth tokens, refresh tokens, or client secrets in this file. The CLI ignores those fields. The file is optional.
 
-Configuration precedence is flags, process environment, home preferences, local `.env`, then built-in defaults. The CLI reads `.env` from the current directory and `apps/cli/.env` when present. Hosted OAuth needs a target client ID. Set `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID` or `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, or place the matching public ID in the home config file.
+Configuration precedence is flags, process environment, home preferences, local `.env`, then built-in defaults. The CLI reads `.env` from the current directory and `apps/cli/.env` when present. Hosted OAuth uses the built-in first-party public client `sokosumi_cli`, so no client ID setup is required. Set `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID` or `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, or pass `--client-id`, only when you need a different registered client.
 
 Install the published package:
 

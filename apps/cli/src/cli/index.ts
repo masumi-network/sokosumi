@@ -422,6 +422,7 @@ export async function runCli(
       coreClient: getCoreClient(config, env, dependencies),
       env,
       config,
+      clientIdOverride: options["client-id"],
       loginFn: dependencies.loginFn,
       readStdin: dependencies.readStdin,
     });

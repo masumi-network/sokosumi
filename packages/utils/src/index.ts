@@ -224,6 +224,14 @@ export {
   notificationDefault,
 } from "./notification-preferences.js";
 export {
+  buildFirstPartyCliOAuthClientWrite,
+  FIRST_PARTY_CLI_OAUTH_CLIENT_ID,
+  FIRST_PARTY_CLI_OAUTH_CLIENT_NAME,
+  FIRST_PARTY_CLI_OAUTH_REDIRECT_URIS,
+  FIRST_PARTY_CLI_OAUTH_SOFTWARE_ID,
+  type FirstPartyCliOAuthClientWrite,
+} from "./oauth-first-party-cli.js";
+export {
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,

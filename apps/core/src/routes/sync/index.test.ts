@@ -18,6 +18,7 @@ const {
   syncDueTaskSchedulesMock,
   reconcileScheduleHistoryMock,
   validateActiveSchedulesMock,
+  ensureFirstPartyCliOAuthClientMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
@@ -35,6 +36,7 @@ const {
   syncDueTaskSchedulesMock: vi.fn(),
   reconcileScheduleHistoryMock: vi.fn(),
   validateActiveSchedulesMock: vi.fn(),
+  ensureFirstPartyCliOAuthClientMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -126,6 +128,14 @@ vi.mock("@/services/task-schedule-validation.service", () => ({
   },
 }));
 
+vi.mock("@/helpers/first-party-cli-oauth-client", () => ({
+  ensureFirstPartyCliOAuthClient: ensureFirstPartyCliOAuthClientMock,
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {},
+}));
+
 vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => {
     void promise;
@@ -203,6 +213,9 @@ describe("sync routes", () => {
       scanned: 0,
       quarantined: 0,
       passComplete: true,
+    });
+    ensureFirstPartyCliOAuthClientMock.mockResolvedValue({
+      clientId: "sokosumi_cli",
     });
   });
 
@@ -774,6 +787,39 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(409);
     expect(expireStaleGuestInvitationsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for missing cron auth on first-party OAuth client sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/first-party-oauth-clients",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(ensureFirstPartyCliOAuthClientMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and seeds the first-party CLI OAuth client in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/first-party-oauth-clients",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "first-party-oauth-clients-sync",
+    );
+
+    await flushMicrotasks();
+    expect(ensureFirstPartyCliOAuthClientMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns 200 and starts guest invitation expiry sync exactly once in background", async () => {

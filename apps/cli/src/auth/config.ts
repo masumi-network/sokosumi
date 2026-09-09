@@ -108,7 +108,7 @@ export function resolveCliConfig({
     clientId ||
       targetClientIdEnv ||
       env.SOKOSUMI_OAUTH_CLIENT_ID ||
-      (target === "custom" ? DEFAULT_OAUTH_CLIENT_ID : ""),
+      DEFAULT_OAUTH_CLIENT_ID,
   ).trim();
   const resolvedAuthBaseUrl = resolveAuthBaseUrl(
     target,

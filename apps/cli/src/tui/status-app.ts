@@ -45,11 +45,13 @@ export interface StatusAppOptions {
     waitUntilExit(): Promise<void>;
   };
   authManager?: AuthManager;
+  authManagerFactory?: AuthManagerFactory;
   coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
   env?: AuthEnvironment;
   config?: CliTargetConfig;
+  clientIdOverride?: string;
 }
 
 type AuthScreen =
@@ -137,11 +139,18 @@ function readApiKeyFromTerminal(
   });
 }
 
+type AuthManagerFactory = (options: {
+  targetScope: string;
+  clientId: string;
+  environment: AuthEnvironment;
+}) => AuthManager;
+
 function getManagerForConfig(
   config: CliTargetConfig,
   env: AuthEnvironment,
+  authManagerFactory: AuthManagerFactory = getAuthManager,
 ): AuthManager {
-  return getAuthManager({
+  return authManagerFactory({
     targetScope: resolveTargetScope(config.target, config.apiUrl),
     clientId: config.clientId,
     environment: env,
@@ -151,19 +160,26 @@ function getManagerForConfig(
 export function resolveHostedTargetConfig(
   env: AuthEnvironment,
   target: HostedTarget,
+  overrides: Partial<Pick<CliTargetConfig, "clientId">> = {},
 ): CliTargetConfig {
   return resolveCliConfig({
     env,
     apiUrl: target === "preprod" ? PREPROD_API_URL : MAINNET_API_URL,
     preprod: target === "preprod",
+    ...overrides,
   });
 }
 
 function createTargetConfig(
   env: AuthEnvironment,
   target: HostedTarget,
+  clientIdOverride?: string,
 ): CliTargetConfig {
-  return resolveHostedTargetConfig(env, target);
+  return resolveHostedTargetConfig(
+    env,
+    target,
+    clientIdOverride ? { clientId: clientIdOverride } : {},
+  );
 }
 
 function navigationHint({ back = false }: { back?: boolean } = {}) {
@@ -178,13 +194,22 @@ function navigationHint({ back = false }: { back?: boolean } = {}) {
 
 function StatusApp({
   authManager,
+  authManagerFactory,
   coreClient,
   loginFn,
   readStdin,
   env,
   config,
+  clientIdOverride,
 }: Required<Pick<StatusAppOptions, "authManager" | "env" | "config">> &
-  Pick<StatusAppOptions, "coreClient" | "loginFn" | "readStdin">) {
+  Pick<
+    StatusAppOptions,
+    | "authManagerFactory"
+    | "coreClient"
+    | "loginFn"
+    | "readStdin"
+    | "clientIdOverride"
+  >) {
   const { exit } = useApp();
   const [authState, setAuthState] = useState<InitialAuthState>({
     authenticated: false,
@@ -202,8 +227,8 @@ function StatusApp({
     () =>
       selectedConfig.apiUrl === config.apiUrl
         ? authManager
-        : getManagerForConfig(selectedConfig, env),
-    [authManager, config.apiUrl, env, selectedConfig],
+        : getManagerForConfig(selectedConfig, env, authManagerFactory),
+    [authManager, authManagerFactory, config.apiUrl, env, selectedConfig],
   );
 
   const resourceClient = useMemo(() => {
@@ -259,7 +284,7 @@ function StatusApp({
   };
 
   const startOAuthLogin = (loginConfig: CliTargetConfig) => {
-    const manager = getManagerForConfig(loginConfig, env);
+    const manager = getManagerForConfig(loginConfig, env, authManagerFactory);
     const controller = new AbortController();
     abortController.current = controller;
     setBusy(true);
@@ -290,7 +315,7 @@ function StatusApp({
   };
 
   const startApiKeyLogin = (apiKey: string, loginConfig: CliTargetConfig) => {
-    const manager = getManagerForConfig(loginConfig, env);
+    const manager = getManagerForConfig(loginConfig, env, authManagerFactory);
     setBusy(true);
     void runAuthLogin({
       env,
@@ -325,9 +350,9 @@ function StatusApp({
       const detectedTarget = targetFromUserApiKey(envApiKey);
       const nextConfig =
         detectedTarget === "preprod"
-          ? createTargetConfig(env, "preprod")
+          ? createTargetConfig(env, "preprod", clientIdOverride)
           : detectedTarget === "mainnet"
-            ? createTargetConfig(env, "mainnet")
+            ? createTargetConfig(env, "mainnet", clientIdOverride)
             : selectedConfig;
       setSelectedConfig(nextConfig);
       startApiKeyLogin(envApiKey, nextConfig);
@@ -345,7 +370,11 @@ function StatusApp({
         setBusy(false);
         const detectedTarget = targetFromUserApiKey(apiKey);
         if (detectedTarget) {
-          const nextConfig = createTargetConfig(env, detectedTarget);
+          const nextConfig = createTargetConfig(
+            env,
+            detectedTarget,
+            clientIdOverride,
+          );
           setSelectedConfig(nextConfig);
           startApiKeyLogin(apiKey, nextConfig);
           return;
@@ -446,7 +475,9 @@ function StatusApp({
         React.createElement(SelectInput, {
           items,
           onSelect: adaptSelectHandler<HostedTarget>((target) => {
-            setSelectedConfig(createTargetConfig(env, target));
+            setSelectedConfig(
+              createTargetConfig(env, target, clientIdOverride),
+            );
             setScreen("oauth-confirm");
             setMessage("");
           }),
@@ -508,7 +539,11 @@ function StatusApp({
         React.createElement(SelectInput, {
           items,
           onSelect: adaptSelectHandler<HostedTarget>((target) => {
-            const nextConfig = createTargetConfig(env, target);
+            const nextConfig = createTargetConfig(
+              env,
+              target,
+              clientIdOverride,
+            );
             setSelectedConfig(nextConfig);
             setScreen("home");
             if (pendingApiKey) startApiKeyLogin(pendingApiKey, nextConfig);
@@ -664,21 +699,26 @@ function StatusApp({
 export async function renderStatusApp({
   render = defaultRender,
   authManager,
+  authManagerFactory,
   coreClient,
   loginFn,
   readStdin,
   env = process.env,
   config = resolveCliConfig({ env }),
+  clientIdOverride,
 }: StatusAppOptions = {}): Promise<{ tui: true }> {
-  const manager = authManager || getManagerForConfig(config, env);
+  const manager =
+    authManager || getManagerForConfig(config, env, authManagerFactory);
   const { waitUntilExit } = render(
     React.createElement(StatusApp, {
       authManager: manager,
+      authManagerFactory,
       coreClient,
       loginFn,
       readStdin,
       env,
       config,
+      clientIdOverride,
     }),
   );
   await waitUntilExit();
