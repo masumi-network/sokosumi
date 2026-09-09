@@ -1,3 +1,10 @@
+import {
+  TASK_DETAIL_CONTEXT_STRIP_CLASS,
+  TASK_DETAIL_GRID_CLASS,
+  TASK_DETAIL_MAIN_CLASS,
+  TASK_DETAIL_SHELL_CLASS,
+  TASK_DETAIL_SIDEBAR_CLASS,
+} from "@/app/tasks/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface DeveloperSectionRowsSkeletonProps {
@@ -134,7 +141,7 @@ export function DeveloperTaskDetailPageSkeleton(): React.ReactElement {
       data-testid="developer-task-detail-loading"
       className="min-h-full w-full"
     >
-      <div className="mx-auto max-w-4xl px-4 pt-2">
+      <div className={TASK_DETAIL_CONTEXT_STRIP_CLASS}>
         <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <Skeleton className="h-4 w-28" />
@@ -145,19 +152,26 @@ export function DeveloperTaskDetailPageSkeleton(): React.ReactElement {
         </div>
       </div>
 
-      <div className="mx-auto max-w-4xl px-4 pb-8">
-        <div className="mt-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="size-9" />
+      <div className={TASK_DETAIL_SHELL_CLASS}>
+        <div className={TASK_DETAIL_GRID_CLASS}>
+          <div className={TASK_DETAIL_MAIN_CLASS}>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="size-9" />
+              </div>
+              <Skeleton className="h-7 w-2/3" />
+            </div>
+            <TaskSectionSkeleton name="description" rows={3} />
           </div>
-          <Skeleton className="h-7 w-2/3" />
-        </div>
 
-        <div className="mt-6 space-y-8">
-          <TaskSectionSkeleton name="description" rows={3} />
-          <TaskSectionSkeleton name="properties" rows={4} />
-          <TaskSectionSkeleton name="activity" rows={3} />
+          <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
+            <TaskSectionSkeleton name="properties" rows={4} showTitle={false} />
+          </aside>
+
+          <div className={TASK_DETAIL_MAIN_CLASS}>
+            <TaskSectionSkeleton name="activity" rows={3} />
+          </div>
         </div>
       </div>
     </div>
@@ -167,10 +181,11 @@ export function DeveloperTaskDetailPageSkeleton(): React.ReactElement {
 function TaskSectionSkeleton({
   name,
   rows,
-}: TaskSectionSkeletonProps): React.ReactElement {
+  showTitle = true,
+}: TaskSectionSkeletonProps & { showTitle?: boolean }): React.ReactElement {
   return (
     <section className="space-y-4">
-      <Skeleton className="h-3 w-24" />
+      {showTitle ? <Skeleton className="h-3 w-24" /> : null}
       <div className="space-y-3">
         {Array.from({ length: rows }, (_, index) => (
           <Skeleton key={`${name}-${index}`} className="h-4 w-full" />

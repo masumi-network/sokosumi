@@ -3,12 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { PublicSharedTask } from "@/lib/clients/generated/core";
 import { SharedTaskView } from "./shared-task-view";
 
-vi.mock("next-intl", () => ({
-  useFormatter: () => ({
-    dateTime: () => "Mar 30, 10:00 AM",
-  }),
-}));
-
 vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "en"),
   getTranslations: vi.fn(async () => (key: string) => key),
@@ -57,5 +51,13 @@ describe("SharedTaskView", () => {
     expect(screen.queryByText(/CONTEXT.md/)).not.toBeInTheDocument();
     expect(screen.queryByText(/BRIEFING.md/)).not.toBeInTheDocument();
     expect(screen.queryByText(/DESIGN.md/)).not.toBeInTheDocument();
+  });
+
+  it("applies md:pt-4 on the metadata aside", async () => {
+    const { container } = render(await SharedTaskView({ task }));
+    const aside = container.querySelector("aside");
+
+    expect(aside).not.toBeNull();
+    expect(aside?.className.split(/\s+/)).toContain("md:pt-4");
   });
 });

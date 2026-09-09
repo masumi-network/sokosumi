@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
+import { TASK_DETAIL_CONTEXT_STRIP_CLASS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { developerTaskService } from "@/lib/services/developer-task.service";
 
@@ -33,7 +34,7 @@ export default async function DeveloperTaskDetailPage({
 
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl px-4 pt-2">
+      <div className={TASK_DETAIL_CONTEXT_STRIP_CLASS}>
         <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="text-sm">
             <span className="font-medium">{owner.name}</span>
