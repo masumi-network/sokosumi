@@ -5,7 +5,6 @@ const getSessionOrRedirectMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const hasAssignedOrganizationSeatMock = vi.fn();
 const hasCurrentUserCalendarBetaAccessMock = vi.fn();
-const calendarBetaAccessProviderMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
@@ -60,18 +59,6 @@ vi.mock("@/contexts/coworkers-context", () => ({
   CoworkersProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
-}));
-vi.mock("@/contexts/calendar-beta-access-context", () => ({
-  CalendarBetaAccessProvider: ({
-    children,
-    enabled,
-  }: {
-    children: React.ReactNode;
-    enabled: boolean;
-  }) => {
-    calendarBetaAccessProviderMock(enabled);
-    return <>{children}</>;
-  },
 }));
 vi.mock("@/contexts/organization-seat-context", () => ({
   OrganizationSeatProvider: ({ children }: { children: React.ReactNode }) => (
@@ -183,7 +170,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     render(ui);
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
-    expect(calendarBetaAccessProviderMock).toHaveBeenCalledWith(true);
     expect(privateCachedAppSidebarMock).toHaveBeenCalledWith(
       expect.objectContaining({ calendarMenuEnabled: true }),
     );

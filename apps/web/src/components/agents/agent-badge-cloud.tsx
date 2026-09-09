@@ -1,5 +1,3 @@
-import { useTranslations } from "next-intl";
-
 import { TagIcon } from "@/components/agents/tag-icon";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,15 +27,6 @@ function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
   );
 }
 
-function AgentNewBadge() {
-  const t = useTranslations("Components.Agents.AgentBadgeCloud");
-  return (
-    <Badge className="bg-background text-foreground h-[22px]">
-      <p className="uppercase">{t("new")}</p>
-    </Badge>
-  );
-}
-
 function AgentBadgeCloudSkeleton() {
   return (
     <div className="flex flex-wrap gap-2">
@@ -48,4 +37,4 @@ function AgentBadgeCloudSkeleton() {
   );
 }
 
-export { AgentBadgeCloud, AgentBadgeCloudSkeleton, AgentNewBadge };
+export { AgentBadgeCloud, AgentBadgeCloudSkeleton };
