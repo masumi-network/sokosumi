@@ -59,11 +59,15 @@ export function TaskScheduleOccurrences({
   const [upcomingPage, setUpcomingPage] = useState(upcoming);
   const [historyPage, setHistoryPage] = useState(history);
   const [isPending, startTransition] = useTransition();
+  // Latched once a stale cursor sends us back to the server. Nothing clears it:
+  // the parent's revision key remounts this island with fresh pages.
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const isBusy = isPending || isRefreshing;
 
   function handleLoadMore(view: TaskScheduleOccurrenceView) {
     const page = view === "upcoming" ? upcomingPage : historyPage;
     const cursor = page.nextCursor;
-    if (!cursor || isPending) {
+    if (!cursor || isBusy) {
       return;
     }
 
@@ -78,6 +82,7 @@ export function TaskScheduleOccurrences({
         if (result.status === "stale") {
           // The series moved on. Re-rendering the route hands us a new
           // revision, and with it a fresh mount of this component.
+          setIsRefreshing(true);
           router.refresh();
           return;
         }
@@ -91,7 +96,12 @@ export function TaskScheduleOccurrences({
         } else {
           setHistoryPage(append);
         }
-      } catch {
+      } catch (error) {
+        console.error("Failed to load more task schedule occurrences", {
+          taskId,
+          view,
+          error,
+        });
         toast.error(t("loadMoreError"));
       }
     });
@@ -99,7 +109,7 @@ export function TaskScheduleOccurrences({
 
   return (
     <Tabs defaultValue="upcoming" className="gap-3">
-      <TabsList>
+      <TabsList aria-label={t("tabsLabel")}>
         <TabsTrigger value="upcoming">{t("upcomingTab")}</TabsTrigger>
         <TabsTrigger value="history">{t("historyTab")}</TabsTrigger>
       </TabsList>
@@ -107,10 +117,11 @@ export function TaskScheduleOccurrences({
       <TabsContent value="upcoming">
         <OccurrenceList
           page={upcomingPage}
+          listLabel={t("upcomingListLabel")}
           emptyLabel={
             hasActiveSchedule ? t("upcomingEmpty") : t("upcomingEmptyRemoved")
           }
-          isPending={isPending}
+          isPending={isBusy}
           onLoadMore={() => handleLoadMore("upcoming")}
           t={t}
           format={format}
@@ -120,8 +131,9 @@ export function TaskScheduleOccurrences({
       <TabsContent value="history">
         <OccurrenceList
           page={historyPage}
+          listLabel={t("historyListLabel")}
           emptyLabel={t("historyEmpty")}
-          isPending={isPending}
+          isPending={isBusy}
           onLoadMore={() => handleLoadMore("history")}
           t={t}
           format={format}
@@ -133,6 +145,7 @@ export function TaskScheduleOccurrences({
 
 function OccurrenceList({
   page,
+  listLabel,
   emptyLabel,
   isPending,
   onLoadMore,
@@ -140,28 +153,31 @@ function OccurrenceList({
   format,
 }: {
   page: TaskScheduleOccurrencesPageData;
+  listLabel: string;
   emptyLabel: string;
   isPending: boolean;
   onLoadMore: () => void;
   t: Translate;
   format: Format;
 }) {
-  if (page.occurrences.length === 0) {
-    return <p className="text-muted-foreground text-sm">{emptyLabel}</p>;
-  }
-
   return (
     <div className="space-y-3">
-      <ul className="divide-border/50 divide-y">
-        {page.occurrences.map((occurrence) => (
-          <OccurrenceRow
-            key={occurrence.id}
-            occurrence={occurrence}
-            t={t}
-            format={format}
-          />
-        ))}
-      </ul>
+      {page.occurrences.length === 0 ? (
+        // A page can come back empty and still carry a cursor, so the button
+        // below stays reachable rather than dead-ending the view.
+        <p className="text-muted-foreground text-sm">{emptyLabel}</p>
+      ) : (
+        <ul aria-label={listLabel} className="divide-border/50 divide-y">
+          {page.occurrences.map((occurrence) => (
+            <OccurrenceRow
+              key={occurrence.id}
+              occurrence={occurrence}
+              t={t}
+              format={format}
+            />
+          ))}
+        </ul>
+      )}
 
       {page.nextCursor ? (
         <Button
@@ -302,17 +318,29 @@ function resolveOccurrenceState(
  * Rendered in the timezone the rule was captured with, so server and client
  * agree regardless of where either sits. Legacy rows without one fall back to
  * the same hydration-stable zone the rest of the app uses.
+ *
+ * History pages backwards without bound, so a run outside the current year
+ * carries its year. "Current" is judged in the same captured zone, not in the
+ * reader's, so the two halves of the comparison agree.
  */
 function formatOccurrenceTime(
   format: Format,
   value: Date,
   occurrence: TaskScheduleOccurrence,
 ): string {
+  const timeZone = occurrence.timezone ?? HYDRATION_STABLE_TIME_ZONE;
+  const year = format.dateTime(value, { year: "numeric", timeZone });
+  const currentYear = format.dateTime(new Date(), {
+    year: "numeric",
+    timeZone,
+  });
+
   return format.dateTime(value, {
+    year: year === currentYear ? undefined : "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: occurrence.timezone ?? HYDRATION_STABLE_TIME_ZONE,
+    timeZone,
   });
 }

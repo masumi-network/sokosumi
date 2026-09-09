@@ -71,6 +71,9 @@ describe("TaskScheduleOccurrences", () => {
   it("offers Upcoming and History as accessible tabs, with Upcoming open first", () => {
     renderOccurrences();
 
+    expect(
+      screen.getByRole("tablist", { name: "Schedule runs" }),
+    ).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(2);
     expect(screen.getByRole("tab", { name: "Upcoming" })).toHaveAttribute(
       "aria-selected",
@@ -113,6 +116,33 @@ describe("TaskScheduleOccurrences", () => {
     expect(
       screen.getByRole("link", { name: "Morning digest" }),
     ).toHaveAttribute("href", "/tasks/task_run");
+  });
+
+  it("names each occurrence list for a reader landing mid-page", async () => {
+    const user = userEvent.setup();
+    renderOccurrences({
+      upcoming: {
+        occurrences: [occurrence({ id: "occ_1" })],
+        nextCursor: null,
+      },
+      history: {
+        occurrences: [
+          occurrence({
+            id: "occ_past",
+            state: "RELEASED",
+            effectiveScheduledAt: new Date("2026-09-01T07:00:00.000Z"),
+          }),
+        ],
+        nextCursor: null,
+      },
+    });
+
+    expect(
+      screen.getByRole("list", { name: "Upcoming runs" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.getByRole("list", { name: "Past runs" })).toBeInTheDocument();
   });
 
   it("renders upcoming run times in the occurrence time zone", () => {
@@ -291,7 +321,7 @@ describe("TaskScheduleOccurrences", () => {
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
   });
 
-  it("refreshes the route and keeps no stale pages when the cursor expires", async () => {
+  it("refreshes the route and appends nothing when the cursor expires", async () => {
     const user = userEvent.setup();
     loadMoreMock.mockResolvedValue({ status: "stale" });
 
@@ -308,11 +338,96 @@ describe("TaskScheduleOccurrences", () => {
       expect(refreshMock).toHaveBeenCalledTimes(1);
     });
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Sep 10, 9:00 AM")).toBeInTheDocument();
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
-  it("tells the reader when another page could not be loaded", async () => {
+  it("does not ask again for the same doomed cursor while the refresh is in flight", async () => {
     const user = userEvent.setup();
+    loadMoreMock.mockResolvedValue({ status: "stale" });
+
+    renderOccurrences({
+      upcoming: {
+        occurrences: [occurrence({ id: "occ_1" })],
+        nextCursor: "cursor-2",
+      },
+    });
+
+    const button = screen.getByRole("button", { name: "Load more" });
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+    });
+    expect(button).toBeDisabled();
+
+    await user.click(button);
+    expect(loadMoreMock).toHaveBeenCalledTimes(1);
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Load more reachable on an empty page that has more to read", async () => {
+    const user = userEvent.setup();
+    loadMoreMock.mockResolvedValue({
+      status: "ok",
+      occurrences: [occurrence({ id: "occ_1" })],
+      nextCursor: null,
+    });
+
+    renderOccurrences({
+      upcoming: { occurrences: [], nextCursor: "cursor-2" },
+    });
+
+    expect(
+      screen.getByText(
+        "No upcoming runs. New runs appear here as the schedule projects them.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Sep 10, 9:00 AM")).toBeInTheDocument();
+    });
+  });
+
+  it("dates a run from another year, judged in the run's own time zone", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-09T12:00:00.000Z"));
+
+    try {
+      renderOccurrences({
+        upcoming: {
+          occurrences: [
+            occurrence({ id: "occ_this_year" }),
+            occurrence({
+              id: "occ_last_year",
+              effectiveScheduledAt: new Date("2025-12-31T20:00:00.000Z"),
+            }),
+            occurrence({
+              id: "occ_new_year_utc",
+              timezone: "America/New_York",
+              effectiveScheduledAt: new Date("2027-01-01T00:30:00.000Z"),
+            }),
+          ],
+          nextCursor: null,
+        },
+      });
+
+      expect(screen.getByText("Sep 10, 9:00 AM")).toBeInTheDocument();
+      expect(screen.getByText("Dec 31, 2025, 9:00 PM")).toBeInTheDocument();
+      // 2027-01-01T00:30Z is still 2026 in New York, so no year is added.
+      expect(screen.getByText("Dec 31, 7:30 PM")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("tells the reader when another page could not be loaded, and logs why", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     loadMoreMock.mockRejectedValue(new Error("network"));
 
     renderOccurrences({
@@ -329,6 +444,8 @@ describe("TaskScheduleOccurrences", () => {
         "Unable to load more runs. Check your connection and try again.",
       );
     });
+    expect(consoleError).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+    consoleError.mockRestore();
   });
 });
