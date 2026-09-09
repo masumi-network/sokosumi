@@ -25,6 +25,7 @@ import {
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
+import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -208,22 +209,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         task.metadata,
         task.nextRunAt,
       );
-      if (hasActiveSeries) {
-        if (projectIdWasProvided && (projectId ?? null) !== task.projectId) {
-          throw conflict(
-            "Remove or replace the schedule before moving this Task's Calendar source",
-            { kind: CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE },
-          );
-        }
-        if (
-          editsTaskFields &&
-          expectedScheduleRevision !== task.scheduleRevision
-        ) {
-          throw conflict(
-            "The schedule series changed; reload the Task and retry with its current scheduleRevision",
-            { kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT },
-          );
-        }
+      if (projectIdWasProvided && (projectId ?? null) !== task.projectId) {
+        assertTaskScheduleInactive(
+          task,
+          "Remove or replace the schedule before moving this Task's Calendar source",
+        );
+      }
+      if (
+        hasActiveSeries &&
+        editsTaskFields &&
+        expectedScheduleRevision !== task.scheduleRevision
+      ) {
+        throw conflict(
+          "The schedule series changed; reload the Task and retry with its current scheduleRevision",
+          { kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT },
+        );
       }
 
       const assigneeWrite = nextAssigneeWrite({

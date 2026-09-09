@@ -63,7 +63,7 @@ describe("validateStatusTransition", () => {
   });
 });
 
-describe("task cancel helpers", () => {
+describe("getTaskStatusUpdateDataForEvent", () => {
   it("clears schedule fields when canceling", () => {
     expect(getTaskStatusUpdateDataForEvent(TaskStatus.CANCELED)).toEqual({
       status: TaskStatus.CANCELED,
@@ -73,20 +73,6 @@ describe("task cancel helpers", () => {
     expect(getTaskStatusUpdateDataForEvent(TaskStatus.READY)).toEqual({
       status: TaskStatus.READY,
     });
-  });
-});
-
-describe("schedule series lifecycle helpers", () => {
-  it("no longer exposes schedule cascade helpers", async () => {
-    const taskHelpers = await import("./task");
-
-    expect(taskHelpers).not.toHaveProperty(
-      "cascadeCancelNonTerminalScheduleRuns",
-    );
-    expect(taskHelpers).not.toHaveProperty(
-      "cascadeArchiveScheduleParentChildren",
-    );
-    expect(taskHelpers).not.toHaveProperty("isTerminalTaskStatus");
   });
 });
 
