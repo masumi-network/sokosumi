@@ -154,6 +154,19 @@ test("parses coworker registration vendor ID", () => {
   assert.deepEqual(parsed.options["vendor-id"], "vendor-1");
 });
 
+test("parses job input event ID", () => {
+  const parsed = parseArgv([
+    "jobs",
+    "input",
+    "job-1",
+    "--event-id",
+    "event-1",
+    "--input-json",
+    '{"answer":"yes"}',
+  ]);
+  assert.equal(parsed.options["event-id"], "event-1");
+});
+
 test("empty argv launches the auth-first status TUI", async () => {
   let launched = false;
   await runCli([], {

@@ -5,6 +5,7 @@ import {
   fetchJobInputRequest,
   fetchJobLinks,
   fetchJobs,
+  submitJobInput,
 } from "../../api/services/job-service.js";
 import {
   applyListFilters,
@@ -14,6 +15,7 @@ import {
   option,
   optionString,
   parsePositiveInteger,
+  readJsonObject,
   record,
   truncate,
   writeJson,
@@ -62,11 +64,13 @@ function printJob(
   ];
   if (details.inputRequest) lines.push("input request: pending");
   const events = Array.isArray(details.events) ? details.events : [];
-  if (events.length)
+  if (events.length) {
+    const latestEvent = record(events[0]);
     lines.push(
       `events: ${events.length}`,
-      `latest event: ${truncate(record(events.at(-1)).message || record(events.at(-1)).type || record(events.at(-1)).id, 160)}`,
+      `latest event: ${truncate(latestEvent.result || latestEvent.message || latestEvent.status || latestEvent.type || latestEvent.id, 160)}`,
     );
+  }
   const files = Array.isArray(details.files) ? details.files : [];
   if (files.length) {
     lines.push(`files: ${files.length}`);
@@ -144,6 +148,34 @@ export async function runJobsCommand({
     });
     if (isJson({ json })) writeJson(stdout, { jobs: filtered });
     else printJobList(stdout, filtered);
+    return;
+  }
+  if (command === "input") {
+    const id = positionalId || optionString(options, "id", "job-id");
+    if (!id) throw new Error("job id is required for `jobs input`");
+    const eventId = optionString(options, "event-id")?.trim();
+    if (!eventId) throw new Error("--event-id is required for `jobs input`");
+    const inputJson = option(options, "input-json");
+    const inputFile = option(options, "input-file");
+    if (inputJson === undefined && inputFile === undefined) {
+      throw new Error(
+        "--input-json or --input-file is required for `jobs input`",
+      );
+    }
+    const inputData = await readJsonObject(inputJson, inputFile, "input");
+    if (Object.keys(inputData).length === 0)
+      throw new Error("input must not be empty");
+    const { response } = await submitJobInput(
+      client,
+      id,
+      { eventId, inputData },
+      signal,
+    );
+    if (isJson({ json })) {
+      writeJson(stdout, { jobId: id, eventId, input: response.data });
+    } else {
+      writeText(stdout, [`Submitted input for job ${id}`, `event: ${eventId}`]);
+    }
     return;
   }
   if (command === "get") {

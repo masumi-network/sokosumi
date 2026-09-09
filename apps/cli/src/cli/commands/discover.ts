@@ -28,6 +28,7 @@ export const CLI_COMMANDS = [
   "tasks comment",
   "jobs list",
   "jobs get",
+  "jobs input",
 ] as const;
 
 export interface DiscoverCommandOptions {

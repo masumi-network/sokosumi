@@ -52,11 +52,39 @@ test("new Core models tolerate unexpected values with sibling defaults", () => {
     message: null,
     data: null,
     createdAt: null,
+    status: null,
+    result: null,
   });
   assert.equal(parseJobFile(null).url, null);
   assert.equal(parseJobLink(null).url, null);
   assert.equal(parseCoworkerApiKey(null).token, null);
   assert.equal(parseUser(null).email, null);
+});
+
+test("preserves Core job event status and result", () => {
+  assert.deepEqual(
+    parseJobEvent({
+      id: "event-123",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:01:00.000Z",
+      status: "AWAITING_INPUT",
+      inputSchema: '{"type":"object"}',
+      input: null,
+      result: "Please provide the missing value.",
+      files: [],
+      links: [],
+    }),
+    {
+      id: "event-123",
+      jobId: null,
+      type: null,
+      message: null,
+      data: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      status: "AWAITING_INPUT",
+      result: "Please provide the missing value.",
+    },
+  );
 });
 
 test("job file parser prefers fileUrl and falls back to sourceUrl", () => {

@@ -58,6 +58,7 @@ test("tolerates null and unexpected agent job values", () => {
     agentId: null,
     status: null,
     name: null,
+    result: null,
     createdAt: null,
     updatedAt: null,
   });
@@ -68,8 +69,33 @@ test("tolerates null and unexpected agent job values", () => {
       agentId: "agent-1",
       status: "pending",
       name: null,
+      result: null,
       createdAt: null,
       updatedAt: null,
+    },
+  );
+});
+
+test("preserves Core job summary result", () => {
+  assert.deepEqual(
+    parseAgentJob({
+      id: "job-123",
+      agentId: "agent-123",
+      status: "COMPLETED",
+      name: "Completed job",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:01:00.000Z",
+      result: "Completed output",
+      credits: 5,
+    }),
+    {
+      id: "job-123",
+      agentId: "agent-123",
+      status: "COMPLETED",
+      name: "Completed job",
+      result: "Completed output",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:01:00.000Z",
     },
   );
 });

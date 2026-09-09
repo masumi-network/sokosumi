@@ -26,6 +26,7 @@ test("discover JSON lists the current command catalog", async () => {
   assert.equal(result.apiUrl, config.apiUrl);
   assert.equal(result.environment, "mainnet");
   assert.ok(result.commands.includes("agents list"));
+  assert.ok(result.commands.includes("jobs input"));
 });
 
 test("discover collects Core resources with stable JSON fields", async () => {

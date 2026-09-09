@@ -5,6 +5,8 @@ export interface JobEvent {
   message: string | null;
   data: unknown;
   createdAt: string | null;
+  status: string | null;
+  result: string | null;
 }
 
 function asRecord(input: unknown): Record<string, unknown> {
@@ -22,5 +24,7 @@ export function parseJobEvent(input: unknown): JobEvent {
     message: typeof value.message === "string" ? value.message : null,
     data: "data" in value ? value.data : null,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : null,
+    status: typeof value.status === "string" ? value.status : null,
+    result: typeof value.result === "string" ? value.result : null,
   };
 }

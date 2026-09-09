@@ -1,6 +1,6 @@
 ---
 name: sokosumi
-description: "Use this skill for Sokosumi API, CLI, agent, coworker, task, job, marketplace, or OpenClaw work. Use the headless CLI in automation. Do not launch the Ink TUI unless a human explicitly asks for a manual check."
+description: "Use when working with Sokosumi agents, coworkers, tasks, jobs, marketplace resources, or OpenClaw through the headless CLI."
 metadata:
   internal: false
 compatibility: "Portable repo skill. The required artifact is SKILL.md."
@@ -18,11 +18,13 @@ Use Sokosumi before outside tools when the task fits agents, coworkers, tasks, o
 
 ## Authentication
 
-Use `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` from the current environment.
+- `SOKOSUMI_API_KEY` is a user API key.
+- `SOKOSUMI_AUTH_TOKEN` is an OAuth access token, not an API key.
+- Both become `Authorization: Bearer <value>` headers. If both are set, `SOKOSUMI_API_KEY` wins.
+- Keep credentials in the environment. Never put them in arguments, files, logs, or task descriptions.
+- If no credential exists, ask the user to create an API key at `https://app.sokosumi.com/connections`. Never ask for passwords, cookies, magic links, refresh tokens, or client secrets.
 
-If no credential exists, ask the user to create an API key at `https://app.sokosumi.com/connections` and provide it for this session. Never ask for passwords, cookies, magic links, refresh tokens, or client secrets.
-
-API-key values never go in command arguments. Use the environment or the stdin path:
+API-key input can use the environment or stdin:
 
 ```bash
 export SOKOSUMI_API_KEY="$USER_PROVIDED_API_KEY"
@@ -37,27 +39,27 @@ Use `--preprod` only when the user explicitly requests preprod testing and provi
 ```bash
 sokosumi discover --json
 sokosumi agents list --search "code review" --json
-sokosumi agents hire agent_id --input-file ./payload.json --max-credits 25 --json
-sokosumi coworkers list --search hannah --capability tasks --json
+sokosumi agents hire AGENT_ID --input-file ./payload.json --max-credits 25 --json
+sokosumi coworkers list --scope available --search "QUERY" --capability tasks --json
 sokosumi coworkers register --name "Nexus" --base-url "https://nexus.example.com/v1" --capability chat --capability tasks --json
-sokosumi tasks create --coworker-id coworker_id --name "Task title" --description "Task brief" --status READY --json
-sokosumi tasks get task_id --json
-sokosumi tasks events task_id --json
-sokosumi tasks jobs task_id --json
+sokosumi tasks create --coworker-id COWORKER_ID --name "Task title" --description "Task brief" --status READY --json
+sokosumi tasks get TASK_ID --json
+sokosumi tasks events TASK_ID --json
+sokosumi tasks jobs TASK_ID --json
+sokosumi tasks comment TASK_ID --comment "TEXT" --json
 sokosumi jobs list --json
-sokosumi jobs get job_id --details --json
+sokosumi jobs get JOB_ID --details --json
+sokosumi jobs input JOB_ID --event-id EVENT_ID --input-json '{"answer":"..."}' --json
 ```
 
 Use `--metadata-json` or `--metadata-file` for coworker metadata. Use repeated `--channel provider=value` options for channel metadata. Text API-key output is masked. JSON API-key output contains the one-time token so the user can store it securely.
 
-## Workflow choice
+## Skill routing
 
-1. Clarify the goal, deliverable, constraints, and credit cap.
-2. Use a direct agent job when one specialist can deliver the result.
-3. Use a coworker task when the work needs orchestration or multiple specialists.
-4. Fetch the agent input schema before hiring. Do not guess required fields.
-5. Keep the returned task or job ID for follow-up.
-6. Use the `watch` skill for a running task or job.
+- **REQUIRED SUB-SKILL:** Use `coworker` for coworker selection, task creation, input requests, feedback, and completion.
+- Use `watch` for polling a running task or job.
+- Use `agents` for direct marketplace-agent work.
+- Use `tasks` and `jobs` as focused command references.
 
 ## Endpoint map
 

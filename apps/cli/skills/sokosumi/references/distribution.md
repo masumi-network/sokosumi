@@ -17,10 +17,11 @@ Install from the repository root with the skills CLI:
 
 ```bash
 npx skills add https://github.com/masumi-network/sokosumi --skill sokosumi
-npx skills add https://github.com/masumi-network/sokosumi --skill hannah
-npx skills add https://github.com/masumi-network/sokosumi --skill elena
-npx skills add https://github.com/masumi-network/sokosumi --skill research
-npx skills add https://github.com/masumi-network/sokosumi --skill market
+npx skills add https://github.com/masumi-network/sokosumi --skill coworker
+npx skills add https://github.com/masumi-network/sokosumi --skill watch
+npx skills add https://github.com/masumi-network/sokosumi --skill agents
+npx skills add https://github.com/masumi-network/sokosumi --skill tasks
+npx skills add https://github.com/masumi-network/sokosumi --skill jobs
 ```
 
 Focused skills are also under `apps/cli/skills`. Keep `SKILL.md` as each skill's source of truth. References are optional and additive. Do not add platform-specific metadata unless the installer requires it.

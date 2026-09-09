@@ -66,6 +66,7 @@ test("fetchAgentJobs encodes agent IDs and maps jobs", async () => {
       agentId: "agent/1",
       status: null,
       name: null,
+      result: null,
       createdAt: null,
       updatedAt: null,
     },

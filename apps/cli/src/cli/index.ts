@@ -85,6 +85,7 @@ type ValueOptionName =
   | "api-key-expires-at"
   | "expires-at"
   | "coworker-id"
+  | "event-id"
   | "status"
   | "comment"
   | "agent"
@@ -129,6 +130,7 @@ interface CliOptions {
   "api-key-expires-at"?: string;
   "expires-at"?: string;
   "coworker-id"?: string;
+  "event-id"?: string;
   status?: CliOptionValue;
   comment?: string;
   agent?: string;
@@ -187,6 +189,7 @@ Usage:
   sokosumi tasks comment TASK_ID [--comment TEXT] [--status STATUS]
   sokosumi jobs list [--search TEXT] [--limit N]
   sokosumi jobs get JOB_ID [--details]
+  sokosumi jobs input JOB_ID --event-id EVENT_ID [--input-json JSON|--input-file FILE]
 
 Empty argv opens the TUI. Use arrows, then Enter. Press Esc to go back.
 
@@ -230,6 +233,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "api-key-expires-at",
   "expires-at",
   "coworker-id",
+  "event-id",
   "status",
   "comment",
   "agent",
@@ -494,7 +498,7 @@ export async function runCli(
   }
   if (
     section === "jobs" &&
-    (command === undefined || ["list", "get"].includes(command))
+    (command === undefined || ["list", "get", "input"].includes(command))
   ) {
     await runJobsCommand({
       client: getCoreClient(config, env, dependencies),
