@@ -16,10 +16,10 @@ on:
       - ".github/workflows/apple.yml"
 
 concurrency:
-  # A new push to the same PR cancels the queued or running run for the old commit.
-  # Cancelling a superseded main run is safe too: the newer run seeds the Mint cache.
+  # A new push to the same PR cancels the queued or running run for the old
+  # commit. Runs on main are never cancelled so the Mint cache save completes.
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
