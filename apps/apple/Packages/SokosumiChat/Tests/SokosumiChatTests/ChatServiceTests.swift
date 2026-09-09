@@ -138,6 +138,17 @@ struct ChatServiceTests {
     #expect(orgSlugHeader(transport.requests[1].request) == nil)
   }
 
+  @Test func repeatedCursorDoesNotAppendDuplicatePage() async throws {
+    let room = roomJSON(id: "550e8400-e29b-41d4-a716-446655440010", name: "one", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let transport = ScriptedTransport([
+      (200, roomsPageBody(rooms: [room], nextCursor: "same")),
+      (200, roomsPageBody(rooms: [room], nextCursor: "same"))
+    ])
+    let rooms = try await ChatService().listRooms(client: makeClient(transport), organizationSlug: nil)
+    #expect(rooms.count == 1)
+    #expect(transport.requests.count == 2)
+  }
+
   @Test func roomListPaginationWalksNextCursor() async throws {
     let transport = ScriptedTransport([
       (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440010", name: "one", kind: "channel", unreadCount: 1, unreadMentionCount: 0)], nextCursor: "cursor-2")),

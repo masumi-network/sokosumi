@@ -33,13 +33,27 @@ final class WorkspaceState: ObservableObject {
     workspaceSession.selectionId
   }
 
-  @Published private(set) var rooms: [Components.Schemas.ChatRoom] = []
-  @Published private(set) var roomsLoading = false
+  let sidebar: ConversationSidebar
+  private var sidebarObservation: AnyCancellable?
+  var rooms: [Components.Schemas.ChatRoom] {
+    get { sidebar.rooms }
+    set { sidebar.rooms = newValue }
+  }
+
+  var roomsLoading: Bool {
+    get { sidebar.isLoading }
+    set { sidebar.isLoading = newValue }
+  }
+
   /// Selected room. Launch and workspace switches restore the saved room,
   /// else the first room. Revoking the open room can leave this nil while
   /// others remain: the saved pick is left alone so relaunch does not
   /// reopen a room that is gone.
-  @Published private(set) var selectedRoomId: String?
+  var selectedRoomId: String? {
+    get { sidebar.selectedRoomId }
+    set { sidebar.selectedRoomId = newValue }
+  }
+
   /// Switch/list failure while already `.ready`. Nil means the sidebar is fine.
   @Published private(set) var switchError: String?
   var currentUserId: String {
@@ -102,7 +116,6 @@ final class WorkspaceState: ObservableObject {
   private var outboundFlight = ClassicOutboundFlight()
 
   private let service = ChatService()
-  private let savedRoom: SavedRoomSelection
   private var hasLoaded = false
   private var workspaceLoadTask: Task<Void, Never>?
 
@@ -115,8 +128,11 @@ final class WorkspaceState: ObservableObject {
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: AblyClientInstanceIdStore = UserDefaultsAblyClientInstanceIdStore()
   ) {
-    self.savedRoom = savedRoom
+    sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    sidebarObservation = sidebar.objectWillChange.sink { [weak self] in
+      self?.objectWillChange.send()
+    }
     workspaceObservation = workspaceSession.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -156,6 +172,7 @@ final class WorkspaceState: ObservableObject {
     workspaceLoadTask = nil
     workspaceGeneration += 1
     workspaceSession.reset()
+    sidebar.reset()
     rooms = []
     roomsLoading = false
     ablyToken = nil
@@ -166,28 +183,26 @@ final class WorkspaceState: ObservableObject {
   }
 
   /// User picked a room in the sidebar: persist it and open its transcript.
-  /// A nil id only clears the pane; the saved pick survives for relaunch.
+  /// Nil is ignored — `List` emits it when collapsed rows leave the
+  /// hierarchy, and this app keeps a room selected whenever one is listed.
   func selectRoom(_ id: String?, auth: AuthState) {
-    guard id != selectedRoomId else { return }
+    guard let id, id != selectedRoomId else { return }
     applyRoomSelection(id, auth: auth)
   }
 
   private func applyRoomSelection(_ id: String?, auth: AuthState) {
-    selectedRoomId = id
-    guard let id, let room = rooms.first(where: { $0.id == id }) else {
+    sidebar.select(id, userId: currentUserId, organizationId: selection?.workspace.organizationId)
+    guard let id = selectedRoomId, let room = rooms.first(where: { $0.id == id }) else {
       clearTranscript()
       return
     }
-    savedRoom.save(id, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     openRoom(room, auth: auth)
   }
 
   /// Keep a room selected whenever rooms exist: the saved room when it is
   /// still listed, else the first room. Runs after every rooms load.
   private func ensureRoomSelection(auth: AuthState) {
-    let current = selectedRoomId.flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
-    let saved = savedRoom.load(userId: currentUserId, organizationId: selection?.workspace.organizationId).flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
-    applyRoomSelection(current ?? saved ?? rooms.first?.id, auth: auth)
+    applyRoomSelection(sidebar.restoredSelection(userId: currentUserId, organizationId: selection?.workspace.organizationId), auth: auth)
   }
 
   /// Forget the transcript without touching rooms or selection.
@@ -672,6 +687,7 @@ final class WorkspaceState: ObservableObject {
 
   func reload(auth: AuthState) async {
     guard !Task.isCancelled else { return }
+    sidebar.reset()
     workspaceGeneration += 1
     let generation = workspaceGeneration
     rooms = []
@@ -692,6 +708,7 @@ final class WorkspaceState: ObservableObject {
   }
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
+    sidebar.invalidateRefresh()
     let generation = workspaceGeneration
     roomsLoading = true
     defer {
@@ -716,6 +733,20 @@ final class WorkspaceState: ObservableObject {
     } catch {
       guard generation == workspaceGeneration else { return }
       switchError = workspaceSession.errorMessage
+      handleWorkspaceError(error, auth: auth)
+    }
+  }
+
+  func refreshRooms(auth: AuthState) async {
+    guard phase == .ready, !roomsLoading, let client = resolveClient(auth: auth) else { return }
+    do {
+      guard try await sidebar.refresh(client: client, organizationSlug: selection?.workspace.organizationSlug) else { return }
+      // Preserve a visible transcript on refresh; open a replacement only if
+      // the previous room is no longer membership-visible.
+      if selectedRoomId == nil || !rooms.contains(where: { $0.id == selectedRoomId }) {
+        ensureRoomSelection(auth: auth)
+      }
+    } catch {
       handleWorkspaceError(error, auth: auth)
     }
   }

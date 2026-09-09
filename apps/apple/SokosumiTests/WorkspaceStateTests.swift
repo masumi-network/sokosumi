@@ -166,6 +166,35 @@ struct WorkspaceStateTests {
     #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == "550e8400-e29b-41d4-a716-446655440000")
   }
 
+  @Test func sidebarRefreshFailureThenRetryPreservesOpenTranscript() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms","method":"GET"}}
+      """),
+      (200, roomsBody(names: ["renamed", "second"]))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let selected = state.selectedRoomId
+    await state.refreshRooms(auth: auth)
+    #expect(state.rooms.map(\.name) == ["general"])
+    #expect(state.selectedRoomId == selected)
+    #expect(state.sidebar.errorMessage != nil)
+    await state.refreshRooms(auth: auth)
+    #expect(state.rooms.map(\.name) == ["renamed", "second"])
+    #expect(state.selectedRoomId == selected)
+    #expect(state.transcriptRoomId == selected)
+    #expect(state.sidebar.errorMessage == nil)
+    #expect(transport.operationIDs.suffix(2) == ["get/chats/rooms", "get/chats/rooms"])
+  }
+
   @Test func reloadBlockedGateLoadsNoRooms() async throws {
     let (state, auth, transport, _) = try ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
     await state.reload(auth: auth)
@@ -455,6 +484,32 @@ struct WorkspaceStateTests {
     #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == secondID)
     #expect(state.transcriptRoomId == secondID)
     #expect(state.transcriptMessages.map(\.content) == ["hi"])
+  }
+
+  @Test func selectRoomNilKeepsOpenTranscript() async throws {
+    let selected = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, _, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440041",
+        content: "kept"
+      )], nextCursor: nil)),
+      (200, roomReadBody(id: selected, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.selectedRoomId == selected)
+    #expect(state.transcriptMessages.map(\.content) == ["kept"])
+    // List emits nil when a collapsed section drops tagged rows. That is
+    // not a user deselect — keep the open transcript.
+    state.selectRoom(nil, auth: auth)
+    #expect(state.selectedRoomId == selected)
+    #expect(state.transcriptRoomId == selected)
+    #expect(state.transcriptMessages.map(\.content) == ["kept"])
   }
 
   @Test func changingRoomDropsPendingOutbound() async throws {

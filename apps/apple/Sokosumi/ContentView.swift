@@ -1,5 +1,4 @@
 import CoreAPI
-import ImageIO
 import SokosumiAuth
 import SokosumiChat
 import SwiftUI
@@ -112,7 +111,7 @@ struct ContentView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .ready:
-      let partitioned = partitionRoomsForSidebar(workspaces.rooms)
+      let partitioned = workspaces.sidebar.partitioned
       NavigationSplitView {
         VStack(spacing: 0) {
           List(selection: Binding(
@@ -121,6 +120,9 @@ struct ContentView: View {
               // List writes selection during its own update. Publishing
               // selectedRoomId / openRoom there trips SwiftUI's
               // "Publishing changes from within view updates" runtime issue.
+              // Nil is structural (collapsed section / missing tag), not a
+              // user deselect — skip it so the open transcript stays.
+              guard let newValue else { return }
               Task { @MainActor in
                 workspaces.selectRoom(newValue, auth: auth)
               }
@@ -135,17 +137,24 @@ struct ContentView: View {
             } else {
               // Channels section only for organization workspaces, mirroring web.
               if workspaces.selection?.workspace.organizationId != nil {
-                Section("Channels") {
+                Section("Channels", isExpanded: sectionExpansion(.channels)) {
                   if partitioned.channels.isEmpty {
                     Text("No channels yet.")
                       .foregroundStyle(.secondary)
                   }
                   ForEach(partitioned.channels, id: \.id) { room in
-                    roomRow(room, icon: "number")
+                    roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
                   }
                 }
               }
-              Section("Direct messages") {
+              if !partitioned.external.isEmpty {
+                Section("External", isExpanded: sectionExpansion(.external)) {
+                  ForEach(partitioned.external, id: \.id) { room in
+                    roomRow(room, icon: "globe")
+                  }
+                }
+              }
+              Section("Directs", isExpanded: sectionExpansion(.directs)) {
                 if partitioned.directMessages.isEmpty {
                   Text("No direct messages yet.")
                     .foregroundStyle(.secondary)
@@ -154,16 +163,29 @@ struct ContentView: View {
                   roomRow(room, icon: "person", showsDirectAvatars: true)
                 }
               }
-              if !partitioned.external.isEmpty {
-                Section("External") {
-                  ForEach(partitioned.external, id: \.id) { room in
-                    roomRow(room, icon: "building.2")
-                  }
-                }
-              }
             }
           }
           .listStyle(.sidebar)
+          .toolbar {
+            ToolbarItem {
+              Button("Refresh conversations", systemImage: "arrow.clockwise") {
+                Task { await workspaces.refreshRooms(auth: auth) }
+              }
+              .disabled(workspaces.roomsLoading)
+            }
+          }
+          if workspaces.roomsLoading {
+            ProgressView("Refreshing conversations…")
+              .controlSize(.small)
+              .padding(8)
+          }
+          if let error = workspaces.sidebar.errorMessage {
+            VStack(alignment: .leading, spacing: 4) {
+              Text(error).font(.caption).foregroundStyle(.secondary)
+              Button("Retry") { Task { await workspaces.refreshRooms(auth: auth) } }
+            }
+            .padding(8)
+          }
           if let switchError = workspaces.switchError {
             Text(switchError)
               .font(.caption)
@@ -191,6 +213,15 @@ struct ContentView: View {
       Text(signOutError)
         .foregroundStyle(.red)
     }
+  }
+
+  private func sectionExpansion(_ section: ConversationSidebar.Section) -> Binding<Bool> {
+    Binding(
+      get: { !workspaces.sidebar.collapsedSections.contains(section) },
+      set: { expanded in
+        Task { @MainActor in workspaces.sidebar.setExpanded(expanded, section: section) }
+      }
+    )
   }
 
   /// Workspace switcher pinned to the top of the sidebar.
@@ -235,9 +266,17 @@ struct ContentView: View {
       isMuted: room.mutedAt != nil
     )
     return Label {
-      Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
-        .lineLimit(1)
-        .fontWeight(attention.bold ? .bold : .regular)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
+          .lineLimit(1)
+          .fontWeight(attention.bold ? .bold : .regular)
+        if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
+          Text(organization)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+      }
     } icon: {
       RoomLeadingIcon(
         room: room,
@@ -425,52 +464,6 @@ private struct CircleAvatar: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(Circle().fill(Color.accentColor))
   }
-}
-
-/// Decode a thumbnail at `pointSize * scale` pixels so 20pt faces stay
-/// sharp on Retina. `AsyncImage` tags the bitmap as 1x and looks soft.
-private func loadAvatarCGImage(
-  urlString: String?,
-  pointSize: CGFloat,
-  scale: CGFloat
-) async -> CGImage? {
-  guard let urlString, let url = URL(string: urlString) else { return nil }
-  let data: Data
-  let response: URLResponse
-  do {
-    (data, response) = try await URLSession.shared.data(from: url)
-  } catch is CancellationError {
-    return nil
-  } catch {
-    return nil
-  }
-  guard !Task.isCancelled else { return nil }
-  if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
-    return nil
-  }
-  return avatarThumbnail(data: data, maxPixel: max(pointSize * scale, 1))
-}
-
-private func avatarThumbnail(data: Data, maxPixel: CGFloat) -> CGImage? {
-  let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
-  guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else {
-    return nil
-  }
-  let options: [CFString: Any] = [
-    kCGImageSourceCreateThumbnailFromImageAlways: true,
-    kCGImageSourceCreateThumbnailWithTransform: true,
-    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-    kCGImageSourceShouldCacheImmediately: true
-  ]
-  return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
-}
-
-private func avatarInitials(from name: String) -> String {
-  let words = name.split(separator: " ")
-  let first = words.first?.first.map(String.init) ?? ""
-  let second = words.dropFirst().first?.first.map(String.init) ?? ""
-  let result = (first + second).uppercased()
-  return result.isEmpty ? "?" : result
 }
 
 #Preview {
