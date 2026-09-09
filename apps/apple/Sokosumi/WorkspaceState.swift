@@ -265,12 +265,13 @@ final class WorkspaceState: ObservableObject {
     }
     realtimeAuth = auth
     let instanceId = ablyClientInstanceId
+    let baseURL = CoreSettings.baseURL
     // Sendable by construction: the session actor plus values only, never
     // MainActor state. The slug rides as a parameter because switches
     // retarget it after connect.
     let provider: RealtimeTokenProvider = { slug in
       let client = Client.connecting(
-        to: CoreSettings.baseURL,
+        to: baseURL,
         middlewares: [
           BearerAuthMiddleware(session: session),
           ExplicitNullPreferredOrganizationMiddleware()
