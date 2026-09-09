@@ -14,7 +14,7 @@ export const TASK_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl pb-8 md:px-4";
  * sits in the right column from `xl` up.
  */
 export const TASK_DETAIL_GRID_CLASS =
-  "mt-6 grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]";
+  "grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]";
 
 /** Primary column stack (header/description or later sections). */
 export const TASK_DETAIL_MAIN_CLASS = "min-w-0 space-y-8";
