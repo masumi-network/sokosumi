@@ -1,11 +1,22 @@
 import Foundation
 
-/// Short, window-safe message for errors the typed client cannot classify
-/// (transport failures, coding errors). The full error still belongs in the
-/// log — never interpolate an unknown error into the UI, because bridging a
-/// wrapped `URLError` to text dumps the whole `NSError` chain (SOK-973
-/// follow-up: a -1005 filled the window).
+/// Short, window-safe message for errors shown in the window.
+///
+/// Typed `ChatServiceError` values keep their Core status/message. Transport
+/// and coding failures stay generic — never interpolate an unknown error,
+/// because bridging a wrapped `URLError` to text dumps the whole `NSError`
+/// chain (SOK-973 follow-up: a -1005 filled the window).
 public func friendlyMessage(for error: Error) -> String {
+  if let serviceError = error as? ChatServiceError {
+    switch serviceError {
+    case let .unprocessable(statusCode, message):
+      return "Core rejected the request (\(statusCode)): \(message)"
+    case let .unexpectedResponse(message):
+      return message
+    case .blocked, .unauthorized:
+      return "Couldn't complete the request. Try again."
+    }
+  }
   if let urlError = findURLError(in: error) {
     // Explicit strings: a bare `URLError.localizedDescription` degrades to
     // "The operation couldn't be completed. (NSURLErrorDomain error N.)",

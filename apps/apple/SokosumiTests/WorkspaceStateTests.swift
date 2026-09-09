@@ -116,7 +116,6 @@ private func ephemeralState(
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
-    savedSelection: SavedWorkspaceSelection(defaults: defaults),
     savedRoom: SavedRoomSelection(defaults: defaults)
   )
   state.clientResolver = { client }
@@ -151,6 +150,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0))
@@ -163,7 +163,7 @@ struct WorkspaceStateTests {
     #expect(!transport.operationIDs.contains(where: { $0.hasPrefix("put/") }))
     // First room is selected and persisted when nothing was saved.
     #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
-    #expect(SavedRoomSelection(defaults: defaults).load() == "550e8400-e29b-41d4-a716-446655440000")
+    #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == "550e8400-e29b-41d4-a716-446655440000")
   }
 
   @Test func reloadBlockedGateLoadsNoRooms() async throws {
@@ -179,6 +179,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -211,6 +212,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -225,7 +227,7 @@ struct WorkspaceStateTests {
     #expect(state.selectionId == "personal")
     #expect(state.rooms.map(\.name) == ["general"])
     #expect(state.phase == .ready)
-    #expect(state.switchError != nil)
+    #expect(state.switchError == "Core rejected the request (500): boom")
     #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
   }
 
@@ -234,6 +236,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -264,6 +267,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -278,7 +282,6 @@ struct WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
-    #expect(SavedWorkspaceSelection(defaults: defaults).load() == "org_1")
     #expect(state.phase == .ready)
     #expect(state.selectedRoomId != nil)
     state.reset()
@@ -288,8 +291,6 @@ struct WorkspaceStateTests {
     #expect(state.rooms.isEmpty)
     #expect(state.currentUserName.isEmpty)
     #expect(state.switchError == nil)
-    #expect(SavedWorkspaceSelection(defaults: defaults).load() == nil)
-    #expect(SavedRoomSelection(defaults: defaults).load() == nil)
   }
 
   @Test func switchRoomsListFailureRestoresPreviousPreference() async throws {
@@ -297,6 +298,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440037",
@@ -338,6 +340,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 3)),
@@ -375,6 +378,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
       historyFailure,
       historyFailure
@@ -399,11 +403,12 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "random"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: savedID, unread: 0))
     ])
-    SavedRoomSelection(defaults: defaults).save(savedID)
+    SavedRoomSelection(defaults: defaults).save(savedID, userId: "user_1", organizationId: nil)
     await state.reload(auth: auth)
     #expect(state.selectedRoomId == savedID)
     #expect(state.transcriptRoomId == savedID)
@@ -415,14 +420,15 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: firstID, unread: 0))
     ])
-    SavedRoomSelection(defaults: defaults).save("550e8400-e29b-41d4-a716-446655440099")
+    SavedRoomSelection(defaults: defaults).save("550e8400-e29b-41d4-a716-446655440099", userId: "user_1", organizationId: nil)
     await state.reload(auth: auth)
     #expect(state.selectedRoomId == firstID)
-    #expect(SavedRoomSelection(defaults: defaults).load() == firstID)
+    #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == firstID)
   }
 
   @Test func selectRoomPersistsAndOpensTranscript() async throws {
@@ -431,6 +437,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "random"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -445,7 +452,7 @@ struct WorkspaceStateTests {
     state.selectRoom(secondID, auth: auth)
     await waitForTranscriptIdle(state)
     #expect(state.selectedRoomId == secondID)
-    #expect(SavedRoomSelection(defaults: defaults).load() == secondID)
+    #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == secondID)
     #expect(state.transcriptRoomId == secondID)
     #expect(state.transcriptMessages.map(\.content) == ["hi"])
   }
@@ -457,6 +464,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "random"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: firstID, unread: 0)),
@@ -493,6 +501,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440036",
@@ -521,6 +530,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 1)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440034",
@@ -550,6 +560,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -581,6 +592,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -618,6 +630,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -643,6 +656,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -671,6 +685,7 @@ struct WorkspaceStateTests {
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),

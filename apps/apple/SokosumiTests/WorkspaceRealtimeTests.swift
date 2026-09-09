@@ -34,6 +34,7 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   private var messagesGETWaiter: CheckedContinuation<Void, Never>?
   private var postReleased = false
+  private var messagesGETReleased = false
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
@@ -60,7 +61,10 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
     }
     if pauseNextMessagesGET, operationID == "get/chats/rooms/{id}/messages" {
       pauseNextMessagesGET = false
-      await withCheckedContinuation { messagesGETWaiter = $0 }
+      if !messagesGETReleased {
+        await withCheckedContinuation { messagesGETWaiter = $0 }
+      }
+      messagesGETReleased = false
     }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
@@ -73,6 +77,7 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   }
 
   func releaseMessagesGET() {
+    messagesGETReleased = true
     messagesGETWaiter?.resume()
     messagesGETWaiter = nil
   }
@@ -168,7 +173,6 @@ private func realtimeState(
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
-    savedSelection: SavedWorkspaceSelection(defaults: defaults),
     savedRoom: SavedRoomSelection(defaults: defaults),
     instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
   )
@@ -267,6 +271,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -291,6 +296,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: targetId, roomId: roomA, content: "hello"),
@@ -320,6 +326,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -340,6 +347,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -382,6 +390,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -412,6 +421,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -444,6 +454,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -492,6 +503,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: targetId, roomId: roomA, content: "bye")])),
       (200, realtimeReadBody(id: roomA))
@@ -512,6 +524,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440720",
@@ -543,6 +556,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440721",
@@ -568,6 +582,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -603,6 +618,7 @@ struct WorkspaceRealtimeTests {
         (200, realtimeAccessBody()),
         (200, realtimeOrgsBody),
         (200, realtimeUserBody),
+        (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
         (200, realtimeRoomsBody(ids: [roomA])),
         (200, realtimePageBody(messages: [])),
         (200, realtimeReadBody(id: roomA)),
@@ -636,6 +652,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -677,6 +694,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -704,7 +722,7 @@ struct WorkspaceRealtimeTests {
     await waitForTokenMints(transport, count: 1)
     #expect(fake.reauthorizeCount == 1)
     #expect(fake.reauthorizedToken?.keyName == "test.app")
-    #expect(fake.watchedRooms == [roomA, roomB])
+    #expect(fake.watchedRooms == [roomA, nil, roomB])
     #expect(state.selectedRoomId == roomB)
   }
 }
