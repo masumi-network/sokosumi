@@ -3,9 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   COWORKER_AGENT_ERROR_MARKER,
   COWORKER_AGENT_ERROR_SNIPPET,
-  coworkerSseBodyExtractOutputText,
-  coworkerSseBodyLooksLikeAgentError,
-  coworkerSseBodyLooksSuspiciouslyShort,
   coworkerTextLooksLikeAgentError,
 } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
@@ -21,41 +18,6 @@ describe("coworkerTextLooksLikeAgentError", () => {
       true,
     );
     expect(coworkerTextLooksLikeAgentError("Hello there")).toBe(false);
-  });
-});
-
-describe("coworkerSseBodyLooksLikeAgentError", () => {
-  it("detects Elena agent error text in SSE bodies", () => {
-    expect(
-      coworkerSseBodyLooksLikeAgentError(
-        `data: {"type":"response.output_text.delta","delta":"${COWORKER_AGENT_ERROR_SNIPPET}. Please try again."}`,
-      ),
-    ).toBe(true);
-    expect(
-      coworkerSseBodyLooksLikeAgentError(
-        'data: {"type":"response.output_text.delta","delta":"Hello there"}',
-      ),
-    ).toBe(false);
-  });
-});
-
-describe("coworkerSseBodyLooksSuspiciouslyShort", () => {
-  it("detects suspiciously short output text in SSE bodies", () => {
-    expect(
-      coworkerSseBodyLooksSuspiciouslyShort(
-        'data: {"type":"response.output_text.delta","delta":"Done"}',
-      ),
-    ).toBe(true);
-    expect(
-      coworkerSseBodyExtractOutputText(
-        'data: {"type":"response.output_text.delta","delta":"Done"}',
-      ),
-    ).toBe("Done");
-    expect(
-      coworkerSseBodyLooksSuspiciouslyShort(
-        'data: {"type":"response.output_text.delta","delta":"This is a complete coworker reply."}',
-      ),
-    ).toBe(false);
   });
 });
 

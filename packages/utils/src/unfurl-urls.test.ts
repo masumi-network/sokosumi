@@ -1,37 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  extractBareHttpUrls,
   selectUnfurlCandidateUrls,
   unfurlCardHasPreviewContent,
 } from "./unfurl-urls.js";
-
-describe("extractBareHttpUrls", () => {
-  it("finds bare http(s) URLs in prose", () => {
-    expect(
-      extractBareHttpUrls("see https://example.com/a and http://foo.test/b"),
-    ).toEqual(["https://example.com/a", "http://foo.test/b"]);
-  });
-
-  it("strips trailing punctuation", () => {
-    expect(extractBareHttpUrls("Visit https://example.com/path.")).toEqual([
-      "https://example.com/path",
-    ]);
-  });
-
-  it("strips many trailing punctuation chars without hanging", () => {
-    const bangs = "!".repeat(10_000);
-    expect(extractBareHttpUrls(`see https://example.com/x${bangs}`)).toEqual([
-      "https://example.com/x",
-    ]);
-  });
-
-  it("dedupes identical bare URLs", () => {
-    expect(
-      extractBareHttpUrls("https://example.com https://example.com"),
-    ).toEqual(["https://example.com"]);
-  });
-});
 
 describe("selectUnfurlCandidateUrls", () => {
   it("collects markdown links, autolinks, and bare URLs in first-appearance order", () => {
@@ -78,6 +50,19 @@ describe("selectUnfurlCandidateUrls", () => {
     expect(selectUnfurlCandidateUrls("https://cdn.example/shot.png")).toEqual(
       [],
     );
+  });
+
+  it("strips trailing punctuation from bare URLs", () => {
+    expect(
+      selectUnfurlCandidateUrls("Visit https://example.com/path."),
+    ).toEqual(["https://example.com/path"]);
+  });
+
+  it("strips many trailing punctuation chars without hanging", () => {
+    const bangs = "!".repeat(10_000);
+    expect(
+      selectUnfurlCandidateUrls(`see https://example.com/x${bangs}`),
+    ).toEqual(["https://example.com/x"]);
   });
 });
 

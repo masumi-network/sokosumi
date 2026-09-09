@@ -27,10 +27,6 @@ export function isTaskArchivableStatus(
   return (TASK_ARCHIVABLE_STATUSES as readonly string[]).includes(status);
 }
 
-export function isGrantPendingTaskStatus(status: string): boolean {
-  return status === "GRANT_PENDING";
-}
-
 export function canArchiveTaskStatus(status: string): boolean {
   return isTaskArchivableStatus(status);
 }
