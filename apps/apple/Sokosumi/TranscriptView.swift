@@ -120,9 +120,9 @@ import SwiftUI
                     message: message,
                     isContinuation: isMessageContinuation(previous: previous, current: message),
                     outbound: outbound,
-                    retryDisabled: workspaces.outboundInFlight,
+                    retryDisabled: false,
                     onRetry: outbound.map { shell in
-                      { workspaces.retryOutbound(clientTurnId: shell.clientTurnId, auth: auth) }
+                      { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
                     },
                     onRemove: outbound.map { shell in
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
@@ -237,35 +237,39 @@ import SwiftUI
     }
 
     private var canSend: Bool {
-      !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && !workspaces.outboundInFlight
+      ComposerContent(draft).canSend
         && !workspaces.transcriptLoading
         && workspaces.transcriptRoomId == roomId
     }
 
     var body: some View {
       HStack {
-        TextField("Message", text: Binding(
+        ComposerInput(text: Binding(
           get: { draft },
           set: { text in
             draft = text
             savedDraft.save(text)
           }
-        ))
-        .textFieldStyle(.roundedBorder)
-        .onSubmit(sendDraft)
-        Button("Send", action: sendDraft)
+        ), submit: sendDraft)
+        if ComposerContent(draft).showsCounter {
+          Text("\(ComposerContent(draft).count)/\(ComposerContent.maximumLength)")
+            .font(.caption)
+            .foregroundStyle(ComposerContent(draft).isTooLong ? .red : .secondary)
+            .accessibilityLabel("Message length: \(ComposerContent(draft).count) of \(ComposerContent.maximumLength)")
+        }
+        Button("Send") { sendDraft() }
           .disabled(!canSend)
       }
       .padding(8)
     }
 
-    private func sendDraft() {
-      guard canSend else { return }
-      let content = draft
+    @discardableResult
+    private func sendDraft() -> Bool {
+      guard canSend else { return false }
+      guard workspaces.sendMessage(draft, auth: auth) else { return false }
       draft = ""
       savedDraft.save("")
-      workspaces.sendMessage(content, auth: auth)
+      return true
     }
   }
 
