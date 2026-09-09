@@ -1,6 +1,6 @@
 # Sokosumi Apple Clients Agent Guidelines
 
-> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Product intent is [`VISION.md`](./VISION.md); the Mac tracer spec is [`MAC-TRACER.md`](./MAC-TRACER.md).
+> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Before Apple work, read [`VISION.md`](./VISION.md) for the ongoing goal and [`PARITY.md`](./PARITY.md) for the authorized scope, iteration rules, current PR, and verification record. Verify the handoff against GitHub before continuing. [`MAC-TRACER.md`](./MAC-TRACER.md) is the earlier foundation, superseded by the parity scope.
 
 ## App-Specific Architecture
 
