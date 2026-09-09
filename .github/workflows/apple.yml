@@ -78,11 +78,14 @@ jobs:
         run: xcodebuild -version && swift --version
 
       - name: Test Sokosumi app target
-        run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests
+        # Coverage stays off: ably-cocoa's C target (AblyDeltaCodec) cannot
+        # link the profile runtime, so gathering coverage fails the test
+        # build (SOK-976). Nothing consumes coverage today.
+        run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests -enableCodeCoverage NO
 
       - name: Test Swift packages
         run: |
-          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth apps/apple/Packages/CoreAPI; do
+          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth apps/apple/Packages/CoreAPI apps/apple/Packages/SokosumiRealtime; do
             swift test --package-path "$package"
           done
 

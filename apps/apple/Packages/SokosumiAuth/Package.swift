@@ -5,8 +5,8 @@ import PackageDescription
 let package = Package(
   name: "SokosumiAuth",
   platforms: [
-    .macOS(.v15),
-    .iOS(.v17)
+    .macOS(.v26),
+    .iOS(.v26)
   ],
   products: [
     .library(name: "SokosumiAuth", targets: ["SokosumiAuth"])
