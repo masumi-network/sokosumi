@@ -289,6 +289,117 @@ describe("PUT /tasks/{id}/schedule", () => {
     );
   });
 
+  it("keeps an existing Calendar v2 epoch instead of rewriting version 1", async () => {
+    const epochId = "123e4567-e89b-42d3-a456-426614174000";
+    const nextRunAt = new Date("2026-06-02T09:00:00.000Z");
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      projectId: null,
+      nextRunAt,
+      metadata: JSON.stringify({
+        version: 2,
+        epochId,
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "after",
+        targetReleaseCount: 10,
+        epochReleaseCount: 5,
+        anchorAt: "2026-06-01T08:00:00.000Z",
+      }),
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "recurring",
+          timezone: "UTC",
+          expr: "0 9 * * *",
+          endsMode: "after",
+          occurrences: 5,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const saved = JSON.parse(taskUpdateMock.mock.calls[0]?.[0].data.metadata);
+    expect(saved).toMatchObject({
+      version: 2,
+      epochId,
+      endsMode: "after",
+      targetReleaseCount: 10,
+      epochReleaseCount: 5,
+    });
+    expect(taskUpdateMock.mock.calls[0]?.[0].data.nextRunAt).toEqual(nextRunAt);
+  });
+
+  it("starts a new v2 epoch when a Calendar schedule rule changes", async () => {
+    const epochId = "123e4567-e89b-42d3-a456-426614174001";
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      projectId: null,
+      nextRunAt: new Date("2026-06-02T09:00:00.000Z"),
+      metadata: JSON.stringify({
+        version: 2,
+        epochId,
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "after",
+        targetReleaseCount: 10,
+        epochReleaseCount: 5,
+        anchorAt: "2026-06-01T08:00:00.000Z",
+      }),
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "recurring",
+          timezone: "UTC",
+          expr: "0 10 * * *",
+          endsMode: "after",
+          occurrences: 5,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const saved = JSON.parse(taskUpdateMock.mock.calls[0]?.[0].data.metadata);
+    expect(saved).toMatchObject({
+      version: 2,
+      mode: "recurring",
+      expr: "0 10 * * *",
+      epochReleaseCount: 0,
+      targetReleaseCount: 5,
+    });
+    expect(saved.epochId).not.toBe(epochId);
+    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        schedule: expect.objectContaining({ version: 2, mode: "recurring" }),
+      }),
+    );
+  });
+
   it("returns a conflict when the Task Calendar source cannot be locked", async () => {
     lockCalendarScopeMock.mockResolvedValue(false);
 
