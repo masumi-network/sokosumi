@@ -13,7 +13,7 @@ Make Task detail the canonical home for an existing Calendar schedule series. A 
 - Reject generic status, cancel, archive, and workspace-move paths while a series is active.
 - Preserve released Tasks as independent records; series changes never cascade into them.
 
-This work extends the existing Task schedule metadata and `TaskScheduleOccurrence` ledger. It adds no table, migration, alternate scheduler, or duplicate schedule model. The legacy schedule endpoint remains body-compatible until SOK-891, but every legacy rule write still takes the Calendar/Task locks and increments `scheduleRevision`. The Calendar full-series endpoint is the revision-safe management contract.
+This work extends the existing Task schedule metadata and `TaskScheduleOccurrence` ledger. It adds no table, migration, alternate scheduler, or duplicate schedule model. The legacy schedule endpoint remains compatible with its bare schedule body until SOK-891, but every legacy rule write still takes the Calendar/Task locks and increments `scheduleRevision`. A guarded Calendar envelope previously tolerated by that route is deliberately rejected in this coordinated release: accepting it while discarding its revision, idempotency, and exception-confirmation fields would falsely claim safety. The Calendar full-series endpoint is the only revision-safe management contract.
 
 Core and Web ship this issue as one coordinated release. The PR updates every first-party caller in the same final branch before the stricter Calendar PUT and schedule DELETE contracts can reach production.
 
