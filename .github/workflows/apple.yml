@@ -15,6 +15,12 @@ on:
       - "apps/apple/**"
       - ".github/workflows/apple.yml"
 
+concurrency:
+  # A new push to the same PR cancels the queued or running run for the old
+  # commit. Runs on main are never cancelled so the Mint cache save completes.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   changes:
     name: Detect Apple changes
@@ -60,7 +66,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
@@ -97,7 +103,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
@@ -143,7 +149,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
