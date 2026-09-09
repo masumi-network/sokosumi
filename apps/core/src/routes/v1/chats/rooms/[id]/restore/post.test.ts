@@ -21,6 +21,7 @@ const {
   membershipFindManyMock,
   readStateFindManyMock,
   prismaTransactionMock,
+  publishChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomUpdateManyMock: vi.fn(),
@@ -30,6 +31,11 @@ const {
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  publishChatRoomsChangedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: publishChatRoomsChangedMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -124,6 +130,7 @@ beforeEach(() => {
   roomUpdateManyMock.mockResolvedValue({ count: 1 });
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
+  publishChatRoomsChangedMock.mockResolvedValue(undefined);
 });
 
 describe("POST /chats/rooms/{id}/restore", () => {
@@ -138,6 +145,7 @@ describe("POST /chats/rooms/{id}/restore", () => {
     expect(text).toMatch(/organization owner or admin/i);
     expect(text).not.toMatch(/creator/i);
     expect(roomUpdateManyMock).not.toHaveBeenCalled();
+    expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -165,6 +173,12 @@ describe("POST /chats/rooms/{id}/restore", () => {
       expect(roomUpdateManyMock).toHaveBeenCalledWith({
         where: { id: ROOM_ID, archivedAt: { not: null } },
         data: { archivedAt: null },
+      });
+      // Sidebar invalidation reaches every member after commit (SOK-986).
+      expect(publishChatRoomsChangedMock).toHaveBeenCalledWith({
+        userIds: [SELF_ID, OTHER_ID],
+        collections: ["active", "archived"],
+        roomId: ROOM_ID,
       });
     },
   );

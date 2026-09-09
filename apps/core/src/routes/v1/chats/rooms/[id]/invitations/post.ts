@@ -10,6 +10,7 @@ import {
   assertInviteeNotHostOrgMember,
   assertInviteeNotRoomMember,
   expireStalePendingInvitations,
+  findUserIdByEmail,
   invitationExpiresAt,
   livePendingInvitationWhere,
   mapChatRoomInvitationFromRecord,
@@ -19,6 +20,7 @@ import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import {
@@ -84,91 +86,108 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
     const email = normalizeInvitationEmail(body.email);
 
-    const invitation = await prisma.$transaction(async (tx) => {
-      const room = await requireRoomMemberCanInviteGuests(
-        roomId,
-        userContext.userId,
-        tx,
-      );
+    const { invitation, inviteeUserId } = await prisma.$transaction(
+      async (tx) => {
+        const room = await requireRoomMemberCanInviteGuests(
+          roomId,
+          userContext.userId,
+          tx,
+        );
 
-      if (!room.organizationId) {
-        throw badRequest("External channels require a host organization.");
-      }
+        if (!room.organizationId) {
+          throw badRequest("External channels require a host organization.");
+        }
 
-      // Serialize invite create + rate-limit counts:
-      // - room lock: pending-per-room cap and unique pending email
-      // - inviter lock: hourly create cap across rooms (room lock alone is not enough)
-      await tx.$queryRaw`
+        // Serialize invite create + rate-limit counts:
+        // - room lock: pending-per-room cap and unique pending email
+        // - inviter lock: hourly create cap across rooms (room lock alone is not enough)
+        await tx.$queryRaw`
         SELECT "id" FROM "chat_room"
         WHERE "id" = ${room.id}::uuid
         FOR UPDATE
       `;
-      await tx.$queryRaw`
+        await tx.$queryRaw`
         SELECT "id" FROM "user"
         WHERE "id" = ${userContext.userId}
         FOR UPDATE
       `;
 
-      const now = new Date();
-      await expireStalePendingInvitations(tx, { roomId: room.id, now });
+        const now = new Date();
+        await expireStalePendingInvitations(tx, { roomId: room.id, now });
 
-      await assertInviteeNotHostOrgMember(room.organizationId, email, tx);
-      await assertInviteeNotRoomMember(room.id, email, tx);
-      await assertChatRoomInvitationRateLimits(
-        room.id,
-        userContext.userId,
-        tx,
-        now,
-      );
-
-      const existingPending = await tx.chatRoomGuestInvitation.findFirst({
-        where: {
-          ...livePendingInvitationWhere(room.id, now),
-          email,
-        },
-        select: { id: true },
-      });
-      if (existingPending) {
-        throw conflict(
-          "A pending invitation already exists for this email in this room.",
+        await assertInviteeNotHostOrgMember(room.organizationId, email, tx);
+        await assertInviteeNotRoomMember(room.id, email, tx);
+        await assertChatRoomInvitationRateLimits(
+          room.id,
+          userContext.userId,
+          tx,
+          now,
         );
-      }
 
-      let createdInvitation;
-      try {
-        createdInvitation = await tx.chatRoomGuestInvitation.create({
-          data: {
-            roomId: room.id,
+        const existingPending = await tx.chatRoomGuestInvitation.findFirst({
+          where: {
+            ...livePendingInvitationWhere(room.id, now),
             email,
-            inviterId: userContext.userId,
-            status: CHAT_ROOM_INVITATION_STATUS.PENDING,
-            expiresAt: invitationExpiresAt(),
           },
-          include: {
-            inviter: { select: { id: true, name: true } },
-          },
+          select: { id: true },
         });
-      } catch (error) {
-        if (isPrismaUniqueViolation(error)) {
+        if (existingPending) {
           throw conflict(
             "A pending invitation already exists for this email in this room.",
           );
         }
-        throw error;
-      }
 
-      const organization = await tx.organization.findUnique({
-        where: { id: room.organizationId },
-        select: { name: true },
-      });
+        let createdInvitation;
+        try {
+          createdInvitation = await tx.chatRoomGuestInvitation.create({
+            data: {
+              roomId: room.id,
+              email,
+              inviterId: userContext.userId,
+              status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+              expiresAt: invitationExpiresAt(),
+            },
+            include: {
+              inviter: { select: { id: true, name: true } },
+            },
+          });
+        } catch (error) {
+          if (isPrismaUniqueViolation(error)) {
+            throw conflict(
+              "A pending invitation already exists for this email in this room.",
+            );
+          }
+          throw error;
+        }
 
-      return mapChatRoomInvitationFromRecord(createdInvitation, {
-        id: room.id,
-        name: room.name,
-        organizationId: room.organizationId,
-        organizationName: organization?.name,
+        const organization = await tx.organization.findUnique({
+          where: { id: room.organizationId },
+          select: { name: true },
+        });
+
+        // The invitee may already have an account: their other tabs can then
+        // show the invitation from the control channel instead of a poll.
+        const inviteeUserId = await findUserIdByEmail(email, tx);
+
+        return {
+          invitation: mapChatRoomInvitationFromRecord(createdInvitation, {
+            id: room.id,
+            name: room.name,
+            organizationId: room.organizationId,
+            organizationName: organization?.name,
+          }),
+          inviteeUserId,
+        };
+      },
+    );
+
+    if (inviteeUserId) {
+      await publishChatRoomsChanged({
+        userIds: [inviteeUserId],
+        collections: ["invitations"],
+        roomId: invitation.roomId,
       });
-    });
+    }
 
     const inviteLink = `${getWebAppBaseUrl()}/chat/invites/${invitation.id}`;
     const renderedEmail = await renderChatRoomInvitationEmail({

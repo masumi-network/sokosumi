@@ -31,6 +31,8 @@ const {
   sendEmailMock,
   getWebAppBaseUrlMock,
   getEmailLocaleMock,
+  userFindFirstMock,
+  publishChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
@@ -47,6 +49,12 @@ const {
   sendEmailMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
   getEmailLocaleMock: vi.fn(),
+  userFindFirstMock: vi.fn(),
+  publishChatRoomsChangedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: publishChatRoomsChangedMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -92,6 +100,7 @@ const tx = {
     findUnique: memberFindUniqueMock,
     findFirst: memberFindFirstMock,
   },
+  user: { findFirst: userFindFirstMock },
   chatRoomUserMember: {
     findFirst: roomUserMemberFindFirstMock,
   },
@@ -254,6 +263,30 @@ describe("POST /chats/rooms/{id}/invitations", () => {
       tag: "chat-room-invitation-email",
       subject: "Sokosumi - Channel Invitation",
       html: "<p>invite</p>",
+    });
+    // No account for that email yet: nobody to invalidate.
+    expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
+  });
+
+  it("invalidates the invitee's pending collection when they already have an account", async () => {
+    userFindFirstMock.mockResolvedValue({ id: GUEST_ID });
+
+    const response = await createApp().request(`/${ROOM_ID}/invitations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "guest@example.com" }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(userFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: { equals: "guest@example.com", mode: "insensitive" } },
+      }),
+    );
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledWith({
+      userIds: [GUEST_ID],
+      collections: ["invitations"],
+      roomId: ROOM_ID,
     });
   });
 

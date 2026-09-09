@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server";
+
+import { getSession } from "@/lib/auth/auth.server";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
+
+interface BackgroundChatReadPage {
+  data: unknown;
+  /** Present for list reads so the generated transformer shape holds. */
+  pagination?: { nextCursor: string | null; limit: number };
+}
+
+/**
+ * Shared shape of the chat background GET routes (SOK-986): a session
+ * check that answers JSON 401 rather than a sign-in redirect, a no-store
+ * JSON page with the Core response envelope, and Core failure status passed
+ * through without its details. Background reads bypass the server action
+ * queue used by chat mutations.
+ */
+export async function respondToBackgroundChatRead(
+  unavailableMessage: string,
+  read: () => Promise<BackgroundChatReadPage>,
+): Promise<NextResponse> {
+  try {
+    if (!(await getSession())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const page = await read();
+    return NextResponse.json(
+      {
+        data: page.data,
+        meta: {
+          timestamp: new Date(),
+          requestId: crypto.randomUUID(),
+          ...(page.pagination && {
+            pagination: { cursor: null, ...page.pagination },
+          }),
+        },
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    // Core's server client may throw a sign-in redirect. A background read
+    // must return a failed response, never sign-in HTML as successful data.
+    const status =
+      error instanceof CoreApiRequestError && error.status ? error.status : 502;
+    return NextResponse.json({ error: unavailableMessage }, { status });
+  }
+}

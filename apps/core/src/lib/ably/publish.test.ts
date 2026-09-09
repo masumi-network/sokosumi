@@ -11,6 +11,7 @@ import {
   publishChatMembershipRevoked,
   publishChatMembershipRevokedToUsers,
   publishChatRoomMessageEvent,
+  publishChatRoomsChanged,
   publishJobStatusData,
   publishNotificationEvent,
   publishTaskEventData,
@@ -462,6 +463,58 @@ describe("publishChatMembershipRevoked", () => {
       [],
       "removed",
     );
+    expect(publishMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("publishChatRoomsChanged", () => {
+  it("publishes the stale collections on each user's chat control channel", async () => {
+    publishMock.mockClear();
+    getMock.mockClear();
+    await publishChatRoomsChanged({
+      userIds: ["user_123"],
+      collections: ["active", "archived"],
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+    });
+
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_123");
+    expect(publishMock).toHaveBeenCalledWith("chat_rooms_changed", {
+      collections: ["active", "archived"],
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      at: expect.any(String),
+    });
+  });
+
+  it("fans out once per distinct user and survives one failed publish", async () => {
+    publishMock.mockClear();
+    getMock.mockClear();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    publishMock
+      .mockRejectedValueOnce(new Error("ably down"))
+      .mockResolvedValue(undefined);
+
+    await publishChatRoomsChanged({
+      userIds: ["user_a", "user_b", "user_a"],
+      collections: ["invitations"],
+      roomId: null,
+    });
+
+    expect(getMock).toHaveBeenCalledTimes(2);
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_a");
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_b");
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  it("no-ops when the user list is empty", async () => {
+    publishMock.mockClear();
+    await publishChatRoomsChanged({
+      userIds: [],
+      collections: ["active"],
+      roomId: null,
+    });
     expect(publishMock).not.toHaveBeenCalled();
   });
 });
