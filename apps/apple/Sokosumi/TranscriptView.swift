@@ -90,7 +90,7 @@ import SwiftUI
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
-              .disabled(workspaces.transcriptLoadingOlder)
+              .disabled(workspaces.transcriptLoadingOlder || workspaces.transcriptRefreshing)
               .buttonStyle(.link)
               .frame(maxWidth: .infinity)
               .padding(.vertical, 8)

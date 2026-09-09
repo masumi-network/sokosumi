@@ -40,6 +40,56 @@ struct RoomTimelineTests {
     testMessageJSON(id: id, content: content, sender: testUserSender(name: "Ada", email: "ada@example.com"), createdAt: date)
   }
 
+  @Test func latestPagePreservesOlderPagination() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("b", content: "Newer")], nextCursor: "older")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Older")], nextCursor: "oldest")),
+      (200, testMessagesPageBody(messages: [row("c", content: "Latest")], nextCursor: nil))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .older, .latest] {
+      try await timeline.loadPage(page, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    #expect(timeline.cursor == "oldest")
+    #expect(timeline.hasMore)
+    #expect(timeline.messages.map(\.id) == ["a", "b", "c"])
+    #expect(!timeline.isLoading && !timeline.isLoadingOlder && !timeline.isRefreshing)
+  }
+
+  @Test func pagesOwnFlagsAndRejectOverlappingRequests() async throws {
+    for kind in [RoomTimeline.Page.initial, .older, .latest] {
+      let timeline = RoomTimeline()
+      timeline.reset(roomId: testRoomId)
+      let seed = TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: "older"))])
+      try await timeline.loadPage(.initial, client: client(seed), organizationSlug: nil, generation: timeline.generation)
+      let transport = PausedHistoryTransport()
+      let task = Task { try await timeline.loadPage(kind, client: client(transport), organizationSlug: nil, generation: timeline.generation) }
+      await transport.waitForRequest()
+      #expect(timeline.isLoading == (kind == .initial))
+      #expect(timeline.isLoadingOlder == (kind == .older))
+      #expect(timeline.isRefreshing == (kind == .latest))
+      #expect(try await !timeline.loadPage(.latest, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+      await transport.release()
+      #expect(try await task.value)
+      #expect(!timeline.isLoading && !timeline.isLoadingOlder && !timeline.isRefreshing)
+    }
+  }
+
+  @Test func cancelledPageSettlesFlagsWithoutPublishingRows() async throws {
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    let transport = PausedHistoryTransport()
+    let task = Task { try await timeline.loadPage(.initial, client: client(transport), organizationSlug: nil, generation: timeline.generation) }
+    await transport.waitForRequest()
+    task.cancel()
+    await transport.release()
+    #expect(try await task.value == false)
+    #expect(!timeline.isLoading)
+    #expect(timeline.messages.isEmpty)
+    #expect(timeline.errorMessage == nil)
+  }
+
   @Test func olderPageMergesOverlapAndStopsRepeatedCursor() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [row("b", content: "Newer")], nextCursor: "older")),
@@ -71,6 +121,8 @@ struct RoomTimelineTests {
     #expect(timeline.messages.map(\.id) == ["b"])
     #expect(timeline.cursor == "older")
     #expect(timeline.failedPage == .older)
+    #expect(!timeline.isLoadingOlder)
+    #expect(timeline.errorMessage != nil)
     try await timeline.loadPage(.older, client: client(transport), organizationSlug: nil, generation: timeline.generation)
     #expect(timeline.messages.map(\.id) == ["a", "b"])
   }
@@ -86,6 +138,7 @@ struct RoomTimelineTests {
     await transport.release()
     #expect(try await task.value == false)
     #expect(timeline.roomId == "different")
+    #expect(timeline.isLoading)
     #expect(timeline.messages.isEmpty)
     #expect(!timeline.isLoadingOlder)
   }

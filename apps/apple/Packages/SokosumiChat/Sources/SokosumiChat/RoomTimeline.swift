@@ -8,21 +8,24 @@ import Foundation
 public final class RoomTimeline: ObservableObject {
   public enum Page: Sendable { case initial, older, latest }
 
-  @Published public var roomId: String?
+  @Published public private(set) var roomId: String?
   @Published public var messages: [Components.Schemas.ChatRoomMessage] = []
-  @Published public var hasMore = false
-  @Published public var isLoading = false
-  @Published public var isLoadingOlder = false
-  @Published public var isRefreshing = false
+  @Published public private(set) var hasMore = false
+  @Published public private(set) var isLoading = false
+  @Published public private(set) var isLoadingOlder = false
+  @Published public private(set) var isRefreshing = false
   @Published public var errorMessage: String?
   public private(set) var failedPage: Page?
-  public var cursor: String?
+  public private(set) var cursor: String?
   public private(set) var generation = 0
+
+  private var activePage: Page?
 
   public init() {}
 
   public func reset(roomId: String? = nil) {
     generation += 1
+    activePage = nil
     self.roomId = roomId
     messages = []
     cursor = nil
@@ -32,6 +35,14 @@ public final class RoomTimeline: ObservableObject {
     isRefreshing = false
     errorMessage = nil
     failedPage = nil
+  }
+
+  /// Settle a queued initial load when authentication cannot supply a client.
+  public func failInitialLoad(message: String, generation expectedGeneration: Int) {
+    guard generation == expectedGeneration, activePage == nil else { return }
+    isLoading = false
+    errorMessage = message
+    failedPage = .initial
   }
 
   /// Commit only to the room generation that requested this page. Merge
@@ -44,9 +55,23 @@ public final class RoomTimeline: ObservableObject {
     organizationSlug: String?,
     generation expectedGeneration: Int
   ) async throws -> Bool {
-    guard let roomId, generation == expectedGeneration else { return false }
+    guard let roomId, generation == expectedGeneration, activePage == nil else { return false }
     let requestedCursor = kind == .older ? cursor : nil
     guard kind != .older || requestedCursor != nil else { return false }
+    activePage = kind
+    isLoading = kind == .initial
+    isLoadingOlder = kind == .older
+    isRefreshing = kind == .latest
+    errorMessage = nil
+    defer {
+      if generation == expectedGeneration {
+        activePage = nil
+        isLoading = false
+        isLoadingOlder = false
+        isRefreshing = false
+      }
+    }
+    guard !Task.isCancelled else { return false }
     let page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?)
     do {
       page = try await ChatService().listMessages(
@@ -58,6 +83,7 @@ public final class RoomTimeline: ObservableObject {
     } catch {
       if generation == expectedGeneration, !Task.isCancelled {
         failedPage = kind
+        errorMessage = friendlyMessage(for: error)
       }
       throw error
     }
