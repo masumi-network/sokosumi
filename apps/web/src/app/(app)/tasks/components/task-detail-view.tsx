@@ -200,7 +200,11 @@ export async function TaskDetailView({
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
-            <Suspense fallback={<TaskSectionFallback title={null} rows={4} />}>
+            <Suspense
+              fallback={
+                <TaskSectionFallback title={t("properties")} rows={4} />
+              }
+            >
               <TaskMetadataSection
                 task={task}
                 forceReadOnly={forceReadOnly}
@@ -463,6 +467,7 @@ async function TaskMetadataSection({
 
   return (
     <TaskMetadata
+      title={t("properties")}
       taskId={task.id}
       editable={!isReadOnly}
       task={{
@@ -812,9 +817,7 @@ function TaskSectionFallback({
   return (
     <section className="space-y-4">
       {title ? (
-        <h2 className="text-muted-foreground/60 text-xs font-medium">
-          {title}
-        </h2>
+        <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       ) : null}
       <div className="space-y-3">
         {Array.from({ length: rows }, (_, index) => (

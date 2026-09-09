@@ -1,7 +1,9 @@
 "use client";
 
+import type { ChatRoomCollection } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import type {
   ChatRoom,
   ChatRoomInvitation,
@@ -19,8 +21,10 @@ import {
   reconcileRoomAttention,
   rememberRoomRead,
 } from "./room-read-overlay";
+import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
-const ORGANIZATION_CHAT_POLL_MS = 15_000;
+/** Poll cadence per collection while the Ably connection is unavailable. */
+const ORGANIZATION_CHAT_FALLBACK_MS = 15_000;
 
 interface UseOrganizationChatRoomsOptions {
   rooms: ChatRoom[];
@@ -33,8 +37,12 @@ interface UseOrganizationChatRoomsOptions {
 
 /**
  * Holds the chat sidebar's three room collections: the prop hand-off from RSC
- * and every path that can change the rows behind the reader's back (polling,
- * window focus, room-read, and the rooms-changed control event).
+ * and every path that can change the rows behind the reader's back (the
+ * scheduled recovery read, foreground return, room-read, and the rooms-changed
+ * control event). Each collection is its own scheduled read (SOK-986): an
+ * invalidation naming only `archived` never re-reads the other two, reads
+ * pause while the tab is hidden or unfocused, and a healthy Ably connection
+ * slows recovery to once a minute.
  *
  * Rendering and room actions live in the components. Room actions still write
  * the archived and pending collections through the setters this returns; the
@@ -130,68 +138,82 @@ export function useOrganizationChatRooms({
     [],
   );
 
-  /** Each collection can recover without waiting for another collection. */
-  const refreshRooms = useCallback(
-    (isCancelled: () => boolean) => {
+  /** Each collection recovers on its own; a failed read keeps the last rows. */
+  const refreshActive = useCallback(
+    async (isCurrent: () => boolean) => {
       const requestRevision = beginRoomAttentionRefresh();
-      void fetchSidebarRoomCollection("active")
-        .then((page) => {
-          if (!isCancelled() && page)
-            replaceAllRooms(page.rooms, requestRevision);
-        })
-        .catch(() => {});
-      if (hasOrganization) {
-        void fetchSidebarRoomCollection("archived")
-          .then((page) => {
-            if (
-              isCancelled() ||
-              !page ||
-              requestRevision < latestArchivedRefreshRef.current
-            )
-              return;
-            latestArchivedRefreshRef.current = requestRevision;
-            setArchivedRows(page.rooms);
-          })
-          .catch(() => {});
-      }
-      void fetchSidebarRoomCollection("invitations")
-        .then((invitations) => {
-          if (
-            isCancelled() ||
-            !invitations ||
-            requestRevision < latestInvitationsRefreshRef.current
-          )
-            return;
-          latestInvitationsRefreshRef.current = requestRevision;
-          setPendingRows(invitations);
-        })
-        .catch(() => {});
+      const page = await fetchSidebarRoomCollection("active");
+      if (!isCurrent() || !page) return;
+      replaceAllRooms(page.rooms, requestRevision);
     },
-    [hasOrganization, replaceAllRooms],
+    [replaceAllRooms],
   );
-
-  useEffect(() => {
-    if (paintOnly) {
+  const refreshArchived = useCallback(async (isCurrent: () => boolean) => {
+    const requestRevision = beginRoomAttentionRefresh();
+    const page = await fetchSidebarRoomCollection("archived");
+    if (
+      !isCurrent() ||
+      !page ||
+      requestRevision < latestArchivedRefreshRef.current
+    )
       return;
-    }
+    latestArchivedRefreshRef.current = requestRevision;
+    setArchivedRows(page.rooms);
+  }, []);
+  const refreshInvitations = useCallback(async (isCurrent: () => boolean) => {
+    const requestRevision = beginRoomAttentionRefresh();
+    const invitations = await fetchSidebarRoomCollection("invitations");
+    if (
+      !isCurrent() ||
+      !invitations ||
+      requestRevision < latestInvitationsRefreshRef.current
+    )
+      return;
+    latestInvitationsRefreshRef.current = requestRevision;
+    setPendingRows(invitations);
+  }, []);
 
-    let cancelled = false;
-
-    const refresh = () => refreshRooms(() => cancelled);
-
-    // Mobile sheet remounts the list with stale RSC props; refresh immediately
-    // so Core can replace attention from earlier visits and other tabs.
-    refresh();
-
-    const intervalId = window.setInterval(refresh, ORGANIZATION_CHAT_POLL_MS);
-    window.addEventListener("focus", refresh);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refresh);
-    };
-  }, [currentUserId, organizationId, paintOnly, refreshRooms]);
+  // A workspace or user switch restarts every read, so an in-flight response
+  // for the previous workspace is discarded. Mobile sheet remounts the list
+  // with stale RSC props; the mount read lets Core replace attention from
+  // earlier visits and other tabs.
+  const healthy = useAblyConnectionHealthy();
+  const scope = paintOnly ? null : `${organizationId ?? ""}:${currentUserId}`;
+  const requestActive = useChatRefreshScheduler({
+    key: scope && `${scope}:active`,
+    refresh: refreshActive,
+    healthy,
+    fallbackIntervalMs: ORGANIZATION_CHAT_FALLBACK_MS,
+    refreshOnMount: true,
+    refreshOnRecovery: true,
+  });
+  const requestArchived = useChatRefreshScheduler({
+    key: scope && hasOrganization ? `${scope}:archived` : null,
+    refresh: refreshArchived,
+    healthy,
+    fallbackIntervalMs: ORGANIZATION_CHAT_FALLBACK_MS,
+    refreshOnMount: true,
+    refreshOnRecovery: true,
+  });
+  const requestInvitations = useChatRefreshScheduler({
+    key: scope && `${scope}:invitations`,
+    refresh: refreshInvitations,
+    healthy,
+    fallbackIntervalMs: ORGANIZATION_CHAT_FALLBACK_MS,
+    refreshOnMount: true,
+    refreshOnRecovery: true,
+  });
+  const requestCollections = useCallback(
+    (collections?: readonly ChatRoomCollection[]) => {
+      const wanted = new Set<ChatRoomCollection>(
+        collections ?? ["active", "archived", "invitations"],
+      );
+      if (wanted.has("active")) requestActive();
+      if (wanted.has("archived")) requestArchived();
+      if (wanted.has("invitations")) requestInvitations();
+    },
+    [requestActive, requestArchived, requestInvitations],
+  );
 
   useEffect(() => {
     if (paintOnly) {
@@ -239,8 +261,6 @@ export function useOrganizationChatRooms({
       return;
     }
 
-    let cancelled = false;
-
     const handleRoomsChanged = (event: Event) => {
       const detail = (event as CustomEvent<OrganizationChatRoomsChangedDetail>)
         .detail;
@@ -265,7 +285,7 @@ export function useOrganizationChatRooms({
         return;
       }
 
-      refreshRooms(() => cancelled);
+      requestCollections(detail?.collections);
     };
 
     window.addEventListener(
@@ -273,13 +293,12 @@ export function useOrganizationChatRooms({
       handleRoomsChanged,
     );
     return () => {
-      cancelled = true;
       window.removeEventListener(
         ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
         handleRoomsChanged,
       );
     };
-  }, [currentUserId, organizationId, paintOnly, refreshRooms, upsertRoomToTop]);
+  }, [paintOnly, requestCollections, upsertRoomToTop]);
 
   useEffect(() => {
     if (paintOnly) {

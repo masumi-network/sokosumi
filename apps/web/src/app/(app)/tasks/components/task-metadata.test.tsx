@@ -120,6 +120,7 @@ function renderTaskMetadata(
   const { task, ...rest } = props;
   return render(
     <TaskMetadata
+      title="Properties"
       taskId="task-1"
       editable={false}
       task={task}
@@ -134,6 +135,21 @@ function renderTaskMetadata(
 }
 
 describe("TaskMetadata", () => {
+  it("renders Properties as a quiet section heading above metadata", () => {
+    renderTaskMetadata({ task: createTask() });
+
+    const heading = screen.getByRole("heading", {
+      level: 2,
+      name: "Properties",
+    });
+    expect(heading).toHaveClass(
+      "text-muted-foreground",
+      "text-xs",
+      "font-medium",
+    );
+    expect(heading).not.toHaveClass("tracking-wider", "uppercase");
+  });
+
   it("shows credits after coworker when task has charged credits", () => {
     renderTaskMetadata({ task: createTask({ credits: 12 }) });
 

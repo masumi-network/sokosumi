@@ -1597,6 +1597,7 @@
       "Detail": {
         "back": "Volver a Tasks",
         "parentTask": "Padre:",
+        "properties": "Propiedades",
         "status": "Estado",
         "owner": "Propietario",
         "creator": "Creador",

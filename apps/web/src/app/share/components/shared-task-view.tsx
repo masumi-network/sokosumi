@@ -81,7 +81,10 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
     : "";
 
   const propertiesPanel = (
-    <div className="space-y-3">
+    <section className="space-y-3">
+      <h2 className="text-muted-foreground text-xs font-medium">
+        {tTaskDetail("properties")}
+      </h2>
       <div className="flex items-center justify-between gap-4">
         <span className="text-muted-foreground text-sm">
           {tTaskDetail("status")}
@@ -125,7 +128,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           {formatDate(task.updatedAt, locale)}
         </span>
       </div>
-    </div>
+    </section>
   );
 
   return (
@@ -226,7 +229,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           ) : null}
 
           <section className="space-y-4">
-            <h2 className="text-muted-foreground/60 text-xs font-medium">
+            <h2 className="text-muted-foreground text-xs font-medium">
               {tTaskDetail("activity")}
             </h2>
             {visibleEvents.length === 0 ? (

@@ -166,7 +166,7 @@ export function DeveloperTaskDetailPageSkeleton(): React.ReactElement {
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
-            <TaskSectionSkeleton name="properties" rows={4} showTitle={false} />
+            <TaskSectionSkeleton name="properties" rows={4} />
           </aside>
 
           <div className={TASK_DETAIL_MAIN_CLASS}>
@@ -181,11 +181,10 @@ export function DeveloperTaskDetailPageSkeleton(): React.ReactElement {
 function TaskSectionSkeleton({
   name,
   rows,
-  showTitle = true,
-}: TaskSectionSkeletonProps & { showTitle?: boolean }): React.ReactElement {
+}: TaskSectionSkeletonProps): React.ReactElement {
   return (
     <section className="space-y-4">
-      {showTitle ? <Skeleton className="h-3 w-24" /> : null}
+      <Skeleton className="h-3 w-24" />
       <div className="space-y-3">
         {Array.from({ length: rows }, (_, index) => (
           <Skeleton key={`${name}-${index}`} className="h-4 w-full" />

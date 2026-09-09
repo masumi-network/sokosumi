@@ -11,12 +11,13 @@ import {
   publishChatMembershipRevoked,
   publishChatMembershipRevokedToUsers,
   publishChatRoomMessageEvent,
+  publishChatRoomsChanged,
   publishJobStatusData,
   publishNotificationEvent,
   publishTaskEventData,
 } from "./publish";
 
-const { envMock, publishMock, getMock } = vi.hoisted(() => ({
+const { envMock, publishMock, getMock, getRestClientMock } = vi.hoisted(() => ({
   envMock: {
     NETWORK: "Mainnet",
     VERCEL_ENV: "production" as "production" | "preview",
@@ -24,19 +25,22 @@ const { envMock, publishMock, getMock } = vi.hoisted(() => ({
   },
   publishMock: vi.fn(),
   getMock: vi.fn(),
+  getRestClientMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: () => envMock }));
 
 vi.mock("./client", () => ({
-  getRestClient: () => ({
-    channels: {
-      get: (...args: unknown[]) => {
-        getMock(...args);
-        return { publish: publishMock };
-      },
+  getRestClient: () => getRestClientMock(),
+}));
+
+getRestClientMock.mockImplementation(() => ({
+  channels: {
+    get: (...args: unknown[]) => {
+      getMock(...args);
+      return { publish: publishMock };
     },
-  }),
+  },
 }));
 
 describe("publishTaskEventData", () => {
@@ -99,6 +103,7 @@ describe("publishNotificationEvent", () => {
     // cannot pass on a stale call from a test declared above this block.
     publishMock.mockClear();
     getMock.mockClear();
+    getRestClientMock.mockClear();
     envMock.NETWORK = "Mainnet";
     envMock.VERCEL_ENV = "production";
     envMock.VERCEL_GIT_COMMIT_REF = "main";
@@ -463,5 +468,77 @@ describe("publishChatMembershipRevoked", () => {
       "removed",
     );
     expect(publishMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("publishChatRoomsChanged", () => {
+  it("publishes the stale collections on each user's chat control channel", async () => {
+    publishMock.mockClear();
+    getMock.mockClear();
+    await publishChatRoomsChanged({
+      userIds: ["user_123"],
+      collections: ["active", "archived"],
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+    });
+
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_123");
+    expect(publishMock).toHaveBeenCalledWith("chat_rooms_changed", {
+      collections: ["active", "archived"],
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      at: expect.any(String),
+    });
+  });
+
+  it("fans out once per distinct user and survives one failed publish", async () => {
+    publishMock.mockClear();
+    getMock.mockClear();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    publishMock
+      .mockRejectedValueOnce(new Error("ably down"))
+      .mockResolvedValue(undefined);
+
+    await publishChatRoomsChanged({
+      userIds: ["user_a", "user_b", "user_a"],
+      collections: ["invitations"],
+      roomId: null,
+    });
+
+    expect(getMock).toHaveBeenCalledTimes(2);
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_a");
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_b");
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  it("no-ops when the user list is empty", async () => {
+    publishMock.mockClear();
+    await publishChatRoomsChanged({
+      userIds: [],
+      collections: ["active"],
+      roomId: null,
+    });
+    expect(publishMock).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when the rest client cannot be created", async () => {
+    getRestClientMock.mockImplementationOnce(() => {
+      throw new Error("no ably");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await expect(
+      publishChatRoomsChanged({
+        userIds: ["user_123"],
+        collections: ["active"],
+        roomId: null,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });

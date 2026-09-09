@@ -27,7 +27,7 @@ export function TaskRelatedTasks({
 }: TaskRelatedTasksProps) {
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
 
       {tasks.length === 0 ? (
         <p className="text-muted-foreground text-sm">{emptyLabel}</p>

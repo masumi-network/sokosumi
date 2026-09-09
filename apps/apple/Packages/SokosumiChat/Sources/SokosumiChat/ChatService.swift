@@ -108,32 +108,36 @@ public struct ChatService: Sendable {
     }
   }
 
-  /// Launch read: access gate, organizations, and user. Performs no
-  /// writes — the caller restores `savedWorkspaceId` locally without
-  /// persisting it (persistence itself is the caller's job).
-  public func loadInitialState(
-    client: Client,
-    savedWorkspaceId: String? = nil
-  ) async throws -> InitialWorkspaceState {
-    // Sequential: deterministic against stub transports, and three small
-    // reads are cheap next to the rooms walk that follows. Gate first:
-    // anything other than `ready` throws `.blocked` without further calls.
-    let resolvedAccess = try await fetchAccess(client: client)
-    guard resolvedAccess.gate == .ready else {
-      throw ChatServiceError.blocked(resolvedAccess.gate)
+  /// Restores the server-selected workspace without writing a preference.
+  public func loadInitialState(client: Client) async throws -> InitialWorkspaceState {
+    let access = try await fetchAccess(client: client)
+    guard access.gate == .ready else { throw ChatServiceError.blocked(access.gate) }
+    let organizations = try await fetchOrganizations(client: client)
+    let user = try await fetchCurrentUser(client: client)
+    let organizationId = try await fetchPreferredOrganization(client: client)
+    let selection: WorkspaceSelection
+    if let organizationId, let organization = organizations.first(where: { $0.id == organizationId }) {
+      selection = .organization(id: organization.id, slug: organization.slug)
+    } else if organizationId == nil, access.hasPersonalWorkspace {
+      selection = .personal
+    } else {
+      // Membership may change between the reads. Retry the whole gate instead
+      // of inventing a personal workspace or reusing an inaccessible selection.
+      throw ChatServiceError.unexpectedResponse("Workspace access changed. Try again.")
     }
-    let resolvedOrganizations = try await fetchOrganizations(client: client)
-    let resolvedUser = try await fetchCurrentUser(client: client)
-    return .init(
-      access: resolvedAccess,
-      organizations: resolvedOrganizations,
-      currentUser: resolvedUser,
-      defaultSelection: resolveInitialSelection(
-        hasPersonalWorkspace: resolvedAccess.hasPersonalWorkspace,
-        organizations: resolvedOrganizations,
-        savedId: savedWorkspaceId
-      )
-    )
+    return .init(access: access, organizations: organizations, currentUser: user, defaultSelection: selection)
+  }
+
+  public func fetchPreferredOrganization(client: Client) async throws -> String? {
+    let response = try await client.getUsersIdPreferredOrganization(.init(path: .init(id: "me")))
+    switch response {
+    case let .ok(value): return try value.body.json.data.organizationId
+    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
+    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
+    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .undocumented(code, payload): throw await unprocessableError(statusCode: code, payload: payload)
+    }
   }
 
   /// Explicit user switch only: persist the preference, then reload rooms
@@ -144,11 +148,15 @@ public struct ChatService: Sendable {
     selection: WorkspaceSelection,
     previous: WorkspaceSelection? = nil
   ) async throws -> [Components.Schemas.ChatRoom] {
+    try Task.checkCancellation()
     try await setPreferredOrganization(client: client, organizationId: selection.organizationId)
     do {
-      return try await listRooms(client: client, organizationSlug: selection.organizationSlug)
+      try Task.checkCancellation()
+      let rooms = try await listRooms(client: client, organizationSlug: selection.organizationSlug)
+      try Task.checkCancellation()
+      return rooms
     } catch {
-      if let previous {
+      if let previous, !Task.isCancelled {
         try? await setPreferredOrganization(client: client, organizationId: previous.organizationId)
       }
       throw error
@@ -190,11 +198,11 @@ public struct ChatService: Sendable {
       switch response {
       case let .ok(okResponse):
         let payload = try okResponse.body.json
-        rooms.append(contentsOf: payload.data)
         let nextCursor = payload.meta.pagination.nextCursor
         if let current = cursor, nextCursor == current {
           return rooms
         }
+        rooms.append(contentsOf: payload.data)
         guard let next = nextCursor else {
           return rooms
         }

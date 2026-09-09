@@ -46,8 +46,8 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lib/ably/use-chat-membership-revoked-control", () => ({
-  useChatMembershipRevokedControl: () => {},
+vi.mock("@/lib/ably/use-chat-control-channel", () => ({
+  useChatControlChannel: () => {},
 }));
 
 vi.mock("@/hooks/use-chat-unread-document-title", () => ({

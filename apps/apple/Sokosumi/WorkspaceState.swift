@@ -16,39 +16,62 @@ import SokosumiRealtime
 /// id envelopes, and revoke events into the `applyRealtime*` methods below.
 @MainActor
 final class WorkspaceState: ObservableObject {
-  struct WorkspaceOption: Identifiable, Hashable {
-    var id: String
-    var title: String
-    /// Single source for the org header + preference PUT: personal omits
-    /// the header and PUTs null, an organization sends both. Constructed
-    /// whole, so a half-filled option (id without slug) is unrepresentable.
-    var workspace: WorkspaceSelection
+  typealias WorkspaceOption = WorkspaceSession.Option
+  typealias Phase = WorkspaceSession.Phase
+  private let workspaceSession = WorkspaceSession()
+  private var workspaceObservation: AnyCancellable?
+  private var workspaceGeneration = 0
+  var phase: Phase {
+    workspaceSession.phase
   }
 
-  enum Phase: Equatable {
-    case idle
-    case loading
-    case blocked(gate: Components.Schemas.WorkspaceGateStatus)
-    case ready
-    case failed(message: String)
+  var options: [WorkspaceOption] {
+    workspaceSession.options
   }
 
-  @Published private(set) var phase: Phase = .idle
-  @Published private(set) var options: [WorkspaceOption] = []
-  @Published private(set) var selectionId: String?
-  @Published private(set) var rooms: [Components.Schemas.ChatRoom] = []
-  @Published private(set) var roomsLoading = false
+  var selectionId: String? {
+    workspaceSession.selectionId
+  }
+
+  let sidebar: ConversationSidebar
+  private var sidebarObservation: AnyCancellable?
+  var rooms: [Components.Schemas.ChatRoom] {
+    get { sidebar.rooms }
+    set { sidebar.rooms = newValue }
+  }
+
+  var roomsLoading: Bool {
+    get { sidebar.isLoading }
+    set { sidebar.isLoading = newValue }
+  }
+
   /// Selected room. Launch and workspace switches restore the saved room,
   /// else the first room. Revoking the open room can leave this nil while
   /// others remain: the saved pick is left alone so relaunch does not
   /// reopen a room that is gone.
-  @Published private(set) var selectedRoomId: String?
+  var selectedRoomId: String? {
+    get { sidebar.selectedRoomId }
+    set { sidebar.selectedRoomId = newValue }
+  }
+
   /// Switch/list failure while already `.ready`. Nil means the sidebar is fine.
   @Published private(set) var switchError: String?
-  @Published private(set) var currentUserId = ""
-  @Published private(set) var currentUserName = ""
-  @Published private(set) var currentUserEmail = ""
-  @Published private(set) var currentUserImageURL: String?
+  var currentUserId: String {
+    workspaceSession.currentUser?.id ?? ""
+  }
+
+  var currentUserName: String {
+    workspaceSession.currentUser?.name ?? ""
+  }
+
+  var currentUserEmail: String {
+    workspaceSession.currentUser?.email ?? ""
+  }
+
+  var currentUserImageURL: String? {
+    workspaceSession.currentUser?.image
+  }
+
   /// Room the transcript pane shows. Nil clears the pane.
   @Published private(set) var transcriptRoomId: String?
   @Published private(set) var transcriptMessages: [Components.Schemas.ChatRoomMessage] = []
@@ -93,9 +116,8 @@ final class WorkspaceState: ObservableObject {
   private var outboundFlight = ClassicOutboundFlight()
 
   private let service = ChatService()
-  private let savedSelection: SavedWorkspaceSelection
-  private let savedRoom: SavedRoomSelection
   private var hasLoaded = false
+  private var workspaceLoadTask: Task<Void, Never>?
 
   /// Stable per-install Ably `clientInstanceId` (ADR 0003): persisted on
   /// first launch, reused after, so this Mac is one `{userId}:{instanceId}`
@@ -103,13 +125,17 @@ final class WorkspaceState: ObservableObject {
   let ablyClientInstanceId: String
 
   init(
-    savedSelection: SavedWorkspaceSelection = SavedWorkspaceSelection(),
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: AblyClientInstanceIdStore = UserDefaultsAblyClientInstanceIdStore()
   ) {
-    self.savedSelection = savedSelection
-    self.savedRoom = savedRoom
+    sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    sidebarObservation = sidebar.objectWillChange.sink { [weak self] in
+      self?.objectWillChange.send()
+    }
+    workspaceObservation = workspaceSession.objectWillChange.sink { [weak self] in
+      self?.objectWillChange.send()
+    }
   }
 
   /// Test seam: when set, replaces `auth.coreClient()` as the client source.
@@ -129,58 +155,54 @@ final class WorkspaceState: ObservableObject {
   func startIfNeeded(auth: AuthState) {
     guard !hasLoaded else { return }
     hasLoaded = true
-    Task { await reload(auth: auth) }
+    workspaceLoadTask?.cancel()
+    workspaceLoadTask = Task { await reload(auth: auth) }
   }
 
   func retry(auth: AuthState) {
-    Task { await reload(auth: auth) }
+    workspaceLoadTask?.cancel()
+    workspaceLoadTask = Task { await reload(auth: auth) }
   }
 
   /// Drop everything after sign-out so the next sign-in reloads from Core.
   /// The install instance id survives: this Mac stays one Ably device.
   func reset() {
     hasLoaded = false
-    phase = .idle
-    options = []
-    selectionId = nil
+    workspaceLoadTask?.cancel()
+    workspaceLoadTask = nil
+    workspaceGeneration += 1
+    workspaceSession.reset()
+    sidebar.reset()
     rooms = []
     roomsLoading = false
     ablyToken = nil
     switchError = nil
-    currentUserId = ""
-    currentUserName = ""
-    currentUserEmail = ""
-    currentUserImageURL = nil
     selectedRoomId = nil
     stopRealtime()
     clearTranscript()
-    savedSelection.clear()
-    savedRoom.clear()
   }
 
   /// User picked a room in the sidebar: persist it and open its transcript.
-  /// A nil id only clears the pane; the saved pick survives for relaunch.
+  /// Nil is ignored — `List` emits it when collapsed rows leave the
+  /// hierarchy, and this app keeps a room selected whenever one is listed.
   func selectRoom(_ id: String?, auth: AuthState) {
-    guard id != selectedRoomId else { return }
+    guard let id, id != selectedRoomId else { return }
     applyRoomSelection(id, auth: auth)
   }
 
   private func applyRoomSelection(_ id: String?, auth: AuthState) {
-    selectedRoomId = id
-    guard let id, let room = rooms.first(where: { $0.id == id }) else {
+    sidebar.select(id, userId: currentUserId, organizationId: selection?.workspace.organizationId)
+    guard let id = selectedRoomId, let room = rooms.first(where: { $0.id == id }) else {
       clearTranscript()
       return
     }
-    savedRoom.save(id)
     openRoom(room, auth: auth)
   }
 
   /// Keep a room selected whenever rooms exist: the saved room when it is
   /// still listed, else the first room. Runs after every rooms load.
   private func ensureRoomSelection(auth: AuthState) {
-    let current = selectedRoomId.flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
-    let saved = savedRoom.load().flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
-    applyRoomSelection(current ?? saved ?? rooms.first?.id, auth: auth)
+    applyRoomSelection(sidebar.restoredSelection(userId: currentUserId, organizationId: selection?.workspace.organizationId), auth: auth)
   }
 
   /// Forget the transcript without touching rooms or selection.
@@ -337,15 +359,19 @@ final class WorkspaceState: ObservableObject {
   /// a transient mint never drops a live subscription.
   func refreshAblyToken(auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
+    let generation = workspaceGeneration
+    let slug = selection?.workspace.organizationSlug
     do {
       let token = try await service.fetchAblyToken(
         client: client,
         clientInstanceId: ablyClientInstanceId,
         organizationSlug: selection?.workspace.organizationSlug
       )
+      guard generation == workspaceGeneration, slug == selection?.workspace.organizationSlug else { return }
       ablyToken = token
       realtime?.reauthorize(token: AblyTokenFields(token))
     } catch let error as ChatServiceError {
+      guard generation == workspaceGeneration, slug == selection?.workspace.organizationSlug else { return }
       if case let .unauthorized(message) = error {
         auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       } else {
@@ -500,6 +526,7 @@ final class WorkspaceState: ObservableObject {
       failPresentOutbound(clientMessageId, "Sign-in is not configured.")
       return
     }
+    let generation = transcriptGeneration
     do {
       let confirmed = try await service.createMessage(
         client: client,
@@ -518,6 +545,7 @@ final class WorkspaceState: ObservableObject {
       transcriptMessages = result.messages
       outboundShells = result.shells
     } catch let error as ChatServiceError {
+      guard generation == transcriptGeneration else { return }
       failPresentOutbound(clientMessageId, transcriptFailureMessage(error, auth: auth))
     } catch {
       NSLog("Sokosumi send failed: %@", String(describing: error))
@@ -641,15 +669,11 @@ final class WorkspaceState: ObservableObject {
   /// Maps a transcript failure to UI text. A 401 signs out (nil message —
   /// the auth card takes over); everything else becomes window-safe text.
   private func transcriptFailureMessage(_ error: ChatServiceError, auth: AuthState) -> String? {
-    switch error {
-    case let .unauthorized(message):
+    if case let .unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       return nil
-    case let .unprocessable(statusCode, message):
-      return "Core rejected the request (\(statusCode)): \(message)"
-    case .blocked, .unexpectedResponse:
-      return "Couldn't complete the request. Try again."
     }
+    return friendlyMessage(for: error)
   }
 
   func select(_ option: WorkspaceOption, auth: AuthState) {
@@ -662,114 +686,74 @@ final class WorkspaceState: ObservableObject {
   }
 
   func reload(auth: AuthState) async {
-    phase = .loading
+    guard !Task.isCancelled else { return }
+    sidebar.reset()
+    workspaceGeneration += 1
+    let generation = workspaceGeneration
     rooms = []
     switchError = nil
     selectedRoomId = nil
+    stopRealtime()
     clearTranscript()
-    guard let client = resolveClient(auth: auth) else {
-      phase = .failed(message: "Sign-in is not configured.")
-      return
-    }
+    guard let client = resolveClient(auth: auth) else { return }
     do {
-      // Read-only launch: never PUT here. Re-asserting a default preference
-      // on every launch yanks cross-client state and turns a flaky upload
-      // into a dead window — writes happen on explicit switches only.
-      let initial = try await service.loadInitialState(client: client, savedWorkspaceId: savedSelection.load())
-      currentUserId = initial.currentUser.id
-      currentUserName = initial.currentUser.name
-      currentUserEmail = initial.currentUser.email
-      currentUserImageURL = initial.currentUser.image
-      var built: [WorkspaceOption] = []
-      if initial.access.hasPersonalWorkspace {
-        built.append(.init(id: "personal", title: "Personal", workspace: .personal))
-      }
-      built.append(
-        contentsOf: initial.organizations.map {
-          .init(id: $0.id, title: $0.name, workspace: .organization(id: $0.id, slug: $0.slug))
-        }
-      )
-      options = built
-      let selection = initial.defaultSelection
-      selectionId = built.first { $0.workspace == selection }?.id
-      phase = .ready
-      roomsLoading = true
-      defer { roomsLoading = false }
-      rooms = try await service.listRooms(client: client, organizationSlug: selection.organizationSlug)
-      let justConnected = startRealtimeIfNeeded(auth: auth)
-      if !justConnected, realtime != nil || ablyToken != nil {
-        await refreshAblyToken(auth: auth)
-      }
+      guard let loaded = try await workspaceSession.load(client: client), generation == workspaceGeneration else { return }
+      rooms = loaded
+      _ = startRealtimeIfNeeded(auth: auth)
       ensureRoomSelection(auth: auth)
-    } catch let error as ChatServiceError {
-      handleServiceError(error, auth: auth, signedOutMessage: "Signed out.")
     } catch {
-      NSLog("Sokosumi workspace load failed: %@", String(describing: error))
-      phase = .failed(message: friendlyMessage(for: error))
+      guard generation == workspaceGeneration else { return }
+      handleWorkspaceError(error, auth: auth)
     }
   }
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
+    sidebar.invalidateRefresh()
+    let generation = workspaceGeneration
     roomsLoading = true
-    // Do not bump transcriptGeneration here. A failed switch keeps the
-    // current room; in-flight envelope refetch must still clear
-    // `transcriptRefreshing`. Success invalidates via openRoom.
-    defer { roomsLoading = false }
-    guard let client = resolveClient(auth: auth) else {
-      switchError = "Sign-in is not configured."
-      return
+    defer {
+      if generation == workspaceGeneration {
+        roomsLoading = false
+      }
     }
+    guard let client = resolveClient(auth: auth) else { return }
     do {
-      rooms = try await service.switchWorkspace(
-        client: client,
-        selection: option.workspace,
-        previous: selection?.workspace ?? .personal
-      )
-      selectionId = option.id
-      savedSelection.save(option.id)
+      guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
+      clearTranscript()
+      selectedRoomId = nil
+      rooms = loaded
       switchError = nil
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)
       let justConnected = startRealtimeIfNeeded(auth: auth)
       if !justConnected, realtime != nil || ablyToken != nil {
         await refreshAblyToken(auth: auth)
       }
+      guard generation == workspaceGeneration else { return }
       ensureRoomSelection(auth: auth)
-    } catch let error as ChatServiceError {
-      handleServiceError(error, auth: auth, signedOutMessage: nil, keepReady: true)
     } catch {
-      NSLog("Sokosumi workspace switch failed: %@", String(describing: error))
-      switchError = friendlyMessage(for: error)
+      guard generation == workspaceGeneration else { return }
+      switchError = workspaceSession.errorMessage
+      handleWorkspaceError(error, auth: auth)
     }
   }
 
-  private func handleServiceError(
-    _ error: ChatServiceError,
-    auth: AuthState,
-    signedOutMessage: String?,
-    keepReady: Bool = false
-  ) {
-    switch error {
-    case let .blocked(gate):
-      phase = .blocked(gate: gate)
-    case let .unauthorized(message):
+  func refreshRooms(auth: AuthState) async {
+    guard phase == .ready, !roomsLoading, let client = resolveClient(auth: auth) else { return }
+    do {
+      guard try await sidebar.refresh(client: client, organizationSlug: selection?.workspace.organizationSlug) else { return }
+      // Preserve a visible transcript on refresh; open a replacement only if
+      // the previous room is no longer membership-visible.
+      if selectedRoomId == nil || !rooms.contains(where: { $0.id == selectedRoomId }) {
+        ensureRoomSelection(auth: auth)
+      }
+    } catch {
+      handleWorkspaceError(error, auth: auth)
+    }
+  }
+
+  private func handleWorkspaceError(_ error: Error, auth: AuthState) {
+    if case let ChatServiceError.unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
-      if let signedOutMessage {
-        phase = .failed(message: signedOutMessage)
-      }
-    case let .unprocessable(statusCode, message):
-      let text = "Core rejected the request (\(statusCode)): \(message)"
-      if keepReady {
-        switchError = text
-      } else {
-        phase = .failed(message: text)
-      }
-    case .unexpectedResponse:
-      let text = "Couldn't complete the request. Try again."
-      if keepReady {
-        switchError = text
-      } else {
-        phase = .failed(message: text)
-      }
     }
   }
 }

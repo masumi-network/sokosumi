@@ -162,6 +162,7 @@ function resolveTaskAssigneeDisplay(
 }
 
 interface TaskMetadataProps {
+  title: string;
   taskId: string;
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
@@ -173,6 +174,7 @@ interface TaskMetadataProps {
 }
 
 export function TaskMetadata({
+  title,
   taskId,
   task,
   project,
@@ -192,7 +194,8 @@ export function TaskMetadata({
   const creator = resolveTaskCreatorDisplay(task, labels);
 
   return (
-    <div className="space-y-3">
+    <section className="space-y-3">
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.status}</span>
         {editable ? (
@@ -325,7 +328,7 @@ export function TaskMetadata({
           {updatedAtLabel}
         </span>
       </div>
-    </div>
+    </section>
   );
 }
 

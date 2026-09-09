@@ -102,6 +102,11 @@ export {
   type ChatRoomQuoteSnippetParts,
 } from "./chat-room-quote-snippet.js";
 export {
+  CHAT_ROOM_COLLECTIONS,
+  CHAT_ROOMS_CHANGED_EVENT_NAME,
+  type ChatRoomCollection,
+} from "./chat-rooms-changed.js";
+export {
   CHAT_UI_REASONING_PART_TYPE_VALUES,
   CHAT_UI_REASONING_PART_TYPES,
   isChatUiProviderReasoningPartType,
