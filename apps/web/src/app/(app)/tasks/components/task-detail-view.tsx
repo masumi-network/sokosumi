@@ -200,7 +200,11 @@ export async function TaskDetailView({
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
-            <Suspense fallback={<TaskSectionFallback title={null} rows={4} />}>
+            <Suspense
+              fallback={
+                <TaskSectionFallback title={t("properties")} rows={4} />
+              }
+            >
               <TaskMetadataSection task={task} />
             </Suspense>
           </aside>

@@ -67,6 +67,11 @@ describe("task detail layout contract", () => {
 
     expect(loading).toContain('name="properties"');
     expect(loading).not.toContain("showTitle={false}");
+
+    const view = readTasks("components/task-detail-view.tsx");
+    expect(view).toContain(
+      '<TaskSectionFallback title={t("properties")} rows={4} />',
+    );
   });
 
   it("single-column source order keeps metadata after description and before later sections", () => {
