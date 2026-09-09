@@ -357,6 +357,48 @@ describe("POST /tasks/scheduled", () => {
     });
   });
 
+  it("starts a newly scheduled Task at schedule revision 0", async () => {
+    const transaction = {};
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback(transaction),
+    );
+    requireScheduledTaskCreatorMock.mockResolvedValue({
+      userContext: {
+        source: "session",
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+      },
+      actor: { kind: "user", userId: "user_123" },
+    });
+    createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
+    taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
+    mapTaskMock.mockReturnValue(buildMappedTask());
+
+    const response = await createApp().request("http://localhost/scheduled", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        source: { type: "workspace" },
+        description: "Draft the public notes",
+        assigneeId: "coworker_123",
+        context: { brand: false, briefing: false, memory: false },
+        schedule: { mode: "once", runAt: "2099-09-24T09:00:00.000Z" },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createScheduledTaskInTransactionMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        scheduleRevision: expect.anything(),
+      }),
+      transaction,
+    );
+    expect((await response.json()).data.scheduleRevision).toBe(0);
+  });
+
   it("rejects an unauthorized creator before resolving an automatic name", async () => {
     requireScheduledTaskCreatorMock.mockRejectedValue(
       forbidden("Scheduled task creation is not allowed"),

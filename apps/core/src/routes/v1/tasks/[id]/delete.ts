@@ -9,7 +9,8 @@ import { requireTaskArchiveAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { cascadeArchiveScheduleParentChildren, mapTask } from "@/helpers/task";
+import { mapTask } from "@/helpers/task";
+import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -28,7 +29,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Archiving a schedule template also archives its schedule runs (TaskLinkType.SCHEDULE). Fails with 422 if any non-archived schedule run is still in progress (e.g. RUNNING).",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Fails with 409 (kind: schedule_active) while the task still has an active Calendar schedule series; released schedule runs are independent tasks and are never archived with their template.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -58,6 +59,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      assertTaskScheduleInactive(
+        currentTask,
+        "Remove the schedule before archiving this Task",
+      );
+
       const archivedAt = new Date();
       const updateResult = await tx.task.updateMany({
         where: {
@@ -75,12 +81,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       await removeTaskSchedulePlannedOccurrences(tx, id);
-
-      await cascadeArchiveScheduleParentChildren({
-        tx,
-        parentTaskId: id,
-        archivedAt,
-      });
 
       return tx.task.findFirstOrThrow({
         where: { id },

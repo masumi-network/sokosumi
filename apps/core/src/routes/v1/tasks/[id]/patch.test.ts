@@ -2,6 +2,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -156,6 +157,7 @@ function createApp(
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_patch_task_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     c.set("workspaceContext", {
@@ -214,6 +216,21 @@ describe("patchTaskRequestSchema", () => {
     });
 
     expect(result.assigneeUserId).toBe("user_123");
+  });
+
+  it("accepts expectedScheduleRevision alongside an edited field", () => {
+    const result = patchTaskRequestSchema.parse({
+      name: "Renamed series",
+      expectedScheduleRevision: 3,
+    });
+
+    expect(result.expectedScheduleRevision).toBe(3);
+  });
+
+  it("rejects expectedScheduleRevision as the only patch field", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({ expectedScheduleRevision: 3 });
+    }).toThrow();
   });
 
   it("rejects coworker and user assignees together", () => {
@@ -620,5 +637,204 @@ describe("PATCH /tasks/{id}", () => {
       expect(response.status).toBe(200);
       expect(notifyTaskHumanAssigneeMock).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
+  const ACTIVE_SCHEDULE_METADATA = JSON.stringify({
+    version: 2,
+    epochId: "11111111-1111-4111-8111-111111111111",
+    mode: "recurring",
+    createdAt: "2026-09-01T09:00:00.000Z",
+    ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
+    timezone: "UTC",
+    expr: "0 9 * * *",
+    endsMode: "never",
+    anchorAt: "2026-09-01T09:00:00.000Z",
+    epochReleaseCount: 0,
+  });
+
+  function mockSeriesTask(overrides: Record<string, unknown> = {}) {
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.QUEUED,
+      assigneeId: "cow_123",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+      metadata: ACTIVE_SCHEDULE_METADATA,
+      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      scheduleRevision: 3,
+      ...overrides,
+    });
+  }
+
+  function createSeriesApp() {
+    const app = createApp();
+    app.onError(errorHandler);
+    return app;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
+    taskUpdateMock.mockResolvedValue({
+      ...createTaskApi(null),
+      status: TaskStatus.QUEUED,
+    });
+    mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        project: { findFirst: projectFindFirstMock },
+        task: { update: taskUpdateMock },
+      });
+    });
+    mockSeriesTask();
+  });
+
+  it("requires expectedScheduleRevision for an active-series field edit", async () => {
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Renamed series" }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_revision_conflict");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale expectedScheduleRevision", async () => {
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Renamed series",
+          expectedScheduleRevision: 2,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_revision_conflict");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("increments the schedule revision on an accepted active-series edit", async () => {
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Renamed series",
+          expectedScheduleRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Renamed series",
+          scheduleRevision: { increment: 1 },
+        }),
+      }),
+    );
+  });
+
+  it("checks the revision only after the Calendar and Task locks are taken", async () => {
+    const { lockCalendarScope, lockTaskRows } = await import(
+      "@/helpers/calendar-locks"
+    );
+
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Renamed series",
+          expectedScheduleRevision: 2,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(lockCalendarScope).toHaveBeenCalled();
+    expect(lockTaskRows).toHaveBeenCalledWith(expect.anything(), ["tsk_123"]);
+  });
+
+  it("rejects moving an active series into a project", async () => {
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: PROJECT_ID,
+          expectedScheduleRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_active");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects moving an active series out of its project", async () => {
+    mockSeriesTask({ projectId: PROJECT_ID });
+
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: null,
+          expectedScheduleRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_active");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not require or increment a revision when no series is active", async () => {
+    mockSeriesTask({
+      status: TaskStatus.DRAFT,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 3,
+    });
+
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Renamed draft" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          scheduleRevision: expect.anything(),
+        }),
+      }),
+    );
   });
 });

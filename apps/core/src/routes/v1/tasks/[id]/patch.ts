@@ -1,6 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
-import { isTaskEditableStatus } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  hasActiveTaskSchedule,
+  isTaskEditableStatus,
+} from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import {
@@ -60,6 +64,18 @@ export const patchTaskRequestSchema = z
       example: "01960001-0001-7001-8001-000000000099",
     }),
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
+    /**
+     * Required while the Task has an active Calendar schedule series: the
+     * revision observed by the client, checked under the Calendar/Task locks.
+     */
+    expectedScheduleRevision: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .openapi({
+        example: 3,
+      }),
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
@@ -131,7 +147,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
+      expectedScheduleRevision,
     } = c.req.valid("json");
+    const editsTaskFields =
+      name !== undefined ||
+      description !== undefined ||
+      assigneeId !== undefined ||
+      assigneeSokoBotId !== undefined ||
+      assigneeUserId !== undefined;
 
     const result = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskOwnership(
@@ -176,6 +199,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!isTaskEditableStatus(task.status)) {
         throw forbidden("You can only update draft, queued, or ready tasks");
+      }
+
+      // A live schedule series owns the Task's placement and its revision:
+      // moving the Calendar source belongs to SOK-887, and field edits must
+      // serialize against release through `expectedScheduleRevision`.
+      const hasActiveSeries = hasActiveTaskSchedule(
+        task.metadata,
+        task.nextRunAt,
+      );
+      if (hasActiveSeries) {
+        if (projectIdWasProvided && (projectId ?? null) !== task.projectId) {
+          throw conflict(
+            "Remove or replace the schedule before moving this Task's Calendar source",
+            { kind: CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE },
+          );
+        }
+        if (
+          editsTaskFields &&
+          expectedScheduleRevision !== task.scheduleRevision
+        ) {
+          throw conflict(
+            "The schedule series changed; reload the Task and retry with its current scheduleRevision",
+            { kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT },
+          );
+        }
       }
 
       const assigneeWrite = nextAssigneeWrite({
@@ -245,6 +293,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description,
           projectId,
           ...(assigneeWrite ?? {}),
+          ...(hasActiveSeries && editsTaskFields
+            ? { scheduleRevision: { increment: 1 } }
+            : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -154,6 +155,41 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
         workspaceId: WORKSPACE_ID,
       }),
     );
+  });
+
+  it("rejects unlinking a Task whose schedule series is still active", async () => {
+    taskFindFirstMock.mockResolvedValue({
+      pendingVendorGrantId: null,
+      status: "QUEUED",
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "11111111-1111-4111-8111-111111111111",
+        mode: "recurring",
+        createdAt: "2026-09-01T09:00:00.000Z",
+        ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "never",
+        anchorAt: "2026-09-01T09:00:00.000Z",
+        epochReleaseCount: 0,
+      }),
+      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      workspaceId: WORKSPACE_ID,
+    });
+
+    const app = createApp();
+    app.onError(errorHandler);
+    mountDeleteProjectTask(app);
+
+    const response = await app.request(
+      `http://localhost/${PROJECT_ID}/tasks/${TASK_ID}`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_active");
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
