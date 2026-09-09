@@ -82,7 +82,7 @@
 - [ ] Add failing Calendar PUT route tests for revision mismatch, missing confirmation, exact idempotent replay, conflicting operation reuse, new epoch metadata, one revision increment, and durable-exception cancellation under existing locks.
 - [ ] Reuse the scheduled-Task-create canonical SHA-256 fingerprint pattern. Store fingerprint plus Task identity in the unique operation event, emit stable `idempotency_conflict` for semantic reuse, and re-read/map the Task on exact replay; never persist a full API response in public `schedulePayload`.
 - [ ] Add failing DELETE route tests for required UUID `Idempotency-Key`, exact `If-Match: "schedule-revision:{n}"`, revision conflict, exact retry, conflicting reuse, Draft restoration from READY as well as QUEUED, metadata clearing, one revision increment, and history preservation.
-- [ ] Align PUT and DELETE authorization on interactive human + Task collaboration + Calendar beta access; Task 3 must apply the identical access chain to the occurrence read when it creates that route.
+- [ ] Require interactive human + Task collaboration for PUT and DELETE; keep Calendar PUT beta-gated but preserve DELETE as the non-beta escape hatch for legacy schedules. Task 3 applies interactive human + Task collaboration + Calendar beta access to occurrence reads.
 - [ ] Implement both mutation paths in the existing routes/helpers and standard response/error envelopes.
 - [ ] Run:
   `pnpm --filter @sokosumi/core test src/schemas/task-schedule.schema.test.ts src/helpers/task-schedule-occurrence-index.test.ts src/services/task-schedule-create.service.test.ts 'src/routes/v1/tasks/[id]/calendar-schedule/put.test.ts' 'src/routes/v1/tasks/[id]/schedule/delete.test.ts'`
@@ -102,7 +102,7 @@
 ### Steps
 
 - [ ] Define OpenAPI query/response schemas for `view=upcoming|history`, a capped cursor page, occurrence timing/state/epoch fields, source snapshot, and minimal released Task navigation.
-- [ ] Add failing route tests for interactive-human authentication, Task collaboration, Calendar beta access, upcoming ascending order, history descending order, correct view membership, page boundaries, linked released Task data, and missing series/task responses.
+- [ ] Add failing route tests for interactive-human authentication, Task collaboration, Calendar beta access, upcoming ascending order, history descending order, correct view membership (including past `PLANNED` rows as unreleased history), page boundaries, linked released Task data, and missing series/task responses.
 - [ ] Encode an opaque cursor containing `view`, `scheduleRevision`, effective time, and occurrence id. Add a failing test proving a cursor from an earlier revision returns 409 `schedule_cursor_stale`.
 - [ ] Implement the read with direct Prisma and keyset pagination. Do not use an interactive transaction for this GET.
 - [ ] Mount the occurrence route beside the existing `/{id}/schedule/*` routes in `apps/core/src/routes/v1/tasks/index.ts`.

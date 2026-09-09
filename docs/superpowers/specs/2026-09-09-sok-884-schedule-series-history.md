@@ -46,7 +46,7 @@ The cursor records the view, the observed `scheduleRevision`, and the occurrence
 }
 ```
 
-The mutation locks the Calendar scope and Task, verifies the expected revision, detects an exact `operationId` replay, starts a new rule epoch, increments the schedule revision once, cancels durable future exceptions, and regenerates ordinary projections. The audit event stores a canonical request fingerprint and Task identity, following the existing scheduled-Task-create pattern; replay re-reads and re-serializes the current Task rather than storing a full response in public event payload. Reusing an operation ID for different semantics returns stable kind `idempotency_conflict`.
+The mutation locks the Calendar scope and Task, verifies the expected revision, detects an exact `operationId` replay, always starts a new rule epoch (including when the submitted rule matches the current rule), increments the schedule revision once, cancels durable future exceptions, and regenerates ordinary projections. The audit event stores a canonical request fingerprint and Task identity, following the existing scheduled-Task-create pattern; replay re-reads and re-serializes the current Task rather than storing a full response in public event payload. Reusing an operation ID for different semantics returns stable kind `idempotency_conflict`.
 
 ### Series removal
 
@@ -63,7 +63,7 @@ Durable future exceptions are skipped occurrences and moved planned occurrences 
 - Once a template has no active schedule, even a running released Task does not block archiving that historical template; the released Task remains visible and unchanged.
 - Revision mismatches use stable `schedule_revision_conflict`; no client matches human-readable messages.
 
-Occurrence reads, full-series edits, and schedule removal consistently require an interactive human, Task collaboration access, and the existing Calendar beta-access gate.
+Occurrence reads and full-series edits require an interactive human, Task collaboration access, and the existing Calendar beta-access gate. Schedule removal requires an interactive human and Task collaboration access but deliberately remains available outside the beta as an escape hatch for schedules created by the legacy un-gated endpoint.
 
 ## Web experience
 
