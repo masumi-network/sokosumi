@@ -248,4 +248,26 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(taskLinkSchema?.properties).not.toHaveProperty("toTaskId");
     expect(taskLinkSchema?.properties).not.toHaveProperty("peerTaskId");
   });
+
+  it("documents the schedule occurrence ledger beside the schedule routes", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Tasks API",
+        version: "1.0.0",
+      },
+    });
+
+    const operation = doc.paths?.["/{id}/schedule/occurrences"]?.get;
+
+    expect(
+      getQueryDescriptionFromGetOperation(
+        doc,
+        "/{id}/schedule/occurrences",
+        "view",
+      ),
+    ).toContain("upcoming");
+    expect(operation?.responses).toHaveProperty("200");
+    expect(operation?.responses).toHaveProperty("409");
+  });
 });
