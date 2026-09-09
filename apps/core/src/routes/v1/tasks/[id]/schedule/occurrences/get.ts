@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { type Prisma, TaskScheduleOccurrenceState } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { requireTaskCollaboration } from "@/helpers/access-control";
+import { requireTaskOwnership } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, conflict } from "@/helpers/error";
@@ -78,7 +78,9 @@ function isTaskScheduleOccurrenceCursor(
     (value.view === "upcoming" || value.view === "history") &&
     Number.isInteger(value.scheduleRevision) &&
     typeof value.effectiveScheduledAt === "string" &&
-    typeof value.id === "string" &&
+    // The id keys a `@db.Uuid` column, so a non-UUID must fail as a bad cursor
+    // here rather than as a Postgres cast error inside the keyset predicate.
+    z.uuid().safeParse(value.id).success &&
     !Number.isNaN(new Date(value.effectiveScheduledAt).getTime())
   );
 }
@@ -190,9 +192,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { view, cursor: requestedCursor, limit } = c.req.valid("query");
 
+    // Ownership only: this is the read half of the collaboration audience
+    // (`requireOwnerUserContext` already rejected non-human actors), without
+    // the parked-task guard that belongs to the series mutations. Inspecting
+    // history is not modifying the Task.
+    //
     // The ledger outlives its series: a removed schedule still answers with the
     // preserved history and the Task's current revision.
-    const task = await requireTaskCollaboration(authContext, id, prisma);
+    const task = await requireTaskOwnership(userContext, id, prisma);
     const { scheduleRevision } = task;
 
     const cursor = requestedCursor
@@ -225,7 +232,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           sourceProjectId: true,
           sourceAccuracy: true,
           timeAccuracy: true,
-          releasedTask: { select: { id: true, name: true, status: true } },
+          releasedTask: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              archivedAt: true,
+            },
+          },
         },
       }),
       prisma.taskScheduleOccurrence.count({ where: viewWhere }),

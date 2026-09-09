@@ -51,13 +51,19 @@ export const taskScheduleOccurrenceQuerySchema = z
 
 /**
  * Navigation target for a released occurrence. Released Tasks are independent
- * records, so the ledger exposes only enough to link to one.
+ * records, so the ledger exposes only enough to link to one. Archived Tasks
+ * keep their summary — history stays truthful — but carry `archivedAt` so the
+ * client renders them without a link that would 404.
  */
 export const taskScheduleOccurrenceReleasedTaskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_released" }),
     name: z.string().openapi({ example: "Prepare release notes" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.COMPLETED }),
+    archivedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "Set when the released Task was archived; it is no longer readable, so the summary is not navigable",
+    }),
   })
   .openapi("TaskScheduleOccurrenceReleasedTask");
 

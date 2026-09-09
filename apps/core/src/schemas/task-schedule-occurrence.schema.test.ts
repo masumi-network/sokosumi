@@ -33,6 +33,7 @@ function createOccurrence(overrides: Record<string, unknown> = {}) {
       id: "tsk_released",
       name: "Prepare release notes",
       status: TaskStatus.COMPLETED,
+      archivedAt: null,
     },
     ...overrides,
   };
@@ -86,7 +87,11 @@ describe("taskScheduleOccurrenceSchema", () => {
       isMissed: false,
       sourceType: "WORKSPACE",
       sourceProjectId: null,
-      releasedTask: { id: "tsk_released", status: "COMPLETED" },
+      releasedTask: {
+        id: "tsk_released",
+        status: "COMPLETED",
+        archivedAt: null,
+      },
     });
   });
 
@@ -110,6 +115,40 @@ describe("taskScheduleOccurrenceSchema", () => {
       isMissed: true,
       releasedTask: null,
     });
+  });
+
+  it("keeps an archived released task summary and serializes its archive time", () => {
+    const parsed = taskScheduleOccurrenceSchema.parse(
+      createOccurrence({
+        releasedTask: {
+          id: "tsk_released",
+          name: "Prepare release notes",
+          status: TaskStatus.COMPLETED,
+          archivedAt: new Date("2026-06-02T09:00:00.000Z"),
+        },
+      }),
+    );
+
+    expect(parsed.releasedTask).toEqual({
+      id: "tsk_released",
+      name: "Prepare release notes",
+      status: "COMPLETED",
+      archivedAt: "2026-06-02T09:00:00.000Z",
+    });
+  });
+
+  it("requires the released task archive field to be present", () => {
+    expect(
+      taskScheduleOccurrenceSchema.safeParse(
+        createOccurrence({
+          releasedTask: {
+            id: "tsk_released",
+            name: "Prepare release notes",
+            status: TaskStatus.COMPLETED,
+          },
+        }),
+      ).success,
+    ).toBe(false);
   });
 });
 
