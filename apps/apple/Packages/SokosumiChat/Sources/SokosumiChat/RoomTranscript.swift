@@ -86,4 +86,40 @@ public extension ChatService {
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
+
+  /// `POST /chats/rooms/{id}/messages` with `content` and a client turn id.
+  /// Retry of a failed send reuses that id so Core keeps one row.
+  func createMessage(
+    client: Client,
+    roomId: String,
+    content: String,
+    clientMessageId: String,
+    organizationSlug: String?
+  ) async throws -> Components.Schemas.ChatRoomMessage {
+    let response = try await client.postChatsRoomsIdMessages(
+      .init(
+        path: .init(id: roomId),
+        headers: .init(xOrganizationSlug: organizationSlug),
+        body: .json(.init(content: content, clientMessageId: clientMessageId))
+      )
+    )
+    switch response {
+    case let .created(createdResponse):
+      return try createdResponse.body.json.data
+    case let .badRequest(badRequest):
+      throw try ChatServiceError.unprocessable(statusCode: 400, message: badRequest.body.json.message)
+    case let .unauthorized(unauthorized):
+      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .forbidden(forbidden):
+      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+    case let .notFound(notFound):
+      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+    case let .conflict(conflict):
+      throw try ChatServiceError.unprocessable(statusCode: 409, message: conflict.body.json.message)
+    case let .internalServerError(serverError):
+      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+    case let .undocumented(statusCode, payload):
+      throw await unprocessableError(statusCode: statusCode, payload: payload)
+    }
+  }
 }

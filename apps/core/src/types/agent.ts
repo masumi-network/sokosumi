@@ -15,10 +15,6 @@ export const agentCategoriesInclude = {
   },
 } as const;
 
-export type AgentWithCategories = Prisma.AgentGetPayload<{
-  include: typeof agentCategoriesInclude;
-}>;
-
 export const agentDetailInclude = {
   ...agentPricingInclude,
   ...agentCategoriesInclude,

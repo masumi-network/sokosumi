@@ -92,18 +92,6 @@ export async function getPendingOrganizationJoinToken(): Promise<
   return token;
 }
 
-export async function setPendingOrganizationJoinToken(
-  token: string,
-  options?: { secure?: boolean },
-): Promise<void> {
-  if (!isUsableJoinToken(token)) {
-    return;
-  }
-
-  const store = await cookies();
-  applyPendingOrganizationJoinCookie(store, token, options?.secure === true);
-}
-
 export async function clearPendingOrganizationJoinToken(options?: {
   secure?: boolean;
 }): Promise<void> {

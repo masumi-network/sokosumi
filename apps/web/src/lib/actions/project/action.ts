@@ -54,16 +54,6 @@ interface DeleteProjectParameters extends AuthenticatedRequest {
   projectId: string;
 }
 
-interface ProjectJobParameters extends AuthenticatedRequest {
-  projectId: string;
-  jobId: string;
-}
-
-interface ProjectTaskParameters extends AuthenticatedRequest {
-  projectId: string;
-  taskId: string;
-}
-
 function normalizeProjectName(name: string): string {
   return name.trim();
 }
@@ -262,97 +252,5 @@ export const deleteProject = withSession<
   } catch (error) {
     console.error("Failed to delete project", error);
     throwCoreActionError(error, "Failed to delete project");
-  }
-});
-
-export const addProjectJob = withSession<
-  ProjectJobParameters,
-  { projectId: string; jobId: string }
->(async ({ projectId, jobId }) => {
-  const normalizedProjectId = projectId.trim();
-  const normalizedJobId = jobId.trim();
-  if (!normalizedProjectId || !normalizedJobId) {
-    throw new Error("Project job required");
-  }
-
-  try {
-    await projectService.addJob(normalizedProjectId, normalizedJobId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return {
-      projectId: normalizedProjectId,
-      jobId: normalizedJobId,
-    };
-  } catch (error) {
-    console.error("Failed to add project job", error);
-    throwCoreActionError(error, "Failed to add project job");
-  }
-});
-
-export const removeProjectJob = withSession<
-  ProjectJobParameters,
-  { projectId: string; jobId: string }
->(async ({ projectId, jobId }) => {
-  const normalizedProjectId = projectId.trim();
-  const normalizedJobId = jobId.trim();
-  if (!normalizedProjectId || !normalizedJobId) {
-    throw new Error("Project job required");
-  }
-
-  try {
-    await projectService.removeJob(normalizedProjectId, normalizedJobId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return {
-      projectId: normalizedProjectId,
-      jobId: normalizedJobId,
-    };
-  } catch (error) {
-    console.error("Failed to remove project job", error);
-    throwCoreActionError(error, "Failed to remove project job");
-  }
-});
-
-export const addProjectTask = withSession<
-  ProjectTaskParameters,
-  { projectId: string; taskId: string }
->(async ({ projectId, taskId }) => {
-  const normalizedProjectId = projectId.trim();
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedProjectId || !normalizedTaskId) {
-    throw new Error("Project task required");
-  }
-
-  try {
-    await projectService.addTask(normalizedProjectId, normalizedTaskId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return {
-      projectId: normalizedProjectId,
-      taskId: normalizedTaskId,
-    };
-  } catch (error) {
-    console.error("Failed to add project task", error);
-    throwCoreActionError(error, "Failed to add project task");
-  }
-});
-
-export const removeProjectTask = withSession<
-  ProjectTaskParameters,
-  { projectId: string; taskId: string }
->(async ({ projectId, taskId }) => {
-  const normalizedProjectId = projectId.trim();
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedProjectId || !normalizedTaskId) {
-    throw new Error("Project task required");
-  }
-
-  try {
-    await projectService.removeTask(normalizedProjectId, normalizedTaskId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return {
-      projectId: normalizedProjectId,
-      taskId: normalizedTaskId,
-    };
-  } catch (error) {
-    console.error("Failed to remove project task", error);
-    throwCoreActionError(error, "Failed to remove project task");
   }
 });

@@ -260,10 +260,6 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async cancelTurn(turnId: string): Promise<void> {
-    await coreClient.cancelMySokoBotTurn(turnId);
-  },
-
   async resetMemory() {
     const response = await coreClient.resetMySokoBotMemory();
     return response.data;

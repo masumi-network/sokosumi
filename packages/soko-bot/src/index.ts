@@ -33,7 +33,6 @@ export {
 export {
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
-  isSokoBotRoute,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_MEMORY_LIMITS,

@@ -1,5 +1,3 @@
-import type { LanguageModelV4 } from "@ai-sdk/provider";
-
 import {
   createSokosumiLanguageModel,
   type SokosumiLanguageModel,
@@ -19,10 +17,4 @@ export function createSokosumi(
   }
   factory.languageModel = factory;
   return factory as SokosumiProvider;
-}
-
-export function isSokosumiLanguageModel(
-  model: LanguageModelV4,
-): model is SokosumiLanguageModel {
-  return model.provider === "sokosumi";
 }
