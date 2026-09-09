@@ -11,6 +11,7 @@ import type { TaskStatus } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import { TaskMetadataStatusField } from "./task-metadata-status-field";
+import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
