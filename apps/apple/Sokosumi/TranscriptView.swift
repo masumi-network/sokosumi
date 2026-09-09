@@ -10,12 +10,15 @@ private let messageTimeFormatter: DateFormatter = {
   return formatter
 }()
 
-/// SOK-974 transcript pane mirroring the web message view: avatar rail with
-/// Slack-style continuation grouping, day separator pills, membership status
-/// rows, and a disabled composer stub (send ships next).
+/// Transcript pane: avatar rail with Slack-style continuation grouping,
+/// day separator pills, membership status rows, and a native composer.
 struct TranscriptView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
+  @State private var draft = ""
+  /// Eager first layout can report near-top before the bottom anchor
+  /// lands. Require a trip away from the top before auto-loading.
+  @State private var transcriptWasAwayFromTop = false
 
   let roomId: String
 
@@ -35,7 +38,10 @@ struct TranscriptView: View {
       }
       transcriptBody
       Divider()
-      composerStub
+      composer
+    }
+    .onChange(of: roomId) { _, _ in
+      transcriptWasAwayFromTop = false
     }
   }
 
@@ -44,7 +50,7 @@ struct TranscriptView: View {
     if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
       ProgressView("Loading messages…")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    } else if workspaces.transcriptMessages.isEmpty {
+    } else if workspaces.displayedTranscript.isEmpty {
       if let error = workspaces.transcriptError {
         transcriptError(error, retryOlder: false)
       } else {
@@ -61,12 +67,11 @@ struct TranscriptView: View {
   }
 
   private var messageList: some View {
-    // Bottom-anchored at layout level: ScrollViewReader.scrollTo races the
-    // lazy stack (the last row may not exist yet when it fires) and leaves
-    // the room parked at the top. The anchor also holds position when older
-    // pages prepend above.
+    // Eager stack so the bottom anchor has real last-row geometry on first
+    // paint. LazyVStack estimated a tall empty clip; scrolling up realized
+    // rows and the blank collapsed. First page is 100 messages.
     ScrollView {
-      LazyVStack(alignment: .leading, spacing: 0) {
+      VStack(alignment: .leading, spacing: 0) {
         if workspaces.transcriptHasMore {
           Button("Load older messages") {
             workspaces.loadOlderMessages(auth: auth)
@@ -74,9 +79,6 @@ struct TranscriptView: View {
           .buttonStyle(.link)
           .frame(maxWidth: .infinity)
           .padding(.vertical, 8)
-          .onAppear {
-            workspaces.loadOlderMessages(auth: auth)
-          }
         }
         if workspaces.transcriptLoadingOlder {
           ProgressView()
@@ -86,20 +88,32 @@ struct TranscriptView: View {
         if let error = workspaces.transcriptError {
           inlineError(error)
         }
-        let messages = workspaces.transcriptMessages
+        let messages = workspaces.displayedTranscript
         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
           let previous = index > 0 ? messages[index - 1] : nil
-          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
-            DaySeparatorRow(label: label)
-          }
-          if let status = membershipStatusText(message) {
-            MembershipStatusRow(text: status)
-          } else {
-            MessageRow(
-              message: message,
-              isContinuation: isMessageContinuation(previous: previous, current: message)
-            )
-            .id(message.id)
+          // Unary row: a top-level if (day pill) plus the bubble made the
+          // lazy path reserve blank slots. One container per message id.
+          VStack(alignment: .leading, spacing: 0) {
+            if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+              DaySeparatorRow(label: label)
+            }
+            if let status = membershipStatusText(message) {
+              MembershipStatusRow(text: status)
+            } else {
+              let outbound = workspaces.outboundShells.first { $0.id == message.id }
+              MessageRow(
+                message: message,
+                isContinuation: isMessageContinuation(previous: previous, current: message),
+                outbound: outbound,
+                retryDisabled: workspaces.outboundInFlight,
+                onRetry: outbound.map { shell in
+                  { workspaces.retryOutbound(clientTurnId: shell.clientTurnId, auth: auth) }
+                },
+                onRemove: outbound.map { shell in
+                  { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
+                }
+              )
+            }
           }
         }
       }
@@ -107,6 +121,18 @@ struct TranscriptView: View {
       .padding(.vertical, 8)
     }
     .defaultScrollAnchor(.bottom)
+    .onScrollGeometryChange(for: Bool.self) { geometry in
+      geometry.visibleRect.minY < 40
+    } action: { _, isNearTop in
+      if !isNearTop {
+        transcriptWasAwayFromTop = true
+        return
+      }
+      guard transcriptWasAwayFromTop, workspaces.transcriptError == nil else { return }
+      Task { @MainActor in
+        workspaces.loadOlderMessages(auth: auth)
+      }
+    }
   }
 
   private func transcriptError(_ error: String, retryOlder: Bool) -> some View {
@@ -137,17 +163,29 @@ struct TranscriptView: View {
     }
   }
 
-  /// Disabled until the send ticket: the transcript must read before it
-  /// writes.
-  private var composerStub: some View {
+  private var canSend: Bool {
+    !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && !workspaces.outboundInFlight
+      && !workspaces.transcriptLoading
+      && workspaces.transcriptRoomId == roomId
+  }
+
+  private var composer: some View {
     HStack {
-      TextField("Message (coming soon)", text: .constant(""))
-        .disabled(true)
+      TextField("Message", text: $draft)
         .textFieldStyle(.roundedBorder)
-      Button("Send") {}
-        .disabled(true)
+        .onSubmit(sendDraft)
+      Button("Send", action: sendDraft)
+        .disabled(!canSend)
     }
     .padding(8)
+  }
+
+  private func sendDraft() {
+    guard canSend else { return }
+    let content = draft
+    draft = ""
+    workspaces.sendMessage(content, auth: auth)
   }
 }
 
@@ -196,6 +234,10 @@ struct MessageRow: View {
 
   let message: Components.Schemas.ChatRoomMessage
   let isContinuation: Bool
+  let outbound: OutboundShell?
+  let retryDisabled: Bool
+  let onRetry: (() -> Void)?
+  let onRemove: (() -> Void)?
 
   var body: some View {
     HStack(alignment: .top, spacing: 14) {
@@ -235,6 +277,24 @@ struct MessageRow: View {
         } else {
           Text(message.content)
             .textSelection(.enabled)
+        }
+        if let outbound, outbound.status == .failed {
+          if let error = outbound.errorMessage, !error.isEmpty {
+            Text(error)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+          HStack(spacing: 12) {
+            if let onRetry {
+              Button("Retry", action: onRetry)
+                .disabled(retryDisabled)
+            }
+            if let onRemove {
+              Button("Remove", role: .destructive, action: onRemove)
+            }
+          }
+          .buttonStyle(.borderless)
+          .font(.caption)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -318,15 +378,27 @@ struct MessageRow: View {
       DaySeparatorRow(label: "Today")
       MessageRow(
         message: previewMessage(id: "m1", content: "Morning all — the tracer renders web-style rows now.", name: "Ada", minutesAfterNoon: 0),
-        isContinuation: false
+        isContinuation: false,
+        outbound: nil,
+        retryDisabled: false,
+        onRetry: nil,
+        onRemove: nil
       )
       MessageRow(
         message: previewMessage(id: "m2", content: "Same burst, so no second header.", name: "Ada", minutesAfterNoon: 1),
-        isContinuation: true
+        isContinuation: true,
+        outbound: nil,
+        retryDisabled: false,
+        onRetry: nil,
+        onRemove: nil
       )
       MessageRow(
         message: previewMessage(id: "m3", content: "Edited after the fact.", name: "Ada", minutesAfterNoon: 30, edited: true),
-        isContinuation: false
+        isContinuation: false,
+        outbound: nil,
+        retryDisabled: false,
+        onRetry: nil,
+        onRemove: nil
       )
       MembershipStatusRow(text: "Bob joined")
     }

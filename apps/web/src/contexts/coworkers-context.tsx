@@ -58,13 +58,3 @@ export function useCoworkersHydration(): (coworkers: Coworker[]) => void {
 
   return hydrateCoworkers;
 }
-
-export function useCoworkersContext(): CoworkersContextValue {
-  const context = useContext(CoworkersContext);
-  if (!context) {
-    throw new Error(
-      "useCoworkersContext must be used within a CoworkersProvider",
-    );
-  }
-  return context;
-}

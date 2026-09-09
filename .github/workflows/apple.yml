@@ -82,7 +82,7 @@ jobs:
 
       - name: Test Swift packages
         run: |
-          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth; do
+          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth apps/apple/Packages/CoreAPI; do
             swift test --package-path "$package"
           done
 

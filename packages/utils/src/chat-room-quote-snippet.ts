@@ -34,17 +34,6 @@ export function buildRoomQuoteSnippetParts(
   };
 }
 
-/**
- * Plain-text quote body for a quoted room message. Strips cheap markdown
- * markers and collapses horizontal whitespace while preserving newlines.
- * Mention tokens stay intact; the render layer formats them for display.
- * Returns the full cleaned message (no character truncation).
- * File/image links promoted to quote attachment are excluded from the text.
- */
-export function buildQuoteSnippet(content: string): string {
-  return buildRoomQuoteSnippetParts(content).snippet;
-}
-
 function findQuoteAttachmentMatch(content: string): {
   attachment: ChatRoomQuoteAttachment;
   match: string;

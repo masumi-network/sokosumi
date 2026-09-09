@@ -9,23 +9,6 @@ import {
 } from "./auth.server.client";
 
 /**
- * Updates the current user through Core Better Auth so the session cookie cache
- * stays in sync with the database.
- */
-export async function updateCurrentUserViaCore(
-  body: Record<string, unknown>,
-): Promise<void> {
-  const result = await getAuthServerClient().updateUser(body);
-
-  if (result.error) {
-    throw new Error(
-      result.error.message ??
-        `Failed to update user via Core auth (${result.error.status})`,
-    );
-  }
-}
-
-/**
  * Sets the current user's password through Core Better Auth when they have no
  * credential account yet (first password / link credential flow).
  *

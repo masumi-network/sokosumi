@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
   name: "SokosumiChat",
   platforms: [
-    .macOS(.v14),
+    .macOS(.v15),
     .iOS(.v17)
   ],
   products: [

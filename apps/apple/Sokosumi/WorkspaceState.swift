@@ -3,8 +3,8 @@ import CoreAPI
 import Foundation
 import SokosumiChat
 
-/// Thin UI state for the workspace + rooms sidebar (SOK-973) and the room
-/// transcript (SOK-974).
+/// Thin UI state for the workspace + rooms sidebar (SOK-973), the room
+/// transcript (SOK-974), and classic send (SOK-975).
 ///
 /// Behavior lives in `SokosumiChat.ChatService` (UI-free, tested); this
 /// object only holds the current selection/rooms/transcript for SwiftUI and
@@ -53,10 +53,21 @@ final class WorkspaceState: ObservableObject {
   /// above loaded history otherwise — a failed older page never wipes
   /// what already resolved.
   @Published private(set) var transcriptError: String?
+  /// Unconfirmed classic sends for the open room. Remount / room change
+  /// drops them (no durable outbox).
+  @Published private(set) var outboundShells: [OutboundShell] = []
+  /// True while a classic POST is in flight for this composer.
+  @Published private(set) var outboundInFlight = false
+
+  /// Confirmed history plus unresolved outbound shells (sticky at the end).
+  var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
+    SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells)
+  }
 
   private var transcriptCursor: String?
   /// Bumps on every open/clear so a slow room cannot paint over a newer one.
   private var transcriptGeneration = 0
+  private var outboundFlight = ClassicOutboundFlight()
 
   private let service = ChatService()
   private let savedSelection: SavedWorkspaceSelection
@@ -146,6 +157,7 @@ final class WorkspaceState: ObservableObject {
     transcriptLoading = false
     transcriptLoadingOlder = false
     transcriptError = nil
+    clearOutbound()
   }
 
   /// Open a room's transcript: history first, mark-read after it resolves
@@ -161,7 +173,111 @@ final class WorkspaceState: ObservableObject {
     transcriptHasMore = false
     transcriptError = nil
     transcriptLoading = true
+    clearOutbound()
     Task { await loadTranscript(auth: auth, room: room, generation: generation) }
+  }
+
+  /// Paint a pending shell immediately, then POST. No-op while a send is
+  /// already in flight or the composer has nothing to send.
+  func sendMessage(_ content: String, auth: AuthState) {
+    let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let roomId = transcriptRoomId, !trimmed.isEmpty, !transcriptLoading else { return }
+    let clientMessageId = UUID().uuidString
+    guard outboundFlight.begin(clientMessageId) else { return }
+    outboundInFlight = true
+    outboundShells.append(makeOutboundShell(clientMessageId: clientMessageId, roomId: roomId, content: trimmed))
+    Task { await postOutbound(auth: auth, roomId: roomId, content: trimmed, clientMessageId: clientMessageId) }
+  }
+
+  /// Reuses the same client turn id. No-op unless that shell is failed and
+  /// the composer slot is free.
+  func retryOutbound(clientTurnId: String, auth: AuthState) {
+    guard let shell = outboundShells.first(where: { $0.clientTurnId == clientTurnId }),
+          shell.status == .failed,
+          let roomId = transcriptRoomId
+    else { return }
+    guard outboundFlight.begin(clientTurnId) else { return }
+    outboundInFlight = true
+    outboundShells = markOutboundPending(shells: outboundShells, clientTurnId: clientTurnId)
+    Task { await postOutbound(auth: auth, roomId: roomId, content: shell.content, clientMessageId: clientTurnId) }
+  }
+
+  /// Drops the local shell only. Does not delete a Core row.
+  func removeOutbound(clientTurnId: String) {
+    outboundShells = SokosumiChat.removeOutbound(shells: outboundShells, clientTurnId: clientTurnId)
+  }
+
+  private func clearOutbound() {
+    outboundFlight.clear()
+    outboundInFlight = false
+    outboundShells = []
+  }
+
+  private func makeOutboundShell(clientMessageId: String, roomId: String, content: String) -> OutboundShell {
+    .init(
+      clientTurnId: clientMessageId,
+      roomId: roomId,
+      content: content,
+      sender: .init(
+        id: currentUserId,
+        name: currentUserName.isEmpty ? currentUserEmail : currentUserName,
+        email: currentUserEmail,
+        image: currentUserImageURL,
+        presence: .online
+      )
+    )
+  }
+
+  private func postOutbound(
+    auth: AuthState,
+    roomId: String,
+    content: String,
+    clientMessageId: String
+  ) async {
+    // Flight and leftover shells are not the history-load generation: a
+    // failed workspace switch bumps generation but keeps this room.
+    defer {
+      outboundFlight.end(clientMessageId)
+      outboundInFlight = outboundFlight.isInFlight
+    }
+    guard let client = resolveClient(auth: auth) else {
+      failPresentOutbound(clientMessageId, "Sign-in is not configured.")
+      return
+    }
+    do {
+      let confirmed = try await service.createMessage(
+        client: client,
+        roomId: roomId,
+        content: content,
+        clientMessageId: clientMessageId,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard outboundShells.contains(where: { $0.clientTurnId == clientMessageId }) else { return }
+      let result = confirmOutbound(
+        messages: transcriptMessages,
+        shells: outboundShells,
+        confirmed: confirmed,
+        clientTurnId: clientMessageId
+      )
+      transcriptMessages = result.messages
+      outboundShells = result.shells
+    } catch let error as ChatServiceError {
+      failPresentOutbound(clientMessageId, transcriptFailureMessage(error, auth: auth))
+    } catch {
+      NSLog("Sokosumi send failed: %@", String(describing: error))
+      failPresentOutbound(clientMessageId, friendlyMessage(for: error))
+    }
+  }
+
+  /// Confirm/fail only when the shell is still here. Cleared shells mean
+  /// the surface was torn down; leftover shells are still this room.
+  private func failPresentOutbound(_ clientMessageId: String, _ errorMessage: String?) {
+    guard outboundShells.contains(where: { $0.clientTurnId == clientMessageId }) else { return }
+    outboundShells = failOutbound(
+      shells: outboundShells,
+      clientTurnId: clientMessageId,
+      errorMessage: errorMessage
+    )
   }
 
   func loadTranscript(

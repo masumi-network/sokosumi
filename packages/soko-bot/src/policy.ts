@@ -200,10 +200,6 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
 }
 
-export function isSokoBotRoute(value: string): value is SokoBotRoute {
-  return SOKO_BOT_ROUTES.some((route) => route === value);
-}
-
 export function isSokoBotCapability(value: string): value is SokoBotCapability {
   return SOKO_BOT_CAPABILITIES.some((capability) => capability === value);
 }

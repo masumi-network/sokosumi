@@ -1,8 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  FREE_SUBSCRIPTION_MONTHLY_CREDITS,
-  type SelfServeSubscriptionPlanName,
-} from "@sokosumi/utils";
+import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 
 export const subscriptionCatalogPlanSchema = z
   .object({
@@ -39,5 +36,3 @@ export interface SubscriptionCatalogResponse {
   standard: SubscriptionCatalogPlanResponse;
   pro: SubscriptionCatalogPlanResponse;
 }
-
-export const FREE_SUBSCRIPTION_PLAN_CREDITS = FREE_SUBSCRIPTION_MONTHLY_CREDITS;

@@ -18,7 +18,6 @@ import {
 import {
   type AdminAddMatchedChannelFromOrganizationResult,
   type AdminArchivedMatchedChannel,
-  type AdminMatchedChannelDetail,
   type AdminMatchedChannelOption,
   type AdminMatchedChannelParticipant,
   type AdminRemoveMatchedChannelParticipant,
@@ -43,10 +42,6 @@ const createMatchedChannelSchema = z.object({
       message: "Invalid channel slug",
     }),
   topic: z.string().trim().max(200).optional(),
-});
-
-const getMatchedChannelSchema = z.object({
-  roomId: roomIdSchema,
 });
 
 const addParticipantSchema = z.object({
@@ -153,35 +148,6 @@ export const createAdminMatchedChannelAction = withSession<
       ...(topic ? { topic } : {}),
     });
     revalidateMatchedChannelRoutes(channel.id);
-    return toActionResult(ok(channel));
-  } catch (error) {
-    return toActionResult(err(toAdminActionError(error)));
-  }
-});
-
-interface GetMatchedChannelParameters extends AuthenticatedRequest {
-  input: unknown;
-}
-
-export const getAdminMatchedChannelAction = withSession<
-  GetMatchedChannelParameters,
-  ActionResultDto<AdminMatchedChannelDetail, ActionError>
->(async ({ input, session }) => {
-  try {
-    assertAdminSession(session);
-    const parsed = getMatchedChannelSchema.safeParse(input);
-    if (!parsed.success) {
-      return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-          message: "Invalid matched channel lookup",
-        }),
-      );
-    }
-
-    const channel = await adminMatchedChannelsService.getMatchedChannel(
-      parsed.data.roomId,
-    );
     return toActionResult(ok(channel));
   } catch (error) {
     return toActionResult(err(toAdminActionError(error)));

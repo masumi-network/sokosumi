@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import OpenAPIRuntime
 
-/// UI-free workspace + rooms + transcript flow (SOK-973, SOK-974).
+/// UI-free workspace + rooms + transcript + classic send (SOK-973–975).
 ///
 /// Rules from `MAC-TRACER.md`: only `ready` continues into chat; personal
 /// omits `X-Organization-Slug` while organizations send it; rooms walk Core
