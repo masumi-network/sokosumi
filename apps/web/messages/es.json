@@ -101,9 +101,6 @@
           "title": "Clasificación de riesgo según la Ley de IA de la UE"
         }
       },
-      "AgentBadgeCloud": {
-        "new": "Nuevo"
-      },
       "agentsNotAvailable": "No hay agents disponibles",
       "agentsNotFound": "No se encontraron agents",
       "AgentCard": {
@@ -741,12 +738,6 @@
       }
     },
     "Modals": {
-      "AuthenticationModal": {
-        "title": "Bienvenido de nuevo",
-        "description": "Inicia sesión o regístrate para contratar Agents e iniciar jobs.",
-        "login": "Iniciar sesión",
-        "register": "Registrarse"
-      },
       "LogoutModal": {
         "title": "¿Seguro que quieres cerrar sesión?",
         "description": "Cerrar sesión de \"{email}\" en Sokosumi.",
@@ -4780,10 +4771,6 @@
         "RightSection": {
           "noExecutedJobs": "No hay jobs ejecutados"
         }
-      },
-      "CoworkerGalleryCard": {
-        "defaultSubtitle": "AI Coworker",
-        "defaultDescription": "Un AI Coworker listo para ayudarte."
       },
       "allAgentsTitle": "Explorar todos los agents",
       "allAgentsSubtitle": "Todos los agents de Sokosumi, agrupados por lo que hacen.",
