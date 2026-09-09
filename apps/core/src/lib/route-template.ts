@@ -18,13 +18,27 @@ export const UNMATCHED_ROUTE = "UNMATCHED";
  */
 export function matchedRouteTemplate(c: Context): string {
   try {
-    // Wildcard entries are the middleware mounts (`/*`, `/v1/*`). Skipping
-    // them keeps the concrete route even when a `use("*")` is registered
-    // below the routes it wraps, where the last entry is the wildcard.
-    const path = matchedRoutes(c).findLast(
+    const matched = matchedRoutes(c);
+
+    // Prefer a concrete route. Wildcard entries are middleware mounts (`/*`,
+    // `/v1/*`), so skipping them keeps the real route even when a `use("*")`
+    // is registered below the routes it wraps and matches last.
+    const concrete = matched.findLast(
       (route) => !route.path.endsWith("*"),
     )?.path;
-    return path ?? UNMATCHED_ROUTE;
+    if (concrete) {
+      return concrete;
+    }
+
+    // No concrete route. A mount prefix still identifies the traffic and
+    // contains no token, so it beats UNMATCHED: the Better Auth catch-all is
+    // registered as `/auth/*`, and reporting every sign-in as UNMATCHED would
+    // hide all auth traffic behind the 404 bucket. The bare root wildcards
+    // say nothing, so those still fall through.
+    const mount = matched.findLast(
+      (route) => route.path !== "*" && route.path !== "/*",
+    )?.path;
+    return mount ?? UNMATCHED_ROUTE;
   } catch {
     // matchedRoutes reads a hono internal. Observability must not 500 a
     // request if that internal ever moves.

@@ -39,6 +39,18 @@ describe("matchedRouteTemplate", () => {
     expect(template).toBe("/v1/share/:token");
   });
 
+  it("falls back to a mount prefix so auth traffic is not a 404 bucket", async () => {
+    // Better Auth is registered as a catch-all: app.on([...], "*", handler)
+    // under a /auth mount, so no concrete route ever matches it.
+    const template = await templateFor((app) => {
+      const auth = new Hono();
+      auth.on(["POST", "GET"], "*", (c) => c.text("ok"));
+      app.route("/auth", auth);
+    }, "/auth/sign-in/email");
+
+    expect(template).toBe("/auth/*");
+  });
+
   it("reports UNMATCHED instead of an unknown raw path", async () => {
     const template = await templateFor(
       () => {},
