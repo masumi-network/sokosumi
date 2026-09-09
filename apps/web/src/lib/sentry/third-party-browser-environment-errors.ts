@@ -29,11 +29,13 @@ export const browserHistoryRateLimitIgnoreErrors: RegExp[] = [
 ];
 
 /**
- * Brave iOS (WebKit) reader probes evaluate Firefox's `window.__firefox__.reader`
- * bridge. The object is absent, so the probe throws into the page global
- * handler (SOKOSUMI-S0, SOKOSUMI-RX, SOKOSUMI-RY, SOKOSUMI-RZ).
+ * Brave iOS (a Firefox-iOS fork) installs a `window.__firefox__` bridge and its
+ * native handlers (reader mode, YouTube quality, ...) evaluate members on it.
+ * When that evaluation races ahead of the bridge install, the probe throws
+ * into the page global handler as "global code" at the page URL
+ * (SOKOSUMI-S0, SOKOSUMI-RX, SOKOSUMI-RY, SOKOSUMI-RZ).
  */
-export const firefoxReaderBridgeIgnoreErrors: RegExp[] = [
+export const firefoxBridgeIgnoreErrors: RegExp[] = [
   /window\.__firefox__/,
   /Can't find variable: __firefox__/,
 ];
@@ -42,10 +44,8 @@ export function isInAppBrowserEnvironmentError(message: string): boolean {
   return inAppBrowserIgnoreErrors.some((pattern) => pattern.test(message));
 }
 
-export function isFirefoxReaderBridgeError(message: string): boolean {
-  return firefoxReaderBridgeIgnoreErrors.some((pattern) =>
-    pattern.test(message),
-  );
+export function isFirefoxBridgeError(message: string): boolean {
+  return firefoxBridgeIgnoreErrors.some((pattern) => pattern.test(message));
 }
 
 export function isTransientStreamClosureError(message: string): boolean {

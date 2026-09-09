@@ -405,7 +405,7 @@ describe("beforeSendClientEvent", () => {
     ).toBeNull();
   });
 
-  it("drops Brave/WebKit Firefox reader bridge TypeErrors", () => {
+  it("drops Brave iOS __firefox__ bridge TypeErrors", () => {
     expect(
       beforeSendClientEvent(
         {
@@ -426,7 +426,7 @@ describe("beforeSendClientEvent", () => {
     ).toBeNull();
   });
 
-  it("drops Brave/WebKit Firefox reader bridge TypeErrors with type prefix", () => {
+  it("drops Brave iOS __firefox__ bridge TypeErrors with type prefix", () => {
     expect(
       beforeSendClientEvent(
         {
