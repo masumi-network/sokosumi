@@ -66,7 +66,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
@@ -103,7 +103,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
@@ -149,7 +149,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
