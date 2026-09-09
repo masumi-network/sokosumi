@@ -2,12 +2,182 @@ import { TaskScheduleQuarantineReason, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  createTaskSchedulePlannedOccurrences,
   refreshTaskSchedulePlannedOccurrences,
   replaceTaskSchedulePlannedOccurrences,
+  retireTaskScheduleFutureOccurrences,
 } from "./task-schedule-occurrence-index";
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
+
+describe("retireTaskScheduleFutureOccurrences", () => {
+  const NOW = new Date("2026-06-10T00:00:00.000Z");
+
+  function createRetireClient(
+    rows: Array<{
+      id: string;
+      state: "PLANNED" | "SKIPPED";
+      originalScheduledAt: Date | null;
+      effectiveScheduledAt: Date;
+    }>,
+  ) {
+    const findMany = vi.fn().mockResolvedValue(rows);
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+    const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    return {
+      client: {
+        taskScheduleOccurrence: { findMany, updateMany, deleteMany },
+      },
+      findMany,
+      updateMany,
+      deleteMany,
+    };
+  }
+
+  it("only considers future planned and skipped rows, preserving released and past history", async () => {
+    const { client, findMany } = createRetireClient([]);
+
+    const result = await retireTaskScheduleFutureOccurrences(
+      client,
+      "tsk_series",
+      NOW,
+    );
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        seriesTaskId: "tsk_series",
+        effectiveScheduledAt: { gte: NOW },
+        state: { in: ["PLANNED", "SKIPPED"] },
+      },
+      select: {
+        id: true,
+        state: true,
+        originalScheduledAt: true,
+        effectiveScheduledAt: true,
+      },
+    });
+    expect(result).toEqual({ canceledCount: 0, deletedCount: 0 });
+  });
+
+  it("cancels durable future exceptions and deletes only ordinary future projections", async () => {
+    const { client, updateMany, deleteMany } = createRetireClient([
+      {
+        id: "occ_skipped",
+        state: "SKIPPED",
+        originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+      },
+      {
+        id: "occ_moved",
+        state: "PLANNED",
+        originalScheduledAt: new Date("2026-06-12T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-13T15:00:00.000Z"),
+      },
+      {
+        id: "occ_ordinary",
+        state: "PLANNED",
+        originalScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+      },
+      {
+        id: "occ_legacy",
+        state: "PLANNED",
+        originalScheduledAt: null,
+        effectiveScheduledAt: new Date("2026-06-15T09:00:00.000Z"),
+      },
+    ]);
+
+    const result = await retireTaskScheduleFutureOccurrences(
+      client,
+      "tsk_series",
+      NOW,
+    );
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["occ_skipped", "occ_moved"] } },
+      data: { state: "CANCELED" },
+    });
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["occ_ordinary", "occ_legacy"] } },
+    });
+    expect(result).toEqual({ canceledCount: 2, deletedCount: 2 });
+  });
+
+  it("writes nothing when the series has no future rows", async () => {
+    const { client, updateMany, deleteMany } = createRetireClient([]);
+
+    await retireTaskScheduleFutureOccurrences(client, "tsk_series", NOW);
+
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("createTaskSchedulePlannedOccurrences", () => {
+  it("adds the projected rows without deleting existing ledger history", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+
+    await createTaskSchedulePlannedOccurrences(
+      { taskScheduleOccurrence: { createMany } },
+      {
+        id: "tsk_v2",
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        schedule: {
+          version: 2,
+          epochId: "33333333-3333-7333-8333-333333333333",
+          mode: "once",
+          createdAt: "2026-06-01T08:00:00.000Z",
+          ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+          timezone: "UTC",
+          sourceRunAt: "2026-06-03T09:00:00.000Z",
+          effectiveRunAt: "2026-06-03T09:00:00.000Z",
+        },
+        nextRunAt: new Date("2026-06-03T09:00:00.000Z"),
+      },
+      new Date("2026-06-01T00:00:00.000Z"),
+    );
+
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          seriesTaskId: "tsk_v2",
+          epochId: "33333333-3333-7333-8333-333333333333",
+          state: "PLANNED",
+          scheduleVersion: 2,
+        }),
+      ],
+    });
+  });
+
+  it("rejects schedules that exceed the indexed occurrence limit before writing", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 0 });
+
+    await expect(
+      createTaskSchedulePlannedOccurrences(
+        { taskScheduleOccurrence: { createMany } },
+        {
+          id: "tsk_dense",
+          workspaceId: WORKSPACE_ID,
+          projectId: null,
+          schedule: {
+            version: 1,
+            mode: "recurring",
+            scheduledAt: "2026-06-01T00:00:00.000Z",
+            expr: "* * * * *",
+            timezone: "UTC",
+            endsMode: "never",
+          },
+          nextRunAt: new Date("2026-06-01T00:01:00.000Z"),
+        },
+        new Date("2026-06-01T00:00:00.000Z"),
+      ),
+    ).rejects.toThrow("too many occurrences");
+
+    expect(createMany).not.toHaveBeenCalled();
+  });
+});
 
 describe("replaceTaskSchedulePlannedOccurrences", () => {
   it("rejects schedules that exceed the indexed occurrence limit", async () => {
