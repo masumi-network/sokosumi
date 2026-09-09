@@ -150,7 +150,7 @@ struct ContentView: View {
               if !partitioned.external.isEmpty {
                 Section("External", isExpanded: sectionExpansion(.external)) {
                   ForEach(partitioned.external, id: \.id) { room in
-                    roomRow(room, icon: "building.2")
+                    roomRow(room, icon: "globe")
                   }
                 }
               }
@@ -271,7 +271,7 @@ struct ContentView: View {
           .lineLimit(1)
           .fontWeight(attention.bold ? .bold : .regular)
         if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
-          Text("Hosted by \(organization)")
+          Text(organization)
             .font(.caption)
             .foregroundStyle(.secondary)
             .lineLimit(1)
