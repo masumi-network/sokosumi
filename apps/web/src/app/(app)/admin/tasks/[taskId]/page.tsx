@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
+import { TASK_DETAIL_CONTEXT_STRIP_CLASS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { adminTaskService } from "@/lib/services/admin-task.service";
 
@@ -36,7 +37,7 @@ export default async function AdminTaskDetailPage({
       {/* Admin-only context strip: surfaces the owner email (not shown in the
           user-facing view) and the owning workspace, plus a way back to the
           list. The task itself renders read-only below. */}
-      <div className="mx-auto max-w-4xl px-4 pt-2">
+      <div className={TASK_DETAIL_CONTEXT_STRIP_CLASS}>
         <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="text-sm">
             <span className="font-medium">{owner.name}</span>

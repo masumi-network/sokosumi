@@ -78,7 +78,7 @@ describe("DeveloperTaskDetailPageSkeleton", () => {
     const { container } = render(<DeveloperTaskDetailPageSkeleton />);
 
     expect(screen.getByTestId("developer-task-detail-loading")).toBeTruthy();
-    expect(container.querySelector(".max-w-4xl")).toBeTruthy();
+    expect(container.querySelector(".max-w-6xl")).toBeTruthy();
     const bones = container.querySelectorAll('[data-slot="skeleton"]');
     expect(bones.length).toBeGreaterThanOrEqual(12);
   });
