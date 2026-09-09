@@ -46,7 +46,7 @@ The cursor records the view, the observed `scheduleRevision`, and the occurrence
 }
 ```
 
-The mutation locks the Calendar scope and Task, verifies the expected revision, detects an exact `operationId` replay, always starts a new rule epoch (including when the submitted rule matches the current rule), increments the schedule revision once, cancels durable future exceptions, and regenerates ordinary projections. The audit event stores a canonical request fingerprint and Task identity, following the existing scheduled-Task-create pattern; replay re-reads and re-serializes the current Task rather than storing a full response in public event payload. Reusing an operation ID for different semantics returns stable kind `idempotency_conflict`.
+The mutation locks the Calendar scope and Task, verifies the expected revision, detects an exact `operationId` replay, always starts a new rule epoch (including when the submitted rule matches the current rule), increments the schedule revision once, cancels durable future exceptions, and regenerates ordinary projections. An `after N occurrences` limit is scoped to that new epoch: editing the rule starts its count at zero, while the prior epoch's consumed count remains in occurrence history. The audit event stores a canonical request fingerprint and Task identity, following the existing scheduled-Task-create pattern; replay re-reads and re-serializes the current Task rather than storing a full response in public event payload. Reusing an operation ID for different semantics returns stable kind `idempotency_conflict`.
 
 ### Series removal
 

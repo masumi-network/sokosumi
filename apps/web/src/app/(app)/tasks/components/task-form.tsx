@@ -16,7 +16,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
-  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -84,9 +83,9 @@ import {
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
 import {
+  getTaskScheduleOperationId,
   hasTaskScheduleChanged,
   metadataToSelection,
-  selectionToApiBody,
 } from "@/lib/utils/task-schedule";
 import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 import {
@@ -233,25 +232,6 @@ function getTaskFormStatusLabel(
           ? (labels.statusQueued ?? value)
           : value)
   );
-}
-
-/**
- * The operation identity of a series save, keyed to the schedule it submits:
- * retrying the same save replays on Core, while editing the rule again starts
- * a new operation. Minted in the browser and never on the server.
- */
-function seriesOperationIdFor(
-  selection: TaskScheduleSelection,
-  operation: RefObject<{ key: string; operationId: string } | null>,
-): string {
-  const key =
-    selection.mode === "none"
-      ? "none"
-      : JSON.stringify(selectionToApiBody(selection));
-  if (operation.current?.key !== key) {
-    operation.current = { key, operationId: crypto.randomUUID() };
-  }
-  return operation.current.operationId;
 }
 
 export interface TaskFormCreateInput {
@@ -777,6 +757,88 @@ export function TaskForm({
         ) {
           const createTaskHandler = onCreateTask ?? createTask;
           const result = await createTaskHandler({
+            description: trimmedDescription,
+            ...resolveTaskAssigneeFields(
+              assigneeId,
+              coworkerOptions,
+              knownSokoBotId,
+              initialValues?.assigneeUserId,
+            ),
+            context: {
+              brand: {
+                enabled: contextSelection.brand.enabled,
+                source: contextSelection.brand.source,
+                custom: contextSelection.brand.custom
+                  ? { url: contextSelection.brand.custom.url }
+                  : null,
+              },
+              briefingEnabled: contextSelection.briefingEnabled,
+              contextMdEnabled: contextSelection.contextMdEnabled,
+            },
+            ...(hasProjectSelection ? { projectId } : {}),
+            status: desiredStatus as Extract<
+              TaskStatus,
+              "DRAFT" | "READY" | "QUEUED"
+            >,
+            schedule: scheduleSelection,
+          });
+          if (!result.ok) {
+            const feedbackKey = taskScheduleSeriesFeedbackKey(
+              result.error.kind,
+            );
+            if (!feedbackKey) {
+              showCalendarClientUpgradeModal();
+              return;
+            }
+            // Keep the form and its operation identity so the user can reload,
+            // reopen, and retry the same edit rather than starting a new one.
+            setSeriesError(tSeries(feedbackKey));
+            return;
+          }
+          setSeriesError(null);
+          const createdTask = result.value;
+          // Confirm success in place and let the user choose when to navigate;
+          // the redirect target is prefetched so it lands fast.
+          const assigneeFields = resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownSokoBotId,
+            initialValues?.assigneeUserId,
+          );
+          const createdStatus = resolveCelebrationStatus({
+            desiredStatus,
+            isAgent: isAgentAssigneeFields(assigneeFields),
+            hasSchedule: scheduleSelection.mode !== "none",
+          });
+          router.prefetch(`/tasks/${createdTask.taskId}`);
+          setCreatedTask({
+            id: createdTask.taskId,
+            name: createdTask.name.trim() || "Untitled task",
+            status: createdStatus,
+            statusLabel:
+              createdStatus === "QUEUED"
+                ? (labels.statusQueued ?? "Queued")
+                : createdStatus === "DRAFT"
+                  ? labels.statusDraft
+                  : labels.statusReady,
+            scheduleLabel:
+              scheduleSelection.mode !== "none" &&
+              desiredStatus !== TaskStatus.DRAFT
+                ? (scheduleLabel ?? undefined)
+                : undefined,
+          });
+          onCreated?.(createdTask.taskId);
+          return;
+        }
+
+        if (!taskId) {
+          throw new Error("Task ID is required");
+        }
+
+        const trimmedName = name.trim();
+        const result = await updateTask({
+          taskId,
+          name: trimmedName,
           description: trimmedDescription,
           ...resolveTaskAssigneeFields(
             assigneeId,
@@ -784,170 +846,93 @@ export function TaskForm({
             knownSokoBotId,
             initialValues?.assigneeUserId,
           ),
-          context: {
-            brand: {
-              enabled: contextSelection.brand.enabled,
-              source: contextSelection.brand.source,
-              custom: contextSelection.brand.custom
-                ? { url: contextSelection.brand.custom.url }
-                : null,
-            },
-            briefingEnabled: contextSelection.briefingEnabled,
-            contextMdEnabled: contextSelection.contextMdEnabled,
-          },
           ...(hasProjectSelection ? { projectId } : {}),
-          status: desiredStatus as Extract<
-            TaskStatus,
-            "DRAFT" | "READY" | "QUEUED"
-          >,
+          currentStatus: originalStatus,
+          desiredStatus,
           schedule: scheduleSelection,
+          hadSchedule,
+          ...(hasActiveSeries
+            ? {
+                expectedScheduleRevision: scheduleRevision,
+                scheduleOperationId: getTaskScheduleOperationId(
+                  scheduleSelection,
+                  seriesOperation,
+                ),
+              }
+            : {}),
+          originalSchedule: originalScheduleSelection.current,
         });
-          if (!result.ok) {
+        if (!result.ok) {
+          if (
+            result.error.kind ===
+            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
+          ) {
+            // The series moved on, so the count read with the old revision no
+            // longer describes it. Nothing here may reuse it as "zero".
+            setIsSeriesCountStale(true);
+          }
           const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
           if (!feedbackKey) {
             showCalendarClientUpgradeModal();
             return;
           }
-          // Keep the form and its operation identity so the user can reload,
-          // reopen, and retry the same edit rather than starting a new one.
           setSeriesError(tSeries(feedbackKey));
           return;
         }
         setSeriesError(null);
-        const createdTask = result.value;
-        // Confirm success in place and let the user choose when to navigate;
-        // the redirect target is prefetched so it lands fast.
-        const assigneeFields = resolveTaskAssigneeFields(
-          assigneeId,
-          coworkerOptions,
-          knownSokoBotId,
-          initialValues?.assigneeUserId,
+        if (onSuccess) {
+          onSuccess(taskId);
+          return;
+        }
+        router.push(`/tasks/${taskId}`);
+      } catch (error) {
+        console.error("Failed to save task", error);
+        toast.error(
+          error instanceof Error && error.message === "Invalid schedule"
+            ? tSchedule("errors.futureDateTime")
+            : "Failed to save task",
         );
-        const createdStatus = resolveCelebrationStatus({
-          desiredStatus,
-          isAgent: isAgentAssigneeFields(assigneeFields),
-          hasSchedule: scheduleSelection.mode !== "none",
-        });
-        router.prefetch(`/tasks/${createdTask.taskId}`);
-        setCreatedTask({
-          id: createdTask.taskId,
-          name: createdTask.name.trim() || "Untitled task",
-          status: createdStatus,
-          statusLabel:
-            createdStatus === "QUEUED"
-              ? (labels.statusQueued ?? "Queued")
-              : createdStatus === "DRAFT"
-                ? labels.statusDraft
-                : labels.statusReady,
-          scheduleLabel:
-            scheduleSelection.mode !== "none" &&
-            desiredStatus !== TaskStatus.DRAFT
-              ? (scheduleLabel ?? undefined)
-              : undefined,
-        });
-          onCreated?.(createdTask.taskId);
-          return;
-        }
-
-      if (!taskId) {
-        throw new Error("Task ID is required");
+      } finally {
+        setIsSubmitting(false);
       }
-
-      const trimmedName = name.trim();
-      const result = await updateTask({
-        taskId,
-        name: trimmedName,
-        description: trimmedDescription,
-        ...resolveTaskAssigneeFields(
-          assigneeId,
-          coworkerOptions,
-          knownSokoBotId,
-          initialValues?.assigneeUserId,
-        ),
-        ...(hasProjectSelection ? { projectId } : {}),
-        currentStatus: originalStatus,
-        desiredStatus,
-        schedule: scheduleSelection,
-        hadSchedule,
-        ...(hasActiveSeries
-          ? {
-              expectedScheduleRevision: scheduleRevision,
-              scheduleOperationId: seriesOperationIdFor(
-                scheduleSelection,
-                seriesOperation,
-              ),
-            }
-          : {}),
-        originalSchedule: originalScheduleSelection.current,
-      });
-      if (!result.ok) {
-        if (
-          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
-        ) {
-          // The series moved on, so the count read with the old revision no
-          // longer describes it. Nothing here may reuse it as "zero".
-          setIsSeriesCountStale(true);
-        }
-        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
-        if (!feedbackKey) {
-          showCalendarClientUpgradeModal();
-          return;
-        }
-        setSeriesError(tSeries(feedbackKey));
-        return;
-      }
-      setSeriesError(null);
-      if (onSuccess) {
-        onSuccess(taskId);
-        return;
-      }
-      router.push(`/tasks/${taskId}`);
-    } catch (error) {
-      console.error("Failed to save task", error);
-      toast.error(
-        error instanceof Error && error.message === "Invalid schedule"
-          ? tSchedule("errors.futureDateTime")
-          : "Failed to save task",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [
-    description,
-    isSaveDisabled,
-    mode,
-    step,
-    useWizard,
-    name,
-    assigneeId,
-    coworkerOptions,
-    knownSokoBotId,
-    initialValues?.assigneeUserId,
-    projectId,
-    hasProjectSelection,
-    shouldShowProjectSelect,
-    originalStatus,
-    router,
-    status,
-    taskId,
-    onSuccess,
-    onCreated,
-    onCreateTask,
-    showCalendarClientUpgradeModal,
-    scheduleSelection,
-    scheduleLabel,
-    hadSchedule,
-    contextSelection,
-    labels.projectRequired,
-    labels.statusDraft,
-    labels.statusQueued,
-    labels.statusReady,
-    tSchedule,
-    hasActiveSeries,
-    scheduleRevision,
-    pendingSeriesChange,
-    tSeries,
-  ]);
+    },
+    [
+      description,
+      isSaveDisabled,
+      mode,
+      step,
+      useWizard,
+      name,
+      assigneeId,
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+      projectId,
+      hasProjectSelection,
+      shouldShowProjectSelect,
+      originalStatus,
+      router,
+      status,
+      taskId,
+      onSuccess,
+      onCreated,
+      onCreateTask,
+      showCalendarClientUpgradeModal,
+      scheduleSelection,
+      scheduleLabel,
+      hadSchedule,
+      contextSelection,
+      labels.projectRequired,
+      labels.statusDraft,
+      labels.statusQueued,
+      labels.statusReady,
+      tSchedule,
+      hasActiveSeries,
+      scheduleRevision,
+      pendingSeriesChange,
+      tSeries,
+    ],
+  );
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {

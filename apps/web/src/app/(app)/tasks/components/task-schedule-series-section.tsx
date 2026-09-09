@@ -113,10 +113,10 @@ export async function TaskScheduleSeriesSection({
     >
       {pages ? (
         <TaskScheduleOccurrences
-          // The pages are a keyset into one revision of the ledger. When the
-          // series moves on, the whole island remounts rather than merging
-          // pages that no longer describe the same ordering.
-          key={pages[0].scheduleRevision}
+          // Each view is read independently. Keying both revisions remounts
+          // the island when either page changes instead of retaining stale
+          // useState from the other view.
+          key={`${pages[0].scheduleRevision}:${pages[1].scheduleRevision}`}
           taskId={task.id}
           upcoming={{
             occurrences: pages[0].occurrences,

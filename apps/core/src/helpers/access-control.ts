@@ -106,10 +106,10 @@ export async function requireMutableTaskOwnership(
 
 /**
  * Soft-archive access: task owner always; org OWNER/ADMIN for parked
- * (`GRANT_PENDING`); for active schedules, any org-workspace member for a
- * task in that workspace (same active-workspace gate as
- * {@link requireTaskCancelAccess}). Coworker actors are out (route uses
- * owner user context).
+ * (`GRANT_PENDING`). For active schedules, an org-workspace collaborator is
+ * authorized only far enough for the route to return the required
+ * `schedule_active` conflict instead of hiding the Task behind a 404.
+ * Coworker actors are out (route uses owner user context).
  */
 export async function requireTaskArchiveAccess(
   vars: EnvVariables["Variables"],
@@ -162,8 +162,8 @@ export async function requireTaskArchiveAccess(
     throw notFound("Task not found");
   }
 
-  // Match cancel: task must be in the active workspace; personal-workspace
-  // non-owners are denied.
+  // Match cancel authorization so a collaborator receives `schedule_active`;
+  // the archive route rejects the active series before writing anything.
   const workspace = requireWorkspaceContext(vars.workspaceContext);
   const workspaceTask = await requireTaskReadForWorkspace(
     workspace,

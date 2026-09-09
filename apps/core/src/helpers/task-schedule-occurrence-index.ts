@@ -55,9 +55,7 @@ interface TaskScheduleOccurrenceCreateClient {
   >;
 }
 
-interface TaskScheduleOccurrenceIndexClient
-  extends TaskScheduleOccurrenceDeleteClient,
-    TaskScheduleOccurrenceCreateClient {
+interface TaskScheduleOccurrenceIndexClient {
   taskScheduleOccurrence: Pick<
     Prisma.TransactionClient["taskScheduleOccurrence"],
     "createMany" | "deleteMany"
@@ -204,6 +202,22 @@ function isDurableScheduleException(occurrence: {
   );
 }
 
+function futureScheduleOccurrenceCandidatesWhere(
+  seriesTaskId: string,
+  now: Date,
+): Prisma.TaskScheduleOccurrenceWhereInput {
+  return {
+    seriesTaskId,
+    effectiveScheduledAt: { gte: now },
+    state: {
+      in: [
+        TaskScheduleOccurrenceState.PLANNED,
+        TaskScheduleOccurrenceState.SKIPPED,
+      ],
+    },
+  };
+}
+
 /**
  * Retires the future half of a series ledger when its rule is replaced or the
  * series is removed.
@@ -227,16 +241,7 @@ export async function retireTaskScheduleFutureOccurrences(
   now = new Date(),
 ): Promise<RetiredTaskScheduleOccurrences> {
   const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
-    where: {
-      seriesTaskId,
-      effectiveScheduledAt: { gte: now },
-      state: {
-        in: [
-          TaskScheduleOccurrenceState.PLANNED,
-          TaskScheduleOccurrenceState.SKIPPED,
-        ],
-      },
-    },
+    where: futureScheduleOccurrenceCandidatesWhere(seriesTaskId, now),
     select: {
       id: true,
       state: true,
@@ -287,16 +292,7 @@ export async function countTaskScheduleFutureExceptions(
   now = new Date(),
 ): Promise<number> {
   const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
-    where: {
-      seriesTaskId,
-      effectiveScheduledAt: { gte: now },
-      state: {
-        in: [
-          TaskScheduleOccurrenceState.PLANNED,
-          TaskScheduleOccurrenceState.SKIPPED,
-        ],
-      },
-    },
+    where: futureScheduleOccurrenceCandidatesWhere(seriesTaskId, now),
     select: {
       state: true,
       scheduleVersion: true,

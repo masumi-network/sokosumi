@@ -66,8 +66,8 @@ function renderSection(
   });
 }
 
-function page(nextCursor: string | null = null) {
-  return { scheduleRevision: 4, occurrences: [], nextCursor };
+function page(nextCursor: string | null = null, scheduleRevision = 4) {
+  return { scheduleRevision, occurrences: [], nextCursor };
 }
 
 describe("TaskScheduleSeriesSection", () => {
@@ -99,6 +99,16 @@ describe("TaskScheduleSeriesSection", () => {
         history: { occurrences: [], nextCursor: "cursor-2" },
       }),
     );
+  });
+
+  it("keys the occurrence island on both independently read revisions", async () => {
+    listOccurrencesMock
+      .mockResolvedValueOnce(page(null, 4))
+      .mockResolvedValueOnce(page(null, 5));
+
+    const section = await renderSection();
+
+    expect(section?.props.children.key).toBe("4:5");
   });
 
   it("keeps the series summary when the occurrence ledger read fails", async () => {

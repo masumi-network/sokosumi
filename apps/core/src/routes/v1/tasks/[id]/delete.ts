@@ -29,7 +29,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Organization workspace members may archive scheduled tasks in the active workspace (same scoping as cancel). Fails with 409 (kind: schedule_active) while the task still has an active Calendar schedule series; released schedule runs are independent tasks and are never archived with their template.",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Active Calendar schedule series fail with 409 (kind: schedule_active), including for organization workspace collaborators; released schedule runs are independent tasks and are never archived with their template.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,

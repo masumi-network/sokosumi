@@ -285,10 +285,23 @@ async function dropOnTodo(taskId: string, fromColumn: KanbanColumnId) {
     return onDragEnd;
   });
 
+  const rect = new DOMRect();
   handleDragEnd({
-    active: { id: taskId, data: { current: { columnId: fromColumn } } },
-    over: { id: "todo" },
-  } as unknown as DragEndEvent);
+    activatorEvent: new Event("pointerdown"),
+    active: {
+      id: taskId,
+      data: { current: { columnId: fromColumn } },
+      rect: { current: { initial: rect, translated: rect } },
+    },
+    collisions: null,
+    delta: { x: 0, y: 0 },
+    over: {
+      id: "todo",
+      rect,
+      disabled: false,
+      data: { current: {} },
+    },
+  });
 }
 
 function boardCard(taskId: string) {

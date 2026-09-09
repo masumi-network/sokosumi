@@ -98,10 +98,10 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import {
+  getTaskScheduleOperationId,
   hasTaskScheduleChanged,
   metadataToSelection,
   schedulableOnceLocalIso,
-  selectionToApiBody,
 } from "@/lib/utils/task-schedule";
 import {
   type TaskMutationErrorKind,
@@ -505,20 +505,12 @@ function CalendarEditDialog({
     return feedbackKey ? tSeries(feedbackKey) : fallback;
   }
 
-  function operationIdForSchedule(schedule: TaskScheduleSelection): string {
-    const key = JSON.stringify(selectionToApiBody(schedule));
-    if (saveOperation.current?.key !== key) {
-      saveOperation.current = { key, operationId: crypto.randomUUID() };
-    }
-    return saveOperation.current.operationId;
-  }
-
   async function submitSave(schedule: TaskScheduleSelection) {
     setError(null);
     try {
       const result = await saveCalendarTaskSchedule({
         taskId: task.id,
-        operationId: operationIdForSchedule(schedule),
+        operationId: getTaskScheduleOperationId(schedule, saveOperation),
         expectedScheduleRevision: scheduleRevision,
         schedule,
       });
