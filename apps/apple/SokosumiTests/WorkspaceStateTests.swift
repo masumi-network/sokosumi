@@ -227,7 +227,7 @@ struct WorkspaceStateTests {
     #expect(state.selectionId == "personal")
     #expect(state.rooms.map(\.name) == ["general"])
     #expect(state.phase == .ready)
-    #expect(state.switchError != nil)
+    #expect(state.switchError == "Core rejected the request (500): boom")
     #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
   }
 

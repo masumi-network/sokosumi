@@ -54,7 +54,7 @@ private actor WorkspaceTransport: ClientTransport {
         }
       }
       if failRooms {
-        return (HTTPResponse(status: .internalServerError), HTTPBody(#"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#))
+        return (HTTPResponse(status: .internalServerError), HTTPBody(#"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req","path":"/v1/chats/rooms","method":"GET"}}"#))
       }
       data = "[]"
     default:
@@ -89,6 +89,27 @@ struct WorkspaceSessionTests {
     await #expect(throws: ChatServiceError.self) { try await state.load(client: client(transport)) }
     #expect(await transport.paths == ["get/users/{id}/workspace-access"])
     #expect(state.currentUser == nil)
+  }
+
+  @Test func loadFailureShowsCoreStatus() async throws {
+    let transport = WorkspaceTransport()
+    await transport.configure(failRooms: true)
+    let state = WorkspaceSession()
+    await #expect(throws: ChatServiceError.self) { try await state.load(client: client(transport)) }
+    #expect(state.phase == .failed(message: "Core rejected the request (500): Unavailable"))
+  }
+
+  @Test func switchFailureShowsCoreStatus() async throws {
+    let transport = WorkspaceTransport()
+    let state = WorkspaceSession()
+    _ = try await state.load(client: client(transport))
+    let personal = try #require(state.options.first { $0.id == "personal" })
+    await transport.configure(preference: nil, failRooms: true)
+    await #expect(throws: ChatServiceError.self) {
+      try await state.select(personal, client: client(transport))
+    }
+    #expect(state.selectionId == "org_1")
+    #expect(state.errorMessage == "Core rejected the request (500): Unavailable")
   }
 
   @Test func lateLoadCannotRestoreSignedOutAccount() async throws {

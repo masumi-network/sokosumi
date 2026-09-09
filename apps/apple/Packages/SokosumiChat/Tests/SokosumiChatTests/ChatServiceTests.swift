@@ -369,6 +369,14 @@ struct ChatServiceTests {
     let generic = friendlyMessage(for: Mystery())
     #expect(!generic.contains("NSUnderlying"))
     #expect(generic.count < 120)
+    #expect(
+      friendlyMessage(for: ChatServiceError.unprocessable(statusCode: 500, message: "boom"))
+        == "Core rejected the request (500): boom"
+    )
+    #expect(
+      friendlyMessage(for: ChatServiceError.unexpectedResponse("Workspace access changed. Try again."))
+        == "Workspace access changed. Try again."
+    )
   }
 
   @Test func serverWorkspaceRestoresWhenStillPresent() async throws {

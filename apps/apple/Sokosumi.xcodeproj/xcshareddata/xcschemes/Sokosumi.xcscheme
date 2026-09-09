@@ -68,6 +68,11 @@
             value = "https://api.sokosumi.com/v1"
             isEnabled = "NO">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "SOKOSUMI_WEB_BASE_URL"
+            value = "https://app.sokosumi.com"
+            isEnabled = "NO">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

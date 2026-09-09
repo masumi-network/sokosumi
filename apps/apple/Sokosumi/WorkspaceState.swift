@@ -654,15 +654,11 @@ final class WorkspaceState: ObservableObject {
   /// Maps a transcript failure to UI text. A 401 signs out (nil message —
   /// the auth card takes over); everything else becomes window-safe text.
   private func transcriptFailureMessage(_ error: ChatServiceError, auth: AuthState) -> String? {
-    switch error {
-    case let .unauthorized(message):
+    if case let .unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       return nil
-    case let .unprocessable(statusCode, message):
-      return "Core rejected the request (\(statusCode)): \(message)"
-    case .blocked, .unexpectedResponse:
-      return "Couldn't complete the request. Try again."
     }
+    return friendlyMessage(for: error)
   }
 
   func select(_ option: WorkspaceOption, auth: AuthState) {
