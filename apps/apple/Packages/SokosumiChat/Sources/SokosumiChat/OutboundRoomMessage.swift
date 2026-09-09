@@ -120,12 +120,19 @@ public func confirmOutbound(
   clientTurnId: String
 ) -> (messages: [Components.Schemas.ChatRoomMessage], shells: [OutboundShell]) {
   let remaining = shells.filter { $0.clientTurnId != clientTurnId }
-  if let index = messages.firstIndex(where: { $0.id == confirmed.id }) {
-    var next = messages
+  var next = messages
+  if let index = next.firstIndex(where: { $0.id == confirmed.id }) {
     next[index] = confirmed
-    return (next, remaining)
+  } else {
+    next.append(confirmed)
   }
-  return (messages + [confirmed], remaining)
+  next.sort {
+    if $0.createdAt != $1.createdAt {
+      return $0.createdAt < $1.createdAt
+    }
+    return $0.id < $1.id
+  }
+  return (next, remaining)
 }
 
 public func failOutbound(

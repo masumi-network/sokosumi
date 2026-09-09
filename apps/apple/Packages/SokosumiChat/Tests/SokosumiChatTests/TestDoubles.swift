@@ -18,13 +18,17 @@ func testMessageJSON(
   content: String,
   sender: String,
   createdAt: String = testTimestamp,
+  deletedAt: String? = nil,
+  editedAt: String? = nil,
   membership: String? = nil,
   metadata: String? = nil
 ) -> String {
+  let deletedJSON = deletedAt.map { "\"\($0)\"" } ?? "null"
+  let editedJSON = editedAt.map { "\"\($0)\"" } ?? "null"
   let membershipJSON = membership ?? "null"
   let metadataJSON = metadata ?? "null"
   return """
-  {"id":"\(id)","roomId":"\(testRoomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":null,"editedAt":null,"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadataJSON),"quote":null,"membership":\(membershipJSON),"unfurls":null}
+  {"id":"\(id)","roomId":"\(testRoomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":\(deletedJSON),"editedAt":\(editedJSON),"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadataJSON),"quote":null,"membership":\(membershipJSON),"unfurls":null}
   """
 }
 
