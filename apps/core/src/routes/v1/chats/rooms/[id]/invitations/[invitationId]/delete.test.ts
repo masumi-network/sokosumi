@@ -20,13 +20,23 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   invitationUpdateManyMock,
+  invitationFindFirstMock,
+  userFindFirstMock,
   prismaTransactionMock,
+  publishChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   invitationUpdateManyMock: vi.fn(),
+  invitationFindFirstMock: vi.fn(),
+  userFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  publishChatRoomsChangedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: publishChatRoomsChangedMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -45,7 +55,11 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
-  chatRoomGuestInvitation: { updateMany: invitationUpdateManyMock },
+  chatRoomGuestInvitation: {
+    findFirst: invitationFindFirstMock,
+    updateMany: invitationUpdateManyMock,
+  },
+  user: { findFirst: userFindFirstMock },
 };
 
 function createApp(
@@ -121,6 +135,9 @@ beforeEach(() => {
     organizationId: ORG_ID,
   });
   invitationUpdateManyMock.mockResolvedValue({ count: 1 });
+  invitationFindFirstMock.mockResolvedValue({ email: "guest@example.com" });
+  userFindFirstMock.mockResolvedValue(null);
+  publishChatRoomsChangedMock.mockResolvedValue(undefined);
 });
 
 describe("DELETE /chats/rooms/{id}/invitations/{invitationId}", () => {
@@ -138,6 +155,23 @@ describe("DELETE /chats/rooms/{id}/invitations/{invitationId}", () => {
         status: "pending",
       },
       data: { status: "revoked" },
+    });
+    expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
+  });
+
+  it("invalidates the invitee's pending collection when they have an account", async () => {
+    userFindFirstMock.mockResolvedValue({ id: GUEST_ID });
+
+    const response = await createApp().request(
+      `/${ROOM_ID}/invitations/${INVITE_ID}`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(204);
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledWith({
+      userIds: [GUEST_ID],
+      collections: ["invitations"],
+      roomId: ROOM_ID,
     });
   });
 

@@ -1,3 +1,5 @@
+import type { ChatRoomCollection } from "@sokosumi/utils";
+
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
 export const ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT =
@@ -11,6 +13,11 @@ export interface OrganizationChatRoomsChangedDetail {
    * for the next membership-visible rooms refetch.
    */
   removedRoomId?: string;
+  /**
+   * Refetch only these collections (SOK-986 control-channel invalidation or
+   * a message in another room). Absent means refetch every collection.
+   */
+  collections?: readonly ChatRoomCollection[];
 }
 
 function isChatRoom(
@@ -26,7 +33,8 @@ function isChatRoom(
  *
  * - Pass a `ChatRoom` to upsert (join/create).
  * - Pass `{ removedRoomId }` after leave so the row drops immediately.
- * - Pass nothing to force a membership refetch.
+ * - Pass `{ collections }` to refetch only the named collections.
+ * - Pass nothing to force a refetch of every collection.
  */
 export function notifyOrganizationChatRoomsChanged(
   roomOrDetail?: ChatRoom | OrganizationChatRoomsChangedDetail | null,

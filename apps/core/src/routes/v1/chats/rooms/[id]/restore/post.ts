@@ -4,6 +4,7 @@ import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -59,71 +60,85 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const restored = await prisma.$transaction(async (tx) => {
-      // Active-room helpers filter archivedAt: null — this path needs the
-      // opposite. Membership is still required so only people who belonged
-      // when it was archived (and stayed) can bring it back.
-      const existing = await requireArchivedChatRoomUserAccess(
-        id,
-        userContext.userId,
-        tx,
-      );
+    const { restored, memberUserIds } = await prisma.$transaction(
+      async (tx) => {
+        // Active-room helpers filter archivedAt: null — this path needs the
+        // opposite. Membership is still required so only people who belonged
+        // when it was archived (and stayed) can bring it back.
+        const existing = await requireArchivedChatRoomUserAccess(
+          id,
+          userContext.userId,
+          tx,
+        );
 
-      if (existing.kind === "direct") {
-        throw badRequest("Direct rooms cannot be restored.");
-      }
+        if (existing.kind === "direct") {
+          throw badRequest("Direct rooms cannot be restored.");
+        }
 
-      if (!existing.organizationId) {
-        throw badRequest("Organization rooms require an organization.");
-      }
+        if (!existing.organizationId) {
+          throw badRequest("Organization rooms require an organization.");
+        }
 
-      // Guests pass archived-room access but never restore.
-      if (
-        membershipAccessForUser(existing.userMembers, userContext.userId) ===
-        CHAT_ROOM_ACCESS.GUEST
-      ) {
-        throw forbidden("Guests cannot restore channels.");
-      }
+        // Guests pass archived-room access but never restore.
+        if (
+          membershipAccessForUser(existing.userMembers, userContext.userId) ===
+          CHAT_ROOM_ACCESS.GUEST
+        ) {
+          throw forbidden("Guests cannot restore channels.");
+        }
 
-      const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
+        const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "chat_room"
         WHERE "id" = ${existing.id}::uuid
         FOR UPDATE
       `;
-      if (lockedRooms.length === 0) {
-        throw badRequest("Room could not be restored.");
-      }
+        if (lockedRooms.length === 0) {
+          throw badRequest("Room could not be restored.");
+        }
 
-      const { role } = await resolveMemberOrganizationById({
-        id: existing.organizationId,
-        userId: userContext.userId,
-        tx,
-      });
-      if (!canManageChatRoomLifecycle({ role })) {
-        throw forbidden(
-          "Only an organization owner or admin can restore this room.",
+        const { role } = await resolveMemberOrganizationById({
+          id: existing.organizationId,
+          userId: userContext.userId,
+          tx,
+        });
+        if (!canManageChatRoomLifecycle({ role })) {
+          throw forbidden(
+            "Only an organization owner or admin can restore this room.",
+          );
+        }
+
+        // Concurrent restore may already have cleared archivedAt under the lock.
+        const cleared = await tx.chatRoom.updateMany({
+          where: { id: existing.id, archivedAt: { not: null } },
+          data: { archivedAt: null },
+        });
+        if (cleared.count === 0) {
+          throw badRequest("Room is not archived.");
+        }
+
+        // Re-read via the active helper so the response matches a normal get.
+        const live = await requireChatRoomUserAccess(
+          existing.id,
+          userContext.userId,
+          tx,
         );
-      }
+        return {
+          restored: await mapChatRoomWithSidebarFlags(
+            live,
+            userContext.userId,
+            tx,
+            { unreadCount: 0, unreadMentionCount: 0 },
+          ),
+          memberUserIds: live.userMembers.map((member) => member.userId),
+        };
+      },
+    );
 
-      // Concurrent restore may already have cleared archivedAt under the lock.
-      const cleared = await tx.chatRoom.updateMany({
-        where: { id: existing.id, archivedAt: { not: null } },
-        data: { archivedAt: null },
-      });
-      if (cleared.count === 0) {
-        throw badRequest("Room is not archived.");
-      }
-
-      // Re-read via the active helper so the response matches a normal get.
-      const live = await requireChatRoomUserAccess(
-        existing.id,
-        userContext.userId,
-        tx,
-      );
-      return mapChatRoomWithSidebarFlags(live, userContext.userId, tx, {
-        unreadCount: 0,
-        unreadMentionCount: 0,
-      });
+    // After commit: every member's other tabs move the room back to live.
+    await publishChatRoomsChanged({
+      userIds: memberUserIds,
+      collections: ["active", "archived"],
+      roomId: restored.id,
     });
 
     return ok(c, restoredChatRoomSchema.parse(restored));

@@ -1,7 +1,9 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  CHAT_ROOMS_CHANGED_EVENT_NAME,
   type ChatMembershipRevokeReason,
+  type ChatRoomCollection,
   type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
@@ -319,26 +321,67 @@ export async function publishChatMembershipRevoked({
   });
 }
 
+/**
+ * Best-effort per-user fan-out: every recipient is attempted, one failure is
+ * logged and never blocks the others, and a user listed twice is sent once.
+ */
+async function publishToUsers(
+  userIds: readonly string[],
+  label: string,
+  publish: (userId: string) => Promise<unknown>,
+): Promise<void> {
+  const uniqueUserIds = [...new Set(userIds)];
+  if (uniqueUserIds.length === 0) {
+    return;
+  }
+  const results = await Promise.allSettled(uniqueUserIds.map(publish));
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(`Failed to publish ${label} to a user`, result.reason);
+    }
+  }
+}
+
 /** Best-effort fan-out of revoke signals; one failure does not block others. */
 export async function publishChatMembershipRevokedToUsers(
   roomId: string,
   userIds: readonly string[],
   reason: ChatMembershipRevokeReason,
 ): Promise<void> {
-  if (userIds.length === 0) {
-    return;
-  }
-  const results = await Promise.allSettled(
-    userIds.map((userId) =>
-      publishChatMembershipRevoked({ userId, roomId, reason }),
-    ),
+  await publishToUsers(userIds, "chat membership revoke", (userId) =>
+    publishChatMembershipRevoked({ userId, roomId, reason }),
   );
-  for (const result of results) {
-    if (result.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership revoke to a user",
-        result.reason,
-      );
-    }
+}
+
+interface PublishChatRoomsChangedInput {
+  userIds: readonly string[];
+  collections: readonly ChatRoomCollection[];
+  roomId: string | null;
+}
+
+/**
+ * Tell users which sidebar collections went stale after an archive, restore,
+ * or invitation lifecycle change (SOK-986). Rides the always-subscribed chat
+ * control channel; each client refreshes only the named collections.
+ * Best-effort fan-out: call after the surrounding transaction commits.
+ */
+export async function publishChatRoomsChanged({
+  userIds,
+  collections,
+  roomId,
+}: PublishChatRoomsChangedInput): Promise<void> {
+  try {
+    const client = getRestClient();
+    await publishToUsers(userIds, "chat rooms changed", (userId) =>
+      client.channels
+        .get(makeUserChatControlChannelName(userId))
+        .publish(CHAT_ROOMS_CHANGED_EVENT_NAME, {
+          collections: [...collections],
+          roomId,
+          at: new Date().toISOString(),
+        }),
+    );
+  } catch (error) {
+    console.error("Failed to publish chat rooms changed", error);
   }
 }

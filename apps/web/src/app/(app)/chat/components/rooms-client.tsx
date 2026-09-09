@@ -42,7 +42,6 @@ import {
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
 import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
-import { useRoomMessagePolling } from "@/app/chat/hooks/use-room-message-polling";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
@@ -94,11 +93,13 @@ import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
+import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
 import {
   getMembershipVisibleRooms,
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
@@ -116,6 +117,7 @@ import {
 import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
+import { useSelectedRoomChannelHealth } from "@/lib/ably/use-selected-room-channel-health";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -126,7 +128,6 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
-import { raceWithTimeout } from "@/lib/utils/race-with-timeout";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
@@ -207,7 +208,17 @@ interface RoomsClientProps {
   rosterPromise?: Promise<RoomShellRosterPage>;
 }
 
-const ROOM_MESSAGE_REFRESH_TIMEOUT_MS = 30_000;
+/** Poll cadence for the open room while Ably or its channel is unavailable. */
+const ROOM_MESSAGE_FALLBACK_MS = 3_000;
+
+/**
+ * A message landed in a membership room that is not open here: its sidebar
+ * row (order, unread) changed. Ask for the active collection only; the
+ * scheduler coalesces a burst into one read and defers it while hidden.
+ */
+function notifySidebarOfForeignRoomMessage() {
+  notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+}
 
 function RoomMessageRealtimeBridge({
   roomIds,
@@ -215,12 +226,16 @@ function RoomMessageRealtimeBridge({
   selectedRoomId,
   onMessage,
   onPinnedMessage,
+  onContinuityLost,
+  onSelectedRoomHealthChange,
 }: {
   roomIds: readonly string[];
   currentUserId: string;
   selectedRoomId: string | null;
   onMessage: (event: ChatRoomMessageEventData) => void;
   onPinnedMessage: (event: ChatRoomPinnedMessageEventData) => void;
+  onContinuityLost: () => void;
+  onSelectedRoomHealthChange: (healthy: boolean) => void;
 }) {
   const router = useRouter();
   const selectedRoomIdRef = useRef(selectedRoomId);
@@ -254,6 +269,11 @@ function RoomMessageRealtimeBridge({
     onError: (error) => {
       console.error("Ably chat room message error:", error);
     },
+  });
+  useSelectedRoomChannelHealth({
+    selectedRoomId,
+    onHealthChange: onSelectedRoomHealthChange,
+    onContinuityLost,
   });
   return null;
 }
@@ -804,7 +824,12 @@ export function RoomsClient({
   skipRealtimeWhileStreamingRef.current = isCoworkerStreamRoom;
   const threadParentMessageIdRef = useRef<string | null>(null);
   threadParentMessageIdRef.current = threadParentMessage?.id ?? null;
-  const refreshLatestRef = useRef<() => Promise<void>>(async () => {});
+  const refreshLatestRef = useRef<() => void>(() => {});
+  /** Open room channel attached on a connected client (SOK-986 cadence input). */
+  const [selectedRoomHealthy, setSelectedRoomHealthy] = useState(false);
+  const handleContinuityLost = useCallback(() => {
+    refreshLatestRef.current();
+  }, []);
 
   const handlePinnedMessageRealtime = useCallback(
     (event: ChatRoomPinnedMessageEventData) => {
@@ -831,10 +856,13 @@ export function RoomsClient({
           selectedRoomIdRef.current,
         );
         if (action.kind === "ignore") {
+          if (event.eventType === "create") {
+            notifySidebarOfForeignRoomMessage();
+          }
           return;
         }
         if (action.kind === "refresh") {
-          void refreshLatestRef.current();
+          refreshLatestRef.current();
           return;
         }
 
@@ -941,6 +969,9 @@ export function RoomsClient({
 
       const message = hydrateChatRoomMessageFromRealtime(event.message);
       if (message.roomId !== selectedRoomIdRef.current) {
+        if (event.eventType === "create") {
+          notifySidebarOfForeignRoomMessage();
+        }
         return;
       }
 
@@ -1342,55 +1373,51 @@ export function RoomsClient({
       }
       const threadParentId = threadParentMessageIdRef.current;
       const threadGeneration = threadLoadGenerationRef.current;
-      // Bound each read before merging. Late responses after timeout must not
-      // replace newer messages, and a failed room read must not hide thread data.
+      // Background GET reads outside the action queue (SOK-986). Each read is
+      // bounded and null on failure, so a late or failed read never replaces
+      // newer messages and a failed room read never hides thread data.
       const [result, threadResult] = await Promise.all([
-        raceWithTimeout(
-          listRoomMessagesAction(roomId),
-          ROOM_MESSAGE_REFRESH_TIMEOUT_MS,
-        ).catch(() => null),
+        fetchRoomMessages(roomId),
         threadParentId
-          ? raceWithTimeout(
-              listThreadMessagesAction(roomId, threadParentId),
-              ROOM_MESSAGE_REFRESH_TIMEOUT_MS,
-            ).catch(() => null)
+          ? fetchRoomMessages(roomId, threadParentId)
           : Promise.resolve(null),
       ]);
       if (!isCurrent() || selectedRoomIdRef.current !== roomId) {
         return;
       }
-      if (result?.ok) {
+      if (result) {
         if (!historicalTimelineRef.current) {
           setMessagesState((current) =>
-            mergeRoomMessages(current, result.value.messages),
+            mergeRoomMessages(current, result.messages),
           );
         }
         setThreadParentMessage((current) =>
           current
-            ? (result.value.messages.find(
-                (message) => message.id === current.id,
-              ) ?? current)
+            ? (result.messages.find((message) => message.id === current.id) ??
+              current)
             : current,
         );
       }
       if (
-        threadResult?.ok &&
+        threadResult &&
         threadParentId != null &&
         threadParentMessageIdRef.current === threadParentId &&
         threadLoadGenerationRef.current === threadGeneration &&
         !historicalThreadRef.current
       ) {
         setThreadMessages((current) =>
-          mergeRoomMessages(current, threadResult.value.messages),
+          mergeRoomMessages(current, threadResult.messages),
         );
       }
     },
     [],
   );
-  refreshLatestRef.current = useRoomMessagePolling(
-    selectedRoom?.id,
-    refreshFocusedRoomMessages,
-  );
+  refreshLatestRef.current = useChatRefreshScheduler({
+    key: selectedRoom?.id ?? null,
+    refresh: refreshFocusedRoomMessages,
+    healthy: selectedRoomHealthy,
+    fallbackIntervalMs: ROOM_MESSAGE_FALLBACK_MS,
+  });
 
   function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
     setMessagesState((current) => {
@@ -2494,6 +2521,8 @@ export function RoomsClient({
                   selectedRoomId={selectedRoomId}
                   onMessage={handleChatRoomRealtimeMessage}
                   onPinnedMessage={handlePinnedMessageRealtime}
+                  onContinuityLost={handleContinuityLost}
+                  onSelectedRoomHealthChange={setSelectedRoomHealthy}
                 />
               </LazyAblyProvider>
             ) : null

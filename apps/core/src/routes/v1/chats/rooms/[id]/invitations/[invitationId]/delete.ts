@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { findUserIdByEmail } from "@/helpers/chat-room-invitation";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -55,12 +56,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id: roomId, invitationId } = c.req.valid("param");
 
-    await prisma.$transaction(async (tx) => {
+    const inviteeUserId = await prisma.$transaction(async (tx) => {
       const room = await requireRoomMemberCanInviteGuests(
         roomId,
         userContext.userId,
         tx,
       );
+
+      const pending = await tx.chatRoomGuestInvitation.findFirst({
+        where: { id: invitationId, roomId: room.id, status: "pending" },
+        select: { email: true },
+      });
+      if (!pending) {
+        throw notFound("Invitation not found");
+      }
 
       const updated = await tx.chatRoomGuestInvitation.updateMany({
         where: {
@@ -76,7 +85,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (updated.count === 0) {
         throw notFound("Invitation not found");
       }
+
+      return findUserIdByEmail(pending.email, tx);
     });
+
+    // After commit: the invitee's other tabs drop the pending row.
+    if (inviteeUserId) {
+      await publishChatRoomsChanged({
+        userIds: [inviteeUserId],
+        collections: ["invitations"],
+        roomId,
+      });
+    }
 
     return c.body(null, 204);
   });
