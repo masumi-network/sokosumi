@@ -105,15 +105,3 @@ export function aggregateChatPresenceByUserId(
 
   return byUser;
 }
-
-export function resolveUserChatPresence(
-  members: readonly PresenceConnectionInput[],
-  userId: string,
-  nowMs: number = Date.now(),
-  onlineWindowMs: number = CHAT_PRESENCE_ONLINE_WINDOW_MS,
-): ChatPresenceState {
-  return (
-    aggregateChatPresenceByUserId(members, nowMs, onlineWindowMs).get(userId) ??
-    "offline"
-  );
-}

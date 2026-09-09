@@ -126,31 +126,6 @@ function findAngleAutolinkHits(markdown: string): UrlHit[] {
   return hits;
 }
 
-/**
- * Finds bare http(s) URLs in text (prose), stripped of trailing punctuation.
- * Does not exclude file-like URLs — callers filter via {@link selectUnfurlCandidateUrls}.
- */
-export function extractBareHttpUrls(text: string): string[] {
-  const results: string[] = [];
-  const seen = new Set<string>();
-  for (const { url } of findBareHttpUrlHits(text)) {
-    if (!url || seen.has(url)) {
-      continue;
-    }
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        continue;
-      }
-    } catch {
-      continue;
-    }
-    seen.add(url);
-    results.push(url);
-  }
-  return results;
-}
-
 function collectUrlHits(markdown: string): UrlHit[] {
   const hits: UrlHit[] = [];
 

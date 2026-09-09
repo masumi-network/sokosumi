@@ -16,7 +16,6 @@ import {
   getPendingOrganizationJoinToken,
   joinTokenFromJoinPath,
   PENDING_ORGANIZATION_JOIN_COOKIE_NAME,
-  setPendingOrganizationJoinToken,
   shouldClearPendingJoinCookie,
 } from "./pending-organization-join-cookie";
 
@@ -38,23 +37,6 @@ describe("pending organization join cookie", () => {
   it("rejects blank or whitespace tokens", async () => {
     cookieGet.mockReturnValue({ value: "  " });
     await expect(getPendingOrganizationJoinToken()).resolves.toBeNull();
-  });
-
-  it("does not write unusable tokens", async () => {
-    await setPendingOrganizationJoinToken("");
-    expect(cookieSet).not.toHaveBeenCalled();
-  });
-
-  it("writes a usable token as httpOnly", async () => {
-    await setPendingOrganizationJoinToken("join_token_1");
-    expect(cookieSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: PENDING_ORGANIZATION_JOIN_COOKIE_NAME,
-        value: "join_token_1",
-        httpOnly: true,
-        path: "/",
-      }),
-    );
   });
 
   it("clears the cookie", async () => {
@@ -80,6 +62,12 @@ describe("pending organization join cookie", () => {
       }),
     );
     expect(set.mock.calls[0]?.[0]).not.toHaveProperty("maxAge");
+  });
+
+  it("does not write unusable tokens onto a response store", () => {
+    const set = vi.fn();
+    applyPendingOrganizationJoinCookie({ set }, "", true);
+    expect(set).not.toHaveBeenCalled();
   });
 
   it("parses a usable token from /join/:token", () => {

@@ -14,15 +14,11 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 const projectServiceMock = {
-  addJob: vi.fn(),
-  addTask: vi.fn(),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
   getProjectContextMd: vi.fn(),
   patchProject: vi.fn(),
-  removeJob: vi.fn(),
   removeProjectDesignMd: vi.fn(),
-  removeTask: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 const resolveProjectSiteIconMock = vi.fn();
@@ -220,45 +216,6 @@ describe("project actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
     expect(result).toEqual({ projectId: "project-1" });
-  });
-
-  it("adds and removes jobs and tasks from a project", async () => {
-    projectServiceMock.addJob.mockResolvedValue(buildProject());
-    projectServiceMock.removeJob.mockResolvedValue(buildProject());
-    projectServiceMock.addTask.mockResolvedValue(buildProject());
-    projectServiceMock.removeTask.mockResolvedValue(buildProject());
-
-    const {
-      addProjectJob,
-      addProjectTask,
-      removeProjectJob,
-      removeProjectTask,
-    } = await import("./action");
-
-    await addProjectJob({ projectId: " project-1 ", jobId: " job-1 " });
-    await removeProjectJob({ projectId: " project-1 ", jobId: " job-1 " });
-    await addProjectTask({ projectId: " project-1 ", taskId: " task-1 " });
-    await removeProjectTask({
-      projectId: " project-1 ",
-      taskId: " task-1 ",
-    });
-
-    expect(projectServiceMock.addJob).toHaveBeenCalledWith(
-      "project-1",
-      "job-1",
-    );
-    expect(projectServiceMock.removeJob).toHaveBeenCalledWith(
-      "project-1",
-      "job-1",
-    );
-    expect(projectServiceMock.addTask).toHaveBeenCalledWith(
-      "project-1",
-      "task-1",
-    );
-    expect(projectServiceMock.removeTask).toHaveBeenCalledWith(
-      "project-1",
-      "task-1",
-    );
   });
 
   it("loads project memory through the service", async () => {

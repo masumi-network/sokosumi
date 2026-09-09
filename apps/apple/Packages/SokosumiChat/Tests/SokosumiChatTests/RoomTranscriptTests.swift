@@ -92,4 +92,48 @@ struct RoomTranscriptTests {
       "Ada", "nameless@example.com", "Helper", "Soko", "Unknown"
     ])
   }
+
+  @Test func createMessagePostsContentAndClientTurnId() async throws {
+    let messageId = "550e8400-e29b-41d4-a716-446655440401"
+    let turnId = "turn-1"
+    let transport = TestTransport([
+      (201, testCreatedMessageBody(id: messageId, content: "hello", clientMessageId: turnId))
+    ])
+    let message = try await ChatService().createMessage(
+      client: makeTestClient(transport),
+      roomId: roomId,
+      content: "hello",
+      clientMessageId: turnId,
+      organizationSlug: "acme"
+    )
+    #expect(message.content == "hello")
+    #expect(message.id == messageId)
+    #expect(transport.requests.map(\.operationID) == ["post/chats/rooms/{id}/messages"])
+    #expect(testOrgSlugHeader(transport.requests[0].request) == "acme")
+    let body = testRequestJSON(transport.bodies[0])
+    #expect(body["content"] as? String == "hello")
+    #expect(body["clientMessageId"] as? String == turnId)
+  }
+
+  @Test func createMessageFailureIsUnprocessable() async throws {
+    let transport = TestTransport([(
+      500,
+      """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(testTimestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomId)/messages","method":"POST"}}
+      """
+    )])
+    do {
+      _ = try await ChatService().createMessage(
+        client: makeTestClient(transport),
+        roomId: roomId,
+        content: "hello",
+        clientMessageId: "turn-1",
+        organizationSlug: nil
+      )
+      Issue.record("expected unprocessable error")
+    } catch let error as ChatServiceError {
+      #expect(error == .unprocessable(statusCode: 500, message: "boom"))
+    }
+    #expect(testOrgSlugHeader(transport.requests[0].request) == nil)
+  }
 }
