@@ -1,6 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  parseTaskScheduleMetadata,
+} from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
@@ -11,6 +16,7 @@ import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
   buildTaskScheduleMetadata,
+  buildUpdatedTaskScheduleMetadataV2,
   computeScheduleNextRun,
   isSchedulableTaskStatus,
   validateScheduleInput,
@@ -73,12 +79,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     validateScheduleInput(schedule);
 
     const scheduledAt = new Date();
-    const metadata = buildTaskScheduleMetadata(schedule, scheduledAt);
-    const nextRunAt = computeScheduleNextRun(metadata);
-    if (!nextRunAt) {
-      throw badRequest("Unable to compute the next scheduled run");
-    }
-
     const existingTask = await requireTaskCollaboration(
       authContext,
       id,
@@ -133,6 +133,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeSokoBotId: currentTask.assigneeSokoBotId,
           assigneeUserId: currentTask.assigneeUserId,
         });
+
+        const persistedMetadata = parseTaskScheduleMetadata(
+          currentTask.metadata,
+        );
+        const metadata =
+          persistedMetadata?.version === 2
+            ? buildUpdatedTaskScheduleMetadataV2(
+                schedule,
+                persistedMetadata,
+                scheduledAt,
+                randomUUID(),
+              )
+            : buildTaskScheduleMetadata(schedule, scheduledAt);
+        const nextRunAt =
+          persistedMetadata?.version === 2 &&
+          metadata === persistedMetadata &&
+          currentTask.nextRunAt
+            ? currentTask.nextRunAt
+            : computeScheduleNextRun(metadata);
+        if (!nextRunAt) {
+          throw badRequest("Unable to compute the next scheduled run");
+        }
 
         const task = await tx.task.update({
           where: { id },
