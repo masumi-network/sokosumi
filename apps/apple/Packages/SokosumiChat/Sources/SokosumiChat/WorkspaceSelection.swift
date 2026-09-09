@@ -37,6 +37,6 @@ public struct InitialWorkspaceState: Sendable {
     currentUser.id
   }
 
-  /// Local default: personal when present, else the first organization.
+  /// Server-resolved preference, matched to the accessible workspace list.
   public var defaultSelection: WorkspaceSelection
 }
