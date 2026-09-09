@@ -48,11 +48,26 @@ interface TaskScheduleOccurrenceDeleteClient {
   >;
 }
 
+interface TaskScheduleOccurrenceCreateClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "createMany"
+  >;
+}
+
 interface TaskScheduleOccurrenceIndexClient
-  extends TaskScheduleOccurrenceDeleteClient {
+  extends TaskScheduleOccurrenceDeleteClient,
+    TaskScheduleOccurrenceCreateClient {
   taskScheduleOccurrence: Pick<
     Prisma.TransactionClient["taskScheduleOccurrence"],
     "createMany" | "deleteMany"
+  >;
+}
+
+interface TaskScheduleOccurrenceRetireClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "findMany" | "updateMany" | "deleteMany"
   >;
 }
 
@@ -88,11 +103,10 @@ export async function removeTaskSchedulePlannedOccurrences(
   });
 }
 
-export async function replaceTaskSchedulePlannedOccurrences(
-  tx: TaskScheduleOccurrenceIndexClient,
+function projectPlannedOccurrenceRows(
   task: TaskScheduleOccurrenceIndexTask,
-  now = new Date(),
-): Promise<void> {
+  now: Date,
+) {
   const horizonEnd = new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS);
   const occurrences = Array.from(
     iterateTaskScheduleOccurrences(
@@ -108,28 +122,132 @@ export async function replaceTaskSchedulePlannedOccurrences(
     throw new TaskScheduleOccurrenceLimitError();
   }
 
-  await removeTaskSchedulePlannedOccurrences(tx, task.id);
-  if (occurrences.length === 0) {
+  const source = getOccurrenceSource(task);
+  return occurrences.map((occurrence) => ({
+    seriesTaskId: task.id,
+    epochId: task.schedule.version === 2 ? task.schedule.epochId : null,
+    originalScheduledAt: occurrence.originalScheduledAt,
+    effectiveScheduledAt: occurrence.scheduledAt,
+    state: TaskScheduleOccurrenceState.PLANNED,
+    scheduleVersion: task.schedule.version,
+    ...source,
+    timezone:
+      task.schedule.version === 2 || task.schedule.mode === "recurring"
+        ? task.schedule.timezone
+        : null,
+    ruleSnapshot: task.schedule,
+  }));
+}
+
+/**
+ * Adds the rolling-horizon projection for a schedule epoch without touching
+ * rows that already exist. Series edits pair this with
+ * {@link retireTaskScheduleFutureOccurrences} so past and released history
+ * survives the rule change.
+ */
+export async function createTaskSchedulePlannedOccurrences(
+  tx: TaskScheduleOccurrenceCreateClient,
+  task: TaskScheduleOccurrenceIndexTask,
+  now = new Date(),
+): Promise<void> {
+  const rows = projectPlannedOccurrenceRows(task, now);
+  if (rows.length === 0) {
     return;
   }
 
-  const source = getOccurrenceSource(task);
-  await tx.taskScheduleOccurrence.createMany({
-    data: occurrences.map((occurrence) => ({
-      seriesTaskId: task.id,
-      epochId: task.schedule.version === 2 ? task.schedule.epochId : null,
-      originalScheduledAt: occurrence.originalScheduledAt,
-      effectiveScheduledAt: occurrence.scheduledAt,
-      state: TaskScheduleOccurrenceState.PLANNED,
-      scheduleVersion: task.schedule.version,
-      ...source,
-      timezone:
-        task.schedule.version === 2 || task.schedule.mode === "recurring"
-          ? task.schedule.timezone
-          : null,
-      ruleSnapshot: task.schedule,
-    })),
+  await tx.taskScheduleOccurrence.createMany({ data: rows });
+}
+
+export async function replaceTaskSchedulePlannedOccurrences(
+  tx: TaskScheduleOccurrenceIndexClient,
+  task: TaskScheduleOccurrenceIndexTask,
+  now = new Date(),
+): Promise<void> {
+  const rows = projectPlannedOccurrenceRows(task, now);
+
+  await removeTaskSchedulePlannedOccurrences(tx, task.id);
+  if (rows.length === 0) {
+    return;
+  }
+
+  await tx.taskScheduleOccurrence.createMany({ data: rows });
+}
+
+export interface RetiredTaskScheduleOccurrences {
+  canceledCount: number;
+  deletedCount: number;
+}
+
+function isDurableScheduleException(occurrence: {
+  state: TaskScheduleOccurrenceState;
+  originalScheduledAt: Date | null;
+  effectiveScheduledAt: Date;
+}): boolean {
+  return (
+    occurrence.state === TaskScheduleOccurrenceState.SKIPPED ||
+    (occurrence.originalScheduledAt != null &&
+      occurrence.originalScheduledAt.getTime() !==
+        occurrence.effectiveScheduledAt.getTime())
+  );
+}
+
+/**
+ * Retires the future half of a series ledger when its rule is replaced or the
+ * series is removed.
+ *
+ * A durable exception — a skipped occurrence, or a planned one a human moved
+ * away from its original time — becomes `CANCELED` so the decision stays
+ * visible in history. Ordinary future projections carry no decision and are
+ * deleted. Released occurrences and everything already in the past are never
+ * touched.
+ */
+export async function retireTaskScheduleFutureOccurrences(
+  tx: TaskScheduleOccurrenceRetireClient,
+  seriesTaskId: string,
+  now = new Date(),
+): Promise<RetiredTaskScheduleOccurrences> {
+  const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      seriesTaskId,
+      effectiveScheduledAt: { gte: now },
+      state: {
+        in: [
+          TaskScheduleOccurrenceState.PLANNED,
+          TaskScheduleOccurrenceState.SKIPPED,
+        ],
+      },
+    },
+    select: {
+      id: true,
+      state: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
   });
+
+  const canceledIds: string[] = [];
+  const deletedIds: string[] = [];
+  for (const occurrence of futureOccurrences) {
+    if (isDurableScheduleException(occurrence)) {
+      canceledIds.push(occurrence.id);
+    } else {
+      deletedIds.push(occurrence.id);
+    }
+  }
+
+  if (canceledIds.length > 0) {
+    await tx.taskScheduleOccurrence.updateMany({
+      where: { id: { in: canceledIds } },
+      data: { state: TaskScheduleOccurrenceState.CANCELED },
+    });
+  }
+  if (deletedIds.length > 0) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: { id: { in: deletedIds } },
+    });
+  }
+
+  return { canceledCount: canceledIds.length, deletedCount: deletedIds.length };
 }
 
 export async function refreshTaskSchedulePlannedOccurrences(

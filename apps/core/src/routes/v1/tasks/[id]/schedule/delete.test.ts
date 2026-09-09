@@ -18,25 +18,31 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   prismaTransactionMock,
   memberFindFirstMock,
-  requireTaskOwnershipMock,
+  requireTaskCollaborationMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
   quarantineFindUniqueMock,
-  removeTaskSchedulePlannedOccurrencesMock,
+  retireTaskScheduleFutureOccurrencesMock,
+  taskEventCreateMock,
+  taskEventFindUniqueMock,
+  taskFindUniqueOrThrowMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
+  requireTaskCollaborationMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   quarantineFindUniqueMock: vi.fn(),
-  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  retireTaskScheduleFutureOccurrencesMock: vi.fn(),
+  taskEventCreateMock: vi.fn(),
+  taskEventFindUniqueMock: vi.fn(),
+  taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireMutableTaskOwnership: requireTaskOwnershipMock,
+  requireTaskCollaboration: requireTaskCollaborationMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -45,8 +51,7 @@ vi.mock("@/helpers/calendar-locks", () => ({
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  removeTaskSchedulePlannedOccurrences:
-    removeTaskSchedulePlannedOccurrencesMock,
+  retireTaskScheduleFutureOccurrences: retireTaskScheduleFutureOccurrencesMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -57,6 +62,20 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
+const TASK_ID = "tsk_123";
+const OPERATION_ID = "123e4567-e89b-42d3-a456-426614174777";
+
+function removalRequest(
+  headers: Record<string, string> = {
+    "Idempotency-Key": OPERATION_ID,
+    "If-Match": '"schedule-revision:4"',
+  },
+): [string, RequestInit] {
+  return [
+    `http://localhost/${TASK_ID}/schedule`,
+    { method: "DELETE", headers },
+  ];
+}
 
 function createUpdatedTask() {
   const owner = { id: "user_123", name: "Owner", image: null };
@@ -142,36 +161,47 @@ describe("DELETE /tasks/{id}/schedule", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
-    requireTaskOwnershipMock.mockResolvedValue({
-      id: "tsk_123",
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
       projectId: null,
+      scheduleRevision: 4,
     });
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
     quarantineFindUniqueMock.mockResolvedValue(null);
+    retireTaskScheduleFutureOccurrencesMock.mockResolvedValue({
+      canceledCount: 0,
+      deletedCount: 0,
+    });
+    taskEventFindUniqueMock.mockResolvedValue(null);
+    taskEventCreateMock.mockResolvedValue({ id: "evt_1" });
+    taskFindUniqueOrThrowMock.mockResolvedValue(createUpdatedTask());
     taskUpdateMock.mockResolvedValue(createUpdatedTask());
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
         taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
-        task: { update: taskUpdateMock },
+        task: {
+          update: taskUpdateMock,
+          findUniqueOrThrow: taskFindUniqueOrThrowMock,
+        },
+        taskEvent: {
+          create: taskEventCreateMock,
+          findUnique: taskEventFindUniqueMock,
+        },
       }),
     );
   });
 
-  it("allows task schedule removal outside the Calendar beta", async () => {
+  it("rejects task schedule removal outside the Calendar beta", async () => {
     memberFindFirstMock.mockResolvedValue(null);
 
-    const response = await createApp().request(
-      "http://localhost/tsk_123/schedule",
-      {
-        method: "DELETE",
-      },
-    );
+    const response = await createApp().request(...removalRequest());
 
-    expect(response.status).toBe(200);
-    expect(requireTaskOwnershipMock).toHaveBeenCalled();
+    expect(response.status).toBe(403);
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -182,22 +212,17 @@ describe("DELETE /tasks/{id}/schedule", () => {
       context: { userId: "user_123", organizationId: "org_123" },
     });
 
-    const response = await app.request("http://localhost/tsk_123/schedule", {
-      method: "DELETE",
-    });
+    const response = await app.request(...removalRequest());
 
     expect(response.status).toBe(403);
-    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("requires audited operator removal for a quarantined schedule", async () => {
     quarantineFindUniqueMock.mockResolvedValue({ id: "quarantine-1" });
-    const app = createApp();
 
-    const response = await app.request("http://localhost/tsk_123/schedule", {
-      method: "DELETE",
-    });
+    const response = await createApp().request(...removalRequest());
 
     expect(response.status).toBe(409);
     expect(lockCalendarScopeMock).toHaveBeenCalledWith(
@@ -205,20 +230,189 @@ describe("DELETE /tasks/{id}/schedule", () => {
       WORKSPACE_ID,
       [null],
     );
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("removes only planned occurrence index rows with the schedule", async () => {
-    const response = await createApp().request(
-      "http://localhost/tsk_123/schedule",
-      {
-        method: "DELETE",
-      },
+  it("requires a UUID Idempotency-Key", async () => {
+    const missing = await createApp().request(
+      ...removalRequest({ "If-Match": '"schedule-revision:4"' }),
     );
+    expect(missing.status).toBe(422);
+
+    const malformed = await createApp().request(
+      ...removalRequest({
+        "Idempotency-Key": "operation-1",
+        "If-Match": '"schedule-revision:4"',
+      }),
+    );
+    expect(malformed.status).toBe(422);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("requires an exact schedule-revision If-Match header", async () => {
+    const missing = await createApp().request(
+      ...removalRequest({ "Idempotency-Key": OPERATION_ID }),
+    );
+    expect(missing.status).toBe(422);
+
+    for (const value of [
+      "*",
+      "schedule-revision:4",
+      '"revision:4"',
+      '"schedule-revision:x"',
+    ]) {
+      const response = await createApp().request(
+        ...removalRequest({
+          "Idempotency-Key": OPERATION_ID,
+          "If-Match": value,
+        }),
+      );
+      expect(response.status, `If-Match: ${value}`).toBe(422);
+    }
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a removal that observed an older schedule revision", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.READY,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: 7,
+    });
+
+    const response = await createApp().request(...removalRequest());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "schedule_revision_conflict",
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the series, restores the Draft template, and advances the revision once", async () => {
+    const response = await createApp().request(...removalRequest());
 
     expect(response.status).toBe(200);
-    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+    expect(taskUpdateMock).toHaveBeenCalledOnce();
+    expect(taskUpdateMock.mock.calls[0][0].data).toMatchObject({
+      metadata: null,
+      nextRunAt: null,
+      status: TaskStatus.DRAFT,
+      scheduleRevision: { increment: 1 },
+    });
+  });
+
+  it("restores a queued series template to Draft as well", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: 4,
+    });
+
+    const response = await createApp().request(...removalRequest());
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock.mock.calls[0][0].data.status).toBe(TaskStatus.DRAFT);
+  });
+
+  it("preserves released and past occurrence history when removing the series", async () => {
+    const response = await createApp().request(...removalRequest());
+
+    expect(response.status).toBe(200);
+    expect(retireTaskScheduleFutureOccurrencesMock).toHaveBeenCalledWith(
       expect.any(Object),
-      "tsk_123",
+      TASK_ID,
+      expect.any(Date),
     );
+    const [retireOrder] =
+      retireTaskScheduleFutureOccurrencesMock.mock.invocationCallOrder;
+    expect(lockCalendarScopeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      retireOrder,
+    );
+    expect(lockTaskRowsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      retireOrder,
+    );
+  });
+
+  it("returns the stored Task without a second write when the removal is retried", async () => {
+    const app = createApp();
+
+    const first = await app.request(...removalRequest());
+    expect(first.status).toBe(200);
+    const storedPayload =
+      taskEventCreateMock.mock.calls[0][0].data.schedulePayload;
+
+    taskUpdateMock.mockClear();
+    taskEventCreateMock.mockClear();
+    retireTaskScheduleFutureOccurrencesMock.mockClear();
+    taskEventFindUniqueMock.mockResolvedValue({
+      schedulePayload: storedPayload,
+    });
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.DRAFT,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: 5,
+    });
+
+    const retry = await app.request(...removalRequest());
+
+    expect(retry.status).toBe(200);
+    expect(taskEventFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        taskId_scheduleOperationId: {
+          taskId: TASK_ID,
+          scheduleOperationId: OPERATION_ID,
+        },
+      },
+      select: { schedulePayload: true },
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(retireTaskScheduleFutureOccurrencesMock).not.toHaveBeenCalled();
+    expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: TASK_ID } }),
+    );
+  });
+
+  it("rejects an idempotency key already used for a different series operation", async () => {
+    taskEventFindUniqueMock.mockResolvedValue({
+      schedulePayload: {
+        action: "update_schedule",
+        requestFingerprint: "0".repeat(64),
+      },
+    });
+
+    const response = await createApp().request(...removalRequest());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "idempotency_conflict",
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("records the removal operation with its request fingerprint", async () => {
+    const response = await createApp().request(...removalRequest());
+
+    expect(response.status).toBe(200);
+    expect(taskEventCreateMock).toHaveBeenCalledOnce();
+    const event = taskEventCreateMock.mock.calls[0][0].data;
+    expect(event).toMatchObject({
+      taskId: TASK_ID,
+      scheduleKind: "REMOVED",
+      scheduleOperationId: OPERATION_ID,
+      userId: "user_123",
+    });
+    expect(event.schedulePayload).toMatchObject({
+      action: "remove_schedule",
+      requestFingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+      workspaceId: WORKSPACE_ID,
+    });
+    expect(event.schedulePayload).not.toHaveProperty("data");
   });
 });
