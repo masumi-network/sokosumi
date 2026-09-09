@@ -1,6 +1,6 @@
 # Sokosumi Apple Clients Agent Guidelines
 
-> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Product intent is [`VISION.md`](./VISION.md); the Mac tracer spec is [`MAC-TRACER.md`](./MAC-TRACER.md).
+> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Before Apple work, read [`VISION.md`](./VISION.md) for the ongoing goal and [`PARITY.md`](./PARITY.md) for the authorized scope, iteration rules, current PR, and verification record. Verify the handoff against GitHub before continuing.
 
 ## App-Specific Architecture
 
@@ -55,3 +55,12 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 ### Interactive signing
 
 For interactive launches use the configured Apple Development identity and team `Y3ZJFLUYRB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=Y3ZJFLUYRB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
+
+
+### OAuth and Core setup
+
+- Use a first-party public OAuth client with PKCE (no embedded client secret), registered through the existing Core OAuth client machinery by an operator. Scopes are `openid`, `sokosumi:api`, and `offline_access`; use the system browser and Keychain-backed token persistence. Do not substitute API keys or browser cookies for the human session.
+- Register the exact redirect URI `com.sokosumi.app:/auth` (one slash, no host), with callback scheme `com.sokosumi.app`. The double-slash form is not interchangeable. Configuration lives in `Packages/SokosumiAuth/Sources/SokosumiAuth/OAuthConfiguration.swift`.
+- Configure the Core base URL for the intended environment. Local Core uses this checkout's portless HTTPS URL. Personal requests omit `X-Organization-Slug`; organization requests carry their slug. `GET /v1/users/me/workspace-access` must return `ready` before chat is usable; other gates open the corresponding web setup flow.
+- Refresh the selected OpenAPI operations from a generated Core specification with `python3 scripts/update-core-api.py /path/to/core-openapi.json` from `apps/apple`. Append an existing Core path such as `/chats/rooms/{id}/unread` to include it. The script retains selected operations, resolves transitive schemas, and writes literal UTF-8 because escaped non-BMP examples can break the generator's YAML parser. Never hand-edit the snapshot or generated Swift output. This workflow does not authorize changing Core contracts or web files.
+- Realtime uses the existing workspace-scoped Ably token endpoint and a persisted per-install `clientInstanceId`; follow ADR 0003 and ADR 0014 for identity and event contracts. Behavior and the authorized feature boundary are tracked in `PARITY.md`; architecture decisions remain in `docs/adr/` (including ADR 0027).

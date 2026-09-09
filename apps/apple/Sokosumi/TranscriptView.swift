@@ -112,9 +112,9 @@ import SwiftUI
                     message: message,
                     isContinuation: isMessageContinuation(previous: previous, current: message),
                     outbound: outbound,
-                    retryDisabled: workspaces.outboundInFlight,
+                    sentAt: workspaces.outbox.sentAt[message.id],
                     onRetry: outbound.map { shell in
-                      { workspaces.retryOutbound(clientTurnId: shell.clientTurnId, auth: auth) }
+                      { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
                     },
                     onRemove: outbound.map { shell in
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
@@ -228,36 +228,45 @@ import SwiftUI
       _draft = State(initialValue: savedDraft.load())
     }
 
+    private var composerPlaceholder: String {
+      guard let room = workspaces.rooms.first(where: { $0.id == roomId }) else { return "Message" }
+      return "Message \(roomDisplayName(room, currentUserId: workspaces.currentUserId))"
+    }
+
     private var canSend: Bool {
-      !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && !workspaces.outboundInFlight
+      ComposerContent(draft).canSend
         && !workspaces.transcriptLoading
         && workspaces.transcriptRoomId == roomId
     }
 
     var body: some View {
       HStack {
-        TextField("Message", text: Binding(
+        ComposerInput(text: Binding(
           get: { draft },
           set: { text in
             draft = text
             savedDraft.save(text)
           }
-        ))
-        .textFieldStyle(.roundedBorder)
-        .onSubmit(sendDraft)
-        Button("Send", action: sendDraft)
+        ), submit: sendDraft, placeholder: composerPlaceholder)
+        if ComposerContent(draft).showsCounter {
+          Text("\(ComposerContent(draft).count)/\(ComposerContent.maximumLength)")
+            .font(.caption)
+            .foregroundStyle(ComposerContent(draft).isTooLong ? .red : .secondary)
+            .accessibilityLabel("Message length: \(ComposerContent(draft).count) of \(ComposerContent.maximumLength)")
+        }
+        Button("Send") { sendDraft() }
           .disabled(!canSend)
       }
       .padding(8)
     }
 
-    private func sendDraft() {
-      guard canSend else { return }
-      let content = draft
+    @discardableResult
+    private func sendDraft() -> Bool {
+      guard canSend else { return false }
+      guard workspaces.sendMessage(draft, auth: auth) else { return false }
       draft = ""
       savedDraft.save("")
-      workspaces.sendMessage(content, auth: auth)
+      return true
     }
   }
 
@@ -299,6 +308,35 @@ import SwiftUI
 
   /// One chat bubble row: avatar rail plus sender header, or a bare
   /// continuation rail when the burst continues. Plain text body only.
+  private struct DeliveryFeedback: View {
+    let pendingSince: Date?
+    let sentAt: Date?
+    @State private var showSending = false
+
+    var body: some View {
+      HStack(spacing: 4) {
+        if pendingSince != nil, showSending {
+          HStack(spacing: 4) {
+            ProgressView().controlSize(.mini)
+            Text("Sending…")
+          }
+          .accessibilityElement(children: .combine)
+        } else if sentAt != nil {
+          Label("Sent", systemImage: "checkmark")
+        }
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .task(id: pendingSince) {
+        showSending = false
+        guard let pendingSince else { return }
+        let remaining = max(0, 0.5 - Date().timeIntervalSince(pendingSince))
+        do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+        showSending = true
+      }
+    }
+  }
+
   struct MessageRow: View {
     /// Avatar edge: web uses 32px, but that reads oversized next to the
     /// native sidebar (28pt "me" avatar), so the transcript matches in-app.
@@ -307,7 +345,7 @@ import SwiftUI
     let message: Components.Schemas.ChatRoomMessage
     let isContinuation: Bool
     let outbound: OutboundShell?
-    let retryDisabled: Bool
+    var sentAt: Date?
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
 
@@ -349,6 +387,10 @@ import SwiftUI
             Text(message.content)
               .textSelection(.enabled)
           }
+          if outbound?.status == .pending || sentAt != nil {
+            DeliveryFeedback(pendingSince: outbound?.status == .pending ? outbound?.createdAt : nil,
+                             sentAt: sentAt)
+          }
           if let outbound, outbound.status == .failed {
             if let error = outbound.errorMessage, !error.isEmpty {
               Text(error)
@@ -358,7 +400,6 @@ import SwiftUI
             HStack(spacing: 12) {
               if let onRetry {
                 Button("Retry", action: onRetry)
-                  .disabled(retryDisabled)
               }
               if let onRemove {
                 Button("Remove", role: .destructive, action: onRemove)
@@ -432,7 +473,6 @@ import SwiftUI
           message: previewMessage(id: "m1", content: "Morning all — the tracer renders web-style rows now.", name: "Ada", minutesAfterNoon: 0),
           isContinuation: false,
           outbound: nil,
-          retryDisabled: false,
           onRetry: nil,
           onRemove: nil
         )
@@ -440,7 +480,6 @@ import SwiftUI
           message: previewMessage(id: "m2", content: "Same burst, so no second header.", name: "Ada", minutesAfterNoon: 1),
           isContinuation: true,
           outbound: nil,
-          retryDisabled: false,
           onRetry: nil,
           onRemove: nil
         )
@@ -448,7 +487,6 @@ import SwiftUI
           message: previewMessage(id: "m3", content: "Edited after the fact.", name: "Ada", minutesAfterNoon: 30, edited: true),
           isContinuation: false,
           outbound: nil,
-          retryDisabled: false,
           onRetry: nil,
           onRemove: nil
         )

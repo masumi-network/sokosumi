@@ -121,9 +121,17 @@ final class WorkspaceState: ObservableObject {
 
   /// Unconfirmed classic sends for the open room. Remount / room change
   /// drops them (no durable outbox).
-  @Published private(set) var outboundShells: [OutboundShell] = []
+  let outbox = RoomOutbox()
+  private var outboxObservation: AnyCancellable?
+  var outboundShells: [OutboundShell] {
+    outbox.shells
+  }
+
   /// True while a classic POST is in flight for this composer.
-  @Published private(set) var outboundInFlight = false
+  var outboundInFlight: Bool {
+    outbox.isSending
+  }
+
   /// Last minted Ably token. Nil until the first mint; membership changes
   /// remint once a token exists or the socket is live, so idle windows
   /// never pay for one.
@@ -153,7 +161,6 @@ final class WorkspaceState: ObservableObject {
 
   /// Envelope arrived while history, older-page, or a refetch was in flight.
   private var pendingTranscriptRefresh = false
-  private var outboundFlight = ClassicOutboundFlight()
 
   private let service = ChatService()
   private var hasLoaded = false
@@ -170,6 +177,9 @@ final class WorkspaceState: ObservableObject {
   ) {
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    outboxObservation = outbox.objectWillChange.sink { [weak self] in
+      self?.objectWillChange.send()
+    }
     timelineObservation = timeline.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -280,34 +290,40 @@ final class WorkspaceState: ObservableObject {
     transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
   }
 
-  /// Paint a pending shell immediately, then POST. No-op while a send is
-  /// already in flight or the composer has nothing to send.
-  func sendMessage(_ content: String, auth: AuthState) {
-    let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard let roomId = transcriptRoomId, !trimmed.isEmpty, !transcriptLoading else { return }
-    let clientMessageId = UUID().uuidString
-    guard outboundFlight.begin(clientMessageId) else { return }
-    outboundInFlight = true
-    outboundShells.append(makeOutboundShell(clientMessageId: clientMessageId, roomId: roomId, content: trimmed))
-    Task { await postOutbound(auth: auth, roomId: roomId, content: trimmed, clientMessageId: clientMessageId) }
+  /// Queue a local shell immediately, then POST in order. Invalid drafts stay
+  /// with the composer; accepted sends retain a stable ID for safe retries.
+  @discardableResult
+  func sendMessage(_ content: String, auth: AuthState) -> Bool {
+    let draft = ComposerContent(content)
+    guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
+          let client = resolveClient(auth: auth) else { return false }
+    let id = UUID().uuidString
+    let slug = selection?.workspace.organizationSlug
+    let shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
+    outbox.enqueue(shell, send: { [service] in
+      try await service.createMessage(
+        client: client, roomId: roomId, content: draft.text,
+        clientMessageId: id, organizationSlug: slug
+      )
+    }, confirmed: { [weak self] message in
+      guard let self else { return }
+      transcriptMessages = confirmOutbound(
+        messages: transcriptMessages, shells: [], confirmed: message, clientTurnId: id
+      ).messages
+    }, failed: { [weak self, weak auth] error in
+      guard let self, let auth, let error = error as? ChatServiceError else { return }
+      signOutIfUnauthorized(error, auth: auth)
+    })
+    return true
   }
 
-  /// Reuses the same client turn id. No-op unless that shell is failed and
-  /// the composer slot is free.
-  func retryOutbound(clientTurnId: String, auth: AuthState) {
-    guard let shell = outboundShells.first(where: { $0.clientTurnId == clientTurnId }),
-          shell.status == .failed,
-          let roomId = transcriptRoomId
-    else { return }
-    guard outboundFlight.begin(clientTurnId) else { return }
-    outboundInFlight = true
-    outboundShells = markOutboundPending(shells: outboundShells, clientTurnId: clientTurnId)
-    Task { await postOutbound(auth: auth, roomId: roomId, content: shell.content, clientMessageId: clientTurnId) }
+  func retryOutbound(clientTurnId: String) {
+    outbox.retry(clientTurnId)
   }
 
-  /// Drops the local shell only. Does not delete a Core row.
+  /// Drops the failed local shell only. Does not delete a Core row.
   func removeOutbound(clientTurnId: String) {
-    outboundShells = SokosumiChat.removeOutbound(shells: outboundShells, clientTurnId: clientTurnId)
+    outbox.remove(clientTurnId)
   }
 
   // MARK: - Live realtime (SOK-976)
@@ -439,7 +455,7 @@ final class WorkspaceState: ObservableObject {
       message: message
     )
     transcriptMessages = result.messages
-    outboundShells = result.shells
+    outbox.reconcile(result.shells, confirmed: message)
   }
 
   /// Apply an id envelope (ADR 0014): delete tombstones the on-screen row,
@@ -522,9 +538,7 @@ final class WorkspaceState: ObservableObject {
   }
 
   private func clearOutbound() {
-    outboundFlight.clear()
-    outboundInFlight = false
-    outboundShells = []
+    outbox.reset()
   }
 
   private func makeOutboundShell(clientMessageId: String, roomId: String, content: String) -> OutboundShell {
@@ -539,60 +553,6 @@ final class WorkspaceState: ObservableObject {
         image: currentUserImageURL,
         presence: .online
       )
-    )
-  }
-
-  private func postOutbound(
-    auth: AuthState,
-    roomId: String,
-    content: String,
-    clientMessageId: String
-  ) async {
-    // Flight and leftover shells are not the history-load generation: a
-    // failed workspace switch bumps generation but keeps this room.
-    defer {
-      outboundFlight.end(clientMessageId)
-      outboundInFlight = outboundFlight.isInFlight
-    }
-    guard let client = resolveClient(auth: auth) else {
-      failPresentOutbound(clientMessageId, "Sign-in is not configured.")
-      return
-    }
-    let generation = transcriptGeneration
-    do {
-      let confirmed = try await service.createMessage(
-        client: client,
-        roomId: roomId,
-        content: content,
-        clientMessageId: clientMessageId,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard outboundShells.contains(where: { $0.clientTurnId == clientMessageId }) else { return }
-      let result = confirmOutbound(
-        messages: transcriptMessages,
-        shells: outboundShells,
-        confirmed: confirmed,
-        clientTurnId: clientMessageId
-      )
-      transcriptMessages = result.messages
-      outboundShells = result.shells
-    } catch let error as ChatServiceError {
-      guard generation == transcriptGeneration else { return }
-      failPresentOutbound(clientMessageId, transcriptFailureMessage(error, auth: auth))
-    } catch {
-      NSLog("Sokosumi send failed: %@", String(describing: error))
-      failPresentOutbound(clientMessageId, friendlyMessage(for: error))
-    }
-  }
-
-  /// Confirm/fail only when the shell is still here. Cleared shells mean
-  /// the surface was torn down; leftover shells are still this room.
-  private func failPresentOutbound(_ clientMessageId: String, _ errorMessage: String?) {
-    guard outboundShells.contains(where: { $0.clientTurnId == clientMessageId }) else { return }
-    outboundShells = failOutbound(
-      shells: outboundShells,
-      clientTurnId: clientMessageId,
-      errorMessage: errorMessage
     )
   }
 

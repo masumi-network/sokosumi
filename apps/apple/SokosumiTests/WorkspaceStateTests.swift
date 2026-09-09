@@ -42,6 +42,10 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   private(set) var operationIDs: [String] = []
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
+  var remainingStubs: Int {
+    responses.count
+  }
+
   var pausePOST = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
@@ -69,6 +73,7 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
         await withCheckedContinuation { pauseWaiter = $0 }
       }
       postReleased = false
+      try Task.checkCancellation()
     }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
@@ -296,7 +301,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func resetClearsEverything() async throws {
-    let (state, auth, _, defaults) = try ephemeralState([
+    let (state, auth, _, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -552,6 +557,7 @@ struct WorkspaceStateTests {
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.isEmpty)
     #expect(state.transcriptRoomId == secondID)
+    #expect(transport.remainingStubs == 0)
   }
 
   @Test func failedReadKeepsResolvedHistory() async throws {
@@ -718,7 +724,7 @@ struct WorkspaceStateTests {
     #expect(state.outboundShells[0].status == .failed)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
     let turnId = try #require(state.outboundShells.first?.clientTurnId)
-    state.retryOutbound(clientTurnId: turnId, auth: auth)
+    state.retryOutbound(clientTurnId: turnId)
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.isEmpty)
     #expect(state.transcriptMessages.map(\.id) == [confirmedID])
@@ -758,7 +764,7 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
   }
 
-  @Test func oneInFlightSendRejectsASecond() async throws {
+  @Test func inFlightSendQueuesASecond() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440503"
     let (state, auth, transport, _) = try ephemeralState([
@@ -769,7 +775,8 @@ struct WorkspaceStateTests {
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
-      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "first"))
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "first")),
+      (201, createdMessageBody(id: "550e8400-e29b-41d4-a716-446655440504", roomId: roomID, content: "second"))
     ])
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
@@ -779,12 +786,13 @@ struct WorkspaceStateTests {
       await Task.yield()
     }
     state.sendMessage("second", auth: auth)
-    #expect(state.outboundShells.count == 1)
+    #expect(state.outboundShells.count == 2)
     #expect(state.outboundShells[0].content == "first")
+    transport.pausePOST = false
     transport.releasePOST()
     await waitForOutboundIdle(state)
-    #expect(state.displayedTranscript.map(\.content) == ["first"])
-    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
+    #expect(state.displayedTranscript.map(\.content) == ["first", "second"])
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 2)
   }
 
   @Test func failedSwitchDuringSendSettlesOutboundAndFreesSlot() async throws {
