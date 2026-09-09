@@ -97,6 +97,18 @@ export function mapChatRoomInvitationFromRecord(
   });
 }
 
+/** The account behind an invitation email, when one exists. */
+export async function findUserIdByEmail(
+  email: string,
+  tx: Prisma.TransactionClient,
+): Promise<string | null> {
+  const user = await tx.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}
+
 /**
  * Reject invites to emails that already belong to a host-org Member.
  * Those users should self-join the external channel as members.

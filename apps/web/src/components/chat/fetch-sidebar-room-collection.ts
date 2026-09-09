@@ -7,6 +7,8 @@ import {
   getChatsRoomsResponseTransformer,
 } from "@/lib/clients/generated/core/transformers.gen";
 
+import { fetchBackgroundJson } from "./fetch-background-json";
+
 const SIDEBAR_ROOM_REQUEST_TIMEOUT_MS = 20_000;
 
 interface SidebarRoomsPage {
@@ -23,19 +25,12 @@ export function fetchSidebarRoomCollection(
 export async function fetchSidebarRoomCollection(
   collection: "active" | "archived" | "invitations",
 ): Promise<SidebarRoomsPage | ChatRoomInvitation[] | null> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(
-    () => controller.abort(),
+  const data = await fetchBackgroundJson(
+    `/api/chat/rooms?collection=${collection}`,
     SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
   );
+  if (data == null) return null;
   try {
-    const response = await fetch(`/api/chat/rooms?collection=${collection}`, {
-      cache: "no-store",
-      redirect: "error",
-      signal: controller.signal,
-    });
-    if (!response.ok || response.redirected) return null;
-    const data: unknown = await response.json();
     if (collection === "invitations") {
       return (await getChatsInvitationsResponseTransformer(data)).data;
     }
@@ -46,7 +41,5 @@ export async function fetchSidebarRoomCollection(
     };
   } catch {
     return null;
-  } finally {
-    window.clearTimeout(timeout);
   }
 }

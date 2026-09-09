@@ -10,6 +10,7 @@ import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-real
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -273,6 +274,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     for (const message of statusMessages) {
       await publishChatRoomMessageRealtime(message, "create");
     }
+    // The acceptor's other tabs gain the room and lose the pending row.
+    await publishChatRoomsChanged({
+      userIds: [userContext.userId],
+      collections: ["active", "invitations"],
+      roomId: invitation.roomId,
+    });
 
     return ok(c, invitation);
   });

@@ -34,6 +34,14 @@ vi.mock("./use-chat-tab-unread-presence", () => ({
   useChatTabUnreadPresence: () => ({ showUnreadDot: mockShowUnreadDot }),
 }));
 
+vi.mock("@/contexts/lazy-ably-provider", () => ({
+  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/components/chat/chat-control-list-bridge", () => ({
+  ChatControlListBridge: () => null,
+}));
+
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: mockSessionUser
