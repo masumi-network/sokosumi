@@ -53,6 +53,9 @@ final class WorkspaceState: ObservableObject {
   @Published private(set) var transcriptHasMore = false
   @Published private(set) var transcriptLoading = false
   @Published private(set) var transcriptLoadingOlder = false
+  /// Latest-page refetch in flight (ADR 0014 envelope). Not the older-page
+  /// spinner: live refetch must not flash `transcriptLoadingOlder`.
+  private(set) var transcriptRefreshing = false
   /// Failure text. Shown full-pane when there is no history, as a banner
   /// above loaded history otherwise — a failed older page never wipes
   /// what already resolved.
@@ -83,6 +86,8 @@ final class WorkspaceState: ObservableObject {
   private var transcriptCursor: String?
   /// Bumps on every open/clear so a slow room cannot paint over a newer one.
   private var transcriptGeneration = 0
+  /// Envelope arrived while history, older-page, or a refetch was in flight.
+  private var pendingTranscriptRefresh = false
   private var outboundFlight = ClassicOutboundFlight()
 
   private let service = ChatService()
@@ -186,6 +191,8 @@ final class WorkspaceState: ObservableObject {
     transcriptHasMore = false
     transcriptLoading = false
     transcriptLoadingOlder = false
+    transcriptRefreshing = false
+    pendingTranscriptRefresh = false
     transcriptError = nil
     clearOutbound()
   }
@@ -203,6 +210,8 @@ final class WorkspaceState: ObservableObject {
     transcriptHasMore = false
     transcriptError = nil
     transcriptLoading = true
+    transcriptRefreshing = false
+    pendingTranscriptRefresh = false
     clearOutbound()
     realtime?.watchRoom(room.id)
     Task { await loadTranscript(auth: auth, room: room, generation: generation) }
@@ -382,16 +391,27 @@ final class WorkspaceState: ObservableObject {
   /// 0014): the same HTTP refresh as the live poll. No mark-read, never
   /// wipes resolved history on failure.
   func refreshTranscript(auth: AuthState) {
-    guard let roomId = transcriptRoomId, !transcriptLoading, !transcriptLoadingOlder else { return }
-    transcriptLoadingOlder = true
+    guard let roomId = transcriptRoomId else { return }
+    if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing {
+      pendingTranscriptRefresh = true
+      return
+    }
+    transcriptRefreshing = true
     let generation = transcriptGeneration
     Task { await refresh(auth: auth, roomId: roomId, generation: generation) }
+  }
+
+  private func drainPendingTranscriptRefresh(auth: AuthState) {
+    guard pendingTranscriptRefresh else { return }
+    pendingTranscriptRefresh = false
+    refreshTranscript(auth: auth)
   }
 
   func refresh(auth: AuthState, roomId: String, generation: Int) async {
     defer {
       if generation == transcriptGeneration {
-        transcriptLoadingOlder = false
+        transcriptRefreshing = false
+        drainPendingTranscriptRefresh(auth: auth)
       }
     }
     guard let client = resolveClient(auth: auth) else {
@@ -520,6 +540,7 @@ final class WorkspaceState: ObservableObject {
     defer {
       if generation == transcriptGeneration {
         transcriptLoading = false
+        drainPendingTranscriptRefresh(auth: auth)
       }
     }
     guard let client = resolveClient(auth: auth) else {
@@ -582,6 +603,7 @@ final class WorkspaceState: ObservableObject {
     defer {
       if generation == transcriptGeneration {
         transcriptLoadingOlder = false
+        drainPendingTranscriptRefresh(auth: auth)
       }
     }
     guard let client = resolveClient(auth: auth) else {

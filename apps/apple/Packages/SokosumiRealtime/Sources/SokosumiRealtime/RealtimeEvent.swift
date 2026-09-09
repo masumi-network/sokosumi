@@ -121,13 +121,8 @@ func decodeRealtimeMessage(_ dict: [String: Any]) -> Components.Schemas.ChatRoom
   guard let data = try? JSONSerialization.data(withJSONObject: dict) else {
     return nil
   }
-  return try? realtimeMessageDecoder.decode(Components.Schemas.ChatRoomMessage.self, from: data)
-}
-
-/// Core dates are ISO-8601 with or without fractional seconds — the same
-/// range the OpenAPI client accepts on history. Formatters are built per
-/// decode: `ISO8601DateFormatter` is not `Sendable`-safe to share.
-private let realtimeMessageDecoder: JSONDecoder = {
+  // Per-call decoder: Ably subscribe callbacks can run concurrently, and
+  // `JSONDecoder` is not thread-safe. Date formatters are already per-call.
   let decoder = JSONDecoder()
   decoder.dateDecodingStrategy = .custom { inner in
     let string = try inner.singleValueContainer().decode(String.self)
@@ -138,8 +133,8 @@ private let realtimeMessageDecoder: JSONDecoder = {
       .init(codingPath: inner.codingPath, debugDescription: "Not an ISO-8601 date: \(string)")
     )
   }
-  return decoder
-}()
+  return try? decoder.decode(Components.Schemas.ChatRoomMessage.self, from: data)
+}
 
 private func realtimeDate(from string: String) -> Date? {
   let fractional = ISO8601DateFormatter()

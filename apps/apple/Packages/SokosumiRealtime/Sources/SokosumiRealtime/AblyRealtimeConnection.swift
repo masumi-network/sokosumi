@@ -70,16 +70,18 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   }
 
   public func watchRoom(_ roomId: String?) {
-    let alreadyWatching = lock.withLock { watchedRoomId == roomId }
-    guard !alreadyWatching else { return }
-    lock.withLock { watchedRoomId = roomId }
-    if let roomChannel {
-      roomChannel.unsubscribe()
-      roomChannel.detach()
+    let transition: (ARTRealtimeChannel?, ARTRealtime?)? = lock.withLock {
+      guard watchedRoomId != roomId else { return nil }
+      watchedRoomId = roomId
+      let previous = roomChannel
+      roomChannel = nil
+      return (previous, realtime)
     }
-    lock.withLock { self.roomChannel = nil }
-    guard let roomId, let realtime = lock.withLock({ self.realtime }) else { return }
-    let channel = realtime.channels.get(chatRoomChannelName(roomId: roomId))
+    guard let (previous, liveRealtime) = transition else { return }
+    previous?.unsubscribe()
+    previous?.detach()
+    guard let roomId, let liveRealtime else { return }
+    let channel = liveRealtime.channels.get(chatRoomChannelName(roomId: roomId))
     let channelName = channel.name
     channel.subscribe(chatRoomMessageEventName) { [weak self] message in
       self?.forward(channelName: channelName, message: message)

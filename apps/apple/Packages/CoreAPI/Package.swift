@@ -5,8 +5,8 @@ import PackageDescription
 let package = Package(
   name: "CoreAPI",
   platforms: [
-    .macOS(.v26),
-    .iOS(.v26)
+    .macOS(.v15),
+    .iOS(.v17)
   ],
   products: [
     .library(name: "CoreAPI", targets: ["CoreAPI"])

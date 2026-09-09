@@ -215,6 +215,35 @@ struct ChatRealtimeTests {
     ])
   }
 
+  @Test func ownAblyConfirmSortsAmongPeerRows() async throws {
+    let pending = testShell(turn: "turn-live-sort")
+    let peer = try await history([
+      testMessageJSON(
+        id: "550e8400-e29b-41d4-a716-446655440630",
+        content: "peer",
+        sender: testUserSender(name: ada, email: adaEmail),
+        createdAt: "2026-01-01T00:00:02.000Z"
+      )
+    ])
+    let own = try await history([
+      testMessageJSON(
+        id: "550e8400-e29b-41d4-a716-446655440631",
+        content: "mine",
+        sender: testUserSender(name: "Me", email: "me@example.com"),
+        createdAt: "2026-01-01T00:00:01.000Z",
+        metadata: "{\"client_message_id\":\"turn-live-sort\"}"
+      )
+    ])
+    let result = applyRealtimeFullEvent(
+      messages: peer,
+      shells: [pending],
+      eventType: .create,
+      message: own[0]
+    )
+    #expect(result.shells.isEmpty)
+    #expect(result.messages.map(\.content) == ["mine", "peer"])
+  }
+
   @Test func peerCreateKeepsUnresolvedShellTrailing() async throws {
     let pending = testShell(turn: "turn-live-2", content: "mine")
     let incoming = try await history([

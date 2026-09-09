@@ -30,7 +30,9 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
   var pausePOST = false
+  var pauseNextMessagesGET = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
+  private var messagesGETWaiter: CheckedContinuation<Void, Never>?
   private var postReleased = false
 
   init(_ responses: [(Int, String)]) {
@@ -56,6 +58,10 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
       }
       postReleased = false
     }
+    if pauseNextMessagesGET, operationID == "get/chats/rooms/{id}/messages" {
+      pauseNextMessagesGET = false
+      await withCheckedContinuation { messagesGETWaiter = $0 }
+    }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
   }
@@ -64,6 +70,11 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
     postReleased = true
     pauseWaiter?.resume()
     pauseWaiter = nil
+  }
+
+  func releaseMessagesGET() {
+    messagesGETWaiter?.resume()
+    messagesGETWaiter = nil
   }
 }
 
@@ -166,7 +177,7 @@ private func realtimeState(
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
-  for _ in 0 ..< 1000 where state.transcriptLoading || state.transcriptLoadingOlder || state.outboundInFlight {
+  for _ in 0 ..< 1000 where state.transcriptLoading || state.transcriptLoadingOlder || state.transcriptRefreshing || state.outboundInFlight {
     await Task.yield()
   }
 }
@@ -390,6 +401,37 @@ struct WorkspaceRealtimeTests {
     // Refetch only: history re-read once, mark-read never re-posted.
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
+  }
+
+  @Test func envelopeCreateDuringHistoryLoadRefetchesAfterResolve() async throws {
+    let oldId = "550e8400-e29b-41d4-a716-446655440742"
+    let newId = "550e8400-e29b-41d4-a716-446655440743"
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()),
+      (200, realtimeOrgsBody),
+      (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [
+        realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
+        realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize body", createdAt: "2026-01-01T00:00:01.000Z")
+      ]))
+    ])
+    transport.pauseNextMessagesGET = true
+    await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("get/chats/rooms/{id}/messages") {
+      await Task.yield()
+    }
+    #expect(state.transcriptLoading)
+    state.applyRealtimeEnvelope(
+      .init(eventType: .create, messageId: newId, roomId: roomA),
+      auth: auth
+    )
+    transport.releaseMessagesGET()
+    await waitForRealtimeIdle(state)
+    #expect(state.transcriptMessages.map(\.content) == ["old", "oversize body"])
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
 
   @Test func envelopeDeleteTombstonesOnScreenRow() async throws {
