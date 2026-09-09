@@ -15,7 +15,8 @@ export async function fetchBackgroundJson(
       redirect: "error",
       signal: controller.signal,
     });
-    if (!response.ok || response.redirected) return null;
+    // `redirect: "error"` already rejects any redirect, so only status remains.
+    if (!response.ok) return null;
     return await response.json();
   } catch {
     return null;

@@ -35,6 +35,9 @@ interface ControlChannelListener {
 
 interface ControlChannelAttachment {
   userId: string;
+  /** The realtime client the channel came from; a replaced client (session
+   * lost, new client minted) must be subscribed again. */
+  client: unknown;
   channel: {
     unsubscribe: (
       event: string,
@@ -126,7 +129,8 @@ export function useChatControlChannel({
 
     if (
       !controlChannelAttachment ||
-      controlChannelAttachment.userId !== currentUserId
+      controlChannelAttachment.userId !== currentUserId ||
+      controlChannelAttachment.client !== ably
     ) {
       detachControlChannel();
       const channel = ably.channels.get(
@@ -142,7 +146,11 @@ export function useChatControlChannel({
         CHAT_ROOMS_CHANGED_EVENT_NAME,
         handleRoomsChanged,
       );
-      controlChannelAttachment = { userId: currentUserId, channel };
+      controlChannelAttachment = {
+        userId: currentUserId,
+        client: ably,
+        channel,
+      };
     }
 
     return () => {

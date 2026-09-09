@@ -1,25 +1,33 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { subscribeMock, unsubscribeMock, connectionListeners } = vi.hoisted(
-  () => ({
-    subscribeMock: vi.fn(),
-    unsubscribeMock: vi.fn(),
-    connectionListeners: new Set<() => void>(),
-  }),
-);
+const { subscribeMock, unsubscribeMock, connectionListeners, ablyState } =
+  vi.hoisted(() => {
+    const subscribeMock = vi.fn();
+    const unsubscribeMock = vi.fn();
+    const connectionListeners = new Set<() => void>();
+    // Stable client identity per test, like the shared realtime singleton;
+    // `ablyState.client` is swapped to simulate a re-minted client.
+    const makeClient = () => ({
+      connection: {
+        state: "connected",
+        on: (listener: () => void) => connectionListeners.add(listener),
+        off: (listener: () => void) => connectionListeners.delete(listener),
+      },
+      channels: {
+        get: () => ({ subscribe: subscribeMock, unsubscribe: unsubscribeMock }),
+      },
+    });
+    return {
+      subscribeMock,
+      unsubscribeMock,
+      connectionListeners,
+      ablyState: { client: makeClient(), makeClient },
+    };
+  });
 
 vi.mock("ably/react", () => ({
-  useAbly: () => ({
-    connection: {
-      state: "connected",
-      on: (listener: () => void) => connectionListeners.add(listener),
-      off: (listener: () => void) => connectionListeners.delete(listener),
-    },
-    channels: {
-      get: () => ({ subscribe: subscribeMock, unsubscribe: unsubscribeMock }),
-    },
-  }),
+  useAbly: () => ablyState.client,
 }));
 
 import { useChatControlChannel } from "./use-chat-control-channel";
@@ -34,6 +42,24 @@ describe("useChatControlChannel", () => {
     subscribeMock.mockReset();
     unsubscribeMock.mockReset();
     connectionListeners.clear();
+    ablyState.client = ablyState.makeClient();
+  });
+
+  it("re-subscribes on the new client when the shared Ably client is replaced", () => {
+    const { rerender } = renderHook(() =>
+      useChatControlChannel({
+        currentUserId: "user_1",
+        onRevoked: vi.fn(),
+        onRoomsChanged: vi.fn(),
+      }),
+    );
+    expect(subscribeMock).toHaveBeenCalledTimes(2);
+
+    ablyState.client = ablyState.makeClient();
+    rerender();
+
+    expect(unsubscribeMock).toHaveBeenCalledTimes(2);
+    expect(subscribeMock).toHaveBeenCalledTimes(4);
   });
 
   it("routes revoke and rooms-changed events to their handlers", () => {
