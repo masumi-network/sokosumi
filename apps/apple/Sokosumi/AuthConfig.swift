@@ -8,14 +8,6 @@ import SokosumiAuth
 /// environment (Xcode scheme) or the `SokosumiOAuthClientID` Info.plist key.
 /// Absent → `.notConfigured`: the UI says so instead of failing silently.
 enum AuthConfig {
-  static func makeSession(store: any TokenStore, configuration: OAuthConfiguration) -> OAuthSession {
-    OAuthSession(
-      configuration: configuration,
-      store: store,
-      transport: URLSessionTokenTransport()
-    )
-  }
-
   static func makeConfiguration() -> OAuthConfiguration? {
     guard let clientID, !clientID.isEmpty else {
       return nil

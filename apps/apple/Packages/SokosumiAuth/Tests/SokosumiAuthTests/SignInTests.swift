@@ -62,7 +62,8 @@ struct SignInTests {
     #expect(await !session.isSignedIn)
   }
 
-  @Test func signInRejectsCallbackWithWrongPath() async throws {
+  @Test(arguments: ["com.sokosumi.app:/other", "com.sokosumi.app://unexpected/auth"])
+  func signInRejectsCallbackWithWrongDestination(destination: String) async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
     let session = try OAuthSession(
       configuration: configuration(),
@@ -72,7 +73,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.invalidCallbackURL) {
       try await session.signIn(
-        callbackURL: #require(URL(string: "com.sokosumi.app:/other?code=auth-code-1&state=state-123")),
+        callbackURL: #require(URL(string: "\(destination)?code=auth-code-1&state=state-123")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
