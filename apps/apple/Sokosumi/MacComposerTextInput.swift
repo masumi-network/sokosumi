@@ -12,11 +12,11 @@
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-      let scroll = NSScrollView()
+      let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
       scroll.drawsBackground = false
-      scroll.hasVerticalScroller = true
       scroll.scrollerStyle = .overlay
-      let input = InputView()
+      scroll.hasVerticalScroller = true
+      let input = InputView(frame: scroll.contentView.bounds)
       input.isRichText = false
       input.isAutomaticQuoteSubstitutionEnabled = false
       input.isAutomaticDashSubstitutionEnabled = false
@@ -46,17 +46,42 @@
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView scroll: NSScrollView, context _: Context) -> CGSize? {
-      guard let input = scroll.documentView as? InputView,
-            let container = input.textContainer,
-            let layout = input.layoutManager else { return nil }
-      let width = max(proposal.width ?? 200, 1)
-      input.setFrameSize(NSSize(width: width, height: input.frame.height))
-      container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
-      layout.ensureLayout(for: container)
-      let lineHeight = layout.defaultLineHeight(for: input.font ?? .systemFont(ofSize: NSFont.systemFontSize))
-      let contentHeight = max(layout.usedRect(for: container).height + input.textContainerInset.height * 2, lineHeight + 4)
-      input.setFrameSize(NSSize(width: width, height: contentHeight))
-      return CGSize(width: width, height: min(contentHeight, lineHeight * 6 + 4))
+      (scroll as? InputScrollView)?.measuredSize(for: proposal)
+    }
+
+    final class InputScrollView: NSScrollView {
+      func measuredSize(for proposal: ProposedViewSize) -> CGSize {
+        let proposedWidth = proposal.width ?? 200
+        let width = proposedWidth.isFinite ? max(proposedWidth, 1) : 200
+        guard let input = documentView as? NSTextView else { return CGSize(width: width, height: 24) }
+        let font = input.font ?? .preferredFont(forTextStyle: .body)
+        // SwiftUI probes zero/infinite sizes. Measure separate storage so these
+        // proposals never change the live editor's frame or hit-testing region.
+        let storage = NSTextStorage(string: input.string, attributes: [.font: font])
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(size: NSSize(width: width, height: .greatestFiniteMagnitude))
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        layout.ensureLayout(for: container)
+        let lineHeight = layout.defaultLineHeight(for: font)
+        let height = max(max(layout.usedRect(for: container).maxY, layout.extraLineFragmentRect.maxY) + 4, lineHeight + 4)
+        return CGSize(width: width, height: min(height, lineHeight * 6 + 4))
+      }
+
+      override func layout() {
+        super.layout()
+        guard let input = documentView as? NSTextView,
+              let container = input.textContainer,
+              let layout = input.layoutManager else { return }
+        let width = contentView.bounds.width
+        guard width.isFinite, width > 0 else { return }
+        input.setFrameSize(NSSize(width: width, height: max(input.frame.height, contentView.bounds.height, 1)))
+        container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
+        layout.ensureLayout(for: container)
+        let height = max(max(layout.usedRect(for: container).maxY, layout.extraLineFragmentRect.maxY) + input.textContainerInset.height * 2,
+                         contentView.bounds.height)
+        input.setFrameSize(NSSize(width: width, height: height))
+      }
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
