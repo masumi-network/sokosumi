@@ -1,3 +1,4 @@
+import SokosumiAuth
 import SokosumiRealtime
 import SwiftUI
 

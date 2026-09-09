@@ -1,7 +1,7 @@
 import Foundation
 
-/// Tokens minted for the public Mac OAuth client. Stored via a `TokenStore`
-/// (Keychain in the app; in-memory in tests). Never logged.
+/// Tokens minted for the public Apple OAuth client. Stored via a `TokenStore`
+/// (Keychain on device; in-memory in tests). Never logged.
 public struct OAuthTokens: Codable, Sendable, Equatable {
   public var accessToken: String
   public var refreshToken: String?
@@ -22,8 +22,6 @@ public struct OAuthTokens: Codable, Sendable, Equatable {
   }
 }
 
-/// Token persistence boundary. Keychain lives in the Mac app target (it needs
-/// the `Security` framework); the package only sees this protocol.
 /// Thrown when tokens cannot be persisted. Sign-in and refresh propagate
 /// this instead of reporting an authenticated session that a relaunch
 /// would immediately forget.

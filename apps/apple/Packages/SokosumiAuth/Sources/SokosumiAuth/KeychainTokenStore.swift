@@ -1,14 +1,15 @@
 import Foundation
 import Security
-import SokosumiAuth
 
-/// `TokenStore` backed by the login Keychain. App-target only: the shared
-/// package must not import `Security` so iOS (and package tests) stay clean.
-struct KeychainTokenStore: TokenStore {
+/// Token persistence using Security, available on both macOS and iOS.
+/// Keep the service/account stable so existing installations restore their session.
+public struct KeychainTokenStore: TokenStore {
   private let service = "com.sokosumi.app.session"
   private let account = "oauth-tokens"
 
-  func load() -> OAuthTokens? {
+  public init() {}
+
+  public func load() -> OAuthTokens? {
     var item: CFTypeRef?
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
@@ -25,7 +26,7 @@ struct KeychainTokenStore: TokenStore {
     return try? JSONDecoder().decode(OAuthTokens.self, from: data)
   }
 
-  func save(_ tokens: OAuthTokens) throws {
+  public func save(_ tokens: OAuthTokens) throws {
     guard let data = try? JSONEncoder().encode(tokens) else {
       throw TokenStoreError.encodingFailed
     }
@@ -49,7 +50,7 @@ struct KeychainTokenStore: TokenStore {
   }
 
   @discardableResult
-  func clear() -> Bool {
+  public func clear() -> Bool {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
