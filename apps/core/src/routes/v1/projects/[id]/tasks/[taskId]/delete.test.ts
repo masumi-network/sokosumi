@@ -17,6 +17,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  lockCalendarScopeMock,
+  lockTaskRowsMock,
   projectFindFirstMock,
   prismaTransactionMock,
   refreshTaskSchedulePlannedOccurrencesMock,
@@ -24,12 +26,19 @@ const {
   taskFindUniqueMock,
   taskUpdateManyMock,
 } = vi.hoisted(() => ({
+  lockCalendarScopeMock: vi.fn(),
+  lockTaskRowsMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+  lockTaskRows: lockTaskRowsMock,
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
@@ -66,6 +75,19 @@ const COWORKER_CONTEXT_AUTH: AuthenticationContext = {
 const WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 const TASK_ID = "tsk_abc";
+
+const ACTIVE_SCHEDULE_METADATA = JSON.stringify({
+  version: 2,
+  epochId: "11111111-1111-4111-8111-111111111111",
+  mode: "recurring",
+  createdAt: "2026-09-01T09:00:00.000Z",
+  ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
+  timezone: "UTC",
+  expr: "0 9 * * *",
+  endsMode: "never",
+  anchorAt: "2026-09-01T09:00:00.000Z",
+  epochReleaseCount: 0,
+});
 
 const WORKSPACE_CONTEXT = {
   workspaceId: WORKSPACE_ID,
@@ -127,6 +149,8 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
       workspaceId: WORKSPACE_ID,
     });
     taskUpdateManyMock.mockResolvedValue({ count: 1 });
+    lockCalendarScopeMock.mockResolvedValue(true);
+    lockTaskRowsMock.mockResolvedValue(true);
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
         task: {
@@ -161,18 +185,15 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
     taskFindFirstMock.mockResolvedValue({
       pendingVendorGrantId: null,
       status: "QUEUED",
-      metadata: JSON.stringify({
-        version: 2,
-        epochId: "11111111-1111-4111-8111-111111111111",
-        mode: "recurring",
-        createdAt: "2026-09-01T09:00:00.000Z",
-        ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "never",
-        anchorAt: "2026-09-01T09:00:00.000Z",
-        epochReleaseCount: 0,
-      }),
+      metadata: ACTIVE_SCHEDULE_METADATA,
+      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      workspaceId: WORKSPACE_ID,
+    });
+    taskFindUniqueMock.mockResolvedValue({
+      id: TASK_ID,
+      projectId: PROJECT_ID,
+      status: "QUEUED",
+      metadata: ACTIVE_SCHEDULE_METADATA,
       nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
       workspaceId: WORKSPACE_ID,
     });
@@ -188,8 +209,44 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
 
     expect(response.status).toBe(409);
     expect((await response.json()).kind).toBe("schedule_active");
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the schedule guard on the locked row, after both locks", async () => {
+    // The pre-transaction read sees no series; a concurrent PUT /schedule arms
+    // one before the locks are granted, so only the locked re-read can catch it.
+    taskFindUniqueMock.mockResolvedValue({
+      id: TASK_ID,
+      projectId: PROJECT_ID,
+      status: "QUEUED",
+      metadata: ACTIVE_SCHEDULE_METADATA,
+      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      workspaceId: WORKSPACE_ID,
+    });
+
+    const app = createApp();
+    app.onError(errorHandler);
+    mountDeleteProjectTask(app);
+
+    const response = await app.request(
+      `http://localhost/${PROJECT_ID}/tasks/${TASK_ID}`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_active");
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: TASK_ID },
+      select: { metadata: true, nextRunAt: true },
+    });
+    // Calendar scope lock → Task row lock → locked re-read → guard.
+    expect(lockCalendarScopeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      lockTaskRowsMock.mock.invocationCallOrder[0],
+    );
+    expect(lockTaskRowsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      taskFindUniqueMock.mock.invocationCallOrder[0],
+    );
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

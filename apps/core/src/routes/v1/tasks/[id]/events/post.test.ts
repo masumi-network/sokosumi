@@ -1,4 +1,9 @@
-import { Channel, NotificationKind, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  NotificationKind,
+  TaskLinkType,
+  TaskStatus,
+} from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -3454,10 +3459,25 @@ describe("POST /{id}/events", () => {
     });
 
     it("never cancels released Tasks linked from the template", async () => {
+      const RELEASED_RUN_ID = "tsk_released_run";
       requireTaskCancelAccessMock.mockResolvedValue(
         createTask({ status: TaskStatus.READY }),
       );
-      const taskLinkFindMany = vi.fn().mockResolvedValue([]);
+      // The template still owns a released run that has not reached a terminal
+      // status. Canceling the template must write the template row only —
+      // released Tasks are independent and are never cascaded.
+      const taskLinkFindMany = vi.fn().mockResolvedValue([
+        {
+          type: TaskLinkType.SCHEDULE,
+          sourceTaskId: TASK_ID,
+          targetTaskId: RELEASED_RUN_ID,
+          targetTask: {
+            id: RELEASED_RUN_ID,
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
+          },
+        },
+      ]);
       const tx: TransactionMock = {
         taskEvent: {
           create: vi.fn().mockResolvedValue(
@@ -3483,8 +3503,17 @@ describe("POST /{id}/events", () => {
       );
 
       expect(response.status).toBe(201);
+      // The running released run is never looked up, the single status write is
+      // pinned to the template id, and nothing is published for the run.
       expect(taskLinkFindMany).not.toHaveBeenCalled();
       expect(tx.task.updateMany).toHaveBeenCalledTimes(1);
+      expect(tx.task.updateMany).toHaveBeenCalledWith({
+        where: { id: TASK_ID, status: TaskStatus.READY },
+        data: { status: TaskStatus.CANCELED, metadata: null, nextRunAt: null },
+      });
+      expect(JSON.stringify(tx.task.updateMany.mock.calls)).not.toContain(
+        RELEASED_RUN_ID,
+      );
       expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
     });
   });

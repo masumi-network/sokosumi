@@ -106,6 +106,19 @@ const WORKSPACE_CONTEXT = {
   organizationId: null,
 } satisfies WorkspaceVariables["workspaceContext"];
 
+const ACTIVE_SCHEDULE_METADATA = JSON.stringify({
+  version: 2,
+  epochId: "11111111-1111-4111-8111-111111111111",
+  mode: "recurring",
+  createdAt: "2026-09-01T09:00:00.000Z",
+  ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
+  timezone: "UTC",
+  expr: "0 9 * * *",
+  endsMode: "never",
+  anchorAt: "2026-09-01T09:00:00.000Z",
+  epochReleaseCount: 0,
+});
+
 const sampleProject = {
   id: PROJECT_ID,
   workspaceId: WORKSPACE_ID,
@@ -244,18 +257,15 @@ describe("POST /projects/{id}/tasks", () => {
       projectId: null,
       pendingVendorGrantId: null,
       status: TaskStatus.QUEUED,
-      metadata: JSON.stringify({
-        version: 2,
-        epochId: "11111111-1111-4111-8111-111111111111",
-        mode: "recurring",
-        createdAt: "2026-09-01T09:00:00.000Z",
-        ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "never",
-        anchorAt: "2026-09-01T09:00:00.000Z",
-        epochReleaseCount: 0,
-      }),
+      metadata: ACTIVE_SCHEDULE_METADATA,
+      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      workspaceId: WORKSPACE_ID,
+    });
+    taskFindUniqueMock.mockResolvedValue({
+      id: TASK_ID,
+      projectId: null,
+      status: TaskStatus.QUEUED,
+      metadata: ACTIVE_SCHEDULE_METADATA,
       nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
       workspaceId: WORKSPACE_ID,
     });
@@ -270,8 +280,51 @@ describe("POST /projects/{id}/tasks", () => {
 
     expect(response.status).toBe(409);
     expect((await response.json()).kind).toBe("schedule_active");
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the schedule guard on the locked row, after both locks", async () => {
+    // The pre-transaction read sees no series; a concurrent PUT /schedule arms
+    // one before the locks are granted, so only the locked re-read can catch it.
+    taskFindFirstMock.mockResolvedValue({
+      projectId: null,
+      pendingVendorGrantId: null,
+      status: TaskStatus.DRAFT,
+      metadata: null,
+      nextRunAt: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    taskFindUniqueMock.mockResolvedValue({
+      id: TASK_ID,
+      projectId: null,
+      status: TaskStatus.QUEUED,
+      metadata: ACTIVE_SCHEDULE_METADATA,
+      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      workspaceId: WORKSPACE_ID,
+    });
+
+    const app = createApp();
+    app.onError(errorHandler);
+    const response = await app.request(`http://localhost/${PROJECT_ID}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId: TASK_ID }),
+    });
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_active");
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: TASK_ID },
+      select: { metadata: true, nextRunAt: true },
+    });
+    // Calendar scope lock → Task row lock → locked re-read → guard.
+    expect(lockCalendarScopeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      lockTaskRowsMock.mock.invocationCallOrder[0],
+    );
+    expect(lockTaskRowsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      taskFindUniqueMock.mock.invocationCallOrder[0],
+    );
   });
 
   it("returns 404 when project is missing", async () => {

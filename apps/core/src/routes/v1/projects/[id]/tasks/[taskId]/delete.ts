@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -80,13 +81,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     requireTaskNotParked(task);
 
-    // Unlinking moves the Calendar source back to workspace scope (SOK-887).
-    assertTaskScheduleInactive(
-      task,
-      "Remove the schedule before removing this Task from its project",
-    );
-
     await prisma.$transaction(async (tx) => {
+      if (!(await lockCalendarScope(tx, workspaceId, [projectId]))) {
+        throw notFound("Project or task link not found");
+      }
+      if (!(await lockTaskRows(tx, [taskId]))) {
+        throw notFound("Project or task link not found");
+      }
+      // Unlinking moves the Calendar source back to workspace scope (SOK-887).
+      // Re-read under the locks so a series armed after the pre-transaction
+      // read cannot slip past this guard.
+      const lockedTask = await tx.task.findUnique({
+        where: { id: taskId },
+        select: { metadata: true, nextRunAt: true },
+      });
+      if (!lockedTask) {
+        throw notFound("Project or task link not found");
+      }
+      assertTaskScheduleInactive(
+        lockedTask,
+        "Remove the schedule before removing this Task from its project",
+      );
+
       const unlinkResult = await tx.task.updateMany({
         where: { id: taskId, projectId, workspaceId, archivedAt: null },
         data: { projectId: null },

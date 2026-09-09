@@ -654,8 +654,8 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
     epochReleaseCount: 0,
   });
 
-  function mockSeriesTask(overrides: Record<string, unknown> = {}) {
-    requireTaskOwnershipMock.mockResolvedValue({
+  function seriesTask(overrides: Record<string, unknown> = {}) {
+    return {
       id: "tsk_123",
       status: TaskStatus.QUEUED,
       assigneeId: "cow_123",
@@ -667,7 +667,11 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
       nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
       scheduleRevision: 3,
       ...overrides,
-    });
+    };
+  }
+
+  function mockSeriesTask(overrides: Record<string, unknown> = {}) {
+    requireTaskOwnershipMock.mockResolvedValue(seriesTask(overrides));
   }
 
   function createSeriesApp() {
@@ -751,10 +755,17 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
     );
   });
 
-  it("checks the revision only after the Calendar and Task locks are taken", async () => {
+  it("compares the revision against the post-lock re-read, not the pre-lock snapshot", async () => {
     const { lockCalendarScope, lockTaskRows } = await import(
       "@/helpers/calendar-locks"
     );
+
+    // The pre-lock snapshot still carries the revision the client sent; a
+    // concurrent release bumps the row before the locks are granted. Only a
+    // comparison against the post-lock re-read rejects this request.
+    requireTaskOwnershipMock
+      .mockResolvedValueOnce(seriesTask({ scheduleRevision: 2 }))
+      .mockResolvedValueOnce(seriesTask({ scheduleRevision: 3 }));
 
     const response = await createSeriesApp().request(
       "http://localhost/tsk_123",
@@ -769,8 +780,20 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
     );
 
     expect(response.status).toBe(409);
-    expect(lockCalendarScope).toHaveBeenCalled();
+    expect((await response.json()).kind).toBe("schedule_revision_conflict");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+
+    // Pre-lock read → Calendar scope lock → Task row lock → post-lock re-read.
+    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(2);
     expect(lockTaskRows).toHaveBeenCalledWith(expect.anything(), ["tsk_123"]);
+    const [preLockRead, postLockRead] =
+      requireTaskOwnershipMock.mock.invocationCallOrder;
+    const calendarLockOrder =
+      vi.mocked(lockCalendarScope).mock.invocationCallOrder[0];
+    const taskLockOrder = vi.mocked(lockTaskRows).mock.invocationCallOrder[0];
+    expect(preLockRead).toBeLessThan(calendarLockOrder);
+    expect(calendarLockOrder).toBeLessThan(taskLockOrder);
+    expect(taskLockOrder).toBeLessThan(postLockRead);
   });
 
   it("rejects moving an active series into a project", async () => {

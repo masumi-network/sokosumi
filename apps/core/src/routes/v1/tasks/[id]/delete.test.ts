@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { getTaskCannotArchiveMessage } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -452,8 +452,23 @@ describe("DELETE /tasks/{id}", () => {
   });
 
   it("archives an inactive historical template while a released Task is running", async () => {
+    const RELEASED_RUN_ID = "tsk_released_run";
     const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
-    const taskLinkFindManyMock = vi.fn();
+    // The template still owns a released run that has not finished. Archiving
+    // the template must write the template row only — released Tasks are
+    // independent and are never archived with their template.
+    const taskLinkFindManyMock = vi.fn().mockResolvedValue([
+      {
+        type: TaskLinkType.SCHEDULE,
+        sourceTaskId: "tsk_123",
+        targetTaskId: RELEASED_RUN_ID,
+        targetTask: {
+          id: RELEASED_RUN_ID,
+          status: TaskStatus.RUNNING,
+          archivedAt: null,
+        },
+      },
+    ]);
     const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
 
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -483,12 +498,20 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
+    // The running released run is never looked up, and the single write is
+    // pinned to the template id — no `in` list, no released Task id.
     expect(taskLinkFindManyMock).not.toHaveBeenCalled();
     expect(updateManyMock).toHaveBeenCalledTimes(1);
-    expect(updateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ id: "tsk_123" }),
-      }),
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        status: TaskStatus.DRAFT,
+      },
+      data: { archivedAt: expect.any(Date) },
+    });
+    expect(JSON.stringify(updateManyMock.mock.calls)).not.toContain(
+      RELEASED_RUN_ID,
     );
   });
 
