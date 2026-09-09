@@ -12,7 +12,6 @@ vi.mock("@/components/aurora-orb", () => ({
 }));
 
 const baseLabels = {
-  propertiesTitle: "Properties",
   status: "Status",
   statusLabels: {
     [TaskStatus.RUNNING]: "Running",

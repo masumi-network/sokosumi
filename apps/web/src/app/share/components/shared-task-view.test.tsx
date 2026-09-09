@@ -3,12 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { PublicSharedTask } from "@/lib/clients/generated/core";
 import { SharedTaskView } from "./shared-task-view";
 
-vi.mock("next-intl", () => ({
-  useFormatter: () => ({
-    dateTime: () => "Mar 30, 10:00 AM",
-  }),
-}));
-
 vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "en"),
   getTranslations: vi.fn(async () => (key: string) => key),
