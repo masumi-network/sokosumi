@@ -72,7 +72,6 @@ export {
   type PresenceConnectionInput,
   parseChatPresenceMemberData,
   parseUserIdFromAblyPresenceClientId,
-  resolveUserChatPresence,
 } from "./chat-presence.js";
 export { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 export {
@@ -98,7 +97,6 @@ export {
   type ChatRoomPinnedMessageAction,
 } from "./chat-room-pinned-message-event.js";
 export {
-  buildQuoteSnippet,
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
   type ChatRoomQuoteSnippetParts,
@@ -137,10 +135,7 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
-export {
-  DESIGN_MD_ATTACHMENT_LABEL,
-  removeDesignMdAttachmentLinks,
-} from "./design-md-attachment.js";
+export { DESIGN_MD_ATTACHMENT_LABEL } from "./design-md-attachment.js";
 export {
   withoutDesignMdMetadata,
   withPreservedDesignMdMetadata,
@@ -232,10 +227,8 @@ export {
   unescapeMarkdownLinkUrl,
 } from "./markdown-links.js";
 export {
-  type ExtractedLink,
   extractFileLikeLinks,
   extractHttpLinks,
-  extractLinks,
 } from "./markdown-links-extract.js";
 export {
   NextJobAction,
@@ -336,7 +329,6 @@ export {
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
-  isGrantPendingTaskStatus,
   isTaskArchivableStatus,
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
@@ -392,7 +384,6 @@ export {
 } from "./task-status-transitions.js";
 export { isValidTimezone } from "./timezone.js";
 export {
-  extractBareHttpUrls,
   selectUnfurlCandidateUrls,
   type UnfurlPreviewContent,
   unfurlCardHasPreviewContent,

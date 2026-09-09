@@ -6,7 +6,6 @@ import {
   isValidAblyClientInstanceId,
   parseChatPresenceMemberData,
   parseUserIdFromAblyPresenceClientId,
-  resolveUserChatPresence,
 } from "./chat-presence.js";
 import { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 
@@ -50,7 +49,7 @@ describe("aggregateChatPresenceByUserId", () => {
   const instanceB = "instanceB2";
 
   it("marks offline when user has no members", () => {
-    expect(resolveUserChatPresence([], "user_1", now)).toBe("offline");
+    expect(aggregateChatPresenceByUserId([], now).has("user_1")).toBe(false);
   });
 
   it("marks online when any device is visible and recently active", () => {
@@ -78,20 +77,19 @@ describe("aggregateChatPresenceByUserId", () => {
 
   it("marks afk when connected but hidden or idle", () => {
     expect(
-      resolveUserChatPresence(
+      aggregateChatPresenceByUserId(
         [
           {
             clientId: buildAblyPresenceClientId("user_1", instanceA),
             data: { lastActiveAt: now, visible: false },
           },
         ],
-        "user_1",
         now,
-      ),
+      ).get("user_1"),
     ).toBe("afk");
 
     expect(
-      resolveUserChatPresence(
+      aggregateChatPresenceByUserId(
         [
           {
             clientId: buildAblyPresenceClientId("user_1", instanceA),
@@ -101,9 +99,8 @@ describe("aggregateChatPresenceByUserId", () => {
             },
           },
         ],
-        "user_1",
         now,
-      ),
+      ).get("user_1"),
     ).toBe("afk");
   });
 
