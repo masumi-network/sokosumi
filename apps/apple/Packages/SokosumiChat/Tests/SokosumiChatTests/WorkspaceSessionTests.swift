@@ -13,12 +13,20 @@ private actor WorkspaceTransport: ClientTransport {
   var gate = "ready"
   var preference: String? = "org_1"
   var paths: [String] = []
+  var roomsData = "[]"
 
-  func configure(gate: String = "ready", preference: String? = "org_1", pauseRooms: Bool = false, failRooms: Bool = false) {
+  func configure(
+    gate: String = "ready",
+    preference: String? = "org_1",
+    pauseRooms: Bool = false,
+    failRooms: Bool = false,
+    roomsData: String = "[]"
+  ) {
     self.gate = gate
     self.preference = preference
     self.pauseRooms = pauseRooms
     self.failRooms = failRooms
+    self.roomsData = roomsData
   }
 
   func waitForPause() async {
@@ -56,7 +64,7 @@ private actor WorkspaceTransport: ClientTransport {
       if failRooms {
         return (HTTPResponse(status: .internalServerError), HTTPBody(#"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req","path":"/v1/chats/rooms","method":"GET"}}"#))
       }
-      data = "[]"
+      data = roomsData
     default:
       throw URLError(.unsupportedURL)
     }
@@ -65,16 +73,45 @@ private actor WorkspaceTransport: ClientTransport {
   }
 }
 
+private let seededRoomID = "550e8400-e29b-41d4-a716-446655440000"
+private let staleRoomID = "550e8400-e29b-41d4-a716-446655440001"
+
+private func roomsArrayJSON(id: String, name: String) -> String {
+  """
+  [{"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}]
+  """
+}
+
 @MainActor
 struct WorkspaceSessionTests {
   private func client(_ transport: WorkspaceTransport) -> Client {
     Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
   }
 
+  @Test func sidebarRefreshIgnoresStalePageAfterInvalidateRefresh() async throws {
+    let transport = WorkspaceTransport()
+    await transport.configure(roomsData: roomsArrayJSON(id: seededRoomID, name: "general"))
+    let sidebar = ConversationSidebar()
+    #expect(try await sidebar.refresh(client: client(transport), organizationSlug: "acme"))
+    #expect(sidebar.rooms.map(\.id) == [seededRoomID])
+    await transport.configure(pauseRooms: true, roomsData: roomsArrayJSON(id: staleRoomID, name: "stale"))
+    let task = Task { try await sidebar.refresh(client: client(transport), organizationSlug: "acme") }
+    await transport.waitForPause()
+    #expect(sidebar.isLoading)
+    sidebar.invalidateRefresh()
+    await transport.release()
+    #expect(try await task.value == false)
+    #expect(sidebar.rooms.map(\.id) == [seededRoomID])
+    #expect(!sidebar.isLoading)
+    #expect(sidebar.errorMessage == nil)
+  }
+
   @Test func sidebarRefreshIgnoresResponseAfterWorkspaceReset() async throws {
     let transport = WorkspaceTransport()
-    await transport.configure(pauseRooms: true)
+    await transport.configure(roomsData: roomsArrayJSON(id: seededRoomID, name: "general"))
     let sidebar = ConversationSidebar()
+    #expect(try await sidebar.refresh(client: client(transport), organizationSlug: "acme"))
+    await transport.configure(pauseRooms: true, roomsData: roomsArrayJSON(id: staleRoomID, name: "stale"))
     let task = Task { try await sidebar.refresh(client: client(transport), organizationSlug: "acme") }
     await transport.waitForPause()
     #expect(sidebar.isLoading)
@@ -88,18 +125,22 @@ struct WorkspaceSessionTests {
 
   @Test func sidebarRefreshFailureOffersRetry() async throws {
     let transport = WorkspaceTransport()
-    await transport.configure(failRooms: true)
+    await transport.configure(roomsData: roomsArrayJSON(id: seededRoomID, name: "general"))
     let sidebar = ConversationSidebar()
-    sidebar.selectedRoomId = "existing"
+    #expect(try await sidebar.refresh(client: client(transport), organizationSlug: nil))
+    sidebar.selectedRoomId = seededRoomID
+    await transport.configure(failRooms: true, roomsData: roomsArrayJSON(id: staleRoomID, name: "stale"))
     await #expect(throws: ChatServiceError.self) {
       try await sidebar.refresh(client: client(transport), organizationSlug: nil)
     }
-    #expect(sidebar.selectedRoomId == "existing")
+    #expect(sidebar.rooms.map(\.id) == [seededRoomID])
+    #expect(sidebar.selectedRoomId == seededRoomID)
     #expect(sidebar.errorMessage == "Core rejected the request (500): Unavailable")
     #expect(!sidebar.isLoading)
-    await transport.configure()
+    await transport.configure(roomsData: roomsArrayJSON(id: seededRoomID, name: "general"))
     #expect(try await sidebar.refresh(client: client(transport), organizationSlug: nil))
     #expect(sidebar.errorMessage == nil)
+    #expect(sidebar.rooms.map(\.id) == [seededRoomID])
   }
 
   @Test func restoresServerOrganizationWithoutSeatFilteringOrWrites() async throws {

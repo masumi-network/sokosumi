@@ -120,6 +120,9 @@ struct ContentView: View {
               // List writes selection during its own update. Publishing
               // selectedRoomId / openRoom there trips SwiftUI's
               // "Publishing changes from within view updates" runtime issue.
+              // Nil is structural (collapsed section / missing tag), not a
+              // user deselect — skip it so the open transcript stays.
+              guard let newValue else { return }
               Task { @MainActor in
                 workspaces.selectRoom(newValue, auth: auth)
               }

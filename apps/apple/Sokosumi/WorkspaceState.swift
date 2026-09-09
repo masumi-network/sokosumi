@@ -183,9 +183,10 @@ final class WorkspaceState: ObservableObject {
   }
 
   /// User picked a room in the sidebar: persist it and open its transcript.
-  /// A nil id only clears the pane; the saved pick survives for relaunch.
+  /// Nil is ignored — `List` emits it when collapsed rows leave the
+  /// hierarchy, and this app keeps a room selected whenever one is listed.
   func selectRoom(_ id: String?, auth: AuthState) {
-    guard id != selectedRoomId else { return }
+    guard let id, id != selectedRoomId else { return }
     applyRoomSelection(id, auth: auth)
   }
 

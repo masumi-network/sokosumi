@@ -486,6 +486,32 @@ struct WorkspaceStateTests {
     #expect(state.transcriptMessages.map(\.content) == ["hi"])
   }
 
+  @Test func selectRoomNilKeepsOpenTranscript() async throws {
+    let selected = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, _, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440041",
+        content: "kept"
+      )], nextCursor: nil)),
+      (200, roomReadBody(id: selected, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.selectedRoomId == selected)
+    #expect(state.transcriptMessages.map(\.content) == ["kept"])
+    // List emits nil when a collapsed section drops tagged rows. That is
+    // not a user deselect — keep the open transcript.
+    state.selectRoom(nil, auth: auth)
+    #expect(state.selectedRoomId == selected)
+    #expect(state.transcriptRoomId == selected)
+    #expect(state.transcriptMessages.map(\.content) == ["kept"])
+  }
+
   @Test func changingRoomDropsPendingOutbound() async throws {
     let firstID = "550e8400-e29b-41d4-a716-446655440000"
     let secondID = "550e8400-e29b-41d4-a716-446655440001"
