@@ -87,6 +87,7 @@ struct ContentView: View {
           .font(.callout)
           .foregroundStyle(.secondary)
         HStack {
+          Link("Open setup", destination: URL(string: "https://app.sokosumi.com/setup")!)
           Button("Check again") {
             workspaces.retry(auth: auth)
           }

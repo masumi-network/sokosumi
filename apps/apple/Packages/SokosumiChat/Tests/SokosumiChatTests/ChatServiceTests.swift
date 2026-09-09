@@ -250,10 +250,11 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
+      """),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
     ])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(Set(transport.requests.map(\.operationID)) == ["get/users/{id}/workspace-access", "get/users/{id}/organizations", "get/users/{id}"])
+    #expect(Set(transport.requests.map(\.operationID)) == ["get/users/{id}/workspace-access", "get/users/{id}/organizations", "get/users/{id}", "get/users/{id}/preferred-organization"])
     #expect(state.defaultSelection == .personal)
     #expect(state.organizations.map(\.slug) == ["acme"])
     #expect(state.currentUserId == "user_1")
@@ -271,7 +272,8 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
+      """),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
     ])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
     #expect(state.defaultSelection == .organization(id: "org_1", slug: "acme"))
@@ -369,7 +371,7 @@ struct ChatServiceTests {
     #expect(generic.count < 120)
   }
 
-  @Test func savedWorkspaceRestoresWhenStillPresent() async throws {
+  @Test func serverWorkspaceRestoresWhenStillPresent() async throws {
     let transport = ScriptedTransport([
       (200, accessBody(gate: "ready")),
       (200, """
@@ -377,13 +379,14 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
+      """),
+      (200, #"{"data":{"organizationId":"org_2"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
     ])
-    let state = try await ChatService().loadInitialState(client: makeClient(transport), savedWorkspaceId: "org_2")
+    let state = try await ChatService().loadInitialState(client: makeClient(transport))
     #expect(state.defaultSelection == .organization(id: "org_2", slug: "other"))
   }
 
-  @Test func staleSavedWorkspaceFallsBackToDefault() async throws {
+  @Test func serverPersonalSelectionRestores() async throws {
     let transport = ScriptedTransport([
       (200, accessBody(gate: "ready")),
       (200, """
@@ -391,22 +394,11 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
+      """),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
     ])
-    let state = try await ChatService().loadInitialState(client: makeClient(transport), savedWorkspaceId: "org_gone")
+    let state = try await ChatService().loadInitialState(client: makeClient(transport))
     #expect(state.defaultSelection == .personal)
-  }
-
-  @Test func savedSelectionStoreRoundTripsInEphemeralSuite() throws {
-    let defaults = try #require(UserDefaults(suiteName: "sok-973-selection-tests"))
-    defaults.removePersistentDomain(forName: "sok-973-selection-tests")
-    let store = SavedWorkspaceSelection(defaults: defaults)
-    #expect(store.load() == nil)
-    store.save("org_1")
-    #expect(store.load() == "org_1")
-    store.clear()
-    #expect(store.load() == nil)
-    defaults.removePersistentDomain(forName: "sok-973-selection-tests")
   }
 
   @Test func setPreferredOrganizationSucceeds() async throws {
