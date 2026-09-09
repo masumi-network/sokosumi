@@ -148,25 +148,6 @@ export const startSokoBotTurnAction = withSession<
   }
 });
 
-interface TurnIdParams extends AuthenticatedRequest {
-  turnId: unknown;
-}
-
-export const cancelSokoBotTurnAction = withSession<
-  TurnIdParams,
-  ActionResultDto<void, ActionError>
->(async ({ turnId }) => {
-  const parsed = idSchema.safeParse(turnId);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
-  try {
-    await sokoBotService.cancelTurn(parsed.data);
-    revalidate();
-    return toActionResult(ok());
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
-
 export const resetSokoBotMemoryAction = withSession<
   AuthenticatedRequest,
   ActionResultDto<SokoBotMemory, ActionError>
