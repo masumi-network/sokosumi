@@ -112,7 +112,6 @@ import SwiftUI
                     message: message,
                     isContinuation: isMessageContinuation(previous: previous, current: message),
                     outbound: outbound,
-                    retryDisabled: false,
                     onRetry: outbound.map { shell in
                       { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
                     },
@@ -311,7 +310,6 @@ import SwiftUI
     let message: Components.Schemas.ChatRoomMessage
     let isContinuation: Bool
     let outbound: OutboundShell?
-    let retryDisabled: Bool
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
 
@@ -362,7 +360,6 @@ import SwiftUI
             HStack(spacing: 12) {
               if let onRetry {
                 Button("Retry", action: onRetry)
-                  .disabled(retryDisabled)
               }
               if let onRemove {
                 Button("Remove", role: .destructive, action: onRemove)
@@ -436,7 +433,6 @@ import SwiftUI
           message: previewMessage(id: "m1", content: "Morning all — the tracer renders web-style rows now.", name: "Ada", minutesAfterNoon: 0),
           isContinuation: false,
           outbound: nil,
-          retryDisabled: false,
           onRetry: nil,
           onRemove: nil
         )
@@ -444,7 +440,6 @@ import SwiftUI
           message: previewMessage(id: "m2", content: "Same burst, so no second header.", name: "Ada", minutesAfterNoon: 1),
           isContinuation: true,
           outbound: nil,
-          retryDisabled: false,
           onRetry: nil,
           onRemove: nil
         )
@@ -452,7 +447,6 @@ import SwiftUI
           message: previewMessage(id: "m3", content: "Edited after the fact.", name: "Ada", minutesAfterNoon: 30, edited: true),
           isContinuation: false,
           outbound: nil,
-          retryDisabled: false,
           onRetry: nil,
           onRemove: nil
         )

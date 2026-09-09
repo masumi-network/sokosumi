@@ -62,7 +62,8 @@ public final class RoomOutbox: ObservableObject {
 
   public func reset() {
     active = nil
-    request?.cancel()
+    // Leave `request` running. Web releases the local queue without aborting
+    // the POST; Core may already have the row. Isolation is `active` / `jobs`.
     timer?.cancel()
     request = nil
     timer = nil
@@ -104,8 +105,8 @@ public final class RoomOutbox: ObservableObject {
     guard active == attempt, let job = jobs[id] else { return }
     active = nil
     timer?.cancel()
-    request?.cancel()
     timer = nil
+    // Do not cancel `request`. Timeout frees the queue; the POST may still land.
     request = nil
     if shells.contains(where: { $0.clientTurnId == id }) {
       switch result {
@@ -114,7 +115,11 @@ public final class RoomOutbox: ObservableObject {
         jobs[id] = nil
         job.confirmed(message)
       case let .failure(error):
-        shells = failOutbound(shells: shells, clientTurnId: id, errorMessage: friendlyMessage(for: error))
+        shells = failOutbound(
+          shells: shells,
+          clientTurnId: id,
+          errorMessage: (error as? SendTimeout)?.errorDescription ?? friendlyMessage(for: error)
+        )
         job.failed(error)
       }
     } else {

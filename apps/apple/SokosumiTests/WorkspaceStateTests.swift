@@ -42,6 +42,10 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   private(set) var operationIDs: [String] = []
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
+  var remainingStubs: Int {
+    responses.count
+  }
+
   var pausePOST = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
@@ -69,6 +73,7 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
         await withCheckedContinuation { pauseWaiter = $0 }
       }
       postReleased = false
+      try Task.checkCancellation()
     }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
@@ -552,6 +557,7 @@ struct WorkspaceStateTests {
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.isEmpty)
     #expect(state.transcriptRoomId == secondID)
+    #expect(transport.remainingStubs == 0)
   }
 
   @Test func failedReadKeepsResolvedHistory() async throws {

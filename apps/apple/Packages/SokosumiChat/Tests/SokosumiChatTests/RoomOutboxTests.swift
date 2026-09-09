@@ -72,10 +72,12 @@ struct RoomOutboxTests {
     let failures = AsyncStream<Void>.makeStream()
     var confirmed = 0
     var attempts = 0
+    var firstSendCancelled = false
     outbox.enqueue(shell("retry-id"), send: {
       attempts += 1
       if attempts == 1 {
         await withCheckedContinuation { gate = $0 }
+        firstSendCancelled = Task.isCancelled
       }
       return response
     }, confirmed: { _ in confirmed += 1 }, failed: { _ in failures.continuation.yield(()) })
@@ -83,6 +85,10 @@ struct RoomOutboxTests {
     await iterator.next()
     #expect(!outbox.isSending)
     #expect(outbox.shells.first?.status == .failed)
+    #expect(
+      outbox.shells.first?.errorMessage
+        == "Sending timed out. Retry to check or send this message again."
+    )
     outbox.retry("retry-id")
     while outbox.isSending {
       await Task.yield()
@@ -93,6 +99,7 @@ struct RoomOutboxTests {
     }
     #expect(confirmed == 1)
     #expect(outbox.shells.isEmpty)
+    #expect(!firstSendCancelled)
     failures.continuation.finish()
   }
 
@@ -100,8 +107,12 @@ struct RoomOutboxTests {
     let outbox = RoomOutbox()
     let response = try #require(await fetchTestMessages([testMessageJSON(id: testRoomId, content: "sent", sender: testUserSender(name: "Me", email: "me@example.com"))]).first)
     var gate: CheckedContinuation<Void, Never>?
+    var sendCancelled = false
+    var sendFinished = false
     outbox.enqueue(shell("old"), send: {
       await withCheckedContinuation { gate = $0 }
+      sendCancelled = Task.isCancelled
+      sendFinished = true
       return response
     }, confirmed: { _ in Issue.record("Stale confirmation") }, failed: { _ in Issue.record("Stale failure") })
     outbox.enqueue(shell("queued"), send: {
@@ -113,9 +124,11 @@ struct RoomOutboxTests {
     }
     outbox.reset()
     gate?.resume()
-    for _ in 0 ..< 10 {
+    for _ in 0 ..< 1000 where !sendFinished {
       await Task.yield()
     }
+    #expect(sendFinished)
+    #expect(!sendCancelled)
     #expect(outbox.shells.isEmpty)
     #expect(!outbox.isSending)
   }
