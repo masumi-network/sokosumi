@@ -87,6 +87,7 @@ struct ContentView: View {
           .font(.callout)
           .foregroundStyle(.secondary)
         HStack {
+          Link("Open setup", destination: CoreSettings.setupURL)
           Button("Check again") {
             workspaces.retry(auth: auth)
           }
