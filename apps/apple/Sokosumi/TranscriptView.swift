@@ -271,8 +271,7 @@ struct MessageRow: View {
             .italic()
             .foregroundStyle(.secondary)
         } else if isContinuation, message.editedAt != nil {
-          // foregroundColor (not Style): only Color keeps this Text for `+`.
-          (Text(message.content) + Text(" Edited").font(.caption).foregroundColor(.secondary))
+          Text("\(Text(message.content))\(Text(" Edited").font(.caption).foregroundStyle(.secondary))")
             .textSelection(.enabled)
         } else {
           Text(message.content)
