@@ -5592,6 +5592,10 @@ export type TaskScheduleOccurrencePage = {
      * Series revision this page was read at
      */
     scheduleRevision: number;
+    /**
+     * Durable future exceptions a full-series edit or removal would cancel, counted across the whole series at this read's instant. 0 for a series with no live rule. Clients confirm a destructive discard only when this is above zero.
+     */
+    futureExceptionCount: number;
     occurrences: Array<TaskScheduleOccurrence>;
 };
 

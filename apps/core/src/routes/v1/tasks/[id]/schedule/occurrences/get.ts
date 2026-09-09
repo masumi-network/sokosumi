@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { type Prisma, TaskScheduleOccurrenceState } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import { requireTaskOwnership } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
@@ -11,7 +11,10 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
+import {
+  CALENDAR_OCCURRENCE_HORIZON_MS,
+  countTaskScheduleFutureExceptions,
+} from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -212,6 +215,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const now = new Date();
     const viewWhere = buildViewWhere(id, view, now);
     const direction = view === "upcoming" ? "asc" : "desc";
+    // Every page carries the whole series' exception count, at the same `now`
+    // as the view filter, so the edit surface can decide whether to confirm a
+    // destructive discard without paging the ledger. A series with no live
+    // rule has nothing left to discard.
+    const futureExceptionCount = hasActiveTaskSchedule(
+      task.metadata,
+      task.nextRunAt,
+    )
+      ? await countTaskScheduleFutureExceptions(prisma, id, now)
+      : 0;
     const [rows, total] = await Promise.all([
       prisma.taskScheduleOccurrence.findMany({
         where: cursor
@@ -252,6 +265,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       taskScheduleOccurrencePageSchema.parse({
         scheduleRevision,
+        futureExceptionCount,
         occurrences: page.map((occurrence) => ({
           ...occurrence,
           sourceId: getCalendarSourceId(occurrence),

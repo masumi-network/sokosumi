@@ -1,5 +1,3 @@
-import { isTaskArchivableStatus } from "@sokosumi/utils";
-
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 interface ReadOnlyForViewerParams {
@@ -68,37 +66,17 @@ export function canArchiveParkedTaskForViewer({
 }
 
 /**
- * Any org-workspace collaborator may archive a scheduled task they do not own
- * (mirrors Core scheduled-archive active-workspace gate, same as cancel).
- * Parked (`GRANT_PENDING`) stays on {@link canArchiveParkedTaskForViewer}
- * (owner/admin only). Viewer only sees tasks in the active workspace.
+ * A live schedule series owns the Task's lifecycle: Core rejects generic
+ * status, cancel, archive, and workspace-move paths with `schedule_active`
+ * until the series is changed or removed. Editing name, description, and
+ * assignee, and managing relations, stay available.
  */
-export function canArchiveScheduledTaskForViewer({
-  forceReadOnly,
-  taskStatus,
-  isTaskOwner,
-  taskWorkspaceOrganizationId,
+export function canManageTaskLifecycleForViewer({
   hasActiveSchedule,
 }: {
-  forceReadOnly: boolean;
-  taskStatus: string;
-  isTaskOwner: boolean;
-  taskWorkspaceOrganizationId: string | null;
   hasActiveSchedule: boolean;
 }): boolean {
-  if (forceReadOnly || isTaskOwner || isGrantPendingStatus(taskStatus)) {
-    return false;
-  }
-
-  if (taskWorkspaceOrganizationId === null) {
-    return false;
-  }
-
-  if (!hasActiveSchedule || !isTaskArchivableStatus(taskStatus)) {
-    return false;
-  }
-
-  return true;
+  return !hasActiveSchedule;
 }
 
 type OrgCollaboratorViewerParams = ReadOnlyForViewerParams;

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
   isTaskEditableStatus,
   type TaskAssigneeKind,
@@ -34,7 +35,7 @@ import { toast } from "sonner";
 
 import {
   canArchiveParkedTaskForViewer,
-  canArchiveScheduledTaskForViewer,
+  canManageTaskLifecycleForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
@@ -65,6 +66,7 @@ import {
   deleteTask,
   deleteTaskLink,
   setTaskStatusFromDrag,
+  type TaskMutationErrorKind,
 } from "@/lib/actions/task/action";
 import type {
   MemberWithOrganization,
@@ -215,9 +217,18 @@ export function TaskDetailActions({
   );
 
   const canMutateTask = !isReadOnly;
-  const availableStatusActions = getTaskStatusActions(status, labels, {
-    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+  // Status, archive, and workspace move belong to the schedule series while one
+  // is live — Core rejects them with `schedule_active`. Editing fields and
+  // managing relations stay available.
+  const canManageLifecycle = canManageTaskLifecycleForViewer({
+    hasActiveSchedule,
   });
+  const availableStatusActions = canManageLifecycle
+    ? getTaskStatusActions(status, labels, {
+        assigneeKind:
+          assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+      })
+    : [];
   const statusActions = canMutateTask
     ? availableStatusActions
     : canCancel
@@ -233,17 +244,10 @@ export function TaskDetailActions({
     isTaskOwner,
     isOrgOwnerOrAdmin,
   });
-  const canArchiveScheduled = canArchiveScheduledTaskForViewer({
-    forceReadOnly,
-    taskStatus: status,
-    isTaskOwner,
-    taskWorkspaceOrganizationId: currentOrganizationId ?? null,
-    hasActiveSchedule,
-  });
   const canArchiveTask =
-    canArchiveParked ||
-    canArchiveScheduled ||
-    (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
+    canManageLifecycle &&
+    (canArchiveParked ||
+      (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly));
   const isFinalized =
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED ||
@@ -251,6 +255,7 @@ export function TaskDetailActions({
   const canManageRelations = canMutateTask && !isFinalized;
   const canMove =
     canMutateTask &&
+    canManageLifecycle &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
@@ -327,6 +332,18 @@ export function TaskDetailActions({
     ctrl: tNewTask("ctrl"),
   };
 
+  /**
+   * A rejected status write is a state, not a crash: a stale client gets the
+   * reload modal, and a live series gets the localized reason it was refused.
+   */
+  const reportStatusRejection = (kind: TaskMutationErrorKind) => {
+    if (kind === CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE) {
+      toast.error(tTasks("Errors.scheduleActive"));
+      return;
+    }
+    showCalendarClientUpgradeModal();
+  };
+
   const handleStatusToggle = (action: TaskStatusAction) => {
     if (
       action.requiresComment ||
@@ -346,7 +363,7 @@ export function TaskDetailActions({
           desiredStatus: action.target,
         });
         if (!result.ok) {
-          showCalendarClientUpgradeModal();
+          reportStatusRejection(result.error.kind);
           return;
         }
         router.refresh();
@@ -377,7 +394,7 @@ export function TaskDetailActions({
           comment: trimmedComment,
         });
         if (!result.ok) {
-          showCalendarClientUpgradeModal();
+          reportStatusRejection(result.error.kind);
           return;
         }
         setIsReopenDialogOpen(false);
