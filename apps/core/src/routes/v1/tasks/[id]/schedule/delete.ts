@@ -3,7 +3,6 @@ import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -16,6 +15,7 @@ import {
   isTaskScheduleOperationReplay,
 } from "@/helpers/task-schedule-operation";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
@@ -33,7 +33,6 @@ const paramsSchema = z.object({
  * entity tag over the schedule revision. Only this exact form is accepted —
  * `*` and other validators would silently skip the revision check.
  */
-const SCHEDULE_REVISION_ETAG_PREFIX = '"schedule-revision:';
 const SCHEDULE_REVISION_ETAG_PATTERN = /^"schedule-revision:(0|[1-9]\d*)"$/;
 
 // Hono lower-cases request header names before validation, and zod-to-openapi
@@ -84,13 +83,16 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    // Removal still requires an interactive human with Task collaboration, but
+    // deliberately not Calendar beta access: it is the escape hatch for every
+    // schedule, including the ones the un-gated legacy route still creates.
     const userContext = requireOwnerUserContext(authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id } = c.req.valid("param");
     const { "idempotency-key": operationId, "if-match": scheduleRevisionETag } =
       c.req.valid("header");
+    // The header schema already enforced this shape, so the capture is present.
     const expectedScheduleRevision = Number(
-      scheduleRevisionETag.slice(SCHEDULE_REVISION_ETAG_PREFIX.length, -1),
+      SCHEDULE_REVISION_ETAG_PATTERN.exec(scheduleRevisionETag)?.[1],
     );
     // Removal has one possible outcome per Task, so its identity is the whole
     // request; reusing the key for an edit hashes differently and conflicts.
@@ -105,7 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    const task = await prisma.$transaction(async (tx) => {
+    const task = await serializableTransaction(async (tx) => {
       const scopeLocked = await lockCalendarScope(
         tx,
         existingTask.workspaceId,
@@ -140,13 +142,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ),
         });
       }
-      if (expectedScheduleRevision !== currentTask.scheduleRevision) {
-        throw conflict(
-          "The schedule series changed; reload the Task and retry with its current scheduleRevision",
-          { kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT },
-        );
-      }
-
+      // Quarantine is reported ahead of the revision so a caller holding a
+      // stale revision is not sent to reload and retry into a 409 it cannot
+      // resolve by reloading.
       const quarantine = await tx.taskScheduleQuarantine.findUnique({
         where: { taskId: id },
         select: { id: true },
@@ -155,6 +153,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict(
           "This schedule is quarantined and requires audited operator removal",
           { kind: CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED },
+        );
+      }
+      if (expectedScheduleRevision !== currentTask.scheduleRevision) {
+        throw conflict(
+          "The schedule series changed; reload the Task and retry with its current scheduleRevision",
+          { kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT },
         );
       }
 
@@ -197,7 +201,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { id: true },
       });
       return task;
-    });
+    }, "Task schedule changed during schedule removal");
 
     return ok(c, taskSchema.parse(mapTask(task)));
   });

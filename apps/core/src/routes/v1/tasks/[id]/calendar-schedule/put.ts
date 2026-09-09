@@ -1,15 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  TaskScheduleEventKind,
-  TaskScheduleOccurrenceState,
-  TaskStatus,
-} from "@sokosumi/database";
+import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   parseTaskScheduleMetadata,
-  type TaskScheduleMetadataV2,
 } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
@@ -21,9 +16,8 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
-  buildUpdatedTaskScheduleMetadataV2,
+  buildTaskScheduleMetadataV2,
   computeScheduleNextRun,
-  convertTaskScheduleMetadataV1ToV2,
   isSchedulableTaskStatus,
   validateScheduleInput,
 } from "@/helpers/task-schedule";
@@ -180,46 +174,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const changedAt = new Date();
-      let activeMetadata: TaskScheduleMetadataV2;
-      if (persistedMetadata.version === 1) {
-        const releasedOccurrenceCount =
-          persistedMetadata.mode === "recurring"
-            ? await tx.taskScheduleOccurrence.count({
-                where: {
-                  seriesTaskId: id,
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  scheduleVersion: 1,
-                  ruleSnapshot: {
-                    path: ["scheduledAt"],
-                    equals: persistedMetadata.scheduledAt,
-                  },
-                },
-              })
-            : 0;
-        activeMetadata = convertTaskScheduleMetadataV1ToV2(
-          persistedMetadata,
-          changedAt,
-          randomUUID(),
-          releasedOccurrenceCount,
-        );
-        await tx.task.update({
-          where: { id },
-          data: { metadata: JSON.stringify(activeMetadata) },
-        });
-      } else {
-        activeMetadata = persistedMetadata;
-      }
-
-      const metadata = buildUpdatedTaskScheduleMetadataV2(
+      // A full-series edit always starts a new epoch, including a legacy v1
+      // series and a resubmission of the rule already stored: the confirmed
+      // `discardFutureExceptions` must never silently no-op, and a fresh epoch
+      // keeps the reprojected originals clear of the retired rows' identity.
+      const metadata = buildTaskScheduleMetadataV2(
         schedule,
-        activeMetadata,
         changedAt,
         randomUUID(),
       );
-      const nextRunAt =
-        metadata === activeMetadata
-          ? currentTask.nextRunAt
-          : computeScheduleNextRun(metadata);
+      const nextRunAt = computeScheduleNextRun(metadata);
       if (!nextRunAt) {
         throw badRequest("Unable to compute the next scheduled run");
       }
@@ -245,31 +209,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ),
       });
 
-      // Future exceptions belong to the epoch that defined them. A rule that
-      // still matches keeps its epoch, its projection, and its exceptions;
-      // anything else retires the old epoch's future half and reprojects.
-      const previousEpochId =
-        persistedMetadata.version === 2 ? persistedMetadata.epochId : null;
-      let canceledFutureExceptionCount = 0;
-      if (previousEpochId !== metadata.epochId) {
-        const retired = await retireTaskScheduleFutureOccurrences(
-          tx,
+      // Future exceptions belong to the epoch that defined them, so the old
+      // epoch's future half is retired before the new epoch is projected.
+      const retired = await retireTaskScheduleFutureOccurrences(
+        tx,
+        id,
+        changedAt,
+      );
+      await createTaskSchedulePlannedOccurrences(
+        tx,
+        {
           id,
-          changedAt,
-        );
-        canceledFutureExceptionCount = retired.canceledCount;
-        await createTaskSchedulePlannedOccurrences(
-          tx,
-          {
-            id,
-            workspaceId: currentTask.workspaceId,
-            projectId: currentTask.projectId,
-            schedule: metadata,
-            nextRunAt,
-          },
-          changedAt,
-        );
-      }
+          workspaceId: currentTask.workspaceId,
+          projectId: currentTask.projectId,
+          schedule: metadata,
+          nextRunAt,
+        },
+        changedAt,
+      );
 
       await tx.taskEvent.create({
         data: {
@@ -285,7 +242,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             epochId: metadata.epochId,
             nextRunAt: nextRunAt.toISOString(),
             scheduleRevision: updatedTask.scheduleRevision,
-            canceledFutureExceptionCount,
+            canceledFutureExceptionCount: retired.canceledCount,
           },
         },
         select: { id: true },

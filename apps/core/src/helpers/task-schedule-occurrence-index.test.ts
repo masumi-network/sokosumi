@@ -18,6 +18,7 @@ describe("retireTaskScheduleFutureOccurrences", () => {
     rows: Array<{
       id: string;
       state: "PLANNED" | "SKIPPED";
+      scheduleVersion: number;
       originalScheduledAt: Date | null;
       effectiveScheduledAt: Date;
     }>,
@@ -53,11 +54,12 @@ describe("retireTaskScheduleFutureOccurrences", () => {
       select: {
         id: true,
         state: true,
+        scheduleVersion: true,
         originalScheduledAt: true,
         effectiveScheduledAt: true,
       },
     });
-    expect(result).toEqual({ canceledCount: 0, deletedCount: 0 });
+    expect(result).toEqual({ canceledCount: 0 });
   });
 
   it("cancels durable future exceptions and deletes only ordinary future projections", async () => {
@@ -65,24 +67,28 @@ describe("retireTaskScheduleFutureOccurrences", () => {
       {
         id: "occ_skipped",
         state: "SKIPPED",
+        scheduleVersion: 2,
         originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
         effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
       },
       {
         id: "occ_moved",
         state: "PLANNED",
+        scheduleVersion: 2,
         originalScheduledAt: new Date("2026-06-12T09:00:00.000Z"),
         effectiveScheduledAt: new Date("2026-06-13T15:00:00.000Z"),
       },
       {
         id: "occ_ordinary",
         state: "PLANNED",
+        scheduleVersion: 2,
         originalScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
         effectiveScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
       },
       {
         id: "occ_legacy",
         state: "PLANNED",
+        scheduleVersion: 1,
         originalScheduledAt: null,
         effectiveScheduledAt: new Date("2026-06-15T09:00:00.000Z"),
       },
@@ -101,7 +107,38 @@ describe("retireTaskScheduleFutureOccurrences", () => {
     expect(deleteMany).toHaveBeenCalledWith({
       where: { id: { in: ["occ_ordinary", "occ_legacy"] } },
     });
-    expect(result).toEqual({ canceledCount: 2, deletedCount: 2 });
+    expect(result).toEqual({ canceledCount: 2 });
+  });
+
+  it("deletes legacy version 1 rows the identity constraint forbids cancelling", async () => {
+    const { client, updateMany, deleteMany } = createRetireClient([
+      {
+        id: "occ_v1_moved",
+        state: "PLANNED",
+        scheduleVersion: 1,
+        originalScheduledAt: new Date("2026-06-12T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-13T15:00:00.000Z"),
+      },
+      {
+        id: "occ_v1_skipped",
+        state: "SKIPPED",
+        scheduleVersion: 1,
+        originalScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
+      },
+    ]);
+
+    const result = await retireTaskScheduleFutureOccurrences(
+      client,
+      "tsk_series",
+      NOW,
+    );
+
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["occ_v1_moved", "occ_v1_skipped"] } },
+    });
+    expect(result).toEqual({ canceledCount: 0 });
   });
 
   it("writes nothing when the series has no future rows", async () => {
