@@ -3,7 +3,7 @@
   "info": {
     "title": "Sokosumi Core (Apple tracer slice)",
     "version": "1.0.0",
-    "description": "SOK-973 slice: GET /users/{id}, GET /users/{id}/workspace-access, GET /users/{id}/organizations, PUT /users/{id}/preferred-organization, GET /chats/rooms. SOK-974 slice: GET /chats/rooms/{id}/messages, POST /chats/rooms/{id}/read. SOK-975 slice: POST /chats/rooms/{id}/messages. Extracted from apps/web/openapi-core.snapshot.json."
+    "description": "SOK-973 slice: GET /users/{id}, GET /users/{id}/workspace-access, GET /users/{id}/organizations, PUT /users/{id}/preferred-organization, GET /chats/rooms. SOK-974 slice: GET /chats/rooms/{id}/messages, POST /chats/rooms/{id}/read. SOK-975 slice: POST /chats/rooms/{id}/messages. SOK-976 slice: POST /realtime/ably-token. Extracted from apps/web/openapi-core.snapshot.json."
   },
   "paths": {
     "/users/{id}": {
@@ -949,7 +949,7 @@
     },
     "/users/{id}/preferred-organization": {
       "put": {
-        "description": "Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Pass a null `organizationId` to switch to the personal workspace — refused when the personal workspace is missing. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.",
+        "description": "Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Send `{\"organizationId\":null}` to switch to personal — refused when the personal workspace is missing. Omitting the key (`{}`) is 422, not a personal switch. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.",
         "tags": [
           "Users"
         ],
@@ -1198,6 +1198,63 @@
           },
           "404": {
             "description": "Not Found - User not found, or personal workspace is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity - organizationId key required; send null for personal",
             "content": {
               "application/json": {
                 "schema": {
@@ -2102,7 +2159,7 @@
         }
       },
       "post": {
-        "description": "Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or Soko Bot identity into rooms it belongs to.",
+        "description": "Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or Soko Bot identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.",
         "tags": [
           "Chat Rooms"
         ],
@@ -2122,7 +2179,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -2151,7 +2207,8 @@
                           "example": "2021-01-01T00:00:00.000Z"
                         },
                         "requestId": {
-                          "type": "string"
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
                         },
                         "pagination": {
                           "$ref": "#/components/schemas/PaginationMetadata"
@@ -2808,10 +2865,341 @@
           }
         }
       }
+    },
+    "/realtime/ably-token": {
+      "post": {
+        "description": "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, always-on chat control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
+        "tags": [
+          "Realtime"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "clientInstanceId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ably TokenRequest created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AblyTokenRequest"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AblyTokenRequest": {
+        "type": "object",
+        "properties": {
+          "keyName": {
+            "type": "string",
+            "example": "appId.keyId"
+          },
+          "ttl": {
+            "type": "integer",
+            "example": 3600000
+          },
+          "capability": {
+            "type": "string",
+            "example": "{\"chat_rooms:room_abc\":[\"subscribe\"]}"
+          },
+          "clientId": {
+            "type": "string",
+            "example": "user_123"
+          },
+          "timestamp": {
+            "type": "integer",
+            "example": 1704067200000
+          },
+          "nonce": {
+            "type": "string",
+            "example": "random-nonce"
+          },
+          "mac": {
+            "type": "string",
+            "example": "signature"
+          }
+        },
+        "required": [
+          "keyName",
+          "capability",
+          "timestamp",
+          "nonce",
+          "mac"
+        ]
+      },
       "ChatRoom": {
         "type": "object",
         "properties": {
@@ -3648,6 +4036,79 @@
           "presence"
         ]
       },
+      "CreateChatRoomMessageRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000,
+            "example": "@coworker:elena Can you summarize this launch risk?"
+          },
+          "mentionedCoworkerIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": [
+              "cow_123"
+            ]
+          },
+          "mentionedSokoBotIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Personal assistants addressed in the message.",
+            "example": [
+              "01960001-0001-7001-8001-000000000099"
+            ]
+          },
+          "mentionedUserIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.",
+            "example": [
+              "user_123"
+            ]
+          },
+          "parentMessageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Root message ID when posting a threaded reply.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "quote": {
+            "type": "object",
+            "properties": {
+              "messageId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "550e8400-e29b-41d4-a716-446655440000"
+              }
+            },
+            "required": [
+              "messageId"
+            ],
+            "description": "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId."
+          },
+          "clientMessageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
+            "example": "019fbee7-676b-771f-ab7a-998f25f1f16b"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
       "MemberRole": {
         "type": "string",
         "enum": [
@@ -3873,78 +4334,6 @@
         ],
         "description": "Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry",
         "example": "ready"
-      },
-      "CreateChatRoomMessageRequest": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "minLength": 1,
-            "example": "Hello from Mac"
-          },
-          "mentionedCoworkerIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            },
-            "example": [
-              "cow_123"
-            ]
-          },
-          "mentionedSokoBotIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Personal assistants addressed in the message.",
-            "example": [
-              "01960001-0001-7001-8001-000000000099"
-            ]
-          },
-          "mentionedUserIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            },
-            "description": "Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.",
-            "example": [
-              "user_123"
-            ]
-          },
-          "parentMessageId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Root message ID when posting a threaded reply.",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          "quote": {
-            "type": "object",
-            "properties": {
-              "messageId": {
-                "type": "string",
-                "format": "uuid",
-                "example": "550e8400-e29b-41d4-a716-446655440000"
-              }
-            },
-            "required": [
-              "messageId"
-            ],
-            "description": "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId."
-          },
-          "clientMessageId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128,
-            "description": "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
-            "example": "019fbee7-676b-771f-ab7a-998f25f1f16b"
-          }
-        },
-        "required": [
-          "content"
-        ]
       }
     },
     "parameters": {

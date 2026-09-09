@@ -1,9 +1,18 @@
+import SokosumiRealtime
 import SwiftUI
 
 @main
 struct SokosumiApp: App {
   @StateObject private var auth = AuthState()
-  @StateObject private var workspaces = WorkspaceState()
+  @StateObject private var workspaces: WorkspaceState
+
+  init() {
+    let workspaces = WorkspaceState()
+    // Live room updates over Ably (SOK-976). The state drives the socket;
+    // without this factory it stays HTTP-only.
+    workspaces.realtimeConnectionFactory = { AblyRealtimeConnection() }
+    _workspaces = StateObject(wrappedValue: workspaces)
+  }
 
   var body: some Scene {
     WindowGroup {

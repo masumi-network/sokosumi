@@ -12,7 +12,6 @@ import {
   resolvePrimaryEnvRoot,
   sanitizeEnvContents,
   shouldReusePrimaryEnv,
-  syncSigningSecret,
 } from "./bootstrap.mjs";
 
 describe("isPlaceholderValue", () => {
@@ -92,16 +91,6 @@ describe("sanitizeEnvContents", () => {
   });
 });
 
-describe("syncSigningSecret", () => {
-  it("copies Core BETTER_AUTH_SECRET onto web APP_SIGNING_SECRET", () => {
-    const web = syncSigningSecret(
-      'APP_SIGNING_SECRET="<app-signing-secret>"\n',
-      'BETTER_AUTH_SECRET="shared-secret"\n',
-    );
-    assert.match(web, /^APP_SIGNING_SECRET="shared-secret"$/m);
-  });
-});
-
 describe("bootstrapLocalEnv", () => {
   it("creates .env from examples and sanitizes both apps", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sokosumi-env-"));
@@ -137,7 +126,7 @@ describe("bootstrapLocalEnv", () => {
     assert.match(core, /^# BETTER_AUTH_COOKIE_DOMAIN=/m);
     assert.match(core, /^# COMPOSIO_API_KEY=/m);
     assert.match(core, /@localhost:5432/);
-    assert.match(web, /^APP_SIGNING_SECRET="core-secret"$/m);
+    assert.match(web, /^APP_SIGNING_SECRET="dummy-app-signing-secret"$/m);
     assert.match(web, /^# NEXT_PUBLIC_SENTRY_DSN=/m);
     assert.match(web, /^CORE_APP_BASE_URL="http:\/\/localhost:8787"$/m);
     assert.equal(paths.reusedFrom, null);
@@ -282,7 +271,7 @@ describe("bootstrapLocalEnv primary reuse", () => {
     assert.match(core, /^BETTER_AUTH_SECRET="primary-secret"$/m);
     assert.match(core, /neondb_owner@db.example/);
     assert.match(core, /^# BETTER_AUTH_COOKIE_DOMAIN=/m);
-    assert.match(web, /^APP_SIGNING_SECRET="primary-secret"$/m);
+    assert.match(web, /^APP_SIGNING_SECRET="stale-web-secret"$/m);
   });
 
   it("replaces a worktree .env that still has the example secret", async () => {
