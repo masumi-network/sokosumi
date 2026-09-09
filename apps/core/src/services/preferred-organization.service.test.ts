@@ -96,4 +96,13 @@ describe("resolveActiveOrganizationIdForSession", () => {
     ).resolves.toBeNull();
     expect(getMembersOrganizationIdsByUserIdMock).not.toHaveBeenCalled();
   });
+  it("returns null when setup is required and no workspace exists", async () => {
+    getUserByIdMock.mockResolvedValueOnce({ preferredOrganizationId: null });
+    findPersonalWorkspaceMock.mockResolvedValueOnce(null);
+    getMembersOrganizationIdsByUserIdMock.mockResolvedValueOnce([]);
+
+    await expect(
+      resolveActiveOrganizationIdForSession("user_1"),
+    ).resolves.toBeNull();
+  });
 });
