@@ -175,14 +175,20 @@ export async function replaceTaskSchedulePlannedOccurrences(
 
 export interface RetiredTaskScheduleOccurrences {
   canceledCount: number;
-  deletedCount: number;
 }
 
 function isDurableScheduleException(occurrence: {
   state: TaskScheduleOccurrenceState;
+  scheduleVersion: number;
   originalScheduledAt: Date | null;
   effectiveScheduledAt: Date;
 }): boolean {
+  // A legacy row carries no epoch and the identity check constraint requires
+  // `state = 'PLANNED'` for it, so it can only ever be deleted.
+  if (occurrence.scheduleVersion === 1) {
+    return false;
+  }
+
   return (
     occurrence.state === TaskScheduleOccurrenceState.SKIPPED ||
     (occurrence.originalScheduledAt != null &&
@@ -200,6 +206,13 @@ function isDurableScheduleException(occurrence: {
  * visible in history. Ordinary future projections carry no decision and are
  * deleted. Released occurrences and everything already in the past are never
  * touched.
+ *
+ * The candidate read is unbounded on purpose: every series edit and removal
+ * retires the whole future half before projecting again, so at most one live
+ * epoch's projection is ever in this set, and that projection is capped at
+ * {@link MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES} rows inside the
+ * {@link CALENDAR_OCCURRENCE_HORIZON_MS} horizon. A `take` here would silently
+ * strand rows instead of retiring them if that invariant ever broke.
  */
 export async function retireTaskScheduleFutureOccurrences(
   tx: TaskScheduleOccurrenceRetireClient,
@@ -220,6 +233,7 @@ export async function retireTaskScheduleFutureOccurrences(
     select: {
       id: true,
       state: true,
+      scheduleVersion: true,
       originalScheduledAt: true,
       effectiveScheduledAt: true,
     },
@@ -247,7 +261,7 @@ export async function retireTaskScheduleFutureOccurrences(
     });
   }
 
-  return { canceledCount: canceledIds.length, deletedCount: deletedIds.length };
+  return { canceledCount: canceledIds.length };
 }
 
 export async function refreshTaskSchedulePlannedOccurrences(

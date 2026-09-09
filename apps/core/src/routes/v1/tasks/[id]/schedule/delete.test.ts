@@ -16,7 +16,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
-  prismaTransactionMock,
+  serializableTransactionMock,
   memberFindFirstMock,
   requireTaskCollaborationMock,
   lockCalendarScopeMock,
@@ -28,7 +28,7 @@ const {
   taskFindUniqueOrThrowMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
+  serializableTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
@@ -54,9 +54,12 @@ vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   retireTaskScheduleFutureOccurrences: retireTaskScheduleFutureOccurrencesMock,
 }));
 
+vi.mock("@/lib/db/transaction", () => ({
+  serializableTransaction: serializableTransactionMock,
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
     member: { findFirst: memberFindFirstMock },
   },
 }));
@@ -173,13 +176,12 @@ describe("DELETE /tasks/{id}/schedule", () => {
     quarantineFindUniqueMock.mockResolvedValue(null);
     retireTaskScheduleFutureOccurrencesMock.mockResolvedValue({
       canceledCount: 0,
-      deletedCount: 0,
     });
     taskEventFindUniqueMock.mockResolvedValue(null);
     taskEventCreateMock.mockResolvedValue({ id: "evt_1" });
     taskFindUniqueOrThrowMock.mockResolvedValue(createUpdatedTask());
     taskUpdateMock.mockResolvedValue(createUpdatedTask());
-    prismaTransactionMock.mockImplementation(async (callback) =>
+    serializableTransactionMock.mockImplementation(async (callback) =>
       callback({
         taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
         task: {
@@ -194,14 +196,15 @@ describe("DELETE /tasks/{id}/schedule", () => {
     );
   });
 
-  it("rejects task schedule removal outside the Calendar beta", async () => {
+  it("removes a series for a collaborator outside the Calendar beta", async () => {
+    // Removal is the escape hatch for schedules the un-gated legacy route can
+    // still create, so beta membership must not gate it.
     memberFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(...removalRequest());
 
-    expect(response.status).toBe(403);
-    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledOnce();
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -216,7 +219,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
 
     expect(response.status).toBe(403);
     expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(serializableTransactionMock).not.toHaveBeenCalled();
   });
 
   it("requires audited operator removal for a quarantined schedule", async () => {
@@ -246,7 +249,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
       }),
     );
     expect(malformed.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(serializableTransactionMock).not.toHaveBeenCalled();
   });
 
   it("requires an exact schedule-revision If-Match header", async () => {
@@ -269,7 +272,28 @@ describe("DELETE /tasks/{id}/schedule", () => {
       );
       expect(response.status, `If-Match: ${value}`).toBe(422);
     }
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(serializableTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("reports the quarantine ahead of a stale schedule revision", async () => {
+    quarantineFindUniqueMock.mockResolvedValue({ id: "quarantine-1" });
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.READY,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: 7,
+    });
+
+    const response = await createApp().request(...removalRequest());
+
+    expect(response.status).toBe(409);
+    // Reloading cannot resolve a quarantine, so the revision conflict must not
+    // mask it.
+    expect(await response.json()).toMatchObject({
+      kind: "schedule_quarantined",
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rejects a removal that observed an older schedule revision", async () => {

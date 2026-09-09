@@ -21,7 +21,6 @@ const {
   memberFindFirstMock,
   prismaMock,
   quarantineFindUniqueMock,
-  releasedOccurrenceCountMock,
   requireAssignedOrganizationSeatMock,
   requireTaskCollaborationMock,
   retireTaskScheduleFutureOccurrencesMock,
@@ -39,7 +38,6 @@ const {
     memberFindFirstMock,
     prismaMock: { member: { findFirst: memberFindFirstMock } },
     quarantineFindUniqueMock: vi.fn(),
-    releasedOccurrenceCountMock: vi.fn(),
     requireAssignedOrganizationSeatMock: vi.fn(),
     requireTaskCollaborationMock: vi.fn(),
     retireTaskScheduleFutureOccurrencesMock: vi.fn(),
@@ -220,11 +218,9 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
     quarantineFindUniqueMock.mockResolvedValue(null);
-    releasedOccurrenceCountMock.mockResolvedValue(2);
     requireAssignedOrganizationSeatMock.mockResolvedValue(undefined);
     retireTaskScheduleFutureOccurrencesMock.mockResolvedValue({
       canceledCount: 0,
-      deletedCount: 0,
     });
     taskEventFindUniqueMock.mockResolvedValue(null);
     taskEventCreateMock.mockResolvedValue({ id: "evt_1" });
@@ -241,7 +237,6 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
           create: taskEventCreateMock,
           findUnique: taskEventFindUniqueMock,
         },
-        taskScheduleOccurrence: { count: releasedOccurrenceCountMock },
         taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
       }),
     );
@@ -251,7 +246,7 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
   });
 
-  it("atomically converts a finite v1 rule before applying the Calendar edit", async () => {
+  it("replaces a finite v1 rule with a mutable epoch in one revision", async () => {
     const metadata = JSON.stringify({
       version: 1,
       mode: "recurring",
@@ -283,38 +278,22 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
       WORKSPACE_ID,
       [null],
     );
-    expect(releasedOccurrenceCountMock).toHaveBeenCalledWith({
-      where: {
-        seriesTaskId: TASK_ID,
-        state: "RELEASED",
-        scheduleVersion: 1,
-        ruleSnapshot: {
-          path: ["scheduledAt"],
-          equals: "2026-06-01T08:00:00.000Z",
-        },
-      },
-    });
-    expect(taskUpdateMock).toHaveBeenCalledTimes(2);
-    // The lazy conversion is not itself a series edit: only the rule write
-    // advances the revision, so one request is still one increment.
-    expect(taskUpdateMock.mock.calls[0][0].data).not.toHaveProperty(
-      "scheduleRevision",
-    );
-    expect(taskUpdateMock.mock.calls[1][0].data.scheduleRevision).toEqual({
+    expect(taskUpdateMock).toHaveBeenCalledOnce();
+    expect(taskUpdateMock.mock.calls[0][0].data.scheduleRevision).toEqual({
       increment: 1,
     });
-    const converted = JSON.parse(taskUpdateMock.mock.calls[0][0].data.metadata);
-    const saved = JSON.parse(taskUpdateMock.mock.calls[1][0].data.metadata);
-    expect(converted).toMatchObject({
+    const saved = JSON.parse(taskUpdateMock.mock.calls[0][0].data.metadata);
+    expect(saved).toMatchObject({
       version: 2,
       epochId: expect.stringMatching(
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
       ),
       expr: "0 9 * * *",
-      targetReleaseCount: 5,
-      epochReleaseCount: 2,
+      targetReleaseCount: 3,
+      epochReleaseCount: 0,
     });
-    expect(saved.epochId).toBe(converted.epochId);
+    // The submitted count is what remains of the legacy series, so the new
+    // epoch owes the same number of runs.
     expect(saved.targetReleaseCount - saved.epochReleaseCount).toBe(3);
     expect(createTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
       expect.any(Object),
@@ -322,14 +301,17 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
         id: TASK_ID,
         schedule: expect.objectContaining({
           version: 2,
-          epochId: converted.epochId,
+          epochId: saved.epochId,
         }),
       }),
       expect.any(Date),
     );
   });
 
-  it("keeps the epoch of an unchanged v2 rule and leaves its ledger alone", async () => {
+  it("starts a new epoch and discards future exceptions even when the rule is unchanged", async () => {
+    retireTaskScheduleFutureOccurrencesMock.mockResolvedValue({
+      canceledCount: 3,
+    });
     mockCurrentTask(createV2Metadata());
 
     const response = await createApp().request(
@@ -338,12 +320,15 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
 
     expect(response.status).toBe(200);
     expect(taskUpdateMock).toHaveBeenCalledOnce();
+    // A confirmed discardFutureExceptions never silently no-ops.
     expect(
       JSON.parse(taskUpdateMock.mock.calls[0][0].data.metadata).epochId,
-    ).toBe(V2_EPOCH_ID);
-    expect(releasedOccurrenceCountMock).not.toHaveBeenCalled();
-    expect(retireTaskScheduleFutureOccurrencesMock).not.toHaveBeenCalled();
-    expect(createTaskSchedulePlannedOccurrencesMock).not.toHaveBeenCalled();
+    ).not.toBe(V2_EPOCH_ID);
+    expect(retireTaskScheduleFutureOccurrencesMock).toHaveBeenCalledOnce();
+    expect(createTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledOnce();
+    expect(
+      taskEventCreateMock.mock.calls[0][0].data.schedulePayload,
+    ).toMatchObject({ canceledFutureExceptionCount: 3 });
   });
 
   it("rejects users outside the Calendar beta before updating a Calendar schedule", async () => {
@@ -496,7 +481,6 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
   it("cancels durable future exceptions under the Calendar and Task locks", async () => {
     retireTaskScheduleFutureOccurrencesMock.mockResolvedValue({
       canceledCount: 2,
-      deletedCount: 5,
     });
     mockCurrentTask(createV2Metadata());
 
