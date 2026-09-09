@@ -199,6 +199,7 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   private(set) var watchedRooms: [String?] = []
   private(set) var slugs: [String?] = []
   private(set) var reauthorizeCount = 0
+  private(set) var reauthorizedToken: AblyTokenFields?
   private(set) var disconnectCount = 0
   private var handler: RealtimeEventHandler?
 
@@ -222,8 +223,9 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
     watchedRooms.append(roomId)
   }
 
-  func reauthorize() {
+  func reauthorize(token: AblyTokenFields) {
     reauthorizeCount += 1
+    reauthorizedToken = token
   }
 
   func disconnect() {
@@ -651,6 +653,7 @@ struct WorkspaceRealtimeTests {
     #expect(fake.connectedSlug == nil)
     await waitForTokenMints(transport, count: 1)
     #expect(fake.reauthorizeCount == 1)
+    #expect(fake.reauthorizedToken?.keyName == "test.app")
     #expect(fake.watchedRooms == [roomA, roomB])
     #expect(state.selectedRoomId == roomB)
   }

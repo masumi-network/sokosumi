@@ -134,7 +134,7 @@ final class AuthState: ObservableObject {
     session
   }
 
-  /// Generated Core client with the session's bearer attached. attached.
+  /// Generated Core client with the session's bearer attached.
   /// Nil when the OAuth client ID is not configured.
   func coreClient() -> Client? {
     guard let session else {

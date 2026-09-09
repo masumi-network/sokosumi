@@ -38,8 +38,10 @@ final class WorkspaceState: ObservableObject {
   @Published private(set) var selectionId: String?
   @Published private(set) var rooms: [Components.Schemas.ChatRoom] = []
   @Published private(set) var roomsLoading = false
-  /// Selected room. Never left empty while rooms exist: launch and workspace
-  /// switches restore the saved room, else the first room.
+  /// Selected room. Launch and workspace switches restore the saved room,
+  /// else the first room. Revoking the open room can leave this nil while
+  /// others remain: the saved pick is left alone so relaunch does not
+  /// reopen a room that is gone.
   @Published private(set) var selectedRoomId: String?
   /// Switch/list failure while already `.ready`. Nil means the sidebar is fine.
   @Published private(set) var switchError: String?
@@ -335,12 +337,13 @@ final class WorkspaceState: ObservableObject {
   func refreshAblyToken(auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
     do {
-      ablyToken = try await service.fetchAblyToken(
+      let token = try await service.fetchAblyToken(
         client: client,
         clientInstanceId: ablyClientInstanceId,
         organizationSlug: selection?.workspace.organizationSlug
       )
-      realtime?.reauthorize()
+      ablyToken = token
+      realtime?.reauthorize(token: AblyTokenFields(token))
     } catch let error as ChatServiceError {
       if case let .unauthorized(message) = error {
         auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")

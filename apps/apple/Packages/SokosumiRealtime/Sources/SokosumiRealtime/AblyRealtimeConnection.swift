@@ -89,9 +89,21 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     lock.withLock { self.roomChannel = channel }
   }
 
-  public func reauthorize() {
-    guard let realtime = lock.withLock({ self.realtime }) else { return }
-    realtime.auth.authorize(nil, options: nil) { _, _ in }
+  public func reauthorize(token: AblyTokenFields) {
+    guard let realtime = lock.withLock({ self.realtime }),
+          let json = token.jsonString
+    else {
+      return
+    }
+    let options = ARTAuthOptions()
+    options.authCallback = { _, callback in
+      do {
+        try callback(ARTTokenRequest.fromJson(json as NSString), nil)
+      } catch {
+        callback(nil, error as NSError)
+      }
+    }
+    realtime.auth.authorize(nil, options: options) { _, _ in }
   }
 
   public func disconnect() {

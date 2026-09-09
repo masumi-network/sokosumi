@@ -54,6 +54,29 @@ struct RealtimeEventTests {
     #expect(messageSenderName(message.sender) == "Ada")
   }
 
+  @Test func fullCreateFromAblyNSDictionaryResolves() throws {
+    let data = try JSONSerialization.jsonObject(
+      with: JSONSerialization.data(withJSONObject: [
+        "eventType": "create",
+        "message": messageDict()
+      ])
+    )
+    #expect(data is NSDictionary)
+    let event = resolveRealtimeDelivery(
+      channel: "chat_rooms:room_\(roomId)",
+      event: "chat_room_message",
+      data: data
+    )
+    guard case let .message(resolvedRoomId, resolvedType, message) = event else {
+      Issue.record("expected message, got \(event)")
+      return
+    }
+    #expect(resolvedRoomId == roomId)
+    #expect(resolvedType == .create)
+    #expect(message.id == messageId)
+    #expect(message.content == "hello")
+  }
+
   @Test func fullDeleteResolves() {
     let event = resolveRealtimeDelivery(
       channel: "chat_rooms:room_\(roomId)",

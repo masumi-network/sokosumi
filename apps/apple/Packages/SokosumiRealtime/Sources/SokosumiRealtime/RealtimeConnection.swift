@@ -27,7 +27,8 @@ public protocol RealtimeConnection: AnyObject, Sendable {
   func setOrganizationSlug(_ slug: String?)
   /// Switches the room channel subscription. Nil detaches (room closed).
   func watchRoom(_ roomId: String?)
-  /// Forces a token remint (membership changed).
-  func reauthorize()
+  /// Forces a token remint with the TokenRequest Core just issued, so Ably
+  /// does not call `authCallback` again (one Core POST per remint).
+  func reauthorize(token: AblyTokenFields)
   func disconnect()
 }

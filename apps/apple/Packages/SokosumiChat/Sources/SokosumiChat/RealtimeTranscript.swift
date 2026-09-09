@@ -43,8 +43,9 @@ public enum ChatRoomMessageEnvelopeResolution: Equatable, Sendable {
 }
 
 /// Decide how the focused room applies an id envelope (ADR 0014): other rooms
-/// and thread replies are ignored (no threads UI); delete tombstones by id
-/// because list GET omits deleted rows; create/update refetch history.
+/// and thread replies are ignored (no threads UI, so parent `threadReplyCount`
+/// stays until the next history load); delete tombstones by id because list
+/// GET omits deleted rows; create/update refetch history.
 public func resolveRealtimeEnvelope(
   _ envelope: ChatRoomMessageIdEnvelope,
   focusedRoomId: String?
