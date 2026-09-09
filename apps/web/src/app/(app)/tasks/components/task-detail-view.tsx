@@ -436,6 +436,7 @@ async function TaskMetadataSection({ task }: { task: Task }) {
 
   return (
     <TaskMetadata
+      title={t("properties")}
       task={{
         status: task.status,
         owner: task.owner,

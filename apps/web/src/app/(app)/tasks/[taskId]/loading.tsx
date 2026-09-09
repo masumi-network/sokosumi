@@ -25,7 +25,7 @@ export default function TaskDetailLoading() {
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
-            <TaskSectionSkeleton name="properties" rows={4} showTitle={false} />
+            <TaskSectionSkeleton name="properties" rows={4} />
           </aside>
 
           <div className={TASK_DETAIL_MAIN_CLASS}>
@@ -40,15 +40,13 @@ export default function TaskDetailLoading() {
 function TaskSectionSkeleton({
   name,
   rows,
-  showTitle = true,
 }: {
   name: string;
   rows: number;
-  showTitle?: boolean;
 }) {
   return (
     <section className="space-y-4">
-      {showTitle ? <Skeleton className="h-3 w-24" /> : null}
+      <Skeleton className="h-3 w-24" />
       <div className="space-y-3">
         {Array.from({ length: rows }, (_, index) => (
           <Skeleton key={`${name}-${index}`} className="h-4 w-full" />
