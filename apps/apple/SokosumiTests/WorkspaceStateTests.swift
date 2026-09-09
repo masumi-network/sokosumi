@@ -44,6 +44,9 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   private var responses: [(Int, String)]
   var pausePOST = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
+  /// Tests wait on `operationIDs` (appended before the body `await`). A
+  /// release that arrives in that window must not be lost.
+  private var postReleased = false
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
@@ -62,13 +65,17 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
       bodies.append(Data())
     }
     if pausePOST, operationID == "post/chats/rooms/{id}/messages" {
-      await withCheckedContinuation { pauseWaiter = $0 }
+      if !postReleased {
+        await withCheckedContinuation { pauseWaiter = $0 }
+      }
+      postReleased = false
     }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
   }
 
   func releasePOST() {
+    postReleased = true
     pauseWaiter?.resume()
     pauseWaiter = nil
   }
