@@ -102,12 +102,13 @@ export const putCalendarTaskScheduleRequestSchema = z
   .openapi("PutCalendarTaskScheduleRequest");
 
 /**
- * Legacy `PUT /tasks/{id}/schedule` body: a bare schedule stays accepted, and
- * the Calendar envelope is tolerated so one client can target either route.
+ * Legacy `PUT /tasks/{id}/schedule` body. The revision-safe Calendar envelope
+ * belongs exclusively to `/calendar-schedule`; accepting it here would discard
+ * its preconditions while appearing to honor them.
  */
-export const putTaskScheduleRequestSchema = z
-  .union([putCalendarTaskScheduleRequestSchema, taskScheduleInputSchema])
-  .openapi("PutTaskScheduleRequest");
+export const putTaskScheduleRequestSchema = taskScheduleInputSchema.openapi(
+  "PutTaskScheduleRequest",
+);
 
 export type TaskScheduleInput = z.infer<typeof taskScheduleInputSchema>;
 
@@ -118,9 +119,3 @@ export type PutCalendarTaskScheduleRequest = z.infer<
 export type PutTaskScheduleRequest = z.infer<
   typeof putTaskScheduleRequestSchema
 >;
-
-export function getTaskScheduleInput(
-  request: PutTaskScheduleRequest,
-): TaskScheduleInput {
-  return "schedule" in request ? request.schedule : request;
-}

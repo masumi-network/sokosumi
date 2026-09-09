@@ -16,7 +16,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
-  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -84,9 +83,9 @@ import {
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
 import {
+  getTaskScheduleOperationId,
   hasTaskScheduleChanged,
   metadataToSelection,
-  selectionToApiBody,
 } from "@/lib/utils/task-schedule";
 import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 import {
@@ -233,25 +232,6 @@ function getTaskFormStatusLabel(
           ? (labels.statusQueued ?? value)
           : value)
   );
-}
-
-/**
- * The operation identity of a series save, keyed to the schedule it submits:
- * retrying the same save replays on Core, while editing the rule again starts
- * a new operation. Minted in the browser and never on the server.
- */
-function seriesOperationIdFor(
-  selection: TaskScheduleSelection,
-  operation: RefObject<{ key: string; operationId: string } | null>,
-): string {
-  const key =
-    selection.mode === "none"
-      ? "none"
-      : JSON.stringify(selectionToApiBody(selection));
-  if (operation.current?.key !== key) {
-    operation.current = { key, operationId: crypto.randomUUID() };
-  }
-  return operation.current.operationId;
 }
 
 export interface TaskFormCreateInput {
@@ -869,7 +849,7 @@ export function TaskForm({
           ...(hasActiveSeries
             ? {
                 expectedScheduleRevision: scheduleRevision,
-                scheduleOperationId: seriesOperationIdFor(
+                scheduleOperationId: getTaskScheduleOperationId(
                   scheduleSelection,
                   seriesOperation,
                 ),

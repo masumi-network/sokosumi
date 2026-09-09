@@ -3756,7 +3756,7 @@ export type NotificationPreference = {
 
 export type PreferredOrganization = {
     /**
-     * Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
+     * Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
      */
     organizationId: string | null;
 };
@@ -5552,7 +5552,7 @@ export type PutCalendarTaskScheduleRequest = {
     schedule: TaskScheduleInput;
 };
 
-export type PutTaskScheduleRequest = PutCalendarTaskScheduleRequest | {
+export type PutTaskScheduleRequest = {
     mode: 'once';
     /**
      * When the one-time schedule should run
@@ -23090,6 +23090,95 @@ export type PatchUsersByIdPreferencesResponses = {
 };
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
+
+export type GetUsersByIdPreferredOrganizationData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferred-organization';
+};
+
+export type GetUsersByIdPreferredOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationError = GetUsersByIdPreferredOrganizationErrors[keyof GetUsersByIdPreferredOrganizationErrors];
+
+export type GetUsersByIdPreferredOrganizationResponses = {
+    /**
+     * The resolved organization selection for workspace restoration
+     */
+    200: {
+        data: PreferredOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationResponse = GetUsersByIdPreferredOrganizationResponses[keyof GetUsersByIdPreferredOrganizationResponses];
 
 export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;

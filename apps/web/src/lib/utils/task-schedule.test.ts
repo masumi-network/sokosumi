@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
+  getTaskScheduleOperationId,
   hasTaskScheduleChanged,
   metadataToSelection,
   schedulableOnceLocalIso,
@@ -323,6 +324,32 @@ describe("selectionToApiBody", () => {
         runAt: expect.any(Date),
       });
     }
+  });
+});
+
+describe("getTaskScheduleOperationId", () => {
+  it("reuses an ID for the same rule and mints one when the rule changes", () => {
+    const randomUUID = vi
+      .spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce("123e4567-e89b-42d3-a456-426614174000")
+      .mockReturnValueOnce("123e4567-e89b-42d3-a456-426614174001");
+    const operation = { current: null };
+    const daily = {
+      mode: "recurring" as const,
+      timezone: "UTC",
+      cron: "0 9 * * *",
+    };
+
+    expect(getTaskScheduleOperationId(daily, operation)).toBe(
+      "123e4567-e89b-42d3-a456-426614174000",
+    );
+    expect(getTaskScheduleOperationId(daily, operation)).toBe(
+      "123e4567-e89b-42d3-a456-426614174000",
+    );
+    expect(
+      getTaskScheduleOperationId({ ...daily, cron: "0 10 * * *" }, operation),
+    ).toBe("123e4567-e89b-42d3-a456-426614174001");
+    expect(randomUUID).toHaveBeenCalledTimes(2);
   });
 });
 
