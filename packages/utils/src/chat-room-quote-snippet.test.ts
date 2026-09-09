@@ -1,42 +1,42 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildQuoteSnippet,
   buildRoomQuoteSnippetParts,
   cleanChatMessageText,
 } from "./chat-room-quote-snippet";
 
-describe("buildQuoteSnippet", () => {
+describe("buildRoomQuoteSnippetParts snippet", () => {
   it("strips light markdown and collapses horizontal whitespace", () => {
-    expect(buildQuoteSnippet("**hello**  [link](https://x.test)  world")).toBe(
-      "hello link world",
-    );
+    expect(
+      buildRoomQuoteSnippetParts("**hello**  [link](https://x.test)  world")
+        .snippet,
+    ).toBe("hello link world");
   });
 
   it("preserves newlines from the original message", () => {
     expect(
-      buildQuoteSnippet(
+      buildRoomQuoteSnippetParts(
         "Two more things about the chat here:\nCan you please add @all:all tagging.",
-      ),
+      ).snippet,
     ).toBe(
       "Two more things about the chat here:\nCan you please add @all:all tagging.",
     );
   });
 
   it("collapses spaces and tabs on a line without joining paragraphs", () => {
-    expect(buildQuoteSnippet("hello \t  world\n\nnext")).toBe(
+    expect(buildRoomQuoteSnippetParts("hello \t  world\n\nnext").snippet).toBe(
       "hello world\n\nnext",
     );
   });
 
   it("leaves mention tokens intact for the render layer", () => {
-    expect(buildQuoteSnippet("ping @user-1:alice and @all:all")).toBe(
-      "ping @user-1:alice and @all:all",
-    );
+    expect(
+      buildRoomQuoteSnippetParts("ping @user-1:alice and @all:all").snippet,
+    ).toBe("ping @user-1:alice and @all:all");
   });
 
   it("keeps the full cleaned message without truncating", () => {
     const long = `**bold** and [link](https://x.test) ${"a".repeat(300)}`;
-    const snippet = buildQuoteSnippet(long);
+    const snippet = buildRoomQuoteSnippetParts(long).snippet;
     expect(snippet.startsWith("bold and link ")).toBe(true);
     expect(snippet.endsWith("a")).toBe(true);
     expect(snippet).not.toContain("…");

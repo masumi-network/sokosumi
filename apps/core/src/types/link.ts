@@ -8,11 +8,11 @@ export const linkWithJobIdInclude = {
   },
 } as const;
 
-export type LinkWithJobIdRaw = Prisma.LinkGetPayload<{
+type LinkWithJobIdRaw = Prisma.LinkGetPayload<{
   include: typeof linkWithJobIdInclude;
 }>;
 
-export type LinkWithJobId = Omit<LinkWithJobIdRaw, "event"> & {
+type LinkWithJobId = Omit<LinkWithJobIdRaw, "event"> & {
   jobId: string;
 };
 

@@ -4,7 +4,6 @@ import { HistoryKind } from "@sokosumi/database";
 import { badRequest } from "@/helpers/error";
 import {
   buildHistoryWhere,
-  createHistoryPaginationMeta,
   loadAgentPreviewsByIds,
   loadComputedJobStatusByEntityId,
   loadUserPreviewsByIds,
@@ -14,7 +13,10 @@ import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
-import { parseCursorPagination } from "@/helpers/pagination";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import {
   deduplicateQueryValues,
   preprocessMultiValueQueryInput,
@@ -209,7 +211,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userPreviewById,
       }),
     );
-    const paginationMeta = createHistoryPaginationMeta(
+    const paginationMeta = createPaginationMeta(
       historyItems,
       count,
       take,
