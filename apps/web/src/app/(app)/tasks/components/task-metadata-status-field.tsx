@@ -54,7 +54,9 @@ export function TaskMetadataStatusField({
   const [reopenComment, setReopenComment] = useState("");
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
+    const previousStatus = currentStatus;
     setPendingStatus(desiredStatus);
+    setCurrentStatus(desiredStatus);
 
     startTransition(async () => {
       try {
@@ -64,16 +66,15 @@ export function TaskMetadataStatusField({
           comment,
         });
         if (!result.ok) {
-          setCurrentStatus(status);
+          setCurrentStatus(previousStatus);
           showCalendarClientUpgradeModal();
           return;
         }
-        setCurrentStatus(desiredStatus);
         router.refresh();
         toast.success(labels.updateStatusSuccess);
       } catch (error) {
         console.error("Failed to update task status", error);
-        setCurrentStatus(status);
+        setCurrentStatus(previousStatus);
         toast.error(labels.updateStatusError);
       } finally {
         setPendingStatus(null);
@@ -90,7 +91,6 @@ export function TaskMetadataStatusField({
       return;
     }
 
-    setCurrentStatus(nextStatus);
     applyStatusChange(nextStatus);
   }
 
@@ -101,7 +101,6 @@ export function TaskMetadataStatusField({
       return;
     }
 
-    setCurrentStatus(TaskStatus.READY);
     setIsReopenDialogOpen(false);
     applyStatusChange(TaskStatus.READY, trimmedComment);
     setReopenComment("");
