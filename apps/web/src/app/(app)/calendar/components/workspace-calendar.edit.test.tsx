@@ -220,7 +220,7 @@ vi.mock("@/components/task-schedule-section", () => ({
         </button>
         <button
           type="button"
-          onClick={() => initialSelection && onSave?.(initialSelection)}
+          onClick={() => initialSelection && onSave?.({ ...initialSelection })}
         >
           save unchanged schedule
         </button>
@@ -270,6 +270,13 @@ const ITEM: WorkspaceCalendarItem = {
   sourceProjectId: "project-1",
   sourceAccuracy: "EXACT",
   timeAccuracy: "EXACT",
+};
+
+/** A Task whose rule is live, so an unread ledger leaves its count unknown. */
+const ACTIVE_SERIES_TASK = {
+  id: "task-1",
+  metadata: '{"version":2,"mode":"recurring"}',
+  scheduleRevision: 3,
 };
 
 const SECOND_ITEM: WorkspaceCalendarItem = {
@@ -1064,6 +1071,70 @@ describe("WorkspaceCalendar editing", () => {
       ),
     );
     expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a full-series edit while the discarded run count is unknown", async () => {
+    const user = userEvent.setup();
+    getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });
+    getTaskScheduleOccurrencesMock.mockRejectedValue(new Error("read failed"));
+    renderCalendar();
+
+    await openEditor(user);
+    await user.click(screen.getByRole("button", { name: "save schedule" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent(
+        "unknownCount",
+      ),
+    );
+    expect(saveCalendarTaskScheduleMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("still removes a series through its confirmation while the count is unknown", async () => {
+    const user = userEvent.setup();
+    getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });
+    getTaskScheduleOccurrencesMock.mockRejectedValue(new Error("read failed"));
+    renderCalendar();
+
+    await openEditor(user);
+    await openClearConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+
+    await waitFor(() =>
+      expect(clearTaskScheduleMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          expectedScheduleRevision: 3,
+        }),
+      ),
+    );
+  });
+
+  it("refuses a second full-series save after a revision conflict staled the count", async () => {
+    const user = userEvent.setup();
+    saveCalendarTaskScheduleMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "schedule_revision_conflict" },
+    });
+    renderCalendar();
+
+    await openEditor(user);
+    await user.click(screen.getByRole("button", { name: "save schedule" }));
+    await waitFor(() =>
+      expect(saveCalendarTaskScheduleMock).toHaveBeenCalledOnce(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "save schedule" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent(
+        "unknownCount",
+      ),
+    );
+    expect(saveCalendarTaskScheduleMock).toHaveBeenCalledOnce();
   });
 
   it("reports a quarantined series distinctly from a stale revision", async () => {

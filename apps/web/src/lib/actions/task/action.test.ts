@@ -802,6 +802,31 @@ describe("updateTask schedule status", () => {
     expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
   });
 
+  it("refuses to invent a revision when Core reports none for a live series", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({ id: "task-1" });
+
+    const { updateTask } = await import("./action");
+
+    await expect(
+      updateTask({
+        taskId: "task-1",
+        name: "Renamed task",
+        description: "Do work",
+        assigneeId: "coworker-1",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        currentStatus: TaskStatus.QUEUED,
+        desiredStatus: TaskStatus.QUEUED,
+        hadSchedule: true,
+        scheduleOperationId: OPERATION_ID,
+        originalSchedule: recurringSchedule,
+        schedule: { ...recurringSchedule, cron: "0 10 * * *" },
+      }),
+    ).rejects.toThrow();
+
+    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
+  });
+
   it("maps a stale revision to an actionable conflict result instead of throwing", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     taskServiceMock.patchTask.mockRejectedValue(

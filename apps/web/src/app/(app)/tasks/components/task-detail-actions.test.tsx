@@ -890,7 +890,25 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Errors.scheduleActive"),
+      expect(toast.error).toHaveBeenCalledWith("activeSeries"),
+    );
+    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("explains a quarantined series instead of opening the upgrade modal", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce({
+      ok: false,
+      error: { kind: "schedule_quarantined" },
+    });
+
+    renderActions({ status: TaskStatus.DRAFT, organizations: undefined });
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("quarantined"),
     );
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();

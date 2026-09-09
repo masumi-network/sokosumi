@@ -30,8 +30,11 @@ interface TaskEditModalProps {
   labels: TaskFormLabels;
   /** Precondition for every schedule write made from this render. */
   scheduleRevision: number;
-  /** Durable future exceptions a full-series edit would cancel. */
-  futureExceptionCount: number;
+  /**
+   * Durable future exceptions a full-series edit would cancel, or `null` when
+   * the ledger could not be read.
+   */
+  futureExceptionCount: number | null;
 }
 
 export function TaskEditModal({

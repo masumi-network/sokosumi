@@ -65,20 +65,6 @@ export function canArchiveParkedTaskForViewer({
   return isTaskOwner || isOrgOwnerOrAdmin;
 }
 
-/**
- * A live schedule series owns the Task's lifecycle: Core rejects generic
- * status, cancel, archive, and workspace-move paths with `schedule_active`
- * until the series is changed or removed. Editing name, description, and
- * assignee, and managing relations, stay available.
- */
-export function canManageTaskLifecycleForViewer({
-  hasActiveSchedule,
-}: {
-  hasActiveSchedule: boolean;
-}): boolean {
-  return !hasActiveSchedule;
-}
-
 type OrgCollaboratorViewerParams = ReadOnlyForViewerParams;
 
 /**
