@@ -6,6 +6,11 @@ on:
   workflow_dispatch:
   pull_request:
 
+concurrency:
+  # A new push to the same PR cancels the queued or running run for the old commit.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   # Tests mock their dependencies and inject their own env defaults, so a
   # placeholder is enough for any config that reads DATABASE_URL at import time.
