@@ -10,7 +10,7 @@
 
 ## Scope and audit baseline
 
-Iteration 0 approved and merged in [PR #4303](https://github.com/masumi-network/sokosumi/pull/4303). Audited web and Apple source at `85d85776deaa128a3d4177bb58b6545684e7c1ac` (2026-09-09). This document is the chat parity boundary for subsequent PRs. It expands the older [Mac tracer](MAC-TRACER.md) scope to the chat capabilities below; it does not authorize the rest of [VISION.md](VISION.md) or the web product.
+Iteration 0 approved and merged in [PR #4303](https://github.com/masumi-network/sokosumi/pull/4303). Audited web and Apple source at `85d85776deaa128a3d4177bb58b6545684e7c1ac` (2026-09-09). This document is the chat parity boundary for subsequent PRs. It expands the original tracer scope to the chat capabilities below, implementing the goal in [VISION.md](VISION.md) without authorizing unrelated web product screens.
 
 Target macOS 26 now, iOS 17+ later. Use SwiftUI native navigation and controls. All models, networking, view models and persistence belong in platform-agnostic, UI-free packages. Shared packages target macOS 26 and iOS 17, per the baseline update requested after iteration 0. Shared code must remain available on iOS 17; verify this with an iOS 17 build. Newer Mac APIs belong only in Mac-specific views, guarded by platform/availability checks. Isolate unavoidable AppKit behind a Mac adapter. Do not add dependencies or change the shared API contract without a separate PR and explicit approval. Never modify `apps/web`.
 

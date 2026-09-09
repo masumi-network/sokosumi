@@ -2,7 +2,7 @@
 
 Native Sokosumi on Apple. One Xcode project, two app targets later, shared Swift packages. The first ship is **macOS chat**. **iOS** is the same codebase, later — not a second repo and not `apps/ios`.
 
-This file preserves product intent and the ongoing goal. [`PARITY.md`](./PARITY.md) is the authoritative capability boundary, dependency order, iteration workflow, and verification/handoff record. [`MAC-TRACER.md`](./MAC-TRACER.md) describes the earlier foundation; full chat parity supersedes its smaller scope.
+This file preserves product intent and the ongoing goal. [`PARITY.md`](./PARITY.md) is the authoritative capability boundary, dependency order, iteration workflow, and verification/handoff record. Full chat parity supersedes the original tracer scope; the earlier plan remains in Git history.
 
 ## Ongoing goal
 
