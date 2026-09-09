@@ -3,6 +3,7 @@
 # Packages 
 packages/*/dist
 packages/*/node_modules
+apps/cli/dist/
 *.tsbuildinfo
 
 # Turborepo

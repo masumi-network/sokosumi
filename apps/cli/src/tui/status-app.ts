@@ -486,6 +486,11 @@ function StatusApp({
         React.createElement(
           Text,
           { dimColor: true },
+          "Create one at https://app.sokosumi.com/developer/api-keys.",
+        ),
+        React.createElement(
+          Text,
+          { dimColor: true },
           "Ctrl+C cancels · q quits",
         ),
         message ? React.createElement(Text, null, message) : null,

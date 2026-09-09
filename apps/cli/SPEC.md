@@ -67,6 +67,7 @@ V29: custom vault scope alphabet ∈ lowercase hex; case-insensitive vault names
 V30: explicit API target (flag/env) → precedes API-key target inference
 V31: mainnet/preprod resource request → API-key target matches selected target before bearer
 V32: TUI hosted target selection → explicit selected API URL
+V33: direct browser GET `/auth/oauth2/authorize` → HTTP redirect to Better Auth's returned URL; other auth responses keep their JSON envelope.
 
 ## §T TASKS
 
@@ -113,3 +114,4 @@ B11|2026-09-08|percent-encoded URL scope differed only by case; Windows vault fo
 B12|2026-09-08|resource command skipped API-key target validation ∴ mismatched bearer sent to Core target|V31
 B13|2026-09-08|target-coded key overrode configured API URL ∴ request routed to wrong Core|V30
 B14|2026-09-08|TUI Mainnet choice retained preprod API URL ∴ target selection did not switch host|V32
+B15|2026-09-09|hosted CLI OAuth authorization received Better Auth's `{redirect,url}` envelope as JSON, so browser navigation did not reach consent|V33
