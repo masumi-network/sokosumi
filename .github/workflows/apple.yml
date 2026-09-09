@@ -5,6 +5,15 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
+  # Lint on main after Apple merges so the Mint cache is saved on the default
+  # branch. PR caches are scoped to refs/pull/N/merge and cannot be restored
+  # by sibling PRs.
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/apple/**"
+      - ".github/workflows/apple.yml"
 
 jobs:
   changes:
@@ -38,7 +47,9 @@ jobs:
   build:
     name: Xcode build
     needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    # PR (Apple paths) or dispatch only. Skip `push` — main push exists to seed
+    # the Mint cache via `lint` (PR caches are ref-scoped).
+    if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
     # Packages declare `swift-tools-version: 6.2`, which needs Xcode 26 (macOS 26).
     runs-on: macos-26
     steps:
@@ -59,10 +70,10 @@ jobs:
 
   test:
     name: Xcode test
-    # Same path/dispatch gate as `build` above (and as build.yml/test.yml
+    # Same PR/dispatch gate as `build` above (and as build.yml/test.yml
     # for the JS apps): build and test run in parallel, neither waits.
     needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     steps:
       - name: Checkout repository
@@ -93,8 +104,9 @@ jobs:
   lint:
     name: Swift lint and format
     needs: changes
-    # Same path/dispatch gate as `build`/`test` above.
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    # Same PR/dispatch gate as `build`/`test`, plus path-filtered `push` to
+    # main so `actions/cache` saves ~/.mint on the default branch.
+    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: macos-26
     steps:
       - name: Checkout repository
