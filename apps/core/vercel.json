@@ -3,7 +3,11 @@
   "installCommand": "pnpm install --frozen-lockfile --filter @sokosumi/core...",
   "buildCommand": "pnpm vercel-build",
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": {
+      "*": false,
+      "**": false,
+      "main": true
+    }
   },
   "functions": {
     "dist/index.js": {
