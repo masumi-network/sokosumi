@@ -49,7 +49,7 @@ const envSecretsSchema = z.object({
     .url()
     .default("https://www.masumi.network/api/v1"),
 
-  // Shared signing secret (must match Core BETTER_AUTH_SECRET).
+  // HMAC secret for DESIGN.md job tokens (web-only).
   APP_SIGNING_SECRET: z.string().min(1),
 
   // Max pending invitations per organization (optional; default 100).

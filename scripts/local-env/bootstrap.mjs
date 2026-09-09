@@ -2,9 +2,9 @@
 /**
  * Copy apps/{web,core}/.env.example → .env when missing, then make the
  * files bootable for local / worktree agents (Zod-safe dummies, cookie-domain
- * trap, matching signing secret). Grok/git worktrees reuse the primary
- * checkout .env (BETTER_AUTH_SECRET, DATABASE_URL, …) unless the worktree
- * already has a unique secret. Does not overwrite that unique secret.
+ * trap). Grok/git worktrees reuse the primary checkout .env
+ * (BETTER_AUTH_SECRET, DATABASE_URL, …) unless the worktree already has a
+ * unique secret. Does not overwrite that unique secret.
  *
  * Usage: node scripts/local-env/bootstrap.mjs
  */
@@ -30,7 +30,7 @@ const OPTIONAL_URL_KEYS = new Set([
 ]);
 
 const STRING_DUMMIES = {
-  APP_SIGNING_SECRET: DEFAULT_BETTER_AUTH_SECRET,
+  APP_SIGNING_SECRET: "dummy-app-signing-secret",
   GOOGLE_CLIENT_ID: "dummy-google-client-id",
   GOOGLE_CLIENT_SECRET: "dummy-google-client-secret",
   MICROSOFT_CLIENT_ID: "dummy-microsoft-client-id",
@@ -171,26 +171,6 @@ export function readEnvValue(contents, key) {
 }
 
 /**
- * @param {string} webContents
- * @param {string} coreContents
- */
-export function syncSigningSecret(webContents, coreContents) {
-  const secret =
-    readEnvValue(coreContents, "BETTER_AUTH_SECRET") ||
-    DEFAULT_BETTER_AUTH_SECRET;
-  if (readEnvValue(webContents, "APP_SIGNING_SECRET") === secret) {
-    return webContents;
-  }
-  if (/^APP_SIGNING_SECRET=/m.test(webContents)) {
-    return webContents.replace(
-      /^APP_SIGNING_SECRET=.*$/m,
-      `APP_SIGNING_SECRET="${secret}"`,
-    );
-  }
-  return `${webContents.trimEnd()}\nAPP_SIGNING_SECRET="${secret}"\n`;
-}
-
-/**
  * @param {string | null} contents
  */
 async function tryRead(file) {
@@ -313,8 +293,6 @@ export async function bootstrapLocalEnv(repoRoot) {
 
     written[app] = sanitizeEnvContents(source);
   }
-
-  written.web = syncSigningSecret(written.web, written.core);
 
   await writeFile(
     path.join(repoRoot, "apps", "core", ".env"),
