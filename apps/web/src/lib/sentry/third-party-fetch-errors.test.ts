@@ -405,6 +405,67 @@ describe("beforeSendClientEvent", () => {
     ).toBeNull();
   });
 
+  it("drops Brave iOS __firefox__ bridge TypeErrors", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat",
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value:
+                  "undefined is not an object (evaluating 'window.__firefox__.reader')",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Brave iOS __firefox__ bridge TypeErrors with type prefix", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/auth/callback/signin",
+          exception: {
+            values: [
+              {
+                value:
+                  "TypeError: undefined is not an object (evaluating 'window.__firefox__.reader')",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops WebKit Can't find variable: __firefox__ ReferenceErrors", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat",
+          exception: {
+            values: [
+              {
+                type: "ReferenceError",
+                value: "Can't find variable: __firefox__",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
   it("drops transient stream connection closures", () => {
     expect(
       beforeSendClientEvent(

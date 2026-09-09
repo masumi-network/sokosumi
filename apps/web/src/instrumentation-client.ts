@@ -4,6 +4,7 @@ import { ablyChannelLifecycleIgnoreErrors } from "@/lib/sentry/ably-channel-life
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
 import {
   browserHistoryRateLimitIgnoreErrors,
+  firefoxBridgeIgnoreErrors,
   inAppBrowserIgnoreErrors,
   transientStreamIgnoreErrors,
 } from "@/lib/sentry/third-party-browser-environment-errors";
@@ -33,6 +34,7 @@ Sentry.init({
     ...thirdPartyAnalyticsIgnoreErrors,
     ...thirdPartyWalletIgnoreErrors,
     ...inAppBrowserIgnoreErrors,
+    ...firefoxBridgeIgnoreErrors,
     ...browserHistoryRateLimitIgnoreErrors,
     ...transientStreamIgnoreErrors,
     ...bareNetworkErrorIgnoreErrors,
