@@ -19,10 +19,13 @@ struct ContentView: View {
       }
     }
     .onChange(of: auth.isSignedIn) { _, signedIn in
-      if signedIn {
-        workspaces.startIfNeeded(auth: auth)
-      } else {
-        workspaces.reset()
+      // Hop off this view update: startIfNeeded/reset publish WorkspaceState.
+      Task { @MainActor in
+        if signedIn {
+          workspaces.startIfNeeded(auth: auth)
+        } else {
+          workspaces.reset()
+        }
       }
     }
   }
@@ -67,7 +70,11 @@ struct ContentView: View {
     case .idle, .loading:
       ProgressView("Loading workspaces…")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { workspaces.startIfNeeded(auth: auth) }
+        .onAppear {
+          Task { @MainActor in
+            workspaces.startIfNeeded(auth: auth)
+          }
+        }
     case let .blocked(gate):
       VStack(spacing: 8) {
         Text("Finish setup on the web")
@@ -105,7 +112,14 @@ struct ContentView: View {
         VStack(spacing: 0) {
           List(selection: Binding(
             get: { workspaces.selectedRoomId },
-            set: { workspaces.selectRoom($0, auth: auth) }
+            set: { newValue in
+              // List writes selection during its own update. Publishing
+              // selectedRoomId / openRoom there trips SwiftUI's
+              // "Publishing changes from within view updates" runtime issue.
+              Task { @MainActor in
+                workspaces.selectRoom(newValue, auth: auth)
+              }
+            }
           )) {
             workspaceMenu
             if workspaces.roomsLoading, workspaces.rooms.isEmpty {

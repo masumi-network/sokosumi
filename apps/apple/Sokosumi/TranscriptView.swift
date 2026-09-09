@@ -16,6 +16,9 @@ struct TranscriptView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
   @State private var draft = ""
+  /// Eager first layout can report near-top before the bottom anchor
+  /// lands. Require a trip away from the top before auto-loading.
+  @State private var transcriptWasAwayFromTop = false
 
   let roomId: String
 
@@ -36,6 +39,9 @@ struct TranscriptView: View {
       transcriptBody
       Divider()
       composer
+    }
+    .onChange(of: roomId) { _, _ in
+      transcriptWasAwayFromTop = false
     }
   }
 
@@ -117,9 +123,15 @@ struct TranscriptView: View {
     .defaultScrollAnchor(.bottom)
     .onScrollGeometryChange(for: Bool.self) { geometry in
       geometry.visibleRect.minY < 40
-    } action: { wasNearTop, isNearTop in
-      guard !wasNearTop, isNearTop, workspaces.transcriptError == nil else { return }
-      workspaces.loadOlderMessages(auth: auth)
+    } action: { _, isNearTop in
+      if !isNearTop {
+        transcriptWasAwayFromTop = true
+        return
+      }
+      guard transcriptWasAwayFromTop, workspaces.transcriptError == nil else { return }
+      Task { @MainActor in
+        workspaces.loadOlderMessages(auth: auth)
+      }
     }
   }
 
