@@ -4,9 +4,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
 let mockPathname = "/chat";
+let mockUserId = "user-1";
+let mockOrganizationId: string | null = "org-1";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: mockUserId
+      ? {
+          user: { id: mockUserId },
+          session: { activeOrganizationId: mockOrganizationId },
+        }
+      : null,
+  }),
 }));
 
 const { listRoomsMock } = vi.hoisted(() => ({ listRoomsMock: vi.fn() }));
@@ -74,6 +87,8 @@ function Harness() {
 describe("useChatTabUnreadPresence", () => {
   beforeEach(() => {
     mockPathname = "/chat";
+    mockUserId = "user-1";
+    mockOrganizationId = "org-1";
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
     listRoomsMock.mockReset();
@@ -216,6 +231,8 @@ describe("useChatTabUnreadPresence", () => {
 describe("authoritative tab attention", () => {
   beforeEach(() => {
     mockPathname = "/chat";
+    mockUserId = "user-1";
+    mockOrganizationId = "org-1";
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
     listRoomsMock.mockReset();
@@ -337,6 +354,34 @@ describe("authoritative tab attention", () => {
       );
     });
     expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("discards an in-flight read after a workspace switch", async () => {
+    const older = Promise.withResolvers<ListResult>();
+    const newer = Promise.withResolvers<ListResult>();
+    listRoomsMock
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    const { rerender } = render(<Harness />);
+    await act(async () => undefined);
+
+    mockOrganizationId = "org-2";
+    rerender(<Harness />);
+    await act(async () =>
+      older.resolve({
+        ok: true,
+        value: { rooms: [room({ id: "a", unreadCount: 5 })], nextCursor: null },
+      }),
+    );
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    await act(async () =>
+      newer.resolve({
+        ok: true,
+        value: { rooms: [room({ id: "b", unreadCount: 1 })], nextCursor: null },
+      }),
+    );
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
   });
 
   it("protects a local read completed during a tab refresh", async () => {

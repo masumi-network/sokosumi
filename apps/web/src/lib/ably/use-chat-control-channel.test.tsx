@@ -123,4 +123,62 @@ describe("useChatControlChannel", () => {
       expect.any(Function),
     );
   });
+
+  it("subscribes once when two islands mount and notifies the first only", () => {
+    const onRoomsChangedA = vi.fn();
+    const onRoomsChangedB = vi.fn();
+    const first = renderHook(() =>
+      useChatControlChannel({
+        currentUserId: "user_1",
+        onRevoked: vi.fn(),
+        onRoomsChanged: onRoomsChangedA,
+      }),
+    );
+    const second = renderHook(() =>
+      useChatControlChannel({
+        currentUserId: "user_1",
+        onRevoked: vi.fn(),
+        onRoomsChanged: onRoomsChangedB,
+      }),
+    );
+
+    expect(subscribeMock).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      handlerFor("chat_rooms_changed")?.({
+        data: {
+          collections: ["active"],
+          roomId: "room-a",
+          at: "2026-09-09T12:00:00.000Z",
+        },
+      });
+    });
+
+    expect(onRoomsChangedA).toHaveBeenCalledTimes(1);
+    expect(onRoomsChangedB).not.toHaveBeenCalled();
+
+    first.unmount();
+    expect(unsubscribeMock).not.toHaveBeenCalled();
+
+    act(() => {
+      handlerFor("chat_rooms_changed")?.({
+        data: {
+          collections: ["archived"],
+          roomId: "room-a",
+          at: "2026-09-09T12:00:01.000Z",
+        },
+      });
+    });
+    expect(onRoomsChangedB).toHaveBeenCalledTimes(1);
+
+    second.unmount();
+    expect(unsubscribeMock).toHaveBeenCalledWith(
+      "chat_membership_revoked",
+      expect.any(Function),
+    );
+    expect(unsubscribeMock).toHaveBeenCalledWith(
+      "chat_rooms_changed",
+      expect.any(Function),
+    );
+  });
 });

@@ -370,14 +370,18 @@ export async function publishChatRoomsChanged({
   collections,
   roomId,
 }: PublishChatRoomsChangedInput): Promise<void> {
-  const client = getRestClient();
-  await publishToUsers(userIds, "chat rooms changed", (userId) =>
-    client.channels
-      .get(makeUserChatControlChannelName(userId))
-      .publish(CHAT_ROOMS_CHANGED_EVENT_NAME, {
-        collections: [...collections],
-        roomId,
-        at: new Date().toISOString(),
-      }),
-  );
+  try {
+    const client = getRestClient();
+    await publishToUsers(userIds, "chat rooms changed", (userId) =>
+      client.channels
+        .get(makeUserChatControlChannelName(userId))
+        .publish(CHAT_ROOMS_CHANGED_EVENT_NAME, {
+          collections: [...collections],
+          roomId,
+          at: new Date().toISOString(),
+        }),
+    );
+  } catch (error) {
+    console.error("Failed to publish chat rooms changed", error);
+  }
 }

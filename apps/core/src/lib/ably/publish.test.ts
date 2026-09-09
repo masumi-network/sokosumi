@@ -17,7 +17,7 @@ import {
   publishTaskEventData,
 } from "./publish";
 
-const { envMock, publishMock, getMock } = vi.hoisted(() => ({
+const { envMock, publishMock, getMock, getRestClientMock } = vi.hoisted(() => ({
   envMock: {
     NETWORK: "Mainnet",
     VERCEL_ENV: "production" as "production" | "preview",
@@ -25,19 +25,22 @@ const { envMock, publishMock, getMock } = vi.hoisted(() => ({
   },
   publishMock: vi.fn(),
   getMock: vi.fn(),
+  getRestClientMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: () => envMock }));
 
 vi.mock("./client", () => ({
-  getRestClient: () => ({
-    channels: {
-      get: (...args: unknown[]) => {
-        getMock(...args);
-        return { publish: publishMock };
-      },
+  getRestClient: () => getRestClientMock(),
+}));
+
+getRestClientMock.mockImplementation(() => ({
+  channels: {
+    get: (...args: unknown[]) => {
+      getMock(...args);
+      return { publish: publishMock };
     },
-  }),
+  },
 }));
 
 describe("publishTaskEventData", () => {
@@ -100,6 +103,7 @@ describe("publishNotificationEvent", () => {
     // cannot pass on a stale call from a test declared above this block.
     publishMock.mockClear();
     getMock.mockClear();
+    getRestClientMock.mockClear();
     envMock.NETWORK = "Mainnet";
     envMock.VERCEL_ENV = "production";
     envMock.VERCEL_GIT_COMMIT_REF = "main";
@@ -516,5 +520,25 @@ describe("publishChatRoomsChanged", () => {
       roomId: null,
     });
     expect(publishMock).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when the rest client cannot be created", async () => {
+    getRestClientMock.mockImplementationOnce(() => {
+      throw new Error("no ably");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await expect(
+      publishChatRoomsChanged({
+        userIds: ["user_123"],
+        collections: ["active"],
+        roomId: null,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });

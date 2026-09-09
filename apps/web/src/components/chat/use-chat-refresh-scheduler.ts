@@ -161,13 +161,23 @@ export function useChatRefreshScheduler({
     };
   }, [key, fallbackIntervalMs, refreshOnMount]);
 
-  // A health flip re-arms the pending timer with the new cadence; a
-  // recovery may also owe one read.
+  // A health flip re-arms the pending timer with the new cadence. A
+  // recovery read is only for a drop after this instance has already
+  // been healthy — the first connect is not a gap (SOK-986).
   const wasHealthyRef = useRef(healthy);
+  const hadHealthyRef = useRef(healthy);
   useEffect(() => {
     rescheduleRef.current();
-    if (refreshOnRecovery && healthy && !wasHealthyRef.current) {
+    if (
+      refreshOnRecovery &&
+      healthy &&
+      hadHealthyRef.current &&
+      !wasHealthyRef.current
+    ) {
       requestRef.current();
+    }
+    if (healthy) {
+      hadHealthyRef.current = true;
     }
     wasHealthyRef.current = healthy;
   }, [healthy, refreshOnRecovery]);

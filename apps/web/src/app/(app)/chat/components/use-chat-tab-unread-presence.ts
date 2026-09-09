@@ -18,6 +18,7 @@ import {
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
+import { useSession } from "@/lib/auth/auth.client";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
 /** Poll cadence while the Ably connection is unavailable. */
@@ -37,6 +38,9 @@ interface UseChatTabUnreadPresenceResult {
 
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const currentUserId = session?.user.id ?? "";
+  const organizationId = session?.session.activeOrganizationId ?? null;
   const latestAppliedRefreshRef = useRef(0);
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const [rooms, setRooms] = useState<ChatRoom[]>(
@@ -45,6 +49,33 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
 
   const showUnreadDot =
     countChatRoomsWithUnreadAttention(rooms, { activeRoomId }) > 0;
+
+  const scope = currentUserId
+    ? `${organizationId ?? ""}:${currentUserId}`
+    : null;
+  const previousScopeRef = useRef<string | null>(null);
+
+  // Drop the previous workspace's rows before the new GET lands so an
+  // in-flight response cannot light the dot for the wrong org (SOK-986).
+  useEffect(() => {
+    if (previousScopeRef.current === scope) {
+      return;
+    }
+    const previous = previousScopeRef.current;
+    previousScopeRef.current = scope;
+    if (!scope || previous === null) {
+      return;
+    }
+    latestAppliedRefreshRef.current = 0;
+    const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+    setRooms(
+      snapshot &&
+        snapshot.currentUserId === currentUserId &&
+        snapshot.organizationId === organizationId
+        ? applyRoomReadOverlays([...snapshot.rooms])
+        : [],
+    );
+  }, [scope, currentUserId, organizationId]);
 
   // Same GET read and scheduling rules as the sidebar's active collection
   // (SOK-986): paused while hidden or unfocused, one read on return, and a
@@ -63,7 +94,7 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
     setRooms(reconcileRoomAttention(page.rooms, requestRevision));
   }, []);
   const requestRefresh = useChatRefreshScheduler({
-    key: "chat-tab-unread",
+    key: scope && `${scope}:unread`,
     refresh: refreshRooms,
     healthy: useAblyConnectionHealthy(),
     fallbackIntervalMs: CHAT_TAB_UNREAD_FALLBACK_MS,

@@ -157,12 +157,31 @@ describe("useChatRefreshScheduler", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("reads once when the subscription recovers, if asked", async () => {
+  it("does not treat the first healthy flip as a recovery", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     const { rerender } = mount(refresh, {
       healthy: false,
+      refreshOnMount: true,
       refreshOnRecovery: true,
     });
+    await act(async () => undefined);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    rerender({ key: "room-1", healthy: true });
+    await act(async () => undefined);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads once after a drop from healthy, if asked", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = mount(refresh, {
+      healthy: true,
+      refreshOnRecovery: true,
+    });
+    await act(async () => undefined);
+    expect(refresh).not.toHaveBeenCalled();
+
+    rerender({ key: "room-1", healthy: false });
     await act(async () => undefined);
     expect(refresh).not.toHaveBeenCalled();
 
