@@ -68,13 +68,27 @@ jobs:
       - name: Build Sokosumi for macOS
         run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
 
-  test:
-    name: Xcode test
+  test-suite:
+    name: ${{ matrix.name }}
     # Same PR/dispatch gate as `build` above (and as build.yml/test.yml
     # for the JS apps): build and test run in parallel, neither waits.
     needs: changes
     if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Xcode app tests
+            package: ""
+          - name: Swift tests (SokosumiChat)
+            package: SokosumiChat
+          - name: Swift tests (SokosumiAuth)
+            package: SokosumiAuth
+          - name: Swift tests (CoreAPI)
+            package: CoreAPI
+          - name: Swift tests (SokosumiRealtime)
+            package: SokosumiRealtime
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -89,17 +103,30 @@ jobs:
         run: xcodebuild -version && swift --version
 
       - name: Test Sokosumi app target
+        if: matrix.package == ''
         # Coverage stays off: ably-cocoa's C target (AblyDeltaCodec) cannot
         # link the profile runtime, so gathering coverage fails the test
         # build (SOK-976). Nothing consumes coverage today. Restore later by
         # excluding AblyDeltaCodec, not by re-enabling coverage on this job.
         run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests -enableCodeCoverage NO
 
-      - name: Test Swift packages
-        run: |
-          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth apps/apple/Packages/CoreAPI apps/apple/Packages/SokosumiRealtime; do
-            swift test --package-path "$package"
-          done
+      - name: Test Swift package
+        if: matrix.package != ''
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: swift test --package-path "apps/apple/Packages/$PACKAGE"
+
+  # Preserve the existing check name and require every suite to pass.
+  test:
+    name: Xcode test
+    needs: test-suite
+    if: always() && needs.test-suite.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all Apple test suites
+        env:
+          RESULT: ${{ needs.test-suite.result }}
+        run: test "$RESULT" = success
 
   lint:
     name: Swift lint and format
