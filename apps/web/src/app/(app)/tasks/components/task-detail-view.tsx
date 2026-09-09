@@ -201,7 +201,12 @@ export async function TaskDetailView({
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
             <Suspense fallback={<TaskSectionFallback title={null} rows={4} />}>
-              <TaskMetadataSection task={task} />
+              <TaskMetadataSection
+                task={task}
+                forceReadOnly={forceReadOnly}
+                hasAssignedSeatPromise={hasAssignedSeatPromise}
+                sessionPromise={sessionPromise}
+              />
             </Suspense>
           </aside>
 
@@ -422,20 +427,44 @@ async function TaskDescriptionSection({
   );
 }
 
-async function TaskMetadataSection({ task }: { task: Task }) {
+async function TaskMetadataSection({
+  task,
+  forceReadOnly,
+  hasAssignedSeatPromise,
+  sessionPromise,
+}: {
+  task: Task;
+  forceReadOnly: boolean;
+  hasAssignedSeatPromise: Promise<boolean>;
+  sessionPromise: Promise<SessionResult>;
+}) {
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
-  const [project, t, tTasks, tStatus, locale] = await Promise.all([
-    projectPromise,
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("App.Tasks"),
-    getTranslations("App.Tasks.Filters.statusOptions"),
-    getLocale(),
-  ]);
+  const [project, session, hasAssignedSeat, t, tTasks, tStatus, locale] =
+    await Promise.all([
+      projectPromise,
+      sessionPromise,
+      hasAssignedSeatPromise,
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("App.Tasks"),
+      getTranslations("App.Tasks.Filters.statusOptions"),
+      getLocale(),
+    ]);
+  const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
+  const isReadOnly = isReadOnlyForViewer({
+    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+    taskOwnerId: task.ownerId,
+    sessionUserId: session?.user.id,
+    forceReadOnly,
+    taskStatus: task.status,
+    hasAssignedSeat,
+  });
 
   return (
     <TaskMetadata
+      taskId={task.id}
+      editable={!isReadOnly}
       task={{
         status: task.status,
         owner: task.owner,
@@ -451,7 +480,7 @@ async function TaskMetadataSection({ task }: { task: Task }) {
       updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
       labels={{
         status: t("status"),
-        statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
+        statusLabels,
         owner: t("owner"),
         creator: t("creator"),
         organization: t("organization"),
@@ -464,6 +493,20 @@ async function TaskMetadataSection({ task }: { task: Task }) {
         schedule: t("schedule"),
         personalAssistantFallback: tTasks("personalAssistant"),
         formatSokoBotRole: (values) => t("actorSokoBotRole", values),
+      }}
+      statusFieldLabels={{
+        statusLabels,
+        reopenToReadyTitle: t("actions.reopenToReadyTitle"),
+        reopenToReadyDescription: t("actions.reopenToReadyDescription"),
+        reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
+        reopenToReadyCommentPlaceholder: t(
+          "actions.reopenToReadyCommentPlaceholder",
+        ),
+        reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
+        reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
+        cancel: t("actions.cancel"),
+        updateStatusSuccess: t("actions.updateStatusSuccess"),
+        updateStatusError: tTasks("Errors.updateStatus"),
       }}
     />
   );
@@ -588,7 +631,6 @@ async function TaskDetailActionsSlot({
         confirmArchive: t("actions.confirmArchive"),
         confirmArchiveDescription: t("actions.confirmArchiveDescription"),
         archiveError: t("actions.archiveError"),
-        markAsReady: t("actions.markAsReady"),
         reopenToReady: t("actions.reopenToReady"),
         reopenToReadyTitle: t("actions.reopenToReadyTitle"),
         reopenToReadyDescription: t("actions.reopenToReadyDescription"),
@@ -598,7 +640,6 @@ async function TaskDetailActionsSlot({
         ),
         reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
         reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
-        revertToDraft: t("actions.revertToDraft"),
         cancel: t("actions.cancel"),
         share: t("actions.share"),
         startWorking: t("actions.startWorking"),

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {
@@ -292,12 +293,21 @@ const baseLabels = {
   statusDraft: "Draft",
   statusQueued: "Queued",
   statusReady: "Ready",
-  markAsReady: "Mark as Ready",
-  revertToDraft: "Revert to Draft",
+  statusLabels: Object.fromEntries(
+    TASK_STATUS_DISPLAY_ORDER.map((status) => [
+      status,
+      status === TaskStatus.DRAFT
+        ? "Draft"
+        : status === TaskStatus.READY
+          ? "Ready"
+          : status === TaskStatus.QUEUED
+            ? "Queued"
+            : status,
+    ]),
+  ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>,
   back: "Back",
   uploadFile: "Upload File",
   submit: "Save",
-  saveAsDraft: "Save as Draft",
   createTask: "Create Task",
   scheduleTask: "Schedule Task",
   openSchedule: "Set schedule",
@@ -348,6 +358,14 @@ function createTaskSuccess(taskId: string, name: string) {
 
 function updateTaskSuccess(taskId: string) {
   return { ok: true as const, value: { taskId } };
+}
+
+async function selectTaskStatus(
+  user: ReturnType<typeof userEvent.setup>,
+  statusLabel: string,
+) {
+  await user.click(screen.getByRole("combobox", { name: "Status" }));
+  await user.click(screen.getByRole("option", { name: statusLabel }));
 }
 
 describe("TaskForm", () => {
@@ -454,7 +472,51 @@ describe("TaskForm", () => {
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 
-  it("submits as draft from create modal actions", async () => {
+  it("shows the status dropdown defaulting to Draft on create", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Save as Draft" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Mark as Ready" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("defaults status to Ready when selecting a coworker", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Soko/ }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+  });
+
+  it("submits Draft from the dropdown by default on create", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
@@ -466,14 +528,13 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
+        initialValues={{ assigneeUserId: "user-1" }}
         onSuccess={vi.fn()}
       />,
     );
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
-
-    await user.click(screen.getByRole("button", { name: "Save as Draft" }));
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         status: TaskStatus.DRAFT,
@@ -481,7 +542,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("submits as ready from create modal actions", async () => {
+  it("submits Ready when the dropdown is set to Ready", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
@@ -499,7 +560,7 @@ describe("TaskForm", () => {
     );
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
-
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -558,6 +619,7 @@ describe("TaskForm", () => {
     ).toBeInTheDocument();
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
 
     expect(createTaskMock).toHaveBeenCalledWith(
@@ -647,6 +709,7 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
 
     expect(await screen.findByText("Queued")).toBeInTheDocument();
@@ -841,83 +904,6 @@ describe("TaskForm", () => {
     expect(onSuccess).toHaveBeenCalledWith("task-1");
   });
 
-  it("disables Mark as Ready in edit mode when the task has a schedule", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TaskForm
-        variant="modal"
-        mode="edit"
-        showCancel={false}
-        labels={baseLabels}
-        coworkerOptions={coworkerOptions}
-        taskId="task-1"
-        initialValues={{
-          name: "Task name",
-          description: "Initial description",
-          assigneeId: "coworker-1",
-          status: TaskStatus.DRAFT,
-          metadata: JSON.stringify({
-            version: 1,
-            mode: "once",
-            scheduledAt: "2026-06-26T09:00:00.000Z",
-            runAt: "2026-06-26T09:00:00.000Z",
-          }),
-        }}
-        onSuccess={vi.fn()}
-      />,
-    );
-
-    const markAsReadyButton = screen.getByRole("button", {
-      name: "Mark as Ready",
-    });
-    expect(markAsReadyButton).toBeDisabled();
-
-    await user.click(markAsReadyButton);
-    expect(
-      screen.getByRole("button", { name: "Mark as Ready" }),
-    ).toBeInTheDocument();
-  });
-
-  it("disables Mark as Ready after adding a schedule while editing", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TaskForm
-        variant="modal"
-        mode="edit"
-        showCancel={false}
-        labels={baseLabels}
-        coworkerOptions={coworkerOptions}
-        taskId="task-1"
-        initialValues={{
-          name: "Task name",
-          description: "Initial description",
-          assigneeId: "coworker-1",
-          status: TaskStatus.DRAFT,
-        }}
-        onSuccess={vi.fn()}
-      />,
-    );
-
-    expect(
-      screen.getByRole("button", { name: "Mark as Ready" }),
-    ).not.toBeDisabled();
-
-    await user.click(screen.getByRole("button", { name: "Set schedule" }));
-    await user.click(screen.getByRole("button", { name: "save" }));
-
-    const markAsReadyButton = screen.getByRole("button", {
-      name: "Mark as Ready",
-    });
-    expect(markAsReadyButton).toBeDisabled();
-
-    await user.click(markAsReadyButton);
-    expect(
-      screen.getByRole("button", { name: "Mark as Ready" }),
-    ).toBeInTheDocument();
-  });
-
   it("locks non-agent assignee options on queued tasks (SOK-868)", async () => {
     const user = userEvent.setup();
     render(
@@ -962,7 +948,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("toggles status in edit modal and keeps the toggled status on save", async () => {
+  it("saves the status selected in the edit dropdown", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
     updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
@@ -990,11 +976,7 @@ describe("TaskForm", () => {
       screen.getByRole("combobox", { name: "Coworker" }),
     ).toHaveTextContent("Soko");
 
-    await user.click(screen.getByRole("button", { name: "Mark as Ready" }));
-    expect(
-      screen.getByRole("button", { name: "Revert to Draft" }),
-    ).toBeInTheDocument();
-
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(updateTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({

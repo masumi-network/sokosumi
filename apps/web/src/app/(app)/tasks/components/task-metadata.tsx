@@ -10,7 +10,20 @@ import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
-import { TaskStatusBadge } from "./task-status-badge";
+import { TaskMetadataStatusField } from "./task-metadata-status-field";
+
+interface TaskMetadataStatusFieldLabels {
+  statusLabels: Record<TaskStatus, string>;
+  reopenToReadyTitle: string;
+  reopenToReadyDescription: string;
+  reopenToReadyCommentLabel: string;
+  reopenToReadyCommentPlaceholder: string;
+  reopenToReadyCommentRequired: string;
+  reopenToReadyConfirm: string;
+  cancel: string;
+  updateStatusSuccess: string;
+  updateStatusError: string;
+}
 
 interface TaskMetadataLabels {
   status: string;
@@ -158,17 +171,23 @@ function resolveTaskAssigneeDisplay(
 }
 
 interface TaskMetadataProps {
+  taskId: string;
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
   labels: TaskMetadataLabels;
+  statusFieldLabels: TaskMetadataStatusFieldLabels;
+  editable: boolean;
   createdAtLabel: string;
   updatedAtLabel: string;
 }
 
 export function TaskMetadata({
+  taskId,
   task,
   project,
   labels,
+  statusFieldLabels,
+  editable,
   createdAtLabel,
   updatedAtLabel,
 }: TaskMetadataProps) {
@@ -185,11 +204,20 @@ export function TaskMetadata({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.status}</span>
-        <TaskStatusBadge
-          status={task.status}
-          label={labels.statusLabels[task.status]}
-          showLabel
-        />
+        {editable ? (
+          <TaskMetadataStatusField
+            key={`${taskId}-${task.status}`}
+            taskId={taskId}
+            status={task.status}
+            labels={statusFieldLabels}
+          />
+        ) : (
+          <TaskStatusBadge
+            status={task.status}
+            label={labels.statusLabels[task.status]}
+            showLabel
+          />
+        )}
       </div>
 
       <MetadataAvatarValue

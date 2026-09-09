@@ -1,9 +1,23 @@
 import { render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/modals/global-modals-context", () => ({
+  useGlobalModalsContext: () => ({
+    showCalendarClientUpgradeModal: vi.fn(),
+  }),
+}));
 
 vi.mock("@/components/aurora-orb", () => ({
   AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
@@ -11,11 +25,26 @@ vi.mock("@/components/aurora-orb", () => ({
   ),
 }));
 
+const baseStatusLabels = {
+  [TaskStatus.RUNNING]: "Running",
+} as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
+
+const baseStatusFieldLabels = {
+  statusLabels: baseStatusLabels,
+  reopenToReadyTitle: "Reopen task",
+  reopenToReadyDescription: "Add a comment",
+  reopenToReadyCommentLabel: "Comment",
+  reopenToReadyCommentPlaceholder: "Describe what still needs to be done",
+  reopenToReadyCommentRequired: "A comment is required",
+  reopenToReadyConfirm: "Reopen to Ready",
+  cancel: "Cancel",
+  updateStatusSuccess: "Task status updated",
+  updateStatusError: "Failed to update task status",
+};
+
 const baseLabels = {
   status: "Status",
-  statusLabels: {
-    [TaskStatus.RUNNING]: "Running",
-  } as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>,
+  statusLabels: baseStatusLabels,
   owner: "Owner",
   creator: "Creator",
   organization: "Organization",
@@ -31,13 +60,16 @@ const baseLabels = {
     `${owner}'s personal assistant`,
 };
 
+type TaskMetadataTask = ComponentProps<typeof TaskMetadata>["task"];
+
 function createTask(
   overrides: {
     credits?: number;
     assigneeName?: string | null;
+    assignee?: TaskMetadataTask["assignee"];
     creator?: Task["creator"];
   } = {},
-) {
+): TaskMetadataTask {
   const creator: Task["creator"] = overrides.creator ?? {
     type: "user",
     id: "user_1",
@@ -48,6 +80,22 @@ function createTask(
     },
   };
 
+  const assignee: TaskMetadataTask["assignee"] =
+    overrides.assignee !== undefined
+      ? overrides.assignee
+      : overrides.assigneeName === null
+        ? null
+        : {
+            type: "coworker",
+            id: "cw_1",
+            coworker: {
+              id: "cw_1",
+              name: overrides.assigneeName ?? "Hepha",
+              image: null,
+              slug: "hepha",
+            },
+          };
+
   return {
     status: TaskStatus.RUNNING,
     owner: {
@@ -57,36 +105,37 @@ function createTask(
     },
     creator,
     organization: null,
-    assignee:
-      overrides.assigneeName === null
-        ? null
-        : {
-            type: "coworker" as const,
-            id: "cw_1",
-            coworker: {
-              id: "cw_1",
-              name: overrides.assigneeName ?? "Hepha",
-              image: null,
-              slug: "hepha",
-            },
-          },
+    assignee,
     credits: overrides.credits ?? 0,
     metadata: null,
     nextRunAt: null,
   };
 }
 
+function renderTaskMetadata(
+  props: Partial<ComponentProps<typeof TaskMetadata>> & {
+    task: TaskMetadataTask;
+  },
+) {
+  const { task, ...rest } = props;
+  return render(
+    <TaskMetadata
+      taskId="task-1"
+      editable={false}
+      task={task}
+      project={null}
+      createdAtLabel="Jul 16, 10:28 AM"
+      updatedAtLabel="Jul 16, 10:29 AM"
+      labels={baseLabels}
+      statusFieldLabels={baseStatusFieldLabels}
+      {...rest}
+    />,
+  );
+}
+
 describe("TaskMetadata", () => {
   it("shows credits after coworker when task has charged credits", () => {
-    render(
-      <TaskMetadata
-        task={createTask({ credits: 12 })}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+    renderTaskMetadata({ task: createTask({ credits: 12 }) });
 
     expect(screen.getByText("Coworker")).toBeInTheDocument();
     expect(screen.getByText("Credits")).toBeInTheDocument();
@@ -94,71 +143,51 @@ describe("TaskMetadata", () => {
   });
 
   it("hides credits row when total is zero", () => {
-    render(
-      <TaskMetadata
-        task={createTask({ credits: 0 })}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+    renderTaskMetadata({ task: createTask({ credits: 0 }) });
 
     expect(screen.queryByText("Credits")).not.toBeInTheDocument();
   });
 
   it("shows coworker creator when different from owner", () => {
-    render(
-      <TaskMetadata
-        task={createTask({
-          creator: {
-            type: "coworker",
+    renderTaskMetadata({
+      task: createTask({
+        creator: {
+          type: "coworker",
+          id: "cow_creator",
+          coworker: {
             id: "cow_creator",
-            coworker: {
-              id: "cow_creator",
-              name: "Creator Coworker",
-              image: null,
-              slug: "creator-coworker",
-            },
+            name: "Creator Coworker",
+            image: null,
+            slug: "creator-coworker",
           },
-        })}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+        },
+      }),
+    });
 
     expect(screen.getByText("Creator")).toBeInTheDocument();
     expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
   });
 
   it("says whose personal assistant created the task", () => {
-    render(
-      <TaskMetadata
-        task={createTask({
-          creator: {
-            type: "sokoBot",
+    renderTaskMetadata({
+      task: createTask({
+        creator: {
+          type: "sokoBot",
+          id: "01960001-0001-7001-8001-000000000099",
+          sokoBot: {
             id: "01960001-0001-7001-8001-000000000099",
-            sokoBot: {
-              id: "01960001-0001-7001-8001-000000000099",
-              name: "Hermes",
-              avatarSeed: null,
-              avatarImageUrl: null,
-              owner: {
-                id: "user_2",
-                name: "Ada Lovelace",
-                image: null,
-              },
+            name: "Hermes",
+            avatarSeed: null,
+            avatarImageUrl: null,
+            owner: {
+              id: "user_2",
+              name: "Ada Lovelace",
+              image: null,
             },
           },
-        })}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+        },
+      }),
+    });
 
     expect(screen.getByText("Creator")).toBeInTheDocument();
     // The assistant's name reads as a person's, so the role line underneath is
@@ -176,27 +205,21 @@ describe("TaskMetadata", () => {
 
   it("shows the mascot the bot claimed, not a generated orb", () => {
     // Claimed mascot is the bot's face; the orb is only the fallback.
-    render(
-      <TaskMetadata
-        task={createTask({
-          creator: {
-            type: "sokoBot",
+    renderTaskMetadata({
+      task: createTask({
+        creator: {
+          type: "sokoBot",
+          id: "01960001-0001-7001-8001-000000000099",
+          sokoBot: {
             id: "01960001-0001-7001-8001-000000000099",
-            sokoBot: {
-              id: "01960001-0001-7001-8001-000000000099",
-              name: "Joseph",
-              avatarSeed: null,
-              avatarImageUrl: "https://blob.example/cat.png",
-              owner: { id: "user_2", name: "Ada Lovelace", image: null },
-            },
+            name: "Joseph",
+            avatarSeed: null,
+            avatarImageUrl: "https://blob.example/cat.png",
+            owner: { id: "user_2", name: "Ada Lovelace", image: null },
           },
-        })}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+        },
+      }),
+    });
 
     // Radix only swaps in the <img> once it loads, which never happens in
     // jsdom, so the regression itself is the assertion: no orb stands in for
@@ -206,27 +229,21 @@ describe("TaskMetadata", () => {
   });
 
   it("does not print the role twice when the bot is named after it", () => {
-    render(
-      <TaskMetadata
-        task={createTask({
-          creator: {
-            type: "sokoBot",
+    renderTaskMetadata({
+      task: createTask({
+        creator: {
+          type: "sokoBot",
+          id: "01960001-0001-7001-8001-000000000099",
+          sokoBot: {
             id: "01960001-0001-7001-8001-000000000099",
-            sokoBot: {
-              id: "01960001-0001-7001-8001-000000000099",
-              name: "Ada Lovelace's personal assistant",
-              avatarSeed: null,
-              avatarImageUrl: null,
-              owner: { id: "user_2", name: "Ada Lovelace", image: null },
-            },
+            name: "Ada Lovelace's personal assistant",
+            avatarSeed: null,
+            avatarImageUrl: null,
+            owner: { id: "user_2", name: "Ada Lovelace", image: null },
           },
-        })}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+        },
+      }),
+    });
 
     expect(
       screen.getAllByText("Ada Lovelace's personal assistant"),
@@ -234,71 +251,50 @@ describe("TaskMetadata", () => {
   });
 
   it("renders an sokoBot assignee with the assistant orb", () => {
-    render(
-      <TaskMetadata
-        task={{
-          ...createTask({ assigneeName: null }),
-          assignee: {
-            type: "sokoBot",
+    renderTaskMetadata({
+      task: createTask({
+        assignee: {
+          type: "sokoBot",
+          id: "bot-1",
+          sokoBot: {
             id: "bot-1",
-            sokoBot: {
-              id: "bot-1",
-              name: "Jarvis",
-              avatarSeed: null,
-              avatarImageUrl: null,
-              owner: { id: "user_1", name: "Andreas Osberghaus", image: null },
-            },
+            name: "Jarvis",
+            avatarSeed: null,
+            avatarImageUrl: null,
+            owner: { id: "user_1", name: "Andreas Osberghaus", image: null },
           },
-        }}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+        },
+      }),
+    });
 
     expect(screen.getByText("Jarvis")).toBeInTheDocument();
     expect(screen.getByTestId("assistant-orb")).toBeInTheDocument();
   });
 
   it("renders a user assignee by name (SOK-868)", () => {
-    render(
-      <TaskMetadata
-        task={{
-          ...createTask({ assigneeName: null }),
-          assignee: {
-            type: "user",
-            id: "user_2",
-            user: { id: "user_2", name: "Bob", image: null },
-          },
-        }}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+    renderTaskMetadata({
+      task: createTask({
+        assignee: {
+          type: "user",
+          id: "user_2",
+          user: { id: "user_2", name: "Bob", image: null },
+        },
+      }),
+    });
 
     expect(screen.getByText("Bob")).toBeInTheDocument();
   });
 
   it("falls back to Member for a blank user assignee name (SOK-868)", () => {
-    render(
-      <TaskMetadata
-        task={{
-          ...createTask({ assigneeName: null }),
-          assignee: {
-            type: "user",
-            id: "user_2",
-            user: { id: "user_2", name: "   ", image: null },
-          },
-        }}
-        project={null}
-        createdAtLabel="Jul 16, 10:28 AM"
-        updatedAtLabel="Jul 16, 10:29 AM"
-        labels={baseLabels}
-      />,
-    );
+    renderTaskMetadata({
+      task: createTask({
+        assignee: {
+          type: "user",
+          id: "user_2",
+          user: { id: "user_2", name: "   ", image: null },
+        },
+      }),
+    });
 
     expect(screen.getByText("Member")).toBeInTheDocument();
   });
