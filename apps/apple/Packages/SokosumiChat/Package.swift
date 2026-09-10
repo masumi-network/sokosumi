@@ -41,6 +41,12 @@ let package = Package(
     .target(
       name: "SokosumiChat",
       dependencies: [
+        .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+        .product(name: "TreeSitterSwift", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterSwiftQueries", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterJSON", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterJSONQueries", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterKotlin", package: "tree-sitter-kotlin"),
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")

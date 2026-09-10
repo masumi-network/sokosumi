@@ -145,3 +145,17 @@ query. Tree-sitter treats that directive as a comment; it does not load C for us
 These are renderer integration requirements, not reasons to add a JavaScript
 runtime or claim reduced syntax coverage. Full language detection, aliases,
 query resources in app bundles, and incomplete code/Unicode tests remain open.
+
+## Native capture implementation checkpoint
+
+`NativeSyntaxHighlighter` now returns portable UTF-16 capture ranges using the
+approved SwiftTreeSitter binding. Swift and JSON reuse packaged queries; Kotlin
+uses a query authored against its pinned node/token schema. Three tests cover
+expected capture text, Unicode offsets, empty input and incomplete streaming
+input. Targeted tests and iOS 17 shared-module compilation passed.
+
+This is an implementation checkpoint within slice 10, not complete syntax
+parity. The language enum currently covers Swift, JSON and Kotlin only; extend
+it to the web registry, compose inherited queries, cover Kotlin's remaining
+semantic captures, and connect background parsing plus native color styling
+before opening the renderer PR. No code-block highlighting is visible yet.
