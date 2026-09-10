@@ -6,7 +6,7 @@
 
 **Stack**: One Xcode project (`Sokosumi.xcodeproj`, product `Sokosumi`), macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (portable Ably connection, token source, room subscriptions), `SokosumiTests/` (app-target tests).
 
 ## App-Specific Conventions
 
@@ -35,6 +35,7 @@ xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
 swift test --package-path Packages/SokosumiChat   # per-package tests
 swift test --package-path Packages/SokosumiAuth
 swift test --package-path Packages/CoreAPI
+swift test --package-path Packages/SokosumiRealtime
 ```
 
 No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding CI steps.
@@ -56,11 +57,10 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 
 For interactive launches use the configured Apple Development identity and team `Y3ZJFLUYRB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=Y3ZJFLUYRB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
 
-
 ### OAuth and Core setup
 
 - Use a first-party public OAuth client with PKCE (no embedded client secret), registered through the existing Core OAuth client machinery by an operator. Scopes are `openid`, `sokosumi:api`, and `offline_access`; use the system browser and Keychain-backed token persistence. Do not substitute API keys or browser cookies for the human session.
 - Register the exact redirect URI `com.sokosumi.app:/auth` (one slash, no host), with callback scheme `com.sokosumi.app`. The double-slash form is not interchangeable. Configuration lives in `Packages/SokosumiAuth/Sources/SokosumiAuth/OAuthConfiguration.swift`.
 - Configure the Core base URL for the intended environment. Local Core uses this checkout's portless HTTPS URL. Personal requests omit `X-Organization-Slug`; organization requests carry their slug. `GET /v1/users/me/workspace-access` must return `ready` before chat is usable; other gates open the corresponding web setup flow.
 - Refresh the selected OpenAPI operations from a generated Core specification with `python3 scripts/update-core-api.py /path/to/core-openapi.json` from `apps/apple`. Append an existing Core path such as `/chats/rooms/{id}/unread` to include it. The script retains selected operations, resolves transitive schemas, and writes literal UTF-8 because escaped non-BMP examples can break the generator's YAML parser. Never hand-edit the snapshot or generated Swift output. This workflow does not authorize changing Core contracts or web files.
-- Realtime uses the existing workspace-scoped Ably token endpoint and a persisted per-install `clientInstanceId`; follow ADR 0003 and ADR 0014 for identity and event contracts. Behavior and the authorized feature boundary are tracked in `PARITY.md`; architecture decisions remain in `docs/adr/` (including ADR 0027).
+- Realtime uses the existing workspace-scoped Ably token endpoint and a persisted per-install `clientInstanceId`; follow ADR 0003 and ADR 0014 for identity and event contracts. Behavior and the authorized feature boundary are tracked in `PARITY.md`; architecture decisions remain in `docs/adr/` (including [`0028-apple-native-clients.md`](../../docs/adr/0028-apple-native-clients.md)).
