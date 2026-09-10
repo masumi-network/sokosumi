@@ -40,6 +40,11 @@ public struct ComposerEmoji: Equatable, Sendable {
     return matches.prefix(20).map { ":\($0):" }
   }
 
+  public static func completionPreview(for shortcode: String) -> String {
+    guard let emoji = MessageEmoji.emoji(shortcode: String(shortcode.dropFirst().dropLast())) else { return shortcode }
+    return "\(emoji)  \(shortcode)"
+  }
+
   private static func isCode(_ node: any Markup, at location: SourceLocation) -> Bool {
     if node is CodeBlock || node is InlineCode,
        let range = node.range, range.contains(location) {

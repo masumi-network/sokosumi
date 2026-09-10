@@ -146,15 +146,17 @@
           showingCompletions = false
         }
         index.pointee = 0
-        return words
+        return words.map { ComposerEmoji.completionPreview(for: $0) }
       }
 
       override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal: Bool) {
         guard isFinal else { return }
         showingCompletions = false
         guard movement != NSCancelTextMovement, word.hasSuffix(":"), NSMaxRange(charRange) <= string.utf16.count else { return }
+        // The menu label includes a preview; only the shortcode participates in insertion.
+        let shortcode = String(word.split(separator: " ").last ?? Substring(word))
         let suffix = (string as NSString).substring(from: NSMaxRange(charRange))
-        guard let edit = ComposerEmoji.match(in: word + suffix, caret: word.utf16.count) else { return }
+        guard let edit = ComposerEmoji.match(in: shortcode + suffix, caret: shortcode.utf16.count) else { return }
         // Native completion owns navigation/cancellation; persist only the accepted result.
         breakUndoCoalescing()
         super.insertText(edit.replacement, replacementRange: charRange)

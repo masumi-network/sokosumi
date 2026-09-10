@@ -11,7 +11,10 @@
       input.string = "😀 :sm tail"
       input.setSelectedRange(NSRange(location: 6, length: 0))
       #expect(input.rangeForUserCompletion == NSRange(location: 3, length: 3))
-      input.insertCompletion(":smile:", forPartialWordRange: input.rangeForUserCompletion, movement: NSReturnTextMovement, isFinal: true)
+      var selectedIndex = 0
+      let completions = input.completions(forPartialWordRange: input.rangeForUserCompletion, indexOfSelectedItem: &selectedIndex)
+      #expect(completions?.contains("😄  :smile:") == true)
+      input.insertCompletion("😄  :smile:", forPartialWordRange: input.rangeForUserCompletion, movement: NSReturnTextMovement, isFinal: true)
       #expect(input.string == "😀 😄 tail")
       #expect(input.selectedRange().location == 5)
     }

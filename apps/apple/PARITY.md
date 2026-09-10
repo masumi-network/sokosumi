@@ -472,3 +472,5 @@ Maintenance verification: Xcode app tests passed before and after extraction; th
 
 - User requested partial-shortcode autocomplete in this PR. Moved it from 12b into 12a. Native text completion starts at two query characters (e.g. `:sm`), ranks prefixes before substring matches, caps results at 20, and inserts the accepted emoji without duplicating existing whitespace. Code and marked text are excluded. Native completion owns navigation and cancellation; draft preview/cancel and final insertion are covered by app tests.
 - Autocomplete verification: 241 Chat tests passed, Xcode app tests passed, signed build passed, strict lint and format passed. Computer control did not enter the test draft reliably, so visual menu/keyboard interaction still needs user verification. No message was sent.
+
+- User screenshot confirms the native shortcode completion menu appears. Added emoji previews beside each shortcode at the user's request. The native adapter strips the display preview before insertion; the app test checks the displayed option and verifies only one emoji is inserted. Xcode build/app tests, five ComposerEmoji tests and strict lint passed after this change.
