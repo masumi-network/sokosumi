@@ -356,6 +356,7 @@ struct WorkspaceStateTests {
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440037",
+        roomId: "550e8400-e29b-41d4-a716-446655440000",
         content: "kept"
       )], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -400,6 +401,7 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: roomID, unread: 3)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440031",
+        roomId: roomID,
         content: "hello"
       )], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0))
@@ -497,6 +499,7 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440040",
+        roomId: secondID,
         content: "hi"
       )], nextCursor: nil)),
       (200, roomReadBody(id: secondID, unread: 0))
@@ -521,6 +524,7 @@ struct WorkspaceStateTests {
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440041",
+        roomId: selected,
         content: "kept"
       )], nextCursor: nil)),
       (200, roomReadBody(id: selected, unread: 0))
@@ -552,6 +556,7 @@ struct WorkspaceStateTests {
       // takes the next responses. 201 is leftover for the released POST.
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440040",
+        roomId: secondID,
         content: "hi"
       )], nextCursor: nil)),
       (200, roomReadBody(id: secondID, unread: 0)),
@@ -577,6 +582,56 @@ struct WorkspaceStateTests {
     #expect(transport.remainingStubs == 0)
   }
 
+  @Test(arguments: [false, true]) func openingThreadLooksThenReadsRoomBeforeFetchingReplies(initialFailure: Bool) async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let rootID = "550e8400-e29b-41d4-a716-446655440034"
+    let root = transcriptMessage(id: rootID, roomId: roomID, content: "Parent")
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: roomID, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 3)),
+      (200, """
+      {"data":{"parentMessageId":"\(rootID)","lastReadAt":"\(timestamp)"},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
+      """),
+      (200, roomReadBody(id: roomID, unread: 2))
+    ] + (initialFailure ? [
+      (503, "{}"),
+      (200, """
+      {"data":{"parentMessageId":"\(rootID)","lastReadAt":"\(timestamp)"},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
+      """),
+      (200, roomReadBody(id: roomID, unread: 2))
+    ] : []) + [(200, transcriptPageBody(messages: [reply], nextCursor: "older-replies"))])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let parent = try #require(state.transcriptMessages.first)
+    state.openThread(parent, auth: auth)
+    await state.thread.loadTask?.value
+    if initialFailure {
+      #expect(state.thread.timeline.failedPage == .initial)
+      state.thread.recovery.requestRefresh()
+      while state.thread.recovery.isRefreshing {
+        await Task.yield()
+      }
+    }
+    #expect(state.thread.timeline.hasLoadedHistory)
+    #expect(state.thread.timeline.cursor == "older-replies")
+    #expect(state.thread.timeline.hasMore)
+    #expect(state.thread.parent?.id == rootID)
+    #expect(state.thread.displayedReplies.map(\.content) == ["Reply"])
+    #expect(state.transcriptMessages.map(\.content) == ["Parent"])
+    #expect(state.rooms.first?.unreadCount == 2)
+    #expect(transport.operationIDs.suffix(3) == [
+      "post/chats/rooms/{id}/threads/{parentMessageId}/read",
+      "post/chats/rooms/{id}/read",
+      "get/chats/rooms/{id}/threads/{parentMessageId}/messages"
+    ])
+    state.thread.close()
+  }
+
   @Test func failedReadKeepsResolvedHistory() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440035"
     let (state, auth, transport, _) = try ephemeralState([
@@ -587,6 +642,7 @@ struct WorkspaceStateTests {
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440036",
+        roomId: roomID,
         content: "visible"
       )], nextCursor: nil)),
       (500, """
@@ -629,8 +685,8 @@ struct WorkspaceStateTests {
   @Test func successfulRefreshRetryMarksUnchangedVisibleContentRead() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440033"
     let messageID = "550e8400-e29b-41d4-a716-446655440034"
-    let page = transcriptPageBody(messages: [transcriptMessage(id: messageID, content: "first")], nextCursor: nil)
-    let updatedPage = transcriptPageBody(messages: [transcriptMessage(id: messageID, content: "updated")], nextCursor: nil)
+    let page = transcriptPageBody(messages: [transcriptMessage(id: messageID, roomId: roomID, content: "first")], nextCursor: nil)
+    let updatedPage = transcriptPageBody(messages: [transcriptMessage(id: messageID, roomId: roomID, content: "updated")], nextCursor: nil)
     let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
       (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
@@ -645,7 +701,8 @@ struct WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     #expect(state.timeline.failedPage == .latest)
     // A realtime update arrives while the failed refresh blocks reads.
-    state.timeline.messages[0].content = "updated"
+    let messageIndex = try #require(state.timeline.messages.firstIndex { $0.id == messageID })
+    state.timeline.messages[messageIndex].content = "updated"
     await state.syncReadAttention(auth: auth)
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
     state.refreshTranscript(auth: auth)
@@ -666,6 +723,7 @@ struct WorkspaceStateTests {
       (200, unreadRoomsBody(id: roomID, unread: 1)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440034",
+        roomId: roomID,
         content: "newest"
       )], nextCursor: "cursor-1")),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -857,9 +915,9 @@ private func unreadRoomsBody(id: String, unread: Int) -> String {
   """
 }
 
-private func transcriptMessage(id: String, content: String) -> String {
+private func transcriptMessage(id: String, roomId: String, content: String) -> String {
   """
-  {"id":"\(id)","roomId":"550e8400-e29b-41d4-a716-446655440030","parentMessageId":null,"content":"\(content)","createdAt":"\(timestamp)","deletedAt":null,"editedAt":null,"sender":{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}},"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":null,"quote":null,"membership":null,"unfurls":null}
+  {"id":"\(id)","roomId":"\(roomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(timestamp)","deletedAt":null,"editedAt":null,"sender":{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}},"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":null,"quote":null,"membership":null,"unfurls":null}
   """
 }
 

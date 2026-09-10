@@ -20,6 +20,8 @@ final class WorkspaceState: ObservableObject {
   typealias Phase = WorkspaceSession.Phase
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
+  let thread = ThreadSession()
+  private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
   var phase: Phase {
     workspaceSession.phase
@@ -160,7 +162,7 @@ final class WorkspaceState: ObservableObject {
   private(set) var roomsRefreshTask: Task<Void, Never>?
   private var roomsRefreshID = UUID()
   private var sidebarRecoveryGeneration = UUID()
-  private var transcriptRealtimeHealthy = false
+  private(set) var transcriptRealtimeHealthy = false
 
   private let service = ChatService()
   private var hasLoaded = false
@@ -177,6 +179,9 @@ final class WorkspaceState: ObservableObject {
   ) {
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    for publisher in [thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange] {
+      publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
+    }
     outboxObservation = outbox.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -196,7 +201,7 @@ final class WorkspaceState: ObservableObject {
 
   /// Test seam: when set, replaces `auth.coreClient()` as the client source.
   var clientResolver: (() -> Client?)?
-  private func resolveClient(auth: AuthState) -> Client? {
+  func resolveClient(auth: AuthState) -> Client? {
     clientResolver?() ?? auth.coreClient()
   }
 
@@ -258,6 +263,7 @@ final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    thread.close()
     transcriptRealtimeHealthy = false
     transcriptRecovery.stop()
     readAttention.roomChanged()
@@ -275,6 +281,7 @@ final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
     timeline.reset(roomId: room.id)
@@ -293,6 +300,7 @@ final class WorkspaceState: ObservableObject {
   func setWindowVisible(_ visible: Bool, window: UUID) {
     let wasVisible = readAttention.isVisible
     readAttention.setVisible(visible, window: window)
+    thread.recovery.setForeground(readAttention.isVisible)
     transcriptRecovery.setForeground(readAttention.isVisible)
     sidebarRecovery.setForeground(readAttention.isVisible)
     if !wasVisible, readAttention.isVisible {
@@ -417,6 +425,7 @@ final class WorkspaceState: ObservableObject {
     case let .message(roomId, eventType, message):
       applyRealtimeMessage(roomId: roomId, eventType: eventType, message: message)
     case let .patch(patch):
+      thread.apply(patch)
       guard patch.roomId == transcriptRoomId else { return }
       transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
     case let .pin(roomId, messageId, isPinned, count):
@@ -444,8 +453,10 @@ final class WorkspaceState: ObservableObject {
   private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
     guard roomId == transcriptRoomId else { return }
     transcriptRealtimeHealthy = healthy
+    thread.recovery.setHealthy(healthy)
     transcriptRecovery.setHealthy(healthy)
     if continuityLost {
+      thread.recovery.requestRefresh()
       transcriptRecovery.requestRefresh()
     }
   }
@@ -460,6 +471,7 @@ final class WorkspaceState: ObservableObject {
     eventType: ChatRoomMessageRealtimeEventType,
     message: Components.Schemas.ChatRoomMessage
   ) {
+    thread.apply(eventType: eventType, message: message)
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh()
     }
@@ -478,6 +490,10 @@ final class WorkspaceState: ObservableObject {
   /// create/update refetch history for the focused room, everything else is
   /// ignored. The refetch merges — it never invents a row.
   func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
+    let refreshParent = thread.apply(envelope)
+    if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
+      transcriptRecovery.requestRefresh()
+    }
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: transcriptRoomId) {
     case .ignore:
       if envelope.eventType == .create {
@@ -517,6 +533,9 @@ final class WorkspaceState: ObservableObject {
     }
     do {
       guard try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
+      if let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
+        thread.apply(eventType: .update, message: parent)
+      }
       await syncReadAttention(auth: auth)
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
@@ -599,13 +618,20 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
+  var readContent: RoomReadAttention.Content {
+    .init(messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
+          parentMessageId: thread.parent?.id,
+          replies: thread.timeline.messages.map { .init(id: $0.id, content: $0.content) })
+  }
+
   func syncReadAttention(auth: AuthState) async {
     guard let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
     do {
       try await readAttention.readIfNeeded(
         room: room,
-        messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
-        historyReadable: timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest,
+        content: readContent,
+        historyReadable: timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
+          && !thread.timeline.isLoading,
         client: client,
         organizationSlug: selection?.workspace.organizationSlug
       )
@@ -679,7 +705,7 @@ final class WorkspaceState: ObservableObject {
   /// Signs out when Core rejects the session. Returns whether it did, so
   /// silent callers (attention sync) can keep the side effect explicit.
   @discardableResult
-  private func signOutIfUnauthorized(_ error: ChatServiceError, auth: AuthState) -> Bool {
+  func signOutIfUnauthorized(_ error: ChatServiceError, auth: AuthState) -> Bool {
     if case let .unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       return true

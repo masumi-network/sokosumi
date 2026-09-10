@@ -35,7 +35,7 @@ import SwiftUI
       VStack(spacing: 0) {
         transcriptBody
         Divider()
-        RoomComposer(
+        ChatComposer(
           userId: workspaces.currentUserId,
           organizationId: workspaces.selection?.workspace.organizationId,
           roomId: roomId
@@ -118,8 +118,17 @@ import SwiftUI
                     },
                     onRemove: outbound.map { shell in
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
-                    }
+                    },
+                    onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil
                   )
+                  if outbound == nil, message.threadReplyCount > 0 {
+                    Button("\(message.threadReplyCount) replies") {
+                      workspaces.openThread(message, auth: auth)
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .padding(.leading, 48)
+                  }
                 }
               }
               .id(message.id)
@@ -216,30 +225,38 @@ import SwiftUI
 
   /// Owns typing state so edits do not invalidate the transcript. The parent
   /// gives each account/workspace/room a distinct identity before loading its draft.
-  private struct RoomComposer: View {
+  struct ChatComposer: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     @State private var draft: String
 
     private let savedDraft: SavedComposeDraft
     private let roomId: String
+    private let parentMessageId: String?
+    private let onAccepted: (() -> Void)?
 
-    init(userId: String, organizationId: String?, roomId: String) {
+    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, onAccepted: (() -> Void)? = nil) {
+      self.onAccepted = onAccepted
       self.roomId = roomId
-      let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId)
+      self.parentMessageId = parentMessageId
+      let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId)
       self.savedDraft = savedDraft
       _draft = State(initialValue: savedDraft.load())
     }
 
     private var composerPlaceholder: String {
+      if parentMessageId != nil {
+        return "Reply to thread"
+      }
       guard let room = workspaces.rooms.first(where: { $0.id == roomId }) else { return "Message" }
       return "Message \(roomDisplayName(room, currentUserId: workspaces.currentUserId))"
     }
 
     private var canSend: Bool {
       ComposerContent(draft).canSend
-        && !workspaces.transcriptLoading
+        && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
+        && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
     }
 
     var body: some View {
@@ -266,9 +283,13 @@ import SwiftUI
     @discardableResult
     private func sendDraft() -> Bool {
       guard canSend else { return false }
-      guard workspaces.sendMessage(draft, auth: auth) else { return false }
+      let accepted = parentMessageId == nil
+        ? workspaces.sendMessage(draft, auth: auth)
+        : workspaces.sendThreadReply(draft, auth: auth)
+      guard accepted else { return false }
       draft = ""
       savedDraft.save("")
+      onAccepted?()
       return true
     }
   }
@@ -351,6 +372,9 @@ import SwiftUI
     var sentAt: Date?
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
+    var onReply: (() -> Void)?
+    @State private var isHovered = false
+    @FocusState private var replyFocused: Bool
 
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
@@ -416,6 +440,38 @@ import SwiftUI
       }
       .padding(.top, isContinuation ? 2 : 10)
       .padding(.bottom, 2)
+      .contentShape(.rect)
+      .background(isHovered && onReply != nil ? Color.primary.opacity(0.04) : .clear)
+      .onHover { isHovered = $0 }
+      .overlay(alignment: .topTrailing) {
+        if let onReply {
+          Button(action: onReply) {
+            Label("Reply", systemImage: "bubble.right")
+          }
+          .buttonStyle(.borderless)
+          .font(.callout)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 6)
+          .background(.regularMaterial, in: .rect(cornerRadius: 8))
+          .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
+          .focused($replyFocused)
+          .help("Reply in thread")
+          .accessibilityLabel("Reply in thread")
+          .opacity(isHovered || replyFocused ? 1 : 0)
+          .allowsHitTesting(isHovered || replyFocused)
+        }
+      }
+      .contextMenu {
+        if let onReply {
+          Button("Reply in thread", systemImage: "bubble.right", action: onReply)
+        }
+      }
+      .accessibilityElement(children: .contain)
+      .accessibilityActions {
+        if let onReply {
+          Button("Reply in thread", action: onReply)
+        }
+      }
     }
 
     private var avatarView: some View {
