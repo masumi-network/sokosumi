@@ -7,7 +7,7 @@ import SokosumiChat
 extension AuthState {
   convenience init(store: any TokenStore = KeychainTokenStore()) {
     self.init(
-      configuration: AuthConfig.makeConfiguration(),
+      configuration: AppOAuthConfiguration.makeConfiguration(),
       store: store,
       browser: MacOAuthBrowser(),
       // Test hosts must not read the real Keychain and trigger an ACL prompt.

@@ -5,50 +5,45 @@ import SokosumiAuth
 import SokosumiChat
 import SokosumiRealtime
 
-/// Thin UI state for the workspace + rooms sidebar (SOK-973), the room
-/// transcript (SOK-974), classic send (SOK-975), and live Ably updates
-/// (SOK-976).
-///
-/// Behavior lives in `SokosumiChat.ChatService` (UI-free, tested); this
-/// object only holds the current selection/rooms/transcript for SwiftUI and
-/// forwards failures: 401 signs out via `AuthState`, other gates surface as
-/// text. The realtime subscription itself (ably-cocoa) forwards full DTOs,
-/// id envelopes, and revoke events into the `applyRealtime*` methods below.
+/// App-owned coordinator connecting authentication, chat sessions and realtime.
+/// Package models own reusable behavior; this object orders their lifecycles,
+/// forwards observation to SwiftUI and handles session-wide failures.
+/// Keep cancellation and generation guards with their coordinated operations.
 @MainActor
-final class WorkspaceState: ObservableObject {
-  typealias WorkspaceOption = WorkspaceSession.Option
-  typealias Phase = WorkspaceSession.Phase
+public final class WorkspaceState: ObservableObject {
+  public typealias WorkspaceOption = WorkspaceSession.Option
+  public typealias Phase = WorkspaceSession.Phase
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
-  let thread = ThreadSession()
-  let directStream = DirectStreamSession()
+  public let thread = ThreadSession()
+  public let directStream = DirectStreamSession()
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
-  var phase: Phase {
+  public var phase: Phase {
     workspaceSession.phase
   }
 
-  var options: [WorkspaceOption] {
+  public var options: [WorkspaceOption] {
     workspaceSession.options
   }
 
-  var selectionId: String? {
+  public var selectionId: String? {
     workspaceSession.selectionId
   }
 
-  let sidebar: ConversationSidebar
-  var readAttention: RoomReadAttention {
+  public let sidebar: ConversationSidebar
+  public var readAttention: RoomReadAttention {
     sidebar.readAttention
   }
 
   private var attentionObservation: AnyCancellable?
   private var sidebarObservation: AnyCancellable?
-  var rooms: [Components.Schemas.ChatRoom] {
+  public var rooms: [Components.Schemas.ChatRoom] {
     get { readAttention.applying(to: sidebar.rooms) }
     set { sidebar.rooms = newValue }
   }
 
-  var roomsLoading: Bool {
+  public var roomsLoading: Bool {
     get { sidebar.isLoading }
     set { sidebar.isLoading = newValue }
   }
@@ -57,37 +52,37 @@ final class WorkspaceState: ObservableObject {
   /// else the first room. Revoking the open room can leave this nil while
   /// others remain: the saved pick is left alone so relaunch does not
   /// reopen a room that is gone.
-  var selectedRoomId: String? {
+  public var selectedRoomId: String? {
     get { sidebar.selectedRoomId }
     set { sidebar.selectedRoomId = newValue }
   }
 
   /// Switch/list failure while already `.ready`. Nil means the sidebar is fine.
-  @Published private(set) var switchError: String?
-  var currentUserId: String {
+  @Published public private(set) var switchError: String?
+  public var currentUserId: String {
     workspaceSession.currentUser?.id ?? ""
   }
 
-  var currentUserName: String {
+  public var currentUserName: String {
     workspaceSession.currentUser?.name ?? ""
   }
 
-  var currentUserEmail: String {
+  public var currentUserEmail: String {
     workspaceSession.currentUser?.email ?? ""
   }
 
-  var currentUserImageURL: String? {
+  public var currentUserImageURL: String? {
     workspaceSession.currentUser?.image
   }
 
-  let timeline = RoomTimeline()
+  public let timeline = RoomTimeline()
   private(set) var transcriptLoadTask: Task<Void, Never>?
   private(set) var olderPageTask: Task<Void, Never>?
   private(set) var transcriptRefreshTask: Task<Void, Never>?
   private var timelineObservation: AnyCancellable?
 
   /// Room the transcript pane shows. Nil clears the pane.
-  var transcriptRoomId: String? {
+  public var transcriptRoomId: String? {
     timeline.roomId
   }
 
@@ -96,37 +91,37 @@ final class WorkspaceState: ObservableObject {
     set { timeline.messages = newValue }
   }
 
-  var transcriptHasMore: Bool {
+  public var transcriptHasMore: Bool {
     timeline.hasMore
   }
 
-  var transcriptLoading: Bool {
+  public var transcriptLoading: Bool {
     timeline.isLoading
   }
 
-  var transcriptLoadingOlder: Bool {
+  public var transcriptLoadingOlder: Bool {
     timeline.isLoadingOlder
   }
 
   /// Latest-page refetch in flight (ADR 0014 envelope). Not the older-page
   /// spinner: live refetch must not flash `transcriptLoadingOlder`.
-  var transcriptRefreshing: Bool {
+  public var transcriptRefreshing: Bool {
     timeline.isRefreshing
   }
 
   /// Failure text. Shown full-pane when there is no history, as a banner
   /// above loaded history otherwise — a failed older page never wipes
   /// what already resolved.
-  var transcriptError: String? {
+  public var transcriptError: String? {
     get { timeline.errorMessage }
     set { timeline.errorMessage = newValue }
   }
 
   /// Unconfirmed classic sends for the open room. Remount / room change
   /// drops them (no durable outbox).
-  let outbox = RoomOutbox()
+  public let outbox = RoomOutbox()
   private var outboxObservation: AnyCancellable?
-  var outboundShells: [OutboundShell] {
+  public var outboundShells: [OutboundShell] {
     outbox.shells
   }
 
@@ -138,13 +133,13 @@ final class WorkspaceState: ObservableObject {
   /// Factory for the live socket. Set by the app at launch (ably-cocoa);
   /// nil in tests unless a fake is installed. Without one the transcript
   /// stays HTTP-only and every realtime call below no-ops.
-  var realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
+  public var realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
   private var realtime: (any RealtimeConnection)?
   private var realtimeStreamTask: Task<Void, Never>?
   private var realtimeContinuation: AsyncStream<ResolvedRealtimeDelivery>.Continuation?
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end).
-  var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
+  public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
     directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
   }
 
@@ -174,10 +169,12 @@ final class WorkspaceState: ObservableObject {
   /// device in every token it mints.
   let ablyClientInstanceId: String
 
-  init(
+  public init(
+    clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: AblyClientInstanceIdStore = UserDefaultsAblyClientInstanceIdStore()
   ) {
+    self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
     for publisher in [thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
@@ -200,31 +197,33 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  /// Test seam: when set, replaces `auth.coreClient()` as the client source.
+  private let clientProvider: (AuthState) -> Client?
+
+  /// Test override for the injected authenticated client provider.
   var clientResolver: (() -> Client?)?
   func resolveClient(auth: AuthState) -> Client? {
-    clientResolver?() ?? auth.coreClient()
+    clientResolver?() ?? clientProvider(auth)
   }
 
-  var selection: WorkspaceOption? {
+  public var selection: WorkspaceOption? {
     options.first { $0.id == selectionId }
   }
 
-  func startIfNeeded(auth: AuthState) {
+  public func startIfNeeded(auth: AuthState) {
     guard !hasLoaded else { return }
     hasLoaded = true
     workspaceLoadTask?.cancel()
     workspaceLoadTask = Task { await reload(auth: auth) }
   }
 
-  func retry(auth: AuthState) {
+  public func retry(auth: AuthState) {
     workspaceLoadTask?.cancel()
     workspaceLoadTask = Task { await reload(auth: auth) }
   }
 
   /// Drop everything after sign-out so the next sign-in reloads from Core.
   /// The install instance id survives: this Mac stays one Ably device.
-  func reset() {
+  public func reset() {
     hasLoaded = false
     workspaceLoadTask?.cancel()
     workspaceLoadTask = nil
@@ -242,7 +241,7 @@ final class WorkspaceState: ObservableObject {
   /// User picked a room in the sidebar: persist it and open its transcript.
   /// Nil is ignored — `List` emits it when collapsed rows leave the
   /// hierarchy, and this app keeps a room selected whenever one is listed.
-  func selectRoom(_ id: String?, auth: AuthState) {
+  public func selectRoom(_ id: String?, auth: AuthState) {
     guard let id, id != selectedRoomId else { return }
     applyRoomSelection(id, auth: auth)
   }
@@ -282,7 +281,7 @@ final class WorkspaceState: ObservableObject {
   /// (ADR 0026). The sidebar entry is replaced with the POST-read DTO so
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
-  func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+  public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
@@ -309,7 +308,7 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  func setWindowVisible(_ visible: Bool, window: UUID) {
+  public func setWindowVisible(_ visible: Bool, window: UUID) {
     let wasVisible = readAttention.isVisible
     readAttention.setVisible(visible, window: window)
     thread.recovery.setForeground(readAttention.isVisible)
@@ -341,7 +340,7 @@ final class WorkspaceState: ObservableObject {
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
-  func sendMessage(_ content: String, auth: AuthState) -> Bool {
+  public func sendMessage(_ content: String, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
@@ -375,12 +374,12 @@ final class WorkspaceState: ObservableObject {
     return true
   }
 
-  func retryOutbound(clientTurnId: String) {
+  public func retryOutbound(clientTurnId: String) {
     outbox.retry(clientTurnId)
   }
 
   /// Drops the failed local shell only. Does not delete a Core row.
-  func removeOutbound(clientTurnId: String) {
+  public func removeOutbound(clientTurnId: String) {
     outbox.remove(clientTurnId)
   }
 
@@ -535,7 +534,7 @@ final class WorkspaceState: ObservableObject {
   /// Re-read the latest history page and merge it (envelope refetch, ADR
   /// 0014): the same HTTP refresh as the live poll. No mark-read, never
   /// wipes resolved history on failure.
-  func refreshTranscript(auth: AuthState) {
+  public func refreshTranscript(auth: AuthState) {
     guard transcriptRoomId != nil else { return }
     guard !directStream.isBusy || thread.parent != nil else { return }
     if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
@@ -682,7 +681,7 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  var readContent: RoomReadAttention.Content {
+  public var readContent: RoomReadAttention.Content {
     .init(messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
           parentMessageId: thread.parent?.id,
           replies: thread.timeline.messages.map { .init(id: $0.id, content: $0.content) })
@@ -692,7 +691,7 @@ final class WorkspaceState: ObservableObject {
     timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
   }
 
-  func syncReadAttention(auth: AuthState) async {
+  public func syncReadAttention(auth: AuthState) async {
     guard let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
     do {
       try await readAttention.readIfNeeded(
@@ -710,7 +709,7 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  func markRoomUnread(_ room: Components.Schemas.ChatRoom, auth: AuthState) async {
+  public func markRoomUnread(_ room: Components.Schemas.ChatRoom, auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
     do {
       try await readAttention.markUnread(room: room, activeRoomId: selectedRoomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
@@ -724,7 +723,7 @@ final class WorkspaceState: ObservableObject {
 
   /// Older history page for scroll-up. Merges by message ID; never marks read and never
   /// clears resolved history on failure.
-  func loadOlderMessages(auth: AuthState) {
+  public func loadOlderMessages(auth: AuthState) {
     guard transcriptRoomId != nil, transcriptHasMore,
           !directStream.isBusy,
           !transcriptLoading, !transcriptLoadingOlder, !transcriptRefreshing,
@@ -781,7 +780,7 @@ final class WorkspaceState: ObservableObject {
     return false
   }
 
-  func select(_ option: WorkspaceOption, auth: AuthState) {
+  public func select(_ option: WorkspaceOption, auth: AuthState) {
     guard option.id != selectionId else { return }
     guard !roomsLoading else { return }
     // Header + rooms commit together after the switch succeeds, so a
@@ -846,7 +845,7 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  func refreshRooms(auth: AuthState) async {
+  public func refreshRooms(auth: AuthState) async {
     if let task = roomsRefreshTask {
       await task.value
       return

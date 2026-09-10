@@ -2,9 +2,9 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-@testable import Sokosumi
 import SokosumiAuth
 import SokosumiChat
+@testable import SokosumiWorkspace
 import Testing
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
@@ -13,23 +13,6 @@ private struct MemoryTokenStore: TokenStore {
   var tokens: OAuthTokens?
   func load() -> OAuthTokens? {
     tokens
-  }
-
-  func save(_: OAuthTokens) throws {}
-  func clear() -> Bool {
-    true
-  }
-}
-
-/// Counts `load()` calls: proves `AuthState.init` never reads the store
-/// under a test runner (the host app must not touch the login Keychain —
-/// a fresh ad-hoc signature pops a system prompt on every test launch).
-private final class LoadCountingStore: TokenStore, @unchecked Sendable {
-  var tokens: OAuthTokens?
-  private(set) var loadCalls = 0
-  func load() -> OAuthTokens? {
-    loadCalls += 1
-    return tokens
   }
 
   func save(_: OAuthTokens) throws {}
@@ -162,7 +145,7 @@ private func ephemeralState(
   )
   state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
-  return (state, AuthState(store: MemoryTokenStore()), transport, defaults)
+  return (state, AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport, defaults)
 }
 
 /// Settles the fire-and-forget transcript tasks `openRoom` / `loadOlder`
@@ -183,11 +166,20 @@ private func waitForOutboundIdle(_ state: WorkspaceState) async {
 }
 
 struct WorkspaceStateTests {
-  @Test func authInitSkipsTokenStoreRestoreUnderTestRunner() {
-    let store = LoadCountingStore()
-    store.tokens = OAuthTokens(accessToken: "stored", refreshToken: nil, expiresAt: Date(), scope: nil)
-    _ = AuthState(store: store)
-    #expect(store.loadCalls == 0)
+  @Test func clientProviderReceivesCurrentAuthOnEveryResolution() throws {
+    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))
+    var available = true
+    var calls = 0
+    let state = WorkspaceState(clientProvider: { currentAuth in
+      #expect(currentAuth === auth)
+      calls += 1
+      return available ? client : nil
+    })
+    #expect(state.resolveClient(auth: auth) != nil)
+    available = false
+    #expect(state.resolveClient(auth: auth) == nil)
+    #expect(calls == 2)
   }
 
   @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
@@ -604,7 +596,7 @@ struct WorkspaceStateTests {
 
   @Test func missingThreadClientEndsInitialLoading() throws {
     let (state, _, _, _) = try ephemeralState([])
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: MacOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.clientResolver = nil
     #expect(state.resolveClient(auth: auth) == nil)
     state.thread.timeline.reset(roomId: "room", parentMessageId: "parent")

@@ -7,7 +7,7 @@ import SokosumiAuth
 /// operator (SOK-970). Provide it via the `SOKOSUMI_OAUTH_CLIENT_ID`
 /// environment (Xcode scheme) or the `SokosumiOAuthClientID` Info.plist key.
 /// Absent → `.notConfigured`: the UI says so instead of failing silently.
-enum AuthConfig {
+enum AppOAuthConfiguration {
   static func makeConfiguration() -> OAuthConfiguration? {
     guard let clientID, !clientID.isEmpty else {
       return nil

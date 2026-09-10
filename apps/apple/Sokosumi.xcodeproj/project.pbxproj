@@ -11,10 +11,12 @@
 		E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
 		E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
 		E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
+		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 		E174B022304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
 		E174B023304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
 		E174B024304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
 		E176D032304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
+		E179D032304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 		E174B025304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
 		E174B026304F3FBD00C517E4 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = E174B053304F3FBD00C517E4 /* HTTPTypes */; };
 		E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
@@ -57,6 +59,7 @@
 				E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */,
 				E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */,
 				E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */,
+				E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */,
 				E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -69,6 +72,7 @@
 				E174B023304F3FBD00C517E4 /* SokosumiAuth in Frameworks */,
 				E174B024304F3FBD00C517E4 /* SokosumiChat in Frameworks */,
 				E176D032304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */,
+				E179D032304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */,
 				E174B025304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */,
 				E174B026304F3FBD00C517E4 /* HTTPTypes in Frameworks */,
 			);
@@ -119,6 +123,7 @@
 				E172F754304F3FBD00C517E4 /* SokosumiAuth */,
 				E173A002304F3FBD00C517E4 /* SokosumiChat */,
 				E176D031304F3FBD00C517E4 /* SokosumiRealtime */,
+				E179D031304F3FBD00C517E4 /* SokosumiWorkspace */,
 				E174B052304F3FBD00C517E4 /* OpenAPIRuntime */,
 			);
 			productName = Sokosumi;
@@ -146,6 +151,7 @@
 				E172F754304F3FBD00C517E4 /* SokosumiAuth */,
 				E173A002304F3FBD00C517E4 /* SokosumiChat */,
 				E176D031304F3FBD00C517E4 /* SokosumiRealtime */,
+				E179D031304F3FBD00C517E4 /* SokosumiWorkspace */,
 				E174B052304F3FBD00C517E4 /* OpenAPIRuntime */,
 				E174B053304F3FBD00C517E4 /* HTTPTypes */,
 			);
@@ -186,6 +192,7 @@
 				E172F753304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiAuth" */,
 				E173A003304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiChat" */,
 				E176D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiRealtime" */,
+				E179D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiWorkspace" */,
 				E174B050304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
 				E174B051304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-http-types" */,
 			);
@@ -527,6 +534,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SokosumiRealtime;
 		};
+		E179D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiWorkspace" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SokosumiWorkspace;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -568,6 +579,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E176D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiRealtime" */;
 			productName = SokosumiRealtime;
+		};
+		E179D031304F3FBD00C517E4 /* SokosumiWorkspace */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E179D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiWorkspace" */;
+			productName = SokosumiWorkspace;
 		};
 		E174B052304F3FBD00C517E4 /* OpenAPIRuntime */ = {
 			isa = XCSwiftPackageProductDependency;

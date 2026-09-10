@@ -2,10 +2,10 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-@testable import Sokosumi
 import SokosumiAuth
 import SokosumiChat
 import SokosumiRealtime
+@testable import SokosumiWorkspace
 import Testing
 
 private let realtimeTimestamp = "2026-01-01T00:00:00.000Z"
@@ -212,7 +212,7 @@ private func realtimeState(
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
-  return (state, AuthState(store: RealtimeMemoryTokenStore()), transport)
+  return (state, AuthState(configuration: nil, store: RealtimeMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
