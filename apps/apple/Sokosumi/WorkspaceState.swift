@@ -132,9 +132,6 @@ final class WorkspaceState: ObservableObject {
     outbox.isSending
   }
 
-  /// Last minted Ably token. Nil until the first mint; membership changes
-  /// remint once a token exists or the socket is live, so idle windows
-  /// never pay for one.
   /// Factory for the live socket. Set by the app at launch (ably-cocoa);
   /// nil in tests unless a fake is installed. Without one the transcript
   /// stays HTTP-only and every realtime call below no-ops.
@@ -157,8 +154,6 @@ final class WorkspaceState: ObservableObject {
     timeline.generation
   }
 
-  /// Envelope arrived while history, older-page, or a refetch was in flight.
-  private var pendingTranscriptRefresh = false
   let transcriptRecovery = ChatRefreshScheduler()
   let sidebarRecovery = ChatRefreshScheduler()
   private var connectionHealthy = false
@@ -271,7 +266,6 @@ final class WorkspaceState: ObservableObject {
     olderPageTask = nil
     transcriptRefreshTask = nil
     realtime?.watchRoom(nil)
-    pendingTranscriptRefresh = false
     transcriptError = nil
     clearOutbound()
   }
@@ -287,7 +281,6 @@ final class WorkspaceState: ObservableObject {
     olderPageTask = nil
     transcriptRefreshTask = nil
     let generation = transcriptGeneration
-    pendingTranscriptRefresh = false
     clearOutbound()
     realtime?.watchRoom(room.id)
     transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
@@ -504,24 +497,16 @@ final class WorkspaceState: ObservableObject {
   func refreshTranscript(auth: AuthState) {
     guard transcriptRoomId != nil else { return }
     if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
-      pendingTranscriptRefresh = true
       return
     }
     let generation = transcriptGeneration
     transcriptRefreshTask = Task { await refresh(auth: auth, generation: generation) }
   }
 
-  private func drainPendingTranscriptRefresh(auth: AuthState) {
-    guard pendingTranscriptRefresh else { return }
-    pendingTranscriptRefresh = false
-    refreshTranscript(auth: auth)
-  }
-
   func refresh(auth: AuthState, generation: Int) async {
     defer {
       if generation == transcriptGeneration {
         transcriptRefreshTask = nil
-        drainPendingTranscriptRefresh(auth: auth)
       }
     }
     guard let client = resolveClient(auth: auth) else {
@@ -593,7 +578,6 @@ final class WorkspaceState: ObservableObject {
     defer {
       if generation == transcriptGeneration {
         transcriptLoadTask = nil
-        drainPendingTranscriptRefresh(auth: auth)
       }
     }
     guard let client = resolveClient(auth: auth) else {
@@ -663,7 +647,6 @@ final class WorkspaceState: ObservableObject {
     defer {
       if generation == transcriptGeneration {
         olderPageTask = nil
-        drainPendingTranscriptRefresh(auth: auth)
       }
     }
     guard let client = resolveClient(auth: auth) else {

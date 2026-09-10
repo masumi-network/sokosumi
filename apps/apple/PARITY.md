@@ -2,11 +2,11 @@
 
 ## Resume checkpoint
 
-- Current slice: **07 — live room updates and recovery**, branch `codex/apple-live-room-updates`, based on main `a3b337626`. Implementation verified; draft [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327) awaits CI and review.
+- Current slice: **07 — live room updates and recovery**, branch `codex/apple-live-room-updates`. Implementation verified; ready [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327) has green CI and awaits review/merge.
 - Slice 06 merged in [PR #4325](https://github.com/masumi-network/sokosumi/pull/4325), including the review fixes and all three follow-up nits. Its verification record is below.
 - Resume by inspecting local changes and revalidating the current web realtime hook and Core payloads. Reuse the existing `RealtimeConnection`, `AblyRealtimeConnection`, realtime DTO/envelope resolution, timeline refresh, and membership-revocation paths.
 - Slice 07 implements field patches/pins, membership subscriptions and authorization, room/sidebar recovery, and revocation isolation. Web #4310 replaced the old polling hook with `use-chat-refresh-scheduler.ts` and `use-selected-room-channel-health.ts`; these are the current parity sources. Local verification passed; reply routing remains slice 08.
-- Do not open a PR or mark 07 Done until its entire vertical slice and verification are complete. Follow the one-PR/merge gate below.
+- Do not mark 07 Done until PR #4327 is merged. Do not start slice 08 before merge.
 - The recurring “Continue Apple chat after PR changes” automation was deleted at the user's request. These files preserve the work, not an active timer or permission to recreate one. Coordinate ownership before resuming from another app.
 
 ## Scope and audit baseline
