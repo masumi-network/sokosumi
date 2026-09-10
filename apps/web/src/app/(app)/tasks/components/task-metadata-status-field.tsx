@@ -24,6 +24,7 @@ import { getTaskStatusPillTone } from "./task-status-badge";
 
 export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
+  queuedRequiresSchedule?: string;
   reopenToReadyTitle: string;
   reopenToReadyDescription: string;
   reopenToReadyCommentLabel: string;
@@ -38,12 +39,14 @@ export interface TaskMetadataStatusFieldLabels {
 interface TaskMetadataStatusFieldProps {
   taskId: string;
   status: TaskStatus;
+  hasSchedule: boolean;
   labels: TaskMetadataStatusFieldLabels;
 }
 
 export function TaskMetadataStatusField({
   taskId,
   status,
+  hasSchedule,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
@@ -146,12 +149,21 @@ export function TaskMetadataStatusField({
         </SelectTrigger>
         <SelectContent align="end">
           {TASK_STATUS_DISPLAY_ORDER.map((option) => (
-            <SelectItem key={option} value={option}>
+            <SelectItem
+              key={option}
+              value={option}
+              disabled={option === TaskStatus.QUEUED && !hasSchedule}
+            >
               {labels.statusLabels[option]}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
+      {!hasSchedule && labels.queuedRequiresSchedule ? (
+        <p className="text-muted-foreground mt-1 text-right text-xs">
+          {labels.queuedRequiresSchedule}
+        </p>
+      ) : null}
 
       <TaskReopenToReadyDialog
         open={isReopenDialogOpen}

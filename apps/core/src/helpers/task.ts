@@ -1,8 +1,10 @@
 import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import {
+  CORE_API_ERROR_KINDS,
   canArchiveTaskStatus,
   convertCentsToCredits,
   countSetAssignees,
+  hasActiveTaskSchedule,
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
@@ -351,6 +353,28 @@ export function validateTaskAssigneeAssignment({
   ) {
     throw unprocessableEntity(
       "An agent (Coworker or Soko Bot) assignee is required for this status",
+    );
+  }
+}
+
+/** Queued means waiting on a schedule — reject status writes that invent Queued without one. */
+export function validateQueuedRequiresSchedule({
+  status,
+  metadata,
+  nextRunAt,
+}: {
+  status: TaskStatus;
+  metadata: string | null | undefined;
+  nextRunAt: Date | string | null | undefined;
+}): void {
+  if (status !== TaskStatus.QUEUED) {
+    return;
+  }
+
+  if (!hasActiveTaskSchedule(metadata, nextRunAt)) {
+    throw unprocessableEntity(
+      "A schedule is required before moving a task to Queued",
+      { kind: CORE_API_ERROR_KINDS.QUEUED_REQUIRES_SCHEDULE },
     );
   }
 }

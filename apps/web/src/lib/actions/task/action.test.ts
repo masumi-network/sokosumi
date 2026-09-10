@@ -1050,6 +1050,32 @@ describe("createTask schedule", () => {
     expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
   });
 
+  it("applies a schedule when creating a queued task with a schedule (SOK-1033)", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+    taskScheduleServiceMock.setSchedule.mockResolvedValue({
+      id: "task-created",
+      status: TaskStatus.QUEUED,
+    });
+
+    const { createTask } = await import("./action");
+
+    await createTask({
+      description: "Queued scheduled task",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: TaskStatus.QUEUED,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ status: TaskStatus.DRAFT }),
+    );
+    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
+  });
+
   it("returns a client-upgrade outcome for the exact Calendar 426 error", async () => {
     taskServiceMock.createTask.mockResolvedValue(
       buildTask({ status: TaskStatus.DRAFT }),

@@ -235,6 +235,8 @@ function createTask(
     status: TaskStatus;
     ownerId: string;
     projectId: string | null;
+    metadata: string | null;
+    nextRunAt: Date | null;
   }> = {},
 ) {
   return {
@@ -246,6 +248,8 @@ function createTask(
     ownerId: USER_ID,
     organizationId: null,
     projectId: null,
+    metadata: null,
+    nextRunAt: null,
     ...overrides,
   };
 }
@@ -3142,6 +3146,95 @@ describe("POST /{id}/events", () => {
     expect(processTaskPaymentClaimMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects READY → QUEUED when the task has no schedule (SOK-1033)", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.READY,
+        metadata: null,
+        nextRunAt: null,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.QUEUED,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.text()).toContain(
+      "A schedule is required before moving a task to Queued",
+    );
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("allows READY → QUEUED when the task has an active schedule (SOK-1033)", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.READY,
+        nextRunAt: new Date("2099-01-01T09:00:00.000Z"),
+      }),
+    );
+
+    const createdEvent = createTaskEvent({
+      status: TaskStatus.QUEUED,
+      userId: USER_ID,
+      coworkerId: null,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.QUEUED,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: TaskStatus.QUEUED },
+      }),
+    );
   });
 
   it("clears schedule fields when canceling a queued task", async () => {

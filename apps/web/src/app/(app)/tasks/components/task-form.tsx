@@ -133,6 +133,7 @@ export interface TaskFormLabels {
   statusQueued?: string;
   statusReady: string;
   statusLabels?: Record<TaskStatus, string>;
+  queuedRequiresSchedule?: string;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -169,7 +170,28 @@ export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
 /** Sentinel for the edit assignee select's Unassigned item (Radix needs non-empty values). */
 const UNASSIGNED_SELECT_VALUE = "__unassigned__";
 
-const CREATE_STATUS_OPTIONS = [TaskStatus.DRAFT, TaskStatus.READY] as const;
+const CREATE_STATUS_OPTIONS = [
+  TaskStatus.DRAFT,
+  TaskStatus.QUEUED,
+  TaskStatus.READY,
+] as const;
+
+function isAgentAssigneeFields(fields: {
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+}): boolean {
+  return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
+}
+
+function resolveStatusForAssigneeAndSchedule(options: {
+  isAgent: boolean;
+  hasSchedule: boolean;
+}): TaskStatus {
+  if (options.hasSchedule) {
+    return options.isAgent ? TaskStatus.QUEUED : TaskStatus.READY;
+  }
+  return options.isAgent ? TaskStatus.READY : TaskStatus.DRAFT;
+}
 
 function getTaskFormStatusLabel(
   value: TaskStatus,
@@ -194,7 +216,7 @@ export interface TaskFormCreateInput {
   assigneeUserId: string | null;
   projectId?: string | null;
   context: TaskContextSelectionInput;
-  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
 }
 
@@ -342,6 +364,30 @@ export function TaskForm({
     mode === "edit" && initialValues?.status !== undefined,
   );
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
+  const [scheduleSelection, setScheduleSelection] =
+    useState<TaskScheduleSelection>(
+      () =>
+        initialValues?.schedule ??
+        metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
+    );
+  const [status, setStatus] = useState<TaskStatus>(() => {
+    if (mode === "edit" && initialValues?.status !== undefined) {
+      return initialValues.status;
+    }
+    const initialSchedule =
+      initialValues?.schedule ??
+      metadataToSelection(initialValues?.metadata, getDefaultTimezone());
+    const fields = resolveTaskAssigneeFields(
+      defaultAssigneeId,
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+    );
+    return resolveStatusForAssigneeAndSchedule({
+      isAgent: isAgentAssigneeFields(fields),
+      hasSchedule: initialSchedule.mode !== "none",
+    });
+  });
 
   useLayoutEffect(() => {
     if (coworkerTouchedRef.current) return;
@@ -353,24 +399,21 @@ export function TaskForm({
         knownSokoBotId,
         initialValues?.assigneeUserId,
       );
-      const isAgent =
-        fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
-      setStatus(isAgent ? TaskStatus.READY : TaskStatus.DRAFT);
+      setStatus(
+        resolveStatusForAssigneeAndSchedule({
+          isAgent: isAgentAssigneeFields(fields),
+          hasSchedule: scheduleSelection.mode !== "none",
+        }),
+      );
     }
   }, [
     defaultAssigneeId,
     coworkerOptions,
     knownSokoBotId,
     initialValues?.assigneeUserId,
+    scheduleSelection.mode,
   ]);
 
-  const [status, setStatus] = useState<TaskStatus>(originalStatus);
-  const [scheduleSelection, setScheduleSelection] =
-    useState<TaskScheduleSelection>(
-      () =>
-        initialValues?.schedule ??
-        metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
-    );
   const originalScheduleSelection = useRef(scheduleSelection);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const hadSchedule = useMemo(
@@ -417,24 +460,37 @@ export function TaskForm({
         knownSokoBotId,
         initialValues?.assigneeUserId,
       );
-      if (!statusTouchedRef.current) {
-        const isAgent =
-          fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
-        setStatus(isAgent ? TaskStatus.READY : TaskStatus.DRAFT);
-      }
-      if (
+      const isAgent = isAgentAssigneeFields(fields);
+      const isUnassigned =
         fields.assigneeId === null &&
         fields.assigneeSokoBotId === null &&
-        fields.assigneeUserId === null
-      ) {
-        setScheduleSelection((current) =>
-          current.mode === "none"
-            ? current
-            : { mode: "none", timezone: current.timezone },
+        fields.assigneeUserId === null;
+
+      let nextSchedule = scheduleSelection;
+      if (isUnassigned && scheduleSelection.mode !== "none") {
+        nextSchedule = {
+          mode: "none",
+          timezone: scheduleSelection.timezone,
+        };
+        setScheduleSelection(nextSchedule);
+      }
+
+      const nextHasSchedule = nextSchedule.mode !== "none";
+      if (nextHasSchedule || !statusTouchedRef.current) {
+        setStatus(
+          resolveStatusForAssigneeAndSchedule({
+            isAgent,
+            hasSchedule: nextHasSchedule,
+          }),
         );
       }
     },
-    [coworkerOptions, knownSokoBotId, initialValues?.assigneeUserId],
+    [
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+      scheduleSelection,
+    ],
   );
 
   const handleStatusSelect = useCallback((value: TaskStatus) => {
@@ -585,7 +641,12 @@ export function TaskForm({
     try {
       const trimmedDescription = description.trim();
       const desiredStatus = status;
-      if (mode === "create" && ["DRAFT", "READY"].includes(desiredStatus)) {
+      if (
+        mode === "create" &&
+        (desiredStatus === TaskStatus.DRAFT ||
+          desiredStatus === TaskStatus.READY ||
+          desiredStatus === TaskStatus.QUEUED)
+      ) {
         const createTaskHandler = onCreateTask ?? createTask;
         const result = await createTaskHandler({
           description: trimmedDescription,
@@ -607,7 +668,10 @@ export function TaskForm({
             contextMdEnabled: contextSelection.contextMdEnabled,
           },
           ...(hasProjectSelection ? { projectId } : {}),
-          status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
+          status: desiredStatus as Extract<
+            TaskStatus,
+            "DRAFT" | "READY" | "QUEUED"
+          >,
           schedule: scheduleSelection,
         });
         if (!result.ok) {
@@ -625,9 +689,10 @@ export function TaskForm({
             initialValues?.assigneeUserId,
           );
           const createdStatus =
-            scheduleSelection.mode !== "none" &&
-            desiredStatus !== TaskStatus.DRAFT &&
-            assigneeFields.assigneeUserId === null
+            desiredStatus === TaskStatus.QUEUED ||
+            (scheduleSelection.mode !== "none" &&
+              desiredStatus !== TaskStatus.DRAFT &&
+              assigneeFields.assigneeUserId === null)
               ? "QUEUED"
               : desiredStatus === TaskStatus.DRAFT
                 ? "DRAFT"
@@ -867,6 +932,48 @@ export function TaskForm({
       mode: "none",
       timezone: scheduleSelection.timezone,
     });
+    if (status === TaskStatus.QUEUED) {
+      const fields = resolveTaskAssigneeFields(
+        assigneeId,
+        coworkerOptions,
+        knownSokoBotId,
+        initialValues?.assigneeUserId,
+      );
+      setStatus(
+        resolveStatusForAssigneeAndSchedule({
+          isAgent: isAgentAssigneeFields(fields),
+          hasSchedule: false,
+        }),
+      );
+    }
+  }
+
+  function handleScheduleApply(selection: TaskScheduleSelection) {
+    setScheduleSelection(selection);
+    const fields = resolveTaskAssigneeFields(
+      assigneeId,
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+    );
+    const nextHasSchedule = selection.mode !== "none";
+    if (nextHasSchedule) {
+      setStatus(
+        resolveStatusForAssigneeAndSchedule({
+          isAgent: isAgentAssigneeFields(fields),
+          hasSchedule: true,
+        }),
+      );
+      return;
+    }
+    if (status === TaskStatus.QUEUED) {
+      setStatus(
+        resolveStatusForAssigneeAndSchedule({
+          isAgent: isAgentAssigneeFields(fields),
+          hasSchedule: false,
+        }),
+      );
+    }
   }
 
   const handleGoToTask = () => {
@@ -1144,13 +1251,21 @@ export function TaskForm({
                   </SelectTrigger>
                   <SelectContent>
                     {statusOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
+                      <SelectItem
+                        key={option}
+                        value={option}
+                        disabled={option === TaskStatus.QUEUED && !hasSchedule}
+                      >
                         {getTaskFormStatusLabel(option, labels)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {labels.statusDescription ? (
+                {!hasSchedule && labels.queuedRequiresSchedule ? (
+                  <p className="text-muted-foreground text-xs">
+                    {labels.queuedRequiresSchedule}
+                  </p>
+                ) : labels.statusDescription ? (
                   <p className="text-muted-foreground text-xs">
                     {labels.statusDescription}
                   </p>
@@ -1348,7 +1463,7 @@ export function TaskForm({
             open={isScheduleModalOpen}
             onOpenChange={setIsScheduleModalOpen}
             initialSelection={scheduleSelection}
-            onApply={setScheduleSelection}
+            onApply={handleScheduleApply}
             onClearSchedule={handleClearSchedule}
           />
         ) : null}

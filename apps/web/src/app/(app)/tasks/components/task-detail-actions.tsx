@@ -307,6 +307,7 @@ export function TaskDetailActions({
     statusDraft: tNewTask("statusDraft"),
     statusQueued: tNewTask("statusQueued"),
     statusReady: tNewTask("statusReady"),
+    queuedRequiresSchedule: tNewTask("queuedRequiresSchedule"),
     back: tNewTask("back"),
     uploadFile: tNewTask("uploadFile"),
     uploadFileError: tNewTask("uploadFileError"),

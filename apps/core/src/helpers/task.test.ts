@@ -13,6 +13,7 @@ import {
   mapTaskEventActor,
   mapTaskFile,
   taskAssigneeKind,
+  validateQueuedRequiresSchedule,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -365,6 +366,36 @@ describe("validateTaskAssigneeAssignment", () => {
       validateTaskAssigneeAssignment({
         status: TaskStatus.QUEUED,
         assigneeId: "cow_123",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects QUEUED without an active schedule", () => {
+    expect(() =>
+      validateQueuedRequiresSchedule({
+        status: TaskStatus.QUEUED,
+        metadata: null,
+        nextRunAt: null,
+      }),
+    ).toThrow("A schedule is required before moving a task to Queued");
+  });
+
+  it("allows QUEUED when nextRunAt is set", () => {
+    expect(() =>
+      validateQueuedRequiresSchedule({
+        status: TaskStatus.QUEUED,
+        metadata: null,
+        nextRunAt: new Date("2099-01-01T09:00:00.000Z"),
+      }),
+    ).not.toThrow();
+  });
+
+  it("ignores non-QUEUED statuses for the schedule guard", () => {
+    expect(() =>
+      validateQueuedRequiresSchedule({
+        status: TaskStatus.READY,
+        metadata: null,
+        nextRunAt: null,
       }),
     ).not.toThrow();
   });

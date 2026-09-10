@@ -38,6 +38,7 @@ import {
   cascadeCancelNonTerminalScheduleRuns,
   mapTaskEvent,
   taskEventApiInclude,
+  validateQueuedRequiresSchedule,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
@@ -414,6 +415,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeId: task.assigneeId,
           assigneeSokoBotId: task.assigneeSokoBotId,
           assigneeUserId: task.assigneeUserId,
+        });
+        validateQueuedRequiresSchedule({
+          status,
+          metadata: task.metadata,
+          nextRunAt: task.nextRunAt,
         });
 
         if (

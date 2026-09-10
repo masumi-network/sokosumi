@@ -500,6 +500,37 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
   });
 
+  it("sets agent-assigned tasks to QUEUED when scheduled (SOK-1033)", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.READY,
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      ownerId: "user_123",
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      projectId: null,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
+      TaskStatus.QUEUED,
+    );
+  });
+
   it("rejects scheduling an unset task (SOK-868)", async () => {
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
