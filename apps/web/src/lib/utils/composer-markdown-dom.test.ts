@@ -289,6 +289,12 @@ describe("sanitizeComposerHtml", () => {
     );
   });
 
+  it("strips protocol-relative hrefs", () => {
+    const root = document.createElement("div");
+    root.innerHTML = sanitizeComposerHtml('<a href="//evil.test/x">x</a>');
+    expect(root.querySelector("a")?.getAttribute("href")).toBeNull();
+  });
+
   it("strips inline styles", () => {
     expect(
       sanitizeComposerHtml('<strong style="color:red">x</strong>'),
@@ -366,6 +372,39 @@ describe("markdownToHtml sanitization boundary", () => {
     for (const chip of Array.from(chips)) {
       expect(chip.getAttribute("contenteditable")).toBe("false");
     }
+  });
+
+  it("serializes exactly as the browser does, so the editors can skip a write", () => {
+    // Both composers guard their innerHTML write with
+    // `editor.innerHTML !== markdownToHtml(value)`. A serialization the
+    // browser rewrites makes that guard never hold.
+    const sources = [
+      "a\nb",
+      "# h",
+      "- a\n- b",
+      "1. one",
+      "> q",
+      "```\nx\n```",
+      "**b** _i_ ~~s~~ `c` <u>u</u>",
+      "[x](https://a.test/)",
+      "hi @missing:ghost",
+    ];
+    for (const source of sources) {
+      const html = markdownToHtml(source);
+      const root = document.createElement("div");
+      root.innerHTML = html;
+      expect(root.innerHTML).toBe(html);
+    }
+  });
+
+  it("renders headings, lists and blockquotes through the boundary", () => {
+    const root = document.createElement("div");
+    root.innerHTML = markdownToHtml("# h\n## h2\n- a\n1. one\n> q");
+    expect(root.querySelector("h1")?.textContent).toBe("h");
+    expect(root.querySelector("h2")?.textContent).toBe("h2");
+    expect(root.querySelector("ul li")?.textContent).toBe("a");
+    expect(root.querySelector("ol li")?.textContent).toBe("one");
+    expect(root.querySelector("blockquote")?.textContent).toBe("q");
   });
 
   it("does not double-encode entities the escape pass already produced", () => {

@@ -104,7 +104,7 @@ const COMPOSER_ALLOWED_TAGS = [
   "strong",
   "u",
   "ul",
-] as const;
+];
 
 const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
   a: ["href"],
@@ -119,20 +119,41 @@ const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
 };
 
 /**
- * Boundary between the hand-built composer HTML and the two `innerHTML` sinks.
- * The transform escapes its input and gates each interpolation; this rejects
- * anything those passes let through, so no single site has to be perfect.
+ * `sanitize-html` writes void tags XML-style (`<br />`); a browser serializes
+ * the same node as `<br>`. Both composers skip their `innerHTML` write while
+ * `editor.innerHTML === markdownToHtml(value)`, so a mismatch here makes every
+ * multi-line value rewrite the editor DOM. `br` is the only void tag the
+ * composer allow-list admits.
+ */
+function normalizeVoidTagSerialization(html: string): string {
+  return html.replace(/<br \/>/g, "<br>");
+}
+
+/**
+ * Boundary between the hand-built composer HTML and the two `markdownToHtml`
+ * call sites, both of which assign the result to `innerHTML`. The transform
+ * escapes its input and gates each interpolation; this rejects anything those
+ * passes let through, so no single site has to be perfect.
+ *
+ * Not `sanitizeMarkdown`: that is the room presentation policy, and it drops
+ * `pre`, `blockquote`, `s`, and every chip attribute. `sanitize-html` rather
+ * than DOMPurify because it takes per-tag attribute allow-lists and needs no
+ * DOM, which keeps this function and `markdownToHtml` pure. `htmlToMarkdown`,
+ * the reverse direction, still needs a DOM.
  */
 export function sanitizeComposerHtml(html: string): string {
-  if (!html) return "";
-
-  return sanitizeHtml(html, {
-    allowedTags: [...COMPOSER_ALLOWED_TAGS],
-    allowedAttributes: COMPOSER_ALLOWED_ATTRIBUTES,
-    // No allowedClasses: chip and code classes are Tailwind utilities that
-    // change with styling, so an allow-list of values would break on restyle.
-    disallowedTagsMode: "discard",
-  });
+  return normalizeVoidTagSerialization(
+    sanitizeHtml(html, {
+      allowedTags: COMPOSER_ALLOWED_TAGS,
+      allowedAttributes: COMPOSER_ALLOWED_ATTRIBUTES,
+      // No allowedClasses: chip and code classes are Tailwind utilities that
+      // change with styling, so an allow-list of values would break on restyle.
+      disallowedTagsMode: "discard",
+      // The transform only ever emits http, https and mailto, already gated by
+      // normalizeUrl. Protocol-relative URLs are not a composer feature.
+      allowProtocolRelative: false,
+    }),
+  );
 }
 
 /**
