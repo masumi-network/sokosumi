@@ -3,7 +3,7 @@ import SwiftUI
 #if os(macOS)
   /// AppKit is isolated in MacComposerTextInput because SwiftUI onSubmit
   /// also fires when Return commits marked text.
-  struct ComposerInput: View {
+  struct ComposerTextInput: View {
     @Binding var text: String
     let submit: () -> Bool
     var placeholder = "Message"

@@ -2,7 +2,7 @@ import CoreAPI
 import SokosumiAuth
 import SokosumiChat
 
-extension WorkspaceState {
+public extension WorkspaceState {
   var streamingThreadToOpen: Components.Schemas.ChatRoomMessage? {
     guard directStream.isBusy, directStream.phase != .resuming,
           let parentId = directStream.parentMessageId,
@@ -56,7 +56,7 @@ extension WorkspaceState {
                     })
   }
 
-  func syncThreadAttention(auth: AuthState) async {
+  internal func syncThreadAttention(auth: AuthState) async {
     guard readAttention.isVisible, roomHistoryReadable,
           let client = resolveClient(auth: auth) else { return }
     do {

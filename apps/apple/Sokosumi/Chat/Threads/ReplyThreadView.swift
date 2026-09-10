@@ -1,10 +1,11 @@
 import CoreAPI
 import SokosumiAuth
 import SokosumiChat
+import SokosumiWorkspace
 import SwiftUI
 
 #if os(macOS)
-  struct ThreadView: View {
+  struct ReplyThreadView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     @State private var followsLatest = true
@@ -16,7 +17,7 @@ import SwiftUI
           ScrollViewReader { proxy in
             ScrollView {
               VStack(alignment: .leading, spacing: 8) {
-                MessageRow(message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+                MessageRowView(message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
                 Divider()
                 Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
                 replies
@@ -52,9 +53,9 @@ import SwiftUI
             }
           }
           Divider()
-          ChatComposer(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
-                       roomId: parent.roomId, parentMessageId: parent.id,
-                       onAccepted: { followsLatest = true })
+          ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
+                           roomId: parent.roomId, parentMessageId: parent.id,
+                           onAccepted: { followsLatest = true })
             .id(parent.id)
         }
         .navigationTitle("Thread")
@@ -102,11 +103,11 @@ import SwiftUI
             if let status = membershipStatusText(message) {
               MembershipStatusRow(text: status)
             } else {
-              MessageRow(message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
-                         outbound: shell, sentAt: outbox.sentAt[message.id],
-                         onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
-                         onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                         streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
+              MessageRowView(message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+                             outbound: shell, sentAt: outbox.sentAt[message.id],
+                             onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
+                             onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
+                             streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
             }
           }
           .id(message.id)
