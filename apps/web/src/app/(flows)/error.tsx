@@ -12,12 +12,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 
 /**
  * `(flows)` had no boundary, so anything a flow page threw reached
  * `global-error.tsx`, the bare unstyled "Application error" screen. `/setup`
  * handles its own Core outage, but `/join` and `/accept-invitation` still
  * throw for every other failure.
+ *
+ * A real logout still has to reach /signin, so this carries the same
+ * `useUnAuthenticatedErrorHandler` the `(app)` boundary does: a server action
+ * that throws `UnAuthenticatedError` redirects instead of showing a card the
+ * user cannot act on. Only a Core outage stops at the card.
  *
  * Reuses the `App.Error` strings rather than adding a fourth copy of the same
  * four keys.
@@ -30,12 +36,13 @@ export default function Error({
   reset: () => void;
 }) {
   const t = useTranslations("App.Error");
+  const { renderIfAuthenticated } = useUnAuthenticatedErrorHandler(error);
 
   useEffect(() => {
     console.error(error);
   }, [error]);
 
-  return (
+  return renderIfAuthenticated(
     <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -58,6 +65,6 @@ export default function Error({
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </div>,
   );
 }
