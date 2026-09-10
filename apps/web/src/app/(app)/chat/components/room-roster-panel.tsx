@@ -2,7 +2,10 @@
 
 import { Loader2, MessageCircle, X } from "lucide-react";
 import { AuroraOrb } from "@/components/aurora-orb";
-import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import {
+  LiveMemberPresenceDot,
+  LiveMemberPresenceText,
+} from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
@@ -173,6 +176,18 @@ function RosterMemberRow({
         ) : (
           nameBlock
         )}
+        {/* The avatar button is aria-hidden and the name button sets its own
+            aria-label, so neither can carry availability. It has to be rendered
+            out here, clear of both, to reach assistive technology at all. One
+            row is one person, so the state needs no name to attach to. */}
+        <LiveMemberPresenceText
+          className="sr-only"
+          fallback={participant.presence}
+          isCoworker={
+            participant.kind === "coworker" || participant.kind === "sokoBot"
+          }
+          userId={participant.id}
+        />
         {caption && copyLabel ? (
           <button
             type="button"

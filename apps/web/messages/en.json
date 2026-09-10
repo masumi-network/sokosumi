@@ -2230,7 +2230,7 @@
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details unavailable",
         "planLabel": "Plan",
-        "openSummary": "Open account summary: {name}, {summary}",
+        "openSummary": "Open account summary: {name}, {presence}, {summary}",
         "collapsedSummary": "{name} · {summary}"
       },
       "Content": {

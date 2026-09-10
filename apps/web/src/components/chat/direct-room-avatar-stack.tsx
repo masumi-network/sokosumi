@@ -44,6 +44,12 @@ function getDirectHoverProfiles(
  * Avatar stack for sidebar DM rows. Each face opens the shared participant
  * hover card (profile + Message). Trigger stays non-button because the row
  * link already owns keyboard/click navigation.
+ *
+ * No availability text here on purpose. The row label already lists these same
+ * people, in this same order, so a state rendered per face would have to repeat
+ * the name to attach to anything, and the link would speak every name twice.
+ * The mark stays a pointer affordance, with the room's roster panel as the
+ * surface that states availability per person.
  */
 export function DirectRoomAvatarStack({
   room,
@@ -80,42 +86,51 @@ export function DirectRoomAvatarStack({
 
   return (
     <span className="inline-flex h-5 min-w-5 shrink-0 items-center">
-      {participants.map((participant, index) => (
-        <ChatParticipantHoverCard
-          key={`${participant.kind}-${participant.id}`}
-          profile={participant}
-          side="right"
-          align="start"
-          className={cn("relative block", index > 0 && "-ml-2")}
-          style={{ zIndex: participants.length - index }}
-          currentUserId={currentUserId}
-          canOpenHumanDirect={canOpenHumanDirect}
-          onOpenDirect={handleOpenDirect}
-          isOpeningDirect={
-            openingDirectKey === participantDirectKey(participant)
-          }
-          isDirectActionBusy={openingDirectKey != null}
-          interactive={false}
-        >
-          <span
-            className="relative inline-flex"
-            data-testid={`dm-sidebar-avatar-${participant.id}`}
+      {participants.map((participant, index) => {
+        // Soko bots are AI too, so they report always-online like coworkers
+        // (ADR-0003). Miss the second arm and the row says "Offline" while the
+        // hover card on the same avatar says "Online".
+        const isAi =
+          participant.kind === "coworker" || participant.kind === "sokoBot";
+
+        return (
+          <ChatParticipantHoverCard
+            key={`${participant.kind}-${participant.id}`}
+            profile={participant}
+            side="right"
+            align="start"
+            className={cn("relative block", index > 0 && "-ml-2")}
+            style={{ zIndex: participants.length - index }}
+            currentUserId={currentUserId}
+            canOpenHumanDirect={canOpenHumanDirect}
+            onOpenDirect={handleOpenDirect}
+            isOpeningDirect={
+              openingDirectKey === participantDirectKey(participant)
+            }
+            isDirectActionBusy={openingDirectKey != null}
+            interactive={false}
           >
-            <Avatar className="border-sidebar-background size-5 border">
-              <AvatarImage alt="" src={participant.image ?? undefined} />
-              <AvatarFallback className="text-[0.5625rem] font-medium">
-                {getInitials(participant.name)}
-              </AvatarFallback>
-            </Avatar>
-            <LiveMemberPresenceDot
-              className="-right-0.5 -bottom-0.5 absolute size-2"
-              fallback={participant.presence}
-              isCoworker={participant.kind === "coworker"}
-              userId={participant.id}
-            />
-          </span>
-        </ChatParticipantHoverCard>
-      ))}
+            <span
+              className="relative inline-flex"
+              data-testid={`dm-sidebar-avatar-${participant.id}`}
+            >
+              <Avatar className="border-sidebar size-5 border">
+                <AvatarImage alt="" src={participant.image ?? undefined} />
+                <AvatarFallback className="text-[0.5625rem] font-medium">
+                  {getInitials(participant.name)}
+                </AvatarFallback>
+              </Avatar>
+              <LiveMemberPresenceDot
+                className="-right-0.5 -bottom-0.5 absolute size-2.5 border-[1.5px]"
+                fallback={participant.presence}
+                ground="sidebar"
+                isCoworker={isAi}
+                userId={participant.id}
+              />
+            </span>
+          </ChatParticipantHoverCard>
+        );
+      })}
     </span>
   );
 }

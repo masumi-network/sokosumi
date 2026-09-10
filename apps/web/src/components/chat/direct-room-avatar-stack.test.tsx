@@ -19,6 +19,9 @@ vi.mock("next-intl", () => ({
       coworkerBadge: "AI coworker",
       humanBadge: "Human",
       openDirectMessage: "Message",
+      "Presence.online": "Online",
+      "Presence.afk": "Away",
+      "Presence.offline": "Offline",
     };
     return labels[key] ?? key;
   },
@@ -38,10 +41,6 @@ vi.mock("@/components/ui/hover-card", () => ({
     children: ReactNode;
     "data-testid"?: string;
   }) => <div {...props}>{children}</div>,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => <span data-testid="presence-dot" />,
 }));
 
 vi.mock(
@@ -82,6 +81,17 @@ function makeCoworker(id: string, name: string, slug: string) {
   };
 }
 
+function makeSokoBot(id: string, name: string) {
+  return {
+    id,
+    name,
+    caption: `${name} caption`,
+    image: null as string | null,
+    avatarSeed: null as string | null,
+    presence: "offline" as const,
+  };
+}
+
 function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "dm-1",
@@ -113,6 +123,29 @@ describe("DirectRoomAvatarStack", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     openDirectMock.mockResolvedValue({ ok: true, roomId: "dm-2" });
+  });
+
+  it("reports a soko bot as online whatever its own presence says", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [makeUser("me", "Me")],
+          sokoBotMembers: [makeSokoBot("bot-1", "Zero")],
+        })}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    // Soko bots are AI and report always-online (ADR-0003), same as coworkers.
+    // Miss that arm and the mark says "Offline" while the hover card on the
+    // same avatar says "Online". The mark is aria-hidden, so its tooltip is
+    // where that state is observable.
+    const trigger = screen.getByTestId("dm-sidebar-avatar-bot-1");
+    expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
+      "Online",
+    );
   });
 
   it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {

@@ -94,6 +94,11 @@
   --color-semantic-success-foreground: var(--semantic-success-foreground);
   --color-semantic-success-ring: var(--semantic-success-ring);
 
+  --color-presence-online: var(--presence-online);
+  --color-presence-afk: var(--presence-afk);
+  --color-presence-offline: var(--presence-offline);
+  --color-presence-afk-core: var(--presence-afk-core);
+
   --color-semantic-info: var(--semantic-info);
   --color-semantic-info-variant: var(--semantic-info-variant);
   --color-semantic-info-tertiary: var(--semantic-info-tertiary);
@@ -340,6 +345,22 @@
   --semantic-success-foreground: hsla(138, 76%, 97%, 1);
   --semantic-success-ring: hsla(141, 79%, 85%, 1);
 
+  /* Presence marks are small and carry meaning, so they need 3:1 non-text
+     contrast (WCAG 2.2 SC 1.4.11) against the ground their ring paints.
+     The semantic tokens cannot supply that: --semantic-warning is a yellow
+     that reaches only 2.25:1 on white. Measured here: 4.46 / 4.11 / 4.85. */
+  --presence-online: hsla(142, 74%, 31%, 1);
+  --presence-afk: hsla(32, 95%, 38%, 1);
+  --presence-offline: hsla(220, 9%, 46%, 1);
+  /* The away crescent's bite is filled rather than cut through to the surface,
+     so the mark reads as a shape and not as a hole over an avatar. Measured
+     against --presence-afk: 2.51 light, 1.89 dark. Neither reaches 3:1, and
+     neither has to: 1.4.11 governs the mark against the surface behind it,
+     which the amber already clears. This boundary only has to stay visible,
+     and in dark mode the amber is luminous enough that no bright grey beats
+     2.13. A grey dark enough to reach 3:1 there stops reading as bright. */
+  --presence-afk-core: hsla(220, 9%, 80%, 1);
+
   --semantic-info: hsla(192, 91%, 36%, 1);
   --semantic-info-variant: hsla(193, 82%, 31%, 1);
   --semantic-info-tertiary: hsla(192, 91%, 36%, 0.1);
@@ -456,6 +477,12 @@
   --semantic-success-quinary: hsla(143, 64%, 24%, 0.1);
   --semantic-success-foreground: hsla(138, 76%, 97%, 1);
   --semantic-success-ring: hsla(145, 80%, 10%, 1);
+
+  /* Measured against the dark ground: 7.64 / 8.24 / 5.61. */
+  --presence-online: hsla(142, 60%, 45%, 1);
+  --presence-afk: hsla(36, 95%, 48%, 1);
+  --presence-offline: hsla(215, 14%, 55%, 1);
+  --presence-afk-core: hsla(215, 14%, 90%, 1);
 
   --semantic-info: hsla(194, 70%, 27%, 1);
   --semantic-info-variant: hsla(189, 94%, 43%, 1);

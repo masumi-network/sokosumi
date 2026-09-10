@@ -139,13 +139,11 @@ export function AccountSummaryMenu({
           </div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <span aria-hidden="true">
-                <PresenceDot
-                  presence={presence}
-                  label={presenceLabel}
-                  className="size-2 border-0"
-                />
-              </span>
+              <PresenceDot
+                presence={presence}
+                ground="popover"
+                className="size-2 shrink-0 border-0"
+              />
               {presenceLabel}
             </span>
             {planName !== null ? (
