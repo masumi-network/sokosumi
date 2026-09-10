@@ -83,6 +83,28 @@ describe("fetchBackgroundJson", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("aborts an attempt that never answers and retries it", async () => {
+    // The route has no timeout of its own around the Core read, so it can hang
+    // forever. Without a per-attempt ceiling that one request would spend the
+    // caller's whole budget and nothing would be retried.
+    fetchMock
+      .mockImplementationOnce(
+        (_url: string, init: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init.signal.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          }),
+      )
+      .mockResolvedValueOnce(response(200, { data: ["room-1"] }));
+
+    const result = fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(9_000 + 1_000);
+
+    await expect(result).resolves.toEqual({ data: ["room-1"] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("does not retry a 200 whose body will not parse", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

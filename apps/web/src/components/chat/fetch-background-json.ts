@@ -17,6 +17,18 @@
  */
 const RETRY_DELAYS_ON_UNAVAILABLE_MS = [1_000, 3_000];
 
+/**
+ * Per-attempt ceiling, so a request that never answers at all still reaches the
+ * retry loop. Without it one hung attempt spends the caller's whole budget and
+ * nothing is ever retried: the route has no timeout of its own around the Core
+ * read (`core.request.ts`), so it can hang past any of these deadlines.
+ *
+ * 9s sits above the route's own 8s session-read budget, so a slow but living
+ * read is never killed for being slow, and below the smallest caller budget
+ * (20s in `fetch-sidebar-room-collection.ts`) by enough for one full retry.
+ */
+const ATTEMPT_STALL_TIMEOUT_MS = 9_000;
+
 function wait(ms: number, signal: AbortSignal): Promise<void> {
   // A signal that is already aborted never fires an `abort` event, so the
   // listener below would never run and the wait would outlive the caller's
@@ -45,11 +57,19 @@ export async function fetchBackgroundJson(
     for (let attempt = 0; ; attempt++) {
       let response: Response | undefined;
       let stalled: boolean;
+      const attemptController = new AbortController();
+      const attemptTimer = window.setTimeout(
+        () => attemptController.abort(),
+        ATTEMPT_STALL_TIMEOUT_MS,
+      );
       try {
         response = await fetch(url, {
           cache: "no-store",
           redirect: "error",
-          signal: controller.signal,
+          signal: AbortSignal.any([
+            controller.signal,
+            attemptController.signal,
+          ]),
         });
         stalled = response.status === 503;
       } catch {
@@ -59,6 +79,8 @@ export async function fetchBackgroundJson(
         // browser, so it retries like a 503. Our own deadline firing lands here
         // too, and `wait` below turns it into `null` on the spot.
         stalled = true;
+      } finally {
+        window.clearTimeout(attemptTimer);
       }
 
       // Parsing runs outside the retry decision. A body that will not parse is
