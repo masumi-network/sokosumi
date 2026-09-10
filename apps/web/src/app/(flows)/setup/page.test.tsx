@@ -103,6 +103,21 @@ describe("WorkspaceGatePage", () => {
     getPendingOrganizationJoinTokenMock.mockResolvedValue(null);
   });
 
+  it("still sends a signed-out browser to sign-in", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+    // The real `redirect` throws NEXT_REDIRECT, which is what stops the page
+    // rendering. A mock that returns would let it run on with no session.
+    redirectMock.mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    await expect(WorkspaceGatePage()).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith("/signin");
+    expect(getWorkspaceAccessMock).not.toHaveBeenCalled();
+  });
+
   it("shows the Core notice instead of throwing when the session read fails", async () => {
     // `(flows)` has no `error.tsx`, so a throw here lands on the bare
     // "Application error" page rather than anything themed.
