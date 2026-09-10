@@ -2,11 +2,10 @@
 
 ## Resume checkpoint
 
-- Current slice: **07 — live room updates and recovery**, branch `codex/apple-live-room-updates`. Implementation verified; ready [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327) has green CI and awaits review/merge.
-- Slice 06 merged in [PR #4325](https://github.com/masumi-network/sokosumi/pull/4325), including the review fixes and all three follow-up nits. Its verification record is below.
-- Resume by inspecting local changes and revalidating the current web realtime hook and Core payloads. Reuse the existing `RealtimeConnection`, `AblyRealtimeConnection`, realtime DTO/envelope resolution, timeline refresh, and membership-revocation paths.
-- Slice 07 implements field patches/pins, membership subscriptions and authorization, room/sidebar recovery, and revocation isolation. Web #4310 replaced the old polling hook with `use-chat-refresh-scheduler.ts` and `use-selected-room-channel-health.ts`; these are the current parity sources. Local verification passed; reply routing remains slice 08.
-- Do not mark 07 Done until PR #4327 is merged. Do not start slice 08 before merge.
+- Current slice: **08 — reply threads**, branch `codex/apple-reply-threads`, rebased on main `9c1157a6f`. Draft [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340) is open; wait for review and merge.
+- Slice 07 merged in [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327). Final CI on `49ea468ea` passed all Apple jobs, including the corrected room-switch POST completion test.
+- Resume by inspecting local changes, the slice 08 audit below, current web thread behavior, and the generated Core operations. Reuse existing timeline, outbox, composer, and realtime routing seams.
+- Implement and verify the complete slice before opening its one PR. Do not begin slice 09a before slice 08 merges.
 - The recurring “Continue Apple chat after PR changes” automation was deleted at the user's request. These files preserve the work, not an active timer or permission to recreate one. Coordinate ownership before resuming from another app.
 
 ## Scope and audit baseline
@@ -40,8 +39,8 @@ Source links are relative to this file. The shared web service boundary is [chat
 | 04 | Room timeline: ordered paginated history, older-page loading without losing position, grouping, sender/avatar/time, local day separators, membership events, deleted/edited labels, empty/error/retry; follow latest without stealing reading position. | 03 | Done — [#4313](https://github.com/masumi-network/sokosumi/pull/4313); native scrolling accepted by user | [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [use-stick-to-bottom.ts](<../web/src/app/(app)/chat/hooks/use-stick-to-bottom.ts>), [load-room-messages.ts](<../web/src/app/(app)/chat/load-room-messages.ts>) |
 | 05 | Read/attention state: visible resolved history marks read, failed/hidden loads do not; unread mentions, manual unread and residual thread attention remain accurate. | 04 | Done — [#4322](https://github.com/masumi-network/sokosumi/pull/4322) | [use-room-read-attention.ts](<../web/src/app/(app)/chat/hooks/use-room-read-attention.ts>), [room-attention.ts](<../web/src/components/chat/room-attention.ts>), [room-read-overlay.ts](<../web/src/components/chat/room-read-overlay.ts>) |
 | 06 | Compose and send classic room messages: multiline input, Enter/Shift-Enter and IME behavior, whitespace/length checks, pending/sent/failed feedback, single-flight ordering, duplicate reconciliation, retry/remove. | 04 | Done — [#4325](https://github.com/masumi-network/sokosumi/pull/4325) | [room-message-composer.tsx](<../web/src/components/chat/room-message-composer.tsx>), [composer-wysiwyg-editor.tsx](<../web/src/components/chat/composer-wysiwyg-editor.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [classic-outbound-queue.ts](<../web/src/app/(app)/chat/utils/classic-outbound-queue.ts>) |
-| 07 | Live room updates: full DTO, ID hydration and patches, create/edit/delete/reaction/pin changes, own-send reconciliation, reconnect/poll recovery, membership revocation and capability refresh, workspace/account isolation. Reply routing lands with 08. | 05, 06 | Implemented — [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327), awaiting merge | [use-chat-room-realtime.tsx](<../web/src/lib/ably/use-chat-room-realtime.tsx>), [apply-chat-room-message-patch.ts](<../web/src/lib/ably/apply-chat-room-message-patch.ts>), [use-chat-membership-revoked-control.tsx](<../web/src/lib/ably/use-chat-membership-revoked-control.tsx>), [use-chat-refresh-scheduler.ts](<../web/src/components/chat/use-chat-refresh-scheduler.ts>), [use-selected-room-channel-health.ts](<../web/src/lib/ably/use-selected-room-channel-health.ts>) |
-| 08 | Reply threads: parent preview, open/back/close, paginated replies, independent composer and outbound queue, reply counts/activity, loading/error states, thread read marking and live routing of replies and parent updates between the room and the open thread. | 05, 06, 07 | Todo | [thread-panel.tsx](<../web/src/app/(app)/chat/components/thread-panel.tsx>), [thread-list-panel.tsx](<../web/src/app/(app)/chat/components/thread-list-panel.tsx>), [chat-room-message-scope.ts](<../web/src/app/(app)/chat/utils/chat-room-message-scope.ts>), [parent-thread-preview.ts](<../web/src/app/(app)/chat/utils/parent-thread-preview.ts>) |
+| 07 | Live room updates: full DTO, ID hydration and patches, create/edit/delete/reaction/pin changes, own-send reconciliation, reconnect/poll recovery, membership revocation and capability refresh, workspace/account isolation. Reply routing lands with 08. | 05, 06 | Done — [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327) | [use-chat-room-realtime.tsx](<../web/src/lib/ably/use-chat-room-realtime.tsx>), [apply-chat-room-message-patch.ts](<../web/src/lib/ably/apply-chat-room-message-patch.ts>), [use-chat-membership-revoked-control.tsx](<../web/src/lib/ably/use-chat-membership-revoked-control.tsx>), [use-chat-refresh-scheduler.ts](<../web/src/components/chat/use-chat-refresh-scheduler.ts>), [use-selected-room-channel-health.ts](<../web/src/lib/ably/use-selected-room-channel-health.ts>) |
+| 08 | Reply threads: parent preview, open/back/close, paginated replies, independent composer and outbound queue, reply counts/activity, loading/error states, thread read marking and live routing of replies and parent updates between the room and the open thread. | 05, 06, 07 | In review — [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340) | [thread-panel.tsx](<../web/src/app/(app)/chat/components/thread-panel.tsx>), [thread-list-panel.tsx](<../web/src/app/(app)/chat/components/thread-list-panel.tsx>), [chat-room-message-scope.ts](<../web/src/app/(app)/chat/utils/chat-room-message-scope.ts>), [parent-thread-preview.ts](<../web/src/app/(app)/chat/utils/parent-thread-preview.ts>) |
 | 09a | Coworker streaming in Directs: initial send, incremental text/reasoning, thinking/error state, active-stream resume on room entry and persisted-message reconciliation without flicker/duplicates; preserve web room eligibility and send lock. | 07 | Todo | [use-coworker-direct-room-stream.ts](<../web/src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts>), [coworker-thought-ui.tsx](<../web/src/app/(app)/chat/components/coworker-thought-ui.tsx>), [route.ts](<../web/src/app/api/chat/route.ts>), [route.ts](<../web/src/app/api/chat/[roomId]/stream/route.ts>) |
 | 09b | Coworker streaming in reply threads: reuse Direct streaming with parent association, route overlays and persisted replies to the correct thread, resume with the correct parent and preserve the shared send lock. | 08, 09a | Todo | [use-coworker-direct-room-stream.ts](<../web/src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts>), [coworker-thought-ui.tsx](<../web/src/app/(app)/chat/components/coworker-thought-ui.tsx>), [route.ts](<../web/src/app/api/chat/route.ts>), [route.ts](<../web/src/app/api/chat/[roomId]/stream/route.ts>) |
 | 10 | Rich message text: paragraphs/line breaks, headings, lists/task lists, tables, quotes, emphasis/underline/strike, links, inline/fenced code with highlighting, emoji/emoticons and jumbo emoji, expand/collapse long content, selection/copy. | 04 | Partial | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [room-mention-markdown.tsx](<../web/src/app/(app)/chat/components/room-mention-markdown.tsx>), [markdown.tsx](<../web/src/components/markdown.tsx>), [jumbo-emoji.ts](<../web/src/app/(app)/chat/utils/jumbo-emoji.ts>) |
@@ -270,3 +269,78 @@ Core prerequisite verification (2026-09-09): `pnpm --filter core test` passed (4
 - Remaining gates: CI/human review and merge of PR #4327. Do not start slice 08 before merge. Latest full Xcode build/app tests passed, including continuity-loss/foreground integration (`/tmp/slice07-app29.log`); final format and diff checks passed. Reply threads, reaction/pin management UI, rich rendering and coworker streaming retain their later rows. Do not mark this slice Done before its PR is verified and merged.
 
 - CI follow-up: `changingRoomDropsPendingOutbound` now waits for the paused transport POST to complete before asserting all response stubs were consumed. Room switching intentionally clears the outbox busy flag before that uncancelled request settles, so waiting on the outbox alone was racy. Production behavior is unchanged.
+
+### Slice 08 — reply threads
+
+Draft [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340), branch `codex/apple-reply-threads`, rebased on `9c1157a6f`. Await human review/merge before starting slice 09a.
+
+Implementation:
+
+- Reuse `RoomTimeline`, `RoomOutbox`, `RoomReadAttention`, and the native composer. `ThreadSession` owns the separate parent, paginated reply history, outbound queue, and recovery lifecycle; thread draft keys include parent identity.
+- Native detail navigation opens a thread with parent preview, reply count, loading/error/retry states, and independent composer. Reuse message/day/membership rendering. Back/close and room/workspace/account changes invalidate thread work.
+- User-requested upper-right hover Reply action replaces the repeated zero-reply link. Keyboard focus, context-menu, and accessibility actions remain available; positive reply counts stay below messages as thread links.
+- Existing Core reply-list/read operations are selected through `scripts/update-core-api.py`; sends use the existing message POST with `parentMessageId`. No dependencies, Core contract changes, or web edits. Removed unused thread-root lookup introduced during the audit.
+- Initial loading performs thread look, non-optimistic room read, then reply GET. Automatic visible attention includes parent identity and replies, looks before room read, deduplicates unchanged content, and retries failures. Navigation rejects stale completions.
+- Full messages, patches, and envelopes route independently to room, parent, and replies. Hard-deleting the parent closes its thread; soft deletion keeps its preview. Recovery initializes pagination after failed initial loading. Accepted own replies restore bottom following; content/viewport growth stays pinned while following. The user's PR #4339 room-bottom fix is preserved, with the same padding convention in threads.
+
+Web sources checked: `components/rooms-client.tsx` (`loadThreadMessages`, `handleLoadOlderThreadMessages`, `refreshFocusedRoomMessages`, realtime routing), `hooks/use-room-read-attention.ts`, `utils/room-read-attention.ts`, `components/thread-panel.tsx`, and `utils/chat-room-message-scope.ts`, under `apps/web/src/app/(app)/chat/`.
+
+Verification:
+
+- Final ad-hoc `xcodebuild build test -only-testing:SokosumiTests` passed (`/tmp/slice08-final-app.log`). New app coverage verifies initial read ordering, independent room/reply data, and pagination recovery.
+- Chat 149 tests in 16 suites passed (`/tmp/slice08-final-chat.log`); Auth 34, Realtime 27, CoreAPI 1 passed (`/tmp/slice08-{auth,realtime,core}24.log`). Tests cover scoped history/drafts, send retries, routing/deletion, stale loads, and read-order/navigation races.
+- Shared iOS 17 build passed after generated-snapshot cleanup (`/tmp/slice08-ios26.log`). SwiftFormat required no changes; strict SwiftLint found zero violations (`/tmp/slice08-final-{format,lint}.log`).
+- Signed Apple Development build including the hover/accessibility controls passed (`/tmp/slice08-signed28.log`); final scroll changes are covered by the final ad-hoc Xcode build.
+- Independent review findings for recovery pagination and thread bottom-following were fixed; re-review found no further must-fix issues.
+- Native proof: open parent/empty thread, type in composer, navigate back, reopen with restored draft; room draft remains separate. Verification draft cleared without sending. No production messages posted. Manual hover appearance and long-thread scrolling are requested in the draft PR: CUA pointer operations intermittently failed with `noWindowsAvailable`/`elementHasNoFrame`; these are inconclusive automation observations, not diagnosed app defects.
+
+Known parity limitation: parent ID envelopes hydrate from the latest room page, matching current web. A parent outside that page may remain stale until revisited or receiving a full DTO. Existing thread lookup is not a general root-message lookup (zero-reply roots can be absent), so it is not silently substituted.
+
+Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread overview (24) remain later slices. Poll PR state and reviews; address review feedback before the next slice. Do not recreate the deleted automation.
+
+### Slice 08 hover flicker follow-up (2026-09-10)
+
+- User recording shows flicker while hovering message actions. Hover tracking now surrounds the row and its Reply overlay, using continuous tracking with state writes only on entry/exit. This addresses the suspected tracking-region feedback without changing message layout.
+- Signed Apple Development build, app-target tests, SwiftLint and SwiftFormat passed (`/tmp/hover-flicker-build.log`, `/tmp/hover-flicker-tests.log`, `/tmp/hover-flicker-lint.log`, `/tmp/hover-flicker-format.log`). Updated signed app relaunched.
+- Visual resolution remains unconfirmed: CUA pointer placement returned `noWindowsAvailable`; retest row-to-toolbar movement and resting over Reply manually.
+
+### Slice 08 Reply hover highlight (2026-09-10)
+
+- The user confirmed hover behavior is much better and requested a separate Reply highlight. The CTA now uses a semantic rounded hover fill across its padded click area. Continuous hover tracking and stable layout remain in place.
+- Signed Apple Development build and SwiftLint passed (`/tmp/reply-highlight-build.log`, `/tmp/reply-highlight-lint.log`); SwiftFormat and diff checks passed. Pointer appearance still needs native visual confirmation; no new model or networking behavior was introduced.
+
+### Slice 08 full-width message hover (2026-09-10)
+
+- Moved the room transcript horizontal inset into message content. Hover backgrounds and tracking now span the chat pane; avatars, text and Reply retain their 12pt inset. Reply-count alignment and error/status insets are preserved.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/full-width-hover-build.log`, `/tmp/full-width-hover-lint.log`). Native pointer verification remains manual.
+
+### Slice 08 consistent message spacing (2026-09-10)
+
+- Every message now has 4pt vertical padding inside its full-width hover background. The 8pt sender-group gap sits outside that background. Continuation rows retain the avatar column width without imposing an avatar-height minimum.
+- Reply counts now live in the message text column and inside the same hover region. The Reply toolbar uses compact vertical padding to fit continuation rows.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/message-spacing-build.log`, `/tmp/message-spacing-lint.log`). Native hover appearance remains a manual verification step.
+
+### Slice 08 Reply boundary alignment (2026-09-10)
+
+- Centered Reply vertically on the message highlight top edge using its measured alignment guide, so half sits above the highlight. Uses a compact caption label with a larger outlined text-bubble SF Symbol to follow the supplied Slack reference. Hovering the raised CTA keeps its message highlight and action visible.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/reply-boundary-build.log`, `/tmp/reply-boundary-lint.log`). Native pointer and visual confirmation remain manual.
+
+### Slice 08 Reply offset correction (2026-09-10)
+
+- User screenshots showed the alignment-guide implementation left Reply inside the highlight. Replaced it with an explicit upward offset of half the button height; the height scales with the body text size.
+- Removed sidebar hover suppression at the user’s request. Sidebar and message hover states remain independent.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/reply-offset-final-build.log`, `/tmp/reply-offset-final-lint.log`). Native visual confirmation remains manual.
+
+### Slice 08 review fixes (2026-09-10)
+
+- `RoomOutbox` now reports HTTP success even when a realtime echo already removed the shell, matching web's `drainClassicOutboundQueue`. Previously the own-reply thread count and room reply link stayed stale whenever the echo beat the 201. A send that times out and is confirmed only by its echo still does not count, same as web.
+- Reply counts use Foundation inflection (`1 reply`, `2 replies`).
+- Chat 150 tests in 16 suites passed, including a new echo-first thread regression that failed before the fix. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` passed. SwiftFormat required no changes; strict SwiftLint found zero violations.
+
+### Slice 08 review findings 1–5 (2026-09-10)
+
+- Deleted-message rows retain existing reply-count links but no longer offer hover, context-menu or accessibility Reply actions.
+- Parent envelopes request one room refresh. Thread-specific envelopes still refresh the parent preview when the room resolver ignores them.
+- Room and thread sends share the participant builder, including the empty-name email fallback. Missing thread clients settle initial loading with a retryable configuration error.
+- Room and thread attention use the same resolved-history gate, allowing failed older-page loads while excluding failed initial/latest loads. The separate product question about reading hidden room messages is unchanged.
+- Verification: Xcode app-target tests passed (`/tmp/review1-5-app3.log`), including parent-envelope refresh counts, sender name fallback, missing-client loading and all four initial-thread/older-room failure combinations. SwiftLint, SwiftFormat and diff checks passed. The shared package was unchanged; its 150 tests passed immediately before these app-only fixes.
