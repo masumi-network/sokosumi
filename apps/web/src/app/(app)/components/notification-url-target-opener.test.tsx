@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NOTIFICATION_TARGET_PARAM } from "@/lib/utils/notification-service-worker";
@@ -107,6 +108,30 @@ describe("NotificationUrlTargetOpener", () => {
       expect(markRead).toHaveBeenCalledWith("notification-1");
     });
     expect(handleNotificationNavigation).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Strict Mode runs a mount effect twice. The first run takes the target off
+   * the URL and spends it, so a second read finds nothing: a component that
+   * kept the second answer would overwrite the first with null and never
+   * open. Production does not double-invoke, so this only ever broke the
+   * environment the feature is verified in by hand.
+   */
+  it("opens once when the mount effect runs twice", async () => {
+    setUrl(
+      `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}`,
+    );
+
+    render(
+      <StrictMode>
+        <NotificationUrlTargetOpener markRead={markRead} />
+      </StrictMode>,
+    );
+
+    await vi.waitFor(() => {
+      expect(handleNotificationNavigation).toHaveBeenCalledTimes(1);
+    });
+    expect(markRead).toHaveBeenCalledTimes(1);
   });
 
   it("opens nothing when the URL names no notification", () => {

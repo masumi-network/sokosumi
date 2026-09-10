@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { useNotifications } from "@/contexts/notification-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -35,6 +35,7 @@ export function NotificationUrlTargetOpener({
   const { isLoading } = useNotifications();
   const openNotification = useOpenNotification(markRead);
   const [pending, setPending] = useState<NotificationTarget | null>(null);
+  const taken = useRef(false);
 
   /**
    * `handleSelectWorkspace` inside the hook is a new function on every render,
@@ -48,7 +49,19 @@ export function NotificationUrlTargetOpener({
 
   // Taken off the URL immediately, so a reload cannot open it a second time,
   // and held until the feed has loaded below.
+  //
+  // Guarded because taking it is destructive and a mount effect does not run
+  // only once: Strict Mode runs it twice, and the second read finds the URL
+  // this one already spent. Without the guard that second answer, null, would
+  // overwrite the target and the click would go nowhere. Production does not
+  // double-invoke, so it would break only where the feature is checked by
+  // hand.
   useMountEffect(() => {
+    if (taken.current) {
+      return;
+    }
+
+    taken.current = true;
     setPending(takeNotificationTargetFromUrl());
   });
 
