@@ -3,9 +3,9 @@
 ## Resume checkpoint
 
 - Current slice: **10 — rich message text**, incomplete. Renderer work is preserved on `codex/apple-rich-message-rendering`; no renderer PR yet.
-- Current prerequisite: `codex/apple-graphql-less-dependencies`, based on main `5551c36a653490204d66f0efbb2e352225eba67a`. The user approved GraphQL and LESS native grammars on 2026-09-10. GraphQL uses unchanged upstream C sources in a local SwiftPM target; LESS uses an exact-revision Swift package. Both parsers are linked only by dependency tests. Queries and MIT notices are bundled. See [provenance](docs/graphql-less-grammars.md).
+- Current prerequisite: [PR #4382](https://github.com/masumi-network/sokosumi/pull/4382), `codex/apple-graphql-less-dependencies`, based on main `5551c36a653490204d66f0efbb2e352225eba67a`. The user approved GraphQL and LESS native grammars on 2026-09-10. GraphQL uses unchanged upstream C sources in a local SwiftPM target; LESS uses an exact-revision Swift package. Both parsers are linked only by dependency tests. Queries and MIT notices are bundled. See [provenance](docs/graphql-less-grammars.md).
 - Verification: all 185 Chat tests pass, including actual highlight captures and Unicode ranges for both grammars. Xcode app build/tests and arm64 iOS 17 compilation of the Chat test target pass. Auth 34, Realtime 27 and CoreAPI 1 tests also pass (247 package tests total). SwiftFormat and strict SwiftLint pass for changed Swift files. Logs: `/tmp/apple-graphql-less-tests.log`, `/tmp/apple-graphql-less-xcode.log`, `/tmp/apple-graphql-less-ios.log`.
-- Next: open this dependency PR and wait for human merge, then rebase the renderer branch and integrate these grammars. Registry/detection, remaining HTML behavior and visual checks remain unfinished. No new user-facing rendering behavior is claimed by this prerequisite.
+- Next: wait for this dependency PR to merge, then rebase the renderer branch and integrate these grammars. Registry/detection, remaining HTML behavior and visual checks remain unfinished. No new user-facing rendering behavior is claimed by this prerequisite.
 - Preserve the user's stashed Xcode project ordering edit (`apple-user-project-reorder-graphql-pr`) when returning to the renderer branch. The recurring automation remains deleted.
 
 ## Scope and audit baseline
