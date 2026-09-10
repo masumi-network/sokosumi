@@ -3,6 +3,13 @@ import SokosumiAuth
 import SokosumiChat
 
 extension WorkspaceState {
+  var streamingThreadToOpen: Components.Schemas.ChatRoomMessage? {
+    guard directStream.isBusy, directStream.phase != .resuming,
+          let parentId = directStream.parentMessageId,
+          thread.parent?.id != parentId else { return nil }
+    return transcriptMessages.first { $0.id == parentId }
+  }
+
   func openThread(_ parent: Components.Schemas.ChatRoomMessage, auth: AuthState) {
     guard parent.roomId == transcriptRoomId, thread.open(parent) else { return }
     loadThreadPage(.initial, auth: auth)

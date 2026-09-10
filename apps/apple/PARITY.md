@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Current slice: **09b — coworker streaming in reply threads**, branch `codex/apple-thread-streaming`, based on main `8f6aab44b`. Shared transport/session parent routing is implemented and package-tested; app wiring and end-to-end verification remain.
+- Current slice: **09b — coworker streaming in reply threads**, branch `codex/apple-thread-streaming`, based on main `8f6aab44b`. Thread streaming is implemented; final app verification and PR publication are in progress.
 - Slice 09a merged in [PR #4352](https://github.com/masumi-network/sokosumi/pull/4352). Final follow-up `f27b972aa` passed Apple CI, including Xcode build/app tests, all package tests, and lint/format.
 - Next: implement and verify 09b as one vertical slice, then open one draft PR. Do not start another feature before its merge.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
@@ -427,3 +427,9 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Thread composer sends through the shared streaming session; both composers respect its busy state. Thread rows render stream text/thinking, errors and restored drafts route to the matching composer, and older reply pagination is blocked during a stream.
 - Session retains parents in memory by account/workspace/room for re-entry, clearing them after errors, idle resume or successful settlement. Tests cover scope isolation and resume settlement; 172 Chat tests passed (`/tmp/slice09b-retention.log`). App tests passed before the retention addition (`/tmp/slice09b-app.log`); strict lint passed after extracting parent cleanup.
 - Still incomplete: auto-opening resumed thread, settlement when the thread closes/switches, race/deletion/app integration coverage and final full verification. Current settlement only refreshes replies when the active parent remains open; finish that behavior before opening a PR.
+
+### Slice 09b final review checkpoint
+
+- Resumed/active thread streams reopen their parent when available in loaded room history. Settlement refreshes room history and the active thread, including reopening a closed thread; overlays clear only after successful reconciliation for the same generation.
+- Added app integration coverage for the shared send lock, no classic outbox POST, parent-specific overlay display, and persisted settlement with both an open and closed thread. Independent review found a failed draft missed by an unmounted composer; initial observation now restores it when that composer returns, guarded by room and parent.
+- Verification: 172 Chat tests and iOS 17 shared compilation passed; Final Xcode app tests passed, including the initial-observation fix (`/tmp/slice09b-final-app.log`). Lint/format checks passed. No production messages were sent; live thread-provider UI interaction remains a manual PR test.

@@ -982,6 +982,46 @@ struct WorkspaceStateTests {
     #expect(state.directStream.roomId == nil)
   }
 
+  @Test(arguments: [false, true])
+  func threadStreamSettlesAndReopensClosedParent(closeThread: Bool) async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let root = transcriptMessage(id: "root", roomId: roomId, content: "Parent")
+    let reply = transcriptMessage(id: "reply", roomId: roomId, content: "Answer")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
+    var responses: [(Int, String)] = [
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, stream),
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ]
+    if closeThread {
+      responses.append((200, transcriptPageBody(messages: [reply], nextCursor: nil)))
+    }
+    let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
+    let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    state.timeline.reset(roomId: roomId)
+    let client = try #require(state.clientResolver?())
+    _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+    state.directStream.reset(room: room)
+    #expect(try state.thread.open(#require(state.transcriptMessages.first)))
+    #expect(state.sendThreadReply("Thread turn", auth: auth))
+    #expect(!state.sendMessage("Room turn", auth: auth))
+    #expect(state.thread.outbox.shells.isEmpty)
+    #expect(state.displayedTranscript.map(\.id) == ["root"])
+    #expect(state.displayedThreadReplies.first?.content == "Thread turn")
+    if closeThread {
+      state.thread.close()
+      #expect(state.streamingThreadToOpen?.id == "root")
+    }
+    await state.directStream.task?.value
+    #expect(state.thread.parent?.id == "root")
+    #expect(state.displayedThreadReplies.map(\.id) == ["reply"])
+    #expect(state.directStream.overlayMessages.isEmpty)
+    #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/messages"))
+  }
+
   @Test func parentEnvelopeWhileStreamingRefetchesParent() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"text-start\",\"id\":\"text\"}\n\ndata: {\"type\":\"text-delta\",\"id\":\"text\",\"delta\":\"Answer\"}\n\ndata: {\"type\":\"text-end\",\"id\":\"text\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"

@@ -585,6 +585,9 @@ final class WorkspaceState: ObservableObject {
     }
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
     guard await refresh(auth: auth, generation: generation) else { return false }
+    if let parent = streamingThreadToOpen {
+      openThread(parent, auth: auth)
+    }
     if let parentId = directStream.parentMessageId, thread.parent?.id == parentId {
       let threadGeneration = thread.timeline.generation
       await thread.loadTask?.value
