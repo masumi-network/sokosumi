@@ -26,6 +26,7 @@ import SwiftUI
     @State private var userIsScrolling = false
 
     let roomId: String
+    var allowsMessageHover = true
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
@@ -122,7 +123,8 @@ import SwiftUI
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                     },
                     onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil,
-                    horizontalInset: 12
+                    horizontalInset: 12,
+                    allowsHover: allowsMessageHover
                   )
                 }
               }
@@ -368,6 +370,7 @@ import SwiftUI
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
     var horizontalInset: CGFloat = 0
+    var allowsHover = true
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @FocusState private var replyFocused: Bool
@@ -442,7 +445,7 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
+      .background(allowsHover && (isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
         if let onReply {
           Button(action: onReply) {
@@ -473,8 +476,8 @@ import SwiftUI
           .focused($replyFocused)
           .help("Reply in thread")
           .accessibilityLabel("Reply in thread")
-          .opacity(isHovered || isReplyHovered || replyFocused ? 1 : 0)
-          .allowsHitTesting(isHovered || isReplyHovered || replyFocused)
+          .opacity(allowsHover && (isHovered || isReplyHovered) || replyFocused ? 1 : 0)
+          .allowsHitTesting(allowsHover && (isHovered || isReplyHovered) || replyFocused)
           .padding(.trailing, horizontalInset)
           // Center the action across the row boundary, including at larger text sizes.
           .alignmentGuide(.top) { dimensions in dimensions[VerticalAlignment.center] }
@@ -494,6 +497,12 @@ import SwiftUI
       .contextMenu {
         if let onReply {
           Button("Reply in thread", systemImage: "bubble.right", action: onReply)
+        }
+      }
+      .onChange(of: allowsHover) { _, allowed in
+        if !allowed {
+          isHovered = false
+          isReplyHovered = false
         }
       }
       .accessibilityElement(children: .contain)
