@@ -77,13 +77,14 @@ public struct ComposerEmoji: Equatable, Sendable {
     return nil
   }
 
+  /// Flushes a trailing emoticon only; closed shortcodes convert during typing, as on web.
   public static func preparingToSend(_ text: String) -> String {
     guard let edit = match(in: text, caret: text.utf16.count, flush: true) else { return text }
     return (text as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
   }
 
   private static func shortcode(in source: NSString, caret: Int) -> Self? {
-    guard caret >= 3, source.character(at: caret - 1) == 58 else { return nil }
+    guard caret >= 3, source.substring(with: NSRange(location: caret - 1, length: 1)) == ":" else { return nil }
     for index in stride(from: caret - 2, through: 0, by: -1) {
       let char = source.substring(with: NSRange(location: index, length: 1))
       if isWhitespace(char) {

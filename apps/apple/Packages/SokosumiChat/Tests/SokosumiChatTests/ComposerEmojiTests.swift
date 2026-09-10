@@ -36,7 +36,7 @@ struct ComposerEmojiTests {
   }
 
   @Test func preservesCodeLiterals() {
-    for text in ["```swift\n:D ", "    :D ", "`x :D `"] {
+    for text in ["```swift\n:D ", "    :D ", "`x :D `", "`x :smile: `", "😀 `x :D `", "😀 `x :smile: `"] {
       let caret = text.hasSuffix("`") ? text.utf16.count - 1 : text.utf16.count
       #expect(ComposerEmoji.match(in: text, caret: caret) == nil)
     }
