@@ -289,33 +289,6 @@ describe("sanitizeComposerHtml", () => {
     );
   });
 
-  it("admits no void tag other than br", () => {
-    // normalizeVoidTagSerialization rewrites only <br />. Any other void tag
-    // in the allow-list would keep sanitize-html's XML-style serialization
-    // and break the editors' skip-the-write guard.
-    const voidTags = [
-      "area",
-      "base",
-      "basefont",
-      "col",
-      "embed",
-      "hr",
-      "img",
-      "input",
-      "link",
-      "meta",
-      "param",
-      "source",
-      "track",
-      "wbr",
-    ];
-    for (const tag of voidTags) {
-      const sanitized = sanitizeComposerHtml(`<${tag}>`);
-      expect(sanitized).toBe("");
-    }
-    expect(sanitizeComposerHtml("a<br>b")).toBe("a<br>b");
-  });
-
   it("strips protocol-relative hrefs", () => {
     const root = document.createElement("div");
     root.innerHTML = sanitizeComposerHtml('<a href="//evil.test/x">x</a>');
@@ -401,12 +374,13 @@ describe("markdownToHtml sanitization boundary", () => {
     }
   });
 
-  it("serializes markup as the browser does, so the editors can skip a write", () => {
+  it("serializes exactly as the browser does, so the editors can skip a write", () => {
     // Both composers guard their innerHTML write with
     // `editor.innerHTML !== markdownToHtml(value)`. A serialization the
-    // browser rewrites makes that guard never hold. Scope is markup only:
-    // a non-breaking space in the text still re-serializes to &nbsp;, which
-    // predates the sanitizer and is not fixed here.
+    // browser rewrites makes that guard never hold, so the editor DOM is
+    // replaced on every sync. The last four cases each broke a different
+    // serializer rule: a void tag, a non-breaking space, `<` in an attribute
+    // value, and a restore placeholder swallowed into an attribute.
     const sources = [
       "a\nb",
       "# h",
@@ -417,6 +391,10 @@ describe("markdownToHtml sanitization boundary", () => {
       "**b** _i_ ~~s~~ `c` <u>u</u>",
       "[x](https://a.test/)",
       "hi @missing:ghost",
+      "a\u00a0b",
+      "[l<x](https://y.test/<)",
+      "@a:b<u>x</u>",
+      "@a:b[x](https://y.test/)",
     ];
     for (const source of sources) {
       const html = markdownToHtml(source);

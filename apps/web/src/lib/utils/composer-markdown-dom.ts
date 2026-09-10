@@ -119,17 +119,6 @@ const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
 };
 
 /**
- * `sanitize-html` writes void tags XML-style (`<br />`); a browser serializes
- * the same node as `<br>`. Both composers skip their `innerHTML` write while
- * `editor.innerHTML === markdownToHtml(value)`, so a mismatch here makes every
- * multi-line value rewrite the editor DOM. `br` is the only void tag the
- * composer allow-list admits.
- */
-function normalizeVoidTagSerialization(html: string): string {
-  return html.replace(/<br \/>/g, "<br>");
-}
-
-/**
  * Boundary between the hand-built composer HTML and the two `markdownToHtml`
  * call sites, both of which assign the result to `innerHTML`. The transform
  * escapes its input and gates each interpolation; this rejects anything those
@@ -137,9 +126,9 @@ function normalizeVoidTagSerialization(html: string): string {
  *
  * Not `sanitizeMarkdown`: that is the room presentation policy, and it drops
  * `pre`, `blockquote`, `s`, and every chip attribute. `sanitize-html` rather
- * than DOMPurify because it takes per-tag attribute allow-lists. Neither
- * choice changes where this runs: `markdownToHtml` already needs a DOM,
- * because the chip builders call `document.createElement`.
+ * than DOMPurify because it takes per-tag attribute allow-lists. This needs a
+ * DOM, which costs nothing: `markdownToHtml` already needs one, because the
+ * chip builders call `document.createElement`.
  *
  * The boundary is load-bearing, not belt-and-braces. Escaping each
  * interpolation is not enough, because a token can be restored into an
@@ -149,18 +138,26 @@ function normalizeVoidTagSerialization(html: string): string {
  * attributes on the chip. That is what this strips.
  */
 export function sanitizeComposerHtml(html: string): string {
-  return normalizeVoidTagSerialization(
-    sanitizeHtml(html, {
-      allowedTags: COMPOSER_ALLOWED_TAGS,
-      allowedAttributes: COMPOSER_ALLOWED_ATTRIBUTES,
-      // No allowedClasses: chip and code classes are Tailwind utilities that
-      // change with styling, so an allow-list of values would break on restyle.
-      disallowedTagsMode: "discard",
-      // The transform only ever emits http, https and mailto, already gated by
-      // normalizeUrl. Protocol-relative URLs are not a composer feature.
-      allowProtocolRelative: false,
-    }),
-  );
+  const sanitized = sanitizeHtml(html, {
+    allowedTags: COMPOSER_ALLOWED_TAGS,
+    allowedAttributes: COMPOSER_ALLOWED_ATTRIBUTES,
+    // No allowedClasses: chip and code classes are Tailwind utilities that
+    // change with styling, so an allow-list of values would break on restyle.
+    disallowedTagsMode: "discard",
+    // The transform only ever emits http, https and mailto, already gated by
+    // normalizeUrl. Protocol-relative URLs are not a composer feature.
+    allowProtocolRelative: false,
+  });
+
+  // Re-serialize through the DOM. `sanitize-html` writes void tags XML-style
+  // (`<br />`) and escapes `<` inside attribute values; a browser does
+  // neither. Both composers skip their `innerHTML` write while
+  // `editor.innerHTML === markdownToHtml(value)`, so any such difference
+  // makes the editor DOM rewrite on every sync. Parsing sanitized markup
+  // back out is what makes the two strings comparable.
+  const host = document.createElement("div");
+  host.innerHTML = sanitized;
+  return host.innerHTML;
 }
 
 /**
