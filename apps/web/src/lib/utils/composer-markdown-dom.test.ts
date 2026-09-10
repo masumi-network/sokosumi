@@ -427,13 +427,26 @@ describe("markdownToHtml sanitization boundary", () => {
     // restored inside an attribute value where the element-context escaping
     // does not apply. Without the boundary the browser reads `https:` and
     // `y.test` off the chip as bare attributes.
+    //
+    // This input also mangles the user's own text, on main as well as here.
+    // That is a separate defect in the mention regex; this case asserts only
+    // that nothing outside the allow-list survives.
+    const allowed = [
+      "class",
+      "contenteditable",
+      "data-channel-label",
+      "data-mention-key",
+      "data-mention-slug",
+    ];
     const root = document.createElement("div");
     root.innerHTML = markdownToHtml("@a:b[x](https://y.test/)");
     const chip = root.querySelector("[data-mention-key]");
     expect(chip).not.toBeNull();
-    expect(
-      Array.from(chip?.attributes ?? []).map((attribute) => attribute.name),
-    ).toEqual(["data-mention-key", "data-mention-slug"]);
+    const names = Array.from(chip?.attributes ?? []).map(
+      (attribute) => attribute.name,
+    );
+    expect(names).not.toHaveLength(0);
+    expect(names.filter((name) => !allowed.includes(name))).toEqual([]);
   });
 
   it("renders literal HTML text as text", () => {

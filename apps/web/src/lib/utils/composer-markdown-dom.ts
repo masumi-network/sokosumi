@@ -127,8 +127,9 @@ const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
  * Not `sanitizeMarkdown`: that is the room presentation policy, and it drops
  * `pre`, `blockquote`, `s`, and every chip attribute. `sanitize-html` rather
  * than DOMPurify because it takes per-tag attribute allow-lists. This needs a
- * DOM, which costs nothing: `markdownToHtml` already needs one, because the
- * chip builders call `document.createElement`.
+ * DOM. Both call sites already run browser-only, and `markdownToHtml` already
+ * needs a DOM whenever the text carries a chip, because the chip builders call
+ * `document.createElement`. What changes is that plain text needs one too.
  *
  * The boundary is load-bearing, not belt-and-braces. Escaping each
  * interpolation is not enough, because a token can be restored into an
