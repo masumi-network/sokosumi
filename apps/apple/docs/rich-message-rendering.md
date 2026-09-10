@@ -6,13 +6,17 @@ Use Foundation `AttributedString(markdown:options:)` with full parsing in the UI
 
 Reuse MessageRow for shared room/thread presentation and the current streaming response content. Foundation does not perform syntax highlighting or emoji shortcode/emoticon conversion. There is no existing native renderer/highlighter in apps/apple.
 
-## Proposed resource dependency PR — requires approval
+## Approved native dependency direction
 
-Bundle the web renderer's existing pinned highlight.js 11.11.1 common language set, evaluated with system JavaScriptCore in a confined worker. Only the bundled engine is executable; message code is passed as data. Return token text/styles to SwiftUI, not an HTML view. Match web's explicit language and automatic detection behavior. No WebView, AppKit, network dependency, or Node runtime in the app.
+The user approved Foundation + SwiftUI with SwiftTreeSitter on 2026-09-10. The earlier highlight.js/JavaScriptCore proposal is withdrawn. Do not bundle JavaScript engines or npm runtime libraries for rendering.
 
-Generate emoji lookup resources from the same node-emoji 2.2.0 and emoticon 4.1.0 resources used by remark-emoji 5.0.2. Preserve licenses and exact source versions. Provide a reproducible resource-generation command; generated assets must not be hand-edited. This adds third-party resources to the Apple app even though their npm versions already exist in the monorepo, so it requires the goal's separate dependency PR and explicit approval before incorporation.
+Verify SwiftTreeSitter 0.10.0 (Swift bindings over the native C Tree-sitter runtime) and compiled language grammars in a separate dependency PR. Keep token ranges and styles UI-free; SwiftUI renders the results. The dependency PR validates Swift and JSON grammars as representative integrations. Additional grammar products and the complete language registry belong to slice 10; do not mark language parity complete based on these two probes. No syntax engine should execute message code.
 
-The dependency PR should contain resource generation, licenses, the UI-free highlighting/lookup interface, and macOS/iOS17 compatibility tests. The subsequent slice 10 PR owns message parsing and SwiftUI integration. Do not add these resources until approved.
+Candidates examined: CodeEditLanguages provides a macOS binary container, so it does not meet iOS portability. TreeSitterLanguages 0.1.10 exposes individual C grammar and Foundation query-resource products; verify these products independently because its package also declares Runestone editor adapters, which the app must not link. Direct upstream grammar packages are an alternative where supported.
+
+Emoji shortcodes/emoticons should be converted by Swift using data resources; a data source still needs selection and licensing review. Do not introduce node-emoji or emoticon as JavaScript runtime dependencies.
+
+The dependency PR establishes and tests native parsing/highlighting dependencies before the slice 10 rendering PR. No rendering feature is complete until all behavior below is covered.
 
 ## Behavior to preserve
 
@@ -28,3 +32,10 @@ The dependency PR should contain resource generation, licenses, the UI-free high
 Web sources: `src/components/markdown.tsx`, `src/app/(app)/chat/components/room-message-row.tsx`, `room-mention-markdown.tsx`, `src/app/(app)/chat/utils/jumbo-emoji.ts`, `src/lib/utils/sanitizeMarkdown.ts` in apps/web. The installed rehype-highlight default registry is lowlight/common; web sets detect true. remark-emoji enables emoticons and transforms text nodes.
 
 Required tests: block/inline fixtures, nested structures, tables, unsupported/malformed input, literal code, unsafe links, emoji sequences/limits, and streaming partial input. Build shared code for iOS17; run package and app suites plus lint/format. Visually verify room and thread rendering, light/dark themes, narrow widths, long-message expansion, selection, and incremental responses.
+
+## Dependency verification
+
+- Direct packages: SwiftTreeSitter 0.10.0 and TreeSitterLanguages 0.1.10, exact pins. Resolved native Tree-sitter runtime: 0.25.10.
+- TreeSitterLanguages resolves Runestone 0.4.2 transitively. No Runestone product, UIKit editor, or JavaScript runtime is linked by the dependency tests.
+- Representative dependency tests run Swift and JSON highlight queries; Swift verifies UTF-16 capture ranges across emoji text. Dependency products are test-only until the renderer integrates them in slice 10.
+- macOS: Chat 176 tests passed, Xcode app suite passed, Swift lint/format passed. iOS17 compatibility build is recorded in PARITY.md when complete.
