@@ -1824,12 +1824,9 @@
         "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
-        "chooseAgent": "Elige tu agente",
-        "chooseAgentDescription": "Elige quién debe gestionar esta tarea — compara su modelo, alojamiento y capacidades.",
         "defaultBadge": "Predeterminado",
         "modelLabel": "Modelo",
         "hostingLabel": "Alojado en",
-        "examplesTitle": "Qué puede hacer {name}",
         "continue": "Continuar",
         "taskStepTitle": "¿Qué debe hacer {name}?",
         "previousAgent": "Agente anterior",
@@ -1849,9 +1846,7 @@
         "taskCreatedHint": "Todo está configurado y listo.",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
-        "close": "Cerrar",
-        "unassigned": "Sin asignar",
-        "unassignedDescription": "Dejar el trabajo listo para que cualquiera lo tome"
+        "close": "Cerrar"
       },
       "EditTask": {
         "title": "Editar Task",

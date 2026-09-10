@@ -59,7 +59,6 @@ export function TaskEditModal({
       isDismissDisabled={isDismissDisabled}
     >
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={labels}

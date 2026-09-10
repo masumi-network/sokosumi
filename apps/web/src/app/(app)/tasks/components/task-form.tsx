@@ -4,13 +4,10 @@ import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
-  Check,
   Command,
   CornerDownLeft,
   Loader2,
-  UserX,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -24,9 +21,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
-import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
-import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
-import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -74,6 +68,7 @@ import {
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
+import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import {
   getDefaultTaskContextSelection,
@@ -103,14 +98,11 @@ export interface TaskFormLabels {
   projectRequired?: string;
   coworker: string;
   coworkerDescription: string;
-  chooseAgent?: string;
-  chooseAgentDescription?: string;
   unassigned?: string;
   unassignedDescription?: string;
   defaultBadge?: string;
   modelLabel?: string;
   hostingLabel?: string;
-  examplesTitle?: string;
   continueLabel?: string;
   taskStepTitle?: string;
   previousLabel?: string;
@@ -196,7 +188,6 @@ interface TaskFormProps {
   projectOptions?: ProjectFilterOption[];
   lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
-  variant?: "page" | "modal";
   onCancel?: () => void;
   onSuccess?: (taskId: string) => void;
   /** Runs right after a modal create succeeds (before the celebration step). */
@@ -219,7 +210,6 @@ export function TaskForm({
   projectOptions,
   lockProjectSelection = false,
   defaultProjectId = null,
-  variant = "page",
   onCancel,
   onSuccess,
   onCreated,
@@ -233,8 +223,7 @@ export function TaskForm({
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
-  const isModal = variant === "modal";
-  const hasProjectSelection = isModal && projectOptions !== undefined;
+  const hasProjectSelection = projectOptions !== undefined;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
@@ -512,14 +501,11 @@ export function TaskForm({
       initialValues?.assigneeSokoBotId ??
       initialValues?.assigneeUserId,
   );
-  const useWizard = isModal && mode === "create" && !hasPrefilledAssignee;
+  const useWizard = mode === "create" && !hasPrefilledAssignee;
   const [step, setStep] = useState<1 | 2>(hasPrefilledAssignee ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
-  const showCoworkerGrid = mode === "create" && !isModal;
-  const useComposeLayout = isModal && mode === "create" && showTaskStep;
-  const useModalShellLayout = isModal;
-  const useModalScrollFill = isModal;
-  const useModalFieldFill = isModal && showTaskStep;
+  const useComposeLayout = mode === "create" && showTaskStep;
+  const useModalFieldFill = showTaskStep;
   const canUseSubmitShortcut =
     showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
@@ -590,48 +576,40 @@ export function TaskForm({
             return;
           }
           const createdTask = result.value;
-          // In the modal, confirm success in place and let the user choose when
-          // to navigate — the redirect target is prefetched so it lands fast.
-          if (isModal) {
-            const assigneeFields = resolveTaskAssigneeFields(
-              assigneeId,
-              coworkerOptions,
-              knownSokoBotId,
-              initialValues?.assigneeUserId,
-            );
-            const createdStatus =
+          // Confirm success in place and let the user choose when to navigate;
+          // the redirect target is prefetched so it lands fast.
+          const assigneeFields = resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownSokoBotId,
+            initialValues?.assigneeUserId,
+          );
+          const createdStatus =
+            scheduleSelection.mode !== "none" &&
+            desiredStatus !== TaskStatus.DRAFT &&
+            assigneeFields.assigneeUserId === null
+              ? "QUEUED"
+              : desiredStatus === TaskStatus.DRAFT
+                ? "DRAFT"
+                : "READY";
+          router.prefetch(`/tasks/${createdTask.taskId}`);
+          setCreatedTask({
+            id: createdTask.taskId,
+            name: createdTask.name.trim() || "Untitled task",
+            status: createdStatus,
+            statusLabel:
+              createdStatus === "QUEUED"
+                ? (labels.statusQueued ?? "Queued")
+                : createdStatus === "DRAFT"
+                  ? labels.statusDraft
+                  : labels.statusReady,
+            scheduleLabel:
               scheduleSelection.mode !== "none" &&
-              desiredStatus !== TaskStatus.DRAFT &&
-              assigneeFields.assigneeUserId === null
-                ? "QUEUED"
-                : desiredStatus === TaskStatus.DRAFT
-                  ? "DRAFT"
-                  : "READY";
-            router.prefetch(`/tasks/${createdTask.taskId}`);
-            setCreatedTask({
-              id: createdTask.taskId,
-              name: createdTask.name.trim() || "Untitled task",
-              status: createdStatus,
-              statusLabel:
-                createdStatus === "QUEUED"
-                  ? (labels.statusQueued ?? "Queued")
-                  : createdStatus === "DRAFT"
-                    ? labels.statusDraft
-                    : labels.statusReady,
-              scheduleLabel:
-                scheduleSelection.mode !== "none" &&
-                desiredStatus !== TaskStatus.DRAFT
-                  ? (scheduleLabel ?? undefined)
-                  : undefined,
-            });
-            onCreated?.(createdTask.taskId);
-            return;
-          }
-          if (onSuccess) {
-            onSuccess(createdTask.taskId);
-            return;
-          }
-          router.push(`/tasks/${createdTask.taskId}`);
+              desiredStatus !== TaskStatus.DRAFT
+                ? (scheduleLabel ?? undefined)
+                : undefined,
+          });
+          onCreated?.(createdTask.taskId);
           return;
         }
 
@@ -680,7 +658,6 @@ export function TaskForm({
     },
     [
       description,
-      isModal,
       isSaveDisabled,
       mode,
       step,
@@ -813,10 +790,8 @@ export function TaskForm({
     (option) => option.kind !== "user",
   );
   const showModalCoworkerHeader =
-    selectedOption !== undefined &&
-    (useComposeLayout || (isModal && mode === "edit"));
-  const taskFieldsBorder =
-    showModalCoworkerHeader || !isModal ? "border-t" : "";
+    selectedOption !== undefined && (useComposeLayout || mode === "edit");
+  const taskFieldsBorder = showModalCoworkerHeader ? "border-t" : "";
   const cardLabels = useMemo(
     () => ({
       defaultBadge: labels.defaultBadge ?? "Default",
@@ -825,8 +800,6 @@ export function TaskForm({
     }),
     [labels.defaultBadge, labels.modelLabel, labels.hostingLabel],
   );
-  const chooseAgentLabel = labels.chooseAgent ?? labels.coworker;
-  const examplesTitle = labels.examplesTitle ?? "What {name} can do";
 
   const handleCancel = () => {
     abortActiveUploads();
@@ -877,55 +850,9 @@ export function TaskForm({
   }
 
   return (
-    <div
-      className={
-        useModalShellLayout
-          ? "flex min-h-0 flex-1 flex-col"
-          : "max-w-3xl space-y-6"
-      }
-    >
-      {!isModal ? (
-        <header className="flex items-center gap-2">
-          <Link href="/tasks" aria-label={labels.back}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              aria-label={labels.back}
-            >
-              <ArrowLeft className="size-4" />
-              <span className="sr-only">{labels.back}</span>
-            </Button>
-          </Link>
-        </header>
-      ) : null}
-
-      <section
-        className={
-          useModalShellLayout
-            ? "flex min-h-0 flex-1 flex-col"
-            : "rounded-xl border"
-        }
-      >
-        {!isModal ? (
-          <div className="space-y-1 p-6">
-            <h2 className="text-lg font-semibold">{labels.details}</h2>
-            <p className="text-muted-foreground text-sm">
-              {labels.detailsDescription}
-            </p>
-          </div>
-        ) : null}
-
-        <div
-          className={
-            useModalShellLayout
-              ? cn(
-                  "[&::-webkit-scrollbar-thumb]:bg-border/80 min-h-0 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent",
-                  useModalScrollFill && "flex flex-1 flex-col",
-                )
-              : "contents"
-          }
-        >
+    <div className="flex min-h-0 flex-1 flex-col">
+      <section className="flex min-h-0 flex-1 flex-col">
+        <div className="[&::-webkit-scrollbar-thumb]:bg-border/80 flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
           {useWizard && step === 1 ? (
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
               <AgentSpotlight
@@ -1222,78 +1149,6 @@ export function TaskForm({
               </div>
             </div>
           ) : null}
-
-          {showCoworkerGrid ? (
-            <div className="space-y-4 border-t px-6 py-6 md:px-8">
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">
-                  {chooseAgentLabel}
-                </Label>
-                {labels.chooseAgentDescription ? (
-                  <p className="text-muted-foreground text-xs">
-                    {labels.chooseAgentDescription}
-                  </p>
-                ) : null}
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => handleCoworkerSelect("")}
-                  aria-pressed={assigneeId === ""}
-                  className={cn(
-                    "group relative flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.99]",
-                    assigneeId === ""
-                      ? "border-primary bg-primary/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
-                      : "border-border bg-card hover:border-primary hover:shadow-sm",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "bg-primary absolute top-4 right-4 flex size-5 items-center justify-center rounded-full transition-opacity duration-150",
-                      assigneeId === "" ? "opacity-100" : "opacity-0",
-                    )}
-                    aria-hidden
-                  >
-                    <Check className="size-3 text-white" strokeWidth={3} />
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-xl">
-                      <UserX
-                        className="text-muted-foreground size-5"
-                        aria-hidden
-                      />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {labels.unassigned ?? "Unassigned"}
-                      </p>
-                      {labels.unassignedDescription ? (
-                        <p className="text-muted-foreground truncate text-xs">
-                          {labels.unassignedDescription}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </button>
-                {coworkerOptions.map((option) => (
-                  <CoworkerCard
-                    key={option.id}
-                    option={option}
-                    isSelected={assigneeId === option.id}
-                    isDefault={option.slug === "elena"}
-                    onSelect={() => handleCoworkerSelect(option.id)}
-                    labels={cardLabels}
-                  />
-                ))}
-              </div>
-              {selectedOption ? (
-                <AgentDetail
-                  option={selectedOption}
-                  examplesTitle={examplesTitle}
-                />
-              ) : null}
-            </div>
-          ) : null}
         </div>
 
         {showTaskStep ? (
@@ -1316,13 +1171,7 @@ export function TaskForm({
         ) : null}
 
         {showTaskStep ? (
-          <div
-            className={
-              isModal
-                ? "flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8"
-                : "flex flex-col items-stretch justify-between gap-3 border-t px-6 py-6 sm:flex-row sm:items-center md:px-8"
-            }
-          >
+          <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
             {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
               <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
                 <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />

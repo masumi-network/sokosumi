@@ -1806,12 +1806,9 @@
         "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
         "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
-        "chooseAgent": "Choose your agent",
-        "chooseAgentDescription": "Pick who should handle this task — compare their model, host, and capabilities.",
         "defaultBadge": "Default",
         "modelLabel": "Model",
         "hostingLabel": "Hosted in",
-        "examplesTitle": "What {name} can do",
         "continue": "Continue",
         "taskStepTitle": "What should {name} do?",
         "previousAgent": "Previous agent",
@@ -1849,9 +1846,7 @@
         "taskCreatedHint": "Everything's set up and ready to go.",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
-        "close": "Close",
-        "unassigned": "Unassigned",
-        "unassignedDescription": "Leave ready work for anyone to pick up"
+        "close": "Close"
       },
       "EditTask": {
         "title": "Edit Task",
