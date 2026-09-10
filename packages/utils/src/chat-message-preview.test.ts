@@ -206,6 +206,43 @@ describe("buildChatMessagePreview", () => {
     ).toBe("see the docs now");
   });
 
+  /**
+   * A display name is a member's to choose and nobody's to check. A member
+   * who renames themselves after an address would otherwise put one on every
+   * reader's lock screen.
+   */
+  it("takes an address out of a display name", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @ada");
+  });
+
+  it("names a member after an address in their name is taken out", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada https://evil.test"],
+        ]),
+      ),
+    ).toBe("hi @Ada");
+  });
+
+  /** A name and the words after it can spell an address between them. */
+  it("takes an address a name and the message spell together", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x.evil.test",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www"]]),
+      ),
+    ).toBe("hi");
+  });
+
   /** The `www.` inside a word is a word. */
   it("leaves a word that only ends in an address alone", () => {
     expect(buildChatMessagePreview("seewww.example.test now")).toBe(

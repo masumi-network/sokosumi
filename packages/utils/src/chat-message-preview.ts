@@ -219,6 +219,21 @@ const FENCE_DELIMITER_LINE_REGEX = /^ {0,3}(?:`{3,}[^`\n]*|~{3,}[^\n]*)$/gm;
 const BACKTICK_RUN_REGEX = /`{2,}/g;
 
 /**
+ * The text with every web address taken out of it.
+ *
+ * Only the stop that ends a sentence is put back: `go to https://e.test. Then
+ * wait` is two sentences, and taking the stop with the address would run them
+ * into one. Nothing else goes in the address's place, because a sentence with
+ * spaces already has them around the address, and a sentence written without
+ * them wants none.
+ */
+function withoutAddresses(text: string): string {
+  return text.replace(BARE_URL_REGEX, (address) => {
+    return URL_TRAILING_PUNCTUATION_REGEX.exec(address)?.[0] ?? "";
+  });
+}
+
+/**
  * How many times the strip below may repeat.
  *
  * The two constructs that a strip can reveal are one level deep, and two
@@ -371,8 +386,14 @@ export function buildChatMessagePreview(
       // Read for what it says rather than for whether it is there: a member
       // whose display name is empty is named no better than one the map does
       // not carry, and the slug is what is left to say who.
+      // A display name is a member's to choose and nobody's to check, so an
+      // address written into one is read the same way as an address written
+      // into a message: taken out. Otherwise a member renames themselves
+      // `www.evil.test/pay` and every reader of the room has that on a lock
+      // screen, which is what this rule exists to prevent.
+      const name = withoutAddresses(mentionNames?.get(lookupKey) ?? "");
       const label =
-        mentionNames?.get(lookupKey) ||
+        name ||
         readableSlug ||
         (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
 
@@ -387,24 +408,22 @@ export function buildChatMessagePreview(
   // there either, so the preview says the words around it and nothing else.
   // A message that is only a link cleans to nothing and the caller falls back
   // to the line naming the author and the room.
-  const oneLine = cleanChatMessageText(readable)
-    .replace(BARE_URL_REGEX, (address) => {
-      // Only the stop that ends the sentence is put back: `go to
-      // https://e.test. Then wait` is two sentences, and taking the stop with
-      // the address would run them into one. Nothing else goes in its place,
-      // because the spaces a sentence already has are around the address, and
-      // a sentence written without them wants none.
-      return URL_TRAILING_PUNCTUATION_REGEX.exec(address)?.[0] ?? "";
-    })
+  const oneLine = withoutAddresses(cleanChatMessageText(readable))
     .replace(/\s+/g, " ")
     .trim();
   // The names go in last, and the line is closed up again: a mention that
   // stands for nobody leaves the space its marker sat in, and a preview cut
   // to length has to count the names it shows rather than the markers.
-  const named = oneLine
-    .replace(MENTION_MARKER_REGEX, (_match, index: string) => {
+  const named = withoutAddresses(
+    oneLine.replace(MENTION_MARKER_REGEX, (_match, index: string) => {
       return labels[Number(index)] ?? "";
-    })
+    }),
+  )
+    // A name and the words after it can spell an address between them: a
+    // member named `www` and a message reading `@<id>:x.evil.test` put one on
+    // the line only once the name was in it. So the line is read once more,
+    // and an `@` left standing by that read is not a mention any more.
+    .replace(/@(?=\s|$)/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
