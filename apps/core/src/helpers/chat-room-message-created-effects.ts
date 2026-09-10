@@ -89,6 +89,7 @@ export async function emitChatRoomMessageCreatedEffects(
 interface ChatRoomMessageReaders {
   roomId: string;
   memberUserIds?: readonly string[];
+  excludedUserIds?: readonly string[];
 }
 
 async function getMemberUserIds(
@@ -113,8 +114,12 @@ export async function invalidateChatRoomMessageReaders(
     const memberUserIds = await getMemberUserIds(params);
     const userIds = [...new Set(memberUserIds)];
     if (userIds.length === 0) return;
+    const recipients = userIds.filter(
+      (userId) => !params.excludedUserIds?.includes(userId),
+    );
+    if (recipients.length === 0) return;
     await publishChatRoomsChanged({
-      userIds,
+      userIds: recipients,
       collections: ["active"],
       roomId: params.roomId,
     });

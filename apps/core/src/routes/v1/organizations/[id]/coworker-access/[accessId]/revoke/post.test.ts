@@ -141,10 +141,9 @@ describe("POST /organizations/{id}/coworker-access/{accessId}/revoke", () => {
       },
       {},
     );
-    expect(publishMembershipStatusMock).toHaveBeenCalledWith(
-      statusMessages,
-      "chat membership status after coworker access revoke",
-    );
+    expect(publishMembershipStatusMock).toHaveBeenCalledWith(statusMessages, {
+      logContext: "chat membership status after coworker access revoke",
+    });
   });
 
   it("returns 404 when access not in workspace", async () => {
