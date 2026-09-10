@@ -126,25 +126,27 @@ public final class RoomOutbox: ObservableObject {
     timer = nil
     // Do not cancel `request`. Timeout frees the queue; the POST may still land.
     request = nil
-    if shells.contains(where: { $0.clientTurnId == id }) {
-      switch result {
-      case let .success(message):
-        if let shell = shells.first(where: { $0.clientTurnId == id }) {
-          recordConfirmation(message.id, shell: shell)
-        }
+    switch result {
+    case let .success(message):
+      // A realtime echo may already have removed the shell. The send still
+      // succeeded, so confirm it like web does.
+      if let shell = shells.first(where: { $0.clientTurnId == id }) {
+        recordConfirmation(message.id, shell: shell)
         shells.removeAll { $0.clientTurnId == id }
-        jobs[id] = nil
-        job.confirmed(message)
-      case let .failure(error):
+      }
+      jobs[id] = nil
+      job.confirmed(message)
+    case let .failure(error):
+      if shells.contains(where: { $0.clientTurnId == id }) {
         shells = failOutbound(
           shells: shells,
           clientTurnId: id,
           errorMessage: (error as? SendTimeout)?.errorDescription ?? friendlyMessage(for: error)
         )
         job.failed(error)
+      } else {
+        jobs[id] = nil
       }
-    } else {
-      jobs[id] = nil
     }
     startNext()
   }

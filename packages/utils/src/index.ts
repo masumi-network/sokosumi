@@ -401,9 +401,7 @@ export {
   type UserMetadata,
 } from "./user-metadata.js";
 export {
-  getFallbackUserName,
   getFirstName,
-  getStoredUserName,
   resolveAccountDisplayName,
 } from "./user-name.js";
 export {

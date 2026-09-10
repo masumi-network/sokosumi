@@ -121,13 +121,14 @@ public extension ChatService {
     roomId: String,
     content: String,
     clientMessageId: String,
+    parentMessageId: String? = nil,
     organizationSlug: String?
   ) async throws -> Components.Schemas.ChatRoomMessage {
     let response = try await client.postChatsRoomsIdMessages(
       .init(
         path: .init(id: roomId),
         headers: .init(xOrganizationSlug: organizationSlug),
-        body: .json(.init(content: content, clientMessageId: clientMessageId))
+        body: .json(.init(content: content, parentMessageId: parentMessageId, clientMessageId: clientMessageId))
       )
     )
     switch response {

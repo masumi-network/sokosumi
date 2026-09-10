@@ -24,7 +24,9 @@ describe("RoomsClient Ably island", () => {
       /LazyAblyProvider>\s*<RoomMessageRealtimeBridge[\s\S]*<\/LazyAblyProvider>/,
     );
     expect(source).not.toContain("ChannelProvider");
-    expect(source).toContain("roomIds={rooms.map((room) => room.id)}");
+    expect(source).toContain(
+      "roomIds={channelCatalogRooms.map((room) => room.id)}",
+    );
     // Open room chrome lives in RoomShellLayout (Instant + progressive share it).
     expect(source).toContain("listScrollerRef={scrollerRef}");
     expect(source).toContain("<RoomShellLayout");
