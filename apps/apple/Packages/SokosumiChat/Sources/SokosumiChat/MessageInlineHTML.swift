@@ -52,6 +52,10 @@ enum MessageInlineHTML {
     var result = element.getChildNodes().reduce(into: AttributedString()) {
       $0.append(render($1, baseURL: baseURL, text: text))
     }
+    if element.tagName() == "img" {
+      let label = (try? element.attr("alt")) ?? ""
+      result = AttributedString(label.isEmpty ? ((try? element.attr("src")) ?? "") : label)
+    }
     let intent = inlineIntent(element.tagName())
     if !intent.isEmpty {
       for run in result.runs {
@@ -77,7 +81,13 @@ enum MessageInlineHTML {
   }
 
   private static func linkURL(_ element: Element, baseURL: URL?) -> URL? {
-    guard element.tagName() == "a", let href = try? element.attr("href"), !href.isEmpty,
+    let attribute: String
+    switch element.tagName() {
+    case "a": attribute = "href"
+    case "img": attribute = "src"
+    default: return nil
+    }
+    guard let href = try? element.attr(attribute), !href.isEmpty,
           let url = URL(string: href, relativeTo: baseURL)?.absoluteURL,
           url.scheme == nil || ["http", "https", "mailto", "irc", "ircs", "xmpp"].contains(url.scheme?.lowercased() ?? "")
     else { return nil }

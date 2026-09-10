@@ -3,6 +3,25 @@ import Foundation
 import Testing
 
 struct MessageInlineHTMLTests {
+  @Test func preservesImageLabelsAndSafeSourceLinks() throws {
+    let baseURL = try #require(URL(string: "https://example.com"))
+    for source in [
+      "Before <img src='/chart.png' alt='Chart &amp; data'> after <img src='/empty.png'>",
+      "<p>Before <img src='/chart.png' alt='Chart &amp; data'> after <img src='/empty.png'></p>"
+    ] {
+      let result = MessageMarkdown(source, baseURL: baseURL)
+      let text = try #require(result.blocks.first?.text)
+      #expect(String(text.characters) == "Before Chart & data after /empty.png")
+      #expect(text.runs.compactMap(\.link).map(\.absoluteString) == [
+        "https://example.com/chart.png", "https://example.com/empty.png"
+      ])
+    }
+    let unsafe = MessageMarkdown("Before <img src='javascript:alert(1)' alt='Unsafe'>")
+    let text = try #require(unsafe.blocks.first?.text)
+    #expect(String(text.characters) == "Before Unsafe")
+    #expect(text.runs.allSatisfy { $0.link == nil })
+  }
+
   @Test func formatsNestedInlineTagsAndBreaks() throws {
     let markdown = MessageMarkdown("Text <b>bold <i>both</i></b> <u>under</u><br>next")
     let text = try #require(markdown.blocks.first?.text)
