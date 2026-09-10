@@ -113,15 +113,17 @@ export default function JobDetailsView({
               <Header
                 {...jobsHeader}
                 detailActions={
-                  <JobDetailsTopBarActions
-                    job={job}
-                    editing={nameController.editing}
-                    onEdit={nameController.startEditing}
-                    organizations={organizations}
-                    hasPersonalWorkspace={hasPersonalWorkspace}
-                    personalWorkspaceLabel={personalWorkspaceLabel}
-                    readOnly={readOnly}
-                  />
+                  publicJobLayout ? undefined : (
+                    <JobDetailsTopBarActions
+                      job={job}
+                      editing={nameController.editing}
+                      onEdit={nameController.startEditing}
+                      organizations={organizations}
+                      hasPersonalWorkspace={hasPersonalWorkspace}
+                      personalWorkspaceLabel={personalWorkspaceLabel}
+                      readOnly={readOnly}
+                    />
+                  )
                 }
               />
             ) : null}
@@ -132,6 +134,7 @@ export default function JobDetailsView({
                 hasPersonalWorkspace={hasPersonalWorkspace}
                 personalWorkspaceLabel={personalWorkspaceLabel}
                 readOnly={readOnly}
+                publicJobLayout={publicJobLayout}
                 showInlineActions={!showAgentHeader}
                 controller={nameController}
               />
@@ -193,6 +196,7 @@ function JobDetailsHeader({
   hasPersonalWorkspace = false,
   personalWorkspaceLabel,
   readOnly,
+  publicJobLayout,
   showInlineActions,
   controller,
 }: {
@@ -201,12 +205,13 @@ function JobDetailsHeader({
   hasPersonalWorkspace?: boolean;
   personalWorkspaceLabel?: string;
   readOnly: boolean;
+  publicJobLayout: boolean;
   showInlineActions: boolean;
   controller: ReturnType<typeof useJobDetailsNameController>;
 }) {
   return (
     <div className="flex flex-col gap-2" key={`${job.id}-details-header`}>
-      {showInlineActions ? (
+      {showInlineActions && !publicJobLayout ? (
         <div className="flex justify-end">
           <JobDetailsTopBarActions
             job={job}

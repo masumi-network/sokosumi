@@ -93,9 +93,15 @@ describe("requireJobShareCollaboration", () => {
       ),
     ).resolves.toMatchObject({ id: "job_123" });
 
-    // The whole policy is in this where clause: workspace, never ownerId.
+    // The whole policy is in this where clause: owner OR workspace member.
     expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", workspaceId: organizationWorkspaceId },
+      where: {
+        id: "job_123",
+        OR: [
+          { ownerId: "member_456" },
+          { workspaceId: organizationWorkspaceId },
+        ],
+      },
     });
   });
 
@@ -126,18 +132,57 @@ describe("requireJobShareCollaboration", () => {
     ).rejects.toThrow("Job not found");
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_of_another_user", workspaceId: personalWorkspaceId },
+      where: {
+        id: "job_of_another_user",
+        OR: [{ ownerId: "member_456" }, { workspaceId: personalWorkspaceId }],
+      },
     });
   });
 
-  it("denies a member with no workspace context", async () => {
+  // API key and OAuth callers carry `organizationId: null`, so they can reach
+  // this helper with no organization workspace. They must keep sharing the jobs
+  // they own.
+  it("falls back to ownership when there is no workspace context", async () => {
     const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      ownerId: "member_456",
+      taskId: null,
+    } as never);
 
     await expect(
       requireJobShareCollaboration(varsFor(null), "job_123", tx),
-    ).rejects.toThrow("Workspace is missing");
+    ).resolves.toMatchObject({ id: "job_123" });
 
-    expect(tx.job.findFirst).not.toHaveBeenCalled();
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_123", OR: [{ ownerId: "member_456" }] },
+    });
+  });
+
+  it("denies a non-owner with no workspace context", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobShareCollaboration(varsFor(null), "job_of_another_user", tx),
+    ).rejects.toThrow("Job not found");
+  });
+
+  it("lets an owner share a job outside their active workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      ownerId: "member_456",
+      taskId: null,
+    } as never);
+
+    await expect(
+      requireJobShareCollaboration(
+        varsFor(personalWorkspaceContext),
+        "job_123",
+        tx,
+      ),
+    ).resolves.toMatchObject({ id: "job_123" });
   });
 
   it("denies a job whose parent task is parked", async () => {

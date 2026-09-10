@@ -259,6 +259,57 @@ describe("JobDetailsView", () => {
     expect(screen.queryByLabelText("moveToWorkspace")).not.toBeInTheDocument();
   });
 
+  // The public /share/[token] page renders this view. No mutation control may
+  // reach an anonymous viewer, whichever render path is taken.
+  it("renders no action controls under the public job layout", () => {
+    useJobsHeaderMock.mockReturnValue({
+      agent: {
+        id: "agent-1",
+        credits: 100,
+      },
+      ratingStats: { averageRating: 0, ratingCount: 0 },
+      canRate: false,
+      existingRating: null,
+      disabled: false,
+    });
+
+    render(
+      <JobDetailsView
+        job={createJob()}
+        readOnly
+        publicJobLayout
+        showAgentHeader
+      />,
+    );
+
+    expect(screen.queryByLabelText("share")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("edit")).not.toBeInTheDocument();
+  });
+
+  it("renders no action controls under the public job layout inline path", () => {
+    render(
+      <JobDetailsView
+        job={createJob()}
+        readOnly
+        publicJobLayout
+        showAgentHeader={false}
+      />,
+    );
+
+    expect(screen.queryByLabelText("share")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("edit")).not.toBeInTheDocument();
+  });
+
+  // The inline path is the one used by the job details modal.
+  it("renders share on the inline path for a job owned by another member", () => {
+    render(
+      <JobDetailsView job={createJob()} readOnly showAgentHeader={false} />,
+    );
+
+    expect(screen.getByLabelText("share")).toBeInTheDocument();
+    expect(screen.queryByLabelText("edit")).not.toBeInTheDocument();
+  });
+
   it("renders a move action for standalone jobs when another workspace is available", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
