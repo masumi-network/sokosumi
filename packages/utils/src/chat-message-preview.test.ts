@@ -296,6 +296,16 @@ describe("buildChatMessagePreview", () => {
     ).toBe("()");
   });
 
+  /** A name the address rule cut down to punctuation names nobody either. */
+  it("names a member by their slug when an address leaves only a stop", () => {
+    expect(
+      buildChatMessagePreview(
+        "x @019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz y",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www.evil.test."]]),
+      ),
+    ).toBe("x @zz y");
+  });
+
   /** A name of nothing but spaces names nobody, so the slug says who. */
   it("names a member by their slug when their name is only spaces", () => {
     expect(

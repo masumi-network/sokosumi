@@ -49,6 +49,14 @@ export const CHAT_MENTION_ALL_KEY = "all";
  * answer up the same way, which is what keeps `@019FC7E4-…` a name rather
  * than a miss.
  */
+/** A letter or a digit: what a name has to keep to still name anyone. */
+const NAMING_CHARACTER_REGEX = /[\p{L}\p{N}]/u;
+
+/** The text back when it names someone, and nothing when it does not. */
+function whatNamesSomeone(text: string): string {
+  return NAMING_CHARACTER_REGEX.test(text) ? text : "";
+}
+
 export function readChatMentionKeys(content: string): string[] {
   const keys = new Set<string>();
 
@@ -408,12 +416,17 @@ export function buildChatMessagePreview(
       // into a message: taken out. Otherwise a member renames themselves
       // `www.evil.test/pay` and every reader of the room has that on a lock
       // screen, which is what this rule exists to prevent.
-      // Trimmed, because a name of nothing but spaces says as little as an
-      // empty one and the slug below says more.
-      const name = withoutAddresses(mentionNames?.get(lookupKey) ?? "").trim();
+      // Read for whether a letter or a digit is left of it, rather than for
+      // whether anything is: a name of spaces, and a name the address rule
+      // cut down to the punctuation it gave back, both name nobody, and the
+      // slug below says more. A member renaming themselves `www.evil.test.`
+      // otherwise reads as `@.` on every lock screen in the room.
+      const name = whatNamesSomeone(
+        withoutAddresses(mentionNames?.get(lookupKey) ?? "").trim(),
+      );
       const label =
         name ||
-        readableSlug ||
+        whatNamesSomeone(readableSlug) ||
         (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
 
       labels.push(label);
