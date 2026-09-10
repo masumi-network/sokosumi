@@ -243,6 +243,20 @@ describe("buildChatMessagePreview", () => {
     ).toBe("hi");
   });
 
+  /**
+   * The `@` a person types is theirs. Only the one this code writes in front
+   * of a name is dropped, and only when the address rule took the name.
+   */
+  it("keeps an `@` the sender wrote as a word", () => {
+    expect(buildChatMessagePreview("meet @ 5pm at the cafe")).toBe(
+      "meet @ 5pm at the cafe",
+    );
+    expect(buildChatMessagePreview("rates @ 5% and @ 10%")).toBe(
+      "rates @ 5% and @ 10%",
+    );
+    expect(buildChatMessagePreview("price is 30 @")).toBe("price is 30 @");
+  });
+
   /** The `www.` inside a word is a word. */
   it("leaves a word that only ends in an address alone", () => {
     expect(buildChatMessagePreview("seewww.example.test now")).toBe(

@@ -76,6 +76,15 @@ const MENTION_MARKER = "\u0000";
 const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
 
 /**
+ * The `@` of a name this code wrote, with nothing left after it. The marker
+ * in front of it is what separates it from an `@` the sender typed.
+ */
+const LABEL_AT_LEFT_REGEX = /\u0000@(?=\s|$)/g;
+
+/** The marker each name is written with, once the read above is done. */
+const LABEL_MARKER_REGEX = /\u0000/g;
+
+/**
  * A web address written as words: a scheme, or the `www.` people write
  * instead of one, running to the next space.
  *
@@ -397,7 +406,9 @@ export function buildChatMessagePreview(
         readableSlug ||
         (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
 
-      labels.push(label ? `@${label}` : "");
+      // The label carries a marker of its own so the read below can tell an
+      // `@` this code wrote from an `@` the sender typed, as in "meet @ 5pm".
+      labels.push(label ? `${MENTION_MARKER}@${label}` : "");
 
       return `${MENTION_MARKER}${labels.length - 1}${MENTION_MARKER}`;
     });
@@ -422,8 +433,10 @@ export function buildChatMessagePreview(
     // A name and the words after it can spell an address between them: a
     // member named `www` and a message reading `@<id>:x.evil.test` put one on
     // the line only once the name was in it. So the line is read once more,
-    // and an `@` left standing by that read is not a mention any more.
-    .replace(/@(?=\s|$)/g, "")
+    // and an `@` this code wrote, left standing by that read, is not a
+    // mention any more. An `@` the sender typed is left alone.
+    .replace(LABEL_AT_LEFT_REGEX, "")
+    .replace(LABEL_MARKER_REGEX, "")
     .replace(/\s+/g, " ")
     .trim();
 
