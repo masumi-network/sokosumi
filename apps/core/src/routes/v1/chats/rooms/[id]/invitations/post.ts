@@ -25,7 +25,7 @@ import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
@@ -46,7 +46,7 @@ const paramsSchema = z.object({
     }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/{id}/invitations",

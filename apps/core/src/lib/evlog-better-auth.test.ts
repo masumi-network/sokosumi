@@ -4,7 +4,7 @@ import { requestId } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  bindCoreRequestId,
+  bindCoreRequestContext,
   coreEvlogMiddleware,
   initCoreLogger,
 } from "@/lib/evlog";
@@ -30,7 +30,7 @@ function createApp(identify: Awaited<ReturnType<typeof loadMiddleware>>) {
   const app = new Hono();
   app.use(requestId());
   app.use(coreEvlogMiddleware());
-  app.use(bindCoreRequestId());
+  app.use(bindCoreRequestContext());
   app.use(identify);
   return app;
 }
