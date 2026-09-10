@@ -87,10 +87,18 @@ const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
  * standing for the same reason: `mailto:a@e.test` would go, and so would the
  * `note:remember` and `TODO:ship` people write.
  *
- * It starts after anything but an ascii word character, so the `www.` inside
- * `seewww.example.test` is a word and the one in a sentence written without
- * spaces is an address. Chinese, Japanese and Thai are written that way, and
- * a boundary made of letters in general never lets an address start in them.
+ * The schemes are named one by one rather than read as a word before `://`.
+ * A scheme name spelled as `[a-z][a-z0-9+.-]*` reaches left through the dot
+ * and the hyphen people write next to a link, so `Read the notes.https://e.test`
+ * loses `notes` and `our cta-https://e.test` loses `cta`. Naming them also
+ * lets the scheme branch start anywhere, which is what takes the address out
+ * of `docs*https://e.test*` once the markdown clean has closed that gap.
+ *
+ * A `www.` with no scheme in front of it starts after anything but an ascii
+ * word character, so the one inside `seewww.example.test` is a word and the
+ * one in a sentence written without spaces is an address. Chinese, Japanese
+ * and Thai are written that way, and a boundary made of letters in general
+ * never lets an address start in them.
  *
  * It ends the same way: at the first character an address is not written
  * with, rather than at the next space, for those same sentences. What that
@@ -103,7 +111,7 @@ const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
  * the address's.
  */
 const BARE_URL_REGEX =
-  /(?<![A-Za-z0-9_])(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%[\]]+/gi;
+  /(?:(?:https?|ftps?):\/\/|(?<![A-Za-z0-9_])www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%[\]]+/gi;
 
 /** What an address may end with that belongs to the sentence around it. */
 const URL_TRAILING_PUNCTUATION_REGEX = /[.,;:!?)\]}'"]+$/;

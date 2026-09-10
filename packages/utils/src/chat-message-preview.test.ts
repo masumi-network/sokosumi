@@ -190,6 +190,22 @@ describe("buildChatMessagePreview", () => {
     );
   });
 
+  /**
+   * A scheme is named rather than read as a word before `://`. A rule that
+   * read one takes the word in front of the address with it.
+   */
+  it("keeps the word an address is written up against", () => {
+    expect(buildChatMessagePreview("Read the notes.https://example.test")).toBe(
+      "Read the notes.",
+    );
+    expect(buildChatMessagePreview("our cta-https://example.test today")).toBe(
+      "our cta- today",
+    );
+    expect(
+      buildChatMessagePreview("see the docs*https://example.test* now"),
+    ).toBe("see the docs now");
+  });
+
   /** The `www.` inside a word is a word. */
   it("leaves a word that only ends in an address alone", () => {
     expect(buildChatMessagePreview("seewww.example.test now")).toBe(
