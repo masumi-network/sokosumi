@@ -129,7 +129,7 @@ export function DirectRoomAvatarStack({
                 </AvatarFallback>
               </Avatar>
               <LiveMemberPresenceDot
-                className="-right-0.5 -bottom-0.5 absolute size-2 border-0"
+                className="-right-0.5 -bottom-0.5 absolute size-2 border"
                 fallback={participant.presence}
                 ground="sidebar"
                 isCoworker={isAi}

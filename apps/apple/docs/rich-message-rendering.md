@@ -2,9 +2,11 @@
 
 ## Rendering approach
 
-Use Foundation `AttributedString(markdown:options:)` with full parsing in the UI-free SokosumiChat package. A local probe confirmed presentation intents for headings, paragraphs, nested list items, table rows/cells/alignment, and fenced-code language. SwiftUI views interpret these blocks in both room and thread messages. Preserve soft line breaks; handle task-list prefixes and sanitized inline underline markup explicitly. Keep ordinary links selectable and route them through the existing app URL policy.
+Use swift-markdown's full document tree in the UI-free SokosumiChat package. It preserves empty fenced code blocks and table cells that Foundation's presentation intents omit. Parse raw HTML fragments with SwiftSoup, then apply the web sanitization policy explicitly. Convert shortcodes and emoticons on Markdown text nodes using the bundled emojilib 2.4.0 and emoticon 4.1.0 JSON resources.
 
-Reuse MessageRow for shared room/thread presentation and the current streaming response content. Foundation does not perform syntax highlighting or emoji shortcode/emoticon conversion. There is no existing native renderer/highlighter in apps/apple.
+SwiftUI views render the resulting blocks in room and thread messages, reusing MessageRow and streaming content. Foundation attributed strings remain useful for inline styling. Preserve soft line breaks, task lists, underline, native text selection and the existing app URL policy. SwiftTreeSitter provides native code highlighting.
+
+The parser products are test-only in this prerequisite; renderer integration follows its merge.
 
 ## Approved native dependency direction
 
@@ -14,7 +16,7 @@ Verify SwiftTreeSitter 0.10.0 (Swift bindings over the native C Tree-sitter runt
 
 Candidates examined: CodeEditLanguages provides a macOS binary container, so it does not meet iOS portability. TreeSitterLanguages 0.1.10 exposes individual C grammar and Foundation query-resource products; verify these products independently because its package also declares Runestone editor adapters, which the app must not link. Direct upstream grammar packages are an alternative where supported.
 
-Emoji shortcodes/emoticons should be converted by Swift using data resources; a data source still needs selection and licensing review. Do not introduce node-emoji or emoticon as JavaScript runtime dependencies.
+Emoji shortcodes/emoticons will be converted in Swift using the approved, licensed JSON described in [emoji data](emoji-data.md). Do not introduce node-emoji or emoticon as JavaScript runtime dependencies.
 
 The dependency PR establishes and tests native parsing/highlighting dependencies before the slice 10 rendering PR. No rendering feature is complete until all behavior below is covered.
 
@@ -60,3 +62,31 @@ The dependency tests parse Unicode fixtures and validate UTF-16 source ranges
 for every grammar. They prove parser compatibility, not finished highlighting.
 Query integration and the remaining web language registry gaps still need to be
 covered by the renderer implementation.
+
+## Approved structural parser and emoji prerequisite
+
+Approved by the user on 2026-09-10, in a separate PR from native rendering:
+
+- SwiftSoup 2.13.9 (`SwiftSoup` product), MIT; Swift HTML parsing only.
+- swift-markdown 0.8.0 (`Markdown` product), Apache 2.0 with Runtime Library Exception.
+- Resolved swift-cmark 0.8.0, with its complete COPYING notices (BSD-style and MIT-derived components). SwiftPM records exact revisions in Package.resolved. The effective dependency graph adds these three packages; no new DocC package resolved on this Swift 6.2 toolchain.
+- Data-only emojilib 2.4.0 and emoticon 4.1.0 resources, MIT notices included verbatim. [Emoji data](emoji-data.md) records versions, counts, hashes and regeneration steps. No npm package runs in the application.
+
+Parser products are linked by the Chat test target only. Resources live in the
+Chat bundle for later integration. Six dependency tests verify empty code blocks,
+empty table headers/middle/trailing rows/cells, nested and unfinished Markdown,
+HTML nesting repair, entity/URL attributes, explicit handling of unsafe HTML,
+and emoji decoding. The HTML parser deliberately preserves scripts and unsafe
+URLs: a parsing library is not the application's configured sanitizer. Apply the
+web policy during renderer integration, with separate parity fixtures.
+
+After this prerequisite merges, use the full Markdown tree to replace the lossy
+Foundation block reconstruction, use SwiftSoup for HTML fragments, and convert
+emoji text nodes in Swift. Keep all presentation native. Include the parser
+libraries' full license notices in app distribution when linking their products.
+
+Prerequisite verification: Chat 183, Auth 34, CoreAPI 1 and Realtime 27 tests
+passed. Xcode app build/tests and the iOS 17 Chat test-target cross-build passed,
+including both native parsers. Changed Swift files pass SwiftFormat/SwiftLint;
+the data regeneration script passes Node syntax checking and reproduces hashes.
+Logs: `/tmp/apple-parser-*.log`.
