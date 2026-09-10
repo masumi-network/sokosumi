@@ -20,10 +20,14 @@ struct MessageMarkdownView: View {
     Group {
       if let count = jumboEmojiCount(source) {
         Text(source).font(.system(size: emojiSize(count)))
-      } else if let document {
-        MarkdownBlocksView(blocks: document.blocks)
       } else {
-        Text(source)
+        ExpandableMessageBody(source: source) {
+          if let document {
+            MarkdownBlocksView(blocks: document.blocks)
+          } else {
+            Text(source)
+          }
+        }
       }
     }
     .textSelection(.enabled)

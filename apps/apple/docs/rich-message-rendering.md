@@ -234,3 +234,18 @@ link/task integration. All 202 Chat tests, Xcode app build/tests, iOS 17 compila
 and changed-file lint/format passed (`/tmp/apple-domain-*.log`). Full slice 10
 remains incomplete: HTML/underline, emoji conversion, empty block preservation,
 expansion, remaining syntax coverage/detection and visual verification remain.
+
+## Long-message expansion implementation
+
+`ExpandableMessageBody` measures 16 native body-font lines and clamps the entire
+rich body to that height. The full content is measured independently of clipping;
+Show more/Show less appears only for overflow or an expanded message. Geometry
+observation tracks sizes, not scroll positions. The control resets on content
+changes, matching the web hook, and jumbo emoji bypass the clamp. Attachment
+exemptions belong with the upcoming attachment rendering slice.
+
+Xcode app build/tests and changed-file lint/format passed
+(`/tmp/apple-clamp-{app,lint,final-format}.log`). This is not final behavioral
+verification: native expand/collapse, resize, selection and accessibility checks
+remain required, including initial measurement and Markdown parse transitions.
+No new interaction test has yet verified the expansion control.
