@@ -3,6 +3,14 @@ import Foundation
 import Testing
 
 struct MessageMarkdownTests {
+  @Test func recognizesTasksWithoutChangingEscapedOrCodeMarkers() throws {
+    let result = MessageMarkdown("- [x] Done\n- [ ] **Open**\n- \\[x] Literal\n- `[x]` Code\n- [X]\tUppercase\n- **[x] Bold literal**")
+    let items = try #require(result.blocks.first?.children)
+    #expect(items.map(\.taskChecked) == [true, false, nil, nil, true, nil])
+    #expect(items.compactMap(\.children.first).map { String($0.text.characters) }
+      == ["Done", "Open", "[x] Literal", "[x] Code", "Uppercase", "[x] Bold literal"])
+  }
+
   @Test func reportHeadingsAndEmphasis() throws {
     let result = MessageMarkdown("### Report\n\nFinished **analysis** with _results_ and ~~old data~~.")
     #expect(result.blocks.map(\.kind) == [.header(level: 3), .paragraph])

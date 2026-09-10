@@ -5,10 +5,22 @@ import SwiftUI
 struct MessageMarkdownView: View {
   let source: String
   @State private var document: MessageMarkdown?
+  @ScaledMetric(relativeTo: .body) private var emojiBaseSize = 16.0
+
+  private func emojiSize(_ count: Int) -> Double {
+    switch count {
+    case 1: emojiBaseSize * 2.25
+    case 2 ... 3: emojiBaseSize * 1.875
+    case 4 ... 6: emojiBaseSize * 1.5
+    default: emojiBaseSize * 1.25
+    }
+  }
 
   var body: some View {
     Group {
-      if let document {
+      if let count = jumboEmojiCount(source) {
+        Text(source).font(.system(size: emojiSize(count)))
+      } else if let document {
         MarkdownBlocksView(blocks: document.blocks)
       } else {
         Text(source)
@@ -107,7 +119,10 @@ private struct MarkdownBlockView: View {
     VStack(alignment: .leading, spacing: 4) {
       ForEach(block.children) { item in
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-          if ordered, case let .listItem(ordinal) = item.kind {
+          if let checked = item.taskChecked {
+            Image(systemName: checked ? "checkmark.square.fill" : "square")
+              .accessibilityLabel(checked ? "Completed task" : "Incomplete task")
+          } else if ordered, case let .listItem(ordinal) = item.kind {
             Text("\(ordinal).").monospacedDigit()
           } else {
             Text("•")

@@ -109,3 +109,9 @@ This is an implementation checkpoint, not a finished slice or a standalone featu
 `MessageMarkdownView` renders the block tree using SwiftUI text, lists, quotes, horizontally scrollable tables/code, and six semantic heading levels. Parsing runs away from the main actor; cancelled view tasks cannot publish stale parsed results. MessageRow reuses this view in room and thread contexts and keeps edited/deleted labels. An Xcode preview includes a representative report fixture.
 
 Verification: Xcode build and app tests passed (`/tmp/apple-markdown-view-build.log`, `/tmp/apple-markdown-view-tests.log`); changed Swift files pass lint and format checks. This does not establish visual or full slice parity: verify native interaction/selection and the initial parse transition, then finish the remaining parser/highlighting/emoji/expansion requirements before opening the feature PR.
+
+## Task lists and jumbo emoji checkpoint
+
+Task-list parsing uses Foundation source positions to distinguish actual markers from escaped, code, bold and linked text. SwiftUI renders read-only checkbox symbols. Compared edge cases with the web's installed remark-parse/remark-gfm: empty markers remain literal, a tab is accepted, and exactly one separator is removed. Raw emoji-only messages use web's Extended_Pictographic/flag/keycap criteria, whitespace handling, 23-count maximum and four relative size tiers. Shortcodes still need their separate conversion; they do not trigger jumbo sizing.
+
+Verification: 188 Chat tests in 22 suites, Xcode app tests, iOS17 shared build, and changed-file lint/format passed. A final parser-only test run also passed after the lint-mandated failable UTF-8 conversion. Logs: `/tmp/apple-task-emoji-suite.log`, `/tmp/apple-task-emoji-app.log`, `/tmp/apple-task-emoji-ios17.log`, `/tmp/apple-task-final-tests.log`. Native visual verification remains pending.
