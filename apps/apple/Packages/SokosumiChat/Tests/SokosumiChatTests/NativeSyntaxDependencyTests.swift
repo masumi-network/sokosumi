@@ -1,11 +1,14 @@
 import Foundation
+@testable import SokosumiChat
 import SwiftTreeSitter
 import Testing
 import TreeSitterDiff
+import TreeSitterGraphQL
 import TreeSitterIni
 import TreeSitterJSON
 import TreeSitterJSONQueries
 import TreeSitterKotlin
+import TreeSitterLess
 import TreeSitterMake
 import TreeSitterObjc
 import TreeSitterSwift
@@ -44,11 +47,35 @@ struct NativeSyntaxDependencyTests {
     }
   }
 
+  @Test func graphqlHighlightsQueriesAndUnicodeStrings() throws {
+    let source = "query Greeting($id: ID!) { user(id: $id, greeting: \"Hello 👋\") { name } }"
+    let url = try #require(Bundle.module.url(forResource: "graphql-highlights", withExtension: "scm", subdirectory: "GrammarDependencies"))
+    let captures = try highlight(source, language: tree_sitter_graphql(), queryURL: url)
+    #expect(captures.contains { $0.0 == "keyword" && $0.1 == "query" })
+    #expect(captures.contains { $0.0 == "property" && $0.1 == "name" })
+    #expect(captures.contains { $0.0 == "string" && $0.1.contains("👋") })
+  }
+
+  @Test func lessHighlightsVariablesAndNestedSelectors() throws {
+    let source = "@color: #fff; .greeting { color: @color; content: \"Hello 👋\"; &:hover { width: 2px; } }"
+    let url = try #require(Bundle.module.url(forResource: "less-highlights", withExtension: "scm", subdirectory: "GrammarDependencies"))
+    let captures = try highlight(source, language: tree_sitter_less(), queryURL: url)
+    #expect(captures.contains { $0.0 == "property" && $0.1 == "color" })
+    #expect(captures.contains { $0.0 == "number" && $0.1 == "2px" })
+    #expect(captures.contains { $0.0 == "type" && $0.1 == "px" })
+    #expect(captures.contains { $0.0 == "variable" && $0.1 == "@color" })
+    #expect(captures.contains { $0.0 == "attribute" && $0.1 == "hover" })
+    #expect(captures.contains { $0.0 == "string" && $0.1.contains("👋") })
+  }
+
   private func highlight(_ source: String, language: OpaquePointer, queryURL: URL) throws -> [(String, String)] {
     let parser = Parser()
     let language = Language(language: language)
     try parser.setLanguage(language)
     let tree = try #require(parser.parse(source))
+    let root = try #require(tree.rootNode)
+    #expect(!root.hasError)
+    #expect(root.range == NSRange(location: 0, length: (source as NSString).length))
     let query = try SwiftTreeSitter.Query(language: language, url: queryURL)
     return query.execute(in: tree).resolve(with: Predicate.Context(string: source)).flatMap { match in
       match.captures.compactMap { capture -> (String, String)? in

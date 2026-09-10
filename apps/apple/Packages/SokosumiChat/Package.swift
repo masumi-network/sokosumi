@@ -13,6 +13,7 @@ let package = Package(
   ],
   dependencies: [
     .package(path: "../CoreAPI"),
+    .package(url: "https://github.com/mdovale/tree-sitter-less", revision: "02988c765d30adb0476657b5d220e8dfde1c07d3"),
     .package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.13.9"),
     .package(url: "https://github.com/swiftlang/swift-markdown.git", exact: "0.8.0"),
     .package(url: "https://github.com/tree-sitter/swift-tree-sitter", exact: "0.10.0"),
@@ -31,18 +32,27 @@ let package = Package(
   ],
   targets: [
     .target(
+      name: "TreeSitterGraphQL",
+      path: "Vendor/TreeSitterGraphQL",
+      sources: ["src/parser.c"],
+      publicHeadersPath: "include",
+      cSettings: [.headerSearchPath("src")]
+    ),
+    .target(
       name: "SokosumiChat",
       dependencies: [
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")
       ],
-      resources: [.copy("Resources/Emoji")]
+      resources: [.copy("Resources/Emoji"), .copy("Resources/GrammarDependencies")]
     ),
     .testTarget(
       name: "SokosumiChatTests",
       dependencies: [
         "SokosumiChat",
+        "TreeSitterGraphQL",
+        .product(name: "TreeSitterLess", package: "tree-sitter-less"),
         .product(name: "SwiftSoup", package: "SwiftSoup"),
         .product(name: "Markdown", package: "swift-markdown"),
         .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
