@@ -36,7 +36,8 @@ import { notFound } from "./error";
  * Soko Bot and coworker contexts keep their existing collaboration rules
  * unchanged; this only widens human access.
  *
- * @throws {notFound} If the caller neither owns the job nor shares its workspace
+ * @throws {notFound} If the caller neither owns the job nor shares its
+ *   workspace, or if the job's parent task is missing or archived
  * @throws {forbidden} If the parent task is parked, or the agent context is not
  *   permitted to act on the job
  */
