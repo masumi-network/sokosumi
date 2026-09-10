@@ -447,3 +447,22 @@ native output, including spaces and punctuation. Converted shortcodes do not
 retroactively trigger raw-message jumbo sizing. The forthcoming Markdown tree
 must preserve text-node boundaries for this pass; avoid applying replacement to
 the raw message or to an entire flattened attributed paragraph.
+
+## Remaining grammar packaging audit (2026-09-10)
+
+The installed lowlight/common registry also includes GraphQL, which was missing
+from the earlier gap list. The following upstream snapshots were inspected via
+GitHub contents/commit APIs; none has been added to the project.
+
+| Candidate | Inspected revision | Packaging findings |
+| --- | --- | --- |
+| [11bit/tree-sitter-graphql](https://github.com/11bit/tree-sitter-graphql) | `951bde9fb3145b5f676204231e35f8b21d21f7b3` | C sources, queries and LICENSE present; no SwiftPM manifest. |
+| [codepen/tree-sitter-less](https://github.com/codepen/tree-sitter-less) | `fcd5b67b2979e8aa27bd12bbd39ae9435cc507eb` | C sources present; no SwiftPM manifest, queries directory or standalone license file in root. Licensing and highlight coverage require validation. |
+| [CodeAnt-AI/tree-sitter-vb-dotnet](https://github.com/CodeAnt-AI/tree-sitter-vb-dotnet) | `cfca210ce8fdcb5245bd9cd5c47ce0a21a8488d5` | SwiftPM manifest exists but references an absent queries directory. No standalone license file in root. Do not treat as ready to adopt. |
+| [wasm-lsp/tree-sitter-wasm](https://github.com/wasm-lsp/tree-sitter-wasm) | `2ca28a9f9d709847bf7a3de0942a84e912f59088` | WAT/WAST grammars and LICENSE; no SwiftPM manifest. |
+
+Next validate licensing, native build compatibility and query coverage before
+requesting a separate dependency PR. Arduino, PHP-template, Python REPL and shell
+sessions also need verified treatment; adjacent grammars alone do not establish
+parity. Language detection remains separate unfinished work. No new dependency
+approval is implied by this audit.
