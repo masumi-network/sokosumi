@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   createContext,
   useCallback,
   useContext,
@@ -12,6 +11,7 @@ import {
   useRef,
   useState,
   ViewTransition,
+  type ViewTransitionInstance,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -23,16 +23,62 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/** Fallback only when View Transitions are unsupported. Matches exit CSS (~150ms). */
-const CREATE_TASK_MODAL_EXIT_MS = 200;
-
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function isViewTransitionUnsupported() {
+const ENTER_KEYFRAMES: Keyframe[] = [
+  { opacity: 0, transform: "translateY(12px)" },
+  { opacity: 1, transform: "translateY(0)" },
+];
+const EXIT_KEYFRAMES: Keyframe[] = [
+  { opacity: 1, transform: "translateY(0)" },
+  { opacity: 0, transform: "translateY(-12px)" },
+];
+const ENTER_OPTIONS: KeyframeAnimationOptions = {
+  duration: 210,
+  easing: "cubic-bezier(0.2, 0, 0, 1)",
+  fill: "both",
+};
+const EXIT_OPTIONS: KeyframeAnimationOptions = {
+  duration: 150,
+  easing: "ease-out",
+  fill: "both",
+};
+
+interface ViewTransitionPseudo {
+  animate: Element["animate"];
+}
+
+interface ViewTransitionWaapiInstance {
+  name: string;
+  old?: ViewTransitionPseudo | null;
+  new?: ViewTransitionPseudo | null;
+}
+
+function prefersReducedMotion() {
   return (
-    typeof document === "undefined" || !("startViewTransition" in document)
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
+}
+
+function animateCreateTaskModal(
+  pseudo: ViewTransitionPseudo | null | undefined,
+  keyframes: Keyframe[],
+  options: KeyframeAnimationOptions,
+  fallback: HTMLElement | null,
+) {
+  if (prefersReducedMotion()) {
+    return () => {};
+  }
+  const target = pseudo ?? fallback;
+  if (!target) {
+    return () => {};
+  }
+  const animation = target.animate(keyframes, options);
+  return () => {
+    animation.cancel();
+  };
 }
 
 function useCreateTaskModalA11y({
@@ -130,6 +176,7 @@ export function TaskFormModal({
   viewTransition = false,
 }: TaskFormModalProps) {
   const titleId = useId();
+  const shellRef = useRef<HTMLDivElement>(null);
   const [headerStart, setHeaderStart] = useState<React.ReactNode>(null);
   const registerHeaderStart = useCallback((content: React.ReactNode) => {
     setHeaderStart(content);
@@ -139,25 +186,9 @@ export function TaskFormModal({
     [registerHeaderStart],
   );
 
-  const [portalOpen, setPortalOpen] = useState(open);
-  if (open && !portalOpen) {
-    setPortalOpen(true);
-  }
-
   useEffect(() => {
     if (!open) setHeaderStart(null);
   }, [open]);
-
-  const closePortal = useCallback(() => {
-    setPortalOpen(false);
-  }, []);
-
-  useEffect(() => {
-    if (!viewTransition || open || !portalOpen) return;
-    if (!isViewTransitionUnsupported()) return;
-    const timeoutId = window.setTimeout(closePortal, CREATE_TASK_MODAL_EXIT_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [viewTransition, open, portalOpen, closePortal]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -171,11 +202,28 @@ export function TaskFormModal({
     handleOpenChange(false);
   }, [handleOpenChange]);
 
-  const dialogOpen = viewTransition ? open || portalOpen : open;
   const dialogRef = useCreateTaskModalA11y({
-    enabled: viewTransition && dialogOpen,
+    enabled: viewTransition && open,
     onDismiss: handleDismiss,
   });
+
+  const handleEnter = useCallback((instance: ViewTransitionInstance) => {
+    return animateCreateTaskModal(
+      (instance as ViewTransitionWaapiInstance).new,
+      ENTER_KEYFRAMES,
+      ENTER_OPTIONS,
+      shellRef.current,
+    );
+  }, []);
+
+  const handleExit = useCallback((instance: ViewTransitionInstance) => {
+    return animateCreateTaskModal(
+      (instance as ViewTransitionWaapiInstance).old,
+      EXIT_KEYFRAMES,
+      EXIT_OPTIONS,
+      shellRef.current,
+    );
+  }, []);
 
   const panel = (
     <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
@@ -209,41 +257,41 @@ export function TaskFormModal({
   if (viewTransition) {
     return (
       <TaskFormModalHeaderContext value={headerContextValue}>
-        {dialogOpen && typeof document !== "undefined"
-          ? createPortal(
-              <Activity mode={open ? "visible" : "hidden"}>
-                <ViewTransition
-                  default="none"
-                  enter="create-task-modal-enter"
-                  exit="create-task-modal-exit"
-                  onExit={() => () => closePortal()}
+        {open && typeof document !== "undefined" ? (
+          <ViewTransition
+            default="none"
+            enter="create-task-modal-enter"
+            exit="create-task-modal-exit"
+            onEnter={handleEnter}
+            onExit={handleExit}
+          >
+            {createPortal(
+              <div
+                ref={shellRef}
+                data-create-task-modal-vt=""
+                data-testid="create-task-modal-vt"
+                className="fixed inset-0 z-50"
+              >
+                <div
+                  data-testid="create-task-modal-overlay"
+                  className="absolute inset-0 bg-background/50 backdrop-blur-lg"
+                  onClick={handleDismiss}
+                />
+                <div
+                  ref={dialogRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby={titleId}
+                  tabIndex={-1}
+                  className="absolute top-1/2 left-1/2 w-svw max-w-6xl -translate-x-1/2 -translate-y-1/2 outline-none md:w-[92vw]"
                 >
-                  <div
-                    data-create-task-modal-vt=""
-                    data-testid="create-task-modal-vt"
-                    className="fixed inset-0 z-50"
-                  >
-                    <div
-                      data-testid="create-task-modal-overlay"
-                      className="absolute inset-0 bg-background/50 backdrop-blur-lg md:bg-auto"
-                      onClick={handleDismiss}
-                    />
-                    <div
-                      ref={dialogRef}
-                      role="dialog"
-                      aria-modal="true"
-                      aria-labelledby={titleId}
-                      tabIndex={-1}
-                      className="absolute top-1/2 left-1/2 w-svw max-w-6xl -translate-x-1/2 -translate-y-1/2 outline-none md:w-[92vw]"
-                    >
-                      {panel}
-                    </div>
-                  </div>
-                </ViewTransition>
-              </Activity>,
+                  {panel}
+                </div>
+              </div>,
               document.body,
-            )
-          : null}
+            )}
+          </ViewTransition>
+        ) : null}
       </TaskFormModalHeaderContext>
     );
   }

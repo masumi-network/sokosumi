@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -66,6 +66,11 @@ describe("TaskFormModal", () => {
       screen.getByRole("dialog", { name: "New task" }),
     ).toBeInTheDocument();
     expect(screen.getByText("form")).toBeInTheDocument();
+
+    const overlay = screen.getByTestId("create-task-modal-overlay");
+    expect(overlay.className).toContain("bg-background/50");
+    expect(overlay.className).toContain("backdrop-blur-lg");
+    expect(overlay.className).not.toContain("md:bg-auto");
   });
 
   it("does not portal when View Transitions start closed", () => {
@@ -82,7 +87,7 @@ describe("TaskFormModal", () => {
     expect(screen.queryByText("form")).not.toBeInTheDocument();
   });
 
-  it("keeps the portal mounted after close until the exit window ends", async () => {
+  it("unmounts the portal when closed", () => {
     const { rerender } = render(
       <TaskFormModal open viewTransition {...modalProps}>
         form
@@ -95,14 +100,10 @@ describe("TaskFormModal", () => {
       </TaskFormModal>,
     );
 
-    expect(screen.getByTestId("create-task-modal-vt")).toBeInTheDocument();
-    expect(screen.getByText("form")).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(
-        screen.queryByTestId("create-task-modal-vt"),
-      ).not.toBeInTheDocument();
-    });
+    expect(
+      screen.queryByTestId("create-task-modal-vt"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("form")).not.toBeInTheDocument();
   });
 
   it("dismisses through overlay click and Escape", async () => {
