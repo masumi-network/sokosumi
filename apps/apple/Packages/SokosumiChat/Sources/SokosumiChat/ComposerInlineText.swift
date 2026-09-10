@@ -14,8 +14,12 @@ public enum ComposerInlineText {
     guard text.length > 0 else { return false }
     var active = true
     var sawContent = false
-    text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { values, _, _ in
+    text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { values, range, _ in
       if values[ComposerBlockText.listMarker] as? Bool == true {
+        return
+      }
+      // Block separators have no visible inline style.
+      if (text.string as NSString).substring(with: range).trimmingCharacters(in: .newlines).isEmpty {
         return
       }
       sawContent = true
