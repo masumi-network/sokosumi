@@ -3,7 +3,7 @@
 ## Resume checkpoint
 
 - [PR #4384](https://github.com/masumi-network/sokosumi/pull/4384) merged as `01c087259` on 2026-09-10. Rich rendering is available on main. Manual selection/copy, light appearance, continuous resizing and incremental rendering were not confirmed in this task; row 10 remains Partial until that evidence is recorded.
-- The user requested a maintenance PR before further features: organize Xcode source folders and improve names and view ownership. Current branch: `codex/apple-maintenance-handoff`. This is a behavior-preserving refactor, not a new parity slice.
+- The user requested a maintenance PR before further features: organize Xcode source folders and improve names and view ownership. Current PR: [#4385](https://github.com/masumi-network/sokosumi/pull/4385), branch `codex/apple-maintenance-handoff`. Wait for human merge before the next feature. This is a behavior-preserving refactor, not a new parity slice.
 - Existing renderer evidence: 236 Chat tests and Xcode app tests passed after review fixes; report screenshots verified headings, bold, lists and independent expansion. Earlier iOS 17 cross-build passed. CI and review history remain in #4384; historical implementation checkpoints are in Git history and the rendering design document.
 - Deferred review follow-ups remain: search emphasis (23), mention styling (13), internal chat routing (25), streaming coalescing if profiling identifies jank, SCSS query revalidation on dependency upgrades (10b). Syntax polish is explicitly deferred by the user; attachment players/previews belong to 15.
 - The deleted polling automation must not be recreated. Preserve local user edits when switching branches.
