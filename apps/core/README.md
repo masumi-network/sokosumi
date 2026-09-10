@@ -194,7 +194,7 @@ src/
 
 ### Key Patterns
 
-- **Authentication**: Use `HonoWithAuth` or `OpenAPIHonoWithAuth` for protected routes
+- **Authentication**: Use `OpenAPIHonoWithAuth` for protected routes
 - **Database Access**: Use Prisma directly via `@sokosumi/database/client` (repositories are not used)
 - **Error Handling**: Always use error helpers from `helpers/error.ts`
 - **Response Format**: Use response helpers from `helpers/response.ts`

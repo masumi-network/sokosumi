@@ -91,19 +91,15 @@ const unreadCounts = await getChatRoomUnreadCounts([room.id], userId, prisma);
 
 ### Authentication Classes
 
-Use type-safe Hono classes that automatically apply authentication:
+Use type-safe Hono class that automatically applies authentication:
 
 ```typescript
-import { HonoWithAuth, OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-// For standard routes
-const router = new HonoWithAuth();
-
-// For OpenAPI-documented routes
 const app = new OpenAPIHonoWithAuth();
 ```
 
-**Important**: These classes automatically apply `requireAuth` middleware - do not add it manually.
+**Important**: This class automatically applies `requireAuth` middleware - do not add it manually.
 
 ### Response Handling
 
@@ -198,7 +194,7 @@ Cross-origin calls from the web app require the web deployment to use a hostname
 
 ### Authentication Context
 
-Routes using `HonoWithAuth` or `OpenAPIHonoWithAuth` have access to `AuthContext`:
+Routes using `OpenAPIHonoWithAuth` have access to `AuthContext`:
 
 ```typescript
 const auth = c.get("auth");
@@ -626,7 +622,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 
 ### Authentication
 
-- `HonoWithAuth` and `OpenAPIHonoWithAuth` automatically apply auth middleware
+- `OpenAPIHonoWithAuth` automatically applies auth middleware
 - Don't manually call `app.use("*", requireAuth)` when using these classes
 - Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above

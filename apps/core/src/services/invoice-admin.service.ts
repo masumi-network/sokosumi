@@ -15,12 +15,7 @@ import prisma from "@/lib/db/prisma";
 import { stripeCustomerBillingService } from "@/services/stripe-customer-billing.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
-/**
- * Port of the web app's `invoiceAdminService`
- * (`apps/web/src/lib/services/invoice-admin.service.ts`): admin one-time
- * credit invoices issued through Stripe, granted through the shared
- * invoice-paid automation.
- */
+/** Core owns admin one-time credit invoice issuance. */
 
 const ADMIN_INVOICE_SOURCE = "admin_one_time_credit";
 
