@@ -6,7 +6,12 @@ public enum MessageUnderlineAttribute: AttributedStringKey {
   public static let name = "sokosumi.message.underline"
 }
 
-/// Foundation already distinguishes inline HTML from escaped tags and code.
+enum MessageHTMLTokenAttribute: AttributedStringKey {
+  typealias Value = Int
+  static let name = "sokosumi.message.htmlToken"
+}
+
+/// The Markdown parser distinguishes inline HTML from escaped tags and code.
 /// Interpret only formatting tags here; block HTML requires separate handling.
 enum MessageInlineHTML {
   static func applying(to parsed: AttributedString) -> AttributedString {
@@ -43,6 +48,7 @@ enum MessageInlineHTML {
       if openTags.contains("u") {
         text[MessageUnderlineAttribute.self] = true
       }
+      text[MessageHTMLTokenAttribute.self] = nil
       result.append(text)
     }
     return result

@@ -1,96 +1,124 @@
 import Foundation
+import Markdown
 
-/// A UI-free tree of Foundation's Markdown presentation intents. Container nodes
-/// hold children; leaf nodes retain inline attributes for native text rendering.
+/// UI-free document blocks with inline attributes for native text rendering.
 public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
   public let id: Int
   public let kind: PresentationIntent.Kind
-  public private(set) var text = AttributedString()
-  public private(set) var children: [MessageMarkdownBlock] = []
-  public private(set) var taskChecked: Bool?
-
-  fileprivate mutating func recognizeTasks(lines: [String]) {
-    for index in children.indices {
-      children[index].recognizeTasks(lines: lines)
-    }
-    guard case .listItem = kind,
-          children.first?.kind == .paragraph,
-          let run = children[0].text.runs.first,
-          run.inlinePresentationIntent == nil,
-          run[MessageUnderlineAttribute.self] != true,
-          run.link == nil,
-          let position = run.markdownSourcePosition,
-          lines.indices.contains(position.startLine - 1)
-    else { return }
-    let source = lines[position.startLine - 1].utf8.dropFirst(position.startColumn - 1)
-    guard let marker = String(bytes: source.prefix(3), encoding: .utf8),
-          ["[ ]", "[x]", "[X]"].contains(marker),
-          let separator = source.dropFirst(3).first,
-          separator == 32 || separator == 9
-    else { return }
-    let prefix = String(children[0].text.characters.prefix(4))
-    guard prefix.hasPrefix(marker), prefix.count == 4 else { return }
-    taskChecked = marker != "[ ]"
-    let end = children[0].text.characters.index(children[0].text.startIndex, offsetBy: 4)
-    children[0].text.removeSubrange(children[0].text.startIndex ..< end)
-  }
-
-  fileprivate mutating func append(
-    _ text: AttributedString,
-    path: ArraySlice<PresentationIntent.IntentType>
-  ) {
-    guard let component = path.first else {
-      self.text.append(text)
-      return
-    }
-    // Foundation emits each block contiguously, including nested containers.
-    if children.last?.id != component.identity {
-      children.append(MessageMarkdownBlock(id: component.identity, kind: component.kind))
-    }
-    children[children.count - 1].append(text, path: path.dropFirst())
-  }
+  public fileprivate(set) var text = AttributedString()
+  public fileprivate(set) var children: [MessageMarkdownBlock] = []
+  public fileprivate(set) var taskChecked: Bool?
 }
 
 public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
 
   public init(_ source: String, baseURL: URL? = nil) {
-    let normalizedSource = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-    let source = MarkdownBareDomains(normalizedSource).linkified()
-    let parsed: AttributedString
-    do {
-      parsed = try AttributedString(
-        markdown: source,
-        options: .init(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible, appliesSourcePositionAttributes: true),
-        baseURL: baseURL
-      )
-    } catch {
-      parsed = AttributedString(source)
-    }
-    let formatted = MessageInlineHTML.applying(to: parsed)
-    var root = MessageMarkdownBlock(id: 0, kind: .paragraph)
-    for run in formatted.runs {
-      var text = AttributedString(formatted[run.range])
-      let intent = run.inlinePresentationIntent ?? []
-      if intent.contains(.softBreak) {
-        text = AttributedString("\n", attributes: run.attributes)
+    let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+    let document = Markdown.Document(parsing: MarkdownBareDomains(normalized).linkified())
+    var builder = MarkdownBlockBuilder(baseURL: baseURL)
+    blocks = document.children.map { builder.block($0) }
+  }
+}
+
+private struct MarkdownBlockBuilder {
+  let baseURL: URL?
+  var nextID = 0
+
+  mutating func block(_ node: any Markup, kind override: PresentationIntent.Kind? = nil) -> MessageMarkdownBlock {
+    nextID += 1
+    var result = MessageMarkdownBlock(id: nextID, kind: override ?? kind(node))
+    if let code = node as? CodeBlock {
+      result.text = AttributedString(code.code)
+    } else if let table = node as? Markdown.Table {
+      result.children = [block(table.head, kind: .tableHeaderRow)]
+      result.children += table.body.children.enumerated().map { index, row in
+        block(row, kind: .tableRow(rowIndex: index + 1))
       }
-      // SwiftUI receives inline attributes only; block layout belongs to the
-      // surrounding view. Never allow a message link to launch a local URL scheme.
-      text.presentationIntent = nil
-      if let url = text.link, !Self.isSafeLink(url) {
-        text.link = nil
+    } else if node is Markdown.Table.Head || node is Markdown.Table.Row {
+      result.children = node.children.enumerated().map { index, cell in
+        block(cell, kind: .tableCell(columnIndex: index))
       }
-      let path = run.presentationIntent?.components.reversed().map(\.self)
-        ?? PresentationIntent(.paragraph, identity: -1).components
-      root.append(text, path: path[...])
+    } else if node is OrderedList || node is UnorderedList {
+      let start = Int((node as? OrderedList)?.startIndex ?? 1)
+      result.children = node.children.enumerated().map { index, item in
+        block(item, kind: .listItem(ordinal: start + index))
+      }
+    } else if node is ListItem || node is BlockQuote {
+      result.children = node.children.map { block($0) }
+      if let checkbox = (node as? ListItem)?.checkbox {
+        result.taskChecked = checkbox == .checked
+      }
+    } else {
+      result.text = MessageInlineHTML.applying(to: inline(node))
     }
-    root.recognizeTasks(lines: source.components(separatedBy: "\n"))
-    blocks = root.children
+    return result
   }
 
-  private static func isSafeLink(_ url: URL) -> Bool {
-    guard let scheme = url.scheme else { return true }
-    return ["http", "https", "mailto", "irc", "ircs", "xmpp"].contains(scheme.lowercased())
+  private func kind(_ node: any Markup) -> PresentationIntent.Kind {
+    switch node {
+    case let heading as Heading: .header(level: heading.level)
+    case let code as CodeBlock: .codeBlock(languageHint: code.language)
+    case is OrderedList: .orderedList
+    case is UnorderedList: .unorderedList
+    case is BlockQuote: .blockQuote
+    case is ThematicBreak: .thematicBreak
+    case let table as Markdown.Table:
+      .table(columns: table.columnAlignments.map { .init(alignment: alignment($0)) })
+    default: .paragraph
+    }
+  }
+
+  private func alignment(_ value: Markdown.Table.ColumnAlignment?) -> PresentationIntent.TableColumn.Alignment {
+    switch value {
+    case .center: .center
+    case .right: .right
+    default: .left
+    }
+  }
+
+  private func inline(_ node: any Markup) -> AttributedString {
+    if let text = node as? Markdown.Text {
+      return AttributedString(text.string)
+    }
+    if node is SoftBreak || node is LineBreak {
+      return AttributedString("\n")
+    }
+    if let html = node as? InlineHTML {
+      var text = AttributedString(html.rawHTML)
+      text.inlinePresentationIntent = .inlineHTML
+      text[MessageHTMLTokenAttribute.self] = node.indexInParent
+      return text
+    }
+    if let html = node as? HTMLBlock {
+      return AttributedString(html.rawHTML)
+    }
+    if let code = node as? InlineCode {
+      var text = AttributedString(code.code)
+      text.inlinePresentationIntent = .code
+      return text
+    }
+    var result = node.children.reduce(into: AttributedString()) { $0.append(inline($1)) }
+    let intent = inlineIntent(node)
+    if !intent.isEmpty {
+      for run in result.runs {
+        result[run.range].inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(intent)
+      }
+    }
+    if let link = node as? Markdown.Link, let destination = link.destination,
+       let url = URL(string: destination, relativeTo: baseURL)?.absoluteURL,
+       url.scheme == nil || ["http", "https", "mailto", "irc", "ircs", "xmpp"].contains(url.scheme?.lowercased() ?? "") {
+      result.link = url
+    }
+    return result
+  }
+
+  private func inlineIntent(_ node: any Markup) -> InlinePresentationIntent {
+    switch node {
+    case is Strong: .stronglyEmphasized
+    case is Emphasis: .emphasized
+    case is Strikethrough: .strikethrough
+    default: []
+    }
   }
 }

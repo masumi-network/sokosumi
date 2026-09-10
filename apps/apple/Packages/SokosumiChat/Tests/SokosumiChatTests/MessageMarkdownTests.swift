@@ -61,8 +61,21 @@ struct MessageMarkdownTests {
     #expect(table.kind == .table(columns: [.init(alignment: .left), .init(alignment: .right)]))
     #expect(table.children.map(\.kind) == [.tableHeaderRow, .tableRow(rowIndex: 1)])
     let row = try #require(table.children.last)
-    // Empty cells have no runs; their column indexes must not shift.
-    #expect(row.children.map(\.kind) == [.tableCell(columnIndex: 1)])
+    // Empty cells remain explicit nodes; their column indexes must not shift.
+    #expect(row.children.map(\.kind) == [.tableCell(columnIndex: 0), .tableCell(columnIndex: 1)])
+  }
+
+  @Test func preservesEmptyBlocksInRenderedModel() throws {
+    let result = MessageMarkdown("before\n\n```swift\n```\n\nafter")
+    #expect(result.blocks.map(\.kind) == [.paragraph, .codeBlock(languageHint: "swift"), .paragraph])
+    #expect(result.blocks[1].text.characters.isEmpty)
+    let table = try #require(MessageMarkdown("| | |\n|---|---|\n| | |\n| x | y |\n| | |").blocks.first)
+    #expect(table.children.count == 4)
+    #expect(table.children.allSatisfy { $0.children.count == 2 })
+    for index in [0, 1, 3] {
+      let allCellsEmpty = table.children[index].children.allSatisfy(\.text.characters.isEmpty)
+      #expect(allCellsEmpty)
+    }
   }
 
   @Test func linksKeepLabelsButRejectExecutableSchemes() throws {

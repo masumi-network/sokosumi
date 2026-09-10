@@ -41,6 +41,7 @@ let package = Package(
     .target(
       name: "SokosumiChat",
       dependencies: [
+        .product(name: "Markdown", package: "swift-markdown"),
         .product(name: "TreeSitterHTML", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterHTMLQueries", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterTOML", package: "TreeSitterLanguages"),
@@ -102,7 +103,7 @@ let package = Package(
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")
       ],
-      resources: [.copy("Resources/Emoji"), .copy("Resources/GrammarDependencies"), .copy("Resources/HighlightQueries")]
+      resources: [.copy("Resources/Emoji"), .copy("Resources/GrammarDependencies"), .copy("Resources/ParserLicenses"), .copy("Resources/HighlightQueries")]
     ),
     .testTarget(
       name: "SokosumiChatTests",
