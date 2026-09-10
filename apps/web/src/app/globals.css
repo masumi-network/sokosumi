@@ -906,3 +906,134 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
     color: var(--foreground);
   }
 }
+
+/* Chat jump highlight — a search hit, notification deep link, or reply jump
+   landed on this message. Keep the hold in sync with ROOM_MESSAGE_HIGHLIGHT_MS
+   in apps/web/src/app/(app)/chat/components/room-helpers.ts. */
+[data-message-id][data-search-landed="true"] {
+  --chat-jump-hold: 2500ms;
+  /* Dark runs stronger: a light primary over a 4% ground lifts far less than
+     the same mix of a saturated primary over white. */
+  --chat-jump-wash-lead: 16%;
+  --chat-jump-wash-mid: 11%;
+  --chat-jump-wash-edge: 10%;
+}
+
+.dark [data-message-id][data-search-landed="true"] {
+  --chat-jump-wash-lead: 26%;
+  --chat-jump-wash-mid: 20%;
+  --chat-jump-wash-edge: 18%;
+}
+
+/* Wash: tint holds its strength all the way to the right edge so a wide row
+   stays marked instead of trailing off. Opens from the centre. */
+[data-message-id][data-search-landed="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    color-mix(in oklch, var(--primary) var(--chat-jump-wash-lead), transparent)
+      0%,
+    color-mix(in oklch, var(--primary) var(--chat-jump-wash-mid), transparent)
+      45%,
+    color-mix(in oklch, var(--primary) var(--chat-jump-wash-edge), transparent)
+      100%
+  );
+  animation: chat-jump-wash var(--chat-jump-hold) ease-out forwards;
+}
+
+/* Rail: marks where the row starts. */
+[data-message-id][data-search-landed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 0.1875rem;
+  bottom: 0.1875rem;
+  left: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--primary);
+  pointer-events: none;
+  animation: chat-jump-rail var(--chat-jump-hold) ease-out forwards;
+}
+
+/* Spotlight: the rest of the transcript steps back while the hold lasts. It
+   runs on the same timeline as the mark, so the dim never outlives it. */
+[data-chat-message-list]:has([data-search-landed="true"])
+[data-message-id]:not([data-search-landed="true"]) {
+  animation: chat-jump-dim var(--chat-jump-hold, 2500ms) ease-out forwards;
+}
+
+@keyframes chat-jump-wash {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.55);
+  }
+  10% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  76% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes chat-jump-dim {
+  0% {
+    opacity: 1;
+  }
+  10% {
+    opacity: 0.75;
+  }
+  76% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes chat-jump-rail {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.15);
+  }
+  10% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  76% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+/* Reduced motion: hold the mark steady, then drop it. No wipe, no fade, and
+   no spotlight — dimming the surrounding text would take it under the contrast
+   floor for the whole hold, which the rail and wash already do without. */
+@media (prefers-reduced-motion: reduce) {
+  [data-message-id][data-search-landed="true"]::before,
+  [data-message-id][data-search-landed="true"]::after {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-chat-message-list]:has([data-search-landed="true"])
+    [data-message-id]:not([data-search-landed="true"]) {
+    animation: none;
+    opacity: 1;
+  }
+}
