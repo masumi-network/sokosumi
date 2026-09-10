@@ -36,6 +36,11 @@ export const CHAT_MENTION_ALL_KEY = "all";
  * The room-wide `all` is a key like any other here. It names no member, so a
  * lookup finds nothing for it and the preview keeps the slug it was written
  * with.
+ *
+ * A uuid is written in either case and stored in one, so a key comes back
+ * lowercased. A caller looks a member up by it and the preview looks the
+ * answer up the same way, which is what keeps `@019FC7E4-…` a name rather
+ * than a miss.
  */
 export function readChatMentionKeys(content: string): string[] {
   const keys = new Set<string>();
@@ -43,12 +48,25 @@ export function readChatMentionKeys(content: string): string[] {
   for (const match of content.matchAll(MENTION_TOKEN_REGEX)) {
     const key = match[1];
     if (key) {
-      keys.add(key);
+      keys.add(key.toLowerCase());
     }
   }
 
   return [...keys];
 }
+
+/**
+ * What stands in for a mention while the rest of the body is cleaned.
+ *
+ * NUL is the one character a message body cannot carry: Postgres rejects it in
+ * text, so no writer can spell a marker of their own. The markdown clean and
+ * the whitespace collapse both leave it alone, which is what lets a name go in
+ * after them and keep the punctuation the person spells it with.
+ */
+const MENTION_MARKER = "\u0000";
+
+/** A marker and the mention it stands for, as written above. */
+const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
 
 /** The `!` of `![alt](url)`, which the link scan leaves behind on its own. */
 const MARKDOWN_IMAGE_BANG_REGEX = /!(?=\[[^\][]*\]\()/g;
@@ -279,22 +297,43 @@ export function buildChatMessagePreview(
   const withoutCode = content
     .replace(MARKDOWN_FENCED_BLOCK_REGEX, " ")
     .replace(FENCE_DELIMITER_LINE_REGEX, "");
+  // A name is a person's to spell, and the markdown clean below takes
+  // `* _ ~ > #` out of whatever it is handed. So each mention leaves a marker
+  // here and the name goes in after the clean, which is what keeps `R_D` from
+  // reading as `RD` on a banner. A marker is built from NUL, a byte Postgres
+  // will not store in a message body, so no message can write one itself.
+  const labels: string[] = [];
   const readable = stripTags(withoutCode)
     .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
     .replace(BACKTICK_RUN_REGEX, "`")
     .replace(MENTION_TOKEN_REGEX, (_match, key: string, slug: string) => {
+      // Looked up lowercased, the case `readChatMentionKeys` hands a caller.
+      // A uuid is written in either case, and a key that missed the map for
+      // its case would put the id itself back on the banner.
+      const lookupKey = key.toLowerCase();
       // `all` is a word rather than an id, so it stands in for its own slug
       // and a reader loses nothing when the token carries none. Every other
       // key is a uuid, which says nothing to anyone, so a token left with no
       // name and no slug says less by saying nothing.
       const label =
-        mentionNames?.get(key) ??
-        (slug || (key === CHAT_MENTION_ALL_KEY ? key : ""));
+        mentionNames?.get(lookupKey) ??
+        (slug || (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : ""));
 
-      return label ? `@${label}` : "";
+      labels.push(label ? `@${label}` : "");
+
+      return `${MENTION_MARKER}${labels.length - 1}${MENTION_MARKER}`;
     });
 
   const oneLine = cleanChatMessageText(readable).replace(/\s+/g, " ").trim();
+  // The names go in last, and the line is closed up again: a mention that
+  // stands for nobody leaves the space its marker sat in, and a preview cut
+  // to length has to count the names it shows rather than the markers.
+  const named = oneLine
+    .replace(MENTION_MARKER_REGEX, (_match, index: string) => {
+      return labels[Number(index)] ?? "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
 
-  return capPreview(oneLine);
+  return capPreview(named);
 }

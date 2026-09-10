@@ -36,6 +36,8 @@ export interface ThreadListPanelLabels {
 
 interface ThreadListPanelProps {
   roomId: string;
+  /** Display names by member id, so a mention in a row reads as a name. */
+  mentionNames?: ReadonlyMap<string, string>;
   labels: ThreadListPanelLabels;
   onOpenThread: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
   onClose: () => void;
@@ -44,6 +46,7 @@ interface ThreadListPanelProps {
 
 export function ThreadListPanel({
   roomId,
+  mentionNames,
   labels,
   onOpenThread,
   onClose,
@@ -220,8 +223,10 @@ export function ThreadListPanel({
           const sender = messageSender(item.parentMessage);
           const lastAt = item.lastReplyAt;
           const preview =
-            formatUnreadThreadsPreview(item.parentMessage.content) ||
-            sender.name;
+            formatUnreadThreadsPreview(
+              item.parentMessage.content,
+              mentionNames,
+            ) || sender.name;
           const isUnread = threadNeedsOverviewUnread(item);
           const unreadReplyLabelCount = threadOverviewUnreadReplyCount(item);
           return (

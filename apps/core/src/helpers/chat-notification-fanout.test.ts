@@ -815,6 +815,58 @@ describe("rewriteChatNotificationPreviews", () => {
     });
   });
 
+  /**
+   * Every row of one message shows the same preview, so the members it
+   * mentions are read once for the sweep rather than once per reader.
+   */
+  it("reads the mentioned members once for a message, not once per row", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      storedRow(BASE),
+      storedRow(BASE),
+      storedRow(BASE),
+    ]);
+    loadChatMentionNamesMock.mockResolvedValue(
+      new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+    );
+
+    messageSays("@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping");
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledTimes(1);
+    expect(paramsWrittenTo(2)).toEqual({
+      authorName: "Ada",
+      roomName: "general",
+      messagePreview: "@Ada Lovelace ping",
+    });
+  });
+
+  /** An edit landing mid-sweep is a different body, so it is read again. */
+  it("reads the members again when the message changes mid-sweep", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      storedRow(BASE),
+      storedRow(BASE),
+    ]);
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        deletedAt: null,
+        content: "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping",
+      })
+      .mockResolvedValue({
+        deletedAt: null,
+        content: "@019fc7e4-e4bd-7005-900c-66e44d33f5e5:ben-green ping",
+      });
+
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledTimes(2);
+  });
+
   it("puts what the message now says on the row when it is edited", async () => {
     notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
 

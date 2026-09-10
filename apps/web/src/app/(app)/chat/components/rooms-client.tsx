@@ -1178,6 +1178,24 @@ export function RoomsClient({
       ]),
     );
   }, [selectedRoom]);
+  /**
+   * The display name of every member of this room, by the id a mention token
+   * carries. A thread row reads a message body the same way a banner does, so
+   * it names the members the same way too.
+   */
+  const roomMentionNames = useMemo(() => {
+    return new Map<string, string>([
+      ...(selectedRoom?.userMembers ?? []).map(
+        (user) => [user.id, user.name] as const,
+      ),
+      ...(selectedRoom?.coworkerMembers ?? []).map(
+        (coworker) => [coworker.id, coworker.name] as const,
+      ),
+      ...(selectedRoom?.sokoBotMembers ?? []).map(
+        (sokoBot) => [sokoBot.id, sokoBot.name] as const,
+      ),
+    ]);
+  }, [selectedRoom]);
   const usersById = useMemo(() => {
     return new Map(
       (selectedRoom?.userMembers ?? []).map((user) => [user.id, user]),
@@ -2637,6 +2655,7 @@ export function RoomsClient({
             ) : threadListOpen ? (
               <ThreadListPanel
                 roomId={selectedRoom.id}
+                mentionNames={roomMentionNames}
                 onOpenThread={handleOpenThreadFromList}
                 onClose={() => {
                   setThreadListOpen(false);

@@ -14,6 +14,13 @@ describe("readChatMentionKeys", () => {
     ).toEqual(["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "all"]);
   });
 
+  /** A uuid is stored lowercased, so a key is looked up that way. */
+  it("reads a key written in capitals as the id it stands for", () => {
+    expect(
+      readChatMentionKeys("@019FC7E4-E4BD-7005-900C-66E44D33F5E4:Ada hi"),
+    ).toEqual(["019fc7e4-e4bd-7005-900c-66e44d33f5e4"]);
+  });
+
   it("reads the key of a mention whose slug is empty", () => {
     expect(
       readChatMentionKeys("@019fc7e4-e4bd-7005-900c-66e44d33f5e4: hi"),
@@ -66,6 +73,28 @@ describe("buildChatMessagePreview", () => {
         new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "あかり"]]),
       ),
     ).toBe("@あかり できますか");
+  });
+
+  /**
+   * The markdown clean takes `* _ ~ > #` out of what it is handed, and a name
+   * is a person's to spell. So the name goes in after the clean.
+   */
+  it("keeps the punctuation a member spells their name with", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:c-r-d ping",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "C# R_D"]]),
+      ),
+    ).toBe("@C# R_D ping");
+  });
+
+  /** The words around a dropped mention still read as one line. */
+  it("closes the line up around a mention it drops", () => {
+    expect(
+      buildChatMessagePreview(
+        "before @019fc7e4-e4bd-7005-900c-66e44d33f5e4: after",
+      ),
+    ).toBe("before after");
   });
 
   it("drops a mention that has neither a name nor a slug", () => {
@@ -127,6 +156,16 @@ describe("buildChatMessagePreview", () => {
         "@019FC7E4-E4BD-7005-900C-66E44D33F5E4:Ada can you take this one",
       ),
     ).toBe("@Ada can you take this one");
+  });
+
+  /** The id is stored lowercased, and the token is not always written so. */
+  it("names a member whose key is written in capitals", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019FC7E4-E4BD-7005-900C-66E44D33F5E4:ada-lovelace hi",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("@Ada Lovelace hi");
   });
 
   /**

@@ -440,10 +440,46 @@ interface PreviewMessageSource {
 
 const PREVIEW_TRANSACTION_ATTEMPTS = 3;
 
+/**
+ * The names one sweep has already read, kept by the body they were read for.
+ *
+ * Every row of a message carries the same preview, so the members it mentions
+ * are the same members for each of them. Reading them per row would put three
+ * more queries inside every recipient's transaction, and a room-wide sweep
+ * would pay them once per reader for one message.
+ *
+ * Keyed by the body, because a row locks and rereads the message: an edit that
+ * lands mid-sweep gives the rows after it a different body, and that body gets
+ * its own read.
+ */
+type MentionNamesBySource = Map<string, ReadonlyMap<string, string>>;
+
+async function mentionNamesFor(
+  cache: MentionNamesBySource,
+  source: PreviewMessageSource,
+  content: string,
+  tx: Prisma.TransactionClient,
+): Promise<ReadonlyMap<string, string>> {
+  const known = cache.get(content);
+  if (known) {
+    return known;
+  }
+
+  const names = await loadChatMentionNames({
+    roomId: source.roomId,
+    content,
+    client: tx,
+  });
+  cache.set(content, names);
+
+  return names;
+}
+
 /** Lock and reread the message for one recipient, including on each retry. */
 async function rewriteRowFromMessage(
   row: RewritableRow,
   source: PreviewMessageSource,
+  names: MentionNamesBySource,
 ): Promise<void> {
   for (let attempt = 0; attempt < PREVIEW_TRANSACTION_ATTEMPTS; attempt += 1) {
     try {
@@ -464,11 +500,7 @@ async function rewriteRowFromMessage(
           message === null || message.deletedAt !== null ? "" : message.content;
         const preview = buildChatMessagePreview(
           content,
-          await loadChatMentionNames({
-            roomId: source.roomId,
-            content,
-            client: tx,
-          }),
+          await mentionNamesFor(names, source, content, tx),
         );
         await rewriteRow(row, source.messageId, preview, tx);
       });
@@ -509,9 +541,10 @@ export async function rewriteChatNotificationPreviews(
       select: { id: true, messageParams: true, metadata: true },
       orderBy: { id: "asc" },
     });
+    const names: MentionNamesBySource = new Map();
     for (const row of rows) {
       try {
-        await rewriteRowFromMessage(row, params);
+        await rewriteRowFromMessage(row, params, names);
       } catch (error) {
         Sentry.captureException(error, {
           extra: {
