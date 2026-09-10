@@ -100,7 +100,7 @@ T21|x|custom vault scope → lowercase hex byte encoding; Windows case-fold test
 T22|x|resource request → preflight API-key target check|V31
 T23|x|configured API target → key-prefix inference precedence|V30
 T24|x|TUI hosted target → explicit API URL override|V32
-T25|~|preprod live OAuth smoke: fresh authorization-code exchange → token; compare mainnet/preprod|V37,I
+T25|x|preprod live OAuth smoke: fresh authorization-code exchange → token; compare mainnet/preprod|V37,I
 
 ## §B BUGS
 
@@ -124,4 +124,4 @@ B16|2026-09-09|TUI hosted target selection rebuilt config without carrying expli
 B17|2026-09-10|release version changed manifest but binary test hardcoded prior version|V35
 B18|2026-09-10|generic mock callbacks omitted parameter annotations ∴ CLI typecheck failed|-
 B19|2026-09-10|VERIFIED manifest omission: package omits local `apps/cli/.env` ∴ unregistered `sokosumi_cli` fallback; REPORTED user error: old published bundle used `https://app.sokosumi.com/api/auth`, not Core auth base|V36
-B20|2026-09-10|REPORTED worker evidence: preprod metadata + authorize passed; fake code → 400 `invalid_grant`; exact local cmd `env -u SOKOSUMI_API_URL -u SOKOSUMI_AUTH_URL -u SOKOSUMI_OAUTH_CLIENT_ID -u SOKOSUMI_MAINNET_OAUTH_CLIENT_ID -u SOKOSUMI_PREPROD_OAUTH_CLIENT_ID -u SOKOSUMI_OAUTH_CLIENT_SECRET -u SOKOSUMI_API_KEY node apps/cli/dist/bin/sokosumi.js auth login --preprod --json --oauth-timeout-ms 180000` → OAuth token request failed with status 500; no fresh credentials/successful exchange; server DB/config cause undetermined; mainnet OAuth succeeds per user report; pnpm warning repaired but no post-install OAuth retry recorded; Core issue SOK-1040 tracks unknown server cause|V37
+B20|2026-09-10|REPORTED worker evidence: preprod metadata + authorize passed; fake code → 400 `invalid_grant`; exact local cmd `env -u SOKOSUMI_API_URL -u SOKOSUMI_AUTH_URL -u SOKOSUMI_OAUTH_CLIENT_ID -u SOKOSUMI_MAINNET_OAUTH_CLIENT_ID -u SOKOSUMI_PREPROD_OAUTH_CLIENT_ID -u SOKOSUMI_OAUTH_CLIENT_SECRET -u SOKOSUMI_API_KEY node apps/cli/dist/bin/sokosumi.js auth login --preprod --json --oauth-timeout-ms 180000` → OAuth token request failed with status 500; user reports wrong preprod `BETTER_AUTH_SECRET` caused JWK token verification failure, followed by successful preprod OAuth exchange; mainnet OAuth succeeds per user report; Core issue SOK-1040 tracks reported cause|V37

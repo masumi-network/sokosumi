@@ -32,7 +32,7 @@
 - REPORTED: The sibling advisor recommends one canonical `apps/cli` source, non-secret home preferences, and OS-vault secrets. The recommendation cites `apps/cli/SPEC.md`, `apps/cli/src/auth/secure-store.ts`, and the sibling `src/utils/env.mjs`.
 - INFERRED: A standard-library `.env` parser is sufficient for the small set of CLI configuration keys and avoids adding a dependency for one file format.
 - VERIFIED: Packaged CLI cannot depend on local `apps/cli/.env`; hosted defaults are registered target IDs (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) and hosted auth derives from selected Core API URL + `/auth`.
-- REPORTED: User reports mainnet CLI OAuth succeeds; preprod browser sign-in reaches token exchange then CLI reports exactly `OAuth token request failed with status 500`; `pnpm install --frozen-lockfile` rerun after final rebase passed and prior out-of-sync warning did not appear; no post-install OAuth retry recorded, so dependency drift not fully excluded; SOK-1040 tracks standalone Core preprod OAuth token exchange HTTP 500, while SOK-949 (CLI OAuth) and SOK-948 (first-party OAuth client provisioning) remain In Review.
+- REPORTED: User reports both mainnet and preprod CLI OAuth succeed, including successful preprod authorization-code token exchange after fixing wrong preprod `BETTER_AUTH_SECRET` that caused JWK token verification failure. Cause and fix are not independently verified in this repository; SOK-1040 tracks the reported Core issue.
 
 ## File Map
 
@@ -223,10 +223,10 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] PTY smoke with a local fixture API: API-key selector, signed-in Agents list, Agent detail, Esc back, and q exit.
 - [x] Confirm no CLI source imports `@sokosumi/database` or writes secrets to `~/.sokosumi/config.json`.
 - [x] Confirm the sibling repository has no product-source edits.
-- [ ] Live hosted OAuth gate: mainnet pass reported; preprod token exchange currently 500; SOK-1040/Core investigation + SPEC §V37 remain open.
+- [x] Live hosted OAuth gate: `REPORTED` user check says mainnet and preprod OAuth succeed, including preprod token exchange after fixing wrong preprod `BETTER_AUTH_SECRET` that caused JWK token verification failure; cause and fix are not independently verified here.
 
 ## Least confident decisions
 
 1. The standard-library `.env` parser may need one additional escaping rule if real deployment files use multiline or export-prefixed values.
 2. Resource views remain read-only. Input-request submission stays headless until a tested interactive flow exists.
-3. Registered hosted clients `GxmewjdHVAaqUEglxWdyCqVFvnTASycj` (mainnet) and `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` (preprod) plus hourly repair route must run in both hosted environments before the published CLI relies on built-in defaults. Live hosted OAuth gate remains open pending SOK-1040 Core investigation.
+3. Registered hosted clients `GxmewjdHVAaqUEglxWdyCqVFvnTASycj` (mainnet) and `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` (preprod) plus hourly repair route must run in both hosted environments before the published CLI relies on built-in defaults. Live hosted OAuth gate complete from user report; cause reported as wrong preprod `BETTER_AUTH_SECRET` causing JWK verification failure, but not independently verified in this repository.
