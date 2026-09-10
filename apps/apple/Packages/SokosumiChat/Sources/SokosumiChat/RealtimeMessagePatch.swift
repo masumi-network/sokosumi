@@ -22,16 +22,17 @@ public struct RealtimeMessagePatch: Sendable {
   }
 }
 
-/// Missing IDs and replies stay absent from the room timeline. Reply routing
-/// belongs to the thread slice; the field values use the generated Core DTOs.
+/// Missing IDs and rows outside the requested parent scope stay absent.
+/// Field values use the generated Core DTOs.
 public func applyRealtimePatch(
   _ patch: RealtimeMessagePatch,
-  messages: [Components.Schemas.ChatRoomMessage]
+  messages: [Components.Schemas.ChatRoomMessage],
+  parentMessageId: String? = nil
 ) -> [Components.Schemas.ChatRoomMessage] {
-  guard patch.parentMessageId == nil else { return messages }
+  guard patch.parentMessageId == parentMessageId else { return messages }
   return messages.map { existing in
     guard existing.id == patch.messageId, existing.roomId == patch.roomId,
-          existing.parentMessageId == nil else { return existing }
+          existing.parentMessageId == parentMessageId else { return existing }
     var updated = existing
     switch patch.value {
     case let .reactions(values): updated.reactions = values
