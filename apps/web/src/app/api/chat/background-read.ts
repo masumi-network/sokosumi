@@ -53,8 +53,13 @@ export async function respondToBackgroundChatRead(
   } catch (error) {
     // Core's server client may throw a sign-in redirect. A background read
     // must return a failed response, never sign-in HTML as successful data.
+    //
+    // A `CoreApiRequestError` with no status never reached Core at all: a
+    // timeout or a dropped connection. That is the same retriable stall as the
+    // session read above, so it answers 503. An answered failure keeps its own
+    // status, and anything else thrown here stays 502.
     const status =
-      error instanceof CoreApiRequestError && error.status ? error.status : 502;
+      error instanceof CoreApiRequestError ? error.status || 503 : 502;
     return NextResponse.json({ error: unavailableMessage }, { status });
   }
 }
