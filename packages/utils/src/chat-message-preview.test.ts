@@ -130,15 +130,50 @@ describe("buildChatMessagePreview", () => {
   });
 
   /**
-   * A slug is a name as well, and the markdown clean takes `_` out of what it
-   * is handed. So the slug is kept as the composer spelled it.
+   * A slug stands in for a name the lookup does not carry. The markdown clean
+   * takes `_` out of what it is handed, and a slug is an ascii rewrite of a
+   * name already, so it says `adalovelace`. The rest of it stays.
    */
-  it("keeps the punctuation of a slug that stands in for a name", () => {
+  it("says the slug when a name is missing", () => {
     expect(
       buildChatMessagePreview(
         "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada_lovelace hi",
       ),
-    ).toBe("@ada_lovelace hi");
+    ).toBe("@adalovelace hi");
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace hi",
+      ),
+    ).toBe("@ada-lovelace hi");
+  });
+
+  /**
+   * One member can be mentioned twice, spelled two ways. Each mention says
+   * what its own slug says, and an empty slug says nothing about the next.
+   */
+  it("keeps the spelling of each mention of one member", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:bob hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+      ),
+    ).toBe("@bob hi @ada");
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: and @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada ok",
+      ),
+    ).toBe("hi and @ada ok");
+  });
+
+  /**
+   * A slug the room never shows is not a name. The clean drops a link
+   * destination whole, so the mention that survives keeps its own slug.
+   */
+  it("reads no slug out of a link destination", () => {
+    expect(
+      buildChatMessagePreview(
+        "[docs](https://e.test/@019fc7e4-e4bd-7005-900c-66e44d33f5e4:call_555_0100_now) hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+      ),
+    ).toBe("docs hi @ada");
   });
 
   /** An empty name is no name, so the slug is what is left to say who. */

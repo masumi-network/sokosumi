@@ -404,20 +404,6 @@ export function buildChatMessagePreview(
     .replace(BACKTICK_RUN_REGEX, "`");
   const readable = cleanChatMessageText(withoutMarkup);
 
-  // A slug is a name too, rewritten to lowercase ascii words, and the clean
-  // takes `_` out of whatever it is handed. So the slug of each key is kept
-  // as the composer spelled it, which is what stands in for a member the
-  // lookup does not name: `@ada_lovelace` rather than `@adalovelace`.
-  const spelledSlugs = new Map<string, string>();
-
-  for (const token of withoutMarkup.matchAll(MENTION_TOKEN_REGEX)) {
-    const key = (token[1] ?? "").toLowerCase();
-
-    if (!spelledSlugs.has(key)) {
-      spelledSlugs.set(key, token[2] ?? "");
-    }
-  }
-
   // The names go in after that clean. A name is a person's to spell and the
   // clean takes `* _ ~ > #` out of whatever it is handed, which is what would
   // make `R_D` read as `RD` on a banner.
@@ -442,14 +428,13 @@ export function buildChatMessagePreview(
     writePiece(withoutAddresses(readable.slice(read, token.index)), false);
     const key = token[1] ?? "";
 
-    writePiece(
-      whoAMentionNames(
-        key,
-        spelledSlugs.get(key.toLowerCase()) ?? token[2] ?? "",
-        mentionNames,
-      ),
-      true,
-    );
+    // The slug is read from the cleaned text, so the clean takes `_` out of it
+    // as well: `ada_lovelace` says `adalovelace`. That is a slug already, an
+    // ascii rewrite of a name, and it is only read when the lookup names
+    // nobody. Reading it from the text before the clean instead would let a
+    // slug the room never shows, in a link destination the clean drops, stand
+    // in for the mention beside it.
+    writePiece(whoAMentionNames(key, token[2] ?? "", mentionNames), true);
     read = token.index + token[0].length;
   }
 
