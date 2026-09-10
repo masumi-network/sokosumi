@@ -97,7 +97,9 @@ import SwiftUI
                 .padding(.horizontal, 12)
             }
             if let error = workspaces.directStream.errorMessage {
-              inlineError(error).padding(.horizontal, 12)
+              Text(error)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
             }
             let messages = workspaces.displayedTranscript
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -292,8 +294,7 @@ import SwiftUI
       .padding(8)
       .onChange(of: workspaces.directStream.restoredDraft) { _, text in
         guard parentMessageId == nil, let text, !text.isEmpty else { return }
-        draft = text
-        savedDraft.save(text)
+        draft = savedDraft.restoreFailedSend(text, preserving: draft)
         Task { @MainActor in
           workspaces.directStream.consumeRestoredDraft()
         }

@@ -25,6 +25,13 @@ public struct SavedComposeDraft {
     defaults.string(forKey: key) ?? ""
   }
 
+  /// Retain text entered after sending when the earlier request fails.
+  public func restoreFailedSend(_ text: String, preserving current: String) -> String {
+    let restored = current.isEmpty ? text : text + "\n\n" + current
+    save(restored)
+    return restored
+  }
+
   public func save(_ text: String) {
     if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
       defaults.removeObject(forKey: key)

@@ -2,9 +2,9 @@
 
 ## Resume checkpoint
 
-- Current slice: **09a — coworker streaming in Directs**, branch `codex/apple-direct-streaming`. Implementation and local verification complete; draft [PR #4352](https://github.com/masumi-network/sokosumi/pull/4352) awaits CI/review and human merge.
+- Current slice: **09a — coworker streaming in Directs**, branch `codex/apple-direct-streaming`. [PR #4352](https://github.com/masumi-network/sokosumi/pull/4352) is ready for review. Apple CI passed on `8406722ff`; review follow-ups are being verified on the current head before human merge.
 - Slice 08 merged in [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340). Apple CI passed on final head `94c416caf`, including review fixes 1–5. Remaining review nits and the hidden-room read product question were not changed.
-- Next: open/review the 09a PR and wait for human merge. Do not start 09b before 09a merges.
+- Next: address review feedback on the 09a PR and wait for human merge. Do not start 09b before 09a merges.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ## Scope and audit baseline
@@ -401,3 +401,9 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Settlement succeeds only when latest history actually applied. Older pages stay blocked while the Direct stream is busy. Overlay merge hides the newest matching persisted coworker row, so mark-read cannot flash a duplicate assistant bubble.
 - Parent-root envelopes still request a room refresh while streaming when a thread is open. Competing room full merges stay skipped.
 - Live Thinking shows the latest reasoning beat expanded (clamped) before answer text. The 10 Hz elapsed clock is hidden from VoiceOver.
+
+### Slice 09a minor review follow-up (2026-09-10)
+
+- Stream errors show status text without the unrelated history Retry action. Bot-member eligibility and a 200 resume before its first event now have regression coverage.
+- Failed-send restoration retains newly typed composer text after the restored message, separated by a blank line, and persists both.
+- Verification: 169 Chat tests, Xcode app tests, iOS 17 package build, strict SwiftLint, SwiftFormat and diff checks passed. Logs: `/tmp/review4352-followup-{tests,app,ios,lint,format}.log`. PR #4352 remains ready for review; the follow-up commit requires fresh CI and human merge.

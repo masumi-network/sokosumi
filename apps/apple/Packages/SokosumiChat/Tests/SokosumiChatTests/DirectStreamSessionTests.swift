@@ -1,5 +1,7 @@
 import CoreAPI
 import Foundation
+import HTTPTypes
+import OpenAPIRuntime
 @testable import SokosumiChat
 import Testing
 
@@ -40,6 +42,25 @@ struct DirectStreamSessionTests {
     await session.task?.value
     #expect(session.overlayMessages.isEmpty)
     #expect(!session.isBusy)
+  }
+
+  @Test func activeResumeShowsThinkingBeforeFirstEvent() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let body = HTTPBody(AsyncStream<ArraySlice<UInt8>>(unfolding: {
+      await MainActor.run {
+        #expect(session.phase == .streaming)
+        #expect(session.overlayMessages.map(\.id) == ["stream:resume-pending"])
+        #expect(session.overlayMessages.first?.content.isEmpty == true)
+      }
+      return nil
+    }), length: .unknown, iterationBehavior: .single)
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ResumeTransport(body: body))
+    session.resume(client: client, organizationSlug: nil, settled: { true }, failed: { _ in })
+    await session.task?.value
+    // Closing without events is a truncated stream; successful reconciliation removes its shell.
+    #expect(session.errorMessage != nil)
+    #expect(session.overlayMessages.isEmpty)
   }
 
   @Test(arguments: [false, true])
@@ -115,6 +136,9 @@ struct DirectStreamSessionTests {
   @Test func onlyCoworkerOneToOneDirectsUseStream() {
     var candidate = room()
     #expect(DirectStreamSession.supports(candidate))
+    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", presence: .online)]
+    #expect(!DirectStreamSession.supports(candidate))
+    candidate.sokoBotMembers = []
     candidate.kind = .channel
     #expect(!DirectStreamSession.supports(candidate))
     candidate.kind = .direct
@@ -183,5 +207,14 @@ struct DirectStreamSessionTests {
     #expect(session.restoredDraft == "Hello")
     #expect(session.errorMessage != nil)
     #expect(!session.isBusy)
+  }
+}
+
+private struct ResumeTransport: ClientTransport {
+  let body: HTTPBody
+
+  func send(_: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID: String) async throws -> (HTTPResponse, HTTPBody?) {
+    #expect(operationID == "get/chats/rooms/{id}/stream/active")
+    return (HTTPResponse(status: .ok), body)
   }
 }
