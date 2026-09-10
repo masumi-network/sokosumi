@@ -90,6 +90,7 @@ interface ChatRoomMessageReaders {
   roomId: string;
   authorUserId: string | null;
   memberUserIds?: readonly string[];
+  excludedUserIds?: readonly string[];
 }
 
 async function getMemberUserIds(
@@ -117,7 +118,9 @@ export async function invalidateChatRoomMessageReaders(
     ];
     if (userIds.length === 0) return;
     await publishChatRoomsChanged({
-      userIds,
+      userIds: userIds.filter(
+        (userId) => !params.excludedUserIds?.includes(userId),
+      ),
       collections: ["active"],
       roomId: params.roomId,
     });

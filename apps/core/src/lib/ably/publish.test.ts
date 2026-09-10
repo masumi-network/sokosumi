@@ -17,16 +17,18 @@ import {
   publishTaskEventData,
 } from "./publish";
 
-const { envMock, publishMock, getMock, getRestClientMock } = vi.hoisted(() => ({
-  envMock: {
-    NETWORK: "Mainnet",
-    VERCEL_ENV: "production" as "production" | "preview",
-    VERCEL_GIT_COMMIT_REF: "main" as string | undefined,
-  },
-  publishMock: vi.fn(),
-  getMock: vi.fn(),
-  getRestClientMock: vi.fn(),
-}));
+const { envMock, publishMock, batchPublishMock, getMock, getRestClientMock } =
+  vi.hoisted(() => ({
+    envMock: {
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production" as "production" | "preview",
+      VERCEL_GIT_COMMIT_REF: "main" as string | undefined,
+    },
+    publishMock: vi.fn(),
+    batchPublishMock: vi.fn(),
+    getMock: vi.fn(),
+    getRestClientMock: vi.fn(),
+  }));
 
 vi.mock("@/config/env", () => ({ getEnv: () => envMock }));
 
@@ -35,6 +37,7 @@ vi.mock("./client", () => ({
 }));
 
 getRestClientMock.mockImplementation(() => ({
+  batchPublish: batchPublishMock,
   channels: {
     get: (...args: unknown[]) => {
       getMock(...args);
@@ -472,73 +475,109 @@ describe("publishChatMembershipRevoked", () => {
 });
 
 describe("publishChatRoomsChanged", () => {
-  it("publishes the stale collections on each user's chat control channel", async () => {
-    publishMock.mockClear();
-    getMock.mockClear();
-    await publishChatRoomsChanged({
-      userIds: ["user_123"],
-      collections: ["active", "archived"],
-      roomId: "660e8400-e29b-41d4-a716-446655440000",
-    });
+  beforeEach(() => {
+    batchPublishMock
+      .mockReset()
+      .mockResolvedValue({ successCount: 1, failureCount: 0, results: [] });
+  });
 
-    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_123");
-    expect(publishMock).toHaveBeenCalledWith("chat_rooms_changed", {
+  it("batches distinct control channels with the unchanged event payload", async () => {
+    await publishChatRoomsChanged({
+      userIds: ["a", "b", "a"],
       collections: ["active", "archived"],
-      roomId: "660e8400-e29b-41d4-a716-446655440000",
-      at: expect.any(String),
+      roomId: "room",
+    });
+    expect(batchPublishMock).toHaveBeenCalledExactlyOnceWith({
+      channels: ["chat_control:user_a", "chat_control:user_b"],
+      messages: [
+        {
+          name: "chat_rooms_changed",
+          data: {
+            collections: ["active", "archived"],
+            roomId: "room",
+            at: expect.any(String),
+          },
+        },
+      ],
     });
   });
 
-  it("fans out once per distinct user and survives one failed publish", async () => {
-    publishMock.mockClear();
-    getMock.mockClear();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-    publishMock
-      .mockRejectedValueOnce(new Error("ably down"))
-      .mockResolvedValue(undefined);
-
+  it("splits audiences at Ably's 100-channel limit", async () => {
     await publishChatRoomsChanged({
-      userIds: ["user_a", "user_b", "user_a"],
-      collections: ["invitations"],
+      userIds: Array.from({ length: 201 }, (_, i) => String(i)),
+      collections: ["active"],
       roomId: null,
     });
-
-    expect(getMock).toHaveBeenCalledTimes(2);
-    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_a");
-    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_b");
-    expect(consoleError).toHaveBeenCalledTimes(1);
-    consoleError.mockRestore();
+    expect(
+      batchPublishMock.mock.calls.map(([spec]) => spec.channels.length),
+    ).toEqual([100, 100, 1]);
+    expect(
+      batchPublishMock.mock.calls.flatMap(([spec]) => spec.channels),
+    ).toEqual(Array.from({ length: 201 }, (_, i) => `chat_control:user_${i}`));
   });
 
-  it("no-ops when the user list is empty", async () => {
-    publishMock.mockClear();
+  it("logs per-channel failures without replaying successful channels", async () => {
+    const error = new Error("denied");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    batchPublishMock.mockResolvedValueOnce({
+      successCount: 1,
+      failureCount: 1,
+      results: [
+        { channel: "chat_control:user_a", messageId: "id" },
+        { channel: "chat_control:user_b", error },
+      ],
+    });
+    await publishChatRoomsChanged({
+      userIds: ["a", "b"],
+      collections: ["active"],
+      roomId: null,
+    });
+    expect(batchPublishMock).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(
+      "Failed to publish chat rooms changed to channel",
+      "chat_control:user_b",
+      error,
+    );
+    log.mockRestore();
+  });
+
+  it("attempts remaining batches when one request rejects", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    batchPublishMock.mockRejectedValueOnce(new Error("unavailable"));
+    await expect(
+      publishChatRoomsChanged({
+        userIds: Array.from({ length: 101 }, (_, i) => String(i)),
+        collections: ["active"],
+        roomId: null,
+      }),
+    ).resolves.toBeUndefined();
+    expect(batchPublishMock).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenCalledTimes(1);
+    log.mockRestore();
+  });
+
+  it("does not publish for an empty audience", async () => {
     await publishChatRoomsChanged({
       userIds: [],
       collections: ["active"],
       roomId: null,
     });
-    expect(publishMock).not.toHaveBeenCalled();
+    expect(batchPublishMock).not.toHaveBeenCalled();
   });
 
   it("does not throw when the rest client cannot be created", async () => {
     getRestClientMock.mockImplementationOnce(() => {
       throw new Error("no ably");
     });
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(
       publishChatRoomsChanged({
-        userIds: ["user_123"],
+        userIds: ["a"],
         collections: ["active"],
         roomId: null,
       }),
     ).resolves.toBeUndefined();
-
-    expect(consoleError).toHaveBeenCalled();
-    consoleError.mockRestore();
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
   });
 });

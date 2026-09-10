@@ -96,6 +96,21 @@ describe("publishChatRoomMessageRealtime", () => {
     expect(publishChatRoomsChanged).toHaveBeenCalledTimes(1);
   });
 
+  it("skips members whose collection refresh is sent separately", async () => {
+    vi.mocked(publishChatRoomsChanged).mockClear();
+    await publishChatRoomMembershipStatusMessagesBestEffort(
+      [baseMessage as never],
+      "chat invitation acceptance",
+      ["user_b"],
+    );
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: [],
+      roomId: baseMessage.roomId,
+      collections: ["active"],
+    });
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledOnce();
+  });
+
   it("maps once without a viewer id and publishes once to the room channel", async () => {
     await publishChatRoomMessageRealtime(baseMessage as never, "create");
 

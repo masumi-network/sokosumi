@@ -250,7 +250,11 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(memberFindUniqueMock).toHaveBeenCalled();
     expect(
       publishChatRoomMembershipStatusMessagesBestEffortMock,
-    ).toHaveBeenCalledOnce();
+    ).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Array),
+      "chat invitation acceptance",
+      [GUEST_ID],
+    );
     // Sidebar invalidation for the acceptor's other tabs (SOK-986).
     expect(publishChatRoomsChangedMock).toHaveBeenCalledWith({
       userIds: [GUEST_ID],
@@ -438,6 +442,8 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(userMemberCreateMock).toHaveBeenCalled();
     expect(
       publishChatRoomMembershipStatusMessagesBestEffortMock,
-    ).not.toHaveBeenCalled();
+    ).toHaveBeenCalledExactlyOnceWith([], "chat invitation acceptance", [
+      GUEST_ID,
+    ]);
   });
 });
