@@ -52,10 +52,11 @@ import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
 let hasFocus: ReturnType<typeof vi.spyOn>;
 
 /**
- * Leave the foreground, learn the rooms went stale while away, and come
- * back: the one focus gesture that turns into a read.
+ * Leave the foreground, learn the rooms changed while away, and come back.
+ * The invalidation reads at once (the unread dot needs it); the return then
+ * has nothing stale left, so the round is exactly one read.
  */
-function returnToForeground() {
+function invalidateWhileAwayAndReturn() {
   hasFocus.mockReturnValue(false);
   window.dispatchEvent(new Event("blur"));
   window.dispatchEvent(new Event("organization-chat-rooms-changed"));
@@ -184,7 +185,7 @@ describe("useChatTabUnreadPresence", () => {
       );
     });
 
-    await act(async () => returnToForeground());
+    await act(async () => invalidateWhileAwayAndReturn());
 
     await waitFor(() => {
       expect(listRoomsMock).toHaveBeenCalledTimes(2);
@@ -339,6 +340,43 @@ describe("authoritative tab attention", () => {
       }),
     );
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+  });
+
+  it("reads an invalidation while hidden so the unread dot can change while away", async () => {
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("visible");
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [room({ id: "a" })], nextCursor: null },
+    });
+    render(<Harness />);
+    await waitFor(() => {
+      expect(listRoomsMock).toHaveBeenCalled();
+    });
+    listRoomsMock.mockClear();
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [room({ id: "a", unreadCount: 2 })], nextCursor: null },
+    });
+
+    await act(async () => {
+      visibility.mockReturnValue("hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(
+        new CustomEvent("organization-chat-rooms-changed", {
+          detail: { collections: ["active"] },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      );
+    });
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
   });
 
   it("ignores invalidations that do not name the active collection", async () => {

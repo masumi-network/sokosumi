@@ -24,6 +24,18 @@ async function ensureServiceplanGrantForWorkspace(
   });
 }
 
+async function findOrganizationWorkspace({
+  organizationId,
+  tx,
+}: {
+  organizationId: string;
+  tx: Prisma.TransactionClient;
+}): Promise<Workspace | null> {
+  return await tx.workspace.findUnique({
+    where: { organizationId },
+  });
+}
+
 export const workspaceRepository = {
   async findPersonalWorkspace({
     userId,
@@ -37,18 +49,6 @@ export const workspaceRepository = {
     });
   },
 
-  async findOrganizationWorkspace({
-    organizationId,
-    tx,
-  }: {
-    organizationId: string;
-    tx: Prisma.TransactionClient;
-  }): Promise<Workspace | null> {
-    return await tx.workspace.findUnique({
-      where: { organizationId },
-    });
-  },
-
   async upsertOrganizationWorkspace({
     organizationId,
     tx,
@@ -56,7 +56,7 @@ export const workspaceRepository = {
     organizationId: string;
     tx: Prisma.TransactionClient;
   }): Promise<Workspace> {
-    const existingWorkspace = await this.findOrganizationWorkspace({
+    const existingWorkspace = await findOrganizationWorkspace({
       organizationId,
       tx,
     });
@@ -75,7 +75,7 @@ export const workspaceRepository = {
       return workspace;
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
-        const racedWorkspace = await this.findOrganizationWorkspace({
+        const racedWorkspace = await findOrganizationWorkspace({
           organizationId,
           tx,
         });

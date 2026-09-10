@@ -78,8 +78,9 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   }, [scope, currentUserId, organizationId]);
 
   // Same GET read and scheduling rules as the sidebar's active collection
-  // (SOK-986): paused while hidden or unfocused, one read on return, and a
-  // slow recovery cadence while Ably is connected.
+  // (SOK-986): timer reads pause while hidden or unfocused with one read on
+  // return, invalidations read at once, and a slow recovery cadence while
+  // Ably is connected.
   const refreshRooms = useCallback(async (isCurrent: () => boolean) => {
     const requestRevision = beginRoomAttentionRefresh();
     const page = await fetchSidebarRoomCollection("active");

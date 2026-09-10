@@ -35,7 +35,7 @@ import SwiftUI
       VStack(spacing: 0) {
         transcriptBody
         Divider()
-        RoomComposer(
+        ChatComposer(
           userId: workspaces.currentUserId,
           organizationId: workspaces.selection?.workspace.organizationId,
           roomId: roomId
@@ -94,6 +94,7 @@ import SwiftUI
             }
             if let error = workspaces.transcriptError {
               inlineError(error)
+                .padding(.horizontal, 12)
             }
             let messages = workspaces.displayedTranscript
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -106,6 +107,7 @@ import SwiftUI
                 }
                 if let status = membershipStatusText(message) {
                   MembershipStatusRow(text: status)
+                    .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
                   MessageRow(
@@ -118,7 +120,9 @@ import SwiftUI
                     },
                     onRemove: outbound.map { shell in
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
-                    }
+                    },
+                    onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil,
+                    horizontalInset: 12
                   )
                 }
               }
@@ -130,7 +134,6 @@ import SwiftUI
             Color.clear.frame(height: 9).id("timeline-bottom")
           }
           .scrollTargetLayout()
-          .padding(.horizontal, 12)
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
@@ -216,30 +219,38 @@ import SwiftUI
 
   /// Owns typing state so edits do not invalidate the transcript. The parent
   /// gives each account/workspace/room a distinct identity before loading its draft.
-  private struct RoomComposer: View {
+  struct ChatComposer: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     @State private var draft: String
 
     private let savedDraft: SavedComposeDraft
     private let roomId: String
+    private let parentMessageId: String?
+    private let onAccepted: (() -> Void)?
 
-    init(userId: String, organizationId: String?, roomId: String) {
+    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, onAccepted: (() -> Void)? = nil) {
+      self.onAccepted = onAccepted
       self.roomId = roomId
-      let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId)
+      self.parentMessageId = parentMessageId
+      let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId)
       self.savedDraft = savedDraft
       _draft = State(initialValue: savedDraft.load())
     }
 
     private var composerPlaceholder: String {
+      if parentMessageId != nil {
+        return "Reply to thread"
+      }
       guard let room = workspaces.rooms.first(where: { $0.id == roomId }) else { return "Message" }
       return "Message \(roomDisplayName(room, currentUserId: workspaces.currentUserId))"
     }
 
     private var canSend: Bool {
       ComposerContent(draft).canSend
-        && !workspaces.transcriptLoading
+        && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
+        && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
     }
 
     var body: some View {
@@ -266,9 +277,13 @@ import SwiftUI
     @discardableResult
     private func sendDraft() -> Bool {
       guard canSend else { return false }
-      guard workspaces.sendMessage(draft, auth: auth) else { return false }
+      let accepted = parentMessageId == nil
+        ? workspaces.sendMessage(draft, auth: auth)
+        : workspaces.sendThreadReply(draft, auth: auth)
+      guard accepted else { return false }
       draft = ""
       savedDraft.save("")
+      onAccepted?()
       return true
     }
   }
@@ -351,12 +366,18 @@ import SwiftUI
     var sentAt: Date?
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
+    var onReply: (() -> Void)?
+    var horizontalInset: CGFloat = 0
+    @State private var isHovered = false
+    @State private var isReplyHovered = false
+    @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
+    @FocusState private var replyFocused: Bool
 
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
         if isContinuation {
           Color.clear
-            .frame(width: Self.avatarDiameter, height: Self.avatarDiameter)
+            .frame(width: Self.avatarDiameter, height: 0)
         } else {
           avatarView
         }
@@ -394,6 +415,11 @@ import SwiftUI
             DeliveryFeedback(pendingSince: outbound?.status == .pending ? outbound?.createdAt : nil,
                              sentAt: sentAt)
           }
+          if let onReply, message.threadReplyCount > 0 {
+            Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
+              .buttonStyle(.borderless)
+              .font(.caption)
+          }
           if let outbound, outbound.status == .failed {
             if let error = outbound.errorMessage, !error.isEmpty {
               Text(error)
@@ -414,8 +440,72 @@ import SwiftUI
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .padding(.top, isContinuation ? 2 : 10)
-      .padding(.bottom, 2)
+      .padding(.vertical, 4)
+      .padding(.horizontal, horizontalInset)
+      .contentShape(.rect)
+      .background((isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
+      .overlay(alignment: .topTrailing) {
+        if let onReply, message.deletedAt == nil {
+          Button(action: onReply) {
+            HStack(spacing: 4) {
+              Image(systemName: "text.bubble")
+                .font(.body)
+              Text("Reply")
+                .font(.caption)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: replyActionHeight)
+            .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
+                        in: .rect(cornerRadius: 8))
+            .contentShape(.rect(cornerRadius: 8))
+          }
+          .buttonStyle(.borderless)
+          .background(.regularMaterial, in: .rect(cornerRadius: 8))
+          .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
+          .onContinuousHover { phase in
+            let hovering = switch phase {
+            case .active: true
+            case .ended: false
+            }
+            if isReplyHovered != hovering {
+              isReplyHovered = hovering
+            }
+          }
+          .focused($replyFocused)
+          .help("Reply in thread")
+          .accessibilityLabel("Reply in thread")
+          .opacity(isHovered || isReplyHovered || replyFocused ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || replyFocused)
+          .padding(.trailing, horizontalInset)
+          // Move the rendered button by exactly half its height. An alignment
+          // guide inside this conditional overlay does not reposition it.
+          .offset(y: -replyActionHeight / 2)
+        }
+      }
+      // Track the complete row, including its action overlay. The toolbar
+      // must not change the hover region when it becomes interactive.
+      .onContinuousHover { phase in
+        let hovering = switch phase {
+        case .active: true
+        case .ended: false
+        }
+        if isHovered != hovering {
+          isHovered = hovering
+        }
+      }
+      .contextMenu {
+        if let onReply, message.deletedAt == nil {
+          Button("Reply in thread", systemImage: "bubble.right", action: onReply)
+        }
+      }
+      .accessibilityElement(children: .contain)
+      .accessibilityActions {
+        if let onReply, message.deletedAt == nil {
+          Button("Reply in thread", action: onReply)
+        }
+      }
+      // Sender-group separation is outside the consistently padded hover row.
+      .padding(.top, isContinuation ? 0 : 8)
     }
 
     private var avatarView: some View {
