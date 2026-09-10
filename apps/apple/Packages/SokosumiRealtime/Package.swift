@@ -29,6 +29,7 @@ let package = Package(
       name: "SokosumiRealtimeTests",
       dependencies: [
         "SokosumiRealtime",
+        .product(name: "Ably", package: "ably-cocoa"),
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "SokosumiChat", package: "SokosumiChat")
       ]
