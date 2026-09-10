@@ -1,10 +1,4 @@
 import type { Coworker, Vendor } from "@/lib/clients/generated/core";
-import type { Channel } from "@/lib/types/core-dto";
-
-export interface CoworkerChannel {
-  channel: Channel;
-  value: string;
-}
 
 /** A coworker's curated, pre-filled task offer (from the Core Coworker DTO). */
 export type CoworkerOffer = NonNullable<
