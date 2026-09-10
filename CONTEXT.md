@@ -76,6 +76,24 @@ _Avoid_: Coworker developer (when meaning this)
 The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
 _Avoid_: Treating `/developer` as deprecated, a second CLI per persona
 
+### Scheduling
+
+**Task schedule**:
+A one-time or recurring Workspace- or Project-calendar plan that makes a Task ready for its assigned Coworker at planned times. It does not directly start a Job or guarantee the Coworker starts work at that exact time.
+_Avoid_: Job schedule, Agent schedule, guaranteed start time
+
+**Scheduled occurrence**:
+One planned time produced by a Task schedule. A recurring occurrence may be changed independently without changing the rest of its series.
+_Avoid_: Run, Job, separate Task before the occurrence is released
+
+**Calendar**:
+The planning surface for scheduled work. A Project Calendar is filtered to one Project; the Workspace Calendar combines its own scheduled work with scheduled work from Project Calendars and identifies each item's source. Neither is execution history.
+_Avoid_: Runs, History, Scheduled Tasks (as the surface name)
+
+**Project close**:
+The terminal end of an ongoing Project. Closing stops unreleased scheduled work, disconnects its Social connections, and preserves released Tasks and Calendar history plus non-executable Social connection audit records.
+_Avoid_: Archive, pause, reopen
+
 ### Task payments
 
 **Task payment claim**:
