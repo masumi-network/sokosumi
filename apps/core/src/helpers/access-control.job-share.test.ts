@@ -15,8 +15,8 @@ const { requireJobCollaborationMock } = vi.hoisted(() => ({
   requireJobCollaborationMock: vi.fn(),
 }));
 
-// Only the agent branch is mocked. The human branch below runs the real
-// `requireJobRead`, so its where clause is the assertion, not a stub.
+// Only the agent branch is mocked. The human branch below runs the helper's own
+// query, so the asserted `where` clause is the real policy, not a stub.
 vi.mock("./access-control", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./access-control")>();
 

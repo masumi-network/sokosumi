@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forbidden } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountDeleteJobShareById from "./delete";
@@ -193,9 +193,9 @@ describe("DELETE /jobs/{id}/share", () => {
     expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the job does not exist (no existence leak)", async () => {
+  it("returns 404 when the job is not reachable (no existence leak)", async () => {
     requireJobShareCollaborationMock.mockRejectedValueOnce(
-      forbidden("Job not found"),
+      notFound("Job not found"),
     );
     const app = createApp();
 
@@ -203,7 +203,7 @@ describe("DELETE /jobs/{id}/share", () => {
       method: "DELETE",
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
     expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 });
