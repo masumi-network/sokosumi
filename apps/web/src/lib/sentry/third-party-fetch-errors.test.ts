@@ -100,8 +100,35 @@ describe("isBareNetworkError", () => {
     expect(isBareNetworkError("network error")).toBe(true);
   });
 
+  it("returns true for Firefox NetworkError when fetching (SOKOSUMI-MY)", () => {
+    expect(
+      isBareNetworkError("NetworkError when attempting to fetch resource."),
+    ).toBe(true);
+    expect(
+      isBareNetworkError(
+        "TypeError: NetworkError when attempting to fetch resource.",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns true for Ably-quoted Firefox NetworkError (SOKOSUMI-S1)", () => {
+    expect(
+      isBareNetworkError('"NetworkError when attempting to fetch resource."'),
+    ).toBe(true);
+  });
+
+  it("returns false for unmatched quotes around Firefox NetworkError", () => {
+    expect(
+      isBareNetworkError('"NetworkError when attempting to fetch resource.'),
+    ).toBe(false);
+    expect(
+      isBareNetworkError('NetworkError when attempting to fetch resource."'),
+    ).toBe(false);
+  });
+
   it("returns false for unrelated errors", () => {
     expect(isBareNetworkError("TypeError: Failed to fetch")).toBe(false);
+    expect(isBareNetworkError("NetworkError: connection refused")).toBe(false);
   });
 });
 
@@ -241,6 +268,45 @@ describe("beforeSendClientEvent", () => {
           type: undefined,
           exception: {
             values: [{ value: "TypeError: network error" }],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Firefox NetworkError when fetching (SOKOSUMI-MY)", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "NetworkError when attempting to fetch resource.",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Ably-quoted Firefox NetworkError (SOKOSUMI-S1)", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat/rooms/:roomId",
+          exception: {
+            values: [
+              {
+                type: "Error",
+                value: '"NetworkError when attempting to fetch resource."',
+              },
+            ],
           },
         },
         {},
