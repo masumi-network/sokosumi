@@ -1,10 +1,50 @@
 import Foundation
 import SwiftTreeSitter
+import TreeSitterBash
+import TreeSitterBashQueries
+import TreeSitterC
+import TreeSitterCPP
+import TreeSitterCPPQueries
+import TreeSitterCQueries
+import TreeSitterCSharp
+import TreeSitterCSharpQueries
+import TreeSitterCSS
+import TreeSitterCSSQueries
+import TreeSitterGo
+import TreeSitterGoQueries
+import TreeSitterJava
+import TreeSitterJavaQueries
+import TreeSitterJavaScript
+import TreeSitterJavaScriptQueries
 import TreeSitterJSON
 import TreeSitterJSONQueries
 import TreeSitterKotlin
+import TreeSitterLua
+import TreeSitterLuaQueries
+import TreeSitterMarkdown
+import TreeSitterMarkdownQueries
+import TreeSitterPerl
+import TreeSitterPerlQueries
+import TreeSitterPHP
+import TreeSitterPHPQueries
+import TreeSitterPython
+import TreeSitterPythonQueries
+import TreeSitterR
+import TreeSitterRQueries
+import TreeSitterRuby
+import TreeSitterRubyQueries
+import TreeSitterRust
+import TreeSitterRustQueries
+import TreeSitterSCSS
+import TreeSitterSCSSQueries
+import TreeSitterSQL
+import TreeSitterSQLQueries
 import TreeSitterSwift
 import TreeSitterSwiftQueries
+import TreeSitterTypeScript
+import TreeSitterTypeScriptQueries
+import TreeSitterYAML
+import TreeSitterYAMLQueries
 
 /// UI-free capture ranges. Consumers apply platform colors without moving
 /// parsing onto the main actor. Ranges use Foundation's UTF-16 coordinates.
@@ -15,13 +55,68 @@ public struct SyntaxCapture: Equatable, Sendable {
 
 public enum SyntaxLanguage: String, Sendable {
   case swift, json, kotlin
+  // Standard language names match fenced-code identifiers.
+  // swiftlint:disable:next identifier_name
+  case bash, c, cpp, csharp, css, go, java, javascript, lua, markdown, perl, php, python, r, ruby, rust, scss, sql, typescript, yaml
 
   public init?(fenceInfo: String) {
-    switch fenceInfo.split(whereSeparator: { $0.isWhitespace }).first?.lowercased() {
-    case "swift": self = .swift
-    case "json": self = .json
-    case "kotlin", "kt", "kts": self = .kotlin
-    default: return nil
+    let name = fenceInfo.split(whereSeparator: { $0.isWhitespace }).first?.lowercased() ?? ""
+    self.init(rawValue: ["kt": "kotlin", "kts": "kotlin"][name] ?? name)
+  }
+
+  fileprivate var pointer: OpaquePointer {
+    switch self {
+    case .bash: tree_sitter_bash()
+    case .c: tree_sitter_c()
+    case .cpp: tree_sitter_cpp()
+    case .csharp: tree_sitter_c_sharp()
+    case .css: tree_sitter_css()
+    case .go: tree_sitter_go()
+    case .java: tree_sitter_java()
+    case .javascript: tree_sitter_javascript()
+    case .lua: tree_sitter_lua()
+    case .markdown: tree_sitter_markdown()
+    case .perl: tree_sitter_perl()
+    case .php: tree_sitter_php()
+    case .python: tree_sitter_python()
+    case .r: tree_sitter_r()
+    case .ruby: tree_sitter_ruby()
+    case .rust: tree_sitter_rust()
+    case .scss: tree_sitter_scss()
+    case .sql: tree_sitter_sql()
+    case .typescript: tree_sitter_typescript()
+    case .yaml: tree_sitter_yaml()
+    case .swift: tree_sitter_swift()
+    case .json: tree_sitter_json()
+    case .kotlin: tree_sitter_kotlin()
+    }
+  }
+
+  fileprivate var queryURLs: [URL] {
+    switch self {
+    case .bash: [TreeSitterBashQueries.Query.highlightsFileURL]
+    case .c: [TreeSitterCQueries.Query.highlightsFileURL]
+    case .cpp: [TreeSitterCQueries.Query.highlightsFileURL, TreeSitterCPPQueries.Query.highlightsFileURL]
+    case .csharp: [TreeSitterCSharpQueries.Query.highlightsFileURL]
+    case .css: [TreeSitterCSSQueries.Query.highlightsFileURL]
+    case .go: [TreeSitterGoQueries.Query.highlightsFileURL]
+    case .java: [TreeSitterJavaQueries.Query.highlightsFileURL]
+    case .javascript: [TreeSitterJavaScriptQueries.Query.highlightsFileURL]
+    case .lua: [TreeSitterLuaQueries.Query.highlightsFileURL]
+    case .markdown: [TreeSitterMarkdownQueries.Query.highlightsFileURL]
+    case .perl: [TreeSitterPerlQueries.Query.highlightsFileURL]
+    case .php: [TreeSitterPHPQueries.Query.highlightsFileURL]
+    case .python: [TreeSitterPythonQueries.Query.highlightsFileURL]
+    case .r: [TreeSitterRQueries.Query.highlightsFileURL]
+    case .ruby: [TreeSitterRubyQueries.Query.highlightsFileURL]
+    case .rust: [TreeSitterRustQueries.Query.highlightsFileURL]
+    case .scss: [TreeSitterSCSSQueries.Query.highlightsFileURL]
+    case .sql: [TreeSitterSQLQueries.Query.highlightsFileURL]
+    case .typescript: [TreeSitterJavaScriptQueries.Query.highlightsFileURL, TreeSitterTypeScriptQueries.Query.highlightsFileURL]
+    case .yaml: [TreeSitterYAMLQueries.Query.highlightsFileURL]
+    case .swift: [TreeSitterSwiftQueries.Query.highlightsFileURL]
+    case .json: [TreeSitterJSONQueries.Query.highlightsFileURL]
+    case .kotlin: []
     }
   }
 }
@@ -30,29 +125,29 @@ public enum NativeSyntaxHighlighter {
   /// Call from the same background parsing task as the Markdown document.
   /// Incomplete source is valid input while a response is streaming.
   public static func captures(in source: String, language: SyntaxLanguage) throws -> [SyntaxCapture] {
-    let pointer: OpaquePointer = switch language {
-    case .swift: tree_sitter_swift()
-    case .json: tree_sitter_json()
-    case .kotlin: tree_sitter_kotlin()
-    }
-    let grammar = Language(language: pointer)
+    let grammar = Language(language: language.pointer)
     let parser = Parser()
     try parser.setLanguage(grammar)
     guard let tree = parser.parse(source) else { return [] }
-    let query: SwiftTreeSitter.Query = switch language {
-    case .swift:
-      try SwiftTreeSitter.Query(language: grammar, url: TreeSitterSwiftQueries.Query.highlightsFileURL)
-    case .json:
-      try SwiftTreeSitter.Query(language: grammar, url: TreeSitterJSONQueries.Query.highlightsFileURL)
-    case .kotlin:
-      try SwiftTreeSitter.Query(language: grammar, data: Data(kotlinQuery.utf8))
-    }
+    let data = try language == .kotlin ? Data(kotlinQuery.utf8) : combinedQueries(for: language)
+    let query = try SwiftTreeSitter.Query(language: grammar, data: data)
     return query.execute(in: tree).resolve(with: Predicate.Context(string: source)).flatMap { match in
       match.captures.compactMap { capture in
         guard let name = capture.name else { return nil }
         return SyntaxCapture(name: name, range: capture.node.range)
       }
     }
+  }
+
+  private static func combinedQueries(for language: SyntaxLanguage) throws -> Data {
+    var source = try language.queryURLs.map { try String(contentsOf: $0, encoding: .utf8) }.joined(separator: "\n")
+    // TreeSitterLanguages 0.1.10 SCSS queries omit the predicate prefix.
+    // Correct the query input, never the dependency's generated files.
+    if language == .scss {
+      source = source.replacingOccurrences(of: "(match? ", with: "(#match? ")
+      source += "\n[(variable_name) (variable_value)] @variable"
+    }
+    return Data(source.utf8)
   }
 
   /// The pinned Kotlin 1.1.0 package supplies a parser but no queries.

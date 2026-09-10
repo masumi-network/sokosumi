@@ -170,3 +170,19 @@ The app builds and four highlighter tests pass; Swift lint/format pass. Visual
 colors/copy/streaming verification and remaining registry integration are still
 required. Paragraph/heading wrapping also now requests its full vertical size
 to avoid the report's earlier truncation; that visual follow-up remains pending.
+
+## Expanded native query integration
+
+The shared highlighter now integrates 20 more already-approved grammar products:
+Bash, C, C++, C#, CSS, Go, Java, JavaScript, Lua, Markdown, Perl, PHP, Python, R,
+Ruby, Rust, SCSS, SQL, TypeScript, and YAML. C++ composes C queries; TypeScript
+composes JavaScript queries. The pinned SCSS query omits predicate prefixes and
+variable captures, so the loader corrects its input and adds captures for the
+parser's variable declaration/reference nodes. Dependency files remain unchanged.
+
+Fixtures verify all 23 integrated languages return captures and valid UTF-16
+ranges. A focused SCSS test verifies both declaration and reference text. Full
+Chat tests (196), Xcode app build/tests, iOS 17 compilation, SwiftFormat, and strict SwiftLint passed. Logs: `/tmp/apple-expanded-{chat-tests,app,ios,format}.log` and `/tmp/apple-more-lint.log`.
+Remaining work includes the other approved grammars, full aliases/detection,
+semantic coverage, native visual verification, and the rendering gaps above.
+This remains one incomplete rendering slice, with no feature PR yet.

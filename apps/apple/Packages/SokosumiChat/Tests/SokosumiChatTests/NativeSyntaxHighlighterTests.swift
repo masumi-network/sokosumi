@@ -12,6 +12,31 @@ struct NativeSyntaxHighlighterTests {
     #expect(SyntaxLanguage(fenceInfo: "") == nil)
   }
 
+  @Test func highlightsAdditionalPackagedLanguages() throws {
+    let fixtures: [(SyntaxLanguage, String)] = [
+      (.bash, "echo 'hello'"), (.c, "int answer = 42;"), (.cpp, "class Example {};"),
+      (.csharp, "class Example { int answer = 42; }"), (.css, "body { color: red; }"),
+      (.go, "package main\nfunc main() {}"), (.java, "class Example { int answer = 42; }"),
+      (.javascript, "const answer = 42;"), (.lua, "local answer = 42"),
+      (.markdown, "# Heading"), (.perl, "my $answer = 42;"), (.php, "<?php echo 42;"),
+      (.python, "answer = 42"), (.r, "answer <- 42"), (.ruby, "answer = 42"),
+      (.rust, "fn main() { let answer = 42; }"), (.scss, "$color: red;"),
+      (.sql, "SELECT 42;"), (.typescript, "const answer: number = 42;"), (.yaml, "answer: 42")
+    ]
+    for (language, source) in fixtures {
+      let captures = try NativeSyntaxHighlighter.captures(in: source, language: language)
+      #expect(!captures.isEmpty, "Missing captures for \(language)")
+      #expect(captures.allSatisfy { NSMaxRange($0.range) <= (source as NSString).length })
+    }
+  }
+
+  @Test func highlightsSCSSVariables() throws {
+    let source = "$color: red; body { color: $color; }"
+    let captures = try NativeSyntaxHighlighter.captures(in: source, language: .scss)
+    let variables = captures.filter { $0.name == "variable" }.map { (source as NSString).substring(with: $0.range) }
+    #expect(variables == ["$color", "$color"])
+  }
+
   @Test func highlightsKotlinUnicodeAndComments() throws {
     let source = "val greeting = \"Hello 👋\" // welcome\nval answer = 42"
     let captures = try NativeSyntaxHighlighter.captures(in: source, language: .kotlin)
