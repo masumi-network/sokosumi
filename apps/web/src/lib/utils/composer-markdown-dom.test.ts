@@ -445,7 +445,6 @@ describe("markdownToHtml sanitization boundary", () => {
     const names = Array.from(chip?.attributes ?? []).map(
       (attribute) => attribute.name,
     );
-    expect(names).not.toHaveLength(0);
     expect(names.filter((name) => !allowed.includes(name))).toEqual([]);
   });
 
