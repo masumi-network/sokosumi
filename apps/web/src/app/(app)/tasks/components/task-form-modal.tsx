@@ -22,6 +22,12 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+/** Matches `::view-transition-old(.create-task-modal-exit)` in globals.css. */
+const CREATE_TASK_MODAL_EXIT_MS = 150;
+
+const VIEW_TRANSITION_CONTENT_CLASS =
+  "duration-0 data-[state=closed]:animate-none data-[state=open]:animate-none";
+
 const TaskFormModalHeaderContext = createContext<{
   setHeaderStart: (content: React.ReactNode) => void;
 } | null>(null);
@@ -73,9 +79,32 @@ export function TaskFormModal({
     [registerHeaderStart],
   );
 
+  const [portalOpen, setPortalOpen] = useState(open);
+
+  useLayoutEffect(() => {
+    if (open) setPortalOpen(true);
+  }, [open]);
+
   useEffect(() => {
     if (!open) setHeaderStart(null);
   }, [open]);
+
+  const closePortal = useCallback(() => {
+    setPortalOpen(false);
+  }, []);
+
+  // React 19.3: onExit/onUpdate cleanup runs when the View Transition finishes.
+  // Timeout covers browsers/tests that skip View Transitions.
+  const handleViewTransitionSettled = useCallback(
+    () => closePortal,
+    [closePortal],
+  );
+
+  useEffect(() => {
+    if (!viewTransition || open || !portalOpen) return;
+    const timeoutId = window.setTimeout(closePortal, CREATE_TASK_MODAL_EXIT_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [viewTransition, open, portalOpen, closePortal]);
 
   // Clicking outside / pressing Escape closes the modal, except while a submit
   // or upload is in flight (guarded by isDismissDisabled).
@@ -114,24 +143,27 @@ export function TaskFormModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={viewTransition ? portalOpen : open}
+      onOpenChange={handleOpenChange}
+    >
       <DialogContent
         className={cn(
           "w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden",
-          viewTransition &&
-            "duration-0 data-[state=closed]:animate-none data-[state=open]:animate-none",
+          viewTransition && VIEW_TRANSITION_CONTENT_CLASS,
         )}
+        data-create-task-modal-vt={viewTransition ? "" : undefined}
       >
         <TaskFormModalHeaderContext value={headerContextValue}>
           {viewTransition ? (
-            open ? (
-              <ViewTransition
-                enter="create-task-modal-enter"
-                exit="create-task-modal-exit"
-              >
-                {panel}
-              </ViewTransition>
-            ) : null
+            <ViewTransition
+              enter="create-task-modal-enter"
+              exit="create-task-modal-exit"
+              onExit={handleViewTransitionSettled}
+              onUpdate={open ? undefined : handleViewTransitionSettled}
+            >
+              {open ? panel : null}
+            </ViewTransition>
           ) : (
             panel
           )}
