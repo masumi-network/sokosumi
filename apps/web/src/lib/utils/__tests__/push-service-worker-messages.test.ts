@@ -34,6 +34,19 @@ const SERVICE_WORKER_PATH = join(
   NOTIFICATION_SERVICE_WORKER_URL,
 );
 
+/**
+ * The catalog the worker loads with `importScripts`, read from the path the
+ * worker itself names. A rename that leaves the two disagreeing fails here
+ * rather than at a reader's first push.
+ */
+const MESSAGES_PATH = join(
+  process.cwd(),
+  "public",
+  readFileSync(SERVICE_WORKER_PATH, "utf8").match(
+    /importScripts\("([^"]*)"\);/,
+  )?.[1] ?? "",
+);
+
 const CATALOGS = {
   en: enMessages,
   de: deMessages,
@@ -110,7 +123,12 @@ function localeStrings(source: string, locale: string): Map<string, string> {
 }
 
 describe("ably-push-sw message map", () => {
-  const source = readFileSync(SERVICE_WORKER_PATH, "utf8");
+  // Both halves of what the browser runs: the worker and the catalog it
+  // imports. Read together so a string moving between the two is invisible
+  // here, which is what a split is allowed to do.
+  const source = [SERVICE_WORKER_PATH, MESSAGES_PATH]
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
 
   /**
    * Add a locale to the app and this fails until the worker carries it, rather

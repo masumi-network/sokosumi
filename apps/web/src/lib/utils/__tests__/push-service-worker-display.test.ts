@@ -28,6 +28,20 @@ const SERVICE_WORKER_PATH = join(
   NOTIFICATION_SERVICE_WORKER_URL,
 );
 
+/**
+ * `importScripts` in the sandbox, so the worker loads its catalog the way a
+ * browser loads it: same global, same synchronous point in the file. Resolved
+ * against `public/` because the worker names an origin-absolute path.
+ */
+function importScriptsInto(context: ReturnType<typeof createContext>) {
+  return (path: string) => {
+    runInContext(
+      readFileSync(join(process.cwd(), "public", path), "utf8"),
+      context,
+    );
+  };
+}
+
 interface WindowClientStub {
   focused: boolean;
   visibilityState: "visible" | "hidden";
@@ -178,34 +192,33 @@ function loadServiceWorker({
     },
   };
 
-  runInContext(
-    readFileSync(SERVICE_WORKER_PATH, "utf8"),
-    createContext({
-      self,
-      setTimeout,
-      clearTimeout,
-      console: { error: reported, warn: warned },
-      // The sandbox has no DOM. A synchronous pair is enough: the worker
-      // assigns `port1.onmessage` before it hands `port2` to the client.
-      MessageChannel: class {
-        port1: {
-          onmessage: ((event: { data: unknown }) => void) | null;
-          close: () => void;
-        } = {
-          onmessage: null,
-          close: () => {
-            this.port1.onmessage = null;
-          },
-        };
-        port2 = {
-          postMessage: (data: unknown) => {
-            this.port1.onmessage?.({ data });
-          },
-        };
-      },
-      URL,
-    }),
-  );
+  const context = createContext({
+    self,
+    setTimeout,
+    clearTimeout,
+    console: { error: reported, warn: warned },
+    // The sandbox has no DOM. A synchronous pair is enough: the worker
+    // assigns `port1.onmessage` before it hands `port2` to the client.
+    MessageChannel: class {
+      port1: {
+        onmessage: ((event: { data: unknown }) => void) | null;
+        close: () => void;
+      } = {
+        onmessage: null,
+        close: () => {
+          this.port1.onmessage = null;
+        },
+      };
+      port2 = {
+        postMessage: (data: unknown) => {
+          this.port1.onmessage?.({ data });
+        },
+      };
+    },
+    URL,
+  });
+  Object.assign(context, { importScripts: importScriptsInto(context) });
+  runInContext(readFileSync(SERVICE_WORKER_PATH, "utf8"), context);
 
   async function dispatchPush(data: unknown) {
     const pending: Promise<unknown>[] = [];
@@ -976,6 +989,9 @@ describe("ably-push-sw notificationclick", () => {
 
     await worker.dispatchNotificationClick(MENTION_TARGET);
 
+    // No tab could take the click, so no tab a workspace switch could
+    // surprise: the window carries the target.
+
     expect(worker.openedWindows).toEqual([
       appUrlWithTarget("/", MENTION_TARGET),
     ]);
@@ -1152,13 +1168,12 @@ describe("ably-push-sw notificationclick", () => {
     await worker.dispatchNotificationClick(MENTION_TARGET);
 
     expect(focus).toHaveBeenCalledTimes(1);
-    // Withheld from the tab that stayed put, carried by the window that
-    // opened: a fresh window is nobody's front tab, so the workspace switch
-    // the target may cause lands where the reader is looking.
+    // Withheld from the window too. Routing the target switches the active
+    // organization, and that write belongs to the session rather than to the
+    // page that makes it, so it would reach the tab that stayed put whichever
+    // page was handed the target.
     expect(postMessage).not.toHaveBeenCalled();
-    expect(worker.openedWindows).toEqual([
-      appUrlWithTarget("/", MENTION_TARGET),
-    ]);
+    expect(worker.openedWindows).toEqual(["/"]);
   });
 
   it("still focuses a tab when the banner carries no target", async () => {
