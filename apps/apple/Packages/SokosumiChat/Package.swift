@@ -13,6 +13,8 @@ let package = Package(
   ],
   dependencies: [
     .package(path: "../CoreAPI"),
+    .package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.13.9"),
+    .package(url: "https://github.com/swiftlang/swift-markdown.git", exact: "0.8.0"),
     .package(url: "https://github.com/tree-sitter/swift-tree-sitter", exact: "0.10.0"),
     .package(url: "https://github.com/simonbs/TreeSitterLanguages", exact: "0.1.10"),
     .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-kotlin", exact: "1.1.0"),
@@ -34,12 +36,15 @@ let package = Package(
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")
-      ]
+      ],
+      resources: [.copy("Resources/Emoji")]
     ),
     .testTarget(
       name: "SokosumiChatTests",
       dependencies: [
         "SokosumiChat",
+        .product(name: "SwiftSoup", package: "SwiftSoup"),
+        .product(name: "Markdown", package: "swift-markdown"),
         .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
         .product(name: "TreeSitterSwift", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterSwiftQueries", package: "TreeSitterLanguages"),
