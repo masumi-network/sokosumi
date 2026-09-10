@@ -58,6 +58,21 @@
       #expect(input.string == "😄 ")
     }
 
+    @Test func emojiUndoWithoutExplicitGrouping() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.string = ":D"
+      input.setSelectedRange(NSRange(location: 2, length: 0))
+      input.insertText(" ", replacementRange: input.selectedRange())
+      #expect(input.string == "😄 ")
+      delegate.manager.undo()
+      #expect(input.string == ":D")
+      delegate.manager.redo()
+      #expect(input.string == "😄 ")
+    }
+
     @Test func markedTextIsNotConvertedUntilCommitted() {
       let input = MacComposerTextInput.InputView()
       input.setMarkedText(":D ", selectedRange: NSRange(location: 3, length: 0), replacementRange: NSRange(location: 0, length: 0))

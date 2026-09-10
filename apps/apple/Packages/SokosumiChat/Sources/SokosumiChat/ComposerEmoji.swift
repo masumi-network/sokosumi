@@ -3,6 +3,8 @@ import Markdown
 
 /// A single caret-local edit. Ranges use UTF-16, matching native text input and web.
 public struct ComposerEmoji: Equatable, Sendable {
+  private static let invalidShortcodeCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-").inverted
+
   public let range: NSRange
   public let replacement: String
 
@@ -28,7 +30,7 @@ public struct ComposerEmoji: Equatable, Sendable {
         guard !isCode(Document(parsing: text), at: location) else { return nil }
         return NSRange(location: index, length: caret - index)
       }
-      guard char.rangeOfCharacter(from: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-").inverted) == nil else { return nil }
+      guard char.rangeOfCharacter(from: invalidShortcodeCharacters) == nil else { return nil }
     }
     return nil
   }
@@ -93,7 +95,8 @@ public struct ComposerEmoji: Equatable, Sendable {
       guard char == ":" else { continue }
       guard index == 0 || isWhitespace(source.substring(with: NSRange(location: index - 1, length: 1))) else { return nil }
       let name = source.substring(with: NSRange(location: index + 1, length: caret - index - 2))
-      guard let emoji = MessageEmoji.emoji(shortcode: name) else { return nil }
+      guard !name.isEmpty, name.rangeOfCharacter(from: invalidShortcodeCharacters) == nil,
+            let emoji = MessageEmoji.emoji(shortcode: name) else { return nil }
       let appendSpace = caret == source.length || !isWhitespace(source.substring(with: NSRange(location: caret, length: 1)))
       return Self(range: NSRange(location: index, length: caret - index), replacement: emoji + (appendSpace ? " " : ""))
     }

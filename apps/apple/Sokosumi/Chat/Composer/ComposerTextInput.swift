@@ -18,6 +18,7 @@ import SwiftUI
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .help("Emoji & Symbols")
+        .accessibilityIdentifier("composer.emojiPicker")
       }
       .padding(4)
       .background(.background, in: .rect(cornerRadius: 5))

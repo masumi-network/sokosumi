@@ -35,6 +35,15 @@ struct ComposerEmojiTests {
     }
   }
 
+  @Test func shortcodeCharacterRulesMatchWeb() {
+    for text in [":smile!:", ":smilé:", ":smile.:", "::smile:", ":x:smile:"] {
+      #expect(ComposerEmoji.match(in: text, caret: text.utf16.count) == nil)
+    }
+    for text in [":+1:", ":-1:", ":SMILE:", ":smile_cat:"] {
+      #expect(ComposerEmoji.match(in: text, caret: text.utf16.count) != nil)
+    }
+  }
+
   @Test func preservesCodeLiterals() {
     for text in ["```swift\n:D ", "    :D ", "`x :D `", "`x :smile: `", "😀 `x :D `", "😀 `x :smile: `"] {
       let caret = text.hasSuffix("`") ? text.utf16.count - 1 : text.utf16.count
