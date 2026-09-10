@@ -664,6 +664,35 @@ async function focusRoutingClient(client) {
   }
 }
 
+/** Mirrors NOTIFICATION_TARGET_PARAM in the app. */
+const TARGET_PARAM = "notification";
+
+/**
+ * Where a click lands when no tab could take it.
+ *
+ * The target rides on the URL rather than being posted, because the window
+ * does not exist yet when this handler ends and the worker may be stopped
+ * before it loads. The page that comes up spends the parameter and runs the
+ * same routing a focused tab runs, so the reader lands on the message the
+ * banner named rather than on the app's front page.
+ *
+ * A destination is deliberately not built here. A notification from another
+ * workspace has to switch the active organization before its room will open,
+ * and the room page redirects home without that switch, so an href alone
+ * would trade a wrong landing for a different one.
+ */
+function appWindowUrl(target) {
+  const base = CONFIGURED_APP_ORIGIN || "/";
+  if (!target) {
+    return base;
+  }
+
+  const separator = base.endsWith("/") ? "" : "/";
+  return `${base}${separator}?${TARGET_PARAM}=${encodeURIComponent(
+    JSON.stringify(target),
+  )}`;
+}
+
 /**
  * Open the app for a click no tab could take.
  *
@@ -676,9 +705,9 @@ async function focusRoutingClient(client) {
  * banner is already closed, `waitUntil` has nothing to catch a rejection here,
  * and a click that reached nothing at all should not also be silent.
  */
-async function openAppWindow() {
+async function openAppWindow(target) {
   try {
-    await self.clients.openWindow(CONFIGURED_APP_ORIGIN || "/");
+    await self.clients.openWindow(appWindowUrl(target));
   } catch (error) {
     console.error("Could not open a window for a notification click", error);
   }
@@ -688,8 +717,8 @@ async function openAppWindow() {
  * Focus a tab that can act on the click and hand it the banner's target, so
  * the page can mark the notification read and route to it. The target rides on
  * the banner rather than in the page, because the tab that receives this click
- * is not always the tab that rendered the banner. With no such tab, open the
- * app; SOK-876 owns routing from there to the room the notification came from.
+ * is not always the tab that rendered the banner. With no such tab, open a
+ * window carrying the target, which the page it loads routes for itself.
  */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
@@ -701,7 +730,7 @@ self.addEventListener("notificationclick", (event) => {
         CONFIGURED_APP_ORIGIN &&
         CONFIGURED_APP_ORIGIN !== self.location.origin
       ) {
-        await openAppWindow();
+        await openAppWindow(target);
         return;
       }
 
@@ -735,7 +764,7 @@ self.addEventListener("notificationclick", (event) => {
         return;
       }
 
-      await openAppWindow();
+      await openAppWindow(target);
     })(),
   );
 });

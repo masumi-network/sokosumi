@@ -6,9 +6,11 @@ import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
+  NOTIFICATION_TARGET_PARAM,
   notificationGroupTag,
   SHOWS_NOTIFICATIONS_QUERY,
   subscribeNotificationClicks,
+  takeNotificationTargetFromUrl,
 } from "@/lib/utils/notification-service-worker";
 
 const envMock = vi.hoisted(() => ({
@@ -619,5 +621,49 @@ describe("closeNotificationGroup", () => {
     await expect(
       module.closeNotificationGroup(CLEARED),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("takeNotificationTargetFromUrl", () => {
+  function setUrl(search: string) {
+    window.history.replaceState({}, "", `/chat${search}`);
+  }
+
+  it("reads the target the worker put on the URL and spends it", () => {
+    setUrl(
+      `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}&keep=1`,
+    );
+
+    expect(takeNotificationTargetFromUrl()).toEqual(TARGET);
+    // Spent, or a reload would open the same notification a second time and
+    // drag a reader who has moved on back to it.
+    expect(window.location.search).toBe("?keep=1");
+  });
+
+  it("leaves a URL that carries no target alone", () => {
+    setUrl("?keep=1");
+
+    expect(takeNotificationTargetFromUrl()).toBeNull();
+    expect(window.location.search).toBe("?keep=1");
+  });
+
+  /**
+   * A hand-typed or truncated parameter names no notification. Spending it
+   * anyway is what keeps a reload from retrying something that cannot work.
+   */
+  it("spends a target that will not parse and reports nothing", () => {
+    setUrl(`?${NOTIFICATION_TARGET_PARAM}=not-json`);
+
+    expect(takeNotificationTargetFromUrl()).toBeNull();
+    expect(window.location.search).toBe("");
+  });
+
+  it("spends a target whose shape the app cannot route", () => {
+    setUrl(
+      `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify({ id: "" }))}`,
+    );
+
+    expect(takeNotificationTargetFromUrl()).toBeNull();
+    expect(window.location.search).toBe("");
   });
 });

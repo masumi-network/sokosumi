@@ -29,6 +29,7 @@ import {
   getNotificationServiceWorker,
   showNotification,
   subscribeNotificationClicks,
+  takeNotificationTargetFromUrl,
   toNotificationTarget,
 } from "@/lib/utils/notification-service-worker";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
@@ -270,6 +271,15 @@ export function NotificationToastListener({
   useMountEffect(() => {
     if (getBrowserNotificationPermission() === "granted") {
       void getNotificationServiceWorker();
+    }
+
+    // A click no tab could take opened this window and left its target on the
+    // URL, because there was no page yet to post it to. Read before the
+    // subscription rather than after, so a target waiting here is opened even
+    // if the worker never speaks to this page at all.
+    const opened = takeNotificationTargetFromUrl();
+    if (opened) {
+      openClickedNotification(opened);
     }
 
     const unsubscribeClicks = subscribeNotificationClicks((target) => {

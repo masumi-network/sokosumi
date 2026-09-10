@@ -43,6 +43,18 @@ export const NOTIFICATION_ICON_PATH = "/images/app-icons/apple-icon-180.png";
 export const NOTIFICATION_CLICK_MESSAGE = "sokosumi:notification-click";
 
 /**
+ * Carries a clicked banner's target on the URL of a window the worker opens.
+ *
+ * A click the worker cannot hand to an open tab opens a window instead, and
+ * that window has no listener to post to: it does not exist yet when the
+ * handler ends, and the worker may be stopped before it loads. So the target
+ * rides on the URL, and the page that comes up runs the routing a focused tab
+ * runs. Not an href, because a notification from another workspace has to
+ * switch the active organization before its room will open at all.
+ */
+export const NOTIFICATION_TARGET_PARAM = "notification";
+
+/**
  * Asked by the worker before it skips a banner, to learn whether the focused
  * page shows notifications in the app itself. Only pages that mount the
  * notification listener answer.
@@ -73,6 +85,40 @@ export const notificationTargetSchema = notificationEventDataSchema
   .extend({ id: z.string().min(1) });
 
 export type NotificationTarget = z.infer<typeof notificationTargetSchema>;
+
+/**
+ * The target this page was opened for, taken off the URL.
+ *
+ * Taken rather than read: spent on the way out whether or not it parsed, so a
+ * reload cannot open the same notification a second time and drag a reader who
+ * has moved on back to it. A parameter that will not parse names no
+ * notification, which is the same answer as no parameter at all.
+ */
+export function takeNotificationTargetFromUrl(): NotificationTarget | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const url = new URL(window.location.href);
+  const raw = url.searchParams.get(NOTIFICATION_TARGET_PARAM);
+  if (raw === null) {
+    return null;
+  }
+
+  url.searchParams.delete(NOTIFICATION_TARGET_PARAM);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+
+  try {
+    const parsed = notificationTargetSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The target a realtime event routes to. It sits next to the schema so a field

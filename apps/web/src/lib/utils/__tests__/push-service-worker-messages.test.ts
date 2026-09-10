@@ -12,6 +12,7 @@ import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
+  NOTIFICATION_TARGET_PARAM,
   SHOWS_NOTIFICATIONS_QUERY,
 } from "@/lib/utils/notification-service-worker";
 import deMessages from "@/messages/de.json";
@@ -171,6 +172,18 @@ describe("ably-push-sw message map", () => {
     expect(declared).toBe(
       enMessages.Components.NotificationCenter.browserNotificationTitle,
     );
+  });
+
+  /**
+   * Read from the declaration rather than the file: the parameter name is an
+   * ordinary word, so a plain `toContain` would pass on prose that happens to
+   * use it. The two copies drifting apart would open a window the page then
+   * ignores, landing the reader on the front page with no word of why.
+   */
+  it("names the URL parameter the app reads a click target from", () => {
+    const declared = source.match(/const TARGET_PARAM = "([^"]*)";/)?.[1];
+
+    expect(declared).toBe(NOTIFICATION_TARGET_PARAM);
   });
 
   it("asks the question the app answers", () => {
