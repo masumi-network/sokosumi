@@ -609,7 +609,6 @@ function MotionHighlightItem({
 export {
   MotionHighlight,
   MotionHighlightItem,
-  useMotionHighlight,
   type MotionHighlightProps,
   type MotionHighlightItemProps,
 };

@@ -17,7 +17,6 @@ const SRC_ROOT = path.resolve(
 const PRIMITIVE_SOURCES = [
   "components/ui/input.tsx",
   "components/ui/textarea.tsx",
-  "components/ui/mention-textarea.tsx",
   "components/ui/command.tsx",
   "components/ui/select.tsx",
   "components/chat/room-message-composer.tsx",
