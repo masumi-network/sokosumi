@@ -2230,7 +2230,7 @@
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details nicht verfügbar",
         "planLabel": "Plan",
-        "openSummary": "Kontoübersicht öffnen: {name}, {summary}",
+        "openSummary": "Kontoübersicht öffnen: {name}, {presence}, {summary}",
         "collapsedSummary": "{name} · {summary}"
       },
       "Content": {

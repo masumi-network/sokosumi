@@ -388,7 +388,7 @@ describe("SidebarAccountChip", () => {
     expect(screen.queryByRole("button", { name: "logout" })).toBeNull();
   });
 
-  it("shows the browser's offline state on the status dot", () => {
+  it("puts the browser's offline state in the chip's own label", () => {
     Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       value: false,
@@ -396,7 +396,9 @@ describe("SidebarAccountChip", () => {
 
     renderChip();
 
-    expect(screen.getAllByLabelText("offline").length).toBeGreaterThan(0);
+    // The chip's own aria-label overrides descendant text, so availability
+    // has to live inside that label rather than in the dot's hidden text.
+    expect(screen.getByRole("button", { name: /offline/ })).toBeInTheDocument();
 
     Object.defineProperty(window.navigator, "onLine", {
       configurable: true,

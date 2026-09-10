@@ -71,6 +71,10 @@ function RoomParticipantStack({
               {getInitials(participant.name)}
             </AvatarFallback>
           </Avatar>
+          {/* No availability text here on purpose. This button is one control
+              named "open the roster", and its own aria-label already replaces
+              every descendant word. Per-person availability belongs to the
+              roster it opens, which states it per row. */}
           <LiveMemberPresenceDot
             className="absolute -right-0.5 -bottom-0.5"
             fallback={participant.presence}
