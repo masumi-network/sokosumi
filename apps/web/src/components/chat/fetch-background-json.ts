@@ -18,6 +18,21 @@
 const RETRY_DELAYS_ON_UNAVAILABLE_MS = [1_000, 3_000];
 
 /**
+ * Spread of the jitter applied to each delay, as a fraction of it.
+ *
+ * Several readers stall together — three sidebar collections plus the unread
+ * bell all poll on the same tick — so a fixed delay has them retry in lockstep
+ * and hit the recovering function as one burst. A quarter is enough to spread
+ * them without letting the last retry drift near the caller's deadline.
+ */
+const RETRY_JITTER_FRACTION = 0.25;
+
+function jittered(delayMs: number): number {
+  const spread = delayMs * RETRY_JITTER_FRACTION;
+  return Math.round(delayMs - spread + Math.random() * spread * 2);
+}
+
+/**
  * Per-attempt ceiling, so a request that never answers at all still reaches the
  * retry loop. Without it one hung attempt spends the caller's whole budget and
  * nothing is ever retried: the route has no timeout of its own around the Core
@@ -93,7 +108,7 @@ export async function fetchBackgroundJson(
         : undefined;
       if (retryDelay === undefined) return null;
 
-      await wait(retryDelay, controller.signal);
+      await wait(jittered(retryDelay), controller.signal);
     }
   } catch {
     return null;

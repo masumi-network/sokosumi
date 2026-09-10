@@ -17,6 +17,7 @@ import type {
   CoreAuthReadError,
   CoreAuthReadErrorReason,
 } from "./core-auth-read-error";
+import { CORE_AUTH_REQUEST_TIMEOUT_MS } from "./core-auth-timeout";
 import { CoreAuthUnavailableError } from "./errors";
 
 export type { Session };
@@ -33,12 +34,6 @@ export interface OAuthClientPublic {
 const CORE_GET_SESSION_PATH = "/auth/get-session";
 const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
 const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
-// 8s, not 5s. Production Core answers `/auth/get-session` in tens of
-// milliseconds; this budget is only spent on a stall (cold start, connection
-// storm, a saturated web function). Five seconds turned those stalls into
-// "no session". Callers in front of it allow far more: background chat reads
-// give the browser 20-30s.
-const CORE_AUTH_REQUEST_TIMEOUT_MS = 8000;
 /**
  * The one Core auth status that means "this browser has no session". 403 and
  * 404 are deliberately absent: on `/auth/get-session` a 403 is Better Auth's

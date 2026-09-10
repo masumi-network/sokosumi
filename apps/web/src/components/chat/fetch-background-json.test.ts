@@ -17,6 +17,9 @@ describe("fetchBackgroundJson", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    // Mid-range jitter is the nominal delay, so the timings below read as the
+    // constants they pin. The spread itself is covered separately.
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -104,6 +107,29 @@ describe("fetchBackgroundJson", () => {
     await expect(result).resolves.toEqual({ data: ["room-1"] });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    [0, 750],
+    [1, 1_250],
+  ])(
+    "spreads the first retry by a quarter (random %s waits %ims)",
+    async (random, expectedDelay) => {
+      // Three sidebar collections and the unread bell stall on the same tick.
+      // Retrying in lockstep would hit the recovering function as one burst.
+      vi.spyOn(Math, "random").mockReturnValue(random);
+      fetchMock
+        .mockResolvedValueOnce(response(503))
+        .mockResolvedValueOnce(response(200, { data: ["room-1"] }));
+
+      const result = fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS);
+      await vi.advanceTimersByTimeAsync(expectedDelay - 1);
+      expect(fetchMock).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(1);
+
+      await expect(result).resolves.toEqual({ data: ["room-1"] });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it("does not retry a 200 whose body will not parse", async () => {
     fetchMock.mockResolvedValue({
