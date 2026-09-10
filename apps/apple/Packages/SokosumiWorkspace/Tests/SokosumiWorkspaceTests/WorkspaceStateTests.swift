@@ -29,6 +29,7 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
     responses.count
   }
 
+  var pauseDirect = false
   var pausePOST = false
   var pauseStream = false
   var pauseGET = false
@@ -61,6 +62,14 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
       bodies.append(Data(bytes))
     } else {
       bodies.append(Data())
+    }
+    if pauseDirect, operationID == "post/chats/rooms" {
+      let next = responses.removeFirst()
+      if !postReleased {
+        await withCheckedContinuation { pauseWaiter = $0 }
+      }
+      postReleased = false
+      return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
     if pausePOST, operationID == "post/chats/rooms/{id}/messages" {
       if !postReleased {
@@ -166,6 +175,41 @@ private func waitForOutboundIdle(_ state: WorkspaceState) async {
 }
 
 struct WorkspaceStateTests {
+  @Test(arguments: ["stay", "leave", "reset"]) func participantDirectRespectsNavigation(action: String) async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440009"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (201, roomReadBody(id: target, unread: 0).replacingOccurrences(of: "\"kind\":\"channel\"", with: "\"kind\":\"direct\"")),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.rooms[0].coworkerMembers = [.init(id: "peer", name: "Peer", slug: "peer", caption: nil, image: nil, presence: .online)]
+    transport.pauseDirect = true
+    let request = Task { try await state.openParticipantDirect(.coworker("peer"), auth: auth) }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms") {
+      await Task.yield()
+    }
+    #expect(state.openingDirect == .coworker("peer"))
+    // A second click while opening must not create another request.
+    try await state.openParticipantDirect(.coworker("peer"), auth: auth)
+    if action == "reset" {
+      state.reset()
+    } else if action == "leave" {
+      state.clearTranscript()
+    }
+    transport.releasePOST()
+    try await request.value
+    #expect(state.openingDirect == nil)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == (action == "stay" ? target : nil))
+    #expect(state.rooms.contains { $0.id == target } == (action != "reset"))
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms" }.count == 1)
+  }
+
   @Test func clientProviderReceivesCurrentAuthOnEveryResolution() throws {
     let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))

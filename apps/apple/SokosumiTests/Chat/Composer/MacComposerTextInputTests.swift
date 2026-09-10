@@ -6,6 +6,82 @@
 
   @MainActor
   struct MacComposerTextInputTests {
+    @Test func mentionShortcutStartsQueryAtSelection() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "peer", name: "Anna", slug: "anna", kind: .human)]
+      input.restoreDraft("Hello")
+      input.setSelectedRange(NSRange(location: 5, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.beginMention()
+      #expect(input.string == "Hello @\n")
+      #expect(input.selectedRange().location == 7)
+    }
+
+    @Test func mentionChipRestoresAndDeletesAsOneCharacter() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]
+      input.restoreDraft("@user-1:anna")
+      #expect(input.string == "\u{FFFC}\n")
+      let attachment = input.attributedString().attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment
+      #expect(attachment?.image != nil)
+      #expect((attachment?.bounds.width ?? 0) > 0)
+      #expect(attachment?.image?.accessibilityDescription == "@Anna")
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      input.setSelectedRange(NSRange(location: 0, length: 1))
+      #expect(input.writeSelection(to: pasteboard, type: .string))
+      #expect(pasteboard.string(forType: .string) == "@user-1:anna")
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      input.insertText("!", replacementRange: input.selectedRange())
+      #expect(input.captureDraft() == "@user-1:anna!\n")
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      input.deleteBackward(nil)
+      #expect(input.captureDraft() == "!\n")
+    }
+
+    @Test func replacingReferenceWithLinkLabelDoesNotRetainToken() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "peer", name: "Anna", slug: "anna", kind: .human)]
+      input.restoreDraft("@peer:anna\n")
+      input.insertLink(label: "Profile", destination: "https://example.com", range: NSRange(location: 0, length: 1))
+      #expect(input.captureDraft() == "[Profile](https://example.com/)\n")
+    }
+
+    @Test func mentionCompletionRequiresExplicitAcceptance() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]
+      input.string = "@an"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      let range = input.rangeForUserCompletion
+      var selected = 0
+      let options = input.completions(forPartialWordRange: range, indexOfSelectedItem: &selected)
+      #expect(options == ["Anna  @anna"])
+      input.insertCompletion("Anna  @anna", forPartialWordRange: range, movement: NSRightTextMovement, isFinal: true)
+      #expect(input.string == "@an")
+      input.insertCompletion("Anna  @anna", forPartialWordRange: range, movement: NSReturnTextMovement, isFinal: true)
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("@user-1:anna"))
+    }
+
+    @Test func channelCompletionRequiresAcceptanceAndSerializesName() {
+      let input = MacComposerTextInput.InputView()
+      input.channels = [.init(id: "room", name: "Launch Room", slug: "launch-room")]
+      input.string = "#la"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      let range = input.rangeForUserCompletion
+      var selected = 0
+      #expect(input.completions(forPartialWordRange: range, indexOfSelectedItem: &selected) == ["#Launch Room"])
+      input.insertCompletion("#Launch Room", forPartialWordRange: range, movement: NSRightTextMovement, isFinal: true)
+      #expect(input.string == "#la")
+      input.insertCompletion("#Launch Room", forPartialWordRange: range, movement: NSTabTextMovement, isFinal: true)
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("#Launch Room"))
+      input.restoreDraft("Hi #Launch Room!\n")
+      #expect(input.string == "Hi \u{FFFC}!\n")
+      #expect(input.captureDraft() == "Hi #Launch Room!\n")
+    }
+
     @Test func modifiedReturnExitsQuoteAndSupportsUndo() throws {
       let input = MacComposerTextInput.InputView()
       let delegate = UndoDelegate()

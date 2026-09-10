@@ -13,10 +13,12 @@ import SwiftUI
     var placeholder = "Message"
     var canSend = true
     var content = ComposerContent("")
+    var channels: [ComposerChannel] = []
+    var mentions: [ComposerMention] = []
 
     var body: some View {
       ComposerLayout {
-        MacComposerTextInput(text: $text, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands)
+        MacComposerTextInput(text: $text, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions)
       } formatting: {
         if toolbarVisible {
           ComposerFormatToolbar(commands: commands)
@@ -30,6 +32,12 @@ import SwiftUI
           emojiPickerRequest += 1
         }
         .accessibilityIdentifier("composer.emojiPicker")
+        if !mentions.isEmpty {
+          ComposerToolbarButton(title: "Mention", symbol: "at") {
+            commands.beginMention()
+          }
+          .accessibilityIdentifier("composer.mentionPicker")
+        }
         Spacer(minLength: 8)
         if content.showsCounter {
           Text("\(content.count)/\(ComposerContent.maximumLength)")

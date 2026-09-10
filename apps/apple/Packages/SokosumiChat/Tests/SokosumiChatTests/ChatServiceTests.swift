@@ -80,6 +80,40 @@ private func makeClient(_ transport: ScriptedTransport) throws -> Client {
 }
 
 struct ChatServiceTests {
+  @Test func participantDirectPreservesOrganizationAndPermissionFailure() async throws {
+    let response = """
+    {"error":"Forbidden","message":"No shared channel","meta":{"timestamp":"\(timestamp)","requestId":"request","path":"/v1/chats/rooms","method":"POST"}}
+    """
+    let transport = ScriptedTransport([(403, response)])
+    do {
+      _ = try await ChatService().openDirect(client: makeClient(transport), recipient: .human("peer"), organizationSlug: "team")
+      Issue.record("Expected permission failure")
+    } catch let ChatServiceError.unprocessable(statusCode, message) {
+      #expect(statusCode == 403)
+      #expect(message == "No shared channel")
+    }
+    #expect(try orgSlugHeader(#require(transport.requests.first).request) == "team")
+  }
+
+  @Test func participantDirectUsesCorrectRecipientAndAcceptsCreatedOrExisting() async throws {
+    let room = roomJSON(id: "direct", name: "Peer", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let transport = ScriptedTransport([(201, response), (200, response), (201, response)])
+    let client = try makeClient(transport)
+    for recipient in [DirectRecipient.human("human"), .coworker("coworker"), .sokoBot("01960001-0001-7001-8001-000000000099")] {
+      let result = try await ChatService().openDirect(client: client, recipient: recipient, organizationSlug: nil)
+      #expect(result.id == "direct")
+    }
+    for (index, field) in ["memberUserIds", "coworkerIds", "sokoBotIds"].enumerated() {
+      let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[index]) as? [String: Any])
+      #expect(body["kind"] as? String == "direct")
+      #expect((body[field] as? [String])?.count == 1)
+      #expect(body.count == 2)
+      #expect(transport.requests[index].request.method == .post)
+      #expect(orgSlugHeader(transport.requests[index].request) == nil)
+    }
+  }
+
   @Test func personalRoomsOmitOrgHeader() async throws {
     let transport = ScriptedTransport([
       (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440000", name: "general", kind: "channel", unreadCount: 2, unreadMentionCount: 1)], nextCursor: nil))

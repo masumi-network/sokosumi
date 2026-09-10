@@ -17,7 +17,7 @@ import SwiftUI
           ScrollViewReader { proxy in
             ScrollView {
               VStack(alignment: .leading, spacing: 8) {
-                MessageRowView(message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+                MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
                 Divider()
                 Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
                 replies
@@ -103,7 +103,7 @@ import SwiftUI
             if let status = membershipStatusText(message) {
               MembershipStatusRow(text: status)
             } else {
-              MessageRowView(message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+              MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                              outbound: shell, sentAt: outbox.sentAt[message.id],
                              onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                              onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },

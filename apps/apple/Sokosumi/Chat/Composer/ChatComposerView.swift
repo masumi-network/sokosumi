@@ -54,7 +54,7 @@ import SwiftUI
           draft = text
           savedDraft.save(text)
         }
-      ), submit: sendDraft, placeholder: composerPlaceholder, canSend: canSend, content: content)
+      ), submit: sendDraft, placeholder: composerPlaceholder, canSend: canSend, content: content, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
         .padding(8)
         .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
           guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }

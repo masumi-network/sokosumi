@@ -10,6 +10,8 @@
     var placeholder = "Message"
     var emojiPickerRequest = 0
     var commands: MacComposerCommands?
+    var channels: [ComposerChannel] = []
+    var mentions: [ComposerMention] = []
 
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
@@ -41,6 +43,8 @@
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
       input.placeholder = placeholder
+      input.mentions = mentions
+      input.channels = channels
       commands?.refresh()
       scroll.documentView = input
       return scroll
@@ -51,6 +55,8 @@
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
       input.placeholder = placeholder
+      input.mentions = mentions
+      input.channels = channels
       if context.coordinator.emojiPickerRequest != emojiPickerRequest {
         context.coordinator.emojiPickerRequest = emojiPickerRequest
         Task { @MainActor [weak input] in
@@ -121,7 +127,8 @@
         parent.commands?.refresh()
       }
 
-      func textViewDidChangeSelection(_: Notification) {
+      func textViewDidChangeSelection(_ notification: Notification) {
+        (notification.object as? InputView)?.clearReferenceTypingAttributes()
         parent.commands?.refresh()
       }
     }
@@ -133,6 +140,10 @@
       var submit: () -> Bool = { false }
       var openLinkEditor: (() -> Void)?
       var formattingDidChange: (() -> Void)?
+      var channels: [ComposerChannel] = []
+      var mentions: [ComposerMention] = []
+      private var channelCompletions: [String: ComposerChannel] = [:]
+      private var mentionCompletions: [String: ComposerMention] = [:]
       var placeholder = "Message" {
         didSet { needsDisplay = true }
       }
@@ -140,7 +151,8 @@
       func restoreDraft(_ source: String) {
         guard !hasMarkedText() else { return }
         if let document = try? ComposerDocument(markdown: source) {
-          textStorage?.setAttributedString(MacComposerAttributedText.render(document))
+          let references = ComposerReferenceText.presenting(ComposerBlockText.attributedText(document), catalog: mentions)
+          textStorage?.setAttributedString(MacComposerAttributedText.styled(ComposerReferenceText.presentingChannels(references, channels: channels)))
           preservesRawDraft = false
           isRichText = true
         } else {
@@ -225,6 +237,9 @@
             attributes = attributedString().attributes(at: min(range.location, attributedString().length - 1), effectiveRange: nil)
           }
           attributes.removeValue(forKey: ComposerBlockText.listMarker)
+          attributes.removeValue(forKey: ComposerReferenceText.token)
+          attributes.removeValue(forKey: ComposerReferenceText.name)
+          attributes.removeValue(forKey: .attachment)
           replacement = NSMutableAttributedString(string: label.isEmpty ? "link" : label, attributes: attributes)
         }
         replacement.addAttribute(ComposerInlineText.link, value: url, range: NSRange(location: 0, length: replacement.length))
@@ -236,6 +251,7 @@
 
       override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
+        clearReferenceTypingAttributes()
         super.insertText(insertString, replacementRange: replacementRange)
         guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return }
         if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
@@ -246,6 +262,24 @@
           showingCompletions = true
           complete(nil)
         }
+      }
+
+      func clearReferenceTypingAttributes() {
+        typingAttributes.removeValue(forKey: ComposerReferenceText.token)
+        typingAttributes.removeValue(forKey: ComposerReferenceText.name)
+        typingAttributes.removeValue(forKey: .attachment)
+      }
+
+      override func writeSelection(to pasteboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        guard type == .string else { return super.writeSelection(to: pasteboard, type: type) }
+        let selection = attributedString().attributedSubstring(from: selectedRange())
+        let text = NSMutableString(string: selection.string)
+        selection.enumerateAttribute(ComposerReferenceText.token, in: NSRange(location: 0, length: selection.length), options: .reverse) { value, range, _ in
+          if let token = value as? String {
+            text.replaceCharacters(in: range, with: String(repeating: token, count: range.length))
+          }
+        }
+        return pasteboard.setString(text as String, forType: type)
       }
 
       override func paste(_: Any?) {
@@ -261,12 +295,43 @@
 
       override var rangeForUserCompletion: NSRange {
         guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return NSRange(location: NSNotFound, length: 0) }
+        if let trigger = ComposerReferenceTrigger.match(in: string, caret: selectedRange().location),
+           (trigger.kind == .mention && !mentions.isEmpty) || (trigger.kind == .channel && !channels.isEmpty) {
+          return trigger.range
+        }
         return ComposerEmoji.completionRange(in: string, caret: selectedRange().location) ?? NSRange(location: NSNotFound, length: 0)
       }
 
       override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
         guard charRange.location != NSNotFound, NSMaxRange(charRange) <= string.utf16.count else { return nil }
-        let query = (string as NSString).substring(with: charRange).dropFirst()
+        mentionCompletions = [:]
+        channelCompletions = [:]
+        let partial = (string as NSString).substring(with: charRange)
+        if partial.hasPrefix("@") {
+          let matches = ComposerMention.matching(mentions, query: String(partial.dropFirst()))
+          let labels = matches.map { entry in
+            let base = "\(entry.name)  @\(entry.slug)"
+            let label = mentionCompletions[base] == nil ? base : "\(base) (\(entry.id))"
+            mentionCompletions[label] = entry
+            return label
+          }
+          showingCompletions = !labels.isEmpty
+          index.pointee = 0
+          return labels
+        }
+        if partial.hasPrefix("#") {
+          let labels = ComposerChannel.matching(channels, query: String(partial.dropFirst())).map { entry in
+            let organization = entry.organizationName.map { " · " + $0 } ?? ""
+            let base = "#\(entry.name)\(organization)"
+            let label = channelCompletions[base] == nil ? base : "\(base) (#\(entry.slug))"
+            channelCompletions[label] = entry
+            return label
+          }
+          showingCompletions = !labels.isEmpty
+          index.pointee = 0
+          return labels
+        }
+        let query = partial.dropFirst()
         let words = ComposerEmoji.completions(for: String(query))
         if words.isEmpty {
           showingCompletions = false
@@ -282,7 +347,20 @@
           && (NSApp.currentEvent?.type == .leftMouseDown || NSApp.currentEvent?.type == .leftMouseUp)
         let explicitSelection = movement == NSReturnTextMovement || movement == NSTabTextMovement || mouseSelection
         // AppKit also finalizes when typing dismisses the list. That is not acceptance.
-        guard explicitSelection, word.hasSuffix(":"), NSMaxRange(charRange) <= string.utf16.count else { return }
+        guard explicitSelection, NSMaxRange(charRange) <= string.utf16.count else { return }
+        if let mention = mentionCompletions[word] {
+          guard mentions.contains(mention) else { return }
+          insertReference(token: mention.token, label: "@" + mention.name, range: charRange)
+          mentionCompletions = [:]
+          return
+        }
+        if let channel = channelCompletions[word] {
+          guard channels.contains(channel) else { return }
+          insertReference(token: channel.token(in: channels), label: "#" + channel.name, range: charRange)
+          channelCompletions = [:]
+          return
+        }
+        guard word.hasSuffix(":") else { return }
         // The menu label includes a preview; only the shortcode participates in insertion.
         let shortcode = String(word.split(separator: " ").last ?? Substring(word))
         let suffix = (string as NSString).substring(from: NSMaxRange(charRange))
@@ -290,6 +368,17 @@
         // Native completion owns navigation/cancellation; persist only the accepted result.
         breakUndoCoalescing()
         super.insertText(edit.replacement, replacementRange: charRange)
+        breakUndoCoalescing()
+      }
+
+      private func insertReference(token: String, label: String, range: NSRange) {
+        let suffix = (string as NSString).substring(from: NSMaxRange(range))
+        breakUndoCoalescing()
+        let chip = NSMutableAttributedString(attributedString: ComposerReferenceText.chip(token: token, name: label, attributes: typingAttributes))
+        if suffix.isEmpty || suffix.first?.isWhitespace == false {
+          chip.append(NSAttributedString(string: " ", attributes: typingAttributes))
+        }
+        super.insertText(MacComposerAttributedText.styled(chip), replacementRange: range)
         breakUndoCoalescing()
       }
 

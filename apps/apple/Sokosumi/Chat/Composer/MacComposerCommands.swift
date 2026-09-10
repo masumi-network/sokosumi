@@ -18,6 +18,15 @@
       var url: String
     }
 
+    func beginMention() {
+      guard let input, !input.hasMarkedText(), !input.mentions.isEmpty else { return }
+      input.window?.makeFirstResponder(input)
+      let range = input.selectedRange()
+      let prefix = (input.string as NSString).substring(to: range.location)
+      let separator = prefix.last.map { $0.isWhitespace ? "" : " " } ?? ""
+      input.insertText(separator + "@", replacementRange: range)
+    }
+
     func beginLink() {
       guard let input, !input.hasMarkedText() else { return }
       var range = input.selectedRange()

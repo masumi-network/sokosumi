@@ -19,6 +19,7 @@ public final class WorkspaceState: ObservableObject {
   public let directStream = DirectStreamSession()
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
+  @Published public private(set) var openingDirect: DirectRecipient?
   public var phase: Phase {
     workspaceSession.phase
   }
@@ -230,6 +231,7 @@ public final class WorkspaceState: ObservableObject {
     workspaceLoadTask?.cancel()
     workspaceLoadTask = nil
     workspaceGeneration += 1
+    openingDirect = nil
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -246,6 +248,44 @@ public final class WorkspaceState: ObservableObject {
   public func selectRoom(_ id: String?, auth: AuthState) {
     guard let id, id != selectedRoomId else { return }
     applyRoomSelection(id, auth: auth)
+  }
+
+  public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
+    guard phase == .ready, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return false }
+    return recipient.canOpen(from: room, currentUserId: currentUserId, hasActiveOrganization: selection?.workspace.organizationId != nil)
+  }
+
+  public func openParticipantDirect(_ recipient: DirectRecipient, auth: AuthState) async throws {
+    guard openingDirect == nil, canOpenDirect(recipient), let client = resolveClient(auth: auth) else { return }
+    let generation = workspaceGeneration
+    let selectionID = selectionId
+    let sourceRoom = transcriptRoomId
+    openingDirect = recipient
+    defer {
+      if generation == workspaceGeneration {
+        openingDirect = nil
+      }
+    }
+    do {
+      let room = try await ChatService().openDirect(client: client, recipient: recipient, organizationSlug: selection?.workspace.organizationSlug)
+      guard !Task.isCancelled, generation == workspaceGeneration, selectionID == selectionId, phase == .ready else { return }
+      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+        rooms[index] = room
+      } else {
+        rooms.append(room)
+      }
+      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+      // A completed request must not pull the user away from a room they selected meanwhile.
+      if transcriptRoomId == sourceRoom {
+        selectRoom(room.id, auth: auth)
+      }
+    } catch {
+      guard generation == workspaceGeneration, selectionID == selectionId else { return }
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error, auth: auth)
+      }
+      throw error
+    }
   }
 
   private func applyRoomSelection(_ id: String?, auth: AuthState) {
@@ -339,6 +379,15 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
+  public var composerChannels: [ComposerChannel] {
+    ComposerChannel.catalog(rooms: rooms)
+  }
+
+  public var composerMentions: [ComposerMention] {
+    guard let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return [] }
+    return ComposerMention.catalog(room: room, currentUserId: currentUserId)
+  }
+
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
@@ -358,11 +407,12 @@ public final class WorkspaceState: ObservableObject {
     }
     let id = UUID().uuidString
     let slug = selection?.workspace.organizationSlug
+    let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
     let shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }
@@ -795,6 +845,7 @@ public final class WorkspaceState: ObservableObject {
     guard !Task.isCancelled else { return }
     sidebar.reset()
     workspaceGeneration += 1
+    openingDirect = nil
     let generation = workspaceGeneration
     rooms = []
     switchError = nil
