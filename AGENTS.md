@@ -18,7 +18,12 @@
 
 - **Components**: Use Shadcn UI and Radix UI primitives
 - **Styling**: Tailwind CSS with responsive design
-- **Colors**: Use semantic colors from `globals.css`; never hardcode hex values
+- **Colors**: Use semantic tokens from `globals.css`. Never a raw Tailwind palette color
+  (`bg-emerald-500`, `text-gray-400`, `bg-black`), never a hex/rgb/hsl literal, and never an
+  opacity modifier on a color utility (`bg-primary/55`, `border-border/40`, `bg-primary/[0.04]`).
+  Use the alpha-baked ramp step instead (`-tertiary` border, `-quaternary` hover, `-quinary`
+  fill); if no step fits, add one to both theme blocks. See
+  [Color tokens](.cursor/rules/color-tokens.mdc).
 - **Sizing**: Use `size-4` instead of `h-4 w-4`
 - **Themes**: Ensure compatibility with both dark and light modes
 - **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
@@ -319,6 +324,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Additional Rules
 
+- [Color tokens](.cursor/rules/color-tokens.mdc) – semantic tokens only; no raw palette, hex literals, or opacity modifiers
 - [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
