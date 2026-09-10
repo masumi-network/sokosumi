@@ -52,7 +52,7 @@ afterEach(() => {
 });
 
 describe("TaskFormModal", () => {
-  it("keeps the panel mounted when closed without View Transitions", () => {
+  it("keeps the panel mounted when closed without the animated portal", () => {
     render(
       <TaskFormModal open={false} {...modalProps}>
         form
@@ -64,7 +64,7 @@ describe("TaskFormModal", () => {
     expect(screen.getByText("form")).toBeInTheDocument();
   });
 
-  it("mounts the dedicated portal while open when View Transitions are on", () => {
+  it("mounts the dedicated portal while open when animation is on", () => {
     render(
       <TaskFormModal open viewTransition {...modalProps}>
         form
@@ -84,7 +84,18 @@ describe("TaskFormModal", () => {
     expect(overlay.className).not.toContain("md:bg-auto");
   });
 
-  it("does not portal when View Transitions start closed", () => {
+  it("animates the shell on mount", () => {
+    const animate = mockShellAnimate();
+    render(
+      <TaskFormModal open viewTransition {...modalProps}>
+        form
+      </TaskFormModal>,
+    );
+
+    expect(animate).toHaveBeenCalled();
+  });
+
+  it("does not portal when the animated portal starts closed", () => {
     render(
       <TaskFormModal open={false} viewTransition {...modalProps}>
         form
@@ -163,10 +174,11 @@ describe("TaskFormModal", () => {
       </TaskFormModal>,
     );
 
+    const callsAfterMount = animate.mock.calls.length;
     await user.click(screen.getByTestId("create-task-modal-overlay"));
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(screen.getByTestId("create-task-modal-vt")).toBeInTheDocument();
-    expect(animate).toHaveBeenCalled();
+    expect(animate.mock.calls.length).toBeGreaterThan(callsAfterMount);
     expect(screen.getByTestId("create-task-modal-vt")).toHaveStyle({
       pointerEvents: "none",
     });

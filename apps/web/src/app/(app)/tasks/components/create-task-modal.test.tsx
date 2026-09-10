@@ -114,7 +114,7 @@ describe("CreateTaskModal", () => {
     vi.clearAllMocks();
   });
 
-  it("opts the create-task shell into View Transitions", () => {
+  it("opts the create-task shell into the animated portal", () => {
     render(
       <CreateTaskModalProvider>
         <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />

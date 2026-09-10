@@ -10,8 +10,6 @@ import {
   useMemo,
   useRef,
   useState,
-  ViewTransition,
-  type ViewTransitionInstance,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -45,15 +43,6 @@ const EXIT_OPTIONS: KeyframeAnimationOptions = {
   fill: "both",
 };
 
-interface ViewTransitionPseudo {
-  animate: Element["animate"];
-}
-
-interface ViewTransitionWaapiInstance {
-  name: string;
-  new?: ViewTransitionPseudo | null;
-}
-
 function prefersReducedMotion() {
   return (
     typeof window !== "undefined" &&
@@ -61,23 +50,12 @@ function prefersReducedMotion() {
   );
 }
 
-function animateCreateTaskModal(
-  pseudo: ViewTransitionPseudo | null | undefined,
+function animateShell(
+  el: HTMLElement,
   keyframes: Keyframe[],
   options: KeyframeAnimationOptions,
-  fallback: HTMLElement | null,
 ) {
-  if (prefersReducedMotion()) {
-    return () => {};
-  }
-  const target = pseudo ?? fallback;
-  if (!target) {
-    return () => {};
-  }
-  const animation = target.animate(keyframes, options);
-  return () => {
-    animation.cancel();
-  };
+  return el.animate(keyframes, options);
 }
 
 function useCreateTaskModalA11y({
@@ -161,7 +139,7 @@ interface TaskFormModalProps {
   cancelLabel: string;
   children: React.ReactNode;
   isDismissDisabled?: boolean;
-  /** Create-task modal only. Other TaskFormModal callers stay unanimated. */
+  /** Animated portal (WAAPI). Create-task only. Other callers stay on Dialog. */
   viewTransition?: boolean;
 }
 
@@ -207,7 +185,7 @@ export function TaskFormModal({
     }
     exitingRef.current = true;
     shell.style.pointerEvents = "none";
-    const animation = shell.animate(EXIT_KEYFRAMES, EXIT_OPTIONS);
+    const animation = animateShell(shell, EXIT_KEYFRAMES, EXIT_OPTIONS);
     const finish = () => {
       exitingRef.current = false;
       handleOpenChange(false);
@@ -220,14 +198,15 @@ export function TaskFormModal({
     onDismiss: handleDismiss,
   });
 
-  const handleEnter = useCallback((instance: ViewTransitionInstance) => {
-    return animateCreateTaskModal(
-      (instance as ViewTransitionWaapiInstance).new,
-      ENTER_KEYFRAMES,
-      ENTER_OPTIONS,
-      shellRef.current,
-    );
-  }, []);
+  useLayoutEffect(() => {
+    if (!viewTransition || !open) return;
+    const shell = shellRef.current;
+    if (!shell || prefersReducedMotion()) return;
+    const animation = animateShell(shell, ENTER_KEYFRAMES, ENTER_OPTIONS);
+    return () => {
+      animation.cancel();
+    };
+  }, [open, viewTransition]);
 
   const panel = (
     <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
@@ -261,16 +240,10 @@ export function TaskFormModal({
   if (viewTransition) {
     return (
       <TaskFormModalHeaderContext value={headerContextValue}>
-        {open && typeof document !== "undefined" ? (
-          <ViewTransition
-            default="none"
-            enter="create-task-modal-enter"
-            onEnter={handleEnter}
-          >
-            {createPortal(
+        {open && typeof document !== "undefined"
+          ? createPortal(
               <div
                 ref={shellRef}
-                data-create-task-modal-vt=""
                 data-testid="create-task-modal-vt"
                 className="fixed inset-0 z-50"
               >
@@ -291,9 +264,8 @@ export function TaskFormModal({
                 </div>
               </div>,
               document.body,
-            )}
-          </ViewTransition>
-        ) : null}
+            )
+          : null}
       </TaskFormModalHeaderContext>
     );
   }
