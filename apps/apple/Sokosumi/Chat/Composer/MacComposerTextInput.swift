@@ -9,6 +9,7 @@
     let submit: () -> Bool
     var placeholder = "Message"
     var emojiPickerRequest = 0
+    var commands: MacComposerCommands?
 
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
@@ -20,7 +21,7 @@
       scroll.scrollerStyle = .overlay
       scroll.hasVerticalScroller = true
       let input = InputView(frame: scroll.contentView.bounds)
-      input.isRichText = false
+      input.isRichText = true
       input.allowsUndo = true
       input.isAutomaticQuoteSubstitutionEnabled = false
       input.isAutomaticDashSubstitutionEnabled = false
@@ -35,8 +36,12 @@
       input.textContainerInset = NSSize(width: 2, height: 2)
       input.setAccessibilityLabel("Message")
       input.delegate = context.coordinator
+      commands?.input = input
+      input.openLinkEditor = { [weak commands] in commands?.beginLink() }
+      input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
       input.placeholder = placeholder
+      commands?.refresh()
       scroll.documentView = input
       return scroll
     }
@@ -54,11 +59,11 @@
           NSApp.orderFrontCharacterPalette(nil)
         }
       }
-      if input.string != text, !input.hasMarkedText() {
+      if input.serializedDraft != text, !input.hasMarkedText() {
         if text.isEmpty {
           input.clearAfterSend()
         } else {
-          input.string = text
+          input.restoreDraft(text)
         }
       }
     }
@@ -75,7 +80,7 @@
         let font = input.font ?? .preferredFont(forTextStyle: .body)
         // SwiftUI probes zero/infinite sizes. Measure separate storage so these
         // proposals never change the live editor's frame or hit-testing region.
-        let storage = NSTextStorage(string: input.string, attributes: [.font: font])
+        let storage = NSTextStorage(attributedString: input.attributedString())
         let layout = NSLayoutManager()
         let container = NSTextContainer(size: NSSize(width: width, height: .greatestFiniteMagnitude))
         storage.addLayoutManager(layout)
@@ -83,7 +88,7 @@
         layout.ensureLayout(for: container)
         let lineHeight = layout.defaultLineHeight(for: font)
         let height = max(max(layout.usedRect(for: container).maxY, layout.extraLineFragmentRect.maxY) + 4, lineHeight + 4)
-        return CGSize(width: width, height: min(height, lineHeight * 6 + 4))
+        return CGSize(width: width, height: min(max(height, lineHeight * 3 + 4), lineHeight * 8 + 4))
       }
 
       override func layout() {
@@ -111,22 +116,128 @@
       }
 
       func textDidChange(_ notification: Notification) {
-        guard let input = notification.object as? NSTextView else { return }
-        parent.text = input.string
+        guard let input = notification.object as? InputView else { return }
+        parent.text = input.captureDraft()
+        parent.commands?.refresh()
+      }
+
+      func textViewDidChangeSelection(_: Notification) {
+        parent.commands?.refresh()
       }
     }
 
     final class InputView: NSTextView {
       private var showingCompletions = false
+      private var preservesRawDraft = false
+      private(set) var serializedDraft = ""
       var submit: () -> Bool = { false }
+      var openLinkEditor: (() -> Void)?
+      var formattingDidChange: (() -> Void)?
       var placeholder = "Message" {
         didSet { needsDisplay = true }
+      }
+
+      func restoreDraft(_ source: String) {
+        guard !hasMarkedText() else { return }
+        if let document = try? ComposerDocument(markdown: source) {
+          textStorage?.setAttributedString(MacComposerAttributedText.render(document))
+          preservesRawDraft = false
+          isRichText = true
+        } else {
+          // Keep unsupported draft content intact until the editor supports its structure.
+          string = source
+          preservesRawDraft = true
+          isRichText = false
+        }
+        serializedDraft = source
+        undoManager?.removeAllActions()
+      }
+
+      @discardableResult
+      func captureDraft() -> String {
+        serializedDraft = preservesRawDraft ? string : ComposerBlockText.document(attributedString()).markdown
+        return serializedDraft
+      }
+
+      private var caretIsInCode: Bool {
+        guard !string.isEmpty else { return false }
+        let index = min(max(0, selectedRange().location - 1), string.utf16.count - 1)
+        let attributes = attributedString().attributes(at: index, effectiveRange: nil)
+        if attributes[ComposerInlineText.code] as? Bool == true {
+          return true
+        }
+        let path = attributes[ComposerBlockText.path] as? [String] ?? []
+        return path.last?.split(separator: ":", maxSplits: 2).dropFirst().first == "c"
+      }
+
+      func toggleFormat(_ style: ComposerInlineText.Style) {
+        guard !hasMarkedText(), !preservesRawDraft else { return }
+        defer { formattingDidChange?() }
+        let selection = selectedRange()
+        if selection.length == 0 {
+          let sample = NSAttributedString(string: " ", attributes: typingAttributes)
+          let styled = MacComposerAttributedText.styled(ComposerInlineText.toggling(style, in: sample))
+          typingAttributes = styled.attributes(at: 0, effectiveRange: nil)
+          return
+        }
+        let selected = attributedString().attributedSubstring(from: selection)
+        let replacement = MacComposerAttributedText.styled(ComposerInlineText.toggling(style, in: selected))
+        breakUndoCoalescing()
+        replaceFormatting(replacement, range: selection)
+        breakUndoCoalescing()
+      }
+
+      func applyBlockFormat(_ format: ComposerBlockFormat) {
+        guard !hasMarkedText(), !preservesRawDraft else { return }
+        let selection = selectedRange()
+        let range = format == .codeBlock ? selection : (string as NSString).paragraphRange(for: selection)
+        let selected = attributedString().attributedSubstring(from: range)
+        let replacement = MacComposerAttributedText.styled(format.applying(to: selected))
+        breakUndoCoalescing()
+        replaceFormatting(replacement, range: range)
+        let caret = range.location + replacement.length - (replacement.string.hasSuffix("\n") ? 1 : 0)
+        setSelectedRange(NSRange(location: caret, length: 0))
+        breakUndoCoalescing()
+      }
+
+      private func replaceFormatting(_ replacement: NSAttributedString, range: NSRange) {
+        guard let textStorage, NSMaxRange(range) <= textStorage.length else { return }
+        let previous = textStorage.attributedSubstring(from: range)
+        undoManager?.registerUndo(withTarget: self) { input in
+          input.replaceFormatting(previous, range: NSRange(location: range.location, length: replacement.length))
+        }
+        textStorage.replaceCharacters(in: range, with: replacement)
+        setSelectedRange(NSRange(location: range.location, length: replacement.length))
+        didChangeText()
+      }
+
+      func insertLink(label: String, destination: String, range: NSRange) {
+        guard !hasMarkedText(), !preservesRawDraft,
+              NSMaxRange(range) <= string.utf16.count,
+              let url = ComposerLink.normalizedURL(destination) else { return }
+        let selected = attributedString().attributedSubstring(from: range)
+        let replacement: NSMutableAttributedString
+        if !ComposerContent(selected.string).text.isEmpty, ComposerContent(label).text == ComposerContent(selected.string).text {
+          replacement = NSMutableAttributedString(attributedString: selected)
+        } else {
+          var attributes = typingAttributes
+          if attributedString().length > 0 {
+            attributes = attributedString().attributes(at: min(range.location, attributedString().length - 1), effectiveRange: nil)
+          }
+          attributes.removeValue(forKey: ComposerBlockText.listMarker)
+          replacement = NSMutableAttributedString(string: label.isEmpty ? "link" : label, attributes: attributes)
+        }
+        replacement.addAttribute(ComposerInlineText.link, value: url, range: NSRange(location: 0, length: replacement.length))
+        breakUndoCoalescing()
+        replaceFormatting(MacComposerAttributedText.styled(replacement), range: range)
+        setSelectedRange(NSRange(location: range.location + replacement.length, length: 0))
+        breakUndoCoalescing()
       }
 
       override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
         super.insertText(insertString, replacementRange: replacementRange)
-        guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0 else { return }
+        guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return }
         if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
           breakUndoCoalescing()
           super.insertText(edit.replacement, replacementRange: edit.range)
@@ -137,8 +248,19 @@
         }
       }
 
+      override func paste(_: Any?) {
+        pasteText(from: .general)
+      }
+
+      func pasteText(from pasteboard: NSPasteboard) {
+        let plain = pasteboard.string(forType: .string) ?? ""
+        let text = plain.isEmpty ? ComposerPaste.plainText(html: pasteboard.string(forType: .html) ?? "") : plain
+        guard !text.isEmpty else { return }
+        insertText(text, replacementRange: selectedRange())
+      }
+
       override var rangeForUserCompletion: NSRange {
-        guard !hasMarkedText(), selectedRange().length == 0 else { return NSRange(location: NSNotFound, length: 0) }
+        guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return NSRange(location: NSNotFound, length: 0) }
         return ComposerEmoji.completionRange(in: string, caret: selectedRange().location) ?? NSRange(location: NSNotFound, length: 0)
       }
 
@@ -183,6 +305,20 @@
       }
 
       override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if window?.firstResponder === self, event.modifierFlags.contains(.command),
+           event.modifierFlags.isDisjoint(with: [.shift, .option, .control]),
+           event.charactersIgnoringModifiers?.lowercased() == "k" {
+          openLinkEditor?()
+          return true
+        }
+        if window?.firstResponder === self,
+           event.modifierFlags.contains(.command),
+           event.modifierFlags.isDisjoint(with: [.shift, .option, .control]),
+           let key = event.charactersIgnoringModifiers?.lowercased(),
+           let style: ComposerInlineText.Style = ["b": .bold, "i": .italic, "u": .underline][key] {
+          toggleFormat(style)
+          return true
+        }
         // AppKit otherwise consumes Control-Return as a contextual-menu shortcut.
         if window?.firstResponder === self,
            event.keyCode == 36 || event.keyCode == 76,
@@ -197,6 +333,10 @@
       /// survive: Cmd+Z after send must not resurrect just-sent text.
       func clearAfterSend() {
         string = ""
+        serializedDraft = ""
+        preservesRawDraft = false
+        isRichText = true
+        typingAttributes = [.font: NSFont.preferredFont(forTextStyle: .body), .foregroundColor: NSColor.labelColor]
         undoManager?.removeAllActions()
       }
 
@@ -213,7 +353,16 @@
           return
         }
         if !event.modifierFlags.isDisjoint(with: [.shift, .command, .control]) {
-          insertNewline(nil)
+          if let edit = ComposerBlockText.exitingQuote(attributedString(), selection: selectedRange()), !preservesRawDraft {
+            breakUndoCoalescing()
+            replaceFormatting(MacComposerAttributedText.styled(edit.replacement), range: edit.range)
+            setSelectedRange(NSRange(location: edit.caret, length: 0))
+            typingAttributes = attributedString().attributes(at: edit.caret, effectiveRange: nil)
+            formattingDidChange?()
+            breakUndoCoalescing()
+          } else {
+            insertNewline(nil)
+          }
         } else {
           if submit() {
             clearAfterSend()

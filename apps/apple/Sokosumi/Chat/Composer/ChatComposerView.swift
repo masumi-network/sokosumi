@@ -48,31 +48,21 @@ import SwiftUI
 
     var body: some View {
       let content = preparedContent
-      HStack {
-        ComposerTextInput(text: Binding(
-          get: { draft },
-          set: { text in
-            draft = text
-            savedDraft.save(text)
+      ComposerTextInput(text: Binding(
+        get: { draft },
+        set: { text in
+          draft = text
+          savedDraft.save(text)
+        }
+      ), submit: sendDraft, placeholder: composerPlaceholder, canSend: canSend, content: content)
+        .padding(8)
+        .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
+          guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
+          draft = savedDraft.restoreFailedSend(text, preserving: draft)
+          Task { @MainActor in
+            workspaces.directStream.consumeRestoredDraft()
           }
-        ), submit: sendDraft, placeholder: composerPlaceholder)
-        if content.showsCounter {
-          Text("\(content.count)/\(ComposerContent.maximumLength)")
-            .font(.caption)
-            .foregroundStyle(content.isTooLong ? .red : .secondary)
-            .accessibilityLabel("Message length: \(content.count) of \(ComposerContent.maximumLength)")
         }
-        Button("Send") { sendDraft() }
-          .disabled(!canSend)
-      }
-      .padding(8)
-      .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
-        guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
-        draft = savedDraft.restoreFailedSend(text, preserving: draft)
-        Task { @MainActor in
-          workspaces.directStream.consumeRestoredDraft()
-        }
-      }
     }
 
     @discardableResult
