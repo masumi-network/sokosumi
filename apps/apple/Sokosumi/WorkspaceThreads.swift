@@ -3,8 +3,18 @@ import SokosumiAuth
 import SokosumiChat
 
 extension WorkspaceState {
+  var streamingThreadToOpen: Components.Schemas.ChatRoomMessage? {
+    guard directStream.isBusy, directStream.phase != .resuming,
+          let parentId = directStream.parentMessageId,
+          thread.parent?.id != parentId else { return nil }
+    return transcriptMessages.first { $0.id == parentId }
+  }
+
   func openThread(_ parent: Components.Schemas.ChatRoomMessage, auth: AuthState) {
-    guard parent.roomId == transcriptRoomId, thread.open(parent) else { return }
+    guard parent.roomId == transcriptRoomId else { return }
+    let previousGeneration = thread.timeline.generation
+    guard thread.open(parent) else { return }
+    guard thread.timeline.generation != previousGeneration else { return }
     loadThreadPage(.initial, auth: auth)
     let generation = thread.timeline.generation
     thread.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
@@ -22,7 +32,12 @@ extension WorkspaceState {
     }
   }
 
+  var displayedThreadReplies: [Components.Schemas.ChatRoomMessage] {
+    directStream.displayedMessages(persisted: thread.displayedReplies, parentMessageId: thread.parent?.id)
+  }
+
   func loadThreadPage(_ page: RoomTimeline.Page, auth: AuthState) {
+    guard page != .older || !directStream.isBusy else { return }
     guard let client = resolveClient(auth: auth) else {
       thread.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: thread.timeline.generation)
       return
@@ -61,6 +76,17 @@ extension WorkspaceState {
   @discardableResult
   func sendThreadReply(_ content: String, auth: AuthState) -> Bool {
     guard let client = resolveClient(auth: auth), thread.parent?.roomId == transcriptRoomId else { return false }
+    if directStream.roomId == transcriptRoomId, let parentId = thread.parent?.id {
+      let generation = timeline.generation
+      return directStream.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug,
+                               parentMessageId: parentId, settled: { [weak self, weak auth] in
+                                 guard let self, let auth else { return false }
+                                 return await settleDirectStream(auth: auth, generation: generation)
+                               }, failed: { [weak self, weak auth] error in
+                                 guard let self, let auth, let error = error as? ChatServiceError else { return }
+                                 signOutIfUnauthorized(error, auth: auth)
+                               })
+    }
     return thread.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender) { [weak self, weak auth] result in
       guard let self, let auth else { return }
       switch result {
