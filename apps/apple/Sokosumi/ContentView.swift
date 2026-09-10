@@ -7,7 +7,6 @@ struct ContentView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   @State private var windowID = UUID()
-  @State private var sidebarIsHovered = false
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.openSettings) private var openSettings
 
@@ -229,17 +228,11 @@ struct ContentView: View {
           meSection
         }
         .navigationSplitViewColumnWidth(min: 220, ideal: 260)
-        .onContinuousHover { phase in
-          sidebarIsHovered = switch phase {
-          case .active: true
-          case .ended: false
-          }
-        }
       } detail: {
         if let selectedRoomId = workspaces.selectedRoomId,
            let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
           NavigationStack {
-            TranscriptView(roomId: selectedRoomId, allowsMessageHover: !sidebarIsHovered)
+            TranscriptView(roomId: selectedRoomId)
               .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
               .navigationDestination(isPresented: Binding(
                 get: { workspaces.thread.parent != nil },

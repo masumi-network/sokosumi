@@ -325,7 +325,8 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Centered Reply vertically on the message highlight top edge using its measured alignment guide, so half sits above the highlight. Uses a compact caption label with a larger outlined text-bubble SF Symbol to follow the supplied Slack reference. Hovering the raised CTA keeps its message highlight and action visible.
 - Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/reply-boundary-build.log`, `/tmp/reply-boundary-lint.log`). Native pointer and visual confirmation remain manual.
 
-### Slice 08 sidebar hover suppression (2026-09-10)
+### Slice 08 Reply offset correction (2026-09-10)
 
-- The sidebar now suppresses transcript pointer highlights/actions while hovered and clears previous message hover state. Keyboard-focused Reply remains accessible. This addresses covered messages retaining hover behind the sidebar; native menu tracking outside the sidebar bounds has not been verified.
-- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/sidebar-hover-build.log`, `/tmp/sidebar-hover-lint.log`). Native pointer verification remains manual.
+- User screenshots showed the alignment-guide implementation left Reply inside the highlight. Replaced it with an explicit upward offset of half the button height; the height scales with the body text size.
+- Removed sidebar hover suppression at the user’s request. Sidebar and message hover states remain independent.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/reply-offset-final-build.log`, `/tmp/reply-offset-final-lint.log`). Native visual confirmation remains manual.

@@ -26,7 +26,6 @@ import SwiftUI
     @State private var userIsScrolling = false
 
     let roomId: String
-    var allowsMessageHover = true
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
@@ -123,8 +122,7 @@ import SwiftUI
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                     },
                     onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil,
-                    horizontalInset: 12,
-                    allowsHover: allowsMessageHover
+                    horizontalInset: 12
                   )
                 }
               }
@@ -370,9 +368,9 @@ import SwiftUI
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
     var horizontalInset: CGFloat = 0
-    var allowsHover = true
     @State private var isHovered = false
     @State private var isReplyHovered = false
+    @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
     @FocusState private var replyFocused: Bool
 
     var body: some View {
@@ -445,7 +443,7 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background(allowsHover && (isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
+      .background((isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
         if let onReply {
           Button(action: onReply) {
@@ -456,7 +454,7 @@ import SwiftUI
                 .font(.caption)
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .frame(height: replyActionHeight)
             .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
                         in: .rect(cornerRadius: 8))
             .contentShape(.rect(cornerRadius: 8))
@@ -476,11 +474,12 @@ import SwiftUI
           .focused($replyFocused)
           .help("Reply in thread")
           .accessibilityLabel("Reply in thread")
-          .opacity(allowsHover && (isHovered || isReplyHovered) || replyFocused ? 1 : 0)
-          .allowsHitTesting(allowsHover && (isHovered || isReplyHovered) || replyFocused)
+          .opacity(isHovered || isReplyHovered || replyFocused ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || replyFocused)
           .padding(.trailing, horizontalInset)
-          // Center the action across the row boundary, including at larger text sizes.
-          .alignmentGuide(.top) { dimensions in dimensions[VerticalAlignment.center] }
+          // Move the rendered button by exactly half its height. An alignment
+          // guide inside this conditional overlay does not reposition it.
+          .offset(y: -replyActionHeight / 2)
         }
       }
       // Track the complete row, including its action overlay. The toolbar
@@ -497,12 +496,6 @@ import SwiftUI
       .contextMenu {
         if let onReply {
           Button("Reply in thread", systemImage: "bubble.right", action: onReply)
-        }
-      }
-      .onChange(of: allowsHover) { _, allowed in
-        if !allowed {
-          isHovered = false
-          isReplyHovered = false
         }
       }
       .accessibilityElement(children: .contain)
