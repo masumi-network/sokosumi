@@ -890,7 +890,9 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("activeSeries"),
+      expect(toast.error).toHaveBeenCalledWith("activeSeries", {
+        duration: Infinity,
+      }),
     );
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();
@@ -908,7 +910,9 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("quarantined"),
+      expect(toast.error).toHaveBeenCalledWith("quarantined", {
+        duration: Infinity,
+      }),
     );
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();

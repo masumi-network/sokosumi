@@ -341,7 +341,7 @@ export function TaskDetailActions({
       showCalendarClientUpgradeModal();
       return;
     }
-    toast.error(tSeries(feedbackKey));
+    toast.error(tSeries(feedbackKey), { duration: Infinity });
   };
 
   const handleStatusToggle = (action: TaskStatusAction) => {

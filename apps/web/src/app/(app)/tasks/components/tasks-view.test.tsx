@@ -323,7 +323,9 @@ describe("TasksView board drag", () => {
     await dropOnTodo("task-1", "backlog");
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError),
+      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError, {
+        duration: Infinity,
+      }),
     );
     expect(boardCard("task-1")).toHaveAttribute("data-column", "backlog");
     expect(boardCard("task-1")).toHaveAttribute(
@@ -343,7 +345,9 @@ describe("TasksView board drag", () => {
     await dropOnTodo("task-1", "backlog");
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("quarantined"),
+      expect(toast.error).toHaveBeenCalledWith("quarantined", {
+        duration: Infinity,
+      }),
     );
     expect(boardCard("task-1")).toHaveAttribute("data-column", "backlog");
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
@@ -385,7 +389,9 @@ describe("TasksView board drag", () => {
     );
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError),
+      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError, {
+        duration: Infinity,
+      }),
     );
     expect(boardCard("task-1")).toHaveAttribute("data-column", "done");
     expect(boardCard("task-1")).toHaveAttribute(

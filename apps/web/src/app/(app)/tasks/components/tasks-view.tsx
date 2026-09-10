@@ -379,6 +379,7 @@ export function TasksView({
       feedbackKey === "activeSeries"
         ? labels.scheduleActiveError
         : tSeries(feedbackKey),
+      { duration: Infinity },
     );
   };
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(

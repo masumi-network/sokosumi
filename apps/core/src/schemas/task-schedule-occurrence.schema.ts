@@ -9,6 +9,7 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 export const taskScheduleOccurrenceViewSchema = z
   .enum(["upcoming", "history"])
@@ -18,16 +19,12 @@ export type TaskScheduleOccurrenceView = z.infer<
   typeof taskScheduleOccurrenceViewSchema
 >;
 
-export const taskScheduleOccurrenceQuerySchema = z
-  .object({
-    view: taskScheduleOccurrenceViewSchema.default("upcoming").openapi({
-      param: { name: "view", in: "query" },
-      description:
-        "upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending",
-      example: "upcoming",
-    }),
-    cursor: z
-      .string()
+export const taskScheduleOccurrenceQuerySchema = cursorPaginationQuerySchema
+  .extend({
+    // Keeps the shared cursor contract but bounds the opaque token: this view
+    // decodes the cursor, so an unbounded string is decode work we never owe.
+    cursor: cursorPaginationQuerySchema.shape.cursor
+      .unwrap()
       .max(512)
       .optional()
       .openapi({
@@ -35,17 +32,17 @@ export const taskScheduleOccurrenceQuerySchema = z
         description:
           "Opaque cursor from a previous page of the same view. A cursor minted before the schedule revision changed is rejected with kind schedule_cursor_stale.",
       }),
-    limit: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(LIMITS.MAX_PAGINATION_LIMIT)
-      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
-      .openapi({
-        param: { name: "limit", in: "query" },
-        description: `Number of occurrences to return (max ${LIMITS.MAX_PAGINATION_LIMIT})`,
-        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
-      }),
+    limit: cursorPaginationQuerySchema.shape.limit.openapi({
+      param: { name: "limit", in: "query" },
+      description: `Number of occurrences to return (max ${LIMITS.MAX_PAGINATION_LIMIT})`,
+      example: LIMITS.DEFAULT_PAGINATION_LIMIT,
+    }),
+    view: taskScheduleOccurrenceViewSchema.default("upcoming").openapi({
+      param: { name: "view", in: "query" },
+      description:
+        "upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending",
+      example: "upcoming",
+    }),
   })
   .openapi("TaskScheduleOccurrenceQuery");
 

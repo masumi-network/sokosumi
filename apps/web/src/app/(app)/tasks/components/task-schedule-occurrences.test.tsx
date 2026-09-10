@@ -342,6 +342,36 @@ describe("TaskScheduleOccurrences", () => {
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
+  it("stops the loading spinner for people who prefer reduced motion", async () => {
+    const user = userEvent.setup();
+    let finishRequest: ((value: { status: "stale" }) => void) | undefined;
+    loadMoreMock.mockReturnValue(
+      new Promise((resolve) => {
+        finishRequest = resolve;
+      }),
+    );
+
+    renderOccurrences({
+      upcoming: {
+        occurrences: [occurrence({ id: "occ_1" })],
+        nextCursor: "cursor-2",
+      },
+    });
+
+    const button = screen.getByRole("button", { name: "Load more" });
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(button.querySelector("svg")).toHaveClass(
+        "motion-safe:animate-spin",
+      );
+    });
+    expect(button.querySelector("svg")).not.toHaveClass("animate-spin");
+
+    finishRequest?.({ status: "stale" });
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+  });
+
   it("does not ask again for the same doomed cursor while the refresh is in flight", async () => {
     const user = userEvent.setup();
     loadMoreMock.mockResolvedValue({ status: "stale" });
@@ -442,6 +472,7 @@ describe("TaskScheduleOccurrences", () => {
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
         "Unable to load more runs. Check your connection and try again.",
+        { duration: Infinity },
       );
     });
     expect(consoleError).toHaveBeenCalled();

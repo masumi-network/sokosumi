@@ -102,7 +102,7 @@ export function TaskScheduleOccurrences({
           view,
           error,
         });
-        toast.error(t("loadMoreError"));
+        toast.error(t("loadMoreError"), { duration: Infinity });
       }
     });
   }
@@ -188,7 +188,10 @@ function OccurrenceList({
         >
           {isPending ? (
             <>
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 motion-safe:animate-spin"
+                aria-hidden
+              />
               {t("loading")}
             </>
           ) : (
