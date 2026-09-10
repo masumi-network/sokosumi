@@ -9,7 +9,7 @@
 - Rebase verification: 190 Chat tests and Xcode app tests passed with the merged grammar packages. Rich rendering remains incomplete; the user has confirmed improved scrolling with the scroll-binding change.
 - Native highlighting checkpoint: 31 grammar choices and common fence aliases integrated; 202 Chat tests, Xcode app build/tests (including bundled query lookup), iOS 17 compilation and lint/format passed. Full registry, aliases/detection and remaining rich-text behavior are still incomplete.
 - Bare-domain links now use the web allowlist and exclusions before native Markdown parsing; code and existing links remain protected. Parser/integration tests pass.
-- Long-message expansion is implemented using 16 measured native body lines. Xcode build/tests and lint pass; expand/collapse, resizing and accessibility verification remain pending.
+- Long-message expansion is implemented using 16 measured native body lines. Xcode build/tests and lint pass; signed launch exposes collapsed Show more controls on existing reports; pointer expand/collapse and resizing remain unverified because CUA scroll input fails (`noWindowsAvailable`).
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ### PR #4361 minor review follow-up

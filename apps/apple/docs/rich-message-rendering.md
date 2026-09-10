@@ -249,3 +249,18 @@ Xcode app build/tests and changed-file lint/format passed
 verification: native expand/collapse, resize, selection and accessibility checks
 remain required, including initial measurement and Markdown parse transitions.
 No new interaction test has yet verified the expansion control.
+
+## Signed app verification attempt
+
+The Apple Development build passed (`/tmp/apple-rendering-signed.log`) and the
+latest app was relaunched through CUA. The restored Everyone room exposed two
+Show more controls with the accessibility value Collapsed for the existing
+long reports. No messages were sent. The screenshot confirms normal recent
+message rendering, but the reports were outside the visible viewport.
+
+Interaction verification remains inconclusive: CUA rejected the report button
+with an ambiguous-element refetch error, pointer scrolling with
+`noWindowsAvailable`, and accessibility Scroll Up/scrollbar value changes had
+no visible effect. This does not establish an app defect or successful
+expand/collapse. Keep the manual/native interaction checks open; continue
+independent rendering work instead of repeatedly attempting the same tool path.
