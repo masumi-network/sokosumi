@@ -37,6 +37,12 @@ const EXCLUDED_PATHS = [
   // the proxy runs on every request. `proxy.test.ts` builds the URL from the
   // constant, so a rename fails there rather than silently here.
   "/ably-push-sw.js",
+  // The catalog that worker imports. An imported script fetch fails on a
+  // redirect exactly as the worker's own does, and it fails harder: the
+  // import throws, so worker evaluation fails and the reader is left with no
+  // push worker at all. `proxy.test.ts` reads this path out of the worker's
+  // `importScripts` call, so a rename fails there rather than silently here.
+  "/ably-push-messages.js",
   "/maintenance",
 ];
 
