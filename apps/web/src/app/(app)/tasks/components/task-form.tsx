@@ -732,8 +732,6 @@ export function TaskForm({
           return;
         }
         const createdTask = result.value;
-        // In the modal, confirm success in place and let the user choose when
-        // to navigate — the redirect target is prefetched so it lands fast.
         if (isModal) {
           const assigneeFields = resolveTaskAssigneeFields(
             assigneeId,
