@@ -47,3 +47,14 @@ import Testing
   drafts[0].save("")
   #expect(drafts[1].load() == "Draft 1")
 }
+
+@Test(arguments: ["", "New draft 👋", "  "])
+func failedSendRestorationPreservesNewInput(current: String) throws {
+  let suiteName = "compose-draft-tests-\(UUID().uuidString)"
+  let defaults = try #require(UserDefaults(suiteName: suiteName))
+  defer { defaults.removePersistentDomain(forName: suiteName) }
+  let draft = SavedComposeDraft(userId: "me", organizationId: nil, roomId: "room", defaults: defaults)
+  let expected = current.isEmpty ? "Failed message" : "Failed message\n\n" + current
+  #expect(draft.restoreFailedSend("Failed message", preserving: current) == expected)
+  #expect(draft.load() == expected)
+}
