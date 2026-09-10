@@ -645,7 +645,9 @@ export const auth = betterAuth({
       references: "user",
       rateLimit: {
         enabled: true,
-        timeWindow: TIME.RATE_LIMIT_WINDOW,
+        // The plugin measures timeWindow in milliseconds; TIME is a seconds
+        // table. The value is snapshotted onto each ApiKey row at creation.
+        timeWindow: TIME.RATE_LIMIT_WINDOW * 1_000,
         maxRequests: LIMITS.API_KEY_MAX_REQUESTS_PER_MINUTE,
       },
       enableMetadata: true,

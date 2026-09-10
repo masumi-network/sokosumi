@@ -7,6 +7,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import { recordCoreRequestError } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
+import { matchedRouteTemplate } from "@/lib/route-template";
 
 import {
   type ErrorResponse,
@@ -92,7 +93,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
   if (error instanceof z.ZodError) {
     console.error("Zod parsing error:", {
       requestId: c.var.requestId,
-      path: c.req.path,
+      path: matchedRouteTemplate(c),
       method: c.req.method,
       issues: error.issues.map((issue) => ({
         path: issue.path.join("."),
@@ -167,7 +168,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
     if (status >= 500) {
       console.error("Better Auth APIError (server):", {
         requestId: c.var.requestId,
-        path: c.req.path,
+        path: matchedRouteTemplate(c),
         method: c.req.method,
         status,
         message,
@@ -193,7 +194,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
 
   console.error("Unexpected error:", {
     requestId: c.var.requestId,
-    path: c.req.path,
+    path: matchedRouteTemplate(c),
     method: c.req.method,
     error: error.message,
     stack: error.stack,
