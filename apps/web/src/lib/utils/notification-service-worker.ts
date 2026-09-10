@@ -87,22 +87,24 @@ export const notificationTargetSchema = notificationEventDataSchema
 export type NotificationTarget = z.infer<typeof notificationTargetSchema>;
 
 /**
- * The target this page was opened for, taken off the URL.
+ * Take the target off the URL.
  *
- * Taken rather than read: spent on the way out whether or not it parsed, so a
- * reload cannot open the same notification a second time and drag a reader who
- * has moved on back to it. A parameter that will not parse names no
- * notification, which is the same answer as no parameter at all.
+ * Called once the notification is open, so that a reload cannot open the same
+ * one a second time and drag a reader who has moved on back to it.
+ *
+ * Not called before then. Until the open runs, the URL is the only copy of the
+ * target anything outside the component holds, and a sign-in redirect built
+ * from `window.location` is what carries it across. See
+ * `notification-url-target-opener.tsx`.
  */
-export function takeNotificationTargetFromUrl(): NotificationTarget | null {
+export function clearNotificationTargetFromUrl(): void {
   if (typeof window === "undefined") {
-    return null;
+    return;
   }
 
   const url = new URL(window.location.href);
-  const raw = url.searchParams.get(NOTIFICATION_TARGET_PARAM);
-  if (raw === null) {
-    return null;
+  if (!url.searchParams.has(NOTIFICATION_TARGET_PARAM)) {
+    return;
   }
 
   url.searchParams.delete(NOTIFICATION_TARGET_PARAM);
@@ -111,7 +113,36 @@ export function takeNotificationTargetFromUrl(): NotificationTarget | null {
     "",
     `${url.pathname}${url.search}${url.hash}`,
   );
+}
 
+/**
+ * The target this page was opened for, read off the URL and left there.
+ *
+ * A parameter that will not parse names no notification, which is the same
+ * answer as no parameter at all. That one is spent here rather than left: it
+ * has nothing to carry across a sign-in, and leaving it would put a string
+ * that can never work in the address bar and in every link built from it.
+ */
+export function readNotificationTargetFromUrl(): NotificationTarget | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = new URL(window.location.href).searchParams.get(
+    NOTIFICATION_TARGET_PARAM,
+  );
+  if (raw === null) {
+    return null;
+  }
+
+  const target = parseNotificationTargetParam(raw);
+  if (!target) {
+    clearNotificationTargetFromUrl();
+  }
+  return target;
+}
+
+function parseNotificationTargetParam(raw: string): NotificationTarget | null {
   try {
     const parsed = notificationTargetSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : null;

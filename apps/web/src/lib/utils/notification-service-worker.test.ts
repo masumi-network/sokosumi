@@ -2,15 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   answerShowsNotificationsQuery,
+  clearNotificationTargetFromUrl,
   getNotificationServiceWorkerUrl,
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
   NOTIFICATION_TARGET_PARAM,
   notificationGroupTag,
+  readNotificationTargetFromUrl,
   SHOWS_NOTIFICATIONS_QUERY,
   subscribeNotificationClicks,
-  takeNotificationTargetFromUrl,
 } from "@/lib/utils/notification-service-worker";
 
 const envMock = vi.hoisted(() => ({
@@ -630,38 +631,42 @@ describe("closeNotificationGroup", () => {
   });
 });
 
-describe("takeNotificationTargetFromUrl", () => {
+describe("readNotificationTargetFromUrl", () => {
   function setUrl(search: string) {
     window.history.replaceState({}, "", `/chat${search}`);
   }
 
-  it("reads the target the worker put on the URL and spends it", () => {
-    setUrl(
-      `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}&keep=1`,
-    );
+  /**
+   * Left on the URL, because until the notification is open the URL is the
+   * only copy of it anything outside the reading component holds. A sign-in
+   * redirect is built from `window.location`, so spending it here would lose
+   * the notification whenever the session turns out to be gone.
+   */
+  it("reads the target the worker put on the URL and leaves it there", () => {
+    const search = `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}&keep=1`;
+    setUrl(search);
 
-    expect(takeNotificationTargetFromUrl()).toEqual(TARGET);
-    // Spent, or a reload would open the same notification a second time and
-    // drag a reader who has moved on back to it.
-    expect(window.location.search).toBe("?keep=1");
+    expect(readNotificationTargetFromUrl()).toEqual(TARGET);
+    expect(window.location.search).toBe(search);
   });
 
   it("leaves a URL that carries no target alone", () => {
     setUrl("?keep=1");
 
-    expect(takeNotificationTargetFromUrl()).toBeNull();
+    expect(readNotificationTargetFromUrl()).toBeNull();
     expect(window.location.search).toBe("?keep=1");
   });
 
   /**
-   * A hand-typed or truncated parameter names no notification. Spending it
-   * anyway is what keeps a reload from retrying something that cannot work.
+   * A hand-typed or truncated parameter names no notification, so it has
+   * nothing to carry across a sign-in. Spending it keeps a string that can
+   * never work out of the address bar and out of every link built from it.
    */
   it("spends a target that will not parse and reports nothing", () => {
-    setUrl(`?${NOTIFICATION_TARGET_PARAM}=not-json`);
+    setUrl(`?${NOTIFICATION_TARGET_PARAM}=not-json&keep=1`);
 
-    expect(takeNotificationTargetFromUrl()).toBeNull();
-    expect(window.location.search).toBe("");
+    expect(readNotificationTargetFromUrl()).toBeNull();
+    expect(window.location.search).toBe("?keep=1");
   });
 
   it("spends a target whose shape the app cannot route", () => {
@@ -669,7 +674,38 @@ describe("takeNotificationTargetFromUrl", () => {
       `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify({ id: "" }))}`,
     );
 
-    expect(takeNotificationTargetFromUrl()).toBeNull();
+    expect(readNotificationTargetFromUrl()).toBeNull();
     expect(window.location.search).toBe("");
+  });
+});
+
+describe("clearNotificationTargetFromUrl", () => {
+  function setUrl(search: string) {
+    window.history.replaceState({}, "", `/chat${search}`);
+  }
+
+  it("spends the target and keeps every other parameter", () => {
+    setUrl(
+      `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}&keep=1`,
+    );
+
+    clearNotificationTargetFromUrl();
+
+    expect(window.location.search).toBe("?keep=1");
+  });
+
+  /**
+   * Called on every open, including the ones a posted click routes, where
+   * there was never a parameter. A `replaceState` for nothing would still
+   * push a history entry past whatever the page had already replaced.
+   */
+  it("leaves a URL that carries no target alone", () => {
+    setUrl("?keep=1");
+    const before = window.history.length;
+
+    clearNotificationTargetFromUrl();
+
+    expect(window.location.search).toBe("?keep=1");
+    expect(window.history.length).toBe(before);
   });
 });

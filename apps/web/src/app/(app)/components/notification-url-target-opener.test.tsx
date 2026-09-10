@@ -85,12 +85,23 @@ describe("NotificationUrlTargetOpener", () => {
    * nothing to change, and the snapshot that lands after carries the row
    * still unread. Core publishes nothing for a mention read, so the reader
    * would open the notification and watch its badge stay.
+   *
+   * The parameter stays on the URL for the whole wait, because the URL is the
+   * only copy anything but this component can see. `AuthSessionGuard` sits
+   * above the Suspense boundary this component renders under
+   * (`app/(app)/layout.tsx:35`), probes the session with the cookie cache
+   * disabled, and on a null answer redirects to
+   * `/signin?returnUrl=<pathname + search>`. A push click arrives after a long
+   * idle, which is exactly when that probe finds the session gone. Spending
+   * the parameter before then leaves the reader signed back in on `/` with the
+   * notification lost for good.
    */
-  it("waits for the feed before opening, and spends the URL at once", async () => {
+  it("waits for the feed before opening, and keeps the URL until it does", async () => {
     isLoading = true;
     setUrl(
       `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}`,
     );
+    const waiting = window.location.search;
 
     const { rerender } = render(
       <NotificationUrlTargetOpener markRead={markRead} />,
@@ -98,8 +109,8 @@ describe("NotificationUrlTargetOpener", () => {
 
     expect(markRead).not.toHaveBeenCalled();
     expect(handleNotificationNavigation).not.toHaveBeenCalled();
-    // Spent on mount even while the open waits, or a reload would repeat it.
-    expect(window.location.search).toBe("");
+    // Still there, so a sign-in redirect during the wait carries it along.
+    expect(window.location.search).toBe(waiting);
 
     isLoading = false;
     rerender(<NotificationUrlTargetOpener markRead={markRead} />);
@@ -108,6 +119,8 @@ describe("NotificationUrlTargetOpener", () => {
       expect(markRead).toHaveBeenCalledWith("notification-1");
     });
     expect(handleNotificationNavigation).toHaveBeenCalledTimes(1);
+    // Spent once it is open, or a reload would repeat it.
+    expect(window.location.search).toBe("");
   });
 
   /**
