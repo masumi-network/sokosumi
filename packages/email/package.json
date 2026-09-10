@@ -41,7 +41,7 @@
     "use-intl": "4.14.2"
   },
   "devDependencies": {
-    "@types/node": "24.13.3",
+    "@types/node": "24.13.4",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@typescript/typescript6": "6.0.2",

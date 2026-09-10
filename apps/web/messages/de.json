@@ -724,17 +724,6 @@
           "sent": "Gesendet",
           "failed": "Fehlgeschlagen"
         }
-      },
-      "LeaveOrganizationModal": {
-        "title": "Möchtest du die Organisation wirklich verlassen?",
-        "description": "Organisation \"{organization}\" verlassen.",
-        "leave": "Verlassen",
-        "cancel": "Abbrechen",
-        "success": "Du hast die Organisation verlassen",
-        "error": "Organisation konnte nicht verlassen werden",
-        "Errors": {
-          "unauthorizedAction": "Anmelden"
-        }
       }
     },
     "Modals": {
