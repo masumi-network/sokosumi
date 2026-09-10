@@ -1,5 +1,6 @@
 import Foundation
 import Markdown
+import SwiftSoup
 
 /// UI-free document blocks with inline attributes for native text rendering.
 public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
@@ -17,13 +18,71 @@ public struct MessageMarkdown: Equatable, Sendable {
     let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
     let document = Markdown.Document(parsing: MarkdownBareDomains(normalized).linkified())
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
-    blocks = document.children.map { builder.block($0) }
+    blocks = document.children.flatMap { builder.blocks(for: $0) }
   }
 }
 
 private struct MarkdownBlockBuilder {
   let baseURL: URL?
   var nextID = 0
+
+  mutating func blocks(for node: any Markup) -> [MessageMarkdownBlock] {
+    if let html = node as? HTMLBlock, let body = try? MessageHTML.parse(html.rawHTML) {
+      return htmlBlocks(body.getChildNodes())
+    }
+    return [block(node)]
+  }
+
+  private mutating func htmlBlocks(_ nodes: [Node]) -> [MessageMarkdownBlock] {
+    var result: [MessageMarkdownBlock] = []
+    var pending = AttributedString()
+    for node in nodes {
+      if let element = node as? Element,
+         ["p", "h1", "h2", "h3", "ul", "ol", "li"].contains(element.tagName()) {
+        appendHTMLParagraph(pending, to: &result)
+        pending = AttributedString()
+        result.append(htmlBlock(element))
+      } else {
+        pending.append(MessageInlineHTML.render(node, baseURL: baseURL))
+      }
+    }
+    appendHTMLParagraph(pending, to: &result)
+    return result
+  }
+
+  private mutating func appendHTMLParagraph(_ text: AttributedString, to blocks: inout [MessageMarkdownBlock]) {
+    guard !String(text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    nextID += 1
+    var paragraph = MessageMarkdownBlock(id: nextID, kind: .paragraph)
+    paragraph.text = text
+    blocks.append(paragraph)
+  }
+
+  private mutating func htmlBlock(_ element: Element, ordinal: Int = 1) -> MessageMarkdownBlock {
+    let tag = element.tagName()
+    let kind: PresentationIntent.Kind = switch tag {
+    case "h1": .header(level: 1)
+    case "h2": .header(level: 2)
+    case "h3": .header(level: 3)
+    case "ul": .unorderedList
+    case "ol": .orderedList
+    case "li": .listItem(ordinal: ordinal)
+    default: .paragraph
+    }
+    nextID += 1
+    var result = MessageMarkdownBlock(id: nextID, kind: kind)
+    if tag == "ul" || tag == "ol" {
+      result.children = element.getChildNodes().compactMap { $0 as? Element }
+        .filter { $0.tagName() == "li" }.enumerated().map { index, item in
+          htmlBlock(item, ordinal: index + 1)
+        }
+    } else if tag == "li" {
+      result.children = htmlBlocks(element.getChildNodes())
+    } else {
+      result.text = MessageInlineHTML.render(element, baseURL: baseURL)
+    }
+    return result
+  }
 
   mutating func block(_ node: any Markup, kind override: PresentationIntent.Kind? = nil) -> MessageMarkdownBlock {
     nextID += 1
@@ -45,12 +104,12 @@ private struct MarkdownBlockBuilder {
         block(item, kind: .listItem(ordinal: start + index))
       }
     } else if node is ListItem || node is BlockQuote {
-      result.children = node.children.map { block($0) }
+      result.children = node.children.flatMap { blocks(for: $0) }
       if let checkbox = (node as? ListItem)?.checkbox {
         result.taskChecked = checkbox == .checked
       }
     } else {
-      result.text = MessageInlineHTML.applying(to: inline(node))
+      result.text = MessageInlineHTML.applying(to: inline(node), baseURL: baseURL)
     }
     return result
   }

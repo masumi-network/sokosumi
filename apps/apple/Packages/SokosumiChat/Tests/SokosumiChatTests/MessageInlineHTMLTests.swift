@@ -39,4 +39,24 @@ struct MessageInlineHTMLTests {
       .map { String(text[$0.range].characters) }.joined()
     #expect(underlined == "one two three")
   }
+
+  @Test func preservesMarkdownInsideHTMLAndRejectsUnsafeLinks() throws {
+    let base = try #require(URL(string: "https://example.com"))
+    let message = MessageMarkdown("Text <u>**bold**</u> <a href='/chat'>room</a> <a href='javascript:bad'>bad</a> <script>hidden</script>", baseURL: base)
+    let text = try #require(message.blocks.first?.text)
+    #expect(String(text.characters) == "Text bold room bad ")
+    #expect(text.runs.contains { $0[MessageUnderlineAttribute.self] == true && $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
+    #expect(text.runs.compactMap(\.link).map(\.absoluteString) == ["https://example.com/chat"])
+  }
+
+  @Test func rendersHTMLBlockStructureAndLiteralCode() {
+    let message = MessageMarkdown("<h2>Report &amp; results</h2><p>First<br>Second</p><ol><li>One<ul><li>Nested</li></ul></li><li>Two</li></ol><p><code>  :smile: **literal**</code></p>")
+    #expect(message.blocks.map(\.kind) == [.header(level: 2), .paragraph, .orderedList, .paragraph])
+    #expect(String(message.blocks[0].text.characters) == "Report & results")
+    #expect(String(message.blocks[1].text.characters) == "First\nSecond")
+    #expect(message.blocks[2].children.map(\.kind) == [.listItem(ordinal: 1), .listItem(ordinal: 2)])
+    #expect(message.blocks[2].children[0].children.map(\.kind) == [.paragraph, .unorderedList])
+    #expect(String(message.blocks[3].text.characters) == "  :smile: **literal**")
+    #expect(message.blocks[3].text.runs.first?.inlinePresentationIntent?.contains(.code) == true)
+  }
 }
