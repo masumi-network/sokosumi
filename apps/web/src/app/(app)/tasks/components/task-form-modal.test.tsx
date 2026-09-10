@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TaskFormModal } from "./task-form-modal";
 
@@ -39,6 +39,17 @@ const modalProps = {
   cancelLabel: "Cancel",
   onOpenChange: () => {},
 };
+
+function mockShellAnimate(finished: Promise<void> = Promise.resolve()) {
+  return vi.spyOn(HTMLElement.prototype, "animate").mockReturnValue({
+    finished,
+    cancel: vi.fn(),
+  } as unknown as Animation);
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("TaskFormModal", () => {
   it("keeps the panel mounted when closed without View Transitions", () => {
@@ -106,7 +117,8 @@ describe("TaskFormModal", () => {
     expect(screen.queryByText("form")).not.toBeInTheDocument();
   });
 
-  it("dismisses through overlay click and Escape", async () => {
+  it("dismisses through overlay click and Escape after the shell exit animation", async () => {
+    mockShellAnimate();
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
     render(
@@ -121,11 +133,48 @@ describe("TaskFormModal", () => {
     );
 
     await user.click(screen.getByTestId("create-task-modal-overlay"));
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
 
     onOpenChange.mockClear();
     await user.keyboard("{Escape}");
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it("animates the live shell before unmounting on dismiss", async () => {
+    let resolveFinished!: () => void;
+    const finished = new Promise<void>((resolve) => {
+      resolveFinished = resolve;
+    });
+    const animate = mockShellAnimate(finished);
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <TaskFormModal
+        open
+        viewTransition
+        {...modalProps}
+        onOpenChange={onOpenChange}
+      >
+        form
+      </TaskFormModal>,
+    );
+
+    await user.click(screen.getByTestId("create-task-modal-overlay"));
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByTestId("create-task-modal-vt")).toBeInTheDocument();
+    expect(animate).toHaveBeenCalled();
+    expect(screen.getByTestId("create-task-modal-vt")).toHaveStyle({
+      pointerEvents: "none",
+    });
+
+    resolveFinished();
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
   });
 
   it("does not dismiss from overlay or Escape while dismiss is disabled", async () => {

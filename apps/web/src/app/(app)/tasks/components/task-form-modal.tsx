@@ -51,7 +51,6 @@ interface ViewTransitionPseudo {
 
 interface ViewTransitionWaapiInstance {
   name: string;
-  old?: ViewTransitionPseudo | null;
   new?: ViewTransitionPseudo | null;
 }
 
@@ -177,6 +176,7 @@ export function TaskFormModal({
 }: TaskFormModalProps) {
   const titleId = useId();
   const shellRef = useRef<HTMLDivElement>(null);
+  const exitingRef = useRef(false);
   const [headerStart, setHeaderStart] = useState<React.ReactNode>(null);
   const registerHeaderStart = useCallback((content: React.ReactNode) => {
     setHeaderStart(content);
@@ -199,8 +199,21 @@ export function TaskFormModal({
   );
 
   const handleDismiss = useCallback(() => {
-    handleOpenChange(false);
-  }, [handleOpenChange]);
+    if (isDismissDisabled || exitingRef.current) return;
+    const shell = shellRef.current;
+    if (!shell || prefersReducedMotion()) {
+      handleOpenChange(false);
+      return;
+    }
+    exitingRef.current = true;
+    shell.style.pointerEvents = "none";
+    const animation = shell.animate(EXIT_KEYFRAMES, EXIT_OPTIONS);
+    const finish = () => {
+      exitingRef.current = false;
+      handleOpenChange(false);
+    };
+    animation.finished.then(finish).catch(finish);
+  }, [handleOpenChange, isDismissDisabled]);
 
   const dialogRef = useCreateTaskModalA11y({
     enabled: viewTransition && open,
@@ -212,15 +225,6 @@ export function TaskFormModal({
       (instance as ViewTransitionWaapiInstance).new,
       ENTER_KEYFRAMES,
       ENTER_OPTIONS,
-      shellRef.current,
-    );
-  }, []);
-
-  const handleExit = useCallback((instance: ViewTransitionInstance) => {
-    return animateCreateTaskModal(
-      (instance as ViewTransitionWaapiInstance).old,
-      EXIT_KEYFRAMES,
-      EXIT_OPTIONS,
       shellRef.current,
     );
   }, []);
@@ -261,9 +265,7 @@ export function TaskFormModal({
           <ViewTransition
             default="none"
             enter="create-task-modal-enter"
-            exit="create-task-modal-exit"
             onEnter={handleEnter}
-            onExit={handleExit}
           >
             {createPortal(
               <div
