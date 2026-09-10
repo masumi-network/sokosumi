@@ -89,6 +89,48 @@ describe("markdownToHtml", () => {
     root.innerHTML = html;
     expect(htmlToMarkdown(root)).toBe(source);
   });
+
+  it("keeps allow-listed languages in the data-language attribute", () => {
+    expect(markdownToHtml("```c++\ncode\n```")).toContain(
+      'data-language="c++"',
+    );
+    expect(markdownToHtml("```c#\ncode\n```")).toContain('data-language="c#"');
+    expect(markdownToHtml("```asp.net\ncode\n```")).toContain(
+      'data-language="asp.net"',
+    );
+  });
+
+  it("drops fence info strings that try to inject attributes", () => {
+    const html = markdownToHtml('```" onmouseover="alert(1)\ncode\n```');
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    const code = root.querySelector("pre code");
+    expect(code).not.toBeNull();
+    expect(Array.from(code?.attributes ?? []).map((a) => a.name)).toEqual([]);
+    expect(code?.textContent).toBe("code");
+  });
+
+  it("keeps quotes in link destinations from breaking out of href", () => {
+    const html = markdownToHtml('[click](mailto:x"onmouseover="y)');
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    const anchor = root.querySelector("a");
+    expect(anchor).not.toBeNull();
+    expect(Array.from(anchor?.attributes ?? []).map((a) => a.name)).toEqual([
+      "href",
+    ]);
+    expect(anchor?.getAttribute("href")).toBe('mailto:x"onmouseover="y');
+  });
+
+  it("does not double-encode ampersands in link hrefs", () => {
+    const html = markdownToHtml("[x](https://a.test/?b=1&c=2)");
+    expect(html).toContain('href="https://a.test/?b=1&amp;c=2"');
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    expect(root.querySelector("a")?.getAttribute("href")).toBe(
+      "https://a.test/?b=1&c=2",
+    );
+  });
 });
 
 describe("htmlToMarkdown", () => {

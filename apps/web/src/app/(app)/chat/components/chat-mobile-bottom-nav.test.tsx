@@ -30,18 +30,6 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => mockIsApple,
 }));
 
-vi.mock("./use-chat-tab-unread-presence", () => ({
-  useChatTabUnreadPresence: () => ({ showUnreadDot: mockShowUnreadDot }),
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/components/chat/chat-control-list-bridge", () => ({
-  ChatControlListBridge: () => null,
-}));
-
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: mockSessionUser
@@ -124,7 +112,7 @@ describe("ChatMobileBottomNav", () => {
   });
 
   it("renders Home, Tasks, Chats, Projects, You in order with Spec hrefs", () => {
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -144,7 +132,7 @@ describe("ChatMobileBottomNav", () => {
   });
 
   it("uses the signed-in user avatar as the You tab affordance", () => {
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByTestId("mobile-you-tab-avatar")).toBeTruthy();
     expect(screen.queryByTestId("mobile-you-tab-avatar-skeleton")).toBeNull();
@@ -160,7 +148,7 @@ describe("ChatMobileBottomNav", () => {
       email: "ada@example.com",
       image: "https://cdn.example/ada.png",
     };
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByTestId("mobile-you-tab-avatar")).toBeTruthy();
     expect(screen.queryByTestId("mobile-you-tab-avatar-skeleton")).toBeNull();
@@ -168,7 +156,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("shows an avatar skeleton while session user is unavailable", () => {
     mockSessionUser = null;
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByTestId("mobile-you-tab-avatar-skeleton")).toBeTruthy();
     expect(screen.queryByTestId("mobile-you-tab-avatar")).toBeNull();
@@ -176,7 +164,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on the Chats link for /chat", () => {
     mockPathname = "/chat";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "chats" })).toHaveAttribute(
       "aria-current",
@@ -192,7 +180,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on Tasks for /tasks", () => {
     mockPathname = "/tasks";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "tasks" })).toHaveAttribute(
       "aria-current",
@@ -205,7 +193,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on Home for /", () => {
     mockPathname = "/";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
@@ -218,7 +206,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on Projects for /projects", () => {
     mockPathname = "/projects";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "aria-current",
@@ -228,7 +216,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on the You link for /you", () => {
     mockPathname = "/you";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "you" })).toHaveAttribute(
       "aria-current",
@@ -241,7 +229,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on Home for /agents", () => {
     mockPathname = "/agents";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
@@ -254,7 +242,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on Home for /history", () => {
     mockPathname = "/history";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
@@ -267,7 +255,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("sets aria-current on Home for /notifications", () => {
     mockPathname = "/notifications";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
@@ -280,7 +268,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("does not set aria-current on any tab for unmatched paths", () => {
     mockPathname = "/account";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     for (const name of ["home", "tasks", "chats", "projects", "you"]) {
       expect(screen.getByRole("link", { name })).not.toHaveAttribute(
@@ -290,7 +278,7 @@ describe("ChatMobileBottomNav", () => {
   });
 
   it("uses a docked full-width bar when not on Apple", () => {
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     const nav = screen.getByRole("navigation", { name: "ariaLabel" });
     expect(nav.className).toContain("inset-x-0");
@@ -300,7 +288,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("uses a floating capsule bar on Apple platforms", () => {
     mockIsApple = true;
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     const nav = screen.getByRole("navigation", { name: "ariaLabel" });
     expect(nav.className).toContain("rounded-full");
@@ -318,14 +306,14 @@ describe("ChatMobileBottomNav", () => {
 
   it("exposes a route-agnostic nav aria-label (used on hub list routes)", () => {
     mockPathname = "/tasks";
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
   });
 
   it("shows an unread presence dot on the Chats tab when attention exists", () => {
     mockShowUnreadDot = true;
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByLabelText("chatsUnread")).toBeTruthy();
     expect(screen.getByLabelText("chatsUnread").className).toContain(
@@ -339,7 +327,7 @@ describe("ChatMobileBottomNav", () => {
 
   it("hides the unread presence dot when no attention remains", () => {
     mockShowUnreadDot = false;
-    render(<ChatMobileBottomNav />);
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.queryByLabelText("chatsUnread")).toBeNull();
   });

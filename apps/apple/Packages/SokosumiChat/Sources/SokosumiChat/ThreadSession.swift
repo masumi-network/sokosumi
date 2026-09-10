@@ -24,6 +24,10 @@ public final class ThreadSession: ObservableObject {
   @discardableResult
   public func open(_ message: Message) -> Bool {
     guard message.parentMessageId == nil, !isOutboundLocalMessage(message) else { return false }
+    if parent?.id == message.id {
+      parent = message
+      return true
+    }
     close()
     parent = message
     timeline.reset(roomId: message.roomId, parentMessageId: message.id)

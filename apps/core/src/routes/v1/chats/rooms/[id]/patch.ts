@@ -8,7 +8,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -553,7 +553,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await Promise.allSettled([
         Promise.all(
           statusMessages.map((message) =>
-            publishChatRoomMessageRealtime(message, "create"),
+            publishChatRoomMembershipStatusMessagesBestEffort([message]),
           ),
         ),
         publishChatMembershipRevokedToUsers(room.id, removedUserIds, "removed"),

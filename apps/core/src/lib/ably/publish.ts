@@ -359,28 +359,64 @@ interface PublishChatRoomsChangedInput {
   roomId: string | null;
 }
 
+// Ably batchPublish accepts at most 100 channels per spec.
+const CHAT_CONTROL_BATCH_CHANNEL_LIMIT = 100;
+
 /**
- * Tell users which sidebar collections went stale after an archive, restore,
- * or invitation lifecycle change (SOK-986). Rides the always-subscribed chat
- * control channel; each client refreshes only the named collections.
- * Best-effort fan-out: call after the surrounding transaction commits.
+ * Refresh sidebar collections after message or membership changes.
+ * Batch the existing per-user control channels; call only after commit.
  */
 export async function publishChatRoomsChanged({
   userIds,
   collections,
   roomId,
 }: PublishChatRoomsChangedInput): Promise<void> {
+  const channels = [...new Set(userIds)].map(makeUserChatControlChannelName);
+  if (channels.length === 0) return;
   try {
     const client = getRestClient();
-    await publishToUsers(userIds, "chat rooms changed", (userId) =>
-      client.channels
-        .get(makeUserChatControlChannelName(userId))
-        .publish(CHAT_ROOMS_CHANGED_EVENT_NAME, {
+    const messages = [
+      {
+        name: CHAT_ROOMS_CHANGED_EVENT_NAME,
+        data: {
           collections: [...collections],
           roomId,
           at: new Date().toISOString(),
-        }),
+        },
+      },
+    ];
+    const batches = [];
+    for (
+      let offset = 0;
+      offset < channels.length;
+      offset += CHAT_CONTROL_BATCH_CHANNEL_LIMIT
+    ) {
+      batches.push(
+        channels.slice(offset, offset + CHAT_CONTROL_BATCH_CHANNEL_LIMIT),
+      );
+    }
+    const outcomes = await Promise.allSettled(
+      batches.map(async (batch) => {
+        const result = await client.batchPublish({ channels: batch, messages });
+        for (const entry of result.results) {
+          if ("error" in entry) {
+            console.error(
+              "Failed to publish chat rooms changed to channel",
+              entry.channel,
+              entry.error,
+            );
+          }
+        }
+      }),
     );
+    for (const outcome of outcomes) {
+      if (outcome.status === "rejected") {
+        console.error(
+          "Failed to publish chat rooms changed batch",
+          outcome.reason,
+        );
+      }
+    }
   } catch (error) {
     console.error("Failed to publish chat rooms changed", error);
   }

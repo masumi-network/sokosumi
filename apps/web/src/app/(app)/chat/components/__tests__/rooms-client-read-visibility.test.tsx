@@ -15,6 +15,11 @@ import {
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
 import type { RoomMessagesPage } from "@/components/chat/fetch-room-messages";
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  publishMembershipVisibleRooms,
+} from "@/components/chat/membership-visible-rooms-store";
+import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import {
   clearRoomReadOverlays,
@@ -384,6 +389,7 @@ const baseProps = {
 describe("RoomsClient read visibility", () => {
   beforeEach(() => {
     clearRoomReadOverlays();
+    clearMembershipVisibleRoomsSnapshot();
     vi.clearAllMocks();
     vi.mocked(listRoomMessagesAction)
       .mockReset()
@@ -410,6 +416,7 @@ describe("RoomsClient read visibility", () => {
   });
 
   afterEach(() => {
+    clearMembershipVisibleRoomsSnapshot();
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -835,5 +842,36 @@ describe("RoomsClient read visibility", () => {
     await deliverMessageInVisibility("hidden");
     expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
     expect(rememberRoomRead).not.toHaveBeenCalled();
+  });
+
+  it("attaches only the selected room and ignores foreign-room creates", async () => {
+    const otherRoom = { ...channelRoom(), id: "room-other", name: "other" };
+    publishMembershipVisibleRooms([otherRoom], "org-1", "user-1");
+    const seen = vi.fn();
+    window.addEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, seen);
+    try {
+      render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+      await act(async () => {});
+
+      const options = vi.mocked(useChatRoomRealtime).mock.calls.at(-1)?.[0];
+      expect(options?.roomIds).toEqual(["room-channel"]);
+      expect(options?.onMessage).toBeTypeOf("function");
+
+      const incoming = {
+        ...sampleMessage("foreign room create"),
+        id: "foreign-msg",
+        roomId: "room-other",
+      };
+      const event = chatRoomMessageEventDataSchema.parse(
+        JSON.parse(JSON.stringify({ eventType: "create", message: incoming })),
+      );
+      await act(async () => {
+        options?.onMessage?.(event);
+      });
+
+      expect(seen).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, seen);
+    }
   });
 });

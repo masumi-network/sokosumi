@@ -2,11 +2,16 @@
 
 ## Resume checkpoint
 
-- Current slice: **08 — reply threads**, branch `codex/apple-reply-threads`, rebased on main `9c1157a6f`. Draft [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340) is open; wait for review and merge.
-- Slice 07 merged in [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327). Final CI on `49ea468ea` passed all Apple jobs, including the corrected room-switch POST completion test.
-- Resume by inspecting local changes, the slice 08 audit below, current web thread behavior, and the generated Core operations. Reuse existing timeline, outbox, composer, and realtime routing seams.
-- Implement and verify the complete slice before opening its one PR. Do not begin slice 09a before slice 08 merges.
-- The recurring “Continue Apple chat after PR changes” automation was deleted at the user's request. These files preserve the work, not an active timer or permission to recreate one. Coordinate ownership before resuming from another app.
+- Current slice: **09b — coworker streaming in reply threads**, branch `codex/apple-thread-streaming`, based on main `8f6aab44b`. Thread streaming is implemented and locally verified; [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361) awaits CI, review and human merge.
+- Slice 09a merged in [PR #4352](https://github.com/masumi-network/sokosumi/pull/4352). Final follow-up `f27b972aa` passed Apple CI, including Xcode build/app tests, all package tests, and lint/format.
+- Next: monitor PR #4361, address review feedback and wait for human merge. Do not start another feature before its merge.
+- The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
+
+### PR #4361 minor review follow-up
+
+- Clear the active parent after successful stream settlement; preserve failed-send parent routing. Thread thinking uses the same reasoning fallback as the room.
+- Settlement reuses a successful initial load that it opened after the room refresh; existing threads still refresh. Regression assertions cover one thread GET for reopen/resume and immediate parent cleanup.
+- Verification: Chat 174 tests passed, Xcode app build/tests passed, Swift lint clean.
 
 ## Scope and audit baseline
 
@@ -40,9 +45,9 @@ Source links are relative to this file. The shared web service boundary is [chat
 | 05 | Read/attention state: visible resolved history marks read, failed/hidden loads do not; unread mentions, manual unread and residual thread attention remain accurate. | 04 | Done — [#4322](https://github.com/masumi-network/sokosumi/pull/4322) | [use-room-read-attention.ts](<../web/src/app/(app)/chat/hooks/use-room-read-attention.ts>), [room-attention.ts](<../web/src/components/chat/room-attention.ts>), [room-read-overlay.ts](<../web/src/components/chat/room-read-overlay.ts>) |
 | 06 | Compose and send classic room messages: multiline input, Enter/Shift-Enter and IME behavior, whitespace/length checks, pending/sent/failed feedback, single-flight ordering, duplicate reconciliation, retry/remove. | 04 | Done — [#4325](https://github.com/masumi-network/sokosumi/pull/4325) | [room-message-composer.tsx](<../web/src/components/chat/room-message-composer.tsx>), [composer-wysiwyg-editor.tsx](<../web/src/components/chat/composer-wysiwyg-editor.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [classic-outbound-queue.ts](<../web/src/app/(app)/chat/utils/classic-outbound-queue.ts>) |
 | 07 | Live room updates: full DTO, ID hydration and patches, create/edit/delete/reaction/pin changes, own-send reconciliation, reconnect/poll recovery, membership revocation and capability refresh, workspace/account isolation. Reply routing lands with 08. | 05, 06 | Done — [PR #4327](https://github.com/masumi-network/sokosumi/pull/4327) | [use-chat-room-realtime.tsx](<../web/src/lib/ably/use-chat-room-realtime.tsx>), [apply-chat-room-message-patch.ts](<../web/src/lib/ably/apply-chat-room-message-patch.ts>), [use-chat-membership-revoked-control.tsx](<../web/src/lib/ably/use-chat-membership-revoked-control.tsx>), [use-chat-refresh-scheduler.ts](<../web/src/components/chat/use-chat-refresh-scheduler.ts>), [use-selected-room-channel-health.ts](<../web/src/lib/ably/use-selected-room-channel-health.ts>) |
-| 08 | Reply threads: parent preview, open/back/close, paginated replies, independent composer and outbound queue, reply counts/activity, loading/error states, thread read marking and live routing of replies and parent updates between the room and the open thread. | 05, 06, 07 | In review — [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340) | [thread-panel.tsx](<../web/src/app/(app)/chat/components/thread-panel.tsx>), [thread-list-panel.tsx](<../web/src/app/(app)/chat/components/thread-list-panel.tsx>), [chat-room-message-scope.ts](<../web/src/app/(app)/chat/utils/chat-room-message-scope.ts>), [parent-thread-preview.ts](<../web/src/app/(app)/chat/utils/parent-thread-preview.ts>) |
-| 09a | Coworker streaming in Directs: initial send, incremental text/reasoning, thinking/error state, active-stream resume on room entry and persisted-message reconciliation without flicker/duplicates; preserve web room eligibility and send lock. | 07 | Todo | [use-coworker-direct-room-stream.ts](<../web/src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts>), [coworker-thought-ui.tsx](<../web/src/app/(app)/chat/components/coworker-thought-ui.tsx>), [route.ts](<../web/src/app/api/chat/route.ts>), [route.ts](<../web/src/app/api/chat/[roomId]/stream/route.ts>) |
-| 09b | Coworker streaming in reply threads: reuse Direct streaming with parent association, route overlays and persisted replies to the correct thread, resume with the correct parent and preserve the shared send lock. | 08, 09a | Todo | [use-coworker-direct-room-stream.ts](<../web/src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts>), [coworker-thought-ui.tsx](<../web/src/app/(app)/chat/components/coworker-thought-ui.tsx>), [route.ts](<../web/src/app/api/chat/route.ts>), [route.ts](<../web/src/app/api/chat/[roomId]/stream/route.ts>) |
+| 08 | Reply threads: parent preview, open/back/close, paginated replies, independent composer and outbound queue, reply counts/activity, loading/error states, thread read marking and live routing of replies and parent updates between the room and the open thread. | 05, 06, 07 | Done — [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340) | [thread-panel.tsx](<../web/src/app/(app)/chat/components/thread-panel.tsx>), [thread-list-panel.tsx](<../web/src/app/(app)/chat/components/thread-list-panel.tsx>), [chat-room-message-scope.ts](<../web/src/app/(app)/chat/utils/chat-room-message-scope.ts>), [parent-thread-preview.ts](<../web/src/app/(app)/chat/utils/parent-thread-preview.ts>) |
+| 09a | Coworker streaming in Directs: initial send, incremental text/reasoning, thinking/error state, active-stream resume on room entry and persisted-message reconciliation without flicker/duplicates; preserve web room eligibility and send lock. | 07 | Done (#4352) | [use-coworker-direct-room-stream.ts](<../web/src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts>), [coworker-thought-ui.tsx](<../web/src/app/(app)/chat/components/coworker-thought-ui.tsx>), [route.ts](<../web/src/app/api/chat/route.ts>), [route.ts](<../web/src/app/api/chat/[roomId]/stream/route.ts>) |
+| 09b | Coworker streaming in reply threads: reuse Direct streaming with parent association, route overlays and persisted replies to the correct thread, resume with the correct parent and preserve the shared send lock. | 08, 09a | In review (#4361) | [use-coworker-direct-room-stream.ts](<../web/src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts>), [coworker-thought-ui.tsx](<../web/src/app/(app)/chat/components/coworker-thought-ui.tsx>), [route.ts](<../web/src/app/api/chat/route.ts>), [route.ts](<../web/src/app/api/chat/[roomId]/stream/route.ts>) |
 | 10 | Rich message text: paragraphs/line breaks, headings, lists/task lists, tables, quotes, emphasis/underline/strike, links, inline/fenced code with highlighting, emoji/emoticons and jumbo emoji, expand/collapse long content, selection/copy. | 04 | Partial | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [room-mention-markdown.tsx](<../web/src/app/(app)/chat/components/room-mention-markdown.tsx>), [markdown.tsx](<../web/src/components/markdown.tsx>), [jumbo-emoji.ts](<../web/src/app/(app)/chat/utils/jumbo-emoji.ts>) |
 | 11 | Draft restoration scoped by account/workspace/room/thread, selected mentions and attachments, clear on successful submission; formatting toolbar preference. | 08 | Partial | [use-compose-draft.ts](<../web/src/app/(app)/chat/hooks/use-compose-draft.ts>), [compose-draft-storage.ts](<../web/src/app/(app)/chat/utils/compose-draft-storage.ts>), [format-toolbar-preference-storage.ts](<../web/src/app/(app)/chat/utils/format-toolbar-preference-storage.ts>) |
 | 12 | Rich composing: bold/italic/underline/strike, inline/block code, quote, ordered/unordered lists, insert/edit link, emoji picker/emoticons, formatting shortcuts and toolbar visibility. | 06, 10 | Todo | [composer-wysiwyg-editor.tsx](<../web/src/components/chat/composer-wysiwyg-editor.tsx>), [composer-format-toolbar.tsx](<../web/src/components/chat/composer-format-toolbar.tsx>), [composer-add-link-dialog.tsx](<../web/src/components/chat/composer-add-link-dialog.tsx>), [emoji-picker.tsx](<../web/src/components/chat/emoji-picker.tsx>) |
@@ -344,3 +349,101 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Room and thread sends share the participant builder, including the empty-name email fallback. Missing thread clients settle initial loading with a retryable configuration error.
 - Room and thread attention use the same resolved-history gate, allowing failed older-page loads while excluding failed initial/latest loads. The separate product question about reading hidden room messages is unchanged.
 - Verification: Xcode app-target tests passed (`/tmp/review1-5-app3.log`), including parent-envelope refresh counts, sender name fallback, missing-client loading and all four initial-thread/older-room failure combinations. SwiftLint, SwiftFormat and diff checks passed. The shared package was unchanged; its 150 tests passed immediately before these app-only fixes.
+
+## Slice 09a audit checkpoint
+
+- Web POST `/api/chat` proxies Core POST `/chats/rooms/{id}/stream`; GET `/api/chat?roomId=…` proxies `/stream/messages`; GET `/api/chat/{roomId}/stream` proxies `/stream/active` and preserves 204 for no active stream.
+- Core routes already exist in `apps/core/src/routes/v1/chats/rooms/[id]/stream/{post,get,stream-get}.ts`. Next audit must verify bearer coverage and the complete streamed event format; no contract or dependency changes are authorized.
+- Reuse candidates: `RoomTimeline` for persisted history, existing composer for drafts/input, CoreAPI client with bearer/org middleware for requests, and `SokosumiChat` for portable streaming state. Ably alone does not supply incremental AI SDK stream content.
+
+### Slice 09a verified behavior and implementation seams
+
+- Eligibility: one human and one coworker in a Direct, no Soko Bot; Core also verifies the human is the authenticated user and enforces write access. `room-helpers.ts` and Core stream POST own these rules.
+- Send body: web clears earlier transient turns and sends one user UI message (`id`, `role`, text `parts`) in `messages`, plus room `id`/`roomId`. Core loads context and locks before persistence; concurrent turns return 409, a failed configured lock returns 503. Keep one client send lock for submitted/streaming states; do not use the classic retry queue for these POSTs.
+- Resume: the hook reconnects on each room entry; 204 means idle with no thinking flash. An active 200 stream with no messages gets a stable empty coworker shell. Overlay creation times stay stable across chunks. Room/workspace switches must invalidate old tasks.
+- Events: Core uses `toUIMessageStreamResponse`. Text and reasoning arrive as JSON start/delta/end events with block IDs, plus message start/finish/error and `[DONE]`. Primary protocol reference: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol. Use the installed OpenAPIRuntime `asDecodedServerSentEvents` implementation, not a new framing parser/dependency.
+- Reconciliation: web skips full realtime message merges during submitted/streaming; on finish it refreshes persisted history and only clears overlays on successful merge. Failed refresh retains overlays. `merge-room-messages.ts` hides the latest persisted user match once per overlay occurrence, so repeated identical historical messages survive.
+- Thinking/reasoning: `coworker-thought.ts` shows the latest reasoning block before answer text, then exposes combined reasoning as a disclosure; durable timing comes from `metadata.thought_timing_ms`. Keep this presentation distinct from rich message rendering in later slices.
+- Next implementation: select existing stream POST/resume operations in the generated snapshot; add a portable event accumulator and stream session using the existing client/SSE decoder, then wire Direct eligibility, composer lock, overlays, thought UI and settlement to WorkspaceState. Test fragmented SSE through the runtime, ordered text/reasoning blocks, errors, 204, cancelled room switches, duplicate reconciliation and failed settlement before PR.
+
+### Slice 09a networking checkpoint (2026-09-10)
+
+- Regenerated the Apple snapshot from deployed Core (`/tmp/slice09-core-openapi.json`) with POST `/chats/rooms/{id}/stream` and GET `/chats/rooms/{id}/stream/active`. Existing operations have no changes; no Core contract or dependency changed.
+- `ChatService+Streaming` returns incremental HTTP bodies, sends one user UIMessage with its client ID and workspace context, maps Core errors, and treats resume 204 as idle. `DirectStreamMessage` accumulates text/reasoning parts and rejects out-of-order updates while retaining partial content on errors.
+- Verified single-byte SSE framing (including UTF-8), multiple text parts, reasoning, completion, invalid ordering, partial errors, POST payload/context, idle resume, and lock conflicts. CoreAPI build succeeded; all 156 chat tests and strict SwiftLint passed (`/tmp/slice09-core-build.log`, `/tmp/slice09-chat-test.log`, `/tmp/slice09-lint.log`).
+- Still incomplete: stream session lifecycle, Direct eligibility/composer locking, overlay reconciliation, thinking/reasoning views, cancellation and resume integration, app tests/build and iOS check. These changes remain on the same slice branch; no PR until the vertical slice is complete.
+
+### Slice 09a lifecycle checkpoint (2026-09-10)
+
+- Added UI-free `DirectStreamSession`: eligible one-human/one-coworker Directs only; scoped local task cancellation; idle resume without a shell; send locking through settlement; text/reasoning overlays; partial-content errors; no automatic POST retry. Successful history refresh clears overlays, failed refresh preserves them. A generation guard rejects old-room updates and settlement completions.
+- Overlay reconciliation hides only the newest persisted user occurrence matching the active user turn; older repeated messages remain. Sender comes from the room member, as in the web hook.
+- All 162 chat tests passed, including lifecycle/settlement/eligibility/repeated-message tests; strict SwiftLint passed; shared package builds for iOS 17 (`/tmp/slice09-session-all-tests.log`, `/tmp/slice09-session-lint.log`, `/tmp/slice09-session-ios.log`).
+- Next: wire the session into WorkspaceState and the Direct composer/transcript, coordinate realtime refreshes, add thinking/reasoning presentation, then app tests and Xcode build. No PR yet; lifecycle code is not connected to the running app.
+
+### Slice 09a app integration checkpoint (2026-09-10)
+
+- WorkspaceState now owns/observes the shared stream session, resumes eligible Directs on open, cancels local consumption on clear/switch, sends through SSE instead of the classic outbox, and settles overlays through the existing latest-history refresh. Active streams suppress competing room full-event/envelope refreshes.
+- Composer sends are locked while the Direct stream is busy; stream overlays do not offer Reply. Transcript shows stream errors, a thinking indicator, and a reasoning disclosure. This is initial presentation; exact thought timing/live-beat/persisted reasoning parity still needs verification and completion.
+- Added an app test for stream routing, concurrent-send rejection, realtime echo suppression and persisted settlement. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` and strict SwiftLint passed (`/tmp/slice09-app-tests2.log`, `/tmp/slice09-ui-lint.log`).
+- Remaining before PR: complete thought presentation against web, review resume/error/realtime edge cases, finish feature verification and native visual inspection where possible. No new API/dependency and no web edits.
+
+### Slice 09a thought and error parity checkpoint (2026-09-10)
+
+- Replaced the separate spinner/disclosure with a native expandable Thinking header and live elapsed timer, then a Thought disclosure after answer text. Persisted Core reasoning and `thought_timing_ms` now survive overlay settlement, with the same reasoning-only allowlist and seconds/minutes labels as web. Numeric-string and integer timestamps are covered by tests.
+- Verified the installed AI SDK `src/ui/chat.ts`: its finish callback also runs after an active-stream error. Native now refreshes persisted history on that path too, retaining partial overlays only if refresh fails; the error remains visible.
+- All 165 chat tests passed, strict lint/format passed, and Xcode app tests passed (`/tmp/slice09-thought-tests.log`, `/tmp/slice09-thought-lint.log`, `/tmp/slice09-thought-format.log`, `/tmp/slice09-thought-app-final2.log`).
+- Remaining: final review of resume/realtime coordination, native visual inspection, final package checks, and one draft PR. An unrelated local Xcode project entry reorder appeared during this turn; it is left uncommitted, outside this feature's staged files.
+
+### Slice 09a pre-PR verification (2026-09-10)
+
+- Independent review found delete/thread envelopes suppressed while streaming. Fixed by forwarding thread events first and always applying deletions; an app regression verifies tombstones survive successful stream settlement. Re-review found no remaining important issues.
+- Verification: 165 Chat tests, CoreAPI 1, Auth 34, Realtime 27; Xcode app tests; iOS 17 shared build; Apple Development signed build; lint and format. Logs: `/tmp/slice09-review-app.log`, `/tmp/slice09-final-{core,auth,realtime,ios,signed}.log`, `/tmp/slice09-thought-{tests,lint,format}.log`.
+- Native CUA inspection: signed app launched, opened existing Hannah Direct, observed `Thought for 2m 44s`, expanded disclosure and verified its text and answer layout. Idle room showed no Thinking shell. No production message sent; incremental send/resume/error behavior is verified by fake transport tests, not a live provider round-trip.
+- Out of this PR: thread streaming (09b), new Direct creation (10), rich message rendering, attachments, and mention execution. No web/Core/dependency changes. Existing local Xcode entry reorder remains unstaged.
+
+### Slice 09a review fixes (2026-09-10)
+
+- Pre-stream POST failures (409/503/network) clear the optimistic user overlay and restore the composer draft. They no longer look delivered. 409 still surfaces Core’s lock error; room re-entry already attaches via `/stream/active`.
+- Settlement succeeds only when latest history actually applied. Older pages stay blocked while the Direct stream is busy. Overlay merge hides the newest matching persisted coworker row, so mark-read cannot flash a duplicate assistant bubble.
+- Parent-root envelopes still request a room refresh while streaming when a thread is open. Competing room full merges stay skipped.
+- Live Thinking shows the latest reasoning beat expanded (clamped) before answer text. The 10 Hz elapsed clock is hidden from VoiceOver.
+
+### Slice 09a minor review follow-up (2026-09-10)
+
+- Stream errors show status text without the unrelated history Retry action. Bot-member eligibility and a 200 resume before its first event now have regression coverage.
+- Failed-send restoration retains newly typed composer text after the restored message, separated by a blank line, and persists both.
+- Verification: 169 Chat tests, Xcode app tests, iOS 17 package build, strict SwiftLint, SwiftFormat and diff checks passed. Logs: `/tmp/review4352-followup-{tests,app,ios,lint,format}.log`. PR #4352 remains ready for review; the follow-up commit requires fresh CI and human merge.
+
+## Slice 09b audit checkpoint (2026-09-10)
+
+- Existing web hook associates a streamed turn with `parentMessageId`, stores the active parent in sessionStorage for room re-entry, and clears that association on error or successful settlement. The Core resume endpoint does not return parent association.
+- `rooms-client.tsx` filters stream overlays between top-level history and the matching thread, and reopens the active thread when its parent is present in loaded room history. Preserve the same single room send lock for top-level and thread submissions.
+- Reuse candidates: `DirectStreamSession` for the one active stream and cancellation generation; `ChatService+Streaming` for existing POST/GET operations; `ThreadSession`/`RoomTimeline` for reply reconciliation; `SavedComposeDraft` for failed-send restoration scoped to the correct composer. Extend these seams instead of adding another streaming engine.
+- Remaining audit: settlement refresh ordering, thread closure/re-entry, reply counts, deletion and error routing, and session-scoped parent retention across room switches. Then implement model/networking/views/tests together. No API or dependency change is planned.
+- Swift Concurrency plugin applied: app target uses Swift 5 mode with MainActor default isolation and approachable concurrency; shared streaming session has explicit MainActor isolation. Preserve iOS 17 API compatibility. The unrelated Xcode project entry reorder remains unstaged.
+
+### Slice 09b transport/session checkpoint
+
+- Extended the existing POST with optional `parentMessageId`; generated Core contract already supports it. Both user and coworker overlays carry the parent. Overlay merging filters by the requested thread, preserving the shared room send lock.
+- Added request-body and session routing/concurrent-send regression tests. All 171 Chat tests and strict SwiftLint passed (`/tmp/slice09b-session.log`, `/tmp/slice09b-lint.log`).
+- Remaining: scoped parent retention on room re-entry, thread composer/error/restored-draft routing, thread thinking rendering, room/thread settlement and parent reply-count refresh, resume auto-opening, app integration tests, full build and verification. No PR yet; this checkpoint is not a completed slice.
+
+### Slice 09b app wiring checkpoint
+
+- Thread composer sends through the shared streaming session; both composers respect its busy state. Thread rows render stream text/thinking, errors and restored drafts route to the matching composer, and older reply pagination is blocked during a stream.
+- Session retains parents in memory by account/workspace/room for re-entry, clearing them after errors, idle resume or successful settlement. Tests cover scope isolation and resume settlement; 172 Chat tests passed (`/tmp/slice09b-retention.log`). App tests passed before the retention addition (`/tmp/slice09b-app.log`); strict lint passed after extracting parent cleanup.
+- Still incomplete: auto-opening resumed thread, settlement when the thread closes/switches, race/deletion/app integration coverage and final full verification. Current settlement only refreshes replies when the active parent remains open; finish that behavior before opening a PR.
+
+### Slice 09b final review checkpoint
+
+- Resumed/active thread streams reopen their parent when available in loaded room history. Settlement refreshes room history and the active thread, including reopening a closed thread; overlays clear only after successful reconciliation for the same generation.
+- Added app integration coverage for the shared send lock, no classic outbox POST, parent-specific overlay display, and persisted settlement with both an open and closed thread. Independent review found a failed draft missed by an unmounted composer; initial observation now restores it when that composer returns, guarded by room and parent.
+- Verification: 172 Chat tests and iOS 17 shared compilation passed; Final Xcode app tests passed, including the initial-observation fix (`/tmp/slice09b-final-app.log`). Lint/format checks passed. No production messages were sent; live thread-provider UI interaction remains a manual PR test.
+
+- Published [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361). CoreAPI 1, Auth 34 and Realtime 27 tests also passed (`/tmp/slice09b-{CoreAPI,SokosumiAuth,SokosumiRealtime}.log`). Wait for CI/review/merge; no next slice before merge.
+
+### Slice 09b review follow-up (2026-09-10)
+
+- `ThreadSession.open` is a no-op for the same parent. Settlement succeeds if the room refresh applied even when the thread was closed or reopened during the wait, so overlays cannot stick after an idle stream.
+- Auto-open in `ContentView` hops `@Published` writes off the view update. Failed thread drafts restore only when room and parent match the composer.
+- App tests cover close-during-settle overlay clear and re-entry resume auto-open. Chat 174 tests passed. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` passed. Strict SwiftLint and SwiftFormat passed.

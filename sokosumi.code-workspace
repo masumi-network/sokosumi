@@ -55,6 +55,9 @@
     "[prisma]": {
       "editor.defaultFormatter": "Prisma.prisma"
     },
+    "[swift]": {
+      "editor.defaultFormatter": "vknabel.vscode-swiftformat"
+    },
     "editor.wordWrap": "on",
     "editor.tabSize": 2,
     "editor.codeActionsOnSave": {
@@ -88,7 +91,9 @@
       "biomejs.biome",
       "streetsidesoftware.code-spell-checker",
       "prisma.prisma",
-      "lokalise.i18n-ally"
+      "lokalise.i18n-ally",
+      "vknabel.vscode-swiftformat",
+      "vknabel.vscode-swiftlint"
     ]
   }
 }

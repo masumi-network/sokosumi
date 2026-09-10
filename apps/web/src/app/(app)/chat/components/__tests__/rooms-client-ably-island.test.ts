@@ -9,7 +9,7 @@ import {
 } from "../room-shell-layout";
 
 describe("RoomsClient Ably island", () => {
-  it("wraps multi-room realtime bridge in local LazyAblyProvider (no single-user ChannelProvider)", () => {
+  it("wraps selected-room realtime bridge in local LazyAblyProvider (no single-user ChannelProvider)", () => {
     const source = readFileSync(
       join(import.meta.dirname, "../rooms-client.tsx"),
       "utf8",
@@ -24,7 +24,6 @@ describe("RoomsClient Ably island", () => {
       /LazyAblyProvider>\s*<RoomMessageRealtimeBridge[\s\S]*<\/LazyAblyProvider>/,
     );
     expect(source).not.toContain("ChannelProvider");
-    expect(source).toContain("roomIds={rooms.map((room) => room.id)}");
     // Open room chrome lives in RoomShellLayout (Instant + progressive share it).
     expect(source).toContain("listScrollerRef={scrollerRef}");
     expect(source).toContain("<RoomShellLayout");

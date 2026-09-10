@@ -7,6 +7,9 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: vi.fn(),
     },
     chatRoom: { update: vi.fn() },
+    chatRoomUserMember: {
+      findMany: vi.fn().mockResolvedValue([{ userId: "reader" }]),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -14,6 +17,12 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
 }));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -52,6 +61,11 @@ describe("persistAssistantToChatRoom", () => {
       contentText: "Hello from coworker",
     });
     expect(result.id).toBe("msg_assistant");
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["reader"],
+      roomId: "room_1",
+      collections: ["active"],
+    });
     expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -110,6 +124,7 @@ describe("persistAssistantToChatRoom", () => {
       select: { id: true },
     });
     expect(prisma.chatRoomMessage.create).not.toHaveBeenCalled();
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
   });
 
   it("returns existing id when concurrent create hits unique (P2002)", async () => {
@@ -197,6 +212,7 @@ describe("persistAssistantToChatRoom", () => {
 
     expect(prisma.chatRoomMessage.findUnique).not.toHaveBeenCalled();
     expect(prisma.chatRoomMessage.create).not.toHaveBeenCalled();
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
   });
 
   it("persists reasoning, thought timing, ui parts, and response id", async () => {
@@ -268,12 +284,21 @@ describe("persistUserMessageToChatRoom", () => {
   });
 
   it("creates chat_room_message with senderUserId and content", async () => {
+    vi.mocked(prisma.chatRoomUserMember.findMany).mockResolvedValueOnce([
+      { userId: "user_1" },
+      { userId: "reader" },
+    ] as never);
     const result = await persistUserMessageToChatRoom({
       roomId: "room_1",
       senderUserId: "user_1",
       contentText: "Hello from user",
     });
     expect(result.id).toBe("msg_user");
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["user_1", "reader"],
+      roomId: "room_1",
+      collections: ["active"],
+    });
     expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
@@ -356,6 +381,7 @@ describe("persistUserMessageToChatRoom", () => {
       select: { id: true },
     });
     expect(prisma.chatRoomMessage.create).not.toHaveBeenCalled();
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

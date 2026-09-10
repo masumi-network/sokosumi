@@ -13,7 +13,10 @@ import {
   makeRoom,
   resetOrganizationChatListMocks,
 } from "./__tests__/organization-chat-list-harness";
-import { clearMembershipVisibleRoomsSnapshot } from "./membership-visible-rooms-store";
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  hasLiveMembershipVisibleRoomsPublisher,
+} from "./membership-visible-rooms-store";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import {
   beginRoomAttentionChange,
@@ -30,10 +33,11 @@ const NO_INVITATIONS: ChatRoomInvitation[] = [];
 let hasFocus: ReturnType<typeof vi.spyOn>;
 
 /**
- * Leave the foreground, learn the active collection went stale while away,
- * and come back: the one focus gesture that turns into a read.
+ * Leave the foreground, learn the active collection changed while away, and
+ * come back. The invalidation reads at once (the tab title needs it); the
+ * return then has nothing stale left, so the round is exactly one read.
  */
-function returnToForeground() {
+function invalidateWhileAwayAndReturn() {
   hasFocus.mockReturnValue(false);
   window.dispatchEvent(new Event("blur"));
   window.dispatchEvent(
@@ -109,6 +113,17 @@ describe("useOrganizationChatRooms", () => {
     // avoid is the paint it causes.
     expect(listRoomsMock).not.toHaveBeenCalled();
     expect(listPendingMock).not.toHaveBeenCalled();
+  });
+
+  it("announces itself as the live list only while mounted and reading", () => {
+    const painted = mount({ paintOnly: true });
+    expect(hasLiveMembershipVisibleRoomsPublisher()).toBe(false);
+    painted.unmount();
+
+    const live = mount();
+    expect(hasLiveMembershipVisibleRoomsPublisher()).toBe(true);
+    live.unmount();
+    expect(hasLiveMembershipVisibleRoomsPublisher()).toBe(false);
   });
 
   it("refreshes from Core on mount, so a stale remount corrects itself", async () => {
@@ -340,7 +355,7 @@ describe("authoritative sidebar refresh", () => {
     listRoomsMock.mockResolvedValue(
       emptyListResult([{ ...original, unreadCount: 2 }]),
     );
-    await act(async () => returnToForeground());
+    await act(async () => invalidateWhileAwayAndReturn());
     expect(result.current.roomRows[0]?.unreadCount).toBe(2);
   });
 
@@ -458,13 +473,19 @@ describe("authoritative sidebar refresh", () => {
     expect(listRoomsMock).not.toHaveBeenCalled();
   });
 
-  it("defers an invalidation while hidden and reads once on return", async () => {
+  it("reads an active invalidation while hidden, so the tab title can show the unread room", async () => {
+    // A message in another room reaches the sidebar as an active-collection
+    // invalidation. The reader is not looking at the tab; the title counter
+    // is the only thing that can tell them. The read must not wait for focus.
     const visibility = vi
       .spyOn(document, "visibilityState", "get")
       .mockReturnValue("visible");
-    mount();
+    const { result } = mount({ rooms: [channel("other-1")] });
     await act(async () => undefined);
     listRoomsMock.mockClear();
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([channel("other-1", { unreadCount: 1 })]),
+    );
 
     await act(async () => {
       visibility.mockReturnValue("hidden");
@@ -474,19 +495,10 @@ describe("authoritative sidebar refresh", () => {
           detail: { collections: ["active"] },
         }),
       );
-      window.dispatchEvent(
-        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
-          detail: { collections: ["active"] },
-        }),
-      );
     });
-    expect(listRoomsMock).not.toHaveBeenCalled();
 
-    await act(async () => {
-      visibility.mockReturnValue("visible");
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
     expect(listRoomsMock).toHaveBeenCalledTimes(1);
+    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
   });
 
   it("does not restore a removed room from an older poll", async () => {
@@ -534,7 +546,7 @@ describe("authoritative sidebar refresh", () => {
       await act(async () => undefined);
       await act(async () => {
         if (trigger === "focus") {
-          returnToForeground();
+          invalidateWhileAwayAndReturn();
         } else {
           window.dispatchEvent(new Event(trigger));
         }
@@ -589,7 +601,7 @@ describe("authoritative sidebar refresh", () => {
 
       const refreshed = { ...updated, name: "Later room name" };
       listRoomsMock.mockResolvedValue(emptyListResult([refreshed]));
-      await act(async () => returnToForeground());
+      await act(async () => invalidateWhileAwayAndReturn());
       expect(result.current.roomRows).toEqual([refreshed]);
     },
   );
@@ -621,7 +633,7 @@ describe("authoritative sidebar refresh", () => {
     listRoomsMock.mockResolvedValue(
       emptyListResult([{ ...original, unreadCount: 1 }]),
     );
-    await act(async () => returnToForeground());
+    await act(async () => invalidateWhileAwayAndReturn());
     expect(result.current.roomRows[0]?.unreadCount).toBe(1);
   });
 });

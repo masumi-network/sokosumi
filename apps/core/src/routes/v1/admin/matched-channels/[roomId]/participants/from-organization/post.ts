@@ -2,7 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { ensureMatchedChannelParticipant } from "@/helpers/chat-room-matched-membership.js";
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime.js";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime.js";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -101,7 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const publishResults = await Promise.allSettled(
       statusMessagesToPublish.map((message) =>
-        publishChatRoomMessageRealtime(message, "create"),
+        publishChatRoomMembershipStatusMessagesBestEffort([message]),
       ),
     );
     for (const publishResult of publishResults) {

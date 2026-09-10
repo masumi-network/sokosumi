@@ -10,7 +10,10 @@ import type {
 } from "@/lib/clients/generated/core";
 
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
-import { publishMembershipVisibleRooms } from "./membership-visible-rooms-store";
+import {
+  publishMembershipVisibleRooms,
+  registerMembershipVisibleRoomsPublisher,
+} from "./membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
@@ -40,9 +43,11 @@ interface UseOrganizationChatRoomsOptions {
  * and every path that can change the rows behind the reader's back (the
  * scheduled recovery read, foreground return, room-read, and the rooms-changed
  * control event). Each collection is its own scheduled read (SOK-986): an
- * invalidation naming only `archived` never re-reads the other two, reads
- * pause while the tab is hidden or unfocused, and a healthy Ably connection
- * slows recovery to once a minute.
+ * invalidation naming only `archived` never re-reads the other two, timer
+ * reads pause while the tab is hidden or unfocused, and a healthy Ably
+ * connection slows recovery to once a minute. An invalidation still reads
+ * while away: the live rows feed the tab title's unread count, which is
+ * the one signal a reader who is not looking at the tab gets.
  *
  * Rendering and room actions live in the components. Room actions still write
  * the archived and pending collections through the setters this returns; the
@@ -306,6 +311,13 @@ export function useOrganizationChatRooms({
     }
     publishMembershipVisibleRooms(roomRows, organizationId, currentUserId);
   }, [currentUserId, organizationId, paintOnly, roomRows]);
+
+  useEffect(() => {
+    if (paintOnly) {
+      return;
+    }
+    return registerMembershipVisibleRoomsPublisher();
+  }, [paintOnly]);
 
   return {
     roomRows,
