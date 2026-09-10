@@ -87,14 +87,23 @@ const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
  * standing for the same reason: `mailto:a@e.test` would go, and so would the
  * `note:remember` and `TODO:ship` people write.
  *
- * It starts on a word boundary, so the `www.` inside a word is a word. It
- * stops at a mention marker as well as at a space, because a marker stands
- * for a person and an address written up against one would take them with it.
+ * It starts after anything but an ascii word character, so the `www.` inside
+ * `seewww.example.test` is a word and the one in a sentence written without
+ * spaces is an address. Chinese, Japanese and Thai are written that way, and
+ * a boundary made of letters in general never lets an address start in them.
+ *
+ * It ends the same way: at the first character an address is not written
+ * with, rather than at the next space, for those same sentences. What that
+ * misses is a domain spelled in another script, which stays as written.
+ *
+ * A mention marker is not an address character either, so an address written
+ * up against a mention leaves the person it names standing.
+ *
  * The punctuation that ends a sentence is put back: it is the writer's, not
  * the address's.
  */
 const BARE_URL_REGEX =
-  /(?<![\p{L}\p{N}_])(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[^\s\u0000]+/giu;
+  /(?<![A-Za-z0-9_])(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%[\]]+/gi;
 
 /** What an address may end with that belongs to the sentence around it. */
 const URL_TRAILING_PUNCTUATION_REGEX = /[.,;:!?)\]}'"]+$/;
@@ -372,9 +381,12 @@ export function buildChatMessagePreview(
   // to the line naming the author and the room.
   const oneLine = cleanChatMessageText(readable)
     .replace(BARE_URL_REGEX, (address) => {
-      // `go to https://e.test. Then wait` is two sentences, and taking the
-      // stop with the address would run them into one.
-      return ` ${URL_TRAILING_PUNCTUATION_REGEX.exec(address)?.[0] ?? ""}`;
+      // Only the stop that ends the sentence is put back: `go to
+      // https://e.test. Then wait` is two sentences, and taking the stop with
+      // the address would run them into one. Nothing else goes in its place,
+      // because the spaces a sentence already has are around the address, and
+      // a sentence written without them wants none.
+      return URL_TRAILING_PUNCTUATION_REGEX.exec(address)?.[0] ?? "";
     })
     .replace(/\s+/g, " ")
     .trim();

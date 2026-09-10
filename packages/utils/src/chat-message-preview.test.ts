@@ -177,6 +177,19 @@ describe("buildChatMessagePreview", () => {
     ).toBe("see @Ada Lovelace please");
   });
 
+  /**
+   * Chinese, Japanese and Thai are written without spaces. An address rule
+   * that waits for one never starts, and never ends either.
+   */
+  it("takes an address out of a sentence written without spaces", () => {
+    expect(buildChatMessagePreview("请访问www.example.test获取密码")).toBe(
+      "请访问获取密码",
+    );
+    expect(buildChatMessagePreview("見てhttps://example.test/xを")).toBe(
+      "見てを",
+    );
+  });
+
   /** The `www.` inside a word is a word. */
   it("leaves a word that only ends in an address alone", () => {
     expect(buildChatMessagePreview("seewww.example.test now")).toBe(
