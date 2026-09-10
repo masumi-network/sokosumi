@@ -11,6 +11,7 @@ import Testing
 private let realtimeTimestamp = "2026-01-01T00:00:00.000Z"
 private let roomA = "550e8400-e29b-41d4-a716-446655440700"
 private let roomB = "550e8400-e29b-41d4-a716-446655440701"
+private let realtimeWindow = UUID()
 
 private struct RealtimeMemoryTokenStore: TokenStore {
   var tokens: OAuthTokens?
@@ -31,6 +32,9 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   private var responses: [(Int, String)]
   var pausePOST = false
   var pauseNextMessagesGET = false
+  var pauseNextRoomsGET = false
+  private var roomsGETWaiter: CheckedContinuation<Void, Never>?
+  private var roomsGETObserver: CheckedContinuation<Void, Never>?
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   private var messagesGETObserver: CheckedContinuation<Void, Never>?
   private var messagesGETWaiter: CheckedContinuation<Void, Never>?
@@ -71,7 +75,26 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
       messagesGETReleased = false
     }
     let next = responses.removeFirst()
+    if pauseNextRoomsGET, operationID == "get/chats/rooms" {
+      pauseNextRoomsGET = false
+      await withCheckedContinuation { roomsGETWaiter = $0
+        roomsGETObserver?.resume()
+        roomsGETObserver = nil
+      }
+    }
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
+  }
+
+  func waitForRoomsGET() async {
+    if roomsGETWaiter != nil {
+      return
+    }
+    await withCheckedContinuation { roomsGETObserver = $0 }
+  }
+
+  func releaseRoomsGET() {
+    roomsGETWaiter?.resume()
+    roomsGETWaiter = nil
   }
 
   func waitForMessagesGET() async {
@@ -187,28 +210,20 @@ private func realtimeState(
     savedRoom: SavedRoomSelection(defaults: defaults),
     instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
   )
-  state.readAttention.setVisible(true, window: UUID())
+  state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
   return (state, AuthState(store: RealtimeMemoryTokenStore()), transport)
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
-  while state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
+  while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.transcriptRecovery.isRefreshing || state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
+    await state.roomsRefreshTask?.value
     await state.transcriptLoadTask?.value
     await state.olderPageTask?.value
     await state.transcriptRefreshTask?.value
-  }
-  for _ in 0 ..< 1000 where state.outboundInFlight {
     await Task.yield()
   }
-}
-
-private func waitForTokenMints(_ transport: RealtimeScriptedTransport, count: Int) async {
-  for _ in 0 ..< 1000 {
-    let seen = transport.operationIDs.filter { $0 == "post/realtime/ably-token" }.count
-    if seen >= count {
-      return
-    }
+  for _ in 0 ..< 1000 where state.outboundInFlight {
     await Task.yield()
   }
 }
@@ -218,18 +233,20 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   private(set) var connectedUserId: String?
   private(set) var connectedSlug: String?
   private(set) var watchedRooms: [String?] = []
+  private(set) var membershipRooms: [Set<String>] = []
+  private(set) var membershipRefreshes = 0
   private(set) var slugs: [String?] = []
-  private(set) var reauthorizeCount = 0
-  private(set) var reauthorizedToken: AblyTokenFields?
+  private(set) var tokenProvider: RealtimeTokenProvider?
   private(set) var disconnectCount = 0
   private var handler: RealtimeEventHandler?
 
   func connect(
     userId: String,
     organizationSlug: String?,
-    tokenProvider _: @escaping RealtimeTokenProvider,
+    tokenProvider: @escaping RealtimeTokenProvider,
     onEvent: @escaping RealtimeEventHandler
   ) {
+    self.tokenProvider = tokenProvider
     connectCount += 1
     connectedUserId = userId
     connectedSlug = organizationSlug
@@ -244,9 +261,12 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
     watchedRooms.append(roomId)
   }
 
-  func reauthorize(token: AblyTokenFields) {
-    reauthorizeCount += 1
-    reauthorizedToken = token
+  func setMembershipRooms(_ roomIds: Set<String>) {
+    membershipRooms.append(roomIds)
+  }
+
+  func refreshMembership() {
+    membershipRefreshes += 1
   }
 
   func disconnect() {
@@ -258,29 +278,32 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   }
 }
 
-private struct NeverTokenTransport: TokenEndpointTransport {
-  func postForm(_: [(name: String, value: String)], to _: URL) async throws -> (Data, Int) {
-    throw URLError(.notConnectedToInternet)
-  }
-}
-
-/// Session with fresh tokens: the socket provider never hits the network in
-/// fake tests (package tests cover the token POST itself).
-private func realtimeOAuthSession() -> OAuthSession {
-  let configuration = OAuthConfiguration(
-    issuerBaseURL: URL(string: "https://core.example/auth")!,
-    clientID: "test-client"
-  )
-  let store = RealtimeMemoryTokenStore(tokens: OAuthTokens(
-    accessToken: "test-access",
-    refreshToken: "test-refresh",
-    expiresAt: Date().addingTimeInterval(3600),
-    scope: nil
-  ))
-  return OAuthSession(configuration: configuration, store: store, transport: NeverTokenTransport())
-}
-
 struct WorkspaceRealtimeTests {
+  @Test func hiddenEnvelopeWaitsForWindowReturn() async throws {
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()),
+      (200, realtimeOrgsBody),
+      (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimeReadBody(id: roomA))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    state.setWindowVisible(false, window: realtimeWindow)
+    state.applyRealtimeEnvelope(.init(eventType: .create, messageId: "new", roomId: roomA))
+    state.applyRealtimeEnvelope(.init(eventType: .update, messageId: "new", roomId: roomA))
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
+    state.setWindowVisible(true, window: realtimeWindow)
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
+    state.reset()
+  }
+
   @Test func realtimeCreateAppearsWithoutReload() async throws {
     let firstId = "550e8400-e29b-41d4-a716-446655440710"
     let liveId = "550e8400-e29b-41d4-a716-446655440711"
@@ -337,16 +360,17 @@ struct WorkspaceRealtimeTests {
     #expect(state.transcriptMessages.map(\.id) == [otherId])
   }
 
-  @Test func realtimeIgnoresOtherRooms() async throws {
+  @Test func foreignActivityRefreshesSidebarOnForegroundReturn() async throws {
     let firstId = "550e8400-e29b-41d4-a716-446655440714"
-    let (state, auth, _) = try realtimeState([
+    let (state, auth, transport) = try realtimeState([
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
       (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
-      (200, realtimeReadBody(id: roomA))
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimeRoomsBody(ids: [roomA, roomB]))
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
@@ -354,8 +378,17 @@ struct WorkspaceRealtimeTests {
     let foreign = try await decodeRealtimeMessages([
       realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440715", roomId: roomB, content: "elsewhere")
     ])
+    state.setWindowVisible(false, window: realtimeWindow)
     state.applyRealtimeMessage(roomId: roomB, eventType: .create, message: foreign[0])
+    state.applyRealtimeEnvelope(.init(eventType: .create, messageId: "large", roomId: roomB))
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms" }.count == 1)
+    state.setWindowVisible(true, window: realtimeWindow)
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms" }.count == 2)
+    #expect(state.rooms.map(\.id) == [roomA, roomB])
     #expect(state.displayedTranscript.map(\.content) == ["first"])
+    state.reset()
   }
 
   @Test func ownSendPlusAblyCreateDedupeToOneBubble() async throws {
@@ -417,7 +450,7 @@ struct WorkspaceRealtimeTests {
     transport.pauseNextMessagesGET = true
     // Both actions queue before either page request starts.
     state.loadOlderMessages(auth: auth)
-    state.applyRealtimeEnvelope(.init(eventType: .create, messageId: messageId, roomId: roomA), auth: auth)
+    state.applyRealtimeEnvelope(.init(eventType: .create, messageId: messageId, roomId: roomA))
     await transport.waitForMessagesGET()
     transport.releaseMessagesGET()
     await waitForRealtimeIdle(state)
@@ -446,8 +479,7 @@ struct WorkspaceRealtimeTests {
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
     state.applyRealtimeEnvelope(
-      .init(eventType: .create, messageId: newId, roomId: roomA),
-      auth: auth
+      .init(eventType: .create, messageId: newId, roomId: roomA)
     )
     await waitForRealtimeIdle(state)
     #expect(state.transcriptMessages.map(\.content) == ["old edited", "oversize body"])
@@ -481,8 +513,7 @@ struct WorkspaceRealtimeTests {
     }
     #expect(state.transcriptLoading)
     state.applyRealtimeEnvelope(
-      .init(eventType: .create, messageId: newId, roomId: roomA),
-      auth: auth
+      .init(eventType: .create, messageId: newId, roomId: roomA)
     )
     transport.releaseMessagesGET()
     await waitForRealtimeIdle(state)
@@ -521,8 +552,7 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     transport.pauseNextMessagesGET = true
     state.applyRealtimeEnvelope(
-      .init(eventType: .create, messageId: newId, roomId: roomA),
-      auth: auth
+      .init(eventType: .create, messageId: newId, roomId: roomA)
     )
     for _ in 0 ..< 1000 where !state.transcriptRefreshing {
       await Task.yield()
@@ -535,8 +565,7 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     #expect(!state.transcriptRefreshing)
     state.applyRealtimeEnvelope(
-      .init(eventType: .create, messageId: laterId, roomId: roomA),
-      auth: auth
+      .init(eventType: .create, messageId: laterId, roomId: roomA)
     )
     await waitForRealtimeIdle(state)
     #expect(state.transcriptMessages.map(\.content) == ["old", "oversize", "later"])
@@ -557,16 +586,16 @@ struct WorkspaceRealtimeTests {
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
     state.applyRealtimeEnvelope(
-      .init(eventType: .delete, messageId: targetId, roomId: roomA),
-      auth: auth
+      .init(eventType: .delete, messageId: targetId, roomId: roomA)
     )
     #expect(state.transcriptMessages.count == 1)
     #expect(state.transcriptMessages[0].content.isEmpty)
     #expect(state.transcriptMessages[0].deletedAt != nil)
   }
 
-  @Test func revokeDropsOpenRoomClearsTranscriptAndRemintsToken() async throws {
-    let (state, auth, transport) = try realtimeState([
+  @Test func revokeDropsOpenRoomAndUpdatesMembership() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
@@ -577,24 +606,107 @@ struct WorkspaceRealtimeTests {
         roomId: roomA,
         content: "in open room"
       )])),
-      (200, realtimeReadBody(id: roomA)),
-      (200, realtimeTokenBody()),
-      (200, realtimeTokenBody())
+      (200, realtimeReadBody(id: roomA))
     ])
+    state.realtimeConnectionFactory = { fake }
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
     #expect(state.selectedRoomId == roomA)
-    await state.refreshAblyToken(auth: auth)
-    #expect(state.ablyToken?.keyName == "test.app")
 
-    state.applyMembershipRevoked(roomId: roomA, auth: auth)
-    await waitForTokenMints(transport, count: 2)
+    state.applyMembershipRevoked(roomId: roomA)
     #expect(state.rooms.map(\.id) == [roomB])
     #expect(state.selectedRoomId == nil)
     #expect(state.transcriptRoomId == nil)
     #expect(state.transcriptMessages.isEmpty)
-    // Explicit mint plus the revoke remint: capabilities drop with membership.
-    #expect(transport.operationIDs.filter { $0 == "post/realtime/ably-token" }.count == 2)
+    #expect(fake.membershipRooms.last == [roomB])
+  }
+
+  @Test func pendingSidebarResponseCannotRestoreRevokedRoom() async throws {
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimeRoomsBody(ids: [roomA]))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    transport.pauseNextRoomsGET = true
+    let refresh = Task { await state.refreshRooms(auth: auth) }
+    await transport.waitForRoomsGET()
+    state.applyMembershipRevoked(roomId: roomA)
+    transport.releaseRoomsGET()
+    await refresh.value
+    #expect(state.rooms.isEmpty)
+    #expect(state.selectedRoomId == nil)
+    #expect(state.transcriptRoomId == nil)
+  }
+
+  @Test func pendingWorkspaceResponseCannotRestoreRevokedDestination() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomB]))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    transport.pauseNextRoomsGET = true
+    let switching = Task { await state.switchRooms(auth: auth, option: org) }
+    await transport.waitForRoomsGET()
+    state.applyMembershipRevoked(roomId: roomB)
+    transport.releaseRoomsGET()
+    await switching.value
+    #expect(state.selectionId == "org_1")
+    #expect(state.rooms.isEmpty)
+    #expect(state.selectedRoomId == nil)
+    #expect(state.transcriptRoomId == nil)
+    #expect(fake.membershipRooms.last?.isEmpty == true)
+  }
+
+  @Test func continuityLossWaitsForForegroundAndIgnoresOtherRooms() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let initialRequests = transport.operationIDs.count
+    fake.deliver(.roomHealth(roomId: roomB, healthy: false, continuityLost: true))
+    fake.deliver(.roomHealth(roomId: roomA, healthy: true, continuityLost: false))
+    // A following pin is a visible barrier for the ordered event stream.
+    fake.deliver(.pin(roomId: roomA, messageId: "barrier", isPinned: true, count: 1))
+    for _ in 0 ..< 1000 where state.timeline.pinOverrides["barrier"] != true {
+      await Task.yield()
+    }
+    #expect(state.timeline.pinOverrides["barrier"] == true)
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs.count == initialRequests)
+    state.setWindowVisible(false, window: realtimeWindow)
+    fake.deliver(.roomHealth(roomId: roomA, healthy: false, continuityLost: true))
+    fake.deliver(.roomHealth(roomId: roomA, healthy: true, continuityLost: true))
+    fake.deliver(.pin(roomId: roomA, messageId: "barrier", isPinned: false, count: 0))
+    for _ in 0 ..< 1000 where state.timeline.pinOverrides["barrier"] != false {
+      await Task.yield()
+    }
+    #expect(state.timeline.pinOverrides["barrier"] == false)
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs.count == initialRequests)
+    state.setWindowVisible(true, window: realtimeWindow)
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
 
   @Test func revokeKeepsUnrelatedRoomTranscript() async throws {
@@ -613,7 +725,7 @@ struct WorkspaceRealtimeTests {
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
-    state.applyMembershipRevoked(roomId: roomB, auth: auth)
+    state.applyMembershipRevoked(roomId: roomB)
     #expect(state.rooms.map(\.id) == [roomA])
     #expect(state.selectedRoomId == roomA)
     #expect(state.transcriptMessages.map(\.content) == ["stays"])
@@ -659,6 +771,7 @@ struct WorkspaceRealtimeTests {
   }
 
   @Test func tokenMintUsesInstanceIdAndPersonalOmitsOrgHeader() async throws {
+    let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState(
       [
         (200, realtimeAccessBody()),
@@ -672,10 +785,12 @@ struct WorkspaceRealtimeTests {
       ],
       instanceId: "inst_personal0001"
     )
+    state.realtimeConnectionFactory = { fake }
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
-    await state.refreshAblyToken(auth: auth)
-    #expect(state.ablyToken?.keyName == "test.app")
+    let provider = try #require(fake.tokenProvider)
+    let token = try await provider(nil)
+    #expect(token.keyName == "test.app")
     let tokenOps = transport.operationIDs.enumerated().compactMap { index, id in
       id == "post/realtime/ably-token" ? index : nil
     }
@@ -694,7 +809,7 @@ struct WorkspaceRealtimeTests {
     let firstId = "550e8400-e29b-41d4-a716-446655440730"
     let liveId = "550e8400-e29b-41d4-a716-446655440731"
     let fake = FakeRealtimeConnection()
-    let (state, auth, transport) = try realtimeState([
+    let (state, auth, _) = try realtimeState([
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
@@ -705,14 +820,12 @@ struct WorkspaceRealtimeTests {
       (200, realtimeTokenBody())
     ])
     state.realtimeConnectionFactory = { fake }
-    state.realtimeSessionOverride = realtimeOAuthSession()
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
 
     #expect(fake.connectCount == 1)
-    #expect(fake.connectedUserId == "user_1")
-    #expect(fake.connectedSlug == nil)
-    #expect(fake.watchedRooms == [roomA])
+    #expect(fake.connectedUserId == "user_1" && fake.connectedSlug == nil)
+    #expect(fake.watchedRooms == [roomA] && fake.membershipRooms == [[roomA]])
 
     let live = try await decodeRealtimeMessages([
       realtimeMessageJSON(id: liveId, roomId: roomA, content: "over the wire", createdAt: "2026-01-01T00:00:01.000Z")
@@ -723,12 +836,28 @@ struct WorkspaceRealtimeTests {
     }
     #expect(state.displayedTranscript.map(\.content) == ["first", "over the wire"])
 
+    fake.deliver(.pin(roomId: roomA, messageId: liveId, isPinned: true, count: 1))
+    for _ in 0 ..< 1000 where state.timeline.pinOverrides[liveId] != true {
+      await Task.yield()
+    }
+    #expect(state.timeline.pinOverrides[liveId] == true)
+    #expect(state.rooms.first?.pinnedMessageCount == 1)
+    fake.deliver(.pin(roomId: roomA, messageId: liveId, isPinned: false, count: 0))
+    for _ in 0 ..< 1000 where state.timeline.pinOverrides[liveId] != false {
+      await Task.yield()
+    }
+    #expect(state.timeline.pinOverrides[liveId] == false)
+    #expect(state.rooms.first?.pinnedMessageCount == 0)
+
     fake.deliver(.revoked(roomId: roomA))
-    await waitForTokenMints(transport, count: 1)
+    for _ in 0 ..< 1000 where !state.rooms.isEmpty {
+      await Task.yield()
+    }
     #expect(state.rooms.isEmpty)
     #expect(state.selectedRoomId == nil)
     #expect(state.transcriptRoomId == nil)
     #expect(fake.watchedRooms == [roomA, nil])
+    #expect(state.timeline.pinOverrides.isEmpty)
 
     state.reset()
     #expect(fake.disconnectCount == 1)
@@ -736,7 +865,7 @@ struct WorkspaceRealtimeTests {
 
   @Test func workspaceSwitchRetargetsSlugReauthorizesAndRewatches() async throws {
     let fake = FakeRealtimeConnection()
-    let (state, auth, transport) = try realtimeState([
+    let (state, auth, _) = try realtimeState([
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
@@ -748,12 +877,10 @@ struct WorkspaceRealtimeTests {
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
       """),
       (200, realtimeRoomsBody(ids: [roomB])),
-      (200, realtimeTokenBody()),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomB))
     ])
     state.realtimeConnectionFactory = { fake }
-    state.realtimeSessionOverride = realtimeOAuthSession()
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
     #expect(fake.watchedRooms == [roomA])
@@ -765,9 +892,7 @@ struct WorkspaceRealtimeTests {
     #expect(state.selectionId == "org_1")
     #expect(fake.slugs == ["acme"])
     #expect(fake.connectedSlug == nil)
-    await waitForTokenMints(transport, count: 1)
-    #expect(fake.reauthorizeCount == 1)
-    #expect(fake.reauthorizedToken?.keyName == "test.app")
+    #expect(fake.membershipRooms.last == [roomB])
     #expect(fake.watchedRooms == [roomA, nil, roomB])
     #expect(state.selectedRoomId == roomB)
   }
