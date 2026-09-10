@@ -122,9 +122,8 @@ export function TaskMetadataStatusField({
         <SelectTrigger
           aria-label={displayLabel}
           className={cn(
-            "h-auto w-auto gap-0 border-0 bg-transparent p-0 shadow-none",
+            "h-auto w-auto gap-0 rounded-sm border-0 bg-transparent p-0 shadow-none",
             "dark:bg-transparent dark:hover:bg-transparent",
-            "focus-visible:border-transparent focus-visible:ring-0",
             "data-[size=default]:h-auto",
             "[&>svg]:hidden",
           )}
