@@ -147,6 +147,36 @@
       #expect(input.string == "unsent draft")
     }
 
+    @Test func acceptedSendClearsUndoHistory() throws {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.insertText(":D ", replacementRange: input.selectedRange())
+      #expect(input.string == "😄 ")
+      #expect(delegate.manager.canUndo)
+      input.submit = { true }
+      try input.keyDown(with: returnEvent())
+      #expect(input.string.isEmpty)
+      #expect(!delegate.manager.canUndo)
+      delegate.manager.undo()
+      #expect(input.string.isEmpty)
+    }
+
+    @Test func externalClearAfterSendDiscardsUndoHistory() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.insertText("hello", replacementRange: input.selectedRange())
+      #expect(delegate.manager.canUndo)
+      input.clearAfterSend()
+      #expect(input.string.isEmpty)
+      #expect(!delegate.manager.canUndo)
+      delegate.manager.undo()
+      #expect(input.string.isEmpty)
+    }
+
     @Test(arguments: [NSEvent.ModifierFlags.shift, .command, .control])
     func modifiedReturnReplacesSelectionWithNewline(_ modifiers: NSEvent.ModifierFlags) throws {
       let input = MacComposerTextInput.InputView()

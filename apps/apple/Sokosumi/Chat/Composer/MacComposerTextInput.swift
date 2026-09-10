@@ -55,7 +55,11 @@
         }
       }
       if input.string != text, !input.hasMarkedText() {
-        input.string = text
+        if text.isEmpty {
+          input.clearAfterSend()
+        } else {
+          input.string = text
+        }
       }
     }
 
@@ -185,6 +189,13 @@
         return super.performKeyEquivalent(with: event)
       }
 
+      /// Clears the composer after an accepted send. Typing history must not
+      /// survive: Cmd+Z after send must not resurrect just-sent text.
+      func clearAfterSend() {
+        string = ""
+        undoManager?.removeAllActions()
+      }
+
       override func keyDown(with event: NSEvent) {
         // Capture this before AppKit commits marked text. Checking inside
         // a submit/delegate callback is too late for the committing Return.
@@ -201,7 +212,7 @@
           insertNewline(nil)
         } else {
           if submit() {
-            string = ""
+            clearAfterSend()
             didChangeText()
           }
         }
