@@ -17,7 +17,7 @@ import {
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
+import { getManualTaskStatusSelectOptions } from "@/lib/utils/task-status-order";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { getTaskStatusPillTone } from "./task-status-badge";
@@ -157,7 +157,7 @@ export function TaskMetadataStatusField({
           </SelectValue>
         </SelectTrigger>
         <SelectContent align="end">
-          {TASK_STATUS_DISPLAY_ORDER.map((option) => (
+          {getManualTaskStatusSelectOptions(displayStatus).map((option) => (
             <SelectItem
               key={option}
               value={option}

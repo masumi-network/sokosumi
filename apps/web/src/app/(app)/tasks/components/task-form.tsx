@@ -74,7 +74,7 @@ import {
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
-import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
+import { getManualTaskStatusSelectOptions } from "@/lib/utils/task-status-order";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import {
   getDefaultTaskContextSelection,
@@ -660,7 +660,9 @@ export function TaskForm({
     showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
   const statusOptions =
-    mode === "create" ? CREATE_STATUS_OPTIONS : TASK_STATUS_DISPLAY_ORDER;
+    mode === "create"
+      ? CREATE_STATUS_OPTIONS
+      : getManualTaskStatusSelectOptions(status);
 
   const handleSave = useCallback(async () => {
     if (isSaveDisabled || (useWizard && step === 1)) return;
