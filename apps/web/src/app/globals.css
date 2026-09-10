@@ -906,14 +906,8 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   }
 }
 
-/* Overlay is the previous sibling of DialogContent. */
-[data-slot="dialog-overlay"]:has(+ [data-create-task-modal-vt]) {
-  animation: none;
-  animation-duration: 0s;
-}
-
 @media (prefers-reduced-motion: no-preference) {
-  /* Skip the page snapshot. Named groups stack above this. */
+  /* Page snapshot stays live; named create-task groups stack above. */
   ::view-transition-old(root) {
     animation: none;
   }

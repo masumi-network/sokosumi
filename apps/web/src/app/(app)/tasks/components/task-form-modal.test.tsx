@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskFormModal } from "./task-form-modal";
@@ -47,33 +48,41 @@ describe("TaskFormModal", () => {
       </TaskFormModal>,
     );
 
+    expect(screen.getByTestId("dialog")).toHaveAttribute("data-open", "false");
     expect(screen.getByText("New task")).toBeInTheDocument();
     expect(screen.getByText("form")).toBeInTheDocument();
   });
 
-  it("mounts the panel while open when View Transitions are on", () => {
+  it("mounts the dedicated portal while open when View Transitions are on", () => {
     render(
       <TaskFormModal open viewTransition {...modalProps}>
         form
       </TaskFormModal>,
     );
 
-    expect(screen.getByTestId("dialog")).toHaveAttribute("data-open", "true");
-    expect(screen.getByText("New task")).toBeInTheDocument();
+    expect(screen.queryByTestId("dialog")).not.toBeInTheDocument();
+    expect(screen.getByTestId("create-task-modal-vt")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "New task" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("form")).toBeInTheDocument();
   });
 
-  it("leaves the dialog closed when View Transitions start closed", () => {
+  it("does not portal when View Transitions start closed", () => {
     render(
       <TaskFormModal open={false} viewTransition {...modalProps}>
         form
       </TaskFormModal>,
     );
 
-    expect(screen.getByTestId("dialog")).toHaveAttribute("data-open", "false");
+    expect(
+      screen.queryByTestId("create-task-modal-vt"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("form")).not.toBeInTheDocument();
   });
 
-  it("hides the panel via Activity and defers portal close", async () => {
+  it("keeps the portal mounted after close until the exit window ends", async () => {
     const { rerender } = render(
       <TaskFormModal open viewTransition {...modalProps}>
         form
@@ -86,14 +95,55 @@ describe("TaskFormModal", () => {
       </TaskFormModal>,
     );
 
+    expect(screen.getByTestId("create-task-modal-vt")).toBeInTheDocument();
     expect(screen.getByText("form")).toBeInTheDocument();
-    expect(screen.getByTestId("dialog")).toHaveAttribute("data-open", "true");
 
     await waitFor(() => {
-      expect(screen.getByTestId("dialog")).toHaveAttribute(
-        "data-open",
-        "false",
-      );
+      expect(
+        screen.queryByTestId("create-task-modal-vt"),
+      ).not.toBeInTheDocument();
     });
+  });
+
+  it("dismisses through overlay click and Escape", async () => {
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <TaskFormModal
+        open
+        viewTransition
+        {...modalProps}
+        onOpenChange={onOpenChange}
+      >
+        form
+      </TaskFormModal>,
+    );
+
+    await user.click(screen.getByTestId("create-task-modal-overlay"));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    onOpenChange.mockClear();
+    await user.keyboard("{Escape}");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("does not dismiss from overlay or Escape while dismiss is disabled", async () => {
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <TaskFormModal
+        open
+        viewTransition
+        isDismissDisabled
+        {...modalProps}
+        onOpenChange={onOpenChange}
+      >
+        form
+      </TaskFormModal>,
+    );
+
+    await user.click(screen.getByTestId("create-task-modal-overlay"));
+    await user.keyboard("{Escape}");
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 });
