@@ -113,7 +113,7 @@ export const claimFreeCreditsWithCoupon = withSession<
       organizationId,
       credits: coupon.credits,
       promotionCodeId: promo.data.promotionCodeId,
-      returnPath: returnPath ?? "/coupon",
+      returnPath: returnPath ?? "/billing?tab=coupon",
     });
 
     invalidatePrivateSidebarChrome({
