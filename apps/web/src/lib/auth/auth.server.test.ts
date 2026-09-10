@@ -268,7 +268,7 @@ describe("auth.server", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
-        throw new Error("Unexpected token < in JSON");
+        throw new SyntaxError("Unexpected token < in JSON");
       },
     });
 
@@ -283,6 +283,149 @@ describe("auth.server", () => {
       });
     }
     await expect(getSession({ refresh: true })).resolves.toBeNull();
+  });
+
+  /**
+   * `getSession` collapses every failure to null for its ~70 callers.
+   * `getSessionResult` is the contract that keeps "Core could not be asked"
+   * apart from "this browser has no session", so the route handlers can answer
+   * 503 instead of signing a working session out. Assert it directly: a test
+   * that only reads `getSession` passes just as well when the Result collapses
+   * back to `ok(null)`, which is the bug.
+   */
+  it("reports a Core timeout as an outage, not a signed-out browser", async () => {
+    const timeout = new Error("The operation was aborted due to timeout");
+    timeout.name = "TimeoutError";
+    fetchMock.mockRejectedValue(timeout);
+
+    const { getSessionResult } = await import("./auth.server");
+
+    const result = await getSessionResult({ refresh: true });
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({
+      path: "/auth/get-session",
+      reason: "timeout",
+    });
+  });
+
+  /**
+   * `AbortSignal.timeout` covers the body stream too, so a Core that sends
+   * headers and then stalls surfaces the abort out of `response.json()`.
+   * Filing that as a parse fault would make the 503 reason lie about the
+   * outage.
+   */
+  it("reports a stall during the body read as a timeout", async () => {
+    const timeout = new Error("The operation was aborted due to timeout");
+    timeout.name = "TimeoutError";
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw timeout;
+      },
+    });
+
+    const { getSessionResult } = await import("./auth.server");
+
+    const result = await getSessionResult({ refresh: true });
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      path: "/auth/get-session",
+      reason: "timeout",
+    });
+  });
+
+  it("reports a malformed body as invalid_json", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError("Unexpected token < in JSON");
+      },
+    });
+
+    const { getSessionResult } = await import("./auth.server");
+
+    const result = await getSessionResult({ refresh: true });
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      path: "/auth/get-session",
+      reason: "invalid_json",
+    });
+  });
+
+  it("rethrows a hanging-promise abort raised by the body read", async () => {
+    const hanging = Object.assign(new Error("Hanging promise rejection"), {
+      digest: "HANGING_PROMISE_REJECTION",
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw hanging;
+      },
+    });
+
+    const { getSession } = await import("./auth.server");
+
+    await expect(getSession({ refresh: true })).rejects.toBe(hanging);
+  });
+
+  /**
+   * An auth status is about this request's credentials, not about Core being
+   * reachable. Answering 503 with `Retry-After` would tell the browser to
+   * retry a condition that never clears.
+   */
+  it.each([401, 403])(
+    "reads a Core %i as signed out rather than an outage",
+    async (status) => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status,
+        json: async () => null,
+      });
+
+      const { getSessionResult } = await import("./auth.server");
+
+      const result = await getSessionResult({ refresh: true });
+
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toBeNull();
+    },
+  );
+
+  it("reports an unexpected Core status as an outage", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => null,
+    });
+
+    const { getSessionResult } = await import("./auth.server");
+
+    const result = await getSessionResult({ refresh: true });
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      path: "/auth/get-session",
+      reason: "http",
+      status: 500,
+    });
+  });
+
+  /**
+   * The literal, not the constant: reading `CORE_AUTH_REQUEST_TIMEOUT_MS`
+   * here would assert the budget against itself and let any drift through.
+   * 8s is what the callers in front of this read allow - the background chat
+   * reads give the browser 20-30s - and 5s is what turned a Core stall into
+   * "no session".
+   */
+  it("spends the shared 8s Core auth budget on the session read", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+
+    const { getSession } = await import("./auth.server");
+
+    await getSession({ refresh: true });
+
+    expect(timeoutSpy).toHaveBeenCalledWith(8000);
+    timeoutSpy.mockRestore();
   });
 
   it("lists user accounts from Core", async () => {
@@ -379,7 +522,7 @@ describe("auth.server", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
-        throw new Error("Unexpected token < in JSON");
+        throw new SyntaxError("Unexpected token < in JSON");
       },
     });
 
@@ -509,7 +652,7 @@ describe("auth.server", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
-        throw new Error("Unexpected token < in JSON");
+        throw new SyntaxError("Unexpected token < in JSON");
       },
     });
 

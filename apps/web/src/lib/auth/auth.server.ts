@@ -38,6 +38,33 @@ const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
 // "no session". Callers in front of it allow far more: background chat reads
 // give the browser 20-30s.
 const CORE_AUTH_REQUEST_TIMEOUT_MS = 8000;
+/**
+ * Core auth statuses that mean "this browser has no session", never "Core is
+ * down". A 404 is deliberately not here: on `/auth/get-session` it means the
+ * route is gone, which is an outage worth a 503.
+ */
+const CORE_SIGNED_OUT_STATUSES = [401, 403];
+
+/**
+ * Classifies a thrown Core auth read failure.
+ *
+ * `AbortSignal.timeout` covers the body stream as well as the headers, so a
+ * stall part-way through the body surfaces here as a `TimeoutError` from
+ * `response.json()`. Keep this the only place that names a reason, or a body
+ * read gets filed as a parse fault and the 503 reason lies about the outage.
+ */
+function classifyCoreAuthReadFailure(error: unknown): CoreAuthReadErrorReason {
+  if (!(error instanceof Error)) {
+    return "network";
+  }
+  if (error.name === "TimeoutError") {
+    return "timeout";
+  }
+  if (error instanceof SyntaxError) {
+    return "invalid_json";
+  }
+  return "network";
+}
 
 async function fetchCoreAuth<T>(
   path: string,
@@ -91,21 +118,7 @@ async function fetchCoreAuth<T>(
       return err(authReadError);
     }
 
-    try {
-      return ok((await response.json()) as T);
-    } catch (error) {
-      const failureLogMessage =
-        options?.failureLogMessage ?? "Failed to parse Core auth response";
-      const authReadError: CoreAuthReadError = {
-        path,
-        reason: "invalid_json",
-      };
-
-      console.error(failureLogMessage, { path, error });
-      reportCoreAuthReadOutage(authReadError, failureLogMessage);
-
-      return err(authReadError);
-    }
+    return ok((await response.json()) as T);
   } catch (error) {
     // PPR soft-abort during shell probe — not an auth failure. Rethrow so React
     // / Cache Components can finish the boundary instead of treating this as a
@@ -119,10 +132,7 @@ async function fetchCoreAuth<T>(
       throw error;
     }
 
-    const reason: CoreAuthReadErrorReason =
-      error instanceof Error && error.name === "TimeoutError"
-        ? "timeout"
-        : "network";
+    const reason = classifyCoreAuthReadFailure(error);
     const failureLogMessage =
       options?.failureLogMessage ?? "Failed to fetch from Core auth";
     const authReadError: CoreAuthReadError = {
@@ -219,11 +229,25 @@ async function fetchSessionResult(
       // Core answers 200 with a null body for a signed-out browser, so these
       // statuses are not expected. Keep them out of Sentry anyway: an auth
       // status is about this request, not about Core being down.
-      sentryIgnoreHttpStatuses: [401, 403, 404],
+      sentryIgnoreHttpStatuses: [...CORE_SIGNED_OUT_STATUSES, 404],
     },
   );
 
-  return result.map((body) => (body?.session && body.user ? body : null));
+  return (
+    result
+      .map((body) => (body?.session && body.user ? body : null))
+      // An auth status from Core is this browser's own credentials failing, not
+      // Core being unreachable. Reporting it as an outage would answer 503 with
+      // `Retry-After` for a condition that never clears, so read it as the
+      // signed-out answer it is.
+      .orElse((error) =>
+        error.reason === "http" &&
+        error.status !== undefined &&
+        CORE_SIGNED_OUT_STATUSES.includes(error.status)
+          ? ok(null)
+          : err(error),
+      )
+  );
 }
 
 const getCachedSessionResult = cache(
