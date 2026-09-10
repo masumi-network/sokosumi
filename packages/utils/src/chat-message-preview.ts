@@ -62,14 +62,20 @@ const NAMING_CHARACTER_REGEX = /[^\p{P}\p{Z}\p{C}\s]/u;
 const CONTROL_CHARACTER_REGEX = /(?![\t\n\r\u200d])[\p{Cc}\p{Cf}\p{Cs}]/gu;
 
 /**
- * A joiner beside an ascii character, which joins nothing a person wrote.
+ * The invisible marks that belong to an emoji, standing where no emoji is.
  *
- * It holds two halves of one emoji together and stands nowhere else, so one
- * next to a letter or a dot is there to hide what it sits between: `www` and
+ * A joiner holds two halves of one emoji together, and a variation selector
+ * says how to draw the character before it. Both show nothing, so one beside
+ * an ascii letter or dot is there to hide what it sits between: `www` and
  * `.evil.test` read as two words rather than as the address they spell.
+ * `U+FE0E` is `Mn` rather than `Cf`, so the category rule above never sees it.
+ *
+ * A keycap is spelled out of the rule: `1`, `#` and `*` are ascii, and each
+ * takes a variation selector and `U+20E3` to become the one character a room
+ * shows.
  */
-const ASCII_JOINER_REGEX =
-  /(?<=[\u0000-\u007f])\u200d|\u200d(?=[\u0000-\u007f])/gu;
+const ASCII_INVISIBLE_REGEX =
+  /(?<=[\u0000-\u007f])(?:\u200d|[\ufe00-\ufe0f](?!\u20e3))|\u200d(?=[\u0000-\u007f])/gu;
 
 /** The text back when it names someone, and nothing when it does not. */
 function whatNamesSomeone(text: string): string {
@@ -423,7 +429,7 @@ export function buildChatMessagePreview(
   // a preview that kept the tag names would read back words the room removed.
   const withoutCode = content
     .replace(CONTROL_CHARACTER_REGEX, "")
-    .replace(ASCII_JOINER_REGEX, "")
+    .replace(ASCII_INVISIBLE_REGEX, "")
     .replace(MARKDOWN_FENCED_BLOCK_REGEX, " ")
     .replace(FENCE_DELIMITER_LINE_REGEX, "");
   // The markdown clean runs over the whole body, with the tokens still in it.
@@ -537,7 +543,7 @@ function whoAMentionNames(
     withoutNameAddresses(
       (mentionNames?.get(lookupKey) ?? "")
         .replace(CONTROL_CHARACTER_REGEX, "")
-        .replace(ASCII_JOINER_REGEX, ""),
+        .replace(ASCII_INVISIBLE_REGEX, ""),
     ).trim(),
   );
   // `all` is a word rather than an id, so it stands in for its own slug and a

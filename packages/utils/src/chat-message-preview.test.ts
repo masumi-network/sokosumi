@@ -258,6 +258,34 @@ describe("buildChatMessagePreview", () => {
     );
   });
 
+  /**
+   * A variation selector says how to draw the character before it, and shows
+   * nothing itself. Beside ascii it hides an address the same way a joiner
+   * does. A keycap is the one place ascii carries one.
+   */
+  it("takes a variation selector beside ascii out and keeps a keycap", () => {
+    expect(buildChatMessagePreview("see www\ufe0e.evil.test/pay now")).toBe(
+      "see now",
+    );
+    expect(buildChatMessagePreview("see https\ufe0e://evil.test/pay now")).toBe(
+      "see now",
+    );
+    expect(buildChatMessagePreview("see www.\ufe0eevil.test/pay now")).toBe(
+      "see now",
+    );
+    expect(buildChatMessagePreview("pick 1\ufe0f\u20e3 or 2\ufe0f\u20e3")).toBe(
+      "pick 1\ufe0f\u20e3 or 2\ufe0f\u20e3",
+    );
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www\ufe0e.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @x");
+  });
+
   /** An empty name is no name, so the slug is what is left to say who. */
   it("keeps the slug when the lookup carries an empty name", () => {
     expect(
