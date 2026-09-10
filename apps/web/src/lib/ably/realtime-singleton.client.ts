@@ -51,6 +51,14 @@ export function subscribeToAblyRealtimeClient(
 const MAX_CONSECUTIVE_SESSION_LOSSES = 3;
 
 /**
+ * The client a lost session retired, kept so a later sign-in can tell it apart
+ * from a healthy one. Never read `connection.state` for this: `close()` goes
+ * through `closing` first, so a state check would answer differently depending
+ * on when it ran.
+ */
+let sessionLossRetiredClient: Ably.Realtime | undefined;
+
+/**
  * Ends one client. Only for failures that no retry can clear: a lost session,
  * or a token minted for a different user.
  *
@@ -74,6 +82,8 @@ function retireAblyRealtimeClient(
   }
   if (options?.rebuild && getGlobalAblyRealtimeClient() === client) {
     setGlobalAblyRealtimeClient(undefined);
+  } else {
+    sessionLossRetiredClient = client;
   }
   client.close();
   if (options?.rebuild) {
@@ -81,6 +91,32 @@ function retireAblyRealtimeClient(
       listener();
     }
   }
+}
+
+/**
+ * Undo a session-loss retire, because a sign-in just happened in this document.
+ *
+ * The retire keeps its closed client in the global on purpose, so a signed-out
+ * tab cannot rebuild its way back into the same 401 loop. Nothing in the tab
+ * ever cleared it again: every sign-in path finishes with `router.replace`, a
+ * client-side navigation, so the document survives and the remounted provider
+ * read the closed client. Realtime stayed dead until a manual reload.
+ *
+ * A new session is the one event that makes rebuilding correct, so the sign-in
+ * seam calls this. A sign-in that did not actually take costs one rebuild that
+ * retires again - not a loop, because only a sign-in reaches here.
+ */
+export function discardRetiredAblyRealtimeClient(): void {
+  if (!sessionLossRetiredClient) {
+    return;
+  }
+  if (getGlobalAblyRealtimeClient() === sessionLossRetiredClient) {
+    setGlobalAblyRealtimeClient(undefined);
+    for (const listener of clientListeners) {
+      listener();
+    }
+  }
+  sessionLossRetiredClient = undefined;
 }
 
 /**

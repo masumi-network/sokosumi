@@ -1,4 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const { discardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
+  discardRetiredAblyRealtimeClient: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/realtime-singleton.client", () => ({
+  discardRetiredAblyRealtimeClient,
+}));
+
 import {
   buildAuthCallbackUrl,
   buildOAuthConsentReturnUrl,
@@ -358,6 +367,26 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
 });
 
 describe("waitForAuthSession", () => {
+  /**
+   * Every sign-in path waits here and then navigates with `router.replace`, so
+   * the document survives and a client the Ably singleton retired for a lost
+   * session would survive with it. This is the one seam all four paths share.
+   */
+  it("discards a retired Ably client, because a sign-in just happened", async () => {
+    const waitForMs = vi.fn(async () => undefined);
+
+    await waitForAuthSession({
+      context: "login",
+      waitForMs,
+      getSession: vi.fn().mockResolvedValue({ userId: "user_1" }),
+      logWarning: vi.fn(),
+    });
+    // The import is dynamic and deliberately not awaited, so let it settle.
+    await vi.waitFor(() => {
+      expect(discardRetiredAblyRealtimeClient).toHaveBeenCalledOnce();
+    });
+  });
+
   it("returns early when session is available after initial wait", async () => {
     const waitForMs = vi.fn(async () => undefined);
     const getSession = vi.fn().mockResolvedValue({ userId: "user_1" });

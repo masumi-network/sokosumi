@@ -33,6 +33,7 @@ import {
   setAblyConnectionHealthy,
 } from "./ably-connection-health-store";
 import {
+  discardRetiredAblyRealtimeClient,
   getAblyRealtimeClient,
   subscribeToAblyRealtimeClient,
 } from "./realtime-singleton.client";
@@ -117,6 +118,9 @@ describe("getAblyRealtimeClient", () => {
 
   beforeEach(() => {
     globalThis.__sokosumiAblyRealtimeClient = undefined;
+    // The retired client is module state, so drop the previous test's pointer.
+    // The global is already empty, so this only clears that pointer.
+    discardRetiredAblyRealtimeClient();
     setAblyConnectionHealthy(false);
     RealtimeMock.mockClear();
     fetchMock.mockReset();
@@ -475,6 +479,68 @@ describe("getAblyRealtimeClient", () => {
     expect(getAblyRealtimeClient()).toBe(client);
     expect(RealtimeMock).toHaveBeenCalledOnce();
     unsubscribe();
+  });
+
+  /**
+   * Every sign-in path finishes with `router.replace`, so the document survives
+   * a re-sign-in and the retired client would survive with it. `/signin` is
+   * reached the same way, from the error boundary's `router.push`, so the whole
+   * logout-and-back-in loop can happen without a reload.
+   */
+  it("rebuilds after a sign-in in the same document", async () => {
+    mockUnauthorized();
+
+    const client = getAblyRealtimeClient();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    discardRetiredAblyRealtimeClient();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
+    expect(listener).toHaveBeenCalledOnce();
+    expect(getAblyRealtimeClient()).not.toBe(client);
+    expect(RealtimeMock).toHaveBeenCalledTimes(2);
+    unsubscribe();
+  });
+
+  it("leaves a healthy client alone when a sign-in happens", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    discardRetiredAblyRealtimeClient();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(listener).not.toHaveBeenCalled();
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  /**
+   * The identity change already dropped its client from the global and built a
+   * replacement. A sign-in landing after that must not throw the replacement
+   * away, which is why only a session-loss retire is remembered.
+   */
+  it("does not discard the replacement an identity change built", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    await invokeAuthCallback();
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    const replacement = getAblyRealtimeClient();
+    discardRetiredAblyRealtimeClient();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
   });
 
   /**
