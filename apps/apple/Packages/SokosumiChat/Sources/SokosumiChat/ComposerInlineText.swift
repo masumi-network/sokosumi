@@ -15,7 +15,9 @@ public enum ComposerInlineText {
     var active = true
     var sawContent = false
     text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { values, _, _ in
-      if values[ComposerBlockText.listMarker] as? Bool == true { return }
+      if values[ComposerBlockText.listMarker] as? Bool == true {
+        return
+      }
       sawContent = true
       if values[style.attribute] as? Bool != true {
         active = false
@@ -28,7 +30,9 @@ public enum ComposerInlineText {
     let result = NSMutableAttributedString(attributedString: text)
     let shouldRemove = isActive(style, in: text)
     result.enumerateAttribute(ComposerBlockText.listMarker, in: NSRange(location: 0, length: result.length)) { marker, range, _ in
-      if marker as? Bool == true { return }
+      if marker as? Bool == true {
+        return
+      }
       if shouldRemove {
         result.removeAttribute(style.attribute, range: range)
       } else {
