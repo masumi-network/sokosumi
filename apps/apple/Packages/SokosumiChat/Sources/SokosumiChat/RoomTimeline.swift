@@ -9,6 +9,7 @@ public final class RoomTimeline: ObservableObject {
   public enum Page: Sendable { case initial, older, latest }
 
   @Published public private(set) var roomId: String?
+  @Published public private(set) var parentMessageId: String?
   @Published public var messages: [Components.Schemas.ChatRoomMessage] = []
   @Published public private(set) var pinOverrides: [String: Bool] = [:]
   @Published public private(set) var hasLoadedHistory = false
@@ -25,10 +26,11 @@ public final class RoomTimeline: ObservableObject {
 
   public init() {}
 
-  public func reset(roomId: String? = nil) {
+  public func reset(roomId: String? = nil, parentMessageId: String? = nil) {
     generation += 1
     activePage = nil
     self.roomId = roomId
+    self.parentMessageId = parentMessageId
     messages = []
     pinOverrides = [:]
     hasLoadedHistory = false
@@ -83,12 +85,7 @@ public final class RoomTimeline: ObservableObject {
     guard !Task.isCancelled else { return false }
     let page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?)
     do {
-      page = try await ChatService().listMessages(
-        client: client,
-        roomId: roomId,
-        cursor: requestedCursor,
-        organizationSlug: organizationSlug
-      )
+      page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, organizationSlug: organizationSlug)
     } catch {
       if generation == expectedGeneration, !Task.isCancelled {
         failedPage = kind
@@ -100,7 +97,9 @@ public final class RoomTimeline: ObservableObject {
     if kind == .initial {
       hasLoadedHistory = true
     }
-    messages = mergeRealtimePage(messages: messages, page: page.messages)
+    messages = mergeRealtimePage(messages: messages, page: page.messages.filter {
+      $0.roomId == roomId && $0.parentMessageId == parentMessageId
+    })
     if kind != .latest {
       cursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
       hasMore = cursor != nil
@@ -108,6 +107,20 @@ public final class RoomTimeline: ObservableObject {
     errorMessage = nil
     failedPage = nil
     return true
+  }
+
+  private func fetchPage(
+    client: Client, roomId: String, cursor: String?, organizationSlug: String?
+  ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
+    if let parentMessageId {
+      return try await ChatService().listThreadMessages(
+        client: client, roomId: roomId, parentMessageId: parentMessageId,
+        cursor: cursor, organizationSlug: organizationSlug
+      )
+    }
+    return try await ChatService().listMessages(
+      client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug
+    )
   }
 }
 

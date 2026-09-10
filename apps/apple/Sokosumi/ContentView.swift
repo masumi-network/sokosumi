@@ -26,7 +26,10 @@ struct ContentView: View {
     .onDisappear {
       Task { @MainActor in workspaces.setWindowVisible(false, window: windowID) }
     }
-    .onChange(of: workspaces.transcriptMessages.map { RoomReadAttention.Message(id: $0.id, content: $0.content) }) { _, _ in
+    .onChange(of: workspaces.readContent) { _, _ in
+      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
+    }
+    .onChange(of: workspaces.thread.timeline.isLoading) { _, _ in
       Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
     }
     .onChange(of: workspaces.timeline.hasLoadedHistory) { _, _ in
@@ -228,8 +231,20 @@ struct ContentView: View {
       } detail: {
         if let selectedRoomId = workspaces.selectedRoomId,
            let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
-          TranscriptView(roomId: selectedRoomId)
-            .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
+          NavigationStack {
+            TranscriptView(roomId: selectedRoomId)
+              .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
+              .navigationDestination(isPresented: Binding(
+                get: { workspaces.thread.parent != nil },
+                set: { presented in
+                  if !presented {
+                    Task { @MainActor in workspaces.thread.close() }
+                  }
+                }
+              )) {
+                ThreadView()
+              }
+          }
         } else {
           Text("Pick a room to read it.")
             .foregroundStyle(.secondary)
