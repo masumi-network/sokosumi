@@ -70,7 +70,14 @@ export async function fetchBackgroundJson(
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     for (let attempt = 0; ; attempt++) {
+      // Deliberately not `AbortSignal.any`: it needs Safari 17.4, this app
+      // pins no browserslist, and Next does not polyfill it. There it throws
+      // before the request is even made, which would turn every background
+      // read into a silent four-second failure.
       const attemptController = new AbortController();
+      const abortAttempt = () =>
+        attemptController.abort(controller.signal.reason);
+      controller.signal.addEventListener("abort", abortAttempt, { once: true });
       const attemptTimer = window.setTimeout(
         () => attemptController.abort(),
         ATTEMPT_STALL_TIMEOUT_MS,
@@ -80,10 +87,7 @@ export async function fetchBackgroundJson(
         const response = await fetch(url, {
           cache: "no-store",
           redirect: "error",
-          signal: AbortSignal.any([
-            controller.signal,
-            attemptController.signal,
-          ]),
+          signal: attemptController.signal,
         });
 
         // The body is read under the same attempt ceiling as the headers. A
@@ -110,6 +114,7 @@ export async function fetchBackgroundJson(
         stalled = true;
       } finally {
         window.clearTimeout(attemptTimer);
+        controller.signal.removeEventListener("abort", abortAttempt);
       }
 
       const retryDelay = stalled
