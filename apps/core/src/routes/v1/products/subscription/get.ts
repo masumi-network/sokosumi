@@ -5,7 +5,7 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { subscriptionCatalogSchema } from "@/schemas/subscription-catalog.schema";
-import { stripeBillingService } from "@/services/stripe-billing.service";
+import { getSubscriptionCatalog } from "@/services/subscription-catalog.service";
 
 const route = createRoute({
   method: "get",
@@ -72,7 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireUserAuthContext(c.var.authContext);
 
-    const catalog = await stripeBillingService.getSubscriptionCatalog();
+    const catalog = await getSubscriptionCatalog();
 
     return ok(c, subscriptionCatalogSchema.parse(catalog));
   });

@@ -1,1 +1,1 @@
-export * from "./models/index.js";
+export { getModelIdentifier } from "./models/index.js";

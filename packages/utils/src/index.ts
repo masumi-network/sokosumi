@@ -70,16 +70,12 @@ export {
   type ChatPresenceState,
   isValidAblyClientInstanceId,
   type PresenceConnectionInput,
-  parseChatPresenceMemberData,
-  parseUserIdFromAblyPresenceClientId,
 } from "./chat-presence.js";
 export { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 export {
   buildCoworkerChatRoomFilePathname,
-  buildCoworkerChatRoomFilePrefix,
   buildSokoBotChatRoomFilePathname,
   buildUserChatRoomFilePathname,
-  buildUserChatRoomFilePrefix,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
 } from "./chat-room-file-upload.js";
 export {
@@ -106,18 +102,13 @@ export {
   CHAT_ROOMS_CHANGED_EVENT_NAME,
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
-export {
-  CHAT_UI_REASONING_PART_TYPE_VALUES,
-  CHAT_UI_REASONING_PART_TYPES,
-  isChatUiProviderReasoningPartType,
-} from "./chat-ui-reasoning-part-types.js";
+export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
 export {
   CORE_API_ERROR_KINDS,
   type CoreApiErrorKind,
 } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
-  buildCoworkerImagePrefix,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
   COWORKER_IMAGE_MAX_SIZE_BYTES,
   extensionForCoworkerImageMime,
@@ -127,7 +118,6 @@ export {
 export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
 export {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
-  CREDIT_TOPUP_LOOKUP_KEYS,
   type CreditTopUpLookupKey,
   type CreditTopUpTier,
   getCreditTopUpLookupKeyByCredits,
@@ -149,11 +139,9 @@ export {
   buildAdHocDesignMdPathname,
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
-  buildOrganizationDesignMdPrefix,
   buildProjectDesignMdPathname,
   buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
-  buildUserDesignMdPrefix,
 } from "./design-md-path.js";
 export {
   DESIGN_MD_BLOB_PATH_PREFIX,
@@ -175,15 +163,11 @@ export {
   DRIVE_FOLDER_MARKER_BASENAME,
   isDriveFolderMarker,
   isDriveFolderMarkerName,
-  isOwnedOrganizationDriveFileUrl,
-  isOwnedUserDriveFileUrl,
   normalizeDriveFolderPath,
   sanitizeDriveFileName,
-  sanitizeDriveFolderName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
 export {
-  FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,
   getUrlBasename,
   isFileLikeUrl,
@@ -200,10 +184,7 @@ export {
   resolveIpfsOrHttpUrl,
   sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
-export {
-  buildJobBlobPathname,
-  buildJobBlobPrefix,
-} from "./job-blob-path.js";
+export { buildJobBlobPathname } from "./job-blob-path.js";
 export { linkifyBareDomainsInMarkdown } from "./linkify-bare-domains.js";
 export {
   type ChannelLinkIdentity,
@@ -272,13 +253,7 @@ export {
   type OAuthClientGrantType,
 } from "./oauth-scopes.js";
 export {
-  DALLE_TEXT_TO_IMAGE_REACT_ACTION,
-  extractReactEnvelope,
-  findJsonObjectEnd,
   isReactJsonFencePrefixCandidate,
-  normalizeReactEnvelopeTrailingText,
-  OPENROUTER_IMAGE_GENERATION_REACT_ACTION,
-  type ParseReactEnvelopeBufferResult,
   parseReactEnvelopeBuffer,
 } from "./openrouter-react-image-envelope.js";
 export {
@@ -299,7 +274,6 @@ export {
 export {
   buildOrganizationLogoContentHashPathname,
   buildOrganizationLogoPathname,
-  buildOrganizationLogoPrefix,
   isOwnedOrganizationLogoUrl,
 } from "./organization-logo-path.js";
 export {
@@ -317,12 +291,10 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
-  buildProjectFilesPrefix,
   buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,
-  buildProjectLogoPrefix,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
@@ -335,7 +307,6 @@ export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
   isTaskArchivableStatus,
-  TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
 } from "./task-archive.js";
 export {
@@ -353,17 +324,14 @@ export {
 } from "./task-context-attachment.js";
 export {
   isTaskEditableStatus,
-  TASK_EDITABLE_STATUSES,
   type TaskEditableStatus,
 } from "./task-editable.js";
 export {
   buildTaskFilePathname,
-  buildTaskFilePrefix,
   clampTaskFileName,
   FILE_UPLOAD_MAX_SIZE_BYTES,
   isOwnedTaskFileUrl,
   resolveTaskFileContentType,
-  sanitizeTaskFileFilename,
   TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
@@ -374,13 +342,8 @@ export {
   type TaskScheduleMetadata,
   type TaskScheduleMetadataV1,
   type TaskScheduleMetadataV2,
-  taskScheduleMetadataSchema,
-  taskScheduleMetadataV2Schema,
-  taskScheduleOnceMetadataV2Schema,
-  taskScheduleRecurringMetadataV2Schema,
 } from "./task-schedule.js";
 export {
-  AGENT_ONLY_TASK_STATUSES,
   canUserTransitionTaskStatus,
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
@@ -401,9 +364,7 @@ export {
   type UserMetadata,
 } from "./user-metadata.js";
 export {
-  getFallbackUserName,
   getFirstName,
-  getStoredUserName,
   resolveAccountDisplayName,
 } from "./user-name.js";
 export {
@@ -416,12 +377,10 @@ export {
 export {
   buildUserUploadPathname,
   buildUserUploadPrefix,
-  sanitizeUserUploadFilename,
 } from "./user-upload-path.js";
 export {
   buildVendorLogoContentHashPathname,
   buildVendorLogoPathname,
-  buildVendorLogoPrefix,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
 export {

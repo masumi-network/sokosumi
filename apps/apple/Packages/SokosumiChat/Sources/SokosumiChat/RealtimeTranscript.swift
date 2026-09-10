@@ -4,7 +4,7 @@ import Foundation
 // Live `chat_room_message` application for the open room (SOK-976).
 //
 // Mirrors web `merge-room-messages` + `apply-chat-room-message-id-envelope`
-// (ADR 0014), scoped to the tracer: top-level messages only (no threads UI),
+// (ADR 0014), scoped to top-level room messages or one thread parent;
 // field patches merge through RealtimeMessagePatch. Full DTOs merge; an id envelope
 // on the focused room refetches history instead of inventing a fake row.
 // Own confirmed send and the Ably create dedupe to one bubble by client
@@ -43,15 +43,16 @@ public enum ChatRoomMessageEnvelopeResolution: Equatable, Sendable {
 }
 
 /// Decide how the focused room applies an id envelope (ADR 0014): other rooms
-/// and thread replies are ignored (no threads UI, so parent `threadReplyCount`
-/// stays until the next history load); delete tombstones by id because list
+/// and messages outside the requested parent scope are ignored. Deletes
+/// tombstone by id because list
 /// GET omits deleted rows; create/update refetch history.
 public func resolveRealtimeEnvelope(
   _ envelope: ChatRoomMessageIdEnvelope,
-  focusedRoomId: String?
+  focusedRoomId: String?,
+  parentMessageId: String? = nil
 ) -> ChatRoomMessageEnvelopeResolution {
   guard envelope.roomId == focusedRoomId else { return .ignore }
-  guard envelope.parentMessageId == nil else { return .ignore }
+  guard envelope.parentMessageId == parentMessageId else { return .ignore }
   if envelope.eventType == .delete {
     return .tombstone(messageId: envelope.messageId)
   }
@@ -100,8 +101,7 @@ public func realtimeClientTurnId(_ message: Components.Schemas.ChatRoomMessage) 
 }
 
 /// Room-timeline scope: top-level only. Thread replies never enter the
-/// transcript (mirrors web `mergeIntoRoomTimeline` — the tracer has no
-/// thread panel).
+/// room transcript (mirrors web `mergeIntoRoomTimeline`).
 public func isTopLevelRealtimeMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   message.parentMessageId == nil
 }
@@ -110,15 +110,16 @@ public func isTopLevelRealtimeMessage(_ message: Components.Schemas.ChatRoomMess
 /// Own send + Ably create confirm in place by turn id (one bubble, ADR 0004);
 /// hard deletes (`deletedAt == nil`) remove the row; tombstoned deletes and
 /// upserts merge with incoming winning, oldest first. Unresolved shells keep
-/// trailing the confirmed block. Thread replies and local-only rows arriving
-/// over the wire are ignored — never invented, never duplicated.
+/// trailing the confirmed block. Rows outside the requested parent scope
+/// and local-only rows arriving over the wire are ignored.
 public func applyRealtimeFullEvent(
   messages: [Components.Schemas.ChatRoomMessage],
   shells: [OutboundShell],
   eventType: ChatRoomMessageRealtimeEventType,
-  message: Components.Schemas.ChatRoomMessage
+  message: Components.Schemas.ChatRoomMessage,
+  parentMessageId: String? = nil
 ) -> (messages: [Components.Schemas.ChatRoomMessage], shells: [OutboundShell]) {
-  guard isTopLevelRealtimeMessage(message), !isOutboundLocalMessage(message) else {
+  guard message.parentMessageId == parentMessageId, !isOutboundLocalMessage(message) else {
     return (messages, shells)
   }
   if let turnId = realtimeClientTurnId(message),

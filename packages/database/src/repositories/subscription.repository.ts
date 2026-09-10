@@ -18,6 +18,54 @@ function subscriptionPeriodStartedAtOrBefore(
   };
 }
 
+/**
+ * Active subscription whose billing period contains `now`
+ * (`periodStart <= now < periodEnd`). Use when credits/UI must reflect the
+ * period the customer is in, not a pre-created successor row.
+ */
+async function getCurrentInPeriodActiveSubscriptionByReferenceId(
+  referenceId: string,
+  tx: Prisma.TransactionClient,
+  now: Date,
+): Promise<Subscription | null> {
+  return await tx.subscription.findFirst({
+    where: {
+      referenceId,
+      ...activeSubscriptionStatusWhere(),
+      periodStart: {
+        lte: now,
+      },
+      periodEnd: {
+        gt: now,
+      },
+    },
+    orderBy: [{ updatedAt: "desc" }],
+  });
+}
+
+/**
+ * Active subscription with the latest `periodEnd` among rows whose period has
+ * started (`periodStart` null or `<= now`). Excludes pre-created successors
+ * whose `periodStart` is still in the future.
+ */
+async function getLatestStartedActiveSubscriptionByReferenceId(
+  referenceId: string,
+  tx: Prisma.TransactionClient,
+  now: Date,
+): Promise<Subscription | null> {
+  return await tx.subscription.findFirst({
+    where: {
+      referenceId,
+      ...activeSubscriptionStatusWhere(),
+      ...subscriptionPeriodStartedAtOrBefore(now),
+    },
+    orderBy: [
+      { periodEnd: { sort: "desc", nulls: "last" } },
+      { updatedAt: "desc" },
+    ],
+  });
+}
+
 export const subscriptionRepository = {
   async getSubscriptionByStripeSubscriptionId(
     stripeSubscriptionId: string,
@@ -47,54 +95,6 @@ export const subscriptionRepository = {
   },
 
   /**
-   * Active subscription whose billing period contains `now`
-   * (`periodStart <= now < periodEnd`). Use when credits/UI must reflect the
-   * period the customer is in, not a pre-created successor row.
-   */
-  async getCurrentInPeriodActiveSubscriptionByReferenceId(
-    referenceId: string,
-    tx: Prisma.TransactionClient,
-    now: Date = new Date(),
-  ): Promise<Subscription | null> {
-    return await tx.subscription.findFirst({
-      where: {
-        referenceId,
-        ...activeSubscriptionStatusWhere(),
-        periodStart: {
-          lte: now,
-        },
-        periodEnd: {
-          gt: now,
-        },
-      },
-      orderBy: [{ updatedAt: "desc" }],
-    });
-  },
-
-  /**
-   * Active subscription with the latest `periodEnd` among rows whose period has
-   * started (`periodStart` null or `<= now`). Excludes pre-created successors
-   * whose `periodStart` is still in the future.
-   */
-  async getLatestStartedActiveSubscriptionByReferenceId(
-    referenceId: string,
-    tx: Prisma.TransactionClient,
-    now: Date = new Date(),
-  ): Promise<Subscription | null> {
-    return await tx.subscription.findFirst({
-      where: {
-        referenceId,
-        ...activeSubscriptionStatusWhere(),
-        ...subscriptionPeriodStartedAtOrBefore(now),
-      },
-      orderBy: [
-        { periodEnd: { sort: "desc", nulls: "last" } },
-        { updatedAt: "desc" },
-      ],
-    });
-  },
-
-  /**
    * Billing/credits resolution: current in-period row when one exists, otherwise
    * the latest started active row by `periodEnd` (ended periods, missing dates).
    */
@@ -104,12 +104,12 @@ export const subscriptionRepository = {
     now: Date = new Date(),
   ): Promise<Subscription | null> {
     return (
-      (await subscriptionRepository.getCurrentInPeriodActiveSubscriptionByReferenceId(
+      (await getCurrentInPeriodActiveSubscriptionByReferenceId(
         referenceId,
         tx,
         now,
       )) ??
-      (await subscriptionRepository.getLatestStartedActiveSubscriptionByReferenceId(
+      (await getLatestStartedActiveSubscriptionByReferenceId(
         referenceId,
         tx,
         now,

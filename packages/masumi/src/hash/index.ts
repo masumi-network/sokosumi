@@ -1,4 +1,4 @@
-export { hashInput, hashInputSchema, hashResult } from "./hash.js";
+export { hashInput, hashResult } from "./hash.js";
 export {
   type InputVerificationOptions,
   isInputHashVerified,

@@ -1,7 +1,7 @@
 import prisma from "@/lib/db/prisma";
 import { getRedisClient } from "@/lib/redis";
 
-import { ACTIVE_UI_STREAM_ID_METADATA_KEY } from "./active-ui-stream-metadata";
+const ACTIVE_UI_STREAM_ID_METADATA_KEY = "active_ui_stream_id" as const;
 
 function roomActiveStreamRedisKey(roomId: string): string {
   return `sokosumi:room:${roomId}:${ACTIVE_UI_STREAM_ID_METADATA_KEY}`;

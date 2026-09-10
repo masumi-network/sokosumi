@@ -63,15 +63,11 @@ throw conflict("Already exists");
 
 ### Authentication
 
-Use type-safe Hono classes that automatically apply auth middleware:
+Use type-safe Hono class that automatically applies auth middleware:
 
 ```typescript
-import { HonoWithAuth, OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-// For standard routes
-const router = new HonoWithAuth();
-
-// For OpenAPI-documented routes
 const app = new OpenAPIHonoWithAuth();
 ```
 
@@ -220,5 +216,5 @@ const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 ❌ `return c.json({ error: "..." }, 403)` - Use error helpers
 ❌ `return c.json({ data: user })` - Use `ok(c, { user })`
 ❌ New repository wrappers in routes - Prefer direct Prisma in new route handlers
-❌ Manual auth middleware - Use HonoWithAuth/OpenAPIHonoWithAuth
+❌ Manual auth middleware - Use OpenAPIHonoWithAuth
 ❌ Hardcoded response formats - Use standardized helpers

@@ -143,6 +143,22 @@ struct RoomTimelineTests {
     #expect(!timeline.isLoadingOlder)
   }
 
+  @Test func lateReplyPageCannotSettleNewThreadInSameRoom() async throws {
+    let transport = PausedHistoryTransport()
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId, parentMessageId: "first")
+    let generation = timeline.generation
+    let task = Task { try await timeline.loadPage(.initial, client: client(transport), organizationSlug: nil, generation: generation) }
+    await transport.waitForRequest()
+    timeline.reset(roomId: testRoomId, parentMessageId: "second")
+    await transport.release()
+    #expect(try await task.value == false)
+    #expect(timeline.parentMessageId == "second")
+    #expect(timeline.isLoading)
+    #expect(!timeline.hasLoadedHistory)
+    #expect(timeline.messages.isEmpty)
+  }
+
   @Test func resizingAndExhaustedHistoryDoNotUnpinLatest() {
     var intent = TimelineScrollIntent()
     let resizeLoads = intent.beginAutomaticOlderPage(userIsScrolling: false, isNearTop: true, hasMore: true, isLoading: false)

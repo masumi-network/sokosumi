@@ -9,16 +9,27 @@ public struct SavedComposeDraft {
     userId: String,
     organizationId: String?,
     roomId: String,
+    parentMessageId: String? = nil,
     defaults: UserDefaults = .standard
   ) {
     self.defaults = defaults
     // Length prefixes avoid collisions even when identifiers contain separators.
-    let parts = [userId, organizationId == nil ? "personal" : "organization", organizationId ?? "", roomId]
+    var parts = [userId, organizationId == nil ? "personal" : "organization", organizationId ?? "", roomId]
+    if let parentMessageId {
+      parts += ["thread", parentMessageId]
+    }
     key = "sokosumi.composeDraft.v1." + parts.map { "\($0.utf8.count):\($0)" }.joined()
   }
 
   public func load() -> String {
     defaults.string(forKey: key) ?? ""
+  }
+
+  /// Retain text entered after sending when the earlier request fails.
+  public func restoreFailedSend(_ text: String, preserving current: String) -> String {
+    let restored = current.isEmpty ? text : text + "\n\n" + current
+    save(restored)
+    return restored
   }
 
   public func save(_ text: String) {

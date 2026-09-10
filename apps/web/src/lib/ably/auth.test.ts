@@ -64,6 +64,8 @@ describe("createAuthTokenRequest", () => {
     );
     const fetchUrl = fetchMock.mock.calls[0]?.[0] as URL;
     expect(fetchUrl.searchParams.get("clientInstanceId")).toBe("inst_test01");
+    const fetchInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(fetchInit.signal).toBeInstanceOf(AbortSignal);
     expect(result).toEqual(tokenRequest);
     // Must not return the Core envelope — Ably authUrl expects TokenRequest fields.
     expect(result).not.toHaveProperty("meta");
@@ -81,6 +83,27 @@ describe("createAuthTokenRequest", () => {
       status: 401,
       message: "Core Ably token mint failed (401): unauthorized",
     });
+  });
+
+  it("gives the Core mint 7 seconds, inside the 9s browser hop", async () => {
+    const timeoutMock = vi.spyOn(AbortSignal, "timeout");
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          keyName: "app.key",
+          capability: "{}",
+          timestamp: 1,
+          nonce: "n",
+          mac: "m",
+        },
+      }),
+    });
+
+    await createAuthTokenRequest();
+
+    expect(timeoutMock).toHaveBeenCalledWith(7000);
+    timeoutMock.mockRestore();
   });
 
   it("throws when Core omits data", async () => {
