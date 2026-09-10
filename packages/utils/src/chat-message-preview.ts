@@ -399,11 +399,24 @@ export function buildChatMessagePreview(
   // A token is written in the characters the clean leaves alone, so it comes
   // out as it went in, and the clean gets to see a link or a code span whole
   // rather than in the halves a mention inside one would leave.
-  const readable = cleanChatMessageText(
-    stripTags(withoutCode)
-      .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
-      .replace(BACKTICK_RUN_REGEX, "`"),
-  );
+  const withoutMarkup = stripTags(withoutCode)
+    .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
+    .replace(BACKTICK_RUN_REGEX, "`");
+  const readable = cleanChatMessageText(withoutMarkup);
+
+  // A slug is a name too, rewritten to lowercase ascii words, and the clean
+  // takes `_` out of whatever it is handed. So the slug of each key is kept
+  // as the composer spelled it, which is what stands in for a member the
+  // lookup does not name: `@ada_lovelace` rather than `@adalovelace`.
+  const spelledSlugs = new Map<string, string>();
+
+  for (const token of withoutMarkup.matchAll(MENTION_TOKEN_REGEX)) {
+    const key = (token[1] ?? "").toLowerCase();
+
+    if (!spelledSlugs.has(key)) {
+      spelledSlugs.set(key, token[2] ?? "");
+    }
+  }
 
   // The names go in after that clean. A name is a person's to spell and the
   // clean takes `* _ ~ > #` out of whatever it is handed, which is what would
@@ -427,8 +440,14 @@ export function buildChatMessagePreview(
   // name after it: `https://e.test/x@<id>:ada` is a link and then a mention.
   for (const token of readable.matchAll(MENTION_TOKEN_REGEX)) {
     writePiece(withoutAddresses(readable.slice(read, token.index)), false);
+    const key = token[1] ?? "";
+
     writePiece(
-      whoAMentionNames(token[1] ?? "", token[2] ?? "", mentionNames),
+      whoAMentionNames(
+        key,
+        spelledSlugs.get(key.toLowerCase()) ?? token[2] ?? "",
+        mentionNames,
+      ),
       true,
     );
     read = token.index + token[0].length;

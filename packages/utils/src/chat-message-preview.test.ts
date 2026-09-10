@@ -129,6 +129,18 @@ describe("buildChatMessagePreview", () => {
     ).toBe("code @Ada Lovelace end");
   });
 
+  /**
+   * A slug is a name as well, and the markdown clean takes `_` out of what it
+   * is handed. So the slug is kept as the composer spelled it.
+   */
+  it("keeps the punctuation of a slug that stands in for a name", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada_lovelace hi",
+      ),
+    ).toBe("@ada_lovelace hi");
+  });
+
   /** An empty name is no name, so the slug is what is left to say who. */
   it("keeps the slug when the lookup carries an empty name", () => {
     expect(
