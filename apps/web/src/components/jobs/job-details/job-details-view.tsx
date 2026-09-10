@@ -54,7 +54,12 @@ export interface JobDetailsViewProps {
   personalWorkspaceLabel?: string;
   projectName?: string | null;
   showAgentHeader?: boolean;
-  /** Share route only: eyebrow, status badge, agent title, mobile top offset. */
+  /**
+   * Share route only: eyebrow, status badge, agent title, mobile top offset.
+   * Also suppresses every job action control on both render paths, so an
+   * anonymous viewer of `/share/[token]` gets no share, rename, or move
+   * button.
+   */
   publicJobLayout?: boolean;
 }
 
