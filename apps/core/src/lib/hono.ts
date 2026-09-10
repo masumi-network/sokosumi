@@ -123,12 +123,3 @@ export function withCoworkerContextHeaderParameters<T extends RouteConfig>(
 ): T {
   return withHeaderParameters(route, COWORKER_CONTEXT_HEADER_PARAMETERS);
 }
-
-/**
- * Default OpenAPI header params for authenticated routes: organization slug
- * only. Prefer {@link withCoworkerContextHeaderParameters} or
- * another explicit route parameter set when the route accepts contextual auth.
- */
-export function withGlobalHeaderParameters<T extends RouteConfig>(route: T): T {
-  return withOrganizationSlugHeaderParameter(route);
-}
