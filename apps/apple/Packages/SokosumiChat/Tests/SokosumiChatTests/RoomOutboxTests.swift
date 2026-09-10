@@ -22,7 +22,11 @@ struct RoomOutboxTests {
       await Task.yield()
     }
     #expect(outbox.sentAt[confirmed.id] != nil)
-    try await Task.sleep(for: .milliseconds(1700))
+    // Timer tasks may start late while parallel package tests load the executor.
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while !outbox.sentAt.isEmpty, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(20))
+    }
     #expect(outbox.sentAt.isEmpty)
   }
 

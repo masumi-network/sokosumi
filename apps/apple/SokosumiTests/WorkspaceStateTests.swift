@@ -51,6 +51,8 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
   private var postReleased = false
+  private var postCompleted = false
+  private var postCompletionWaiter: CheckedContinuation<Void, Never>?
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
@@ -62,6 +64,13 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
     baseURL _: URL,
     operationID: String
   ) async throws -> (HTTPResponse, HTTPBody?) {
+    defer {
+      if operationID == "post/chats/rooms/{id}/messages" {
+        postCompleted = true
+        postCompletionWaiter?.resume()
+        postCompletionWaiter = nil
+      }
+    }
     operationIDs.append(operationID)
     if let body, let bytes = try? await Array(collecting: body, upTo: 1_000_000) {
       bodies.append(Data(bytes))
@@ -83,6 +92,13 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
     postReleased = true
     pauseWaiter?.resume()
     pauseWaiter = nil
+  }
+
+  func waitForPOSTCompletion() async {
+    if postCompleted {
+      return
+    }
+    await withCheckedContinuation { postCompletionWaiter = $0 }
   }
 }
 
@@ -554,6 +570,7 @@ struct WorkspaceStateTests {
     #expect(state.outboundShells.isEmpty)
     #expect(!state.outboundInFlight)
     transport.releasePOST()
+    await transport.waitForPOSTCompletion()
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.isEmpty)
     #expect(state.transcriptRoomId == secondID)
