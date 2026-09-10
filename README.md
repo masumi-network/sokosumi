@@ -28,7 +28,7 @@ sokosumi/
 └── pnpm-workspace.yaml
 ```
 
-- **apps/web/**: User-facing web application (Next.js 16, React 19.2, Tailwind CSS, Shadcn UI, next-intl). Reaches data only through the Core API — it does not use Prisma.
+- **apps/web/**: User-facing web application (Next.js 16, React 19.3, Tailwind CSS, Shadcn UI, next-intl). Reaches data only through the Core API — it does not use Prisma.
 - **apps/core/**: Hono API on Node.js. All database reads and writes live here.
 
 ## Getting Started
@@ -102,7 +102,7 @@ Other available scripts:
 
 ## Deployment
 
-- **Production:** A push to `main` production-deploys web and core on both mainnet and preprod. There is no GitHub Release production path.
+- **Production:** A push to `main` production-deploys web and core on both mainnet and preprod through Vercel Git (`git.deploymentEnabled` allows `main` only). There is no GitHub Actions or GitHub Release production path.
 - **Preview:** `/deploy` is preview-only.
 - **Database migrations:** The Core Vercel build (`pnpm vercel-build`) runs `prisma migrate deploy` **after** a successful app build and before the deployment activates (Production and Preview). With the Vercel Neon integration, each Preview gets its own database branch; Preview builds require `DATABASE_URL_UNPOOLED` so migrate cannot silently target a shared/production URL. Migrate prefers `DATABASE_URL_UNPOOLED`, otherwise `DATABASE_URL`. Web does not run migrations and its Vercel install is filtered (`pnpm install --frozen-lockfile --filter web...`) so `@sokosumi/database` is not installed or built. See [apps/core/README.md](./apps/core/README.md#deployment-vercel) for the Neon checklist.
 

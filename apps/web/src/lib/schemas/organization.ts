@@ -31,21 +31,6 @@ export type OrganizationInformationFormSchemaType = z.infer<
   ReturnType<typeof organizationInformationFormSchema>
 >;
 
-export const createOrganizationSchema = (
-  t?: IntlTranslation<"Library.Auth.Schema">,
-) =>
-  z.object({
-    name: z
-      .string({ error: t?.("Organization.invalid") })
-      .min(1, { error: t?.("Organization.required") })
-      .min(2, { error: t?.("Organization.min") })
-      .max(50, { error: t?.("Organization.max") }),
-  });
-
-export type CreateOrganizationSchemaType = z.infer<
-  ReturnType<typeof createOrganizationSchema>
->;
-
 export const removeOrganizationSchema = (
   name: string,
   t?: IntlTranslation<"Components.Organizations.RemoveModal.Schema">,

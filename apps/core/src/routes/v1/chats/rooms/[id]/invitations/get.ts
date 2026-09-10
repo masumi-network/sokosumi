@@ -11,7 +11,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomInvitationSchema } from "@/schemas/chat-room-invitation.schema";
@@ -28,7 +28,7 @@ const paramsSchema = z.object({
     }),
 });
 
-const route = withGlobalHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
     path: "/{id}/invitations",

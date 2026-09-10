@@ -21,7 +21,7 @@ import {
   clearComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
-import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomSokoBotParticipant,
