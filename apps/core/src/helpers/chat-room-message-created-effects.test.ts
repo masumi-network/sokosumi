@@ -50,6 +50,8 @@ vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
 }));
 
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
+
 import { emitChatRoomMessageCreatedEffects } from "./chat-room-message-created-effects";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -135,6 +137,11 @@ describe("emitChatRoomMessageCreatedEffects", () => {
     await emit({ memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID] });
 
     expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: [SUBSCRIBER_ID, QUIET_ID],
+      roomId: ROOM_ID,
+      collections: ["active"],
+    });
   });
 
   /**

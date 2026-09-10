@@ -290,6 +290,11 @@ describe("persistUserMessageToChatRoom", () => {
       contentText: "Hello from user",
     });
     expect(result.id).toBe("msg_user");
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["reader"],
+      roomId: "room_1",
+      collections: ["active"],
+    });
     expect(prisma.chatRoomMessage.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
