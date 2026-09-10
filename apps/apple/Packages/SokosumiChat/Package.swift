@@ -13,6 +13,8 @@ let package = Package(
   ],
   dependencies: [
     .package(path: "../CoreAPI"),
+    .package(url: "https://github.com/tree-sitter/swift-tree-sitter", exact: "0.10.0"),
+    .package(url: "https://github.com/simonbs/TreeSitterLanguages", exact: "0.1.10"),
     .package(url: "https://github.com/apple/swift-openapi-runtime", from: "1.8.2"),
     // Direct `import HTTPTypes` needs a declared dependency: SwiftPM links
     // the transitive closure, but Xcode links each product against its
@@ -32,6 +34,11 @@ let package = Package(
       name: "SokosumiChatTests",
       dependencies: [
         "SokosumiChat",
+        .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+        .product(name: "TreeSitterSwift", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterSwiftQueries", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterJSON", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterJSONQueries", package: "TreeSitterLanguages"),
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")
