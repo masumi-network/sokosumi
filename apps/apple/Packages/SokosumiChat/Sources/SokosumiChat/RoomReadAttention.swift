@@ -3,7 +3,7 @@ import CoreAPI
 import Foundation
 
 /// Visibility-gated room reads and attention overlays shared by native clients.
-/// Thread look writes belong to the thread feature; Core's residual counters
+/// Open-thread attention precedes room reads; Core's residual counters
 /// are retained verbatim when a room read settles.
 @MainActor
 public final class RoomReadAttention: ObservableObject {
@@ -16,9 +16,21 @@ public final class RoomReadAttention: ObservableObject {
     }
   }
 
+  public struct Content: Equatable, Sendable {
+    public let messages: [Message]
+    public let parentMessageId: String?
+    public let replies: [Message]
+
+    public init(messages: [Message], parentMessageId: String? = nil, replies: [Message] = []) {
+      self.messages = messages
+      self.parentMessageId = parentMessageId
+      self.replies = replies
+    }
+  }
+
   private struct Marker: Equatable {
     let roomId: String
-    let messages: [Message]
+    let content: Content
   }
 
   private struct Fields {
@@ -120,14 +132,14 @@ public final class RoomReadAttention: ObservableObject {
     }
   }
 
-  private func begin(_ room: Components.Schemas.ChatRoom, unread: Bool) -> Int {
+  private func begin(_ room: Components.Schemas.ChatRoom, unread: Bool, optimisticRead: Bool = true) -> Int {
     expirePending()
     let previous = overlays[room.id]
     let rollback = previous?.rollback ?? previous?.fields ?? Fields(room)
     var optimistic = room
     if unread {
       optimistic.markedUnread = true
-    } else {
+    } else if optimisticRead {
       optimistic.unreadCount = 0
       optimistic.unreadMentionCount = 0
       optimistic.markedUnread = false
@@ -148,29 +160,68 @@ public final class RoomReadAttention: ObservableObject {
   }
 
   @discardableResult
-  public func readIfNeeded(room: Components.Schemas.ChatRoom, messages: [Message], historyReadable: Bool, client: Client, organizationSlug: String?) async throws -> Bool {
-    guard isVisible, historyReadable else { return false }
-    let next = Marker(roomId: room.id, messages: messages)
-    guard marker != next else { return false }
+  public func readIfNeeded(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, client: Client, organizationSlug: String?) async throws -> Bool {
+    let next = Marker(roomId: room.id, content: content)
+    if marker != next || !historyReadable {
+      marker = nil
+    }
+    guard isVisible, historyReadable, marker != next else { return false }
     marker = next
     let attempt = generation
-    let token = begin(room, unread: false)
+    let lookError = await lookThread(roomId: room.id, content: content, client: client, organizationSlug: organizationSlug)
+    guard attempt == generation, marker == next, isVisible, !Task.isCancelled else {
+      clearMarker(matching: next)
+      return false
+    }
+    do {
+      guard try await readRoom(room, optimistic: true, client: client, organizationSlug: organizationSlug) else { return false }
+    } catch {
+      clearMarker(matching: next)
+      throw error
+    }
+    if let lookError {
+      clearMarker(matching: next)
+      throw lookError
+    }
+    return true
+  }
+
+  /// Explicit thread opens preserve unread chrome until Core returns its
+  /// residual counters. Automatic content attention remains optimistic.
+  @discardableResult
+  public func readAfterThreadLook(room: Components.Schemas.ChatRoom, client: Client, organizationSlug: String?) async throws -> Bool {
+    try await readRoom(room, optimistic: false, client: client, organizationSlug: organizationSlug)
+  }
+
+  private func readRoom(_ room: Components.Schemas.ChatRoom, optimistic: Bool, client: Client, organizationSlug: String?) async throws -> Bool {
+    guard isVisible, !Task.isCancelled else { return false }
+    let attempt = generation
+    let token = begin(room, unread: false, optimisticRead: optimistic)
     do {
       let result = try await ChatService().markRoomRead(client: client, roomId: room.id, organizationSlug: organizationSlug)
       guard attempt == generation else { return false }
       settle(roomId: room.id, token: token, result: result)
       return true
     } catch {
-      guard attempt == generation else { return false }
-      guard settle(roomId: room.id, token: token, result: nil) else { return false }
-      if marker == next {
-        marker = nil
-      }
-      // Background reads fail silently (web parity: `readRoom` returns
-      // false and the reset marker retries on the next change). Only
-      // user-initiated mark-unread surfaces `errorMessage`. The error
-      // still throws so callers can sign out on 401.
+      guard attempt == generation, settle(roomId: room.id, token: token, result: nil) else { return false }
       throw error
+    }
+  }
+
+  private func clearMarker(matching expected: Marker) {
+    if marker == expected {
+      marker = nil
+    }
+  }
+
+  private func lookThread(roomId: String, content: Content, client: Client, organizationSlug: String?) async -> Error? {
+    guard let parentMessageId = content.parentMessageId else { return nil }
+    do {
+      _ = try await ChatService().markThreadRead(client: client, roomId: roomId,
+                                                 parentMessageId: parentMessageId, organizationSlug: organizationSlug)
+      return nil
+    } catch {
+      return error
     }
   }
 
