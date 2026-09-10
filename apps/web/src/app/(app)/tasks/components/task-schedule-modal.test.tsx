@@ -1,16 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useEffect } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
-
-const sectionMounts: TaskScheduleSelection[] = [];
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+// Stateful stand-in: seeds its draft from initialSelection on mount only, so
+// the draft resets only when the modal remounts the section.
 vi.mock("@/components/task-schedule-section", () => ({
   TaskScheduleSection: ({
     initialSelection,
@@ -23,14 +23,18 @@ vi.mock("@/components/task-schedule-section", () => ({
     onCancel: () => void;
     onClearSchedule: () => void;
   }) => {
-    useEffect(() => {
-      sectionMounts.push(initialSelection);
-    }, [initialSelection]);
+    const [draft, setDraft] = useState(initialSelection);
 
     return (
       <div>
-        <div data-testid="schedule-mode">{initialSelection.mode}</div>
-        <button type="button" onClick={() => onSave(initialSelection)}>
+        <div data-testid="schedule-mode">{draft.mode}</div>
+        <button
+          type="button"
+          onClick={() => setDraft({ ...draft, mode: "recurring" })}
+        >
+          edit
+        </button>
+        <button type="button" onClick={() => onSave(draft)}>
           save
         </button>
         <button type="button" onClick={onCancel}>
@@ -57,95 +61,79 @@ const noneUtc: TaskScheduleSelection = {
   timezone: "UTC",
 };
 
+function buildModal({
+  open = true,
+  initialSelection = onceUtc,
+  onOpenChange = vi.fn(),
+  onApply = vi.fn(),
+  onClearSchedule = vi.fn(),
+}: {
+  open?: boolean;
+  initialSelection?: TaskScheduleSelection;
+  onOpenChange?: (open: boolean) => void;
+  onApply?: (selection: TaskScheduleSelection) => void;
+  onClearSchedule?: () => void;
+} = {}) {
+  return (
+    <TaskScheduleModal
+      open={open}
+      onOpenChange={onOpenChange}
+      initialSelection={initialSelection}
+      onApply={onApply}
+      onClearSchedule={onClearSchedule}
+    />
+  );
+}
+
 describe("TaskScheduleModal", () => {
-  beforeEach(() => {
-    sectionMounts.length = 0;
-  });
+  it("resets an edited draft when initialSelection changes while open", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(buildModal());
 
-  it("resets the schedule body when initialSelection changes while open", () => {
-    const { rerender } = render(
-      <TaskScheduleModal
-        open
-        onOpenChange={vi.fn()}
-        initialSelection={onceUtc}
-        onApply={vi.fn()}
-        onClearSchedule={vi.fn()}
-      />,
-    );
+    await user.click(screen.getByRole("button", { name: "edit" }));
+    expect(screen.getByTestId("schedule-mode")).toHaveTextContent("recurring");
 
-    expect(screen.getByTestId("schedule-mode")).toHaveTextContent("once");
-    expect(sectionMounts.at(-1)).toEqual(onceUtc);
-
-    rerender(
-      <TaskScheduleModal
-        open
-        onOpenChange={vi.fn()}
-        initialSelection={noneUtc}
-        onApply={vi.fn()}
-        onClearSchedule={vi.fn()}
-      />,
-    );
+    rerender(buildModal({ initialSelection: noneUtc }));
 
     expect(screen.getByTestId("schedule-mode")).toHaveTextContent("none");
-    expect(sectionMounts.at(-1)).toEqual(noneUtc);
   });
 
-  it("resets the schedule body when the modal is reopened", () => {
-    const { rerender } = render(
-      <TaskScheduleModal
-        open
-        onOpenChange={vi.fn()}
-        initialSelection={onceUtc}
-        onApply={vi.fn()}
-        onClearSchedule={vi.fn()}
-      />,
-    );
+  it("resets an edited draft when the modal is closed and reopened", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(buildModal());
 
-    expect(sectionMounts).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "edit" }));
+    expect(screen.getByTestId("schedule-mode")).toHaveTextContent("recurring");
 
-    rerender(
-      <TaskScheduleModal
-        open={false}
-        onOpenChange={vi.fn()}
-        initialSelection={onceUtc}
-        onApply={vi.fn()}
-        onClearSchedule={vi.fn()}
-      />,
-    );
+    rerender(buildModal({ open: false }));
+    expect(screen.queryByTestId("schedule-mode")).not.toBeInTheDocument();
 
-    rerender(
-      <TaskScheduleModal
-        open
-        onOpenChange={vi.fn()}
-        initialSelection={onceUtc}
-        onApply={vi.fn()}
-        onClearSchedule={vi.fn()}
-      />,
-    );
+    rerender(buildModal());
 
     expect(screen.getByTestId("schedule-mode")).toHaveTextContent("once");
-    expect(sectionMounts.length).toBeGreaterThan(1);
-    expect(sectionMounts.at(-1)).toEqual(onceUtc);
   });
 
-  it("applies a selection and closes the modal", async () => {
+  it("keeps an edited draft when the parent re-renders with the same initialSelection", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(buildModal());
+
+    await user.click(screen.getByRole("button", { name: "edit" }));
+    rerender(buildModal());
+
+    expect(screen.getByTestId("schedule-mode")).toHaveTextContent("recurring");
+  });
+
+  it("applies the edited selection and closes the modal", async () => {
     const user = userEvent.setup();
     const onApply = vi.fn();
     const onOpenChange = vi.fn();
 
-    render(
-      <TaskScheduleModal
-        open
-        onOpenChange={onOpenChange}
-        initialSelection={onceUtc}
-        onApply={onApply}
-        onClearSchedule={vi.fn()}
-      />,
-    );
+    render(buildModal({ onApply, onOpenChange }));
 
+    await user.click(screen.getByRole("button", { name: "edit" }));
     await user.click(screen.getByRole("button", { name: "save" }));
 
-    expect(onApply).toHaveBeenCalledWith(onceUtc);
+    expect(onApply).toHaveBeenCalledWith({ ...onceUtc, mode: "recurring" });
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
@@ -154,15 +142,7 @@ describe("TaskScheduleModal", () => {
     const onClearSchedule = vi.fn();
     const onOpenChange = vi.fn();
 
-    render(
-      <TaskScheduleModal
-        open
-        onOpenChange={onOpenChange}
-        initialSelection={onceUtc}
-        onApply={vi.fn()}
-        onClearSchedule={onClearSchedule}
-      />,
-    );
+    render(buildModal({ onClearSchedule, onOpenChange }));
 
     await user.click(screen.getByRole("button", { name: "clear" }));
 

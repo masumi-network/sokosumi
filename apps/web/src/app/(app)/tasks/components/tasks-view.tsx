@@ -460,15 +460,12 @@ export function TasksView({
   const hasLoadedJobsTabRef = useRef(false);
   const isLoadingJobsTabRef = useRef(false);
   const isRefetchingJobsRef = useRef(false);
-  const columnCursorByIdRef = useRef<Record<KanbanColumnId, string | null>>(
-    buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-  );
+  const columnCursorByIdRef = useRef(columnCursorById);
   columnCursorByIdRef.current = columnCursorById;
-  const listCursorRef = useRef<string | null>(initialListNextCursor);
-  listCursorRef.current = listCursor;
-  const isLoadingListMoreRef = useRef(false);
-  isLoadingListMoreRef.current = isLoadingListMore;
-  const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
+  // Every setListCursor / setIsLoadingListMore call writes these refs directly.
+  const listCursorRef = useRef(listCursor);
+  const isLoadingListMoreRef = useRef(isLoadingListMore);
+  const loadingColumnIdsRef = useRef(loadingColumnIds);
   loadingColumnIdsRef.current = loadingColumnIds;
   const refreshRoute = useDebouncedCallback(
     () => router.refresh(),

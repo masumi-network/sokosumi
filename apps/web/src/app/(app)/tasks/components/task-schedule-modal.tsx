@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Fragment } from "react";
 
 import { TaskScheduleSection } from "@/components/task-schedule-section";
 import {
@@ -43,22 +42,20 @@ export function TaskScheduleModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <Fragment
-          key={`${open}-${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
-        >
-          <DialogHeader>
-            <DialogTitle>{t("title")}</DialogTitle>
-            <DialogDescription>{t("description")}</DialogDescription>
-          </DialogHeader>
-          <TaskScheduleSection
-            initialSelection={initialSelection}
-            onSave={handleApply}
-            onCancel={() => onOpenChange(false)}
-            onClearSchedule={handleClearSchedule}
-            canClearSchedule={initialSelection.mode !== "none"}
-            hideHeader
-          />
-        </Fragment>
+        <DialogHeader>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
+        </DialogHeader>
+        {/* Radix unmounts the body on close, so reopening remounts it. */}
+        <TaskScheduleSection
+          key={`${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
+          initialSelection={initialSelection}
+          onSave={handleApply}
+          onCancel={() => onOpenChange(false)}
+          onClearSchedule={handleClearSchedule}
+          canClearSchedule={initialSelection.mode !== "none"}
+          hideHeader
+        />
       </DialogContent>
     </Dialog>
   );
