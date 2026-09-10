@@ -27,8 +27,9 @@ function setGlobalAblyRealtimeClient(client: Ably.Realtime | undefined): void {
 /**
  * Mounted providers read the client once per render, so a retire alone leaves
  * them holding a closed instance. Identity changes notify these listeners so
- * the tree rebuilds; a lost session deliberately does not, because rebuilding
- * for a signed-out browser only restarts the polling the retire just stopped.
+ * the tree rebuilds; a lost session deliberately does not, and also keeps the
+ * global, because rebuilding for a signed-out browser only restarts the polling
+ * the retire just stopped.
  */
 const clientListeners = new Set<() => void>();
 
@@ -50,9 +51,15 @@ export function subscribeToAblyRealtimeClient(
 const MAX_CONSECUTIVE_SESSION_LOSSES = 3;
 
 /**
- * Ends one client and drops the global so a rebuild is possible. Only for
- * failures that no retry can clear: a lost session, or a token minted for a
- * different user.
+ * Ends one client. Only for failures that no retry can clear: a lost session,
+ * or a token minted for a different user.
+ *
+ * `rebuild` governs the global, not just the listeners. `getAblyRealtimeClient`
+ * constructs whenever the global is empty, so dropping the global is itself the
+ * rebuild: the next render of any mounted provider builds a client, listener or
+ * no listener. A lost session must therefore leave the retired client in place.
+ * Clearing it there would build a fresh client that 401s its way to the same
+ * retire, which drops the global again, for the life of the tab.
  *
  * Takes the client the caller owns rather than reading the global, because a
  * callback can settle long after its own client was retired: closing whatever
@@ -65,7 +72,7 @@ function retireAblyRealtimeClient(
   if (!client) {
     return;
   }
-  if (getGlobalAblyRealtimeClient() === client) {
+  if (options?.rebuild && getGlobalAblyRealtimeClient() === client) {
     setGlobalAblyRealtimeClient(undefined);
   }
   client.close();
@@ -86,8 +93,8 @@ function retireAblyRealtimeClient(
  * often not a logout at all, because a Core session read that timed out was
  * reported as one. The two cases that no retry can clear (a session that stays
  * gone, and a token for a different user) retire the client through
- * `retireAblyRealtimeClient`, which also drops the global so a
- * working client can be built.
+ * `retireAblyRealtimeClient`. Only the identity change drops the global, so
+ * that a client for the new user can be built.
  */
 function createAblyAuthCallback(
   clientInstanceId: string,

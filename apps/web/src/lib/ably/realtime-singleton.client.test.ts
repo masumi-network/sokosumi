@@ -304,12 +304,7 @@ describe("getAblyRealtimeClient", () => {
     await invokeAuthCallback();
 
     expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
-    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
-
-    // Dropping the global is what makes close() survivable: the next mount
-    // builds a working client instead of holding a dead one.
-    mockTokenFor("user-b:inst_test01");
-    expect(getAblyRealtimeClient()).not.toBe(client);
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
   });
 
   it("does not count a 502 towards the session-loss limit", async () => {
@@ -381,7 +376,10 @@ describe("getAblyRealtimeClient", () => {
    * and a counter left armed retires that replacement on its first failure.
    */
   it("does not let a late 401 from a retired client close its replacement", async () => {
-    mockUnauthorized();
+    // The identity change is the retire that leaves a replacement to protect.
+    // A lost session keeps its own client in the global, so nothing is built
+    // behind it.
+    mockTokenFor("user-a:inst_test01");
 
     const client = getAblyRealtimeClient();
     const retiredCallback = getRealtimeClientOptions().authCallback;
@@ -389,7 +387,8 @@ describe("getAblyRealtimeClient", () => {
       throw new Error("expected an authCallback");
     }
     await invokeAuthCallback();
-    await invokeAuthCallback();
+
+    mockTokenFor("user-b:inst_test01");
     await invokeAuthCallback();
 
     expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
@@ -397,7 +396,8 @@ describe("getAblyRealtimeClient", () => {
     const replacement = getAblyRealtimeClient();
     expect(replacement).not.toBe(client);
 
-    // A fourth 401 settles on the retired client's own closure.
+    // A late answer settles on the retired client's own closure.
+    mockUnauthorized();
     await new Promise<void>((resolve) => {
       retiredCallback({}, () => resolve());
     });
@@ -427,7 +427,7 @@ describe("getAblyRealtimeClient", () => {
   it("does not rebuild for a signed-out browser", async () => {
     mockUnauthorized();
 
-    getAblyRealtimeClient();
+    const client = getAblyRealtimeClient();
     const listener = vi.fn();
     const unsubscribe = subscribeToAblyRealtimeClient(listener);
 
@@ -437,6 +437,14 @@ describe("getAblyRealtimeClient", () => {
 
     // Rebuilding here would restart the polling the retire just stopped.
     expect(listener).not.toHaveBeenCalled();
+
+    // A listener is not the only way back. `getAblyRealtimeClient` builds
+    // whenever the global is empty, so keeping the retired client there is
+    // what actually stops the rebuild: any later render would otherwise get a
+    // fresh client that 401s its way to the same retire, for the life of the
+    // tab.
+    expect(getAblyRealtimeClient()).toBe(client);
+    expect(RealtimeMock).toHaveBeenCalledOnce();
     unsubscribe();
   });
 
