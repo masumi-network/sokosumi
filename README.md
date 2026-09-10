@@ -28,7 +28,7 @@ sokosumi/
 └── pnpm-workspace.yaml
 ```
 
-- **apps/web/**: User-facing web application (Next.js 16, React 19.2, Tailwind CSS, Shadcn UI, next-intl). Reaches data only through the Core API — it does not use Prisma.
+- **apps/web/**: User-facing web application (Next.js 16, React 19.3, Tailwind CSS, Shadcn UI, next-intl). Reaches data only through the Core API — it does not use Prisma.
 - **apps/core/**: Hono API on Node.js. All database reads and writes live here.
 
 ## Getting Started

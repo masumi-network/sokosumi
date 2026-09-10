@@ -8,7 +8,7 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
 import {
   CoreApiRequestError,
@@ -142,15 +142,6 @@ export const provideJobInput = withSession<
 
       if (error instanceof CoreApiRequestError) {
         return toActionResult(err(toCoreApiActionError(error)));
-      }
-
-      if (isJobError(error)) {
-        return toActionResult(
-          err({
-            message: error.message,
-            code: error.code,
-          }),
-        );
       }
 
       return toActionResult(

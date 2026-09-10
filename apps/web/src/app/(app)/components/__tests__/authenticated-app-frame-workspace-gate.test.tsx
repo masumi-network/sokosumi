@@ -61,7 +61,7 @@ vi.mock("@/contexts/coworkers-context", () => ({
   ),
 }));
 vi.mock("@/contexts/organization-seat-context", () => ({
-  OrganizationSeatProvider: ({ children }: { children: React.ReactNode }) => (
+  OrganizationSeatContext: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
 }));
