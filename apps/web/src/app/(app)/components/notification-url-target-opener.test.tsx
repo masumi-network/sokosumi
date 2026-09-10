@@ -30,6 +30,12 @@ vi.mock("@/lib/utils/notification-navigation", () => ({
     handleNotificationNavigation(...args),
 }));
 
+let isLoading = false;
+
+vi.mock("@/contexts/notification-provider", () => ({
+  useNotifications: () => ({ isLoading }),
+}));
+
 import { NotificationUrlTargetOpener } from "./notification-url-target-opener";
 
 function setUrl(search: string) {
@@ -39,6 +45,7 @@ function setUrl(search: string) {
 describe("NotificationUrlTargetOpener", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isLoading = false;
   });
 
   afterEach(() => {
@@ -70,6 +77,36 @@ describe("NotificationUrlTargetOpener", () => {
     expect(markRead).toHaveBeenCalledWith("notification-1");
     // Spent, or a reload would open it a second time.
     expect(window.location.search).toBe("");
+  });
+
+  /**
+   * Marking a row read before the feed holds it leaves the optimistic update
+   * nothing to change, and the snapshot that lands after carries the row
+   * still unread. Core publishes nothing for a mention read, so the reader
+   * would open the notification and watch its badge stay.
+   */
+  it("waits for the feed before opening, and spends the URL at once", async () => {
+    isLoading = true;
+    setUrl(
+      `?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}`,
+    );
+
+    const { rerender } = render(
+      <NotificationUrlTargetOpener markRead={markRead} />,
+    );
+
+    expect(markRead).not.toHaveBeenCalled();
+    expect(handleNotificationNavigation).not.toHaveBeenCalled();
+    // Spent on mount even while the open waits, or a reload would repeat it.
+    expect(window.location.search).toBe("");
+
+    isLoading = false;
+    rerender(<NotificationUrlTargetOpener markRead={markRead} />);
+
+    await vi.waitFor(() => {
+      expect(markRead).toHaveBeenCalledWith("notification-1");
+    });
+    expect(handleNotificationNavigation).toHaveBeenCalledTimes(1);
   });
 
   it("opens nothing when the URL names no notification", () => {

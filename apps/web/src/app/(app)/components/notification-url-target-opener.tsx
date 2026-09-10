@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
+import { useNotifications } from "@/contexts/notification-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
 import { takeNotificationTargetFromUrl } from "@/lib/utils/notification-service-worker";
@@ -31,24 +32,42 @@ interface NotificationUrlTargetOpenerProps {
 export function NotificationUrlTargetOpener({
   markRead,
 }: NotificationUrlTargetOpenerProps) {
+  const { isLoading } = useNotifications();
   const openNotification = useOpenNotification(markRead);
+  const [pending, setPending] = useState<NotificationTarget | null>(null);
 
   /**
    * `handleSelectWorkspace` inside the hook is a new function on every render,
-   * so the mount effect must not close over this render's copy. This keeps one
-   * stable identity that runs the current one.
+   * so the effect must not close over one render's copy. This keeps a stable
+   * identity that runs the current one.
    */
   const openUrlTarget = useEffectEvent((target: NotificationTarget) => {
     // A banner whose click opened a window was unread when it was rendered.
     openNotification(target, false);
   });
 
+  // Taken off the URL immediately, so a reload cannot open it a second time,
+  // and held until the feed has loaded below.
   useMountEffect(() => {
-    const target = takeNotificationTargetFromUrl();
-    if (target) {
-      openUrlTarget(target);
-    }
+    setPending(takeNotificationTargetFromUrl());
   });
+
+  useEffect(() => {
+    // Held until the first list read settles. Marking a row read before the
+    // list holds it leaves the optimistic update nothing to change, and the
+    // snapshot that lands after it carries the row still unread: the reader
+    // opens the notification and watches its badge stay. Core publishes
+    // nothing for a mention read, so nothing would come along to correct it.
+    //
+    // `isLoading` falls on a failed read too, so a feed that will not load
+    // delays the click rather than swallowing it.
+    if (!pending || isLoading) {
+      return;
+    }
+
+    setPending(null);
+    openUrlTarget(pending);
+  }, [pending, isLoading]);
 
   return null;
 }
