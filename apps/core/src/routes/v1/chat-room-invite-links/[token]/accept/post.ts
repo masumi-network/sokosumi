@@ -3,7 +3,7 @@ import { chatRoomGuestInviteLinkRepository } from "@sokosumi/database/repositori
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 
 import { joinExternalChannelAsGuest } from "@/helpers/chat-room-guest-membership";
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -98,7 +98,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     for (const message of statusMessages) {
-      await publishChatRoomMessageRealtime(message, "create");
+      await publishChatRoomMembershipStatusMessagesBestEffort([message]);
     }
 
     return ok(

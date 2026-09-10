@@ -25,7 +25,7 @@ const {
   userFindUniqueMock,
   messageCreateMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
   publishChatMembershipRevokedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -41,7 +41,7 @@ const {
   userFindUniqueMock: vi.fn(),
   messageCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
   publishChatMembershipRevokedMock: vi.fn(),
 }));
 
@@ -50,7 +50,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffort:
+    publishChatRoomMembershipStatusMessagesBestEffortMock,
   publishChatRoomMessageRealtimeById: vi.fn(async () => undefined),
 }));
 
@@ -207,7 +208,9 @@ beforeEach(() => {
   roomUpdateManyMock.mockResolvedValue({ count: 1 });
   userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
   messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
-  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+  publishChatRoomMembershipStatusMessagesBestEffortMock.mockResolvedValue(
+    undefined,
+  );
   publishChatMembershipRevokedMock.mockResolvedValue(undefined);
 });
 
@@ -353,10 +356,9 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
         }),
       }),
     );
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
-      MEMBERSHIP_MESSAGE,
-      "create",
-    );
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledWith([MEMBERSHIP_MESSAGE]);
     expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
       userId: SELF_ID,
       roomId: ROOM_ID,
@@ -369,7 +371,9 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
 
     expect((await leave()).status).toBe(400);
     expect(messageCreateMock).not.toHaveBeenCalled();
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).not.toHaveBeenCalled();
     expect(publishChatMembershipRevokedMock).not.toHaveBeenCalled();
   });
 

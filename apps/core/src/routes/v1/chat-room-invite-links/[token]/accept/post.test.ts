@@ -18,7 +18,7 @@ const {
   executeRawMock,
   prismaTransactionMock,
   recordChannelMembershipStatusMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -53,7 +53,7 @@ const {
   executeRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   recordChannelMembershipStatusMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -112,8 +112,8 @@ vi.mock("@/routes/v1/chats/rooms/membership-status", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: (...args: unknown[]) =>
-    publishChatRoomMessageRealtimeMock(...args),
+  publishChatRoomMembershipStatusMessagesBestEffort: (...args: unknown[]) =>
+    publishChatRoomMembershipStatusMessagesBestEffortMock(...args),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -183,7 +183,9 @@ describe("POST /chat-room-invite-links/{token}/accept", () => {
     roomUserMemberCreateMock.mockResolvedValue({});
     readStateCreateManyMock.mockResolvedValue({ count: 1 });
     recordChannelMembershipStatusMock.mockResolvedValue([]);
-    publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+    publishChatRoomMembershipStatusMessagesBestEffortMock.mockResolvedValue(
+      undefined,
+    );
   });
 
   it("rejects an unauthenticated caller with 401", async () => {
