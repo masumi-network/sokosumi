@@ -63,18 +63,17 @@ describe("TaskFormModal", () => {
     expect(screen.getByText("form")).toBeInTheDocument();
   });
 
-  it("unmounts the panel while closed when View Transitions are on", () => {
+  it("leaves the dialog closed when View Transitions start closed", () => {
     render(
       <TaskFormModal open={false} viewTransition {...modalProps}>
         form
       </TaskFormModal>,
     );
 
-    expect(screen.queryByText("New task")).not.toBeInTheDocument();
-    expect(screen.queryByText("form")).not.toBeInTheDocument();
+    expect(screen.getByTestId("dialog")).toHaveAttribute("data-open", "false");
   });
 
-  it("keeps the dialog portal open until the exit window ends", async () => {
+  it("hides the panel via Activity and defers portal close", async () => {
     const { rerender } = render(
       <TaskFormModal open viewTransition {...modalProps}>
         form
@@ -87,7 +86,7 @@ describe("TaskFormModal", () => {
       </TaskFormModal>,
     );
 
-    expect(screen.queryByText("form")).not.toBeInTheDocument();
+    expect(screen.getByText("form")).toBeInTheDocument();
     expect(screen.getByTestId("dialog")).toHaveAttribute("data-open", "true");
 
     await waitFor(() => {

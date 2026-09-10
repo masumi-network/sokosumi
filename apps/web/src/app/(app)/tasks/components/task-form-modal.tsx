@@ -1,8 +1,8 @@
 "use client";
 
 import {
+  Activity,
   createContext,
-  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -22,11 +22,17 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-/** Matches `::view-transition-old(.create-task-modal-exit)` in globals.css. */
-const CREATE_TASK_MODAL_EXIT_MS = 150;
+/** Fallback only when View Transitions are unsupported. Matches exit CSS (~150ms). */
+const CREATE_TASK_MODAL_EXIT_MS = 200;
 
 const VIEW_TRANSITION_CONTENT_CLASS =
   "duration-0 data-[state=closed]:animate-none data-[state=open]:animate-none";
+
+function isViewTransitionUnsupported() {
+  return (
+    typeof document === "undefined" || !("startViewTransition" in document)
+  );
+}
 
 const TaskFormModalHeaderContext = createContext<{
   setHeaderStart: (content: React.ReactNode) => void;
@@ -80,10 +86,9 @@ export function TaskFormModal({
   );
 
   const [portalOpen, setPortalOpen] = useState(open);
-
-  useLayoutEffect(() => {
-    if (open) setPortalOpen(true);
-  }, [open]);
+  if (open && !portalOpen) {
+    setPortalOpen(true);
+  }
 
   useEffect(() => {
     if (!open) setHeaderStart(null);
@@ -93,29 +98,18 @@ export function TaskFormModal({
     setPortalOpen(false);
   }, []);
 
-  // React 19.3: onExit/onUpdate cleanup runs when the View Transition finishes.
-  // Timeout covers browsers/tests that skip View Transitions.
-  const handleViewTransitionSettled = useCallback(
-    () => closePortal,
-    [closePortal],
-  );
-
   useEffect(() => {
     if (!viewTransition || open || !portalOpen) return;
+    if (!isViewTransitionUnsupported()) return;
     const timeoutId = window.setTimeout(closePortal, CREATE_TASK_MODAL_EXIT_MS);
     return () => window.clearTimeout(timeoutId);
   }, [viewTransition, open, portalOpen, closePortal]);
 
   // Clicking outside / pressing Escape closes the modal, except while a submit
-  // or upload is in flight (guarded by isDismissDisabled).
+  // or upload is in flight (guarded by isDismissDisabled). Parent create-task
+  // already wraps setOpen in startTransition — do not wrap again here.
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && isDismissDisabled) return;
-    if (viewTransition) {
-      startTransition(() => {
-        onOpenChange(nextOpen);
-      });
-      return;
-    }
     onOpenChange(nextOpen);
   };
 
@@ -142,11 +136,10 @@ export function TaskFormModal({
     </div>
   );
 
+  const dialogOpen = viewTransition ? open || portalOpen : open;
+
   return (
-    <Dialog
-      open={viewTransition ? portalOpen : open}
-      onOpenChange={handleOpenChange}
-    >
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         className={cn(
           "w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden",
@@ -156,14 +149,16 @@ export function TaskFormModal({
       >
         <TaskFormModalHeaderContext value={headerContextValue}>
           {viewTransition ? (
-            <ViewTransition
-              enter="create-task-modal-enter"
-              exit="create-task-modal-exit"
-              onExit={handleViewTransitionSettled}
-              onUpdate={open ? undefined : handleViewTransitionSettled}
-            >
-              {open ? panel : null}
-            </ViewTransition>
+            <Activity mode={open ? "visible" : "hidden"}>
+              <ViewTransition
+                default="none"
+                enter="create-task-modal-enter"
+                exit="create-task-modal-exit"
+                onExit={() => () => closePortal()}
+              >
+                {panel}
+              </ViewTransition>
+            </Activity>
           ) : (
             panel
           )}
