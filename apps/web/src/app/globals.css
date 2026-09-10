@@ -41,6 +41,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-ring-halo: var(--ring-halo);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -296,7 +297,12 @@
   --destructive: hsla(0, 74%, 42%, 1);
   --border: hsla(330, 0%, 90%, 1);
   --input: hsla(330, 0%, 90%, 1);
+  /* Focus is two-tone: --ring is the 1px solid core that carries the 3:1
+     (SC 1.4.11) at 7.04:1, --ring-halo is the wide soft glow the eye actually
+     reads. The halo is decorative, so its alpha is free. A uniformly
+     transparent ring cannot do both: it needs 0.55 alpha to reach 3:1. */
   --ring: hsla(263.5, 100%, 50%, 1);
+  --ring-halo: hsla(263.5, 100%, 50%, 0.22);
   --ring-semantic: hsla(0, 96%, 89%, 1);
   /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
   --chart-1: #00a4fa; /* kodosumi · Sky Blue */
@@ -422,6 +428,7 @@
   --border: hsla(300, 50%, 100%, 0.1);
   --input: hsla(300, 50%, 100%, 0.15);
   --ring: hsla(270, 64%, 63%, 1);
+  --ring-halo: hsla(270, 64%, 63%, 0.26);
   --ring-semantic: hsla(0, 75%, 15%, 1);
   /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
   --chart-1: #00a4fa; /* kodosumi · Sky Blue */
