@@ -102,11 +102,21 @@ describe("POST /api/ably/auth", () => {
     });
   });
 
+  /**
+   * A reset connection or a DNS blip never reached Core, so there is no status
+   * to report and nothing for anyone to fix. 502 said the opposite and left
+   * out the retry hint, which is what the browser needs to come back.
+   */
   it("keeps transport failure retryable instead of reporting session loss", async () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
 
     const response = await POST(createRequest());
 
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    expect(await response.json()).toEqual({
+      error: "Ably token unavailable",
+      reason: "transport",
+    });
   });
 });

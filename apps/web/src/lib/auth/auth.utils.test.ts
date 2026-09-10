@@ -374,6 +374,9 @@ describe("waitForAuthSession", () => {
    */
   it("discards a retired Ably client, because a sign-in just happened", async () => {
     const waitForMs = vi.fn(async () => undefined);
+    // Every test in this block calls the seam, and nothing clears the
+    // module-scoped mock, so the count would otherwise depend on test order.
+    discardRetiredAblyRealtimeClient.mockClear();
 
     await waitForAuthSession({
       context: "login",
