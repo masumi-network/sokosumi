@@ -55,13 +55,8 @@ vi.mock("@/contexts/account-notice-provider", () => ({
     <>{children}</>
   ),
 }));
-vi.mock("@/contexts/coworkers-context", () => ({
-  CoworkersProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}));
 vi.mock("@/contexts/organization-seat-context", () => ({
-  OrganizationSeatProvider: ({ children }: { children: React.ReactNode }) => (
+  OrganizationSeatContext: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
 }));

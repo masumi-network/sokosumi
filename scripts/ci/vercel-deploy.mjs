@@ -3,7 +3,8 @@
  * Create Vercel git deployments from GitHub Actions.
  *
  *   node scripts/ci/vercel-deploy.mjs preview     # PR opened (human, same-repo) or `/deploy` comment
- *   node scripts/ci/vercel-deploy.mjs production  # push to main
+ *
+ * Production deploys from Vercel Git on `main` (see apps/web and apps/core vercel.json).
  */
 
 import { readFile } from "node:fs/promises";
@@ -173,7 +174,6 @@ export async function createGitDeployment({
   repoId,
   ref,
   sha,
-  deploymentTarget,
   fetchImpl = globalThis.fetch,
 }) {
   const url = new URL("https://api.vercel.com/v13/deployments");
@@ -191,9 +191,6 @@ export async function createGitDeployment({
       sha,
     },
   };
-  if (deploymentTarget) {
-    body.target = deploymentTarget;
-  }
 
   const response = await fetchImpl(url, {
     method: "POST",
@@ -586,59 +583,6 @@ export async function runPreviewFromGithubEvent(options) {
   });
 }
 
-export async function runProductionDeploy(options) {
-  const {
-    repoId,
-    ref,
-    sha,
-    vercelToken,
-    teamId = VERCEL_TEAM_ID,
-    fetchImpl = globalThis.fetch,
-    createDeployment,
-    pollDeployment,
-  } = options;
-
-  const create =
-    createDeployment ??
-    ((input) =>
-      createGitDeployment({
-        token: vercelToken,
-        teamId,
-        fetchImpl,
-        ...input,
-      }));
-  const poll =
-    pollDeployment ??
-    ((deployment) =>
-      pollDeploymentUntilSettled({
-        deployment,
-        token: vercelToken,
-        teamId,
-        fetchImpl,
-      }));
-
-  const targets = deployTargets(["mainnet", "preprod"]);
-  const created = await Promise.all(
-    targets.map((target) =>
-      create({
-        target,
-        repoId,
-        ref,
-        sha,
-        deploymentTarget: "production",
-      }),
-    ),
-  );
-  const settled = await Promise.all(
-    created.map((deployment) => poll(deployment)),
-  );
-  const failed = failedDeploymentNames(targets, settled);
-  if (failed.length > 0) {
-    throw new Error(`Production deploy failed: ${failed.join(", ")}`);
-  }
-  return { kind: "production", deployments: settled };
-}
-
 export function summarizeCliDeployResult(result) {
   if (!Array.isArray(result?.deployments)) {
     return result;
@@ -688,23 +632,6 @@ async function cliPreview(env = process.env) {
   console.log(JSON.stringify(summarizeCliDeployResult(result)));
 }
 
-async function cliProduction(env = process.env) {
-  requireVercelToken(env);
-  const event = await readGithubEvent(env);
-  const ref = String(event.ref ?? env.GITHUB_REF ?? "main").replace(
-    /^refs\/heads\//,
-    "",
-  );
-  const result = await runProductionDeploy({
-    repoId: event.repository.id,
-    ref,
-    sha: event.after ?? env.GITHUB_SHA,
-    vercelToken: env.VERCEL_TOKEN,
-    teamId: env.VERCEL_ORG_ID ?? VERCEL_TEAM_ID,
-  });
-  console.log(JSON.stringify(summarizeCliDeployResult(result)));
-}
-
 function isMainModule() {
   const entry = process.argv[1];
   if (!entry) {
@@ -717,12 +644,8 @@ if (isMainModule()) {
   const command = process.argv[2];
   if (command === "preview") {
     await cliPreview();
-  } else if (command === "production") {
-    await cliProduction();
   } else {
-    console.error(
-      "Usage: node scripts/ci/vercel-deploy.mjs <preview|production>",
-    );
+    console.error("Usage: node scripts/ci/vercel-deploy.mjs preview");
     process.exit(1);
   }
 }

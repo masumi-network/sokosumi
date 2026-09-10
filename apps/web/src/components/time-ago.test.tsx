@@ -6,9 +6,8 @@ import { TimeAgo } from "@/components/time-ago";
 
 describe("TimeAgo", () => {
   it("renders a stable, UTC-pinned absolute date on the server (no effects)", () => {
-    // The server render (and the matching first client render) must emit a
-    // deterministic absolute date rather than a clock-dependent relative
-    // string, otherwise SSR and hydration diverge (Sentry SOKOSUMI-A).
+    // SSR emits the Suspense fallback: a deterministic absolute date rather
+    // than a clock-dependent relative string (Sentry SOKOSUMI-A).
     const date = new Date("2026-04-15T10:00:00.000Z");
 
     const markup = renderToStaticMarkup(<TimeAgo date={date} strict />);
@@ -21,7 +20,7 @@ describe("TimeAgo", () => {
   it("swaps to the live relative string after mount on the client", () => {
     const date = new Date(Date.now() - 60_000);
 
-    // Testing Library flushes effects, so the post-mount relative label applies.
+    // Client render: `use(browser())` does not suspend, so the relative label applies.
     render(<TimeAgo date={date} strict />);
 
     expect(screen.getByText(/ago$/)).toBeInTheDocument();
