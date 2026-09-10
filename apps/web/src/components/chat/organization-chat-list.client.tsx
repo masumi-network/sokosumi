@@ -39,8 +39,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
 import type {
   ChatRoom,
   ChatRoomInvitation,
@@ -48,10 +46,8 @@ import type {
 import { cn } from "@/lib/utils";
 import { getActiveRoomIdFromPathname } from "./active-room-id";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
-import { ChatControlListBridge } from "./chat-control-list-bridge";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
-import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
@@ -135,18 +131,6 @@ export function OrganizationChatList({
   const [_isDeleting, startDeleteTransition] = useTransition();
   const [_isRespondingInvite, startInviteResponseTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
-  const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
-    activeRoomId,
-  });
-  useChatUnreadDocumentTitle(unreadRoomCount);
-
-  const membershipRevokedBridge =
-    !paintOnly && currentUserId.length > 0 ? (
-      <LazyAblyProvider>
-        <ChatControlListBridge currentUserId={currentUserId} />
-      </LazyAblyProvider>
-    ) : null;
-
   function handleRestoreRoom(room: ChatRoom) {
     if (restoringRoomId || deletingRoomId) {
       return;
@@ -248,7 +232,6 @@ export function OrganizationChatList({
 
   return (
     <SidebarGroup className="w-full">
-      {membershipRevokedBridge}
       <SidebarGroupContent className="space-y-2">
         {hasOrganization ? (
           <Collapsible

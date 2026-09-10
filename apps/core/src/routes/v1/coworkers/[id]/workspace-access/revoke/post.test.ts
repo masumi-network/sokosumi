@@ -159,7 +159,9 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
     expect(requireVendorAdminMembershipMock).not.toHaveBeenCalled();
     expect(publishMembershipStatusMock).toHaveBeenCalledWith(
       [{ id: "status-force", roomId: "room-1" }],
-      "chat membership status after coworker access force-revoke",
+      {
+        logContext: "chat membership status after coworker access force-revoke",
+      },
     );
     expect(forceRevokeMock).toHaveBeenCalledWith(
       {

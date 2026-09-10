@@ -42,18 +42,6 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-control-channel", () => ({
-  useChatControlChannel: () => {},
-}));
-
-vi.mock("@/hooks/use-chat-unread-document-title", () => ({
-  useChatUnreadDocumentTitle: () => {},
-}));
-
 vi.mock("@/app/chat/actions", () => ({
   acceptChatRoomInvitationAction: (
     ...args: Parameters<typeof acceptInvitationMock>

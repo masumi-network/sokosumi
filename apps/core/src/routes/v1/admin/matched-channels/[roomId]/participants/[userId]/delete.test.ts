@@ -11,7 +11,7 @@ import mountRemoveAdminMatchedChannelParticipant from "./delete";
 const {
   removeMatchedChannelParticipantMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
   publishChatMembershipRevokedMock,
   authContextState,
 } = vi.hoisted(() => ({
@@ -25,7 +25,7 @@ const {
   },
   removeMatchedChannelParticipantMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
   publishChatMembershipRevokedMock: vi.fn(),
 }));
 
@@ -56,8 +56,8 @@ vi.mock("@/helpers/chat-room-matched-membership.js", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime.js", () => ({
-  publishChatRoomMessageRealtime: (...args: unknown[]) =>
-    publishChatRoomMessageRealtimeMock(...args),
+  publishChatRoomMembershipStatusMessagesBestEffort: (...args: unknown[]) =>
+    publishChatRoomMembershipStatusMessagesBestEffortMock(...args),
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -116,7 +116,9 @@ describe("DELETE /admin/matched-channels/{roomId}/participants/{userId}", () => 
       },
       statusMessages: [{ id: "msg_left" }],
     });
-    publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+    publishChatRoomMembershipStatusMessagesBestEffortMock.mockResolvedValue(
+      undefined,
+    );
     publishChatMembershipRevokedMock.mockResolvedValue(undefined);
   });
 
@@ -134,10 +136,9 @@ describe("DELETE /admin/matched-channels/{roomId}/participants/{userId}", () => 
       expect.anything(),
       { userId: USER_ID, roomId: ROOM_ID },
     );
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
-      { id: "msg_left" },
-      "create",
-    );
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledWith([{ id: "msg_left" }]);
     expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
       userId: USER_ID,
       roomId: ROOM_ID,

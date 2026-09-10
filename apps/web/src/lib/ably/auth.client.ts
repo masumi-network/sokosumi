@@ -1,8 +1,9 @@
 import type { TokenRequest } from "ably";
 
 const ABLY_BROWSER_AUTH_PATH = "/api/ably/auth";
-// Allow the Core token request its five-second deadline plus proxy overhead.
-const ABLY_BROWSER_AUTH_TIMEOUT_MS = 10_000;
+// 9s, strictly inside ably-js's 10s realtimeRequestTimeout and outside the
+// 7s Core mint. Two clocks at 10s let ably-js replace a classified error.
+const ABLY_BROWSER_AUTH_TIMEOUT_MS = 9_000;
 
 export class AblyBrowserAuthError extends Error {
   readonly status: number;
@@ -16,7 +17,9 @@ export class AblyBrowserAuthError extends Error {
 
 /**
  * Browser fetch of POST /api/ably/auth (cookies included).
- * 401 is session-loss; other HTTP failures stay distinguishable by status.
+ * 401 is Core unauthorized on this mint, not a confirmed logout. The
+ * singleton passes it to ably-js to retry. Other HTTP failures stay
+ * distinguishable by status.
  */
 export async function fetchAblyBrowserAuthTokenRequest(
   clientInstanceId: string,

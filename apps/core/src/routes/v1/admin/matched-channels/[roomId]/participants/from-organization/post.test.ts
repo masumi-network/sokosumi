@@ -16,7 +16,7 @@ const {
   memberFindManyMock,
   ensureMatchedChannelParticipantMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
   authContextState,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -32,7 +32,7 @@ const {
   memberFindManyMock: vi.fn(),
   ensureMatchedChannelParticipantMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -67,8 +67,8 @@ vi.mock("@/helpers/chat-room-matched-membership.js", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime.js", () => ({
-  publishChatRoomMessageRealtime: (...args: unknown[]) =>
-    publishChatRoomMessageRealtimeMock(...args),
+  publishChatRoomMembershipStatusMessagesBestEffort: (...args: unknown[]) =>
+    publishChatRoomMembershipStatusMessagesBestEffortMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -173,11 +173,13 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
       expect.any(Function),
       expect.objectContaining({ timeout: 60_000, maxWait: 10_000 }),
     );
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledTimes(2);
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledTimes(2);
   });
 
   it("does not fail the request when realtime publish rejects after commit", async () => {
-    publishChatRoomMessageRealtimeMock.mockRejectedValueOnce(
+    publishChatRoomMembershipStatusMessagesBestEffortMock.mockRejectedValueOnce(
       new Error("ably down"),
     );
 

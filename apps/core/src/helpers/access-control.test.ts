@@ -2270,6 +2270,26 @@ describe("requireJobCollaboration", () => {
     ).rejects.toThrow("You can only access your own jobs");
   });
 
+  // SOK-1030 widened job *sharing* to any workspace member via
+  // `requireJobShareCollaboration`. This helper still guards refund, workspace
+  // move, metadata patch, and input submission, so it must stay owner-only.
+  it("stays owner-only for a member of the same organization", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobCollaboration(
+        { ...userAuthContext, userId: "member_456" },
+        "job_of_another_member",
+        tx,
+      ),
+    ).rejects.toThrow("You can only access your own jobs");
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_of_another_member", ownerId: "member_456" },
+    });
+  });
+
   it("allows a delegated coworker to act on a job assigned to it", async () => {
     const tx = createTransactionClient();
 

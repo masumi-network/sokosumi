@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -170,7 +170,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     for (const message of statusMessages) {
-      await publishChatRoomMessageRealtime(message, "create");
+      await publishChatRoomMembershipStatusMessagesBestEffort([message]);
     }
 
     return ok(c, chatRoomSchema.parse(mapChatRoom(room, userContext.userId)));

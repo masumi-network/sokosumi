@@ -5,8 +5,13 @@ import { Suspense } from "react";
 
 import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
 import { chatMobileTabBarClearance } from "@/app/chat/components/chat-mobile-tab-registry";
+import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
 import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
+import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridge";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
 /**
@@ -43,23 +48,33 @@ function AppMobileBottomChrome(): React.ReactElement | null {
   const showBottomNav = shouldShowMobileBottomNav(pathname, searchParams);
   const isApple = useIsApplePlatform();
 
-  if (!showBottomNav) {
-    return null;
-  }
+  const { showUnreadDot, unreadRoomCount } = useChatTabUnreadPresence();
+  const { data: session } = useSession();
+  useChatUnreadDocumentTitle(unreadRoomCount);
 
   return (
     <>
-      <div
-        aria-hidden
-        data-mobile-bottom-nav-spacer
-        className={cn(
-          "pointer-events-none shrink-0 md:hidden",
-          chatMobileTabBarClearance(isApple),
-        )}
-      />
-      <Suspense fallback={null}>
-        <ChatMobileBottomNav />
-      </Suspense>
+      {/* Keep unread reads and control events alive when mobile navigation is hidden. */}
+      {session?.user ? (
+        <LazyAblyProvider>
+          <ChatControlListBridge currentUserId={session.user.id} />
+        </LazyAblyProvider>
+      ) : null}
+      {showBottomNav ? (
+        <>
+          <div
+            aria-hidden
+            data-mobile-bottom-nav-spacer
+            className={cn(
+              "pointer-events-none shrink-0 md:hidden",
+              chatMobileTabBarClearance(isApple),
+            )}
+          />
+          <Suspense fallback={null}>
+            <ChatMobileBottomNav showUnreadDot={showUnreadDot} />
+          </Suspense>
+        </>
+      ) : null}
     </>
   );
 }

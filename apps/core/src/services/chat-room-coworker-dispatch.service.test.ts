@@ -48,6 +48,9 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomUserMember: {
+      findMany: vi.fn().mockResolvedValue([{ userId: "reader" }]),
+    },
     chatRoomMention: {
       findUnique: findUniqueMock,
       findMany: findManyMentionMock,
@@ -115,7 +118,12 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 
 import { dispatchChatRoomMention } from "./chat-room-coworker-dispatch.service";
 import {
@@ -274,6 +282,7 @@ describe("dispatchChatRoomMention claim", () => {
       }),
     );
     expect(streamTextMock).not.toHaveBeenCalled();
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
   });
@@ -305,6 +314,13 @@ describe("dispatchChatRoomMention claim", () => {
       }),
     });
     expect(deleteMock).not.toHaveBeenCalled();
+    // A new Thought shell and its settled answer each change unread attention.
+    expect(publishChatRoomsChanged).toHaveBeenCalledTimes(2);
+    expect(publishChatRoomsChanged).toHaveBeenCalledWith({
+      userIds: ["reader"],
+      roomId: "room_1",
+      collections: ["active"],
+    });
   });
 
   it("persists Thought metadata on the reply when provider returns reasoning", async () => {

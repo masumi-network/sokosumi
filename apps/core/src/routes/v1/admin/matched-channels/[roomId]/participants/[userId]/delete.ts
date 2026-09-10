@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { removeMatchedChannelParticipant } from "@/helpers/chat-room-matched-membership.js";
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime.js";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { publishChatMembershipRevoked } from "@/lib/ably/publish";
@@ -45,7 +45,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const [statusResults, revokeResult] = await Promise.allSettled([
       Promise.all(
         statusMessages.map((message) =>
-          publishChatRoomMessageRealtime(message, "create"),
+          publishChatRoomMembershipStatusMessagesBestEffort([message]),
         ),
       ),
       publishChatMembershipRevoked({
