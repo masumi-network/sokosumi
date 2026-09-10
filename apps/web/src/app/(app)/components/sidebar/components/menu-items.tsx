@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, Fragment, type SVGProps } from "react";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
+import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -24,6 +25,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
 interface MenuItemConfig {
@@ -49,10 +51,19 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
   const pathname = usePathname();
   // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
   const historySearch = useOptionalHistorySearch();
+  const newTaskWizard = useOptionalNewTaskWizard();
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
 
   function handleSearchClick() {
     historySearch?.openHistorySearch();
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }
+
+  function handleNewTaskClick() {
+    newTaskWizard?.openNewTaskWizard();
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -69,7 +80,11 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
   const items: MenuItemConfig[] = [
     {
       key: "new-task",
-      href: "/tasks?create=true",
+      // Seated members get the wizard in place. Unseated members keep the
+      // Task Manager link, which explains the Seat requirement.
+      ...(newTaskWizard && hasAssignedSeat
+        ? { onClick: handleNewTaskClick }
+        : { href: "/tasks?create=true" }),
       label: t("newTask"),
       Icon: Plus,
       separatorAfter: true,

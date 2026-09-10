@@ -384,7 +384,6 @@ describe("TaskForm", () => {
   it("shows the wizard when only a prompt is prefilled without a coworker", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -403,7 +402,6 @@ describe("TaskForm", () => {
   it("opens directly on compose when a coworker is prefilled", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -415,6 +413,9 @@ describe("TaskForm", () => {
 
     expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
     expect(
+      screen.getByRole("heading", { name: "What should Elena do?" }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: /Start from scratch/i }),
     ).not.toBeInTheDocument();
   });
@@ -425,7 +426,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -461,7 +461,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -488,7 +487,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -513,7 +511,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -538,7 +535,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -575,7 +571,6 @@ describe("TaskForm", () => {
   it("starts with a Calendar-provided schedule", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -608,7 +603,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -634,7 +628,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -661,7 +654,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -701,12 +693,12 @@ describe("TaskForm", () => {
 
   it("keeps a staged schedule when switching to a human assignee (SOK-868)", async () => {
     const user = userEvent.setup();
-    const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
 
     render(
       <TaskForm
-        mode="create"
+        mode="edit"
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={[
@@ -718,25 +710,28 @@ describe("TaskForm", () => {
             kind: "user",
           }),
         ]}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+          status: TaskStatus.DRAFT,
+        }}
         onSuccess={vi.fn()}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
-    expect(
-      screen.getByRole("button", { name: /Schedule Task/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Bob/ }));
-    expect(
-      screen.getByRole("button", { name: /Schedule Task/ }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("option", { name: "Bob" }));
+    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
 
-    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
-    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(createTaskMock).toHaveBeenCalledWith(
+    expect(updateTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         assigneeUserId: "user-1",
         schedule: expect.objectContaining({ mode: "once" }),
@@ -773,31 +768,37 @@ describe("TaskForm", () => {
 
   it("clears a staged schedule when switching to Unassigned (SOK-868)", async () => {
     const user = userEvent.setup();
-    const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
 
     render(
       <TaskForm
-        mode="create"
+        mode="edit"
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+          status: TaskStatus.DRAFT,
+        }}
         onSuccess={vi.fn()}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
-    expect(
-      screen.getByRole("button", { name: /Schedule Task/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Unassigned" }));
+    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("option", { name: "Unassigned" }));
+    expect(screen.queryByText("footer.oneTimeAt")).not.toBeInTheDocument();
 
-    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
-    await user.click(screen.getByRole("button", { name: "Create Task" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(createTaskMock).toHaveBeenCalledWith(
+    expect(updateTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         assigneeId: null,
         assigneeUserId: null,
@@ -816,7 +817,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -846,7 +846,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -884,7 +883,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -922,7 +920,6 @@ describe("TaskForm", () => {
     const user = userEvent.setup();
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -969,7 +966,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -1012,7 +1008,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -1047,7 +1042,6 @@ describe("TaskForm", () => {
   it("does not limit the edit name field length", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -1066,29 +1060,9 @@ describe("TaskForm", () => {
     expect(screen.getByLabelText("Task name")).not.toHaveAttribute("maxlength");
   });
 
-  it("selects initialValues.assigneeId when provided", () => {
-    render(
-      <TaskForm
-        variant="page"
-        mode="create"
-        showCancel={false}
-        labels={baseLabels}
-        coworkerOptions={coworkerOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
-        onSuccess={vi.fn()}
-      />,
-    );
-
-    const elenaButton = screen.getByRole("button", { name: /Elena/i });
-    const sokoButton = screen.getByRole("button", { name: /Soko/i });
-    expect(elenaButton).toHaveAttribute("aria-pressed", "true");
-    expect(sokoButton).toHaveAttribute("aria-pressed", "false");
-  });
-
   it("selects initialValues.projectId when project options are provided", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1109,7 +1083,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1143,7 +1116,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1183,7 +1155,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1211,7 +1182,6 @@ describe("TaskForm", () => {
   it("shows default-enabled project context for a project-page prefill", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1241,7 +1211,6 @@ describe("TaskForm", () => {
   it("shows the DESIGN.md attachment field without seeding it into the description", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1267,7 +1236,6 @@ describe("TaskForm", () => {
   it("does not touch an existing create description either", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1292,7 +1260,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1338,7 +1305,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1385,7 +1351,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1440,7 +1405,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1474,7 +1438,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1507,7 +1470,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1540,7 +1502,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1572,7 +1533,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1610,7 +1570,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1644,7 +1603,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -1679,7 +1637,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -1712,7 +1669,6 @@ describe("TaskForm", () => {
   it("selects the Elena coworker by default on first open", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1734,7 +1690,6 @@ describe("TaskForm", () => {
   it("passes agent mention options to MarkdownEditor", () => {
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -1793,7 +1748,6 @@ describe("TaskForm", () => {
 
     const { container } = render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -1905,7 +1859,6 @@ describe("TaskForm", () => {
 
     const { container } = render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -1971,7 +1924,6 @@ describe("TaskForm", () => {
 
     const { container } = render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -2037,7 +1989,6 @@ describe("TaskForm", () => {
 
     const { container, unmount } = render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -2082,7 +2033,6 @@ describe("TaskForm", () => {
 
     const { container } = render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -2120,7 +2070,6 @@ describe("TaskForm", () => {
 
     const { container } = render(
       <TaskForm
-        variant="modal"
         mode="edit"
         showCancel={false}
         labels={baseLabels}
@@ -2153,7 +2102,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -2198,7 +2146,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -2235,7 +2182,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -2262,7 +2208,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}
