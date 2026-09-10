@@ -15,9 +15,9 @@ import { cn } from "@/lib/utils";
  * worth.
  */
 const GROUND_CLASSES = {
-  background: { ring: "border-background", cut: "bg-background" },
-  sidebar: { ring: "border-sidebar", cut: "bg-sidebar" },
-  popover: { ring: "border-popover", cut: "bg-popover" },
+  background: { ring: "border-background", fill: "bg-background" },
+  sidebar: { ring: "border-sidebar", fill: "bg-sidebar" },
+  popover: { ring: "border-popover", fill: "bg-popover" },
 } as const;
 
 /**
@@ -26,7 +26,7 @@ const GROUND_CLASSES = {
  * dent rather than a bite; any larger one thins the crescent past legibility at
  * an 8px core.
  */
-const CRESCENT_CUT = "translate-x-[32%] -translate-y-[32%] scale-[0.72]";
+const CRESCENT_BITE = "translate-x-[32%] -translate-y-[32%] scale-[0.72]";
 
 interface PresenceDotProps {
   presence: ChatRoomPresence;
@@ -61,18 +61,22 @@ export function PresenceDot({
   ground = "background",
   title,
 }: PresenceDotProps) {
-  const { ring, cut } = GROUND_CLASSES[ground];
+  const { ring, fill } = GROUND_CLASSES[ground];
 
   return (
     <span
       aria-hidden="true"
       title={title}
       className={cn(
-        "relative block size-3 rounded-full border-2",
+        // `overflow-hidden` clips the crescent's offset disc to the padding
+        // box. Without it that disc escapes the mark and reads as a second
+        // circle, which stayed invisible only while it was painted in the
+        // surface colour.
+        "relative block size-3 overflow-hidden rounded-full border-2",
         ring,
         presence === "online" && "bg-presence-online",
         presence === "afk" && "bg-presence-afk",
-        presence === "offline" && cut,
+        presence === "offline" && fill,
         className,
       )}
     >
@@ -80,7 +84,7 @@ export function PresenceDot({
         <span
           className={cn(
             "bg-presence-afk-core absolute inset-0 rounded-full",
-            CRESCENT_CUT,
+            CRESCENT_BITE,
           )}
         />
       ) : null}

@@ -47,4 +47,50 @@ describe("PresenceDot", () => {
       expect(mark?.getAttribute("title")).toBe("Online");
     },
   );
+
+  it("gives each state its own silhouette, so colour is not the only cue", () => {
+    const { container: online } = render(<PresenceDot presence="online" />);
+    const { container: afk } = render(<PresenceDot presence="afk" />);
+    const { container: offline } = render(<PresenceDot presence="offline" />);
+
+    const mark = (c: HTMLElement) => c.firstElementChild as HTMLElement;
+
+    // Online is a bare filled disc, away adds the bite, offline adds the ring.
+    expect(mark(online).children).toHaveLength(0);
+    expect(mark(afk).children).toHaveLength(1);
+    expect(mark(offline).children).toHaveLength(1);
+    expect(mark(afk).className).toContain("bg-presence-afk");
+    expect(mark(offline).className).toContain("bg-background");
+    expect(mark(offline).firstElementChild?.className).toContain(
+      "border-presence-offline",
+    );
+  });
+
+  it("clips the away bite so it cannot escape the mark", () => {
+    const { container } = render(<PresenceDot presence="afk" />);
+    const mark = container.firstElementChild as HTMLElement;
+
+    // The bite is an offset, scaled copy of the disc, so it reaches past the
+    // edge by design. It read as a second circle until the mark clipped it.
+    expect(mark.firstElementChild?.className).toContain("translate-x-[32%]");
+    expect(mark.className).toContain("overflow-hidden");
+  });
+
+  it("paints its ring and hollow fill in the ground it is told to sit on", () => {
+    const { container: onSidebar } = render(
+      <PresenceDot presence="offline" ground="sidebar" />,
+    );
+    const { container: onPopover } = render(
+      <PresenceDot presence="afk" ground="popover" />,
+    );
+
+    // A ground that does not match what is behind the mark reads as a hole
+    // punched in the surface, which is the whole reason the prop exists.
+    const sidebarMark = onSidebar.firstElementChild as HTMLElement;
+    expect(sidebarMark.className).toContain("border-sidebar");
+    expect(sidebarMark.className).toContain("bg-sidebar");
+    expect((onPopover.firstElementChild as HTMLElement).className).toContain(
+      "border-popover",
+    );
+  });
 });

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -123,6 +123,49 @@ describe("DirectRoomAvatarStack", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     openDirectMock.mockResolvedValue({ ok: true, roomId: "dm-2" });
+  });
+
+  it("states availability on a 1:1 row and stays silent on a group row", () => {
+    const { unmount } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom()}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    // A two-person direct gets no roster panel, so this row is the only place
+    // availability can reach a screen reader at all. Assert it is reachable,
+    // not merely in the DOM: getByText finds text inside aria-hidden too.
+    const solo = screen.getByTestId("dm-sidebar-avatar-patrick");
+    expect(
+      within(solo).getByText("Online").closest("[aria-hidden]"),
+    ).toBeNull();
+    unmount();
+
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    // A group row's label already lists these people, so per-face states would
+    // make the link speak every name twice. The roster panel reports there.
+    expect(
+      within(screen.getByTestId("dm-sidebar-avatar-alice")).queryByText(
+        "Online",
+      ),
+    ).toBeNull();
   });
 
   it("reports a soko bot as online whatever its own presence says", () => {

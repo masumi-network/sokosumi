@@ -388,7 +388,7 @@ describe("SidebarAccountChip", () => {
     expect(screen.queryByRole("button", { name: "logout" })).toBeNull();
   });
 
-  it("shows the browser's offline state on the status dot", () => {
+  it("puts the browser's offline state in the chip's own label", () => {
     Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       value: false,

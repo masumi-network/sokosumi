@@ -251,9 +251,10 @@ export function ChatParticipantHoverCard({
             {/* Sighted affordance. Radix's hover card emits no ARIA and portals
                 to the end of the body with nothing pointing back at the trigger,
                 so this text is reachable by a virtual cursor while the card is
-                open but is never tied to the person who opened it. The roster
-                panel is the surface that states availability per person in its
-                own accessible name.
+                open but is never tied to the person who opened it. Availability
+                reaches assistive technology from the roster panel, which puts
+                it in a hidden sibling on each row, and from the sidebar row of
+                a 1:1 direct.
                 `block` because `space-y-1` sets margin-top on siblings, which
                 an inline box ignores. */}
             <LiveMemberPresenceText

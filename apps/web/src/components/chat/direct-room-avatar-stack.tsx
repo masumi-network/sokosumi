@@ -14,7 +14,10 @@ import {
   type ChatParticipantHoverProfile,
   getRoomParticipantPreviews,
 } from "@/app/chat/components/room-helpers";
-import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import {
+  LiveMemberPresenceDot,
+  LiveMemberPresenceText,
+} from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -45,11 +48,16 @@ function getDirectHoverProfiles(
  * hover card (profile + Message). Trigger stays non-button because the row
  * link already owns keyboard/click navigation.
  *
- * No availability text here on purpose. The row label already lists these same
- * people, in this same order, so a state rendered per face would have to repeat
- * the name to attach to anything, and the link would speak every name twice.
- * The mark stays a pointer affordance, with the room's roster panel as the
- * surface that states availability per person.
+ * A 1:1 row states availability as hidden text, because it is the only surface
+ * that can: `shouldShowRoomRosterControl` gives a two-person direct no roster
+ * panel, so nothing else in the product would announce it. One participant
+ * means one state, and the row label is that person's name, so the text needs
+ * no name of its own.
+ *
+ * A group row states nothing. Its label already lists these same people in this
+ * same order, so a state per face would have to repeat the name to attach to
+ * anything and the link would speak every name twice. There the mark stays a
+ * pointer affordance and the room's roster panel reports per person.
  */
 export function DirectRoomAvatarStack({
   room,
@@ -127,6 +135,14 @@ export function DirectRoomAvatarStack({
                 isCoworker={isAi}
                 userId={participant.id}
               />
+              {participants.length === 1 ? (
+                <LiveMemberPresenceText
+                  className="sr-only"
+                  fallback={participant.presence}
+                  isCoworker={isAi}
+                  userId={participant.id}
+                />
+              ) : null}
             </span>
           </ChatParticipantHoverCard>
         );

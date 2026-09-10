@@ -176,10 +176,11 @@ function RosterMemberRow({
         ) : (
           nameBlock
         )}
-        {/* The avatar button is aria-hidden and the name button sets its own
-            aria-label, so neither can carry availability. It has to be rendered
-            out here, clear of both, to reach assistive technology at all. One
-            row is one person, so the state needs no name to attach to. */}
+        {/* Where the row is messageable the avatar button is aria-hidden and
+            the name button sets its own aria-label, so neither can carry
+            availability. Rendering it out here, clear of both, is what reaches
+            assistive technology at all. One row is one person, so the state
+            needs no name to attach to. */}
         <LiveMemberPresenceText
           className="sr-only"
           fallback={participant.presence}

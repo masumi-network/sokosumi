@@ -356,9 +356,10 @@
      so the mark reads as a shape and not as a hole over an avatar. Measured
      against --presence-afk: 2.51 light, 1.89 dark. Neither reaches 3:1, and
      neither has to: 1.4.11 governs the mark against the surface behind it,
-     which the amber already clears. This boundary only has to stay visible,
-     and in dark mode the amber is luminous enough that no bright grey beats
-     2.13. A grey dark enough to reach 3:1 there stops reading as bright. */
+     which the amber already clears. This boundary only has to stay visible.
+     Dark mode cannot do much better while staying bright: the amber is
+     luminous there, so even pure white reaches only 2.39. Getting to 3:1
+     needs a grey around 35% lightness, which stops reading as bright. */
   --presence-afk-core: hsla(220, 9%, 80%, 1);
 
   --semantic-info: hsla(192, 91%, 36%, 1);
