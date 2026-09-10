@@ -10,16 +10,16 @@
 		E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
 		E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
 		E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
-		E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
-		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 		E174B022304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
 		E174B023304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
 		E174B024304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
-		E176D032304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
-		E179D032304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 		E174B025304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
 		E174B026304F3FBD00C517E4 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = E174B053304F3FBD00C517E4 /* HTTPTypes */; };
 		E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
+		E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
+		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
+		E176D032304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
+		E179D032304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -575,16 +575,6 @@
 			package = E173A003304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiChat" */;
 			productName = SokosumiChat;
 		};
-		E176D031304F3FBD00C517E4 /* SokosumiRealtime */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E176D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiRealtime" */;
-			productName = SokosumiRealtime;
-		};
-		E179D031304F3FBD00C517E4 /* SokosumiWorkspace */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E179D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiWorkspace" */;
-			productName = SokosumiWorkspace;
-		};
 		E174B052304F3FBD00C517E4 /* OpenAPIRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E174B050304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
@@ -594,6 +584,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E174B051304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-http-types" */;
 			productName = HTTPTypes;
+		};
+		E176D031304F3FBD00C517E4 /* SokosumiRealtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E176D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiRealtime" */;
+			productName = SokosumiRealtime;
+		};
+		E179D031304F3FBD00C517E4 /* SokosumiWorkspace */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E179D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiWorkspace" */;
+			productName = SokosumiWorkspace;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
