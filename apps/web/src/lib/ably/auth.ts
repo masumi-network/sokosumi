@@ -6,8 +6,10 @@ import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 
-/** Match Core auth proxy timeouts in apps/web/src/lib/auth/auth.server.ts */
-const CORE_ABLY_TOKEN_REQUEST_TIMEOUT_MS = 5000;
+// 7s to Core, inside the 9s browser fetch of /api/ably/auth, inside ably-js's
+// 10s realtimeRequestTimeout. Matching the browser hop at 10s let ably-js win
+// and replace a classified 502 with an opaque timeout.
+const CORE_ABLY_TOKEN_REQUEST_TIMEOUT_MS = 7000;
 
 /**
  * Fetch an Ably TokenRequest from Core (membership-gated room caps, SOK-741;
