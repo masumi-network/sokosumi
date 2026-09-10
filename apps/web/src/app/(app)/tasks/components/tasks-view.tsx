@@ -451,7 +451,9 @@ export function TasksView({
   const moveVersionRef = useRef(0);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const itemsRef = useRef(items);
+  itemsRef.current = items;
   const jobsItemsRef = useRef(jobsItems);
+  jobsItemsRef.current = jobsItems;
   /** True after at least one successful jobs "Load more"; cleared when jobs reset from the server. */
   const hasAppendedJobsViaPaginationRef = useRef(false);
   /** True after the jobs tab's first server fetch completes. */
@@ -461,9 +463,13 @@ export function TasksView({
   const columnCursorByIdRef = useRef<Record<KanbanColumnId, string | null>>(
     buildInitialColumnCursorById(columns, initialColumnNextCursorById),
   );
+  columnCursorByIdRef.current = columnCursorById;
   const listCursorRef = useRef<string | null>(initialListNextCursor);
+  listCursorRef.current = listCursor;
   const isLoadingListMoreRef = useRef(false);
+  isLoadingListMoreRef.current = isLoadingListMore;
   const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
+  loadingColumnIdsRef.current = loadingColumnIds;
   const refreshRoute = useDebouncedCallback(
     () => router.refresh(),
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
@@ -520,30 +526,6 @@ export function TasksView({
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
-
-  useEffect(() => {
-    itemsRef.current = items;
-  }, [items]);
-
-  useEffect(() => {
-    jobsItemsRef.current = jobsItems;
-  }, [jobsItems]);
-
-  useEffect(() => {
-    columnCursorByIdRef.current = columnCursorById;
-  }, [columnCursorById]);
-
-  useEffect(() => {
-    listCursorRef.current = listCursor;
-  }, [listCursor]);
-
-  useEffect(() => {
-    isLoadingListMoreRef.current = isLoadingListMore;
-  }, [isLoadingListMore]);
-
-  useEffect(() => {
-    loadingColumnIdsRef.current = loadingColumnIds;
-  }, [loadingColumnIds]);
 
   useEffect(() => {
     return () => {
