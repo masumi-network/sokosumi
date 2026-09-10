@@ -48,55 +48,6 @@ function whatNamesSomeone(text: string): string {
 }
 
 /**
- * A `www.` address whose `www` a name ends with and whose dot the message
- * text carries: read without the word rule that guards the one in a sentence.
- *
- * `seewww.example.test` is a word, and the address rule leaves it alone for
- * that reason. A name and the message it sits in are two texts by two hands,
- * though, so a member named `Bobwww` and a message whose words go on
- * `.evil.test/pay` spell an address between them that no word rule should
- * protect.
- */
-const SEAM_ADDRESS_REGEX = /(?<=[A-Za-z0-9_])www\.[^\s\u0000]*/giu;
-
-/**
- * An address inside a display name, read by a stricter rule than a sentence
- * gets: from the scheme or the `www.` to the next space.
- *
- * A sentence is read to the last character an address is written with, so a
- * domain spelled in another script ends one early and stays as written. That
- * is a person's own sentence, and cutting words out of it on a guess costs
- * more than it saves. A display name is not a sentence: nobody writes one
- * around an address by accident, and `www.еvil.test/pay` with a Cyrillic
- * letter in it is the rename this rule exists to stop.
- */
-const NAME_ADDRESS_REGEX = /(?:(?:https?|ftps?):\/\/|www\.)[^\s\u0000]*/giu;
-
-/** A display name with every address it carries taken out of it. */
-function withoutNameAddresses(name: string): string {
-  return name.replace(NAME_ADDRESS_REGEX, "");
-}
-
-/**
- * The name up to the address it starts, whether that address ends inside the
- * name or the message text carries the rest of it.
- *
- * The message keeps its own words either way: what is left of them is a
- * domain with no scheme, which this module leaves standing wherever it is
- * written. An address that starts in the message rather than in the name is
- * the message's, and the word rule guards it as it guards any other word.
- */
-function withoutSeamAddress(label: string, after: string): string {
-  for (const match of `${label}${after}`.matchAll(SEAM_ADDRESS_REGEX)) {
-    if (match.index < label.length) {
-      return label.slice(0, match.index);
-    }
-  }
-
-  return label;
-}
-
-/**
  * The keys of the mention tokens in a message body, in the order written and
  * without repeats.
  *
@@ -127,38 +78,8 @@ export function readChatMentionKeys(content: string): string[] {
 }
 
 /**
- * What stands in for a mention while the rest of the body is cleaned.
- *
- * NUL is the one character a message body cannot carry: Postgres rejects it in
- * text, so no writer can spell a marker of their own. The markdown clean and
- * the whitespace collapse both leave it alone, which is what lets a name go in
- * after them and keep the punctuation the person spells it with.
- */
-const MENTION_MARKER = "\u0000";
-
-/** A marker and the mention it stands for, as written above. */
-const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
-
-/**
- * A name this code wrote, as it stands on the line once the addresses are
- * out of it: the `@` in front of it, and the number saying whose name it is.
- *
- * The marker sits behind the `@` rather than in front of it. An `@` is a
- * character an address is written with, so a marker in front of one cuts the
- * address a message and a name spell together: `www.@<id>:x` with a member
- * named `evil.test/pay` reads as one address only while nothing stands
- * between the two halves. The `@` is optional here because that read eats it.
- *
- * The number is what says whether the name after it is still there. An
- * address inside a name runs rightwards, so it takes the end of a name and
- * never the start: a name whose first character is gone is gone, and the `@`
- * in front of it names nobody.
- */
-const LABEL_MARKER_REGEX = /@?\u0000(\d+)\u0000/g;
-
-/**
  * A web address written as words: a scheme, or the `www.` people write
- * instead of one, running to the next space.
+ * instead of one, running to the last character an address is written with.
  *
  * Deliberately narrower than what a browser accepts.
  *
@@ -175,24 +96,40 @@ const LABEL_MARKER_REGEX = /@?\u0000(\d+)\u0000/g;
  * lets the scheme branch start anywhere, which is what takes the address out
  * of `docs*https://e.test*` once the markdown clean has closed that gap.
  *
- * A `www.` with no scheme in front of it starts after anything but an ascii
- * word character, so the one inside `seewww.example.test` is a word and the
- * one in a sentence written without spaces is an address. Chinese, Japanese
- * and Thai are written that way, and a boundary made of letters in general
- * never lets an address start in them.
+ * A `www.` with no scheme in front of it is an address wherever it stands,
+ * `seewww.example.test` included. A word rule that read the character before
+ * it would guard that word, and it would guard `@Bobwww` written by a member
+ * who named themselves so, with the rest of the address in the words after
+ * the mention. The line a banner shows is written by two hands, so a rule
+ * that reads one character back cannot tell whose word it is reading.
  *
- * It ends the same way: at the first character an address is not written
- * with, rather than at the next space, for those same sentences. What that
- * misses is a domain spelled in another script, which stays as written.
- *
- * A mention marker is not an address character either, so an address written
- * up against a mention leaves the person it names standing.
+ * The `@` in front of a name goes with the address that ate the name: `@` is
+ * a character an address is written with and never one it starts with, so
+ * nothing else can lose one this way. An `@` the sender typed keeps its
+ * space, as in "meet @ 5pm".
  *
  * The punctuation that ends a sentence is put back: it is the writer's, not
  * the address's.
  */
 const BARE_URL_REGEX =
-  /(?:(?:https?|ftps?):\/\/|(?<![A-Za-z0-9_])www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%[\]]+/gi;
+  /@?(?:(?:https?|ftps?):\/\/|www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%[\]]+/gi;
+
+/**
+ * An address inside a display name, which runs to the next space.
+ *
+ * A sentence ends an address at the last character an address is written
+ * with, because a sentence in Chinese, Japanese or Thai is written without
+ * spaces and the words after a link are the writer's. A display name is one
+ * name by one hand: nobody writes a sentence around an address in one, and a
+ * host spelled with a Cyrillic letter in it is the rename this rule exists to
+ * stop.
+ */
+const NAME_ADDRESS_REGEX = /@?(?:(?:https?|ftps?):\/\/|www\.)\S*/giu;
+
+/** A display name with every address it carries taken out of it. */
+function withoutNameAddresses(name: string): string {
+  return name.replace(NAME_ADDRESS_REGEX, "");
+}
 
 /** What an address may end with that belongs to the sentence around it. */
 const URL_TRAILING_PUNCTUATION_REGEX = /[.,;:!?)\]}'"]+$/;
@@ -441,120 +378,75 @@ export function buildChatMessagePreview(
   const withoutCode = content
     .replace(MARKDOWN_FENCED_BLOCK_REGEX, " ")
     .replace(FENCE_DELIMITER_LINE_REGEX, "");
-  // A name is a person's to spell, and the markdown clean below takes
-  // `* _ ~ > #` out of whatever it is handed. So each mention leaves a marker
-  // here and the name goes in after the clean, which is what keeps `R_D` from
-  // reading as `RD` on a banner. A marker is built from NUL, a byte Postgres
-  // will not store in a message body, so no message can write one itself.
-  const labels: string[] = [];
-  const readable = stripTags(withoutCode)
-    .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
-    .replace(BACKTICK_RUN_REGEX, "`")
-    .replace(MENTION_TOKEN_REGEX, (_match, key: string, slug: string) => {
-      // Looked up lowercased, the case `readChatMentionKeys` hands a caller.
-      // A uuid is written in either case, and a key that missed the map for
-      // its case would put the id itself back on the banner.
-      const lookupKey = key.toLowerCase();
-      // `all` is a word rather than an id, so it stands in for its own slug
-      // and a reader loses nothing when the token carries none. Every other
-      // key is a uuid, which says nothing to anyone, so a token left with no
-      // name and no slug says less by saying nothing.
-      // A slug that repeats the key is not a name. The composer writes one
-      // for a soko bot whose name has no ascii in it, so the fallback below
-      // would put the id on a banner once that bot leaves the room and the
-      // lookup stops naming it.
-      const readableSlug = slug.toLowerCase() === lookupKey ? "" : slug;
-      // Read for what it says rather than for whether it is there: a member
-      // whose display name is empty is named no better than one the map does
-      // not carry, and the slug is what is left to say who.
-      // A display name is a member's to choose and nobody's to check, so an
-      // address written into one is read the same way as an address written
-      // into a message: taken out. Otherwise a member renames themselves
-      // `www.evil.test/pay` and every reader of the room has that on a lock
-      // screen, which is what this rule exists to prevent.
-      // Read for whether a letter or a digit is left of it, rather than for
-      // whether anything is: a name of spaces, and a name the address rule
-      // cut down to the punctuation it gave back, both name nobody, and the
-      // slug below says more. A member renaming themselves `www.evil.test.`
-      // otherwise reads as `@.` on every lock screen in the room.
-      const name = whatNamesSomeone(
-        withoutNameAddresses(mentionNames?.get(lookupKey) ?? "").trim(),
-      );
-      const label =
-        name ||
-        whatNamesSomeone(readableSlug) ||
-        (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
+  // The markdown clean runs over the whole body, with the tokens still in it.
+  // A token is written in the characters the clean leaves alone, so it comes
+  // out as it went in, and the clean gets to see a link or a code span whole
+  // rather than in the halves a mention inside one would leave.
+  const readable = cleanChatMessageText(
+    stripTags(withoutCode)
+      .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
+      .replace(BACKTICK_RUN_REGEX, "`"),
+  );
 
-      labels.push(label);
+  // The names go in after that clean. A name is a person's to spell and the
+  // clean takes `* _ ~ > #` out of whatever it is handed, which is what would
+  // make `R_D` read as `RD` on a banner.
+  const pieces: string[] = [];
+  let read = 0;
 
-      return `${MENTION_MARKER}${labels.length - 1}${MENTION_MARKER}`;
-    });
-
-  // An address goes after the markdown clean, which has already turned
-  // `[docs](url)` into `docs`, so what is left is a link the sender typed as
-  // words. A reader cannot check one from a lock screen and cannot act on it
-  // there either, so the preview says the words around it and nothing else.
-  // A message that is only a link cleans to nothing and the caller falls back
-  // to the line naming the author and the room.
-  const oneLine = withoutAddresses(cleanChatMessageText(readable))
-    .replace(/\s+/g, " ")
-    .trim();
-  // The names go in last, and the line is closed up again: a mention that
-  // stands for nobody leaves the space its marker sat in, and a preview cut
-  // to length has to count the names it shows rather than the markers.
-  // Read from the last mention back to the first, so each name is read
-  // against the line as it will stand rather than as it stands now. A mention
-  // that names nobody leaves nothing where its marker was, and the words on
-  // either side of it then close up and can spell an address between them.
-  const markers = [...oneLine.matchAll(MENTION_MARKER_REGEX)];
-  let tail = "";
-  let cursor = oneLine.length;
-
-  for (let position = markers.length - 1; position >= 0; position -= 1) {
-    const marker = markers[position];
-    if (!marker) {
-      continue;
-    }
-
-    const index = marker[1] ?? "";
-    const start = marker.index;
-    tail = `${oneLine.slice(start + marker[0].length, cursor)}${tail}`;
-
-    // A name that starts an address the words after it finish is cut where
-    // that address starts, before the name reaches the line at all.
-    const label = whatNamesSomeone(
-      withoutSeamAddress(labels[Number(index)] ?? "", tail),
-    );
-
-    labels[Number(index)] = label;
-    // Each name keeps a marker of its own, so the read after the addresses
-    // can tell an `@` this code wrote from an `@` the sender typed, as in
-    // "meet @ 5pm".
-    tail = label
-      ? `@${MENTION_MARKER}${index}${MENTION_MARKER}${label}${tail}`
-      : tail;
-    cursor = start;
+  // The words the sender wrote are read for addresses on their own, so an
+  // address ends where the sender's own text ends and never reaches into the
+  // name after it: `https://e.test/x@<id>:ada` is a link and then a mention.
+  for (const token of readable.matchAll(MENTION_TOKEN_REGEX)) {
+    pieces.push(withoutAddresses(readable.slice(read, token.index)));
+    pieces.push(whoAMentionNames(token[1] ?? "", token[2] ?? "", mentionNames));
+    read = token.index + token[0].length;
   }
 
-  const withNames = `${oneLine.slice(0, cursor)}${tail}`;
+  pieces.push(withoutAddresses(readable.slice(read)));
 
-  // A name and the words around it can spell an address between them: a
-  // member named `www` and a message reading `@<id>:x.evil.test` put one on
-  // the line only once the name was in it. So the line is read once more, and
-  // a name that read took says nobody, `@` and all.
-  const named = withoutAddresses(withNames)
-    .replace(
-      LABEL_MARKER_REGEX,
-      (match: string, index: string, at: number, line: string) => {
-        const label = labels[Number(index)] ?? "";
-        const kept =
-          label !== "" && line.startsWith(label[0], at + match.length);
-
-        return kept && match.startsWith("@") ? "@" : "";
-      },
-    )
-    .replace(/\s+/g, " ")
-    .trim();
+  // One address rule over the finished line, rather than one rule per piece.
+  // A name and the words beside it are two texts by two hands, and an address
+  // spelled between them is on the banner all the same.
+  const named = withoutAddresses(pieces.join("")).replace(/\s+/g, " ").trim();
 
   return capPreview(named);
+}
+
+/**
+ * The name a mention token stands for: `@` and the name, or nothing at all.
+ *
+ * A token carries a key and a slug. The slug is a lowercased, hyphenated,
+ * ascii-only rewrite of a name, so it is a second spelling of the name the
+ * room prints and stands in when the lookup finds none. A token left with
+ * neither says nothing, because the id it carries means nothing to a reader.
+ */
+function whoAMentionNames(
+  key: string,
+  slug: string,
+  mentionNames?: ReadonlyMap<string, string>,
+): string {
+  // Looked up lowercased, the case `readChatMentionKeys` hands a caller. A
+  // uuid is written in either case, and a key that missed the map for its
+  // case would put the id itself back on the banner.
+  const lookupKey = key.toLowerCase();
+  // A slug that repeats the key is not a name. The composer writes one for a
+  // soko bot whose name has no ascii in it, so the fallback below would put
+  // the id on a banner once that bot leaves the room and the lookup stops
+  // naming it.
+  const readableSlug = slug.toLowerCase() === lookupKey ? "" : slug;
+  // Read for what a name says rather than for whether it is there: a member
+  // whose display name is empty, or is nothing but spaces, is named no better
+  // than one the map does not carry, and the slug is what is left to say who.
+  const name = whatNamesSomeone(
+    withoutNameAddresses(mentionNames?.get(lookupKey) ?? "").trim(),
+  );
+  // `all` is a word rather than an id, so it stands in for its own slug and a
+  // reader loses nothing when the token carries none.
+  const label =
+    name ||
+    whatNamesSomeone(readableSlug) ||
+    (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
+
+  return label ? `@${label}` : "";
 }

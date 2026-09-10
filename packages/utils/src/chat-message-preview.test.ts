@@ -167,7 +167,7 @@ describe("buildChatMessagePreview", () => {
     );
   });
 
-  /** A marker stands for a person, so an address stops at one. */
+  /** The sender's words are read on their own, so an address ends with them. */
   it("keeps a mention an address is written up against", () => {
     expect(
       buildChatMessagePreview(
@@ -240,7 +240,7 @@ describe("buildChatMessagePreview", () => {
         "see www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz now",
         new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "evil.test/pay"]]),
       ),
-    ).toBe("see evil.test/pay now");
+    ).toBe("see now");
     expect(
       buildChatMessagePreview(
         "mail me at www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz",
@@ -248,7 +248,7 @@ describe("buildChatMessagePreview", () => {
           ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "evil.test/pay?x=1"],
         ]),
       ),
-    ).toBe("mail me at evil.test/pay?x=1");
+    ).toBe("mail me at");
   });
 
   /** A name and the words after it can spell an address between them. */
@@ -328,7 +328,7 @@ describe("buildChatMessagePreview", () => {
         "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x.evil.test/pay now",
         new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Bobwww"]]),
       ),
-    ).toBe("hi @Bob.evil.test/pay now");
+    ).toBe("hi @Bob now");
   });
 
   /**
@@ -361,7 +361,7 @@ describe("buildChatMessagePreview", () => {
         "Hi @11111111-1111-4111-8111-111111111111:bob@22222222-2222-4222-8222-222222222222:.evil.test/pay",
         new Map([["11111111-1111-4111-8111-111111111111", "Bobwww"]]),
       ),
-    ).toBe("Hi @Bob.evil.test/pay");
+    ).toBe("Hi @Bob");
 
     // The mention between them is read first and names nobody either.
     expect(
@@ -372,7 +372,7 @@ describe("buildChatMessagePreview", () => {
           ["22222222-2222-4222-8222-222222222222", "_www"],
         ]),
       ),
-    ).toBe("Hi @Bob.evil.test/pay");
+    ).toBe("Hi @Bobwww@_");
   });
 
   /** A mention that names someone stands between the words around it. */
@@ -398,11 +398,14 @@ describe("buildChatMessagePreview", () => {
     ).toBe("x @\u{1F389} y");
   });
 
-  /** The `www.` inside a word is a word. */
-  it("leaves a word that only ends in an address alone", () => {
-    expect(buildChatMessagePreview("seewww.example.test now")).toBe(
-      "seewww.example.test now",
-    );
+  /**
+   * A `www.` is an address wherever it stands, the middle of a word
+   * included. The line a banner shows is written by two hands, so a rule
+   * that read the character in front of a `www.` to decide could not tell
+   * whether that character was the sender's or the name's.
+   */
+  it("takes an address out of the word it was written inside", () => {
+    expect(buildChatMessagePreview("seewww.example.test now")).toBe("see now");
   });
 
   /** The stop belongs to the sentence, not to the address. */
