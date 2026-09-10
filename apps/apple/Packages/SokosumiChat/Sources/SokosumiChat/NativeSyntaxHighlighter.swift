@@ -213,12 +213,19 @@ public enum NativeSyntaxHighlighter {
     guard let tree = parser.parse(source) else { return [] }
     let data = try language == .kotlin ? Data(kotlinQuery.utf8) : combinedQueries(for: language)
     let query = try SwiftTreeSitter.Query(language: grammar, data: data)
-    return query.execute(in: tree).resolve(with: Predicate.Context(string: source)).flatMap { match in
+    let captures: [SyntaxCapture] = query.execute(in: tree).resolve(with: Predicate.Context(string: source)).flatMap { match in
       match.captures.compactMap { capture in
         guard let name = capture.name else { return nil }
         return SyntaxCapture(name: name, range: capture.node.range)
       }
     }
+    // Kotlin annotation names are also user_type identifiers. Keep the more
+    // specific annotation capture so generic type styling cannot overwrite it.
+    if language == .kotlin {
+      let annotations = Set(captures.filter { $0.name == "attribute" }.map(\.range))
+      return captures.filter { $0.name != "type" || !annotations.contains($0.range) }
+    }
+    return captures
   }
 
   private static func combinedQueries(for language: SyntaxLanguage) throws -> Data {
@@ -251,6 +258,7 @@ public enum NativeSyntaxHighlighter {
   private static let kotlinQuery = #"""
   [(line_comment) (block_comment)] @comment
   [(string_literal) (multiline_string_literal) (character_literal)] @string
+  (interpolation) @embedded
   [(number_literal) (float_literal)] @number
   (reification_modifier) @keyword
   ((identifier) @keyword (#any-of? @keyword "break" "continue"))
@@ -259,6 +267,10 @@ public enum NativeSyntaxHighlighter {
   (object_declaration name: (identifier) @type)
   (type_alias type: (identifier) @type)
   (user_type (identifier) @type)
+  (annotation (user_type (identifier) @attribute))
+  (annotation (constructor_invocation (user_type (identifier) @attribute)))
+  (file_annotation (user_type (identifier) @attribute))
+  (file_annotation (constructor_invocation (user_type (identifier) @attribute)))
   ["abstract" "actual" "annotation" "as" "as?" "by" "catch" "class"
    "companion" "const" "constructor" "crossinline" "data" "do" "dynamic"
    "else" "enum" "expect" "external" "final" "finally" "for" "fun" "get"

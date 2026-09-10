@@ -111,12 +111,36 @@ struct NativeSyntaxHighlighterTests {
       ("type", "Int"), ("type", "T"), ("function", "greet"),
       ("keyword", "reified"), ("keyword", "continue"), ("keyword", "break")
     ] {
-      #expect(captures.contains { $0.name == name && (source as NSString).substring(with: $0.range) == text })
+      #expect(captures.contains { $0.name == name && (source as NSString).substring(with: $0.range) == text }, "Missing \(name): \(text)")
     }
     let literal = "val text = \"class Greeter fun greet break continue reified\""
     let literalCaptures = try NativeSyntaxHighlighter.captures(in: literal, language: .kotlin)
     #expect(!literalCaptures.contains { $0.name == "type" || $0.name == "function" })
     #expect(literalCaptures.filter { $0.name == "keyword" }.count == 1)
+  }
+
+  @Test func highlightsKotlinBracedInterpolationAndAnnotations() throws {
+    let source = #"""
+    @file:JvmName("Example")
+    @Deprecated("Use greeting instead")
+    fun greet(name: String) = "👋 $name, ${1 + 2}"
+    """#
+    let captures = try NativeSyntaxHighlighter.captures(in: source, language: .kotlin)
+    for (name, text) in [
+      ("attribute", "JvmName"), ("attribute", "Deprecated"),
+      ("embedded", "${1 + 2}"),
+      ("number", "1"), ("number", "2"),
+      ("string", "\"Use greeting instead\"")
+    ] {
+      #expect(captures.contains { $0.name == name && (source as NSString).substring(with: $0.range) == text }, "Missing \(name): \(text)")
+    }
+    let annotationOffset = (source as NSString).range(of: "Deprecated").location
+    #expect(captures.last { NSLocationInRange(annotationOffset, $0.range) }?.name == "attribute")
+    let numberOffset = (source as NSString).range(of: "1 + 2").location
+    #expect(captures.last { NSLocationInRange(numberOffset, $0.range) }?.name == "number")
+    let escaped = #"val text = "\$name and @Deprecated""#
+    let literalCaptures = try NativeSyntaxHighlighter.captures(in: escaped, language: .kotlin)
+    #expect(!literalCaptures.contains { $0.name == "embedded" || $0.name == "attribute" })
   }
 
   @Test func highlightsSwiftAndJSONThroughSharedAPI() throws {

@@ -364,3 +364,20 @@ for HTML fragments. Do not introduce a second full Markdown parse per message
 or a sentinel-based repair pass to conceal missing blocks.
 
 Manifest: https://github.com/swiftlang/swift-markdown/blob/0.8.0/Package.swift
+
+## Kotlin annotations and braced interpolation
+
+The native query recognizes ordinary/file annotations and braced string
+interpolation. Annotation names use the native attribute color; duplicate generic
+type captures at the same range are removed so they cannot overwrite that color.
+Embedded expressions retain their nested number captures. Tests verify Unicode
+ranges, escaped-dollar literals, annotation string arguments and final capture
+precedence.
+
+A probe found that Kotlin 1.1.0's generated parser emits simple `$name` templates
+as string_content rather than interpolation. That gap remains open; braced
+`${expression}` works. Do not treat this checkpoint as complete Kotlin parity or
+add a grammar upgrade without the required dependency approval.
+
+Verification: 208 Chat tests, Xcode app build/tests, iOS 17 shared compilation,
+and changed-file lint/format passed (`/tmp/apple-interpolation-*.log`).

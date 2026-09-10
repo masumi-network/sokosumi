@@ -53,7 +53,7 @@ struct MessageCodeBlock: View {
   private func tokenColor(_ name: String) -> Color {
     switch name.split(separator: ".").first {
     case "comment": .secondary
-    case "keyword": .purple
+    case "keyword", "attribute": .purple
     case "string": .green
     case "number", "float", "constant", "boolean": .orange
     case "type", "constructor": .teal
