@@ -212,6 +212,52 @@ describe("buildChatMessagePreview", () => {
     );
   });
 
+  /**
+   * Every invisible character, not the ones a C0 range happens to name. Each
+   * of these hides an address from the rules that read one by its characters,
+   * and `U+202E` turns the rest of a banner back to front.
+   */
+  it("takes every invisible character out of a body", () => {
+    for (const invisible of [
+      "\u0085",
+      "\u0080",
+      "\u009f",
+      "\u00ad",
+      "\u200b",
+      "\u200e",
+      "\u2060",
+      "\ufeff",
+      "\ud800",
+    ]) {
+      expect(
+        buildChatMessagePreview(`see www${invisible}.evil.test/pay now`),
+      ).toBe("see now");
+    }
+
+    expect(buildChatMessagePreview("hello \u202edoog si live")).toBe(
+      "hello doog si live",
+    );
+  });
+
+  /**
+   * The joiner holds the parts of one emoji together, so it stays inside a
+   * name. Beside an ascii character it joins nothing a person wrote, and what
+   * it hides there is an address.
+   */
+  it("keeps a joiner inside an emoji and takes one beside ascii out", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "\u{1f468}\u200d\u{1f4bb}"],
+        ]),
+      ),
+    ).toBe("hi @\u{1f468}\u200d\u{1f4bb}");
+    expect(buildChatMessagePreview("see www\u200d.evil.test/pay now")).toBe(
+      "see now",
+    );
+  });
+
   /** An empty name is no name, so the slug is what is left to say who. */
   it("keeps the slug when the lookup carries an empty name", () => {
     expect(

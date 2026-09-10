@@ -43,12 +43,33 @@ export const CHAT_MENTION_ALL_KEY = "all";
 const NAMING_CHARACTER_REGEX = /[^\p{P}\p{Z}\p{C}\s]/u;
 
 /**
- * The control characters a banner has no way to show, tab and the line breaks
- * aside. They are taken out rather than spaced out, so a `www` and a `.test`
- * one of them sits between are read as the one address they spell.
+ * The characters a banner has no way to show: the controls, the invisible
+ * formatting marks, and a surrogate left on its own. Tab and the line breaks
+ * are spelled out of the class, because the rules below read by them.
+ *
+ * Read by category rather than by a range written out by hand. A named range
+ * covers what its author thought of, and what it misses is exactly what an
+ * attacker writes: `U+0085` and `U+200B` hide an address from the rules that
+ * read an address by its characters, the same way a NUL does, and `U+202E`
+ * turns the rest of a banner back to front.
+ *
+ * They are taken out rather than spaced out, so a `www` and a `.test` one of
+ * them sits between are read as the one address they spell.
+ *
+ * The joiner `U+200D` is spelled out of the class as well. It is what holds
+ * the parts of one emoji together, and a name is a person's to choose.
  */
-const CONTROL_CHARACTER_REGEX =
-  /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+const CONTROL_CHARACTER_REGEX = /(?![\t\n\r\u200d])[\p{Cc}\p{Cf}\p{Cs}]/gu;
+
+/**
+ * A joiner beside an ascii character, which joins nothing a person wrote.
+ *
+ * It holds two halves of one emoji together and stands nowhere else, so one
+ * next to a letter or a dot is there to hide what it sits between: `www` and
+ * `.evil.test` read as two words rather than as the address they spell.
+ */
+const ASCII_JOINER_REGEX =
+  /(?<=[\u0000-\u007f])\u200d|\u200d(?=[\u0000-\u007f])/gu;
 
 /** The text back when it names someone, and nothing when it does not. */
 function whatNamesSomeone(text: string): string {
@@ -402,6 +423,7 @@ export function buildChatMessagePreview(
   // a preview that kept the tag names would read back words the room removed.
   const withoutCode = content
     .replace(CONTROL_CHARACTER_REGEX, "")
+    .replace(ASCII_JOINER_REGEX, "")
     .replace(MARKDOWN_FENCED_BLOCK_REGEX, " ")
     .replace(FENCE_DELIMITER_LINE_REGEX, "");
   // The markdown clean runs over the whole body, with the tokens still in it.
@@ -513,7 +535,9 @@ function whoAMentionNames(
   // read for control characters never sees it.
   const name = whatNamesSomeone(
     withoutNameAddresses(
-      (mentionNames?.get(lookupKey) ?? "").replace(CONTROL_CHARACTER_REGEX, ""),
+      (mentionNames?.get(lookupKey) ?? "")
+        .replace(CONTROL_CHARACTER_REGEX, "")
+        .replace(ASCII_JOINER_REGEX, ""),
     ).trim(),
   );
   // `all` is a word rather than an id, so it stands in for its own slug and a
