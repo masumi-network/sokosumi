@@ -616,7 +616,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       await Promise.all([
         invalidateChatRoomMessageReaders({
           roomId: mention.message.roomId,
-          authorUserId: null,
         }),
         publishChatRoomMessageRealtimeById(
           publishedMessageIds.responseMessageId,

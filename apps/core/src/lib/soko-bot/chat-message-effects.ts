@@ -29,7 +29,6 @@ export async function scheduleSokoBotChatMessageEffects(
 
     await invalidateChatRoomMessageReaders({
       roomId: room.id,
-      authorUserId: null,
       memberUserIds,
     });
 

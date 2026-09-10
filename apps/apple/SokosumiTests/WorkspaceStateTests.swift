@@ -48,6 +48,7 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
 
   var pausePOST = false
   var pauseStream = false
+  var pauseGET = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
@@ -85,7 +86,16 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
       postReleased = false
       try Task.checkCancellation()
     }
-    if pauseStream, operationID == "post/chats/rooms/{id}/stream" {
+    if pauseStream, operationID == "post/chats/rooms/{id}/stream" || operationID == "get/chats/rooms/{id}/stream/active" {
+      let next = responses.removeFirst()
+      if !postReleased {
+        await withCheckedContinuation { pauseWaiter = $0 }
+      }
+      postReleased = false
+      try Task.checkCancellation()
+      return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
+    }
+    if pauseGET, operationID.hasPrefix("get/"), operationID.contains("/messages") {
       let next = responses.removeFirst()
       if !postReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -982,6 +992,44 @@ struct WorkspaceStateTests {
     #expect(state.directStream.roomId == nil)
   }
 
+  @Test(arguments: [false, true])
+  func threadStreamSettlesAndReopensClosedParent(closeThread: Bool) async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let root = transcriptMessage(id: "root", roomId: roomId, content: "Parent")
+    let reply = transcriptMessage(id: "reply", roomId: roomId, content: "Answer")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
+    let responses: [(Int, String)] = [
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, stream),
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ]
+    let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
+    let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    state.timeline.reset(roomId: roomId)
+    let client = try #require(state.clientResolver?())
+    _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+    state.directStream.reset(room: room)
+    #expect(try state.thread.open(#require(state.transcriptMessages.first)))
+    #expect(state.sendThreadReply("Thread turn", auth: auth))
+    #expect(!state.sendMessage("Room turn", auth: auth))
+    #expect(state.thread.outbox.shells.isEmpty)
+    #expect(state.displayedTranscript.map(\.id) == ["root"])
+    #expect(state.displayedThreadReplies.first?.content == "Thread turn")
+    if closeThread {
+      state.thread.close()
+      #expect(state.streamingThreadToOpen?.id == "root")
+    }
+    await state.directStream.task?.value
+    #expect(state.thread.parent?.id == "root")
+    #expect(state.displayedThreadReplies.map(\.id) == ["reply"])
+    #expect(state.directStream.overlayMessages.isEmpty)
+    #expect(transport.threadGets == 1)
+    #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/messages"))
+  }
+
   @Test func parentEnvelopeWhileStreamingRefetchesParent() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"text-start\",\"id\":\"text\"}\n\ndata: {\"type\":\"text-delta\",\"id\":\"text\",\"delta\":\"Answer\"}\n\ndata: {\"type\":\"text-end\",\"id\":\"text\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
@@ -1054,6 +1102,133 @@ struct WorkspaceStateTests {
     await state.directStream.task?.value
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
+
+  @Test func closingThreadDuringSettleStillClearsOverlay() async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let fixtures = ThreadStreamFixtures(roomId: roomId)
+    let prepared = try await preparedCoworkerDirect(roomId: roomId, responses: [
+      (200, transcriptPageBody(messages: [fixtures.root], nextCursor: nil)),
+      (200, fixtures.stream),
+      (200, transcriptPageBody(messages: [fixtures.root], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil))
+    ])
+    let parent = try #require(prepared.state.transcriptMessages.first)
+    #expect(prepared.state.thread.open(parent))
+    prepared.transport.pauseGET = true
+    #expect(prepared.state.sendThreadReply("Thread turn", auth: prepared.auth))
+    await waitWhile { prepared.transport.messageGets < 2 }
+    prepared.state.thread.close()
+    #expect(prepared.state.streamingThreadToOpen?.id == "root")
+    prepared.transport.releasePOST()
+    await waitWhile { prepared.transport.threadGets == 0 }
+    prepared.state.openThread(parent, auth: prepared.auth)
+    prepared.transport.releasePOST()
+    await prepared.state.directStream.task?.value
+    #expect(prepared.state.thread.parent?.id == "root")
+    #expect(prepared.state.directStream.overlayMessages.isEmpty)
+    #expect(prepared.transport.threadGets == 1)
+  }
+
+  @Test func roomReentryResumeOpensRetainedThreadOnSettle() async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let fixtures = ThreadStreamFixtures(roomId: roomId)
+    let prepared = try await preparedCoworkerDirect(roomId: roomId, responses: [
+      (200, transcriptPageBody(messages: [fixtures.root], nextCursor: nil)),
+      (200, fixtures.stream),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomId)/messages","method":"GET"}}
+      """),
+      (200, fixtures.stream),
+      (200, transcriptPageBody(messages: [fixtures.root], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil))
+    ])
+    #expect(try prepared.state.thread.open(#require(prepared.state.transcriptMessages.first)))
+    #expect(prepared.state.sendThreadReply("Thread turn", auth: prepared.auth))
+    await prepared.state.directStream.task?.value
+    prepared.state.thread.close()
+    prepared.state.directStream.reset(room: prepared.room)
+    #expect(prepared.state.directStream.parentMessageId == "root")
+    prepared.transport.pauseStream = true
+    prepared.transport.pauseGET = true
+    prepared.state.directStream.resume(client: prepared.client, organizationSlug: nil, settled: {
+      await prepared.state.settleDirectStream(auth: prepared.auth, generation: prepared.state.timeline.generation)
+    }, failed: { Issue.record($0) })
+    await waitWhile { !prepared.transport.operationIDs.contains("get/chats/rooms/{id}/stream/active") }
+    #expect(prepared.state.directStream.phase == .resuming)
+    #expect(prepared.state.streamingThreadToOpen == nil)
+    prepared.transport.releasePOST()
+    await waitWhile { prepared.transport.messageGets < 3 }
+    #expect(prepared.state.streamingThreadToOpen?.id == "root")
+    prepared.transport.releasePOST()
+    await waitWhile { prepared.transport.threadGets == 0 }
+    prepared.transport.releasePOST()
+    await prepared.state.directStream.task?.value
+    #expect(prepared.state.thread.parent?.id == "root")
+    #expect(prepared.state.displayedThreadReplies.map(\.id) == ["reply"])
+    #expect(prepared.state.directStream.overlayMessages.isEmpty)
+    #expect(prepared.transport.threadGets == 1)
+  }
+}
+
+private extension ScriptedTransport {
+  var messageGets: Int {
+    operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count
+  }
+
+  var threadGets: Int {
+    operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count
+  }
+}
+
+private func waitWhile(_ condition: () -> Bool) async {
+  for _ in 0 ..< 1000 where condition() {
+    await Task.yield()
+  }
+}
+
+private func coworkerDirect(roomId: String) -> Components.Schemas.ChatRoom {
+  let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
+  return .init(
+    id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
+    unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender],
+    coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: []
+  )
+}
+
+private struct ThreadStreamFixtures {
+  let root: String
+  let reply: String
+  let stream: String
+
+  init(roomId: String) {
+    root = transcriptMessage(id: "root", roomId: roomId, content: "Parent")
+    reply = transcriptMessage(id: "reply", roomId: roomId, content: "Answer")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
+  }
+}
+
+private struct PreparedCoworkerDirect {
+  let state: WorkspaceState
+  let auth: AuthState
+  let transport: ScriptedTransport
+  let room: Components.Schemas.ChatRoom
+  let client: Client
+}
+
+private func preparedCoworkerDirect(
+  roomId: String,
+  responses: [(Int, String)]
+) async throws -> PreparedCoworkerDirect {
+  let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
+  let room = coworkerDirect(roomId: roomId)
+  state.timeline.reset(roomId: roomId)
+  let client = try #require(state.clientResolver?())
+  _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+  state.directStream.reset(room: room)
+  return PreparedCoworkerDirect(state: state, auth: auth, transport: transport, room: room, client: client)
 }
 
 private func unreadRoomsBody(id: String, unread: Int) -> String {

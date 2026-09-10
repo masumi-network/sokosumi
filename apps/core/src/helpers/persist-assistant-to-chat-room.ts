@@ -180,7 +180,7 @@ export async function persistAssistantToChatRoom(params: {
       return message;
     });
     await Promise.all([
-      invalidateChatRoomMessageReaders({ roomId, authorUserId: null }),
+      invalidateChatRoomMessageReaders({ roomId }),
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);
     return { id: created.id };
@@ -277,7 +277,6 @@ export async function persistUserMessageToChatRoom(params: {
     await Promise.all([
       invalidateChatRoomMessageReaders({
         roomId,
-        authorUserId: senderUserId,
       }),
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);

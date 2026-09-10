@@ -283,7 +283,7 @@ final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
-    directStream.reset(room: room)
+    directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
@@ -578,13 +578,33 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  private func settleDirectStream(auth: AuthState, generation: Int) async -> Bool {
+  func settleDirectStream(auth: AuthState, generation: Int) async -> Bool {
     while generation == transcriptGeneration,
           let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
       await task.value
     }
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
-    return await refresh(auth: auth, generation: generation)
+    guard await refresh(auth: auth, generation: generation) else { return false }
+    var openedGeneration: Int?
+    if let parent = streamingThreadToOpen {
+      openThread(parent, auth: auth)
+      openedGeneration = thread.timeline.generation
+    }
+    guard let parentId = directStream.parentMessageId, thread.parent?.id == parentId else {
+      return true
+    }
+    await thread.loadTask?.value
+    guard generation == transcriptGeneration else { return false }
+    guard thread.parent?.id == parentId else { return true }
+    // A thread opened after the room refresh already fetched the completed turn.
+    if openedGeneration == thread.timeline.generation, thread.timeline.hasLoadedHistory, thread.timeline.errorMessage == nil {
+      return true
+    }
+    loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
+    await thread.loadTask?.value
+    guard generation == transcriptGeneration else { return false }
+    guard thread.parent?.id == parentId else { return true }
+    return thread.timeline.errorMessage == nil
   }
 
   /// Drop a revoked room from the sidebar (chat-control event, SOK-742).

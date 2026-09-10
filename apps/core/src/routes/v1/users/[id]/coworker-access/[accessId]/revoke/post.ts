@@ -78,7 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     // Membership already committed; status publish must not fail the revoke.
     await publishChatRoomMembershipStatusMessagesBestEffort(
       membershipStatusMessages,
-      "chat membership status after coworker access revoke",
+      { logContext: "chat membership status after coworker access revoke" },
     );
 
     return ok(

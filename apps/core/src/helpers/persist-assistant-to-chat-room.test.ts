@@ -284,6 +284,10 @@ describe("persistUserMessageToChatRoom", () => {
   });
 
   it("creates chat_room_message with senderUserId and content", async () => {
+    vi.mocked(prisma.chatRoomUserMember.findMany).mockResolvedValueOnce([
+      { userId: "user_1" },
+      { userId: "reader" },
+    ] as never);
     const result = await persistUserMessageToChatRoom({
       roomId: "room_1",
       senderUserId: "user_1",
@@ -291,7 +295,7 @@ describe("persistUserMessageToChatRoom", () => {
     });
     expect(result.id).toBe("msg_user");
     expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: ["reader"],
+      userIds: ["user_1", "reader"],
       roomId: "room_1",
       collections: ["active"],
     });

@@ -109,14 +109,23 @@ export async function publishChatRoomMessageRealtimeById(
   }
 }
 
+interface MembershipStatusPublishOptions {
+  logContext?: string;
+  separatelyNotifiedUserIds?: readonly string[];
+}
+
 /**
  * After commit: fan out membership status timeline messages (e.g. "X left").
  * Each publish already fail-logs; this isolates per-message failures.
  * Call only after the creating transaction has committed.
+ * Exclude control recipients only when the caller sends their collection refresh separately.
  */
 export async function publishChatRoomMembershipStatusMessagesBestEffort(
   messages: readonly ChatRoomMessageWithInclude[],
-  logContext = "chat membership status",
+  {
+    logContext = "chat membership status",
+    separatelyNotifiedUserIds = [],
+  }: MembershipStatusPublishOptions = {},
 ): Promise<void> {
   if (messages.length === 0) {
     return;
@@ -125,8 +134,8 @@ export async function publishChatRoomMembershipStatusMessagesBestEffort(
     messages.map(async (message) => {
       await Promise.all([
         invalidateChatRoomMessageReaders({
+          excludedUserIds: separatelyNotifiedUserIds,
           roomId: message.roomId,
-          authorUserId: message.senderUserId,
         }),
         publishChatRoomMessageRealtime(message, "create"),
       ]);
