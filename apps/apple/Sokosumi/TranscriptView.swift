@@ -374,6 +374,7 @@ import SwiftUI
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
     @State private var isHovered = false
+    @State private var isReplyHovered = false
     @FocusState private var replyFocused: Bool
 
     var body: some View {
@@ -446,13 +447,25 @@ import SwiftUI
         if let onReply {
           Button(action: onReply) {
             Label("Reply", systemImage: "bubble.right")
+              .padding(.horizontal, 10)
+              .padding(.vertical, 6)
+              .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
+                          in: .rect(cornerRadius: 8))
+              .contentShape(.rect(cornerRadius: 8))
           }
           .buttonStyle(.borderless)
           .font(.callout)
-          .padding(.horizontal, 10)
-          .padding(.vertical, 6)
           .background(.regularMaterial, in: .rect(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
+          .onContinuousHover { phase in
+            let hovering = switch phase {
+            case .active: true
+            case .ended: false
+            }
+            if isReplyHovered != hovering {
+              isReplyHovered = hovering
+            }
+          }
           .focused($replyFocused)
           .help("Reply in thread")
           .accessibilityLabel("Reply in thread")
