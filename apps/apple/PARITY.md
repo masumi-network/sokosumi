@@ -319,3 +319,8 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Every message now has 4pt vertical padding inside its full-width hover background. The 8pt sender-group gap sits outside that background. Continuation rows retain the avatar column width without imposing an avatar-height minimum.
 - Reply counts now live in the message text column and inside the same hover region. The Reply toolbar uses compact vertical padding to fit continuation rows.
 - Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/message-spacing-build.log`, `/tmp/message-spacing-lint.log`). Native hover appearance remains a manual verification step.
+
+### Slice 08 Reply boundary alignment (2026-09-10)
+
+- Centered Reply vertically on the message highlight top edge using its measured alignment guide, so half sits above the highlight. Uses a compact caption label with a larger outlined text-bubble SF Symbol to follow the supplied Slack reference. Hovering the raised CTA keeps its message highlight and action visible.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/reply-boundary-build.log`, `/tmp/reply-boundary-lint.log`). Native pointer and visual confirmation remain manual.

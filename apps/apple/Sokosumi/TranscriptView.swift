@@ -442,19 +442,23 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background(isHovered && onReply != nil ? Color.primary.opacity(0.04) : .clear)
+      .background((isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
         if let onReply {
           Button(action: onReply) {
-            Label("Reply", systemImage: "bubble.right")
-              .padding(.horizontal, 10)
-              .padding(.vertical, 4)
-              .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
-                          in: .rect(cornerRadius: 8))
-              .contentShape(.rect(cornerRadius: 8))
+            HStack(spacing: 4) {
+              Image(systemName: "text.bubble")
+                .font(.body)
+              Text("Reply")
+                .font(.caption)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
+                        in: .rect(cornerRadius: 8))
+            .contentShape(.rect(cornerRadius: 8))
           }
           .buttonStyle(.borderless)
-          .font(.callout)
           .background(.regularMaterial, in: .rect(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
           .onContinuousHover { phase in
@@ -469,9 +473,11 @@ import SwiftUI
           .focused($replyFocused)
           .help("Reply in thread")
           .accessibilityLabel("Reply in thread")
-          .opacity(isHovered || replyFocused ? 1 : 0)
-          .allowsHitTesting(isHovered || replyFocused)
+          .opacity(isHovered || isReplyHovered || replyFocused ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || replyFocused)
           .padding(.trailing, horizontalInset)
+          // Center the action across the row boundary, including at larger text sizes.
+          .alignmentGuide(.top) { dimensions in dimensions[VerticalAlignment.center] }
         }
       }
       // Track the complete row, including its action overlay. The toolbar
