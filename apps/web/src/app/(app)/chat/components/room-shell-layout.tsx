@@ -94,6 +94,8 @@ export function RoomShellLayout({
       <div ref={listScrollerRef} className={ROOM_SHELL_SCROLLER_CLASSNAME}>
         <div
           ref={listContentRef}
+          // Scopes the jump-highlight spotlight in globals.css to this list.
+          data-chat-message-list
           className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}
           style={listContentStyle}
         >

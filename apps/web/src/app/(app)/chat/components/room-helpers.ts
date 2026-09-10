@@ -399,11 +399,27 @@ export function scrollToRoomMessageElement(
   return true;
 }
 
+/** Keep in sync with --chat-jump-hold in globals.css. */
 const ROOM_MESSAGE_HIGHLIGHT_MS = 2500;
 
 /**
+ * One mark at a time. Two jumps inside the hold would otherwise leave the first
+ * row marked for good, and the second row's timer would clear it early.
+ */
+let activeHighlight: { element: HTMLElement; timer: number } | null = null;
+
+function clearActiveHighlight() {
+  if (activeHighlight == null) {
+    return;
+  }
+  window.clearTimeout(activeHighlight.timer);
+  delete activeHighlight.element.dataset.searchLanded;
+  activeHighlight = null;
+}
+
+/**
  * Scroll into view and mark the row as landed for a moment when the node
- * exists. The row styles the mark itself, off `data-search-landed`, so a
+ * exists. The mark is styled from `data-search-landed` in globals.css, so a
  * React re-render inside that moment cannot wipe it, as it would a class
  * added here.
  */
@@ -417,10 +433,12 @@ export function highlightRoomMessageElement(messageId: string): boolean {
   if (!target) {
     return false;
   }
+  clearActiveHighlight();
   target.dataset.searchLanded = "true";
-  window.setTimeout(() => {
-    delete target.dataset.searchLanded;
-  }, ROOM_MESSAGE_HIGHLIGHT_MS);
+  activeHighlight = {
+    element: target,
+    timer: window.setTimeout(clearActiveHighlight, ROOM_MESSAGE_HIGHLIGHT_MS),
+  };
   return true;
 }
 
