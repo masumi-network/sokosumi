@@ -380,3 +380,10 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Composer sends are locked while the Direct stream is busy; stream overlays do not offer Reply. Transcript shows stream errors, a thinking indicator, and a reasoning disclosure. This is initial presentation; exact thought timing/live-beat/persisted reasoning parity still needs verification and completion.
 - Added an app test for stream routing, concurrent-send rejection, realtime echo suppression and persisted settlement. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` and strict SwiftLint passed (`/tmp/slice09-app-tests2.log`, `/tmp/slice09-ui-lint.log`).
 - Remaining before PR: complete thought presentation against web, review resume/error/realtime edge cases, finish feature verification and native visual inspection where possible. No new API/dependency and no web edits.
+
+### Slice 09a thought and error parity checkpoint (2026-09-10)
+
+- Replaced the separate spinner/disclosure with a native expandable Thinking header and live elapsed timer, then a Thought disclosure after answer text. Persisted Core reasoning and `thought_timing_ms` now survive overlay settlement, with the same reasoning-only allowlist and seconds/minutes labels as web. Numeric-string and integer timestamps are covered by tests.
+- Verified the installed AI SDK `src/ui/chat.ts`: its finish callback also runs after an active-stream error. Native now refreshes persisted history on that path too, retaining partial overlays only if refresh fails; the error remains visible.
+- All 165 chat tests passed, strict lint/format passed, and Xcode app tests passed (`/tmp/slice09-thought-tests.log`, `/tmp/slice09-thought-lint.log`, `/tmp/slice09-thought-format.log`, `/tmp/slice09-thought-app-final2.log`).
+- Remaining: final review of resume/realtime coordination, native visual inspection, final package checks, and one draft PR. An unrelated local Xcode project entry reorder appeared during this turn; it is left uncommitted, outside this feature's staged files.

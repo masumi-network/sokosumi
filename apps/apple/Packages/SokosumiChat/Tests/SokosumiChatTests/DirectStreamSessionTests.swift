@@ -91,20 +91,24 @@ struct DirectStreamSessionTests {
     #expect(session.errorMessage == nil)
   }
 
-  @Test func truncatedStreamKeepsPartialTextAndReportsFailure() async throws {
+  @Test(arguments: [false, true])
+  func truncatedStreamReconcilesHistoryAndReportsFailure(refreshed: Bool) async throws {
     let session = DirectStreamSession()
     session.reset(room: room())
     let stream = completedStream.components(separatedBy: "data: {\"type\":\"finish\"}")[0]
     let client = try makeTestClient(TestTransport([(200, stream)]))
     var failures = 0
     #expect(session.send("Hello", client: client, organizationSlug: nil, settled: {
-      Issue.record("Incomplete stream must not be treated as successful")
-      return true
+      // Web also reconciles after a stream error; failed refresh keeps the partial answer.
+      refreshed
     }, failed: { _ in failures += 1 }))
     await session.task?.value
     #expect(failures == 1)
     #expect(session.errorMessage != nil)
-    #expect(session.overlayMessages.last?.content == "Answer")
+    #expect(session.overlayMessages.isEmpty == refreshed)
+    if !refreshed {
+      #expect(session.overlayMessages.last?.content == "Answer")
+    }
     #expect(!session.isBusy)
   }
 

@@ -140,17 +140,23 @@ public final class DirectStreamSession: ObservableObject {
         guard response.finished else {
           throw ChatServiceError.unexpectedResponse("The coworker response ended unexpectedly.")
         }
-        phase = .settling
-        let refreshed = await settled()
-        guard generation == token, !Task.isCancelled else { return }
-        if refreshed {
-          clearOverlay()
-        }
+        await reconcile(token: token, settled: settled)
       } catch {
         guard generation == token, !Task.isCancelled else { return }
         errorMessage = friendlyMessage(for: error)
         failed(error)
+        await reconcile(token: token, settled: settled)
       }
+    }
+  }
+
+  private func reconcile(token: UUID, settled: () async -> Bool) async {
+    guard hasResponse, generation == token, !Task.isCancelled else { return }
+    phase = .settling
+    let refreshed = await settled()
+    guard generation == token, !Task.isCancelled else { return }
+    if refreshed {
+      clearOverlay()
     }
   }
 

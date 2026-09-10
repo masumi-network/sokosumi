@@ -127,7 +127,7 @@ import SwiftUI
                     onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
                     horizontalInset: 12,
                     streamReasoning: message.id.hasPrefix("stream:") && isCoworkerMessage(message) ? workspaces.directStream.reasoning : nil,
-                    streamThinking: message.id.hasPrefix("stream:") && isCoworkerMessage(message) && message.content.isEmpty && workspaces.directStream.isBusy
+                    streamThinking: message.id.hasPrefix("stream:") && isCoworkerMessage(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy
                   )
                 }
               }
@@ -408,18 +408,9 @@ import SwiftUI
               }
             }
           }
-          if let streamReasoning, !streamReasoning.isEmpty {
-            DisclosureGroup("Thought") {
-              Text(streamReasoning).textSelection(.enabled)
-            }
-            .font(.callout)
-            .foregroundStyle(.secondary)
-          }
-          if streamThinking {
-            HStack {
-              ProgressView().controlSize(.small)
-              Text("Thinking…").foregroundStyle(.secondary)
-            }
+          if isCoworkerMessage(message), message.deletedAt == nil {
+            CoworkerThoughtView(thought: CoworkerThought(message: message, streamedText: streamReasoning),
+                                working: streamThinking, startedAt: message.createdAt)
           }
           if message.deletedAt != nil {
             Text("This message was deleted")
