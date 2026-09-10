@@ -10,8 +10,10 @@ import TreeSitterCSharp
 import TreeSitterCSharpQueries
 import TreeSitterCSS
 import TreeSitterCSSQueries
+import TreeSitterDiff
 import TreeSitterGo
 import TreeSitterGoQueries
+import TreeSitterIni
 import TreeSitterJava
 import TreeSitterJavaQueries
 import TreeSitterJavaScript
@@ -21,8 +23,10 @@ import TreeSitterJSONQueries
 import TreeSitterKotlin
 import TreeSitterLua
 import TreeSitterLuaQueries
+import TreeSitterMake
 import TreeSitterMarkdown
 import TreeSitterMarkdownQueries
+import TreeSitterObjc
 import TreeSitterPerl
 import TreeSitterPerlQueries
 import TreeSitterPHP
@@ -43,6 +47,7 @@ import TreeSitterSwift
 import TreeSitterSwiftQueries
 import TreeSitterTypeScript
 import TreeSitterTypeScriptQueries
+import TreeSitterXML
 import TreeSitterYAML
 import TreeSitterYAMLQueries
 
@@ -54,7 +59,7 @@ public struct SyntaxCapture: Equatable, Sendable {
 }
 
 public enum SyntaxLanguage: String, Sendable {
-  case swift, json, kotlin
+  case swift, json, kotlin, objectivec, xml, makefile, diff, ini
   // Standard language names match fenced-code identifiers.
   // swiftlint:disable:next identifier_name
   case bash, c, cpp, csharp, css, go, java, javascript, lua, markdown, perl, php, python, r, ruby, rust, scss, sql, typescript, yaml
@@ -66,6 +71,11 @@ public enum SyntaxLanguage: String, Sendable {
 
   fileprivate var pointer: OpaquePointer {
     switch self {
+    case .objectivec: tree_sitter_objc()
+    case .xml: tree_sitter_xml()
+    case .makefile: tree_sitter_make()
+    case .diff: tree_sitter_diff()
+    case .ini: tree_sitter_ini()
     case .bash: tree_sitter_bash()
     case .c: tree_sitter_c()
     case .cpp: tree_sitter_cpp()
@@ -116,7 +126,8 @@ public enum SyntaxLanguage: String, Sendable {
     case .yaml: [TreeSitterYAMLQueries.Query.highlightsFileURL]
     case .swift: [TreeSitterSwiftQueries.Query.highlightsFileURL]
     case .json: [TreeSitterJSONQueries.Query.highlightsFileURL]
-    case .kotlin: []
+    case .kotlin, .xml, .makefile, .diff, .ini: []
+    case .objectivec: [TreeSitterCQueries.Query.highlightsFileURL]
     }
   }
 }
@@ -146,6 +157,20 @@ public enum NativeSyntaxHighlighter {
     if language == .scss {
       source = source.replacingOccurrences(of: "(match? ", with: "(#match? ")
       source += "\n[(variable_name) (variable_value)] @variable"
+    }
+    let resourceName: String? = switch language {
+    case .objectivec: "objc"
+    case .xml: "xml"
+    case .makefile: "make"
+    case .diff: "diff"
+    case .ini: "ini"
+    default: nil
+    }
+    if let resourceName {
+      guard let url = Bundle.module.url(forResource: resourceName, withExtension: "scm", subdirectory: "HighlightQueries") else {
+        throw CocoaError(.fileNoSuchFile)
+      }
+      try source += "\n" + String(contentsOf: url, encoding: .utf8)
     }
     return Data(source.utf8)
   }

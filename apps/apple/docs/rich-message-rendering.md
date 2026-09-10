@@ -186,3 +186,20 @@ Chat tests (196), Xcode app build/tests, iOS 17 compilation, SwiftFormat, and st
 Remaining work includes the other approved grammars, full aliases/detection,
 semantic coverage, native visual verification, and the rendering gaps above.
 This remains one incomplete rendering slice, with no feature PR yet.
+
+## Remaining approved grammar resources
+
+Objective-C, XML, Makefile, Diff, and INI now use the shared highlighter. Their
+C-only packages provide resource bundles but no public Swift resource accessor.
+Unmodified pinned queries and licenses are included in `Resources/HighlightQueries`
+and loaded through `Bundle.module`; the resource README records provenance.
+Objective-C composes the existing C query before its own. No new dependency
+version or API contract was introduced. Xcode regenerated its lockfile with the
+already-approved products now linked into the application.
+
+Verification: 197 Chat tests, iOS 17 compilation, Xcode app build/tests, and
+changed-file lint/format passed (`/tmp/apple-five-{suite,ios,app,lint,final-format}.log`).
+The app-host test loads all five resources, covering app bundle lookup separately
+from SwiftPM tests. Every copied query/license matches its pinned checkout exactly.
+There are now 28 integrated grammars; remaining registry gaps, aliases/detection,
+semantic fidelity, and other rendering requirements still block slice completion.

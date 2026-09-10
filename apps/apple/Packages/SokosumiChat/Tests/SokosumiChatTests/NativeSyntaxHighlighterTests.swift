@@ -30,6 +30,21 @@ struct NativeSyntaxHighlighterTests {
     }
   }
 
+  @Test func highlightsAdditionalUpstreamResources() throws {
+    let fixtures: [(SyntaxLanguage, String)] = [
+      (.objectivec, "@interface Example : NSObject\n@end\nint answer = 42;"),
+      (.xml, "<message greeting=\"hello\">👋</message>"),
+      (.makefile, "all: build\n\techo hello\n"),
+      (.diff, "--- old\n+++ new\n@@ -1 +1 @@\n-old\n+new\n"),
+      (.ini, "[settings]\nanswer = 42\n")
+    ]
+    for (language, source) in fixtures {
+      let captures = try NativeSyntaxHighlighter.captures(in: source, language: language)
+      #expect(!captures.isEmpty, "Missing captures for \(language)")
+      #expect(captures.allSatisfy { NSMaxRange($0.range) <= (source as NSString).length })
+    }
+  }
+
   @Test func highlightsSCSSVariables() throws {
     let source = "$color: red; body { color: $color; }"
     let captures = try NativeSyntaxHighlighter.captures(in: source, language: .scss)

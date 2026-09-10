@@ -87,11 +87,16 @@ let package = Package(
         .product(name: "TreeSitterJSON", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterJSONQueries", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterKotlin", package: "tree-sitter-kotlin"),
+        .product(name: "TreeSitterObjc", package: "tree-sitter-objc"),
+        .product(name: "TreeSitterXML", package: "tree-sitter-xml"),
+        .product(name: "TreeSitterMake", package: "tree-sitter-make"),
+        .product(name: "TreeSitterDiff", package: "tree-sitter-diff"),
+        .product(name: "TreeSitterIni", package: "tree-sitter-ini"),
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")
       ],
-      resources: [.copy("Resources/Emoji"), .copy("Resources/GrammarDependencies")]
+      resources: [.copy("Resources/Emoji"), .copy("Resources/GrammarDependencies"), .copy("Resources/HighlightQueries")]
     ),
     .testTarget(
       name: "SokosumiChatTests",

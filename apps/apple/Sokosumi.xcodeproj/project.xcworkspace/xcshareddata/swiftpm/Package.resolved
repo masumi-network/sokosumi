@@ -137,12 +137,57 @@
       }
     },
     {
+      "identity" : "tree-sitter-diff",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-diff",
+      "state" : {
+        "revision" : "ada384ac7bfc1307f32de474620120add29998fb",
+        "version" : "0.2.0"
+      }
+    },
+    {
+      "identity" : "tree-sitter-ini",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/justinmk/tree-sitter-ini",
+      "state" : {
+        "revision" : "f0285fe577ad298ad79f8633e643ad60646e3027",
+        "version" : "1.4.0"
+      }
+    },
+    {
       "identity" : "tree-sitter-kotlin",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tree-sitter-grammars/tree-sitter-kotlin",
       "state" : {
         "revision" : "77dd60ea0a9003ce062c9728a513ffe1aaff8c82",
         "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "tree-sitter-make",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-make",
+      "state" : {
+        "revision" : "5e9e8f8ff3387b0edcaa90f46ddf3629f4cfeb1d",
+        "version" : "1.1.1"
+      }
+    },
+    {
+      "identity" : "tree-sitter-objc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-objc",
+      "state" : {
+        "revision" : "18802acf31d0b5c1c1d50bdbc9eb0e1636cab9ed",
+        "version" : "3.0.2"
+      }
+    },
+    {
+      "identity" : "tree-sitter-xml",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-xml",
+      "state" : {
+        "revision" : "4b64dd3a03ec002258d6268d712fd93716d6ab57",
+        "version" : "0.7.0"
       }
     },
     {
