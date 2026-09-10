@@ -32,7 +32,7 @@
 - REPORTED: The sibling advisor recommends one canonical `apps/cli` source, non-secret home preferences, and OS-vault secrets. The recommendation cites `apps/cli/SPEC.md`, `apps/cli/src/auth/secure-store.ts`, and the sibling `src/utils/env.mjs`.
 - INFERRED: A standard-library `.env` parser is sufficient for the small set of CLI configuration keys and avoids adding a dependency for one file format.
 - VERIFIED: Packaged CLI cannot depend on local `apps/cli/.env`; hosted defaults are registered target IDs (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) and hosted auth derives from selected Core API URL + `/auth`.
-- REPORTED: User reports mainnet CLI OAuth succeeds; preprod browser sign-in reaches token exchange then CLI reports exactly `OAuth token request failed with status 500`; `pnpm install --frozen-lockfile` repaired workspace warning, but no post-install OAuth retry recorded, so dependency drift not fully excluded; SOK-1040 tracks standalone Core preprod OAuth token exchange HTTP 500, while SOK-949 (CLI OAuth) and SOK-948 (first-party OAuth client provisioning) remain In Review.
+- REPORTED: User reports mainnet CLI OAuth succeeds; preprod browser sign-in reaches token exchange then CLI reports exactly `OAuth token request failed with status 500`; `pnpm install --frozen-lockfile` rerun after final rebase passed and prior out-of-sync warning did not appear; no post-install OAuth retry recorded, so dependency drift not fully excluded; SOK-1040 tracks standalone Core preprod OAuth token exchange HTTP 500, while SOK-949 (CLI OAuth) and SOK-948 (first-party OAuth client provisioning) remain In Review.
 
 ## File Map
 
@@ -214,11 +214,11 @@ export function createHttpClient(options: HttpClientOptions): {
 ## Final Verification
 
 - [x] `pnpm --filter ./apps/cli test`
-- [x] Quote both package test globs; full CLI suite currently collects 100 tests, including all 12 nested command tests.
+- [x] Quote both package test globs; full CLI suite currently collects 102 tests, including all 12 nested command tests.
 - [x] `pnpm --filter ./apps/cli typecheck`
 - [x] `pnpm --filter ./apps/cli build`
 - [x] `pnpm check`
-- [x] `pnpm typecheck`
+- [ ] `pnpm typecheck` (fails only in unrelated `web#typecheck`; CLI typecheck passed).
 - [x] Run `node apps/cli/dist/bin/sokosumi.js --help` and `node apps/cli/dist/bin/sokosumi.js auth status --json`.
 - [x] PTY smoke with a local fixture API: API-key selector, signed-in Agents list, Agent detail, Esc back, and q exit.
 - [x] Confirm no CLI source imports `@sokosumi/database` or writes secrets to `~/.sokosumi/config.json`.
