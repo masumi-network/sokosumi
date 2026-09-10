@@ -1080,6 +1080,30 @@ describe("core auth config", () => {
     });
   });
 
+  it("passes the API key rate limit window to the plugin in milliseconds", async () => {
+    await import("./auth");
+
+    const [[apiKeyConfig]] = apiKeyPluginMock.mock.calls as Array<
+      [
+        {
+          rateLimit: {
+            enabled: boolean;
+            timeWindow: number;
+            maxRequests: number;
+          };
+        },
+      ]
+    >;
+
+    // The plugin counts requests per timeWindow in milliseconds, while
+    // TIME.RATE_LIMIT_WINDOW is a seconds value: 100 requests per 60 s.
+    expect(apiKeyConfig.rateLimit).toEqual({
+      enabled: true,
+      timeWindow: 60_000,
+      maxRequests: 100,
+    });
+  });
+
   it("uses explicit Sokosumi app trustedOrigins in production", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
