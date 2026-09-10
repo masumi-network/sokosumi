@@ -47,6 +47,10 @@ vi.mock("@/app/components/notification-toast-listener", () => ({
   NotificationToastListener: () => null,
 }));
 
+vi.mock("@/app/components/notification-url-target-opener", () => ({
+  NotificationUrlTargetOpener: () => null,
+}));
+
 function notification(id: string): NotificationItem {
   return {
     id,

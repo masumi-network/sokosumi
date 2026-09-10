@@ -1,5 +1,5 @@
 {
-  "originHash" : "f5cb8d2389b084ec8365b1a211766fb6975023bea203b0430dd61fbf43cf0125",
+  "originHash" : "7a27903052bcb08025a8abcd2a4a72bc7b3f8066212f6232e9c2d59be26b7af4",
   "pins" : [
     {
       "identity" : "openapikit",
@@ -161,6 +161,14 @@
       "state" : {
         "revision" : "77dd60ea0a9003ce062c9728a513ffe1aaff8c82",
         "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "tree-sitter-less",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mdovale/tree-sitter-less",
+      "state" : {
+        "revision" : "02988c765d30adb0476657b5d220e8dfde1c07d3"
       }
     },
     {

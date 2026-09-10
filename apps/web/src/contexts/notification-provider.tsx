@@ -11,6 +11,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
+import { NotificationUrlTargetOpener } from "@/app/components/notification-url-target-opener";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably";
@@ -539,6 +540,10 @@ export function NotificationProvider({
   return (
     <NotificationContext value={value}>
       {children}
+      {/* Outside the lazy provider: a window the push worker opened carries
+          its target on the URL, and spending that must not wait on the Ably
+          chunk or on a client that will not start. */}
+      <NotificationUrlTargetOpener markRead={markRead} />
       <LazyAblyProvider>
         <ChannelProvider
           channelName={makeCurrentUserNotificationsChannelName(userId)}
