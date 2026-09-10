@@ -34,6 +34,7 @@ function getInitialRoomsFromSessionSnapshot(): ChatRoom[] {
 
 interface UseChatTabUnreadPresenceResult {
   showUnreadDot: boolean;
+  unreadRoomCount: number;
 }
 
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
@@ -47,8 +48,10 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
     getInitialRoomsFromSessionSnapshot,
   );
 
-  const showUnreadDot =
-    countChatRoomsWithUnreadAttention(rooms, { activeRoomId }) > 0;
+  const unreadRoomCount = countChatRoomsWithUnreadAttention(rooms, {
+    activeRoomId,
+  });
+  const showUnreadDot = unreadRoomCount > 0;
 
   const scope = currentUserId
     ? `${organizationId ?? ""}:${currentUserId}`
@@ -181,5 +184,5 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
     };
   }, [requestRefresh]);
 
-  return { showUnreadDot };
+  return { showUnreadDot, unreadRoomCount };
 }
