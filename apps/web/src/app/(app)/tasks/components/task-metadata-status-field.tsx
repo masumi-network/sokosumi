@@ -24,8 +24,6 @@ import { getTaskStatusPillTone } from "./task-status-badge";
 
 export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
-  queuedRequiresSchedule?: string;
-  queuedRequiresAgentAssignee?: string;
   reopenToReadyTitle: string;
   reopenToReadyDescription: string;
   reopenToReadyCommentLabel: string;
@@ -52,22 +50,6 @@ function canSelectQueued(options: {
   return options.hasSchedule && options.isAgentAssignee;
 }
 
-function queuedBlockedHint(
-  options: { hasSchedule: boolean; isAgentAssignee: boolean },
-  labels: Pick<
-    TaskMetadataStatusFieldLabels,
-    "queuedRequiresSchedule" | "queuedRequiresAgentAssignee"
-  >,
-): string | undefined {
-  if (canSelectQueued(options)) {
-    return undefined;
-  }
-  if (!options.hasSchedule) {
-    return labels.queuedRequiresSchedule;
-  }
-  return labels.queuedRequiresAgentAssignee;
-}
-
 export function TaskMetadataStatusField({
   taskId,
   status,
@@ -83,10 +65,6 @@ export function TaskMetadataStatusField({
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
   const isQueuedSelectable = canSelectQueued({ hasSchedule, isAgentAssignee });
-  const queuedBlockedMessage = queuedBlockedHint(
-    { hasSchedule, isAgentAssignee },
-    labels,
-  );
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
     const previousStatus = currentStatus;
@@ -190,11 +168,6 @@ export function TaskMetadataStatusField({
           ))}
         </SelectContent>
       </Select>
-      {queuedBlockedMessage ? (
-        <p className="text-muted-foreground mt-1 text-right text-xs">
-          {queuedBlockedMessage}
-        </p>
-      ) : null}
 
       <TaskReopenToReadyDialog
         open={isReopenDialogOpen}

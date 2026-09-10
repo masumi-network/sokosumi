@@ -133,8 +133,6 @@ export interface TaskFormLabels {
   statusQueued?: string;
   statusReady: string;
   statusLabels?: Record<TaskStatus, string>;
-  queuedRequiresSchedule?: string;
-  queuedRequiresAgentAssignee?: string;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -213,22 +211,6 @@ function resolveCelebrationStatus(options: {
     return options.isAgent ? "QUEUED" : "READY";
   }
   return "READY";
-}
-
-function queuedBlockedHint(
-  options: { isAgent: boolean; hasSchedule: boolean },
-  labels: Pick<
-    TaskFormLabels,
-    "queuedRequiresSchedule" | "queuedRequiresAgentAssignee"
-  >,
-): string | undefined {
-  if (canSelectQueued(options)) {
-    return undefined;
-  }
-  if (!options.hasSchedule) {
-    return labels.queuedRequiresSchedule;
-  }
-  return labels.queuedRequiresAgentAssignee;
 }
 
 function getTaskFormStatusLabel(
@@ -938,10 +920,6 @@ export function TaskForm({
     isAgent: isAgentAssignee,
     hasSchedule,
   });
-  const queuedBlockedMessage = queuedBlockedHint(
-    { isAgent: isAgentAssignee, hasSchedule },
-    labels,
-  );
   const isSchedulableAssignee =
     isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
   // Queued work must stay agent-assigned: Core rejects reassignment away
@@ -1318,11 +1296,7 @@ export function TaskForm({
                     ))}
                   </SelectContent>
                 </Select>
-                {queuedBlockedMessage ? (
-                  <p className="text-muted-foreground text-xs">
-                    {queuedBlockedMessage}
-                  </p>
-                ) : labels.statusDescription ? (
+                {labels.statusDescription ? (
                   <p className="text-muted-foreground text-xs">
                     {labels.statusDescription}
                   </p>

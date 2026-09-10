@@ -293,9 +293,6 @@ const baseLabels = {
   statusDraft: "Draft",
   statusQueued: "Queued",
   statusReady: "Ready",
-  queuedRequiresSchedule: "Set a schedule before choosing Queued.",
-  queuedRequiresAgentAssignee:
-    "Queued is only available for scheduled agent work.",
   statusLabels: Object.fromEntries(
     TASK_STATUS_DISPLAY_ORDER.map((status) => [
       status,
@@ -714,7 +711,7 @@ describe("TaskForm", () => {
     ).not.toHaveTextContent("Queued");
   });
 
-  it("disables Queued without a schedule and shows messaging (SOK-1033)", async () => {
+  it("disables Queued without a schedule (SOK-1033)", async () => {
     const user = userEvent.setup();
 
     render(
@@ -729,10 +726,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Set a schedule before choosing Queued."),
-    ).toBeInTheDocument();
-
     await user.click(screen.getByRole("combobox", { name: "Status" }));
     const queuedOption = screen.getByRole("option", { name: "Queued" });
     expect(queuedOption).toHaveAttribute("data-disabled");
@@ -740,10 +733,6 @@ describe("TaskForm", () => {
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
-
-    expect(
-      screen.queryByText("Set a schedule before choosing Queued."),
-    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "Status" }));
     expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
@@ -776,10 +765,6 @@ describe("TaskForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
-
-    expect(
-      screen.getByText("Queued is only available for scheduled agent work."),
-    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "Status" }));
     expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
@@ -840,9 +825,6 @@ describe("TaskForm", () => {
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
       "Draft",
     );
-    expect(
-      screen.getByText("Set a schedule before choosing Queued."),
-    ).toBeInTheDocument();
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));

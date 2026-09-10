@@ -501,8 +501,6 @@ async function TaskMetadataSection({
       }}
       statusFieldLabels={{
         statusLabels,
-        queuedRequiresSchedule: t("actions.queuedRequiresSchedule"),
-        queuedRequiresAgentAssignee: t("actions.queuedRequiresAgentAssignee"),
         reopenToReadyTitle: t("actions.reopenToReadyTitle"),
         reopenToReadyDescription: t("actions.reopenToReadyDescription"),
         reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),

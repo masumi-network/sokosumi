@@ -118,8 +118,6 @@ export default async function TaskEditModalPage({
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
         statusReady: tEdit("statusReady"),
-        queuedRequiresSchedule: tEdit("queuedRequiresSchedule"),
-        queuedRequiresAgentAssignee: tEdit("queuedRequiresAgentAssignee"),
         statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
         back: tEdit("back"),
         uploadFile: tEdit("uploadFile"),
