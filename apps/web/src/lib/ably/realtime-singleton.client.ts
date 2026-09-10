@@ -23,16 +23,18 @@ function setGlobalAblyRealtimeClient(client: Ably.Realtime): void {
   globalThis.__sokosumiAblyRealtimeClient = client;
 }
 
-function clearSharedAblyRealtimeClient(client: Ably.Realtime): void {
-  if (getGlobalAblyRealtimeClient() === client) {
-    globalThis.__sokosumiAblyRealtimeClient = undefined;
-  }
-  client.close();
-}
-
+/**
+ * Never close the client here.
+ *
+ * A 401 from `/api/ably/auth` used to mean "the session is gone", so this
+ * closed the shared client. `close()` is terminal and nothing re-creates the
+ * instance the mounted provider holds, so chat notifications stayed dead until
+ * a full page reload. The 401 was often not a logout at all: a Core session
+ * read that timed out was reported as one. Hand every failure back to ably-js
+ * instead and let it retry — a real logout ends the session on its own.
+ */
 function createAblyAuthCallback(
   clientInstanceId: string,
-  onSessionLost: () => void,
 ): NonNullable<Ably.AuthOptions["authCallback"]> {
   return (_tokenParams, callback) => {
     void fetchAblyBrowserAuthTokenRequest(clientInstanceId).then(
@@ -40,11 +42,10 @@ function createAblyAuthCallback(
         callback(null, tokenRequest);
       },
       (error: unknown) => {
-        if (error instanceof AblyBrowserAuthError && error.status === 401) {
-          onSessionLost();
-        } else {
-          console.error("Ably auth request failed", error);
-        }
+        console.error("Ably auth request failed", {
+          status: error instanceof AblyBrowserAuthError ? error.status : null,
+          error,
+        });
         const message = error instanceof Error ? error.message : String(error);
         callback(message, null);
       },
@@ -60,9 +61,7 @@ export function getAblyRealtimeClient(): Ably.Realtime {
 
   const clientInstanceId = getOrCreateAblyClientInstanceId();
   const realtimeClient = new Ably.Realtime({
-    authCallback: createAblyAuthCallback(clientInstanceId, () => {
-      clearSharedAblyRealtimeClient(realtimeClient);
-    }),
+    authCallback: createAblyAuthCallback(clientInstanceId),
     echoMessages: false,
     // Plugins are constructor-only in ably-js, so push rides the shared client
     // rather than a second one. Every route reaches this module through a

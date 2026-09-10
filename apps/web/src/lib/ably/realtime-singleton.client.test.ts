@@ -137,14 +137,14 @@ describe("getAblyRealtimeClient", () => {
     expect(options.authParams).toBeUndefined();
   });
 
-  it("clears the shared singleton when /api/ably/auth returns 401", async () => {
+  it("keeps the shared client when /api/ably/auth returns 401", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
       text: async () => '{"error":"Unauthorized"}',
     });
 
-    getAblyRealtimeClient();
+    const client = getAblyRealtimeClient();
     const authResult = await invokeAuthCallback();
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -156,9 +156,12 @@ describe("getAblyRealtimeClient", () => {
     );
     expect(authResult.token).toBeNull();
     expect(authResult.error).toEqual(expect.any(String));
-    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
-    expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
-    expect(consoleErrorMock).not.toHaveBeenCalled();
+    // close() is terminal and nothing re-creates the instance the mounted
+    // provider holds, so a 401 must stay retriable: Core reported timed-out
+    // session reads as 401 and that killed realtime until a page reload.
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+    expect(consoleErrorMock).toHaveBeenCalled();
   });
 
   it("does not clear the singleton when /api/ably/auth returns 502", async () => {
@@ -178,43 +181,20 @@ describe("getAblyRealtimeClient", () => {
     expect(consoleErrorMock).toHaveBeenCalled();
   });
 
-  it("does not let a retired client's late 401 close its replacement", async () => {
-    let rejectOldAuth: ((value: Response) => void) | undefined;
-    fetchMock.mockImplementationOnce(
-      () =>
-        new Promise<Response>((resolve) => {
-          rejectOldAuth = resolve;
-        }),
-    );
-    getAblyRealtimeClient();
-    const oldAuth = invokeAuthCallback();
-
-    fetchMock.mockResolvedValueOnce(
-      new Response("Unauthorized", { status: 401 }),
-    );
-    await invokeAuthCallback();
-    const replacement = getAblyRealtimeClient();
-    const replacementClose = RealtimeMock.mock.instances[1]?.close;
-    rejectOldAuth?.(new Response("Unauthorized", { status: 401 }));
-    await oldAuth;
-
-    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
-    expect(replacementClose).not.toHaveBeenCalled();
-  });
-
-  it("recreates a client after a 401 so a later remount can reconnect", async () => {
+  it("reuses the same client after a 401 instead of building a second one", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
       text: async () => '{"error":"Unauthorized"}',
     });
 
-    getAblyRealtimeClient();
+    const client = getAblyRealtimeClient();
     await invokeAuthCallback();
     RealtimeMock.mockClear();
 
-    const nextClient = getAblyRealtimeClient();
-    expect(RealtimeMock).toHaveBeenCalledTimes(1);
-    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(nextClient);
+    // A second client would hold its own socket outside the React tree, where
+    // no hook attaches channels to it.
+    expect(getAblyRealtimeClient()).toBe(client);
+    expect(RealtimeMock).not.toHaveBeenCalled();
   });
 });
