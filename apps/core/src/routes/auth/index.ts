@@ -8,6 +8,7 @@ import { cors } from "hono/cors";
 import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
+import { withClientSecretPostShim } from "@/routes/auth/oauth2-token-secret-shim.js";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 
 const oauthAuthServerMetadataHandler = oauthProviderAuthServerMetadata(auth);
@@ -40,9 +41,11 @@ app.get("/.well-known/openid-configuration", (c) =>
   oauthOpenIdConfigHandler(c.req.raw),
 );
 
-// Mount Auth routes
-app.on(["POST", "GET"], "*", (c) => {
-  return auth.handler(c.req.raw);
+// Mount Auth routes. The token-endpoint shim (temporary) rewrites
+// client_secret_post requests into the client_secret_basic form Better Auth
+// requires — see oauth2-token-secret-shim.ts.
+app.on(["POST", "GET"], "*", async (c) => {
+  return auth.handler(await withClientSecretPostShim(c.req.raw));
 });
 
 export default app;
