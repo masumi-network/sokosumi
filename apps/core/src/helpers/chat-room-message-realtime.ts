@@ -109,6 +109,11 @@ export async function publishChatRoomMessageRealtimeById(
   }
 }
 
+interface MembershipStatusPublishOptions {
+  logContext?: string;
+  separatelyNotifiedUserIds?: readonly string[];
+}
+
 /**
  * After commit: fan out membership status timeline messages (e.g. "X left").
  * Each publish already fail-logs; this isolates per-message failures.
@@ -117,8 +122,10 @@ export async function publishChatRoomMessageRealtimeById(
  */
 export async function publishChatRoomMembershipStatusMessagesBestEffort(
   messages: readonly ChatRoomMessageWithInclude[],
-  logContext = "chat membership status",
-  separatelyNotifiedUserIds: readonly string[] = [],
+  {
+    logContext = "chat membership status",
+    separatelyNotifiedUserIds = [],
+  }: MembershipStatusPublishOptions = {},
 ): Promise<void> {
   if (messages.length === 0) {
     return;

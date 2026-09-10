@@ -148,10 +148,9 @@ describe("POST /users/{id}/coworker-access/{accessId}/revoke", () => {
       },
       {},
     );
-    expect(publishMembershipStatusMock).toHaveBeenCalledWith(
-      statusMessages,
-      "chat membership status after coworker access revoke",
-    );
+    expect(publishMembershipStatusMock).toHaveBeenCalledWith(statusMessages, {
+      logContext: "chat membership status after coworker access revoke",
+    });
   });
 
   it("rejects coworker context with 403", async () => {

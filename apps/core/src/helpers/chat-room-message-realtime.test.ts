@@ -104,14 +104,12 @@ describe("publishChatRoomMessageRealtime", () => {
     vi.mocked(publishChatRoomsChanged).mockClear();
     await publishChatRoomMembershipStatusMessagesBestEffort(
       [baseMessage as never],
-      "chat invitation acceptance",
-      ["user_b"],
+      {
+        logContext: "chat invitation acceptance",
+        separatelyNotifiedUserIds: ["user_b"],
+      },
     );
-    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: [],
-      roomId: baseMessage.roomId,
-      collections: ["active"],
-    });
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledOnce();
   });
 
@@ -123,8 +121,10 @@ describe("publishChatRoomMessageRealtime", () => {
     ]);
     await publishChatRoomMembershipStatusMessagesBestEffort(
       [{ ...baseMessage, senderUserId: null } as never],
-      "chat invitation acceptance",
-      ["user_guest"],
+      {
+        logContext: "chat invitation acceptance",
+        separatelyNotifiedUserIds: ["user_guest"],
+      },
     );
     expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
       userIds: ["user_other"],

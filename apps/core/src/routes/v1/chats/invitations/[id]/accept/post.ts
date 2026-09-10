@@ -271,11 +271,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     );
 
-    await publishChatRoomMembershipStatusMessagesBestEffort(
-      statusMessages,
-      "chat invitation acceptance",
-      [userContext.userId],
-    );
+    await publishChatRoomMembershipStatusMessagesBestEffort(statusMessages, {
+      logContext: "chat invitation acceptance",
+      separatelyNotifiedUserIds: [userContext.userId],
+    });
     // The acceptor's other tabs gain the room and lose the pending row.
     await publishChatRoomsChanged({
       userIds: [userContext.userId],

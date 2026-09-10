@@ -117,10 +117,12 @@ export async function invalidateChatRoomMessageReaders(
       ...new Set(memberUserIds.filter((id) => id !== params.authorUserId)),
     ];
     if (userIds.length === 0) return;
+    const recipients = userIds.filter(
+      (userId) => !params.excludedUserIds?.includes(userId),
+    );
+    if (recipients.length === 0) return;
     await publishChatRoomsChanged({
-      userIds: userIds.filter(
-        (userId) => !params.excludedUserIds?.includes(userId),
-      ),
+      userIds: recipients,
       collections: ["active"],
       roomId: params.roomId,
     });

@@ -552,6 +552,19 @@ describe("publishChatRoomsChanged", () => {
       }),
     ).resolves.toBeUndefined();
     expect(batchPublishMock).toHaveBeenCalledTimes(2);
+    expect(batchPublishMock).toHaveBeenNthCalledWith(2, {
+      channels: ["chat_control:user_100"],
+      messages: [
+        {
+          name: "chat_rooms_changed",
+          data: {
+            collections: ["active"],
+            roomId: null,
+            at: expect.any(String),
+          },
+        },
+      ],
+    });
     expect(log).toHaveBeenCalledTimes(1);
     log.mockRestore();
   });
