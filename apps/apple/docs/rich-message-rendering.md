@@ -6,7 +6,7 @@ Use swift-markdown's full document tree in the UI-free SokosumiChat package. It 
 
 SwiftUI views render the resulting blocks in room and thread messages, reusing MessageRow and streaming content. Foundation attributed strings remain useful for inline styling. Preserve soft line breaks, task lists, underline, native text selection and the existing app URL policy. SwiftTreeSitter provides native code highlighting.
 
-The parser products are test-only in this prerequisite; renderer integration follows its merge.
+PR #4374 merged the parser prerequisite. The renderer branch now links Markdown and SwiftSoup in SokosumiChat and bundles their license notices. Full slice verification remains incomplete; PARITY.md records the current evidence. Checkpoints below preserve earlier investigation results and are not the current implementation inventory.
 
 ## Approved native dependency direction
 
@@ -416,26 +416,26 @@ This supersedes the earlier offscreen limitation for this report's thread view.
 Native pointer text selection/copy, light-mode appearance, streaming layout and
 latest syntax-color verification remain open. No messages or drafts were sent.
 
-## Emoji data proposal (approval pending)
+## Approved emoji data and conversion
 
 The installed web pipeline is remark-emoji 5.0.2 → node-emoji 2.2.0 → emojilib
 2.4.0 for shortcodes, plus emoticon 4.1.0 for ASCII faces. Do not substitute the
 unrelated @lobehub/emojilib or the newer gemoji registry: those can differ from
 what web actually renders.
 
-Propose vendoring data-only JSON resources derived from emojilib 2.4.0's name/char
-map and emoticon 4.1.0's ordered emoji/emoticons records. A read-only extraction
+PR #4374 added approved data-only JSON resources derived from emojilib 2.4.0's name/char
+map and emoticon 4.1.0's ordered emoji/emoticons records. The extraction
 measured 1,570 names (33,788 compact UTF-8 bytes) and 29 emoticon groups containing
 322 spellings (2,889 compact UTF-8 bytes). Both installed sources include MIT
-licenses (Mu-An Chiou and Titus Wormer respectively). Preserve those notices and
-record upstream versions plus content hashes in the prerequisite PR. Neither
-resource nor an npm runtime dependency has been added. Explicit approval remains
-required for vendored third-party data.
+licenses (Mu-An Chiou and Titus Wormer respectively). Bundled notices preserve
+those licenses; [emoji-data.md](emoji-data.md) records versions and content hashes.
+Dependency tests verify both SHA-256 hashes. No npm runtime dependency is used.
 
 The native algorithm must match remark-emoji's two ordered replacement passes:
 shortcodes first, then emoticons, operating on Markdown text nodes rather than
 code, destinations or raw HTML. Shortcodes are case-sensitive; unknown names
-remain literal. Preserve the exact colon/token character rules and emoticon
+survive the shortcode pass but may contain matches for the subsequent emoticon
+pass. Preserve the exact colon/token character rules and emoticon
 boundary rules. For each emoticon match, web tries full match, dropping the last
 character, dropping the first, then dropping both, preserving unmatched boundary
 characters. Preserve record order, since first matching group wins. Padding and
@@ -444,8 +444,8 @@ accessible-wrapper options are disabled by the current web configuration.
 Acceptance examples include `:smile:` → 😄, `:+1:` → 👍 and `:-)` → 😃. Use the
 installed web pipeline to derive boundary/code/escaped/unknown fixtures and verify
 native output, including spaces and punctuation. Converted shortcodes do not
-retroactively trigger raw-message jumbo sizing. The forthcoming Markdown tree
-must preserve text-node boundaries for this pass; avoid applying replacement to
+retroactively trigger raw-message jumbo sizing. The integrated Markdown tree
+preserves text-node boundaries for this pass; avoid applying replacement to
 the raw message or to an entire flattened attributed paragraph.
 
 ## Remaining grammar packaging audit (2026-09-10)
