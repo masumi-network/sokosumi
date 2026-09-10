@@ -117,6 +117,15 @@ describe("isBareNetworkError", () => {
     ).toBe(true);
   });
 
+  it("returns false for unmatched quotes around Firefox NetworkError", () => {
+    expect(
+      isBareNetworkError('"NetworkError when attempting to fetch resource.'),
+    ).toBe(false);
+    expect(
+      isBareNetworkError('NetworkError when attempting to fetch resource."'),
+    ).toBe(false);
+  });
+
   it("returns false for unrelated errors", () => {
     expect(isBareNetworkError("TypeError: Failed to fetch")).toBe(false);
     expect(isBareNetworkError("NetworkError: connection refused")).toBe(false);

@@ -74,7 +74,7 @@ const bareNetworkErrorPattern = /^(?:TypeError: )?network error$/i;
  * ErrorInfo 40170 with quotes around the message (SOKOSUMI-S1).
  */
 const firefoxFetchNetworkErrorPattern =
-  /^(?:TypeError: )?"?NetworkError when attempting to fetch resource\."?$/;
+  /^(?:TypeError: )?("?)NetworkError when attempting to fetch resource\.\1$/;
 
 export const bareNetworkErrorIgnoreErrors: RegExp[] = [
   bareNetworkErrorPattern,
