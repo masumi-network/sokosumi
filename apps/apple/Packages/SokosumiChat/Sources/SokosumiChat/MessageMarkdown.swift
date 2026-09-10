@@ -164,7 +164,11 @@ private struct MarkdownBlockBuilder {
         result[run.range].inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(intent)
       }
     }
-    if let link = node as? Markdown.Link, let destination = link.destination,
+    let destination = (node as? Markdown.Link)?.destination ?? (node as? Markdown.Image)?.source
+    if node is Markdown.Image, result.characters.isEmpty, let destination {
+      result = AttributedString(destination)
+    }
+    if let destination,
        let url = URL(string: destination, relativeTo: baseURL)?.absoluteURL,
        url.scheme == nil || ["http", "https", "mailto", "irc", "ircs", "xmpp"].contains(url.scheme?.lowercased() ?? "") {
       result.link = url

@@ -3,6 +3,16 @@ import Foundation
 import Testing
 
 struct MessageMarkdownTests {
+  @Test func imageLabelsKeepSafeDestinationsUntilPreviewRendering() throws {
+    let baseURL = try #require(URL(string: "https://example.com"))
+    let result = MessageMarkdown("![Chart](/chart.png) ![Unsafe](javascript:alert) ![](/empty.png)", baseURL: baseURL)
+    let text = try #require(result.blocks.first?.text)
+    #expect(String(text.characters) == "Chart Unsafe /empty.png")
+    #expect(text.runs.compactMap(\.link).map(\.absoluteString) == [
+      "https://example.com/chart.png", "https://example.com/empty.png"
+    ])
+  }
+
   @Test func recognizesTasksWithoutChangingEscapedOrCodeMarkers() throws {
     let result = MessageMarkdown("- [x] Done\n- [ ] **Open**\n- \\[x] Literal\n- `[x]` Code\n- [X]\tUppercase\n- **[x] Bold literal**")
     let items = try #require(result.blocks.first?.children)
