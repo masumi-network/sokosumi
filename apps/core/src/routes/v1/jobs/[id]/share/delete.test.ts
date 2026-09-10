@@ -9,7 +9,7 @@ const {
   authContextState,
   prismaTransactionMock,
   deleteByJobIdMock,
-  requireJobCollaborationMock,
+  requireJobShareCollaborationMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -26,11 +26,11 @@ const {
   },
   prismaTransactionMock: vi.fn(),
   deleteByJobIdMock: vi.fn(),
-  requireJobCollaborationMock: vi.fn(),
+  requireJobShareCollaborationMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/access-control.js", () => ({
-  requireJobCollaboration: requireJobCollaborationMock,
+vi.mock("@/helpers/access-control.job-share.js", () => ({
+  requireJobShareCollaboration: requireJobShareCollaborationMock,
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -124,7 +124,7 @@ describe("DELETE /jobs/{id}/share", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
     );
-    requireJobCollaborationMock.mockResolvedValue({
+    requireJobShareCollaborationMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",
       taskId: null,
@@ -160,9 +160,28 @@ describe("DELETE /jobs/{id}/share", () => {
     expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the job is owned by another user", async () => {
-    requireJobCollaborationMock.mockRejectedValueOnce(
-      forbidden("You can only access your own jobs"),
+  it("revokes the share on another member's job in the same workspace", async () => {
+    requireJobShareCollaborationMock.mockResolvedValue({
+      id: "job_123",
+      userId: "other_member_456",
+      taskId: null,
+    });
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123/share", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(deleteByJobIdMock).toHaveBeenCalledWith(
+      "job_123",
+      expect.any(Object),
+    );
+  });
+
+  it("propagates a 403 from the access check", async () => {
+    requireJobShareCollaborationMock.mockRejectedValueOnce(
+      forbidden("Task is parked"),
     );
     const app = createApp();
 
@@ -175,8 +194,8 @@ describe("DELETE /jobs/{id}/share", () => {
   });
 
   it("returns 403 when the job does not exist (no existence leak)", async () => {
-    requireJobCollaborationMock.mockRejectedValueOnce(
-      forbidden("You can only access your own jobs"),
+    requireJobShareCollaborationMock.mockRejectedValueOnce(
+      forbidden("Job not found"),
     );
     const app = createApp();
 
