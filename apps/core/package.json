@@ -53,7 +53,6 @@
     "@sentry/node": "10.74.0",
     "@sentry/profiling-node": "10.74.0",
     "@sokosumi/ai-provider": "workspace:*",
-    "@sokosumi/chat": "workspace:*",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
