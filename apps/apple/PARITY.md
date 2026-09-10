@@ -373,3 +373,10 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Overlay reconciliation hides only the newest persisted user occurrence matching the active user turn; older repeated messages remain. Sender comes from the room member, as in the web hook.
 - All 162 chat tests passed, including lifecycle/settlement/eligibility/repeated-message tests; strict SwiftLint passed; shared package builds for iOS 17 (`/tmp/slice09-session-all-tests.log`, `/tmp/slice09-session-lint.log`, `/tmp/slice09-session-ios.log`).
 - Next: wire the session into WorkspaceState and the Direct composer/transcript, coordinate realtime refreshes, add thinking/reasoning presentation, then app tests and Xcode build. No PR yet; lifecycle code is not connected to the running app.
+
+### Slice 09a app integration checkpoint (2026-09-10)
+
+- WorkspaceState now owns/observes the shared stream session, resumes eligible Directs on open, cancels local consumption on clear/switch, sends through SSE instead of the classic outbox, and settles overlays through the existing latest-history refresh. Active streams suppress competing room full-event/envelope refreshes.
+- Composer sends are locked while the Direct stream is busy; stream overlays do not offer Reply. Transcript shows stream errors, a thinking indicator, and a reasoning disclosure. This is initial presentation; exact thought timing/live-beat/persisted reasoning parity still needs verification and completion.
+- Added an app test for stream routing, concurrent-send rejection, realtime echo suppression and persisted settlement. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` and strict SwiftLint passed (`/tmp/slice09-app-tests2.log`, `/tmp/slice09-ui-lint.log`).
+- Remaining before PR: complete thought presentation against web, review resume/error/realtime edge cases, finish feature verification and native visual inspection where possible. No new API/dependency and no web edits.

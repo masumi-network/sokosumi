@@ -96,6 +96,9 @@ import SwiftUI
               inlineError(error)
                 .padding(.horizontal, 12)
             }
+            if let error = workspaces.directStream.errorMessage {
+              inlineError(error).padding(.horizontal, 12)
+            }
             let messages = workspaces.displayedTranscript
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -121,8 +124,10 @@ import SwiftUI
                     onRemove: outbound.map { shell in
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                     },
-                    onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil,
-                    horizontalInset: 12
+                    onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                    horizontalInset: 12,
+                    streamReasoning: message.id.hasPrefix("stream:") && isCoworkerMessage(message) ? workspaces.directStream.reasoning : nil,
+                    streamThinking: message.id.hasPrefix("stream:") && isCoworkerMessage(message) && message.content.isEmpty && workspaces.directStream.isBusy
                   )
                 }
               }
@@ -248,6 +253,7 @@ import SwiftUI
 
     private var canSend: Bool {
       ComposerContent(draft).canSend
+        && (parentMessageId != nil || !workspaces.directStream.isBusy)
         && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
         && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
@@ -368,6 +374,8 @@ import SwiftUI
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
     var horizontalInset: CGFloat = 0
+    var streamReasoning: String?
+    var streamThinking = false
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
@@ -398,6 +406,19 @@ import SwiftUI
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
+            }
+          }
+          if let streamReasoning, !streamReasoning.isEmpty {
+            DisclosureGroup("Thought") {
+              Text(streamReasoning).textSelection(.enabled)
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+          }
+          if streamThinking {
+            HStack {
+              ProgressView().controlSize(.small)
+              Text("Thinking…").foregroundStyle(.secondary)
             }
           }
           if message.deletedAt != nil {
@@ -590,3 +611,10 @@ import SwiftUI
   #endif
 
 #endif
+
+private func isCoworkerMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  if case .case2 = message.sender {
+    return true
+  }
+  return false
+}

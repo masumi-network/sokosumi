@@ -935,6 +935,34 @@ struct WorkspaceStateTests {
     #expect(state.outboundShells.isEmpty)
     #expect(state.transcriptMessages.map(\.id) == [confirmedID])
   }
+
+  @Test func directSendUsesStreamAndSettlesHistoryWithoutClassicOutbox() async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"text-start\",\"id\":\"text\"}\n\ndata: {\"type\":\"text-delta\",\"id\":\"text\",\"delta\":\"Answer\"}\n\ndata: {\"type\":\"text-end\",\"id\":\"text\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, stream),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
+    ], visible: false)
+    let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    state.timeline.reset(roomId: roomId)
+    let client = try #require(state.clientResolver?())
+    _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+    state.directStream.reset(room: room)
+    #expect(state.sendMessage("Hello", auth: auth))
+    #expect(!state.sendMessage("Again", auth: auth))
+    #expect(state.outboundShells.isEmpty)
+    let echo = chatRoomMessage(from: .init(clientTurnId: "echo", roomId: roomId, content: "Hello", sender: sender))
+    state.applyRealtimeMessage(roomId: roomId, eventType: .create, message: echo)
+    #expect(state.transcriptMessages.isEmpty)
+    await state.directStream.task?.value
+    #expect(state.directStream.overlayMessages.isEmpty)
+    #expect(state.displayedTranscript.map(\.id) == ["persisted"])
+    #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages", "post/chats/rooms/{id}/stream", "get/chats/rooms/{id}/messages"])
+    state.clearTranscript()
+    #expect(state.directStream.roomId == nil)
+  }
 }
 
 private func unreadRoomsBody(id: String, unread: Int) -> String {
