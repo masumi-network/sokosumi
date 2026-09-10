@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * Instant loading and progressive shell must share this exactly.
  */
 export const ROOM_MESSAGE_LIST_CONTENT_CLASSNAME =
-  "flex min-h-full min-w-0 w-full flex-col justify-end px-5 pt-6 pb-1";
+  "flex min-h-full min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0";
 
 interface MessageSkeletonRow {
   /** Author name bone width. */
