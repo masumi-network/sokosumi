@@ -111,14 +111,6 @@ export const memberRepository = (() => {
     });
   }
 
-  /**
-   * Retrieves members matching the given filter, including user details.
-   * Supports pagination.
-   *
-   * @param where - Prisma filter for members.
-   * @param tx - Optional Prisma transaction client.
-   * @returns An array of MemberWithUser objects.
-   */
   async function getMembersWithUser(
     where: Prisma.MemberWhereInput,
     tx: Prisma.TransactionClient,
@@ -369,7 +361,6 @@ export const memberRepository = (() => {
     getMembersWithOrganizationByUserId,
     getMembersOrganizationIdsByUserId,
     getMemberByUserIdAndOrganizationId,
-    getMembersWithUser,
     getMembersWithUserAndLastSeen,
     getMembersByOrganizationId,
     listMembersForAdminOverview,

@@ -33,42 +33,10 @@ describe("subscriptionRepository", () => {
     });
   });
 
-  it("getCurrentInPeriodActiveSubscriptionByReferenceId filters by period window", async () => {
-    const inPeriodRow = { id: "current-period" };
-    let findFirstCall: unknown;
-    const now = new Date("2026-04-10T00:00:00.000Z");
-    const tx = {
-      subscription: {
-        findFirst: async (args: unknown) => {
-          findFirstCall = args;
-          return inPeriodRow;
-        },
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    const result =
-      await subscriptionRepository.getCurrentInPeriodActiveSubscriptionByReferenceId(
-        "reference-1",
-        tx,
-        now,
-      );
-
-    assert.equal(result, inPeriodRow);
-    const call = findFirstCall as {
-      where: {
-        periodEnd: { gt: Date };
-        periodStart: { lte: Date };
-        referenceId: string;
-      };
-    };
-    assert.equal(call.where.referenceId, "reference-1");
-    assert.equal(call.where.periodStart.lte, now);
-    assert.equal(call.where.periodEnd.gt, now);
-  });
-
-  it("resolveActiveSubscriptionByReferenceId prefers in-period over latest by periodEnd", async () => {
+  it("resolveActiveSubscriptionByReferenceId prefers the in-period row and filters by period window", async () => {
     const inPeriodRow = { id: "current-period" };
     const calls: unknown[] = [];
+    const now = new Date("2026-04-10T00:00:00.000Z");
     const tx = {
       subscription: {
         findFirst: async (args: unknown) => {
@@ -85,39 +53,21 @@ describe("subscriptionRepository", () => {
       await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
         "reference-1",
         tx,
+        now,
       );
 
     assert.equal(result, inPeriodRow);
     assert.equal(calls.length, 1);
-  });
-
-  it("getLatestStartedActiveSubscriptionByReferenceId excludes future periodStart", async () => {
-    let findFirstCall: unknown;
-    const now = new Date("2026-04-14T12:00:00.000Z");
-    const tx = {
-      subscription: {
-        findFirst: async (args: unknown) => {
-          findFirstCall = args;
-          return null;
-        },
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    await subscriptionRepository.getLatestStartedActiveSubscriptionByReferenceId(
-      "reference-1",
-      tx,
-      now,
-    );
-
-    const call = findFirstCall as {
+    const call = calls[0] as {
       where: {
-        OR: Array<{ periodStart: null | { lte: Date } }>;
+        periodEnd: { gt: Date };
+        periodStart: { lte: Date };
+        referenceId: string;
       };
     };
-    assert.deepEqual(call.where.OR, [
-      { periodStart: null },
-      { periodStart: { lte: now } },
-    ]);
+    assert.equal(call.where.referenceId, "reference-1");
+    assert.equal(call.where.periodStart.lte, now);
+    assert.equal(call.where.periodEnd.gt, now);
   });
 
   it("resolveActiveSubscriptionByReferenceId falls back to latest started active when not in period", async () => {
