@@ -15,10 +15,14 @@ import { notFound } from "./error";
  *
  * A human caller qualifies as the job owner, or as a member of the job's
  * workspace (SOK-1030). The workspace half is what widens sharing beyond the
- * owner: `workspaceContext` is resolved server-side from the session's active
- * organization, never from a client header, so an organization workspace admits
- * every member of that organization while a personal workspace admits only its
- * owner.
+ * owner, so an organization workspace admits every member of that organization
+ * while a personal workspace admits only its owner.
+ *
+ * `workspaceContext` is not client-controlled. It comes from the session's
+ * active organization, or, when the session carries none, from an
+ * `X-Organization-Slug` header that `organizationHeaderMiddleware` resolves
+ * only after `resolveOrganizationFromSlug` confirms the caller's `Member` row.
+ * A caller therefore cannot name an organization they do not belong to.
  *
  * Ownership stays in the predicate because API key and OAuth callers carry no
  * active organization (`organizationId: null` in their auth context), so their

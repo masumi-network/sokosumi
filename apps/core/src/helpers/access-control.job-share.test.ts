@@ -77,7 +77,7 @@ function varsFor(
 }
 
 describe("requireJobShareCollaboration", () => {
-  it("scopes a member to the active workspace without an ownership filter", async () => {
+  it("admits the owner or any member of the active workspace", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
