@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
 import { TaskScheduleSection } from "@/components/task-schedule-section";
 import {
@@ -29,13 +28,6 @@ export function TaskScheduleModal({
   onClearSchedule,
 }: TaskScheduleModalProps) {
   const t = useTranslations("App.Tasks.Schedule");
-  const [draftSelection, setDraftSelection] =
-    useState<TaskScheduleSelection>(initialSelection);
-
-  useEffect(() => {
-    if (!open) return;
-    setDraftSelection(initialSelection);
-  }, [initialSelection, open]);
 
   function handleApply(selection: TaskScheduleSelection) {
     onApply(selection);
@@ -54,9 +46,10 @@ export function TaskScheduleModal({
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
+        {/* Radix unmounts the body on close, so reopening remounts it. */}
         <TaskScheduleSection
-          key={`${open}-${draftSelection.mode}-${draftSelection.timezone}-${draftSelection.oneTimeLocalIso ?? ""}-${draftSelection.cron ?? ""}-${draftSelection.customCronExpr ?? ""}`}
-          initialSelection={draftSelection}
+          key={`${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
+          initialSelection={initialSelection}
           onSave={handleApply}
           onCancel={() => onOpenChange(false)}
           onClearSchedule={handleClearSchedule}
