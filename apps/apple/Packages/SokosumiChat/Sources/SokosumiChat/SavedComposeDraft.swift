@@ -9,11 +9,15 @@ public struct SavedComposeDraft {
     userId: String,
     organizationId: String?,
     roomId: String,
+    parentMessageId: String? = nil,
     defaults: UserDefaults = .standard
   ) {
     self.defaults = defaults
     // Length prefixes avoid collisions even when identifiers contain separators.
-    let parts = [userId, organizationId == nil ? "personal" : "organization", organizationId ?? "", roomId]
+    var parts = [userId, organizationId == nil ? "personal" : "organization", organizationId ?? "", roomId]
+    if let parentMessageId {
+      parts += ["thread", parentMessageId]
+    }
     key = "sokosumi.composeDraft.v1." + parts.map { "\($0.utf8.count):\($0)" }.joined()
   }
 
