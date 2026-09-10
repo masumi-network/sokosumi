@@ -348,6 +348,7 @@ export function CreateTaskModal({
           statusQueued: t("statusQueued"),
           statusReady: t("statusReady"),
           queuedRequiresSchedule: t("queuedRequiresSchedule"),
+          queuedRequiresAgentAssignee: t("queuedRequiresAgentAssignee"),
           back: t("back"),
           uploadFile: t("uploadFile"),
           uploadFileError: t("uploadFileError"),

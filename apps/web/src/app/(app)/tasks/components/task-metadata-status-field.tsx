@@ -25,6 +25,7 @@ import { getTaskStatusPillTone } from "./task-status-badge";
 export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
   queuedRequiresSchedule?: string;
+  queuedRequiresAgentAssignee?: string;
   reopenToReadyTitle: string;
   reopenToReadyDescription: string;
   reopenToReadyCommentLabel: string;
@@ -40,13 +41,38 @@ interface TaskMetadataStatusFieldProps {
   taskId: string;
   status: TaskStatus;
   hasSchedule: boolean;
+  isAgentAssignee: boolean;
   labels: TaskMetadataStatusFieldLabels;
+}
+
+function canSelectQueued(options: {
+  hasSchedule: boolean;
+  isAgentAssignee: boolean;
+}): boolean {
+  return options.hasSchedule && options.isAgentAssignee;
+}
+
+function queuedBlockedHint(
+  options: { hasSchedule: boolean; isAgentAssignee: boolean },
+  labels: Pick<
+    TaskMetadataStatusFieldLabels,
+    "queuedRequiresSchedule" | "queuedRequiresAgentAssignee"
+  >,
+): string | undefined {
+  if (canSelectQueued(options)) {
+    return undefined;
+  }
+  if (!options.hasSchedule) {
+    return labels.queuedRequiresSchedule;
+  }
+  return labels.queuedRequiresAgentAssignee;
 }
 
 export function TaskMetadataStatusField({
   taskId,
   status,
   hasSchedule,
+  isAgentAssignee,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
@@ -56,6 +82,11 @@ export function TaskMetadataStatusField({
   const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
+  const isQueuedSelectable = canSelectQueued({ hasSchedule, isAgentAssignee });
+  const queuedBlockedMessage = queuedBlockedHint(
+    { hasSchedule, isAgentAssignee },
+    labels,
+  );
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
     const previousStatus = currentStatus;
@@ -152,16 +183,16 @@ export function TaskMetadataStatusField({
             <SelectItem
               key={option}
               value={option}
-              disabled={option === TaskStatus.QUEUED && !hasSchedule}
+              disabled={option === TaskStatus.QUEUED && !isQueuedSelectable}
             >
               {labels.statusLabels[option]}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      {!hasSchedule && labels.queuedRequiresSchedule ? (
+      {queuedBlockedMessage ? (
         <p className="text-muted-foreground mt-1 text-right text-xs">
-          {labels.queuedRequiresSchedule}
+          {queuedBlockedMessage}
         </p>
       ) : null}
 

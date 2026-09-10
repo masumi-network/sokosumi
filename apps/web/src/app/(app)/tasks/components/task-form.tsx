@@ -134,6 +134,7 @@ export interface TaskFormLabels {
   statusReady: string;
   statusLabels?: Record<TaskStatus, string>;
   queuedRequiresSchedule?: string;
+  queuedRequiresAgentAssignee?: string;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -183,6 +184,13 @@ function isAgentAssigneeFields(fields: {
   return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
 }
 
+function canSelectQueued(options: {
+  isAgent: boolean;
+  hasSchedule: boolean;
+}): boolean {
+  return options.hasSchedule && options.isAgent;
+}
+
 function resolveStatusForAssigneeAndSchedule(options: {
   isAgent: boolean;
   hasSchedule: boolean;
@@ -191,6 +199,36 @@ function resolveStatusForAssigneeAndSchedule(options: {
     return options.isAgent ? TaskStatus.QUEUED : TaskStatus.READY;
   }
   return options.isAgent ? TaskStatus.READY : TaskStatus.DRAFT;
+}
+
+function resolveCelebrationStatus(options: {
+  desiredStatus: TaskStatus;
+  isAgent: boolean;
+  hasSchedule: boolean;
+}): "DRAFT" | "QUEUED" | "READY" {
+  if (options.desiredStatus === TaskStatus.DRAFT) {
+    return "DRAFT";
+  }
+  if (options.hasSchedule) {
+    return options.isAgent ? "QUEUED" : "READY";
+  }
+  return "READY";
+}
+
+function queuedBlockedHint(
+  options: { isAgent: boolean; hasSchedule: boolean },
+  labels: Pick<
+    TaskFormLabels,
+    "queuedRequiresSchedule" | "queuedRequiresAgentAssignee"
+  >,
+): string | undefined {
+  if (canSelectQueued(options)) {
+    return undefined;
+  }
+  if (!options.hasSchedule) {
+    return labels.queuedRequiresSchedule;
+  }
+  return labels.queuedRequiresAgentAssignee;
 }
 
 function getTaskFormStatusLabel(
@@ -453,6 +491,13 @@ export function TaskForm({
   const handleCoworkerSelect = useCallback(
     (id: string) => {
       coworkerTouchedRef.current = true;
+      const previousFields = resolveTaskAssigneeFields(
+        assigneeId,
+        coworkerOptions,
+        knownSokoBotId,
+        initialValues?.assigneeUserId,
+      );
+      const previousIsAgent = isAgentAssigneeFields(previousFields);
       setAssigneeId(id);
       const fields = resolveTaskAssigneeFields(
         id,
@@ -465,6 +510,7 @@ export function TaskForm({
         fields.assigneeId === null &&
         fields.assigneeSokoBotId === null &&
         fields.assigneeUserId === null;
+      const assigneeKindChanged = previousIsAgent !== isAgent || isUnassigned;
 
       let nextSchedule = scheduleSelection;
       if (isUnassigned && scheduleSelection.mode !== "none") {
@@ -476,7 +522,12 @@ export function TaskForm({
       }
 
       const nextHasSchedule = nextSchedule.mode !== "none";
-      if (nextHasSchedule || !statusTouchedRef.current) {
+      const shouldResolveStatus =
+        !statusTouchedRef.current ||
+        assigneeKindChanged ||
+        (status === TaskStatus.QUEUED &&
+          !canSelectQueued({ isAgent, hasSchedule: nextHasSchedule }));
+      if (shouldResolveStatus) {
         setStatus(
           resolveStatusForAssigneeAndSchedule({
             isAgent,
@@ -486,10 +537,12 @@ export function TaskForm({
       }
     },
     [
+      assigneeId,
       coworkerOptions,
       knownSokoBotId,
       initialValues?.assigneeUserId,
       scheduleSelection,
+      status,
     ],
   );
 
@@ -688,15 +741,11 @@ export function TaskForm({
             knownSokoBotId,
             initialValues?.assigneeUserId,
           );
-          const createdStatus =
-            desiredStatus === TaskStatus.QUEUED ||
-            (scheduleSelection.mode !== "none" &&
-              desiredStatus !== TaskStatus.DRAFT &&
-              assigneeFields.assigneeUserId === null)
-              ? "QUEUED"
-              : desiredStatus === TaskStatus.DRAFT
-                ? "DRAFT"
-                : "READY";
+          const createdStatus = resolveCelebrationStatus({
+            desiredStatus,
+            isAgent: isAgentAssigneeFields(assigneeFields),
+            hasSchedule: scheduleSelection.mode !== "none",
+          });
           router.prefetch(`/tasks/${createdTask.taskId}`);
           setCreatedTask({
             id: createdTask.taskId,
@@ -887,6 +936,14 @@ export function TaskForm({
   const isAgentAssignee =
     selectedAssigneeFields.assigneeId !== null ||
     selectedAssigneeFields.assigneeSokoBotId !== null;
+  const isQueuedSelectable = canSelectQueued({
+    isAgent: isAgentAssignee,
+    hasSchedule,
+  });
+  const queuedBlockedMessage = queuedBlockedHint(
+    { isAgent: isAgentAssignee, hasSchedule },
+    labels,
+  );
   const isSchedulableAssignee =
     isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
   // Queued work must stay agent-assigned: Core rejects reassignment away
@@ -1254,16 +1311,18 @@ export function TaskForm({
                       <SelectItem
                         key={option}
                         value={option}
-                        disabled={option === TaskStatus.QUEUED && !hasSchedule}
+                        disabled={
+                          option === TaskStatus.QUEUED && !isQueuedSelectable
+                        }
                       >
                         {getTaskFormStatusLabel(option, labels)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {!hasSchedule && labels.queuedRequiresSchedule ? (
+                {queuedBlockedMessage ? (
                   <p className="text-muted-foreground text-xs">
-                    {labels.queuedRequiresSchedule}
+                    {queuedBlockedMessage}
                   </p>
                 ) : labels.statusDescription ? (
                   <p className="text-muted-foreground text-xs">
