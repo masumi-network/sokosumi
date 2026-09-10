@@ -381,3 +381,17 @@ add a grammar upgrade without the required dependency approval.
 
 Verification: 208 Chat tests, Xcode app build/tests, iOS 17 shared compilation,
 and changed-file lint/format passed (`/tmp/apple-interpolation-*.log`).
+
+## Expansion accessibility verification follow-up
+
+On 2026-09-10, CUA accessibility clicks succeeded in the existing signed app.
+The Noodles report changed Collapsed → Expanded → Collapsed. Expanding the
+Soupie report then left Noodles collapsed, verifying independent view state;
+Soupie was restored to collapsed afterward. No messages were sent. The inspected
+ExpandableMessageBody implementation is unchanged since that signed build.
+
+This supersedes the earlier ambiguous-button result for accessibility activation
+only. The screenshot still shows recent messages at the bottom, with both reports
+outside the viewport. Therefore visual clipping, pointer hit testing, scrolling,
+selection and resizing remain unverified. Do not treat accessibility state
+transitions as proof of the on-screen expansion layout or the latest code colors.
