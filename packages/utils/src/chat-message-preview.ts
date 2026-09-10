@@ -112,6 +112,23 @@ export function readChatMentionKeys(content: string): string[] {
  * the address's.
  */
 const BARE_URL_REGEX =
+  /(?:(?:https?|ftps?):\/\/|(?<![A-Za-z0-9_])www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%[\]]+/gi;
+
+/**
+ * The same address, read where a name meets the words beside it.
+ *
+ * The word rule above guards a `www.` inside a word, and `seewww.example.test`
+ * is a word the sender wrote. It cannot guard a word that two hands wrote
+ * between them: a member named `Bobwww` and a message going on `.evil.test`
+ * make one only once the name is on the line. So this rule reads no character
+ * back, and only what a name touches is read by it.
+ *
+ * The `@` in front of a name goes with the address that ate the name: `@` is
+ * a character an address is written with and never one it starts with, so
+ * nothing else loses one this way. An `@` the sender typed keeps its space,
+ * as in "meet @ 5pm".
+ */
+const NAME_SEAM_URL_REGEX =
   /@?(?:(?:https?|ftps?):\/\/|www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%[\]]+/gi;
 
 /**
@@ -392,23 +409,53 @@ export function buildChatMessagePreview(
   // clean takes `* _ ~ > #` out of whatever it is handed, which is what would
   // make `R_D` read as `RD` on a banner.
   const pieces: string[] = [];
+  const nameSpans: Array<[number, number]> = [];
   let read = 0;
+  let written = 0;
+
+  const writePiece = (piece: string, isName: boolean) => {
+    if (isName) {
+      nameSpans.push([written, written + piece.length]);
+    }
+
+    pieces.push(piece);
+    written += piece.length;
+  };
 
   // The words the sender wrote are read for addresses on their own, so an
   // address ends where the sender's own text ends and never reaches into the
   // name after it: `https://e.test/x@<id>:ada` is a link and then a mention.
   for (const token of readable.matchAll(MENTION_TOKEN_REGEX)) {
-    pieces.push(withoutAddresses(readable.slice(read, token.index)));
-    pieces.push(whoAMentionNames(token[1] ?? "", token[2] ?? "", mentionNames));
+    writePiece(withoutAddresses(readable.slice(read, token.index)), false);
+    writePiece(
+      whoAMentionNames(token[1] ?? "", token[2] ?? "", mentionNames),
+      true,
+    );
     read = token.index + token[0].length;
   }
 
-  pieces.push(withoutAddresses(readable.slice(read)));
+  writePiece(withoutAddresses(readable.slice(read)), false);
 
-  // One address rule over the finished line, rather than one rule per piece.
-  // A name and the words beside it are two texts by two hands, and an address
-  // spelled between them is on the banner all the same.
-  const named = withoutAddresses(pieces.join("")).replace(/\s+/g, " ").trim();
+  // The finished line is read once more, for the addresses a name and the
+  // words beside it spell between them. Only what a name touches is read this
+  // way: the words the sender wrote have had their own read, by the rule that
+  // knows a word when it sees one.
+  const named = pieces
+    .join("")
+    .replace(NAME_SEAM_URL_REGEX, (address: string, at: number) => {
+      const end = at + address.length;
+      const touchesName = nameSpans.some(
+        ([start, stop]) => at < stop && end > start,
+      );
+
+      if (!touchesName) {
+        return address;
+      }
+
+      return URL_TRAILING_PUNCTUATION_REGEX.exec(address)?.[0] ?? "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
 
   return capPreview(named);
 }

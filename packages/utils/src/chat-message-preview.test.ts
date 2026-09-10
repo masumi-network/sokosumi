@@ -398,14 +398,11 @@ describe("buildChatMessagePreview", () => {
     ).toBe("x @\u{1F389} y");
   });
 
-  /**
-   * A `www.` is an address wherever it stands, the middle of a word
-   * included. The line a banner shows is written by two hands, so a rule
-   * that read the character in front of a `www.` to decide could not tell
-   * whether that character was the sender's or the name's.
-   */
-  it("takes an address out of the word it was written inside", () => {
-    expect(buildChatMessagePreview("seewww.example.test now")).toBe("see now");
+  /** The `www.` inside a word the sender wrote is a word. */
+  it("leaves a word that only ends in an address alone", () => {
+    expect(buildChatMessagePreview("seewww.example.test now")).toBe(
+      "seewww.example.test now",
+    );
   });
 
   /** The stop belongs to the sentence, not to the address. */
