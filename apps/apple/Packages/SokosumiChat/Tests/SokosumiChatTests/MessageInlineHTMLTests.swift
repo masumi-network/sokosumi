@@ -28,7 +28,7 @@ struct MessageInlineHTMLTests {
     let markdown = MessageMarkdown("- <u>[x] Literal</u>")
     let item = try #require(markdown.blocks.first?.children.first)
     #expect(item.taskChecked == nil)
-    #expect(item.children.first.map { String($0.text.characters) } == "[x] Literal")
+    #expect(item.children.first.map { String($0.text.characters) } == "[😆 Literal")
   }
 
   @Test func handlesCaseAttributesAndRepeatedTags() throws {

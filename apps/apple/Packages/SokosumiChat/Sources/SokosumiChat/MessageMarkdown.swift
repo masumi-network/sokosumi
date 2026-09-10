@@ -79,7 +79,7 @@ private struct MarkdownBlockBuilder {
 
   private func inline(_ node: any Markup) -> AttributedString {
     if let text = node as? Markdown.Text {
-      return AttributedString(text.string)
+      return AttributedString(MessageEmoji.replacing(in: text.string))
     }
     if node is SoftBreak || node is LineBreak {
       return AttributedString("\n")

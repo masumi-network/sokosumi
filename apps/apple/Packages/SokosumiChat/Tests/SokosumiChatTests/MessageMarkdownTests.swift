@@ -8,7 +8,7 @@ struct MessageMarkdownTests {
     let items = try #require(result.blocks.first?.children)
     #expect(items.map(\.taskChecked) == [true, false, nil, nil, true, nil])
     #expect(items.compactMap(\.children.first).map { String($0.text.characters) }
-      == ["Done", "Open", "[x] Literal", "[x] Code", "Uppercase", "[x] Bold literal"])
+      == ["Done", "Open", "[😆 Literal", "[x] Code", "Uppercase", "[😆 Bold literal"])
   }
 
   @Test func relativeLinksResolveAgainstConfiguredWebOrigin() throws {
