@@ -966,7 +966,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
     it("delivers a user thread reply to coworkers already in the thread", async () => {
       roomFindFirstMock.mockResolvedValue(
         roomWithMembers({
-          userMembers: [{ userId: ALICE_ID, user: { name: "Alice" } }],
+          userMembers: [
+            { userId: USER_ID, user: { name: "Author" } },
+            { userId: ALICE_ID, user: { name: "Alice" } },
+          ],
         }),
       );
       messageFindFirstMock.mockResolvedValue({
@@ -1038,7 +1041,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
       await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
       expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
-        userIds: [ALICE_ID],
+        userIds: [USER_ID, ALICE_ID],
         roomId: ROOM_ID,
         collections: ["active"],
       });

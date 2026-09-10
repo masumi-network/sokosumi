@@ -76,7 +76,7 @@ export async function emitChatRoomMessageCreatedEffects(
 ): Promise<void> {
   const memberUserIds = await getMemberUserIds(params);
   const results = await Promise.allSettled([
-    invalidateChatRoomMessageReaders({ ...params, memberUserIds }),
+    invalidateChatRoomMessageReaders({ roomId: params.roomId, memberUserIds }),
     emitChatRoomMessageNotifications(params, memberUserIds),
   ]);
   for (const result of results) {

@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  findRoomMembersMock,
   findUniqueMessageMock,
   publishChatRoomMessageEventMock,
   mapChatRoomMessageMock,
 } = vi.hoisted(() => ({
+  findRoomMembersMock: vi.fn().mockResolvedValue([{ userId: "user_b" }]),
   findUniqueMessageMock: vi.fn(),
   publishChatRoomMessageEventMock: vi.fn(),
   mapChatRoomMessageMock: vi.fn(),
@@ -13,7 +15,7 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomUserMember: {
-      findMany: vi.fn().mockResolvedValue([{ userId: "user_b" }]),
+      findMany: findRoomMembersMock,
     },
     chatRoomMessage: {
       findUnique: (...args: unknown[]) => findUniqueMessageMock(...args),
@@ -82,13 +84,17 @@ describe("publishChatRoomMessageRealtime", () => {
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
   });
 
-  it("invalidates remaining readers after committed membership messages, but not generic replay", async () => {
+  it("invalidates all members after committed membership messages, but not generic replay", async () => {
+    findRoomMembersMock.mockResolvedValueOnce([
+      { userId: "user_a" },
+      { userId: "user_b" },
+    ]);
     vi.mocked(publishChatRoomsChanged).mockClear();
     await publishChatRoomMembershipStatusMessagesBestEffort([
       baseMessage as never,
     ]);
     expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: ["user_b"],
+      userIds: ["user_a", "user_b"],
       roomId: baseMessage.roomId,
       collections: ["active"],
     });

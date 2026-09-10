@@ -349,5 +349,10 @@ describe("emitChatRoomMessageCreatedEffects", () => {
 
     expect(userFindManyMock).not.toHaveBeenCalled();
     expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: [AUTHOR_ID],
+      roomId: ROOM_ID,
+      collections: ["active"],
+    });
   });
 });
