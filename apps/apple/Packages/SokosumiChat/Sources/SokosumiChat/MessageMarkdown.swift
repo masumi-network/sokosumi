@@ -17,6 +17,7 @@ public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
           children.first?.kind == .paragraph,
           let run = children[0].text.runs.first,
           run.inlinePresentationIntent == nil,
+          run[MessageUnderlineAttribute.self] != true,
           run.link == nil,
           let position = run.markdownSourcePosition,
           lines.indices.contains(position.startLine - 1)
@@ -66,9 +67,10 @@ public struct MessageMarkdown: Equatable, Sendable {
     } catch {
       parsed = AttributedString(source)
     }
+    let formatted = MessageInlineHTML.applying(to: parsed)
     var root = MessageMarkdownBlock(id: 0, kind: .paragraph)
-    for run in parsed.runs {
-      var text = AttributedString(parsed[run.range])
+    for run in formatted.runs {
+      var text = AttributedString(formatted[run.range])
       let intent = run.inlinePresentationIntent ?? []
       if intent.contains(.softBreak) {
         text = AttributedString("\n", attributes: run.attributes)

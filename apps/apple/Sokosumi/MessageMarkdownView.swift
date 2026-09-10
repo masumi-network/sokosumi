@@ -62,7 +62,7 @@ private struct MarkdownBlockView: View {
   var body: some View {
     switch block.kind {
     case let .header(level):
-      Text(block.text)
+      Text(styled(block.text))
         .fixedSize(horizontal: false, vertical: true)
         .font(headingFont(level))
         .fontWeight(.semibold)
@@ -89,7 +89,7 @@ private struct MarkdownBlockView: View {
             GridRow {
               ForEach(columns.indices, id: \.self) { index in
                 let cell = row.children.first { $0.kind == .tableCell(columnIndex: index) }
-                Text(cell?.text ?? AttributedString())
+                Text(styled(cell?.text ?? AttributedString()))
                   .fontWeight(row.kind == .tableHeaderRow ? .semibold : .regular)
                   .gridColumnAlignment(tableAlignment(columns[index].alignment))
               }
@@ -103,12 +103,20 @@ private struct MarkdownBlockView: View {
       }
     default:
       if block.children.isEmpty {
-        Text(block.text)
+        Text(styled(block.text))
           .fixedSize(horizontal: false, vertical: true)
       } else {
         MarkdownBlocksView(blocks: block.children)
       }
     }
+  }
+
+  private func styled(_ text: AttributedString) -> AttributedString {
+    var result = text
+    for run in text.runs where run[MessageUnderlineAttribute.self] == true {
+      result[run.range].underlineStyle = .single
+    }
+    return result
   }
 
   private func list(ordered: Bool) -> some View {

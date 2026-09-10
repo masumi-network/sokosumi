@@ -264,3 +264,17 @@ with an ambiguous-element refetch error, pointer scrolling with
 no visible effect. This does not establish an app defect or successful
 expand/collapse. Keep the manual/native interaction checks open; continue
 independent rendering work instead of repeatedly attempting the same tool path.
+
+## Native inline HTML formatting
+
+Foundation marks inline HTML runs but preserves their literal tags. The shared
+`MessageInlineHTML` pass now interprets b/strong, i/em, u and inline br tags,
+including nested tags. Escaped tags and code retain their literal text. Underline
+uses a portable custom attribute translated to SwiftUI's underline style in
+paragraphs, headings and table cells. Underlined task-like text stays literal.
+
+Verification: 206 Chat tests, Xcode app build/tests, iOS 17 compilation and
+changed-file lint/format passed (`/tmp/apple-inline-html-*.log`). This is an
+inline-formatting checkpoint, not an HTML sanitizer or complete HTML support.
+Block HTML (including standalone br blocks), HTML links/code, disallowed-tag
+handling, entities and native visual verification still need completion.
