@@ -19,7 +19,7 @@ struct MessageMarkdownView: View {
   var body: some View {
     Group {
       if let count = jumboEmojiCount(source) {
-        Text(source).font(.system(size: emojiSize(count)))
+        Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else {
         ExpandableMessageBody(source: source) {
           if let document {
