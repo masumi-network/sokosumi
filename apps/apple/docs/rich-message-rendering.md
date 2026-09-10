@@ -292,3 +292,36 @@ and changed-file SwiftFormat/SwiftLint passed (`/tmp/apple-kotlin-*.log`).
 This extends native highlighting but does not complete Kotlin or registry parity.
 String interpolation, annotations, language detection, remaining registry entries,
 and the rich-text/visual checks above remain open.
+
+## Proposed HTML parser dependency (approval pending)
+
+Propose **SwiftSoup 2.13.9**, exact pin, library product `SwiftSoup` from
+https://github.com/scinfu/SwiftSoup.git. Its release manifest uses Swift 6.0,
+requires macOS 10.15/iOS 13 or newer, and declares no external dependencies.
+The license is MIT. This is a Swift HTML parser, not a JavaScript runtime or
+web view. Nothing has been added to package manifests yet.
+
+Reuse assessment: Foundation Markdown remains the block/inline Markdown parser,
+but its HTML runs retain raw markup rather than an HTML tree. The current
+MessageInlineHTML handles only a few formatting tags. The approved TreeSitterHTML
+product serves syntax highlighting and does not provide HTML entity decoding,
+browser-style tree repair, or sanitization. A general handwritten HTML parser
+would duplicate those responsibilities. SwiftSoup supplies that missing parser;
+SwiftUI remains responsible for every rendered view.
+
+The separate dependency PR would pin the library in SokosumiChat's test target,
+add parsing/entity/malformed-input fixtures, and verify macOS and iOS 17 builds.
+Fixtures should cover quoted/unquoted hrefs, entities, nested formatting,
+malformed nesting and script/style content. No product rendering changes belong
+in that prerequisite PR. Do not open or implement it without explicit approval.
+
+After merge, slice 10 would use the parser to replace the limited inline HTML
+pass and apply the web's actual allowed-tag/attribute/link policy. Do not assume
+SwiftSoup's default whitelist equals sanitize-html's configured behavior. Compare
+fixtures with web's installed sanitizer and Markdown pipeline, preserve code
+literals and whitespace, and render allowed HTML as native text/block nodes.
+Image/audio/video presentation remains in the attachment slice. No network fetch
+or executable content is needed to parse message HTML.
+
+Release evidence: [manifest](https://github.com/scinfu/SwiftSoup/blob/2.13.9/Package.swift),
+[license](https://github.com/scinfu/SwiftSoup/blob/2.13.9/LICENSE).
