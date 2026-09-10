@@ -38,6 +38,7 @@ import {
   cascadeCancelNonTerminalScheduleRuns,
   mapTaskEvent,
   taskEventApiInclude,
+  validateQueuedRequiresSchedule,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
@@ -328,7 +329,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       409: jsonErrorResponse("Conflict"),
       422: {
         description:
-          "Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.",
+          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_schedule (Queued requested without an active schedule; no pause event in `data`).",
         content: {
           "application/json": {
             schema: errorResponseWithExtensionsSchema({
@@ -414,6 +415,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeId: task.assigneeId,
           assigneeSokoBotId: task.assigneeSokoBotId,
           assigneeUserId: task.assigneeUserId,
+        });
+        validateQueuedRequiresSchedule({
+          status,
+          metadata: task.metadata,
+          nextRunAt: task.nextRunAt,
         });
 
         if (

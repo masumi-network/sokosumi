@@ -48,7 +48,7 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
-  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
 }
 
@@ -192,7 +192,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
-  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
@@ -272,11 +272,13 @@ function resolveUpdateTargetStatus(
 }
 
 function resolveCreateStatus(
-  requestedStatus: Extract<TaskStatus, "DRAFT" | "READY">,
+  requestedStatus: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">,
   schedule?: TaskScheduleSelection,
 ): Extract<TaskStatus, "DRAFT" | "READY"> {
   if (!schedule || schedule.mode === "none") {
-    return requestedStatus;
+    return requestedStatus === TaskStatus.QUEUED
+      ? TaskStatus.READY
+      : requestedStatus;
   }
 
   return TaskStatus.DRAFT;
@@ -425,7 +427,7 @@ async function createTaskFromDescription(input: {
   projectId?: string | null;
   userId: string;
   context?: TaskContextSelectionInput;
-  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();

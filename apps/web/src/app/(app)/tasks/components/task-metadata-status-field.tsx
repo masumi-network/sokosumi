@@ -17,7 +17,7 @@ import {
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
+import { getManualTaskStatusSelectOptions } from "@/lib/utils/task-status-order";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { getTaskStatusPillTone } from "./task-status-badge";
@@ -38,12 +38,23 @@ export interface TaskMetadataStatusFieldLabels {
 interface TaskMetadataStatusFieldProps {
   taskId: string;
   status: TaskStatus;
+  hasSchedule: boolean;
+  isAgentAssignee: boolean;
   labels: TaskMetadataStatusFieldLabels;
+}
+
+function canSelectQueued(options: {
+  hasSchedule: boolean;
+  isAgentAssignee: boolean;
+}): boolean {
+  return options.hasSchedule && options.isAgentAssignee;
 }
 
 export function TaskMetadataStatusField({
   taskId,
   status,
+  hasSchedule,
+  isAgentAssignee,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
@@ -53,6 +64,7 @@ export function TaskMetadataStatusField({
   const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
+  const isQueuedSelectable = canSelectQueued({ hasSchedule, isAgentAssignee });
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
     const previousStatus = currentStatus;
@@ -145,8 +157,12 @@ export function TaskMetadataStatusField({
           </SelectValue>
         </SelectTrigger>
         <SelectContent align="end">
-          {TASK_STATUS_DISPLAY_ORDER.map((option) => (
-            <SelectItem key={option} value={option}>
+          {getManualTaskStatusSelectOptions(displayStatus).map((option) => (
+            <SelectItem
+              key={option}
+              value={option}
+              disabled={option === TaskStatus.QUEUED && !isQueuedSelectable}
+            >
               {labels.statusLabels[option]}
             </SelectItem>
           ))}

@@ -1,4 +1,4 @@
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { hasActiveTaskSchedule, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
@@ -192,6 +192,9 @@ export function TaskMetadata({
     labels.personalAssistantFallback,
   );
   const creator = resolveTaskCreatorDisplay(task, labels);
+  const hasSchedule = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
+  const isAgentAssignee =
+    task.assignee?.type === "coworker" || task.assignee?.type === "sokoBot";
 
   return (
     <section className="space-y-3">
@@ -203,6 +206,8 @@ export function TaskMetadata({
             key={`${taskId}-${task.status}`}
             taskId={taskId}
             status={task.status}
+            hasSchedule={hasSchedule}
+            isAgentAssignee={isAgentAssignee}
             labels={statusFieldLabels}
           />
         ) : (
