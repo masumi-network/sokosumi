@@ -394,3 +394,10 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Verification: 165 Chat tests, CoreAPI 1, Auth 34, Realtime 27; Xcode app tests; iOS 17 shared build; Apple Development signed build; lint and format. Logs: `/tmp/slice09-review-app.log`, `/tmp/slice09-final-{core,auth,realtime,ios,signed}.log`, `/tmp/slice09-thought-{tests,lint,format}.log`.
 - Native CUA inspection: signed app launched, opened existing Hannah Direct, observed `Thought for 2m 44s`, expanded disclosure and verified its text and answer layout. Idle room showed no Thinking shell. No production message sent; incremental send/resume/error behavior is verified by fake transport tests, not a live provider round-trip.
 - Out of this PR: thread streaming (09b), new Direct creation (10), rich message rendering, attachments, and mention execution. No web/Core/dependency changes. Existing local Xcode entry reorder remains unstaged.
+
+### Slice 09a review fixes (2026-09-10)
+
+- Pre-stream POST failures (409/503/network) clear the optimistic user overlay and restore the composer draft. They no longer look delivered. 409 still surfaces Core’s lock error; room re-entry already attaches via `/stream/active`.
+- Settlement succeeds only when latest history actually applied. Older pages stay blocked while the Direct stream is busy. Overlay merge hides the newest matching persisted coworker row, so mark-read cannot flash a duplicate assistant bubble.
+- Parent-root envelopes still request a room refresh while streaming when a thread is open. Competing room full merges stay skipped.
+- Live Thinking shows the latest reasoning beat expanded (clamped) before answer text. The 10 Hz elapsed clock is hidden from VoiceOver.

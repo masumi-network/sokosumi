@@ -11,6 +11,7 @@ public final class DirectStreamSession: ObservableObject {
 
   @Published public private(set) var phase = Phase.idle
   @Published public private(set) var errorMessage: String?
+  @Published public private(set) var restoredDraft: String?
   @Published private var response = DirectStreamMessage()
   @Published private var userMessage: Components.Schemas.ChatRoomMessage?
   public private(set) var task: Task<Void, Never>?
@@ -49,8 +50,13 @@ public final class DirectStreamSession: ObservableObject {
     sender = roomId == nil ? nil : room?.userMembers.first
     coworker = roomId == nil ? nil : room?.coworkerMembers.first
     clearOverlay()
+    restoredDraft = nil
     errorMessage = nil
     phase = .idle
+  }
+
+  public func consumeRestoredDraft() {
+    restoredDraft = nil
   }
 
   public var overlayMessages: [Components.Schemas.ChatRoomMessage] {
@@ -68,19 +74,15 @@ public final class DirectStreamSession: ObservableObject {
     return messages
   }
 
-  /// Core persists the user before streaming the answer. Hide just the newest
-  /// matching user occurrence while its overlay is visible, as web does.
+  /// Core persists the user (and later the coworker) before overlays clear.
+  /// Hide the newest matching occurrence of each overlay role so settlement
+  /// cannot flash a duplicate bubble.
   public func displayedMessages(persisted: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {
     let overlay = overlayMessages
     guard !overlay.isEmpty else { return persisted }
     let ids = Set(overlay.map(\.id))
-    let duplicate = userMessage.flatMap { user in
-      persisted.last { message in
-        guard case .case1 = message.sender, !ids.contains(message.id) else { return false }
-        return ComposerContent(message.content).text == user.content
-      }?.id
-    }
-    return persisted.filter { !ids.contains($0.id) && $0.id != duplicate } + overlay
+    let hidden = Set(overlay.compactMap { row in newestPersistedDuplicate(of: row, in: persisted, overlayIds: ids) })
+    return persisted.filter { !ids.contains($0.id) && !hidden.contains($0.id) } + overlay
   }
 
   public func resume(
@@ -101,6 +103,7 @@ public final class DirectStreamSession: ObservableObject {
   ) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId, let sender, !isBusy, draft.canSend else { return false }
+    restoredDraft = nil
     clearOverlay()
     let id = UUID().uuidString
     var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: roomId, content: draft.text, sender: sender))
@@ -145,7 +148,12 @@ public final class DirectStreamSession: ObservableObject {
         guard generation == token, !Task.isCancelled else { return }
         errorMessage = friendlyMessage(for: error)
         failed(error)
-        await reconcile(token: token, settled: settled)
+        if hasResponse {
+          await reconcile(token: token, settled: settled)
+        } else {
+          restoredDraft = userMessage.map { ComposerContent($0.content).text }
+          clearOverlay()
+        }
       }
     }
   }
@@ -173,5 +181,28 @@ public final class DirectStreamSession: ObservableObject {
     userMessage = nil
     response = .init()
     hasResponse = false
+  }
+
+  private func newestPersistedDuplicate(
+    of overlay: Components.Schemas.ChatRoomMessage,
+    in persisted: [Components.Schemas.ChatRoomMessage],
+    overlayIds: Set<String>
+  ) -> String? {
+    let text = ComposerContent(overlay.content).text
+    guard !text.isEmpty else { return nil }
+    return persisted.last { message in
+      guard !overlayIds.contains(message.id), sameSenderKind(message, overlay) else { return false }
+      return ComposerContent(message.content).text == text
+    }?.id
+  }
+
+  private func sameSenderKind(
+    _ left: Components.Schemas.ChatRoomMessage,
+    _ right: Components.Schemas.ChatRoomMessage
+  ) -> Bool {
+    switch (left.sender, right.sender) {
+    case (.case1, .case1), (.case2, .case2): true
+    default: false
+    }
   }
 }

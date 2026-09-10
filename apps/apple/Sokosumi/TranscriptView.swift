@@ -126,8 +126,8 @@ import SwiftUI
                     },
                     onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
                     horizontalInset: 12,
-                    streamReasoning: message.id.hasPrefix("stream:") && isCoworkerMessage(message) ? workspaces.directStream.reasoning : nil,
-                    streamThinking: message.id.hasPrefix("stream:") && isCoworkerMessage(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy
+                    streamReasoning: streamReasoning(for: message),
+                    streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy
                   )
                 }
               }
@@ -220,6 +220,18 @@ import SwiftUI
         Button("Retry", action: retry)
       }
     }
+
+    private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+      message.id.hasPrefix("stream:") && isCoworkerMessage(message)
+    }
+
+    private func streamReasoning(for message: Components.Schemas.ChatRoomMessage) -> String? {
+      guard isLiveCoworkerOverlay(message) else { return nil }
+      if ComposerContent(message.content).text.isEmpty, workspaces.directStream.isBusy {
+        return workspaces.directStream.latestThought ?? workspaces.directStream.reasoning
+      }
+      return workspaces.directStream.reasoning
+    }
   }
 
   /// Owns typing state so edits do not invalidate the transcript. The parent
@@ -278,6 +290,14 @@ import SwiftUI
           .disabled(!canSend)
       }
       .padding(8)
+      .onChange(of: workspaces.directStream.restoredDraft) { _, text in
+        guard parentMessageId == nil, let text, !text.isEmpty else { return }
+        draft = text
+        savedDraft.save(text)
+        Task { @MainActor in
+          workspaces.directStream.consumeRestoredDraft()
+        }
+      }
     }
 
     @discardableResult

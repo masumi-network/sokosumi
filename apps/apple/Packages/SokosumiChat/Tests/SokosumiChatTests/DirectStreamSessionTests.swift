@@ -142,4 +142,46 @@ struct DirectStreamSessionTests {
     #expect(merged.last?.content == "Answer")
     #expect(!merged.contains { $0.id == "new" })
   }
+
+  @Test func overlayHidesNewestMatchingPersistedCoworker() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(200, completedStream)]))
+    #expect(session.send("Hello", client: client, organizationSlug: nil,
+                         settled: { false }, failed: { Issue.record($0) }))
+    await session.task?.value
+    let overlay = try #require(session.overlayMessages.last)
+    var older = overlay
+    older.id = "old-coworker"
+    var newest = overlay
+    newest.id = "new-coworker"
+    let merged = session.displayedMessages(persisted: [older, newest])
+    #expect(merged.contains { $0.id == "old-coworker" })
+    #expect(!merged.contains { $0.id == "new-coworker" })
+    #expect(merged.last?.id.hasPrefix("stream:") == true)
+  }
+
+  @Test(arguments: [409, 503])
+  func preStreamFailureClearsOverlayAndRestoresDraft(status: Int) async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let error = status == 409 ? "Conflict" : "Service Unavailable"
+    let message = status == 409
+      ? "A coworker response is already in progress for this room."
+      : "lock failed"
+    let client = try makeTestClient(TestTransport([(status, """
+    {"error":"\(error)","message":"\(message)","meta":{"timestamp":"\(testTimestamp)","requestId":"req","path":"/v1/chats/rooms/room/stream","method":"POST"}}
+    """)]))
+    var failures = 0
+    #expect(session.send("Hello", client: client, organizationSlug: nil, settled: {
+      Issue.record("Pre-stream failure must not settle history")
+      return true
+    }, failed: { _ in failures += 1 }))
+    await session.task?.value
+    #expect(failures == 1)
+    #expect(session.overlayMessages.isEmpty)
+    #expect(session.restoredDraft == "Hello")
+    #expect(session.errorMessage != nil)
+    #expect(!session.isBusy)
+  }
 }

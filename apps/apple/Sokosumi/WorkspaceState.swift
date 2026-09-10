@@ -513,7 +513,7 @@ final class WorkspaceState: ObservableObject {
   /// ignored. The refetch merges — it never invents a row.
   func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
     let refreshParent = thread.apply(envelope)
-    if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete {
+    if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete, !refreshParent {
       return
     }
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: transcriptRoomId) {
@@ -536,15 +536,17 @@ final class WorkspaceState: ObservableObject {
   /// 0014): the same HTTP refresh as the live poll. No mark-read, never
   /// wipes resolved history on failure.
   func refreshTranscript(auth: AuthState) {
-    guard !directStream.isBusy, transcriptRoomId != nil else { return }
+    guard transcriptRoomId != nil else { return }
+    guard !directStream.isBusy || thread.parent != nil else { return }
     if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
       return
     }
     let generation = transcriptGeneration
-    transcriptRefreshTask = Task { await refresh(auth: auth, generation: generation) }
+    transcriptRefreshTask = Task { _ = await refresh(auth: auth, generation: generation) }
   }
 
-  func refresh(auth: AuthState, generation: Int) async {
+  @discardableResult
+  func refresh(auth: AuthState, generation: Int) async -> Bool {
     defer {
       if generation == transcriptGeneration {
         transcriptRefreshTask = nil
@@ -554,21 +556,25 @@ final class WorkspaceState: ObservableObject {
       if generation == transcriptGeneration {
         transcriptError = "Sign-in is not configured."
       }
-      return
+      return false
     }
     do {
-      guard try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
+      let applied = try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
+      guard applied else { return false }
       if let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
         thread.apply(eventType: .update, message: parent)
       }
       await syncReadAttention(auth: auth)
+      return generation == transcriptGeneration && !Task.isCancelled
     } catch let error as ChatServiceError {
-      guard generation == transcriptGeneration else { return }
+      guard generation == transcriptGeneration else { return false }
       transcriptError = transcriptFailureMessage(error, auth: auth)
+      return false
     } catch {
-      guard generation == transcriptGeneration else { return }
+      guard generation == transcriptGeneration else { return false }
       NSLog("Sokosumi transcript refresh failed: %@", String(describing: error))
       transcriptError = friendlyMessage(for: error)
+      return false
     }
   }
 
@@ -578,8 +584,7 @@ final class WorkspaceState: ObservableObject {
       await task.value
     }
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
-    await refresh(auth: auth, generation: generation)
-    return generation == transcriptGeneration && !Task.isCancelled && transcriptError == nil
+    return await refresh(auth: auth, generation: generation)
   }
 
   /// Drop a revoked room from the sidebar (chat-control event, SOK-742).
@@ -701,6 +706,7 @@ final class WorkspaceState: ObservableObject {
   /// clears resolved history on failure.
   func loadOlderMessages(auth: AuthState) {
     guard transcriptRoomId != nil, transcriptHasMore,
+          !directStream.isBusy,
           !transcriptLoading, !transcriptLoadingOlder, !transcriptRefreshing,
           olderPageTask == nil, transcriptRefreshTask == nil,
           transcriptCursor != nil

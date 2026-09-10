@@ -9,8 +9,17 @@ struct CoworkerThoughtView: View {
   var body: some View {
     if working || !thought.text.isEmpty {
       Group {
-        if thought.text.isEmpty {
-          header
+        if working {
+          VStack(alignment: .leading, spacing: 4) {
+            header
+            if !thought.text.isEmpty {
+              Text(thought.text)
+                .textSelection(.enabled)
+                .lineLimit(3)
+            }
+          }
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel(thought.text.isEmpty ? "Thinking" : "Thinking, \(thought.text)")
         } else {
           DisclosureGroup {
             Text(thought.text).textSelection(.enabled)
@@ -37,6 +46,7 @@ struct CoworkerThoughtView: View {
             Text(CoworkerThought.durationLabel(seconds: Int(elapsed))).monospacedDigit()
           }
         }
+        .accessibilityHidden(true)
       } else if let duration = thought.durationSeconds {
         Text("Thought for \(CoworkerThought.durationLabel(seconds: duration))")
       } else {
