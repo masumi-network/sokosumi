@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Current slice: **09a — coworker streaming in Directs**, branch `codex/apple-direct-streaming`. Implementation and local verification complete; preparing the draft PR.
+- Current slice: **09a — coworker streaming in Directs**, branch `codex/apple-direct-streaming`. Implementation and local verification complete; draft [PR #4352](https://github.com/masumi-network/sokosumi/pull/4352) awaits CI/review and human merge.
 - Slice 08 merged in [PR #4340](https://github.com/masumi-network/sokosumi/pull/4340). Apple CI passed on final head `94c416caf`, including review fixes 1–5. Remaining review nits and the hidden-room read product question were not changed.
 - Next: open/review the 09a PR and wait for human merge. Do not start 09b before 09a merges.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
