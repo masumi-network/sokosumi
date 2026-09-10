@@ -1,3 +1,7 @@
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
 import type { Notification } from "@sokosumi/database";
 import { beforeEach, expect, it, vi } from "vitest";
 
@@ -63,7 +67,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 import { emitChatMentionNotifications } from "../chat-mention-notifications";
-import { emitChatRoomMessageNotifications } from "../chat-room-message-notifications";
+import { emitChatRoomMessageCreatedEffects } from "../chat-room-message-created-effects";
 
 function matches(row: Notification, where: Partial<Notification>) {
   return Object.entries(where).every(
@@ -83,7 +87,7 @@ async function emit(messageId: string, mentioned = true) {
     mentionedUserIds: mentioned ? ["reader"] : [],
   };
   await emitChatMentionNotifications(message);
-  await emitChatRoomMessageNotifications({
+  await emitChatRoomMessageCreatedEffects({
     ...message,
     roomKind: "channel",
     memberUserIds: ["author", "reader"],

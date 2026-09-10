@@ -5,7 +5,7 @@ import {
   shouldEmitChatDirectMessageNotifications,
 } from "@/helpers/chat-direct-message-notifications";
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
-import { emitChatRoomMessageNotifications } from "@/helpers/chat-room-message-notifications";
+import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -181,7 +181,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       waitUntil(
-        emitChatRoomMessageNotifications({
+        emitChatRoomMessageCreatedEffects({
           roomId: room.id,
           roomName: room.name,
           roomKind: room.kind,
@@ -513,7 +513,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       waitUntil(
-        emitChatRoomMessageNotifications({
+        emitChatRoomMessageCreatedEffects({
           roomId: room.id,
           roomName: room.name,
           roomKind: room.kind,

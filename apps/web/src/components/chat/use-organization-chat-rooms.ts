@@ -10,7 +10,10 @@ import type {
 } from "@/lib/clients/generated/core";
 
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
-import { publishMembershipVisibleRooms } from "./membership-visible-rooms-store";
+import {
+  publishMembershipVisibleRooms,
+  registerMembershipVisibleRoomsPublisher,
+} from "./membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
@@ -308,6 +311,13 @@ export function useOrganizationChatRooms({
     }
     publishMembershipVisibleRooms(roomRows, organizationId, currentUserId);
   }, [currentUserId, organizationId, paintOnly, roomRows]);
+
+  useEffect(() => {
+    if (paintOnly) {
+      return;
+    }
+    return registerMembershipVisibleRoomsPublisher();
+  }, [paintOnly]);
 
   return {
     roomRows,

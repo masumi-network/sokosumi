@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 
 import type { ChatRoomMessageEventType } from "@sokosumi/utils";
-
+import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import {
   type ChatRoomMessageEventPatch,
   type ChatRoomMessagePatchEventType,
@@ -122,9 +122,15 @@ export async function publishChatRoomMembershipStatusMessagesBestEffort(
     return;
   }
   const results = await Promise.allSettled(
-    messages.map((message) =>
-      publishChatRoomMessageRealtime(message, "create"),
-    ),
+    messages.map(async (message) => {
+      await Promise.all([
+        invalidateChatRoomMessageReaders({
+          roomId: message.roomId,
+          authorUserId: message.senderUserId,
+        }),
+        publishChatRoomMessageRealtime(message, "create"),
+      ]);
+    }),
   );
   for (const result of results) {
     if (result.status === "rejected") {

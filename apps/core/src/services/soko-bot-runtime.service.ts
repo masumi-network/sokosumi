@@ -71,7 +71,7 @@ import {
   ROOM_BOT_MESSAGE_WINDOW_MS,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
-import { scheduleSokoBotChatNotifications } from "@/lib/soko-bot/chat-notifications";
+import { scheduleSokoBotChatMessageEffects } from "@/lib/soko-bot/chat-message-effects";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import {
   resolveMentionedCoworkerIds,
@@ -1266,7 +1266,7 @@ export class SokoBotRuntimeService {
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
-    await scheduleSokoBotChatNotifications(room, message.id, input.content);
+    await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
         "@/services/chat-room-coworker-dispatch.service"

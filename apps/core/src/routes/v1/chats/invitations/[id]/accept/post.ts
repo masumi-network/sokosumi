@@ -6,7 +6,7 @@ import {
   mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -272,7 +272,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     for (const message of statusMessages) {
-      await publishChatRoomMessageRealtime(message, "create");
+      await publishChatRoomMembershipStatusMessagesBestEffort([message]);
     }
     // The acceptor's other tabs gain the room and lose the pending row.
     await publishChatRoomsChanged({
