@@ -17,6 +17,7 @@ import type {
   CoreAuthReadError,
   CoreAuthReadErrorReason,
 } from "./core-auth-read-error";
+import { CoreAuthUnavailableError } from "./errors";
 
 export type { Session };
 
@@ -360,7 +361,14 @@ export async function getOAuthClientPublic(
  * @throws {NextError} Redirects to login page with return URL when not authenticated
  */
 export async function getSessionOrRedirect(): Promise<Session> {
-  const session = await getSession();
+  const result = await getSessionResult();
+  // Redirect only for an answered read that carried no session. A Core stall
+  // must not send a signed-in user to /signin: it reads as a logout and the
+  // error boundary is the honest, retryable answer.
+  if (result.isErr()) {
+    throw new CoreAuthUnavailableError(result.error.reason);
+  }
+  const session = result.value;
   if (session) {
     return session;
   }

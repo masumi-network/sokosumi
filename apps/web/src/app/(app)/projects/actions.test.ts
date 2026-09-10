@@ -1,8 +1,9 @@
+import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 
-const getSessionMock = vi.fn();
+const getSessionResultMock = vi.fn();
 
 const projectServiceMock = {
   listProjects: vi.fn(),
@@ -11,7 +12,7 @@ const projectServiceMock = {
 // Mock only the session source and exercise the real `withSession` wrapper so
 // its auth guard (and forged-session override) is covered, not reimplemented.
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
+  getSessionResult: (...args: unknown[]) => getSessionResultMock(...args),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -48,10 +49,12 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
 describe("loadMoreProjects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionMock.mockResolvedValue({
-      user: { id: "user-1" },
-      session: { activeOrganizationId: "org-1" },
-    });
+    getSessionResultMock.mockResolvedValue(
+      ok({
+        user: { id: "user-1" },
+        session: { activeOrganizationId: "org-1" },
+      }),
+    );
   });
 
   it("loads the next projects page with embedded counts", async () => {
@@ -84,7 +87,7 @@ describe("loadMoreProjects", () => {
   });
 
   it("rejects unauthenticated callers before loading projects", async () => {
-    getSessionMock.mockResolvedValue(null);
+    getSessionResultMock.mockResolvedValue(ok(null));
 
     const { loadMoreProjects } = await import("./actions");
 

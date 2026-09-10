@@ -2,7 +2,10 @@ import * as Sentry from "@sentry/nextjs";
 import { headers } from "next/headers";
 import type { NextRequest } from "next/server";
 
-import { getSession } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableText,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-proxy-headers";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
@@ -10,8 +13,11 @@ export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ roomId: string }> },
 ) {
-  const session = await getSession();
-  if (!session) {
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return coreSessionUnavailableText(sessionRead.reason);
+  }
+  if (sessionRead.status === "signedOut") {
     return new Response("Unauthorized", { status: 401 });
   }
 

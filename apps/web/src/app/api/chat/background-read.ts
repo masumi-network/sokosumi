@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { getSessionResult } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableJson,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 interface BackgroundChatReadPage {
@@ -24,16 +27,13 @@ export async function respondToBackgroundChatRead(
   read: () => Promise<BackgroundChatReadPage>,
 ): Promise<NextResponse> {
   try {
-    const sessionResult = await getSessionResult();
+    const sessionRead = await readRouteSession();
     // A Core timeout is not a logout. Answering 401 for one told the browser
-    // the session was gone; 503 says retry.
-    if (sessionResult.isErr()) {
-      return NextResponse.json(
-        { error: unavailableMessage, reason: sessionResult.error.reason },
-        { status: 503, headers: { "Retry-After": "1" } },
-      );
+    // the session was gone and cost it its realtime client; 503 says retry.
+    if (sessionRead.status === "unavailable") {
+      return coreSessionUnavailableJson(unavailableMessage, sessionRead.reason);
     }
-    if (!sessionResult.value) {
+    if (sessionRead.status === "signedOut") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const page = await read();

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { getSession } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableJson,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { toChatTurnDetail } from "@/lib/soko-bot/chat-state";
@@ -10,8 +13,11 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ turnId: string }> },
 ) {
-  const session = await getSession();
-  if (!session) {
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return coreSessionUnavailableJson("Turn unavailable", sessionRead.reason);
+  }
+  if (sessionRead.status === "signedOut") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { turnId } = await context.params;

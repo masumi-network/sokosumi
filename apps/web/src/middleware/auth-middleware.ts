@@ -1,6 +1,9 @@
 import type { Session } from "@sokosumi/utils";
-import { getSession } from "@/lib/auth/auth.server";
-import { UnAuthenticatedError } from "@/lib/auth/errors";
+import {
+  CoreAuthUnavailableError,
+  UnAuthenticatedError,
+} from "@/lib/auth/errors";
+import { readRouteSession } from "@/lib/auth/route-session";
 
 export interface AuthenticatedRequest {
   session?: Session;
@@ -14,11 +17,17 @@ export function withSession<T extends AuthenticatedRequest, R>(
     // the params (these wrappers back `"use server"` actions whose argument is
     // attacker-controllable) is ignored — the trusted session below is spread
     // last so it overrides a forged one, preventing privilege escalation.
-    const session = await getSession();
-    if (!session) {
+    const sessionRead = await readRouteSession();
+    // "Core could not be asked" is not "the user is signed out". Throwing
+    // UnAuthenticatedError for a stall sends the error boundary to /signin
+    // and loses whatever the action was doing.
+    if (sessionRead.status === "unavailable") {
+      throw new CoreAuthUnavailableError(sessionRead.reason);
+    }
+    if (sessionRead.status === "signedOut") {
       throw new UnAuthenticatedError();
     }
 
-    return handler({ ...params, session });
+    return handler({ ...params, session: sessionRead.session });
   };
 }

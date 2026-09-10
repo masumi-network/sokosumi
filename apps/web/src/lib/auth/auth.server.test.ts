@@ -428,6 +428,37 @@ describe("auth.server", () => {
     timeoutSpy.mockRestore();
   });
 
+  /**
+   * The redirect is for an answered read that carried no session. Sending a
+   * signed-in user to /signin because Core was slow reads as a logout and
+   * loses the page they were on.
+   */
+  it("throws instead of redirecting to sign-in when Core cannot be read", async () => {
+    const timeout = new Error("The operation was aborted due to timeout");
+    timeout.name = "TimeoutError";
+    fetchMock.mockRejectedValue(timeout);
+
+    const { getSessionOrRedirect } = await import("./auth.server");
+    const { redirect } = await import("next/navigation");
+
+    await expect(getSessionOrRedirect()).rejects.toMatchObject({
+      name: "CoreAuthUnavailableError",
+      reason: "timeout",
+    });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("redirects to sign-in when Core answers with no session", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => null });
+
+    const { getSessionOrRedirect } = await import("./auth.server");
+    const { redirect } = await import("next/navigation");
+
+    await getSessionOrRedirect();
+
+    expect(redirect).toHaveBeenCalledWith(expect.stringContaining("/signin"));
+  });
+
   it("lists user accounts from Core", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
