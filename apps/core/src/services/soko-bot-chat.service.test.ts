@@ -136,6 +136,34 @@ describe("finalizeSokoBotChatTurn", () => {
     expect(messageUpdate.mock.calls[0][0].data).not.toHaveProperty("createdAt");
   });
 
+  it("does not invalidate a completed turn with an empty answer", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ finalAnswer: "", chainDepth: 0 }),
+    );
+    await finalizeSokoBotChatTurn("turn-a");
+    expect(mentionUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "failed" }),
+      }),
+    );
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
+    expect(publish).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishes the response while control fan-out is pending", async () => {
+    const control = Promise.withResolvers<void>();
+    vi.mocked(publishChatRoomsChanged).mockReturnValueOnce(control.promise);
+    const finishing = finalizeSokoBotChatTurn("turn-a");
+    try {
+      await vi.waitFor(() =>
+        expect(publish).toHaveBeenCalledWith("response-a", "update"),
+      );
+    } finally {
+      control.resolve();
+      await finishing;
+    }
+  });
+
   it("does not overwrite a response after another finalizer wins", async () => {
     mentionUpdateMany.mockResolvedValue({ count: 0 });
     await finalizeSokoBotChatTurn("turn-a");

@@ -179,8 +179,10 @@ export async function persistAssistantToChatRoom(params: {
       });
       return message;
     });
-    await invalidateChatRoomMessageReaders({ roomId, authorUserId: null });
-    await publishChatRoomMessageRealtimeById(created.id, "create");
+    await Promise.all([
+      invalidateChatRoomMessageReaders({ roomId, authorUserId: null }),
+      publishChatRoomMessageRealtimeById(created.id, "create"),
+    ]);
     return { id: created.id };
   } catch (error) {
     if (!responseId || !isPrismaUniqueViolation(error)) {
@@ -272,11 +274,13 @@ export async function persistUserMessageToChatRoom(params: {
       return message;
     });
 
-    await invalidateChatRoomMessageReaders({
-      roomId,
-      authorUserId: senderUserId,
-    });
-    await publishChatRoomMessageRealtimeById(created.id, "create");
+    await Promise.all([
+      invalidateChatRoomMessageReaders({
+        roomId,
+        authorUserId: senderUserId,
+      }),
+      publishChatRoomMessageRealtimeById(created.id, "create"),
+    ]);
     return { id: created.id };
   } catch (error) {
     if (!clientId || !isPrismaUniqueViolation(error)) {

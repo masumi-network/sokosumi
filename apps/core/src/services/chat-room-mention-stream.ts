@@ -168,12 +168,14 @@ export async function publishMentionThoughtPlaceholder(params: {
     });
     return row;
   });
-  await invalidateChatRoomMessageReaders({
-    roomId: params.roomId,
-    authorUserId: null,
-  });
   try {
-    await publishChatRoomMessageRealtimeById(created.id, "create");
+    await Promise.all([
+      invalidateChatRoomMessageReaders({
+        roomId: params.roomId,
+        authorUserId: null,
+      }),
+      publishChatRoomMessageRealtimeById(created.id, "create"),
+    ]);
   } catch (publishError) {
     console.error("Mention Thought placeholder Ably create failed:", {
       mentionId: params.mentionId,

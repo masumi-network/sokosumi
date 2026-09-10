@@ -123,11 +123,13 @@ export async function publishChatRoomMembershipStatusMessagesBestEffort(
   }
   const results = await Promise.allSettled(
     messages.map(async (message) => {
-      await invalidateChatRoomMessageReaders({
-        roomId: message.roomId,
-        authorUserId: message.senderUserId,
-      });
-      await publishChatRoomMessageRealtime(message, "create");
+      await Promise.all([
+        invalidateChatRoomMessageReaders({
+          roomId: message.roomId,
+          authorUserId: message.senderUserId,
+        }),
+        publishChatRoomMessageRealtime(message, "create"),
+      ]);
     }),
   );
   for (const result of results) {

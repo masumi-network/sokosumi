@@ -1533,6 +1533,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(body.data.id).toBe(MESSAGE_ID);
       expect(messageCreateMock).toHaveBeenCalledTimes(1);
       expect(dispatchMock).not.toHaveBeenCalled();
+      expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
       expect(messageFindUniqueMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
           where: {

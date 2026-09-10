@@ -613,14 +613,16 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
       mentionPublished = true;
       // Finalization advances the reply attention clock, even with a Thought placeholder.
-      await invalidateChatRoomMessageReaders({
-        roomId: mention.message.roomId,
-        authorUserId: null,
-      });
-      await publishChatRoomMessageRealtimeById(
-        publishedMessageIds.responseMessageId,
-        placeholderId ? "update" : "create",
-      );
+      await Promise.all([
+        invalidateChatRoomMessageReaders({
+          roomId: mention.message.roomId,
+          authorUserId: null,
+        }),
+        publishChatRoomMessageRealtimeById(
+          publishedMessageIds.responseMessageId,
+          placeholderId ? "update" : "create",
+        ),
+      ]);
       await publishChatRoomMessageRealtimeById(
         publishedMessageIds.sourceMessageId,
         "mention_status",
