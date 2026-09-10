@@ -2,6 +2,17 @@
 
 ## Resume checkpoint
 
+### Current handoff (2026-09-10)
+
+- Slice 10 is implemented on `codex/apple-rich-message-rendering`, rebased on main `717b73d81`. Open it as a draft for review; keep the row Partial until remaining interaction checks and review are complete. Earlier checkpoints below are historical.
+- Native room/thread rendering covers Markdown blocks, inline formatting, safe links and image-link fallbacks, sanitized HTML text, emoji conversion, jumbo emoji, code fences, and 16-line expansion. Existing approved SwiftPM dependencies are now linked by the renderer; no new package or API contract is introduced.
+- Syntax refinements are deferred to 10b by the user and must not delay this PR. Attachment previews remain slice 15.
+- Current verification: 234 Chat tests, 34 Auth tests, Xcode app build/tests, iOS 17 compilation of the Chat test target, full Apple SwiftFormat and strict SwiftLint passed. Additional package results are recorded with the PR.
+- Signed-app screenshots show readable message text and links. Earlier report checks verified headings, bold, lists and independent expand/collapse. Pointer selection could not be exercised: CUA drag again returned `noWindowsAvailable`. Selection/copy, light appearance, continuous resizing and live incremental rendering remain explicit manual checks; do not claim these verified from unit tests.
+- Preserve the user's unstaged `Sokosumi.xcodeproj/project.pbxproj` ordering edit. Do not include it in the PR. Do not recreate the deleted polling automation.
+
+### Earlier implementation checkpoints
+
 - User priority update (2026-09-10): keep current native code highlighting and defer further syntax highlighting optimization, remaining language coverage and automatic detection. These no longer block the initial rich-message rendering PR. Finish ordinary message formatting, expansion and native interaction first. The uncommitted Python REPL experiment was removed.
 
 - Current slice: **10 — rich message text**. Native dependency [PR #4368](https://github.com/masumi-network/sokosumi/pull/4368) merged. Rendering remains in progress on `codex/apple-rich-message-rendering`; no renderer PR yet.
