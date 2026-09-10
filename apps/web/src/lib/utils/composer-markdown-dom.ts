@@ -141,12 +141,12 @@ function normalizeVoidTagSerialization(html: string): string {
  * choice changes where this runs: `markdownToHtml` already needs a DOM,
  * because the chip builders call `document.createElement`.
  *
- * No test pins the call from `markdownToHtml` to here, and none can without
- * spying on the sanitizer. Every interpolation is escaped before it reaches
- * the builder and both chip builders write `textContent`, so no reachable
- * input produces dirty HTML for this to strip. What the tests do pin is the
- * allow-list: drop an attribute and the round-trip cases fail, which is the
- * failure mode that loses user content.
+ * The boundary is load-bearing, not belt-and-braces. Escaping each
+ * interpolation is not enough, because a token can be restored into an
+ * attribute value rather than into element content, where element-context
+ * escaping does not apply: `@a:b[x](https://y.test/)` lets the mention slug
+ * swallow the link placeholder and injects `https:` and `y.test` as bare
+ * attributes on the chip. That is what this strips.
  */
 export function sanitizeComposerHtml(html: string): string {
   return normalizeVoidTagSerialization(

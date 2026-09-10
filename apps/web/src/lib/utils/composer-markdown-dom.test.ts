@@ -444,6 +444,20 @@ describe("markdownToHtml sanitization boundary", () => {
     );
   });
 
+  it("strips attributes a restored token injects into a chip", () => {
+    // The mention slug swallows the link placeholder, so the link HTML is
+    // restored inside an attribute value where the element-context escaping
+    // does not apply. Without the boundary the browser reads `https:` and
+    // `y.test` off the chip as bare attributes.
+    const root = document.createElement("div");
+    root.innerHTML = markdownToHtml("@a:b[x](https://y.test/)");
+    const chip = root.querySelector("[data-mention-key]");
+    expect(chip).not.toBeNull();
+    expect(
+      Array.from(chip?.attributes ?? []).map((attribute) => attribute.name),
+    ).toEqual(["data-mention-key", "data-mention-slug"]);
+  });
+
   it("renders literal HTML text as text", () => {
     const html = markdownToHtml("<script>alert(1)</script>");
     const root = document.createElement("div");
