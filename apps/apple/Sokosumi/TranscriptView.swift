@@ -94,6 +94,7 @@ import SwiftUI
             }
             if let error = workspaces.transcriptError {
               inlineError(error)
+                .padding(.horizontal, 12)
             }
             let messages = workspaces.displayedTranscript
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -106,6 +107,7 @@ import SwiftUI
                 }
                 if let status = membershipStatusText(message) {
                   MembershipStatusRow(text: status)
+                    .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
                   MessageRow(
@@ -119,7 +121,8 @@ import SwiftUI
                     onRemove: outbound.map { shell in
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                     },
-                    onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil
+                    onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil,
+                    horizontalInset: 12
                   )
                   if outbound == nil, message.threadReplyCount > 0 {
                     Button("\(message.threadReplyCount) replies") {
@@ -127,7 +130,7 @@ import SwiftUI
                     }
                     .buttonStyle(.borderless)
                     .font(.caption)
-                    .padding(.leading, 48)
+                    .padding(.leading, 60)
                   }
                 }
               }
@@ -139,7 +142,6 @@ import SwiftUI
             Color.clear.frame(height: 9).id("timeline-bottom")
           }
           .scrollTargetLayout()
-          .padding(.horizontal, 12)
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
@@ -373,6 +375,7 @@ import SwiftUI
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
+    var horizontalInset: CGFloat = 0
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @FocusState private var replyFocused: Bool
@@ -441,6 +444,7 @@ import SwiftUI
       }
       .padding(.top, isContinuation ? 2 : 10)
       .padding(.bottom, 2)
+      .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
       .background(isHovered && onReply != nil ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
@@ -471,6 +475,7 @@ import SwiftUI
           .accessibilityLabel("Reply in thread")
           .opacity(isHovered || replyFocused ? 1 : 0)
           .allowsHitTesting(isHovered || replyFocused)
+          .padding(.trailing, horizontalInset)
         }
       }
       // Track the complete row, including its action overlay. The toolbar

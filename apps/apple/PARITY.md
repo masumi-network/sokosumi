@@ -308,3 +308,8 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 
 - The user confirmed hover behavior is much better and requested a separate Reply highlight. The CTA now uses a semantic rounded hover fill across its padded click area. Continuous hover tracking and stable layout remain in place.
 - Signed Apple Development build and SwiftLint passed (`/tmp/reply-highlight-build.log`, `/tmp/reply-highlight-lint.log`); SwiftFormat and diff checks passed. Pointer appearance still needs native visual confirmation; no new model or networking behavior was introduced.
+
+### Slice 08 full-width message hover (2026-09-10)
+
+- Moved the room transcript horizontal inset into message content. Hover backgrounds and tracking now span the chat pane; avatars, text and Reply retain their 12pt inset. Reply-count alignment and error/status insets are preserved.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/full-width-hover-build.log`, `/tmp/full-width-hover-lint.log`). Native pointer verification remains manual.
