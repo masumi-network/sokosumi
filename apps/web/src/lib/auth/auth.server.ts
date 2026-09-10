@@ -32,7 +32,12 @@ export interface OAuthClientPublic {
 const CORE_GET_SESSION_PATH = "/auth/get-session";
 const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
 const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
-const CORE_AUTH_REQUEST_TIMEOUT_MS = 5000;
+// 8s, not 5s. Production Core answers `/auth/get-session` in tens of
+// milliseconds; this budget is only spent on a stall (cold start, connection
+// storm, a saturated web function). Five seconds turned those stalls into
+// "no session". Callers in front of it allow far more: background chat reads
+// give the browser 20-30s.
+const CORE_AUTH_REQUEST_TIMEOUT_MS = 8000;
 
 async function fetchCoreAuth<T>(
   path: string,
@@ -102,6 +107,18 @@ async function fetchCoreAuth<T>(
       return err(authReadError);
     }
   } catch (error) {
+    // PPR soft-abort during shell probe — not an auth failure. Rethrow so React
+    // / Cache Components can finish the boundary instead of treating this as a
+    // Core outage.
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "digest" in error &&
+      error.digest === "HANGING_PROMISE_REJECTION"
+    ) {
+      throw error;
+    }
+
     const reason: CoreAuthReadErrorReason =
       error instanceof Error && error.name === "TimeoutError"
         ? "timeout"
@@ -170,69 +187,65 @@ function hasSessionCookie(requestHeaders: Headers): boolean {
   );
 }
 
-async function fetchSession(
+/**
+ * Reads the session from Core, keeping "there is no session" separate from
+ * "Core could not be asked".
+ *
+ * `ok(null)` means the request was answered and carried no session. `err`
+ * means a timeout, a network failure, a non-JSON body, or an unexpected HTTP
+ * status — an outage, not a signed-out user. Collapsing the two made a five
+ * second Core timeout indistinguishable from a logout, so callers answered 401
+ * to users whose session was fine.
+ */
+async function fetchSessionResult(
   requestHeaders: Headers,
   options?: GetSessionOptions,
-): Promise<Session | null> {
+): Promise<Result<Session | null, CoreAuthReadError>> {
   // Skip Core entirely when the browser did not send a session cookie. Auth
   // entry pages call getSession on every visit; anonymous users were paying a
   // full Core RTT for a guaranteed null.
   if (!hasSessionCookie(requestHeaders)) {
-    return null;
+    return ok(null);
   }
 
-  // Concatenate rather than `new URL(path, base)` so a base URL with a
-  // sub-path (e.g. `https://host/core`) is preserved instead of dropped by
-  // absolute-path resolution.
-  const sessionUrl = new URL(
-    joinCoreApiPath(getServerCoreAppBaseUrl(), CORE_GET_SESSION_PATH),
+  const result = await fetchCoreAuth<Session | null>(
+    CORE_GET_SESSION_PATH,
+    requestHeaders,
+    {
+      failureLogMessage: "Failed to fetch session from Core",
+      searchParams: {
+        disableCookieCache: options?.refresh ? "true" : undefined,
+      },
+      // Core answers 200 with a null body for a signed-out browser, so these
+      // statuses are not expected. Keep them out of Sentry anyway: an auth
+      // status is about this request, not about Core being down.
+      sentryIgnoreHttpStatuses: [401, 403, 404],
+    },
   );
 
-  if (options?.refresh) {
-    sessionUrl.searchParams.set("disableCookieCache", "true");
-  }
-
-  try {
-    const response = await fetch(sessionUrl, {
-      headers: buildAuthHeaders(requestHeaders),
-      cache: "no-store",
-      signal: AbortSignal.timeout(CORE_AUTH_REQUEST_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const body = (await response.json()) as Session | null;
-
-    if (!body?.session || !body.user) {
-      return null;
-    }
-
-    return body;
-  } catch (error) {
-    // PPR soft-abort during shell probe — not an auth failure. Rethrow so React
-    // / Cache Components can finish the boundary instead of treating this as
-    // "no session" and bouncing the user to /signin.
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "digest" in error &&
-      error.digest === "HANGING_PROMISE_REJECTION"
-    ) {
-      throw error;
-    }
-
-    // Core unreachable, timed out, or returned a non-JSON body. Preserve the
-    // null-returning contract callers rely on instead of throwing.
-    console.error("Failed to fetch session from Core", error);
-    return null;
-  }
+  return result.map((body) => (body?.session && body.user ? body : null));
 }
 
-const getCachedSession = cache(async (): Promise<Session | null> => {
-  return fetchSession(await getRequestHeaders());
-});
+const getCachedSessionResult = cache(
+  async (): Promise<Result<Session | null, CoreAuthReadError>> => {
+    return fetchSessionResult(await getRequestHeaders());
+  },
+);
+
+/**
+ * Session read that reports a Core outage instead of hiding it as "no session".
+ * Use from route handlers that would otherwise answer 401 for a timeout; an
+ * `err` belongs in a 503, never a 401.
+ */
+export async function getSessionResult(
+  options?: GetSessionOptions,
+): Promise<Result<Session | null, CoreAuthReadError>> {
+  if (options?.refresh) {
+    return fetchSessionResult(await getRequestHeaders(), options);
+  }
+
+  return getCachedSessionResult();
+}
 
 /**
  * Gets the current user's session information. This function only works with
@@ -243,11 +256,7 @@ const getCachedSession = cache(async (): Promise<Session | null> => {
 export async function getSession(
   options?: GetSessionOptions,
 ): Promise<Session | null> {
-  if (options?.refresh) {
-    return fetchSession(await getRequestHeaders(), options);
-  }
-
-  return getCachedSession();
+  return (await getSessionResult(options)).unwrapOr(null);
 }
 
 const getCachedUserAccounts = cache(

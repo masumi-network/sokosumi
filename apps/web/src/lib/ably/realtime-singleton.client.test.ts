@@ -27,6 +27,11 @@ vi.mock("./ably-client-instance-id", () => ({
 
 import { getNotificationServiceWorkerUrl } from "@/lib/utils/notification-service-worker";
 
+import {
+  getAblyConnectionHealthy,
+  reportAblyConnectionConnected,
+  setAblyConnectionHealthy,
+} from "./ably-connection-health-store";
 import { getAblyRealtimeClient } from "./realtime-singleton.client";
 
 interface RealtimeAuthCallback {
@@ -88,6 +93,7 @@ describe("getAblyRealtimeClient", () => {
 
   beforeEach(() => {
     globalThis.__sokosumiAblyRealtimeClient = undefined;
+    setAblyConnectionHealthy(false);
     RealtimeMock.mockClear();
     fetchMock.mockReset();
     consoleErrorMock.mockClear();
@@ -137,14 +143,14 @@ describe("getAblyRealtimeClient", () => {
     expect(options.authParams).toBeUndefined();
   });
 
-  it("clears the shared singleton when /api/ably/auth returns 401", async () => {
+  it("keeps the shared client when /api/ably/auth returns 401", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
       text: async () => '{"error":"Unauthorized"}',
     });
 
-    getAblyRealtimeClient();
+    const client = getAblyRealtimeClient();
     const authResult = await invokeAuthCallback();
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -156,9 +162,17 @@ describe("getAblyRealtimeClient", () => {
     );
     expect(authResult.token).toBeNull();
     expect(authResult.error).toEqual(expect.any(String));
-    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
-    expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
-    expect(consoleErrorMock).not.toHaveBeenCalled();
+    // close() is terminal for the instance AblyProvider already holds.
+    // Production mixed 401 with 200 on this route in the same minute; treating
+    // 401 as logout killed realtime until a page reload.
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "Ably auth request failed",
+      expect.objectContaining({ status: 401 }),
+    );
+    reportAblyConnectionConnected(true);
+    expect(getAblyConnectionHealthy()).toBe(false);
   });
 
   it("does not clear the singleton when /api/ably/auth returns 502", async () => {
@@ -178,43 +192,43 @@ describe("getAblyRealtimeClient", () => {
     expect(consoleErrorMock).toHaveBeenCalled();
   });
 
-  it("does not let a retired client's late 401 close its replacement", async () => {
-    let rejectOldAuth: ((value: Response) => void) | undefined;
-    fetchMock.mockImplementationOnce(
-      () =>
-        new Promise<Response>((resolve) => {
-          rejectOldAuth = resolve;
-        }),
-    );
-    getAblyRealtimeClient();
-    const oldAuth = invokeAuthCallback();
-
-    fetchMock.mockResolvedValueOnce(
-      new Response("Unauthorized", { status: 401 }),
-    );
-    await invokeAuthCallback();
-    const replacement = getAblyRealtimeClient();
-    const replacementClose = RealtimeMock.mock.instances[1]?.close;
-    rejectOldAuth?.(new Response("Unauthorized", { status: 401 }));
-    await oldAuth;
-
-    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
-    expect(replacementClose).not.toHaveBeenCalled();
-  });
-
-  it("recreates a client after a 401 so a later remount can reconnect", async () => {
+  it("reuses the same client after a 401 instead of building a second one", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
       text: async () => '{"error":"Unauthorized"}',
     });
 
-    getAblyRealtimeClient();
+    const client = getAblyRealtimeClient();
     await invokeAuthCallback();
     RealtimeMock.mockClear();
 
-    const nextClient = getAblyRealtimeClient();
-    expect(RealtimeMock).toHaveBeenCalledTimes(1);
-    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(nextClient);
+    expect(getAblyRealtimeClient()).toBe(client);
+    expect(RealtimeMock).not.toHaveBeenCalled();
+  });
+
+  it("marks auth as delivering after a successful mint", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        keyName: "app.key",
+        capability: "{}",
+        timestamp: 1,
+        nonce: "n",
+        mac: "m",
+      }),
+    });
+
+    getAblyRealtimeClient();
+    const authResult = await invokeAuthCallback();
+
+    expect(authResult.error).toBeNull();
+    expect(authResult.token).toEqual(
+      expect.objectContaining({ keyName: "app.key" }),
+    );
+    expect(getAblyConnectionHealthy()).toBe(false);
+    reportAblyConnectionConnected(true);
+    expect(getAblyConnectionHealthy()).toBe(true);
   });
 });
