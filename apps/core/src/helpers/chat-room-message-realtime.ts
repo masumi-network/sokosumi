@@ -136,7 +136,6 @@ export async function publishChatRoomMembershipStatusMessagesBestEffort(
         invalidateChatRoomMessageReaders({
           excludedUserIds: separatelyNotifiedUserIds,
           roomId: message.roomId,
-          authorUserId: message.senderUserId,
         }),
         publishChatRoomMessageRealtime(message, "create"),
       ]);
