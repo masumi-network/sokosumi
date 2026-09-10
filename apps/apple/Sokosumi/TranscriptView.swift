@@ -292,8 +292,8 @@ import SwiftUI
           .disabled(!canSend)
       }
       .padding(8)
-      .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, text in
-        guard roomId == workspaces.directStream.roomId, parentMessageId == workspaces.directStream.parentMessageId, let text, !text.isEmpty else { return }
+      .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
+        guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
         draft = savedDraft.restoreFailedSend(text, preserving: draft)
         Task { @MainActor in
           workspaces.directStream.consumeRestoredDraft()

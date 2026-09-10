@@ -435,3 +435,9 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Verification: 172 Chat tests and iOS 17 shared compilation passed; Final Xcode app tests passed, including the initial-observation fix (`/tmp/slice09b-final-app.log`). Lint/format checks passed. No production messages were sent; live thread-provider UI interaction remains a manual PR test.
 
 - Published draft [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361). CoreAPI 1, Auth 34 and Realtime 27 tests also passed (`/tmp/slice09b-{CoreAPI,SokosumiAuth,SokosumiRealtime}.log`). Wait for CI/review/merge; no next slice before merge.
+
+### Slice 09b review follow-up (2026-09-10)
+
+- `ThreadSession.open` is a no-op for the same parent. Settlement succeeds if the room refresh applied even when the thread was closed or reopened during the wait, so overlays cannot stick after an idle stream.
+- Auto-open in `ContentView` hops `@Published` writes off the view update. Failed thread drafts restore only when room and parent match the composer.
+- App tests cover close-during-settle overlay clear and re-entry resume auto-open. Chat 174 tests passed. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` passed. Strict SwiftLint and SwiftFormat passed.

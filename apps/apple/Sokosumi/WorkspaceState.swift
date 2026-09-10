@@ -588,16 +588,17 @@ final class WorkspaceState: ObservableObject {
     if let parent = streamingThreadToOpen {
       openThread(parent, auth: auth)
     }
-    if let parentId = directStream.parentMessageId, thread.parent?.id == parentId {
-      let threadGeneration = thread.timeline.generation
-      await thread.loadTask?.value
-      guard generation == transcriptGeneration, threadGeneration == thread.timeline.generation else { return false }
-      loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
-      await thread.loadTask?.value
-      guard generation == transcriptGeneration, threadGeneration == thread.timeline.generation else { return false }
-      return thread.timeline.errorMessage == nil
+    guard let parentId = directStream.parentMessageId, thread.parent?.id == parentId else {
+      return true
     }
-    return true
+    await thread.loadTask?.value
+    guard generation == transcriptGeneration else { return false }
+    guard thread.parent?.id == parentId else { return true }
+    loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
+    await thread.loadTask?.value
+    guard generation == transcriptGeneration else { return false }
+    guard thread.parent?.id == parentId else { return true }
+    return thread.timeline.errorMessage == nil
   }
 
   /// Drop a revoked room from the sidebar (chat-control event, SOK-742).

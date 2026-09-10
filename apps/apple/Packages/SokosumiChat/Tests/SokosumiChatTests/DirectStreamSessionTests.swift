@@ -246,6 +246,28 @@ struct DirectStreamSessionTests {
     #expect(session.errorMessage != nil)
     #expect(!session.isBusy)
   }
+
+  @Test func failedThreadSendKeepsParentForMatchingComposerRestore() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(409, """
+    {"error":"Conflict","message":"A coworker response is already in progress for this room.","meta":{"timestamp":"\(testTimestamp)","requestId":"req","path":"/v1/chats/rooms/room/stream","method":"POST"}}
+    """)]))
+    #expect(session.send("Hello", client: client, organizationSlug: nil, parentMessageId: "parent",
+                         settled: {
+                           Issue.record("Pre-stream failure must not settle history")
+                           return true
+                         }, failed: { _ in }))
+    await session.task?.value
+    #expect(session.parentMessageId == "parent")
+    #expect(session.restoredDraft(for: testRoomId, parentMessageId: "parent") == "Hello")
+    #expect(session.restoredDraft(for: testRoomId, parentMessageId: nil) == nil)
+    let suiteName = "stream-draft-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let draft = SavedComposeDraft(userId: "me", organizationId: nil, roomId: testRoomId, parentMessageId: "parent", defaults: defaults)
+    #expect(draft.restoreFailedSend("Hello", preserving: "Newer") == "Hello\n\nNewer")
+  }
 }
 
 private struct ResumeTransport: ClientTransport {

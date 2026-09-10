@@ -11,7 +11,10 @@ extension WorkspaceState {
   }
 
   func openThread(_ parent: Components.Schemas.ChatRoomMessage, auth: AuthState) {
-    guard parent.roomId == transcriptRoomId, thread.open(parent) else { return }
+    guard parent.roomId == transcriptRoomId else { return }
+    let previousGeneration = thread.timeline.generation
+    guard thread.open(parent) else { return }
+    guard thread.timeline.generation != previousGeneration else { return }
     loadThreadPage(.initial, auth: auth)
     let generation = thread.timeline.generation
     thread.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in

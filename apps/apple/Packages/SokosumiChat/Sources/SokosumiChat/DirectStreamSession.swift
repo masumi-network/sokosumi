@@ -64,6 +64,13 @@ public final class DirectStreamSession: ObservableObject {
     restoredDraft = nil
   }
 
+  public func restoredDraft(for roomId: String, parentMessageId: String?) -> String? {
+    guard self.roomId == roomId, self.parentMessageId == parentMessageId, let text = restoredDraft, !text.isEmpty else {
+      return nil
+    }
+    return text
+  }
+
   public var overlayMessages: [Components.Schemas.ChatRoomMessage] {
     var messages = userMessage.map { [$0] } ?? []
     if hasResponse, let roomId, let coworker {
