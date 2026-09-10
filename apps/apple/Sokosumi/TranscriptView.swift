@@ -96,7 +96,7 @@ import SwiftUI
               inlineError(error)
                 .padding(.horizontal, 12)
             }
-            if let error = workspaces.directStream.errorMessage {
+            if workspaces.directStream.parentMessageId == nil, let error = workspaces.directStream.errorMessage {
               Text(error)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
@@ -267,7 +267,7 @@ import SwiftUI
 
     private var canSend: Bool {
       ComposerContent(draft).canSend
-        && (parentMessageId != nil || !workspaces.directStream.isBusy)
+        && !workspaces.directStream.isBusy
         && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
         && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
@@ -293,7 +293,7 @@ import SwiftUI
       }
       .padding(8)
       .onChange(of: workspaces.directStream.restoredDraft) { _, text in
-        guard parentMessageId == nil, let text, !text.isEmpty else { return }
+        guard parentMessageId == workspaces.directStream.parentMessageId, let text, !text.isEmpty else { return }
         draft = savedDraft.restoreFailedSend(text, preserving: draft)
         Task { @MainActor in
           workspaces.directStream.consumeRestoredDraft()
@@ -624,7 +624,7 @@ import SwiftUI
 
 #endif
 
-private func isCoworkerMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+func isCoworkerMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   if case .case2 = message.sender {
     return true
   }

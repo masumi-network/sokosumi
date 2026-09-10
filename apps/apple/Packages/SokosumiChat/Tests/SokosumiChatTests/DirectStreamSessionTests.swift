@@ -98,6 +98,28 @@ struct DirectStreamSessionTests {
     #expect(session.displayedMessages(persisted: [], parentMessageId: "parent").map(\.content) == ["Reply", "Answer"])
   }
 
+  @Test func retainedParentIsScopedAndClearsAfterResumeSettlement() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room(), userId: "me", organizationId: "team")
+    let client = try makeTestClient(TestTransport([(200, completedStream), (200, completedStream)]))
+    #expect(session.send("Reply", client: client, organizationSlug: "team", parentMessageId: "parent",
+                         settled: { false }, failed: { Issue.record($0) }))
+    await session.task?.value
+    session.reset(room: room(), userId: "other", organizationId: "team")
+    #expect(session.parentMessageId == nil)
+    session.reset(room: room(), userId: "me", organizationId: nil)
+    #expect(session.parentMessageId == nil)
+    session.reset(room: room(), userId: "me", organizationId: "team")
+    #expect(session.parentMessageId == "parent")
+    session.resume(client: client, organizationSlug: "team", settled: {
+      #expect(session.overlayMessages.first?.parentMessageId == "parent")
+      return true
+    }, failed: { Issue.record($0) })
+    await session.task?.value
+    session.reset(room: room(), userId: "me", organizationId: "team")
+    #expect(session.parentMessageId == nil)
+  }
+
   @Test func oldSettlementCannotClearNewRoomState() async throws {
     let session = DirectStreamSession()
     session.reset(room: room())

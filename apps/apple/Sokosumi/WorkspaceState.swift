@@ -283,7 +283,7 @@ final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
-    directStream.reset(room: room)
+    directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
@@ -578,13 +578,23 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  private func settleDirectStream(auth: AuthState, generation: Int) async -> Bool {
+  func settleDirectStream(auth: AuthState, generation: Int) async -> Bool {
     while generation == transcriptGeneration,
           let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
       await task.value
     }
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
-    return await refresh(auth: auth, generation: generation)
+    guard await refresh(auth: auth, generation: generation) else { return false }
+    if let parentId = directStream.parentMessageId, thread.parent?.id == parentId {
+      let threadGeneration = thread.timeline.generation
+      await thread.loadTask?.value
+      guard generation == transcriptGeneration, threadGeneration == thread.timeline.generation else { return false }
+      loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
+      await thread.loadTask?.value
+      guard generation == transcriptGeneration, threadGeneration == thread.timeline.generation else { return false }
+      return thread.timeline.errorMessage == nil
+    }
+    return true
   }
 
   /// Drop a revoked room from the sidebar (chat-control event, SOK-742).

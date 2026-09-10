@@ -23,6 +23,8 @@ public final class DirectStreamSession: ObservableObject {
   private var responseDate = Date()
   private var hasResponse = false
   private let service = ChatService()
+  private var scope: [String]?
+  private var retainedParents: [[String]: String] = [:]
 
   public init() {}
 
@@ -43,12 +45,13 @@ public final class DirectStreamSession: ObservableObject {
       && room.userMembers.count == 1 && room.sokoBotMembers.isEmpty
   }
 
-  public func reset(room: Components.Schemas.ChatRoom? = nil, parentMessageId: String? = nil) {
+  public func reset(room: Components.Schemas.ChatRoom? = nil, userId: String? = nil, organizationId: String? = nil) {
     generation = UUID()
     task?.cancel()
     task = nil
     roomId = room.flatMap { Self.supports($0) ? $0.id : nil }
-    self.parentMessageId = roomId == nil ? nil : parentMessageId
+    scope = roomId.map { [userId ?? room?.userMembers.first?.id ?? "", organizationId == nil ? "personal" : "organization", organizationId ?? "", $0] }
+    parentMessageId = scope.flatMap { retainedParents[$0] }
     sender = roomId == nil ? nil : room?.userMembers.first
     coworker = roomId == nil ? nil : room?.coworkerMembers.first
     clearOverlay()
@@ -107,6 +110,9 @@ public final class DirectStreamSession: ObservableObject {
     guard let roomId, let sender, !isBusy, draft.canSend else { return false }
     restoredDraft = nil
     self.parentMessageId = parentMessageId
+    if let scope {
+      retainedParents[scope] = parentMessageId
+    }
     clearOverlay()
     let id = UUID().uuidString
     var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: roomId, content: draft.text, sender: sender))
@@ -137,7 +143,13 @@ public final class DirectStreamSession: ObservableObject {
         }
       }
       do {
-        guard let body = try await body() else { return }
+        guard let body = try await body() else {
+          if generation == token {
+            forgetRetainedParent()
+            parentMessageId = nil
+          }
+          return
+        }
         guard generation == token, !Task.isCancelled else { return }
         hasResponse = true
         responseDate = Date()
@@ -150,6 +162,7 @@ public final class DirectStreamSession: ObservableObject {
         await reconcile(token: token, settled: settled)
       } catch {
         guard generation == token, !Task.isCancelled else { return }
+        forgetRetainedParent()
         errorMessage = friendlyMessage(for: error)
         failed(error)
         if hasResponse {
@@ -162,12 +175,21 @@ public final class DirectStreamSession: ObservableObject {
     }
   }
 
+  private func forgetRetainedParent() {
+    if let scope {
+      retainedParents[scope] = nil
+    }
+  }
+
   private func reconcile(token: UUID, settled: () async -> Bool) async {
     guard hasResponse, generation == token, !Task.isCancelled else { return }
     phase = .settling
     let refreshed = await settled()
     guard generation == token, !Task.isCancelled else { return }
     if refreshed {
+      if let scope {
+        retainedParents[scope] = nil
+      }
       clearOverlay()
     }
   }

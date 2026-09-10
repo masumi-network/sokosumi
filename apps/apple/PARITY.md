@@ -421,3 +421,9 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Extended the existing POST with optional `parentMessageId`; generated Core contract already supports it. Both user and coworker overlays carry the parent. Overlay merging filters by the requested thread, preserving the shared room send lock.
 - Added request-body and session routing/concurrent-send regression tests. All 171 Chat tests and strict SwiftLint passed (`/tmp/slice09b-session.log`, `/tmp/slice09b-lint.log`).
 - Remaining: scoped parent retention on room re-entry, thread composer/error/restored-draft routing, thread thinking rendering, room/thread settlement and parent reply-count refresh, resume auto-opening, app integration tests, full build and verification. No PR yet; this checkpoint is not a completed slice.
+
+### Slice 09b app wiring checkpoint
+
+- Thread composer sends through the shared streaming session; both composers respect its busy state. Thread rows render stream text/thinking, errors and restored drafts route to the matching composer, and older reply pagination is blocked during a stream.
+- Session retains parents in memory by account/workspace/room for re-entry, clearing them after errors, idle resume or successful settlement. Tests cover scope isolation and resume settlement; 172 Chat tests passed (`/tmp/slice09b-retention.log`). App tests passed before the retention addition (`/tmp/slice09b-app.log`); strict lint passed after extracting parent cleanup.
+- Still incomplete: auto-opening resumed thread, settlement when the thread closes/switches, race/deletion/app integration coverage and final full verification. Current settlement only refreshes replies when the active parent remains open; finish that behavior before opening a PR.

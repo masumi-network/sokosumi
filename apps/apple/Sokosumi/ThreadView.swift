@@ -36,7 +36,7 @@ import SwiftUI
                 proxy.scrollTo("thread-bottom", anchor: .bottom)
               }
             }
-            .onChange(of: workspaces.thread.displayedReplies.last?.id) { _, _ in
+            .onChange(of: workspaces.displayedThreadReplies.last?.id) { _, _ in
               if followsLatest {
                 proxy.scrollTo("thread-bottom", anchor: .bottom)
               }
@@ -71,7 +71,7 @@ import SwiftUI
             followsLatest = false
             workspaces.loadThreadPage(.older, auth: auth)
           }
-          .disabled(timeline.isLoadingOlder)
+          .disabled(timeline.isLoadingOlder || workspaces.directStream.isBusy)
         }
         if timeline.isLoadingOlder {
           ProgressView()
@@ -80,12 +80,19 @@ import SwiftUI
           Text(error).foregroundStyle(.secondary)
           Button("Retry") { workspaces.loadThreadPage(timeline.failedPage ?? .initial, auth: auth) }
         }
-        let messages = workspaces.thread.displayedReplies
+        if workspaces.directStream.parentMessageId == workspaces.thread.parent?.id,
+           let error = workspaces.directStream.errorMessage {
+          Text(error).foregroundStyle(.secondary)
+        }
+        let messages = workspaces.displayedThreadReplies
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }
         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
           let previous = index > 0 ? messages[index - 1] : nil
+          let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
+          let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
+          let reasoning = thinking ? workspaces.directStream.latestThought : workspaces.directStream.reasoning
           let outbox = workspaces.thread.outbox
           let shell = outbox.shells.first { $0.id == message.id }
           VStack(alignment: .leading, spacing: 0) {
@@ -98,7 +105,8 @@ import SwiftUI
               MessageRow(message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                          outbound: shell, sentAt: outbox.sentAt[message.id],
                          onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
-                         onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } })
+                         onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
+                         streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
             }
           }
           .id(message.id)
