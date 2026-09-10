@@ -101,7 +101,7 @@ import {
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { Button } from "@/components/ui/button";
-import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -214,7 +214,8 @@ const ROOM_MESSAGE_FALLBACK_MS = 3_000;
 /**
  * A message landed in a membership room that is not open here: its sidebar
  * row (order, unread) changed. Ask for the active collection only; the
- * scheduler coalesces a burst into one read and defers it while hidden.
+ * scheduler coalesces a burst into one read. It runs even while the tab is
+ * hidden, because the row's unread is what the tab title shows the reader.
  */
 function notifySidebarOfForeignRoomMessage() {
   notifyOrganizationChatRoomsChanged({ collections: ["active"] });
@@ -2516,7 +2517,7 @@ export function RoomsClient({
             currentUserId ? (
               <LazyAblyProvider>
                 <RoomMessageRealtimeBridge
-                  roomIds={rooms.map((room) => room.id)}
+                  roomIds={channelCatalogRooms.map((room) => room.id)}
                   currentUserId={currentUserId}
                   selectedRoomId={selectedRoomId}
                   onMessage={handleChatRoomRealtimeMessage}

@@ -59,39 +59,6 @@ export function buildOrganizationDriveFilePathname(
 }
 
 /**
- * True when `url` points at a blob owned by this user's drive prefix
- * (`drive/users/{userId}/...`). Used for ACL checks and best-effort deletes.
- */
-export function isOwnedUserDriveFileUrl(url: string, userId: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const pathname = parsed.pathname.replace(/^\//, "");
-    return pathname.startsWith(buildUserDriveFilePrefix(userId));
-  } catch {
-    return false;
-  }
-}
-
-/**
- * True when `url` points at a blob owned by this organization's drive prefix
- * (`drive/organizations/{orgId}/...`). Used for ACL checks and best-effort deletes.
- */
-export function isOwnedOrganizationDriveFileUrl(
-  url: string,
-  organizationId: string,
-): boolean {
-  try {
-    const parsed = new URL(url);
-    const pathname = parsed.pathname.replace(/^\//, "");
-    return pathname.startsWith(
-      buildOrganizationDriveFilePrefix(organizationId),
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Max stored display name length for drive files (server-enforced).
  */
 export const DRIVE_FILE_MAX_NAME_LENGTH = 255;

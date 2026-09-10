@@ -6,7 +6,8 @@ import {
   type Locale,
 } from "date-fns";
 import { de, enUS, es } from "date-fns/locale";
-import { useEffect, useState } from "react";
+import { Suspense, use } from "react";
+import { browser } from "react-dom";
 
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
@@ -34,22 +35,69 @@ interface TimeAgoProps {
   strict?: boolean;
   /**
    * Active UI locale. Drives both the SSR-stable absolute-date fallback and
-   * the post-mount relative string. Defaults to `"en"`.
+   * the post-hydration relative string. Defaults to `"en"`.
    */
   locale?: string;
   className?: string;
+}
+
+interface TimeAgoStampProps {
+  dateObj: Date;
+  label: string;
+  title: string;
+  className?: string;
+}
+
+function TimeAgoStamp({ dateObj, label, title, className }: TimeAgoStampProps) {
+  return (
+    <time dateTime={dateObj.toISOString()} title={title} className={className}>
+      {label}
+    </time>
+  );
+}
+
+interface TimeAgoRelativeProps {
+  dateObj: Date;
+  absolute: string;
+  addSuffix: boolean;
+  strict: boolean;
+  locale: string;
+  className?: string;
+}
+
+function TimeAgoRelative({
+  dateObj,
+  absolute,
+  addSuffix,
+  strict,
+  locale,
+  className,
+}: TimeAgoRelativeProps) {
+  use(browser());
+  const dateFnsLocale = DATE_FNS_LOCALES[locale] ?? enUS;
+  const label = strict
+    ? formatDistanceToNowStrict(dateObj, { addSuffix, locale: dateFnsLocale })
+    : formatDistanceToNow(dateObj, { addSuffix, locale: dateFnsLocale });
+
+  return (
+    <TimeAgoStamp
+      dateObj={dateObj}
+      label={label}
+      title={absolute}
+      className={className}
+    />
+  );
 }
 
 /**
  * Renders a relative "time ago" string that is safe to server-render.
  *
  * Relative time is derived from the current clock, which advances between the
- * server render and the client hydration. Computing it during SSR and again
- * during hydration therefore yields different text and triggers a hydration
- * mismatch (Sentry SOKOSUMI-A). To stay deterministic, we render a stable,
- * UTC-pinned absolute date during SSR and the first client render, then swap
- * to the live relative string after mount — a client-only update that cannot
- * mismatch the server output.
+ * server render and the client hydration. Computing it during SSR therefore
+ * yields different text than the first client render and triggers a hydration
+ * mismatch (Sentry SOKOSUMI-A). `use(browser())` opts the relative string out
+ * of SSR; the nearest Suspense fallback is a UTC-pinned absolute date so the
+ * initial HTML stays deterministic.
  */
 export function TimeAgo({
   date,
@@ -58,32 +106,32 @@ export function TimeAgo({
   locale = "en",
   className,
 }: TimeAgoProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const dateObj = typeof date === "string" ? new Date(date) : date;
   if (Number.isNaN(dateObj.getTime())) {
     return <span className={className}>—</span>;
   }
 
   const absolute = formatShortDateTime(dateObj, locale);
-  const dateFnsLocale = DATE_FNS_LOCALES[locale] ?? enUS;
-  const label = mounted
-    ? strict
-      ? formatDistanceToNowStrict(dateObj, { addSuffix, locale: dateFnsLocale })
-      : formatDistanceToNow(dateObj, { addSuffix, locale: dateFnsLocale })
-    : absolute;
 
   return (
-    <time
-      dateTime={dateObj.toISOString()}
-      title={absolute}
-      className={className}
+    <Suspense
+      fallback={
+        <TimeAgoStamp
+          dateObj={dateObj}
+          label={absolute}
+          title={absolute}
+          className={className}
+        />
+      }
     >
-      {label}
-    </time>
+      <TimeAgoRelative
+        dateObj={dateObj}
+        absolute={absolute}
+        addSuffix={addSuffix}
+        strict={strict}
+        locale={locale}
+        className={className}
+      />
+    </Suspense>
   );
 }

@@ -6,7 +6,6 @@ export {
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
   type SokoBotInboxMessageDetail,
-  type SokoBotIntegrationKind,
   type SokoBotIntegrationProvider,
 } from "./integrations.js";
 export {
@@ -21,21 +20,14 @@ export {
   parseSokoBotMemory,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
-  SOKO_BOT_SENSITIVE_VALUE_PLACEHOLDER,
-  type SokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
 } from "./memory.js";
-export {
-  composeSokoBotIntroduction,
-  composeSokoBotPersona,
-  type SokoBotPersona,
-} from "./persona.js";
+export { composeSokoBotIntroduction } from "./persona.js";
 export {
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
-  SOKO_BOT_MEMORY_LIMITS,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
@@ -48,9 +40,6 @@ export {
   isSokoBotSilentAnswer,
   SOKO_BOT_PROACTIVE_RULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
-  type SokoBotDueFollowUp,
-  type SokoBotProactiveRule,
-  type SokoBotSystemSchedule,
 } from "./proactive.js";
 export type {
   IndexedRuntimeEvent,
@@ -60,12 +49,9 @@ export type {
   RuntimeHealth,
   RuntimeInspectInput,
   RuntimeResetInput,
-  RuntimeSessionRef,
   RuntimeTurnInput,
   RuntimeTurnRef,
-  SokoBotActorContext,
   SokoBotContextPacket,
-  SokoBotRequestClaims,
   SokoBotRuntime,
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
@@ -76,11 +62,9 @@ export {
   SOKO_BOT_SCENARIOS,
   type SokoBotLabTurn,
   type SokoBotScenario,
-  type SokoBotScenarioTrigger,
 } from "./scenarios.js";
 export {
   isSokoBotDecisionTarget,
-  SOKO_BOT_DECISION_TARGETS,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotDecisionTarget,
@@ -116,12 +100,9 @@ export {
   applyVersionCapabilities,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
-  getSokoBotSkill,
   getSokoBotVersion,
-  isSokoBotVersionId,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
-  type SokoBotSkill,
   type SokoBotVersion,
 } from "./versions/index.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";

@@ -15,8 +15,6 @@ import {
   provisionOrganizationStripeCustomer,
   provisionUserStripeCustomer,
 } from "@/services/stripe-customer-provision.service";
-import type { SubscriptionCatalog } from "@/services/subscription-catalog.service";
-import { getSubscriptionCatalog } from "@/services/subscription-catalog.service";
 
 export class CouponNotFoundError extends Error {
   constructor(couponId: string) {
@@ -282,10 +280,6 @@ async function isAccountOnFreePlan(
 }
 
 export const stripeBillingService = {
-  async getSubscriptionCatalog(): Promise<SubscriptionCatalog> {
-    return await getSubscriptionCatalog();
-  },
-
   async getCreditTopUpPricing(userId: string): Promise<CreditTopUpPricing> {
     const zeroMarginLookupKey = await resolveZeroMarginLookupKeyForUser(userId);
 

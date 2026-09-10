@@ -724,17 +724,6 @@
           "sent": "Enviada",
           "failed": "Fallida"
         }
-      },
-      "LeaveOrganizationModal": {
-        "title": "¿Seguro que quieres salir de la organización?",
-        "description": "Salir de la organización \"{organization}\".",
-        "leave": "Salir",
-        "cancel": "Cancelar",
-        "success": "Has salido de la organización",
-        "error": "No se pudo salir de la organización",
-        "Errors": {
-          "unauthorizedAction": "Iniciar sesión"
-        }
       }
     },
     "Modals": {
@@ -6230,41 +6219,6 @@
       }
     },
     "JobInput": {
-      "Schema": {
-        "Id": {
-          "required": "El ID de Input es obligatorio"
-        },
-        "Type": {
-          "enum": "Debe ser uno de los siguientes valores: {options}"
-        },
-        "Name": {
-          "required": "El nombre de Input es obligatorio"
-        },
-        "Data": {
-          "Values": {
-            "value": {
-              "required": "La opción es obligatoria"
-            },
-            "min": "Se requiere al menos 1 opción",
-            "unique": "Los valores de las opciones deben ser únicos"
-          }
-        },
-        "Validations": {
-          "Validation": {
-            "enum": "Debe ser uno de los siguientes valores: {options}"
-          },
-          "Value": {
-            "invalid": "El valor no es válido para la validación {validation}",
-            "required": "El valor es obligatorio para la validación {validation}",
-            "integer": "El valor debe ser un número entero para la validación {validation}",
-            "enum": "El valor debe ser uno de los siguientes: {options}, para la validación {validation}"
-          },
-          "fileInvalid": "El esquema del archivo no es válido. Faltan validaciones obligatorias"
-        },
-        "invalidValidations": "Las validaciones no son válidas para el tipo {type}",
-        "optionValuesRequired": "Los valores son obligatorios para el tipo de opción",
-        "noDataValues": "Los valores deben ser indefinidos para tipos que no son de opción"
-      },
       "Form": {
         "clear": "Restablecer",
         "back": "Atrás",
@@ -6313,9 +6267,6 @@
           "show": "Mostrar contraseña",
           "hide": "Ocultar contraseña"
         }
-      },
-      "Error": {
-        "failedToFetchJobInputSchema": "No se pudo obtener el esquema de Input del job"
       }
     },
     "Duration": {
@@ -6324,12 +6275,6 @@
         "hours": "{value, plural, =1 {hora} other {horas}}",
         "minutes": "{value, plural, =1 {minuto} other {minutos}}",
         "seconds": "{value, plural, =1 {segundo} other {segundos}}"
-      },
-      "Short": {
-        "days": "{value, plural, =1 {día} other {días}}",
-        "hours": "{value, plural, =1 {h} other {h}}",
-        "minutes": "{value, plural, =1 {min} other {min}}",
-        "seconds": "{value, plural, =1 {seg} other {seg}}"
       }
     },
     "Notifications": {

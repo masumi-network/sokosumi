@@ -18,7 +18,7 @@ import {
   attachAuthToLogger,
   attachUploadToLogger,
   attachWorkspaceToLogger,
-  bindCoreRequestId,
+  bindCoreRequestContext,
   coreEvlogMiddleware,
   createCoreLogger,
   initCoreLogger,
@@ -69,7 +69,7 @@ function createApp() {
   }>();
   app.use(requestId());
   app.use(coreEvlogMiddleware());
-  app.use(bindCoreRequestId());
+  app.use(bindCoreRequestContext());
   return app;
 }
 
@@ -107,6 +107,38 @@ describe("core evlog request events", () => {
     expect(ctx?.event.status).toBe(200);
     expect(ctx?.event.requestId).toBe(body.meta.requestId);
     expect(body.meta.requestId).toEqual(expect.any(String));
+  });
+
+  it("labels the wide event with the route template, not the token path", async () => {
+    const app = createApp();
+    app.get("/v1/share/:token", (c) => c.json({ ok: true }));
+
+    const pathToken = "share-capability-token";
+    const response = await app.request(
+      `http://localhost/v1/share/${pathToken}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(captured).toHaveLength(1);
+
+    // createSentryDrain sends `event.path` to Sentry as both the log body and
+    // an attribute, on every request. Only `event` is transmitted.
+    expect(captured[0]?.event.path).toBe("/v1/share/:token");
+    expect(JSON.stringify(captured[0]?.event)).not.toContain(pathToken);
+  });
+
+  it("labels a wide event for an unmatched request without the raw path", async () => {
+    const app = createApp();
+
+    const rawPath = "/v1/not-a-route/some-secret-slug";
+    const response = await app.request(`http://localhost${rawPath}`);
+
+    expect(response.status).toBe(404);
+    expect(captured).toHaveLength(1);
+    expect(captured[0]?.event.path).toBe("UNMATCHED");
+    expect(JSON.stringify(captured[0]?.event)).not.toContain(
+      "some-secret-slug",
+    );
   });
 
   it("reuses an incoming X-Request-Id on the wide event and envelope", async () => {

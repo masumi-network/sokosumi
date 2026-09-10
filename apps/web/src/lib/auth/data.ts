@@ -36,16 +36,6 @@ export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       error: t?.("Password.number"),
     });
 
-export const createOrganizationSchema = (
-  t?: IntlTranslation<"Library.Auth.Schema">,
-) =>
-  z.object({
-    name: z
-      .string()
-      .min(2, { error: t?.("Organization.min") })
-      .max(50, { error: t?.("Organization.max") }),
-  });
-
 export const confirmPasswordSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>

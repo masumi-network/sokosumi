@@ -18,6 +18,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
+import { organizationProductSeatMiddleware } from "@/middleware/organization-product-seat";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -49,6 +50,11 @@ const route = withCoworkerContextHeaderParameters(
     description:
       "List jobs for a specific agent in the active workspace (paginated)",
     tags: ["Agents"],
+    // Seat-gate this route only: the shared agents router also mounts
+    // ratings and reviews routes that must stay reachable without a seat.
+    // Route middleware is stripped before registerPath, so the OpenAPI
+    // document is unchanged.
+    middleware: [organizationProductSeatMiddleware],
     request: {
       params,
       query,

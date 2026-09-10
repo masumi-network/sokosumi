@@ -2,7 +2,19 @@
 
 Native Sokosumi on Apple. One Xcode project, two app targets later, shared Swift packages. The first ship is **macOS chat**. **iOS** is the same codebase, later — not a second repo and not `apps/ios`.
 
-This file is product intent. It is not a spec and not an Xcode layout. The Mac tracer spec is [`MAC-TRACER.md`](./MAC-TRACER.md).
+This file preserves product intent and the ongoing goal. [`PARITY.md`](./PARITY.md) is the authoritative capability boundary, dependency order, iteration workflow, and verification/handoff record. Full chat parity supersedes the original tracer scope; the earlier plan remains in Git history.
+
+## Ongoing goal
+
+Build `apps/apple` as an Apple-native SwiftUI client for the chat experience in `apps/web`: conversation lists, room timelines and reply threads, composing/sending, streaming responses, message rendering, attachments, and the sign-in/session/minimal account settings required to use chat. Include the capabilities explicitly listed in `PARITY.md`. Billing, admin, marketing, and unrelated onboarding or product screens remain excluded unless explicitly added there.
+
+Target macOS 26 now and iOS 17+ later. Reuse the existing architecture and conventions. Keep models, networking, view models, and persistence in platform-agnostic, UI-free packages with iOS 17-compatible APIs. Shared packages also target macOS 26; do not lower their Mac baseline. Use newer Mac-only APIs exclusively in guarded Mac views. Prefer SwiftUI; isolate unavoidable AppKit adapters. Follow macOS conventions for NavigationSplitView, Commands and keyboard shortcuts, Settings, and multiple windows.
+
+Deliver one complete vertical slice per PR, with feature tests, a clean Xcode build, passing tests, and behavior verified against web. Update `PARITY.md` with evidence and the PR link. Wait for human merge before starting the next slice; handle review feedback first. The detailed iteration and stop/ask rules live in `PARITY.md`.
+
+Never modify `apps/web` as part of this goal. Shared API contract or dependency changes require a separate PR and explicit approval. Stop and ask when web behavior is ambiguous or a required API is absent.
+
+An agent in any tool can resume by reading `AGENTS.md`, this file, and `PARITY.md`, then verifying the recorded branch and PR against GitHub. Chat history, Codex goal state, and timers are not required sources of truth and do not transfer automatically. Do not start a second worker on the same slice without coordinating ownership.
 
 ## Name
 
@@ -52,9 +64,9 @@ The iOS target links the same packages and ships its own SwiftUI. It does not fo
 - Xcode is outside turbo and Biome.
 - Android is not this directory. A later native Android app is Kotlin + Jetpack Compose in its own tree (`apps/android` or elsewhere).
 
-## Out of this vision
+## Exclusions and earlier tracer limits
 
 - Windows or Linux native apps. Those stay `apps/web`.
 - Kotlin Multiplatform, Compose Multiplatform, Electron, Tauri, Mac Catalyst.
 - Replacing Core or `apps/web`.
-- Coworker stream, Soko Bot, file-heavy chat, mention polish, and OS banners in the Mac tracer. Web keeps them until a later Apple slice. Closed-app push reopens ADR 0022 / 0023; it is not implied by putting a window on the dock.
+- Coworker streaming, Soko Bot chat, attachments, mentions, and in-app notification behavior were deferred from the original tracer. They are now tracked as later slices in `PARITY.md`, not excluded from the ongoing chat goal. Closed-app push still requires separate scope/contract approval under ADR 0022 / 0023.

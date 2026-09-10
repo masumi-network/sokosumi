@@ -724,17 +724,6 @@
           "sent": "Gesendet",
           "failed": "Fehlgeschlagen"
         }
-      },
-      "LeaveOrganizationModal": {
-        "title": "Möchtest du die Organisation wirklich verlassen?",
-        "description": "Organisation \"{organization}\" verlassen.",
-        "leave": "Verlassen",
-        "cancel": "Abbrechen",
-        "success": "Du hast die Organisation verlassen",
-        "error": "Organisation konnte nicht verlassen werden",
-        "Errors": {
-          "unauthorizedAction": "Anmelden"
-        }
       }
     },
     "Modals": {
@@ -6230,41 +6219,6 @@
       }
     },
     "JobInput": {
-      "Schema": {
-        "Id": {
-          "required": "Input-ID ist erforderlich"
-        },
-        "Type": {
-          "enum": "Muss einer der folgenden Werte sein: {options}"
-        },
-        "Name": {
-          "required": "Input-Name ist erforderlich"
-        },
-        "Data": {
-          "Values": {
-            "value": {
-              "required": "Option ist erforderlich"
-            },
-            "min": "Mindestens 1 Option erforderlich",
-            "unique": "Optionswerte müssen eindeutig sein"
-          }
-        },
-        "Validations": {
-          "Validation": {
-            "enum": "Muss einer der folgenden Werte sein: {options}"
-          },
-          "Value": {
-            "invalid": "Wert ist ungültig für Validierung {validation}",
-            "required": "Wert ist erforderlich für Validierung {validation}",
-            "integer": "Wert muss eine ganze Zahl sein für Validierung {validation}",
-            "enum": "Wert muss einer der folgenden sein: {options}, für Validierung {validation}"
-          },
-          "fileInvalid": "Schema der Datei ist ungültig. Erforderliche Validierungen fehlen"
-        },
-        "invalidValidations": "Validierungen sind nicht gültig für Typ {type}",
-        "optionValuesRequired": "Werte sind für den Optionstyp erforderlich",
-        "noDataValues": "Werte müssen für Nicht-Optionstypen undefiniert sein"
-      },
       "Form": {
         "clear": "Zurücksetzen",
         "back": "Zurück",
@@ -6313,9 +6267,6 @@
           "show": "Passwort anzeigen",
           "hide": "Passwort verbergen"
         }
-      },
-      "Error": {
-        "failedToFetchJobInputSchema": "Job-Input-Schema konnte nicht abgerufen werden"
       }
     },
     "Duration": {
@@ -6324,12 +6275,6 @@
         "hours": "{value, plural, =1 {Stunde} other {Stunden}}",
         "minutes": "{value, plural, =1 {Minute} other {Minuten}}",
         "seconds": "{value, plural, =1 {Sekunde} other {Sekunden}}"
-      },
-      "Short": {
-        "days": "{value, plural, =1 {Tag} other {Tage}}",
-        "hours": "{value, plural, =1 {Std.} other {Std.}}",
-        "minutes": "{value, plural, =1 {Min.} other {Min.}}",
-        "seconds": "{value, plural, =1 {Sek.} other {Sek.}}"
       }
     },
     "Notifications": {

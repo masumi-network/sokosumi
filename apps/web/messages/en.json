@@ -740,17 +740,6 @@
           "sent": "Sent",
           "failed": "Failed"
         }
-      },
-      "LeaveOrganizationModal": {
-        "title": "Do you really want to leave the organization?",
-        "description": "Leave the organization \"{organization}\".",
-        "leave": "Leave",
-        "cancel": "Cancel",
-        "success": "You have left the organization",
-        "error": "Failed to leave organization",
-        "Errors": {
-          "unauthorizedAction": "Login"
-        }
       }
     },
     "Modals": {
@@ -6230,41 +6219,6 @@
       }
     },
     "JobInput": {
-      "Schema": {
-        "Id": {
-          "required": "Input Id is required"
-        },
-        "Type": {
-          "enum": "Must be one of {options}"
-        },
-        "Name": {
-          "required": "Input name is required"
-        },
-        "Data": {
-          "Values": {
-            "value": {
-              "required": "Option is required"
-            },
-            "min": "Must have at least 1 option",
-            "unique": "Option values must be unique"
-          }
-        },
-        "Validations": {
-          "Validation": {
-            "enum": "Must be one of {options}"
-          },
-          "Value": {
-            "invalid": "Value is invalid for validation {validation}",
-            "required": "Value is required for validation {validation}",
-            "integer": "Value must be integer for validation {validation}",
-            "enum": "Value must be one of {options}, for validation {validation}"
-          },
-          "fileInvalid": "File's schema is invalid. Missing required validations"
-        },
-        "invalidValidations": "Validations are not valid for type {type}",
-        "optionValuesRequired": "Values are required for option type",
-        "noDataValues": "Values must be undefined for non-option type"
-      },
       "Form": {
         "clear": "Clear",
         "back": "Back",
@@ -6313,9 +6267,6 @@
           "show": "Show password",
           "hide": "Hide password"
         }
-      },
-      "Error": {
-        "failedToFetchJobInputSchema": "Failed to fetch Job Input Schema"
       }
     },
     "Duration": {
@@ -6324,12 +6275,6 @@
         "hours": "{value, plural, =1 {hour} other {hours}}",
         "minutes": "{value, plural, =1 {minute} other {minutes}}",
         "seconds": "{value, plural, =1 {second} other {seconds}}"
-      },
-      "Short": {
-        "days": "{value, plural, =1 {day} other {days}}",
-        "hours": "{value, plural, =1 {hr} other {hr}}",
-        "minutes": "{value, plural, =1 {min} other {min}}",
-        "seconds": "{value, plural, =1 {sec} other {sec}}"
       }
     },
     "Notifications": {

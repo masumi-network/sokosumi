@@ -3,7 +3,11 @@
   "installCommand": "pnpm install --frozen-lockfile --filter web...",
   "buildCommand": "node ./scripts/vercel-build.mjs",
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": {
+      "*": false,
+      "**": false,
+      "main": true
+    }
   },
   "relatedProjects": [
     "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",

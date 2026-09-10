@@ -36,11 +36,15 @@ interface UseChatRefreshSchedulerOptions {
  * collection, or the mobile unread indicator. Ably events apply to local
  * state elsewhere; this only decides when a read may start.
  *
- * - Background (hidden or unfocused): no read starts. A request or an
- *   elapsed timer is recorded as a need, and one read runs on return to the
- *   foreground; a return with nothing stale keeps the running timer.
+ * - Background (hidden or unfocused): no timer read starts. An elapsed timer
+ *   is recorded as a need, and one read runs on return to the foreground; a
+ *   return with nothing stale keeps the running timer.
+ * - Explicit requests read at once, background or not. They carry a change
+ *   the reader must be shown while away, such as a foreign-room message that
+ *   becomes the tab title's unread count; deferring them to the return would
+ *   show the count only when it is no longer needed.
  * - In flight: any need that arrives queues exactly one follow-up read,
- *   never a parallel one.
+ *   never a parallel one. A queued explicit request stays explicit.
  * - Timer: re-armed after completion, so a slow response never stacks; the
  *   interval is 60 seconds while healthy, `fallbackIntervalMs` otherwise.
  *
@@ -69,6 +73,7 @@ export function useChatRefreshScheduler({
     let cancelled = false;
     let inFlight = false;
     let queued = false;
+    let queuedExplicit = false;
     let needed = false;
     let wasForeground = isChatForeground();
     let timer: number | undefined;
@@ -86,18 +91,20 @@ export function useChatRefreshScheduler({
       void run();
     }
 
-    async function run() {
+    async function run(explicit = false) {
       if (cancelled) return;
-      if (!isChatForeground()) {
+      if (!explicit && !isChatForeground()) {
         needed = true;
         return;
       }
       if (inFlight) {
         queued = true;
+        queuedExplicit ||= explicit;
         return;
       }
       window.clearTimeout(timer);
       inFlight = true;
+      needed = false;
       try {
         await refreshRef.current(() => !cancelled);
       } catch {
@@ -106,8 +113,10 @@ export function useChatRefreshScheduler({
         inFlight = false;
         if (!cancelled) {
           if (queued) {
+            const followUpExplicit = queuedExplicit;
             queued = false;
-            void run();
+            queuedExplicit = false;
+            void run(followUpExplicit);
           } else {
             schedule();
           }
@@ -132,7 +141,7 @@ export function useChatRefreshScheduler({
 
     const onOnline = () => void run();
 
-    requestRef.current = () => void run();
+    requestRef.current = () => void run(true);
     rescheduleRef.current = () => {
       if (!inFlight) schedule();
     };
@@ -151,6 +160,7 @@ export function useChatRefreshScheduler({
     return () => {
       cancelled = true;
       queued = false;
+      queuedExplicit = false;
       window.clearTimeout(timer);
       window.removeEventListener("focus", onForegroundChange);
       window.removeEventListener("blur", onForegroundChange);

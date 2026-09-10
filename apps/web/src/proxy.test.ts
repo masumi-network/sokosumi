@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CROSS_ORIGIN_OPENER_POLICY } from "@/config/document-security-headers";
+import {
+  CROSS_ORIGIN_OPENER_POLICY,
+  documentSecurityHeaders,
+} from "@/config/document-security-headers";
 
 const getSessionCookieMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
@@ -192,6 +195,46 @@ describe("proxy", () => {
     ).toBeUndefined();
     expect(response.headers.getSetCookie().join("\n")).not.toContain(
       RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
+    );
+  });
+  it("sets every document security header on the protected-route sign-in redirect", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    getSessionCookieMock.mockReturnValue(null);
+    const request = new NextRequest("https://app.example.com/tasks");
+
+    const response = await proxy(request);
+
+    expect(response?.status).toBe(307);
+    for (const { key, value } of documentSecurityHeaders({
+      includeHsts: false,
+    })) {
+      expect(response?.headers.get(key)).toBe(value);
+    }
+  });
+
+  it("sets the document security headers on the maintenance redirect", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    getEnvSecretsMock.mockReturnValue({
+      MAINTENANCE_MODE: true,
+      NETWORK: "Preprod",
+      VERCEL_GIT_COMMIT_REF: "main",
+      VERCEL_ENV: "production",
+      VERCEL_URL: "https://app.example.com",
+    });
+    const request = new NextRequest("https://app.example.com/tasks");
+
+    const response = await proxy(request);
+
+    expect(response?.status).toBe(307);
+    for (const { key, value } of documentSecurityHeaders({
+      includeHsts: true,
+    })) {
+      expect(response?.headers.get(key)).toBe(value);
+    }
+    expect(response?.headers.get("Strict-Transport-Security")).toBe(
+      "max-age=31536000; includeSubDomains",
     );
   });
 });

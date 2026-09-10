@@ -20,6 +20,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
 
   public var clientTurnId: String
   public var roomId: String
+  public var parentMessageId: String?
   public var content: String
   public var createdAt: Date
   public var status: OutboundDeliveryStatus
@@ -29,6 +30,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
   public init(
     clientTurnId: String,
     roomId: String,
+    parentMessageId: String? = nil,
     content: String,
     createdAt: Date = Date(),
     status: OutboundDeliveryStatus = .pending,
@@ -37,40 +39,12 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
   ) {
     self.clientTurnId = clientTurnId
     self.roomId = roomId
+    self.parentMessageId = parentMessageId
     self.content = content
     self.createdAt = createdAt
     self.status = status
     self.errorMessage = errorMessage
     self.sender = sender
-  }
-}
-
-/// Single-flight slot for one room composer. Failed (and confirmed) frees
-/// it; a second begin while occupied is a no-op.
-public struct ClassicOutboundFlight: Equatable, Sendable {
-  public private(set) var clientMessageId: String?
-
-  public init() {}
-
-  public var isInFlight: Bool {
-    clientMessageId != nil
-  }
-
-  /// Occupies the slot. Returns false when a send is already in flight.
-  public mutating func begin(_ clientMessageId: String) -> Bool {
-    guard self.clientMessageId == nil else { return false }
-    self.clientMessageId = clientMessageId
-    return true
-  }
-
-  public mutating func end(_ clientMessageId: String) {
-    if self.clientMessageId == clientMessageId {
-      self.clientMessageId = nil
-    }
-  }
-
-  public mutating func clear() {
-    clientMessageId = nil
   }
 }
 
@@ -94,7 +68,7 @@ public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.Cha
   return .init(
     id: shell.id,
     roomId: shell.roomId,
-    parentMessageId: nil,
+    parentMessageId: shell.parentMessageId,
     content: shell.content,
     createdAt: shell.createdAt,
     deletedAt: nil,

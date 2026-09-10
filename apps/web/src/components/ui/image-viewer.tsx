@@ -70,17 +70,21 @@ function printImage(src: string, alt: string): void {
     return;
   }
 
-  const escapedSrc = src.replaceAll('"', "&quot;");
-  const escapedAlt = alt.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-
   doc.open();
-  doc.write(`<!doctype html><html><head><title>${escapedAlt}</title>
+  doc.write(`<!doctype html><html><head><title></title>
 <style>
   html, body { margin: 0; padding: 0; background: #fff; }
   img { max-width: 100%; max-height: 100vh; display: block; margin: 0 auto; }
   @media print { body { -webkit-print-color-adjust: exact; } }
-</style></head><body><img src="${escapedSrc}" alt="${escapedAlt}" /></body></html>`);
+</style></head><body></body></html>`);
   doc.close();
+
+  doc.title = alt;
+
+  const image = doc.createElement("img");
+  image.src = src;
+  image.alt = alt;
+  doc.body.appendChild(image);
 
   function cleanup(): void {
     iframe.remove();
