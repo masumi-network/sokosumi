@@ -79,12 +79,25 @@ const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
  * A web address written as words: a scheme, or the `www.` people write
  * instead of one, running to the next space.
  *
- * Deliberately narrower than what a browser accepts. A bare `example.test`
- * with no scheme is left standing, because the rule that told it apart from
- * `node.js` or `e.g.` would have to guess, and guessing takes words out of a
- * sentence a person wrote.
+ * Deliberately narrower than what a browser accepts.
+ *
+ * A bare `example.test` with no scheme is left standing, because the rule that
+ * told it apart from `node.js` or `e.g.` would have to guess, and guessing
+ * takes words out of a sentence a person wrote. A scheme without `//` is left
+ * standing for the same reason: `mailto:a@e.test` would go, and so would the
+ * `note:remember` and `TODO:ship` people write.
+ *
+ * It starts on a word boundary, so the `www.` inside a word is a word. It
+ * stops at a mention marker as well as at a space, because a marker stands
+ * for a person and an address written up against one would take them with it.
+ * The punctuation that ends a sentence is put back: it is the writer's, not
+ * the address's.
  */
-const BARE_URL_REGEX = /(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S+/gi;
+const BARE_URL_REGEX =
+  /(?<![\p{L}\p{N}_])(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[^\s\u0000]+/giu;
+
+/** What an address may end with that belongs to the sentence around it. */
+const URL_TRAILING_PUNCTUATION_REGEX = /[.,;:!?)\]}'"]+$/;
 
 /** The `!` of `![alt](url)`, which the link scan leaves behind on its own. */
 const MARKDOWN_IMAGE_BANG_REGEX = /!(?=\[[^\][]*\]\()/g;
@@ -358,7 +371,11 @@ export function buildChatMessagePreview(
   // A message that is only a link cleans to nothing and the caller falls back
   // to the line naming the author and the room.
   const oneLine = cleanChatMessageText(readable)
-    .replace(BARE_URL_REGEX, " ")
+    .replace(BARE_URL_REGEX, (address) => {
+      // `go to https://e.test. Then wait` is two sentences, and taking the
+      // stop with the address would run them into one.
+      return ` ${URL_TRAILING_PUNCTUATION_REGEX.exec(address)?.[0] ?? ""}`;
+    })
     .replace(/\s+/g, " ")
     .trim();
   // The names go in last, and the line is closed up again: a mention that

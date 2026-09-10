@@ -167,6 +167,40 @@ describe("buildChatMessagePreview", () => {
     );
   });
 
+  /** A marker stands for a person, so an address stops at one. */
+  it("keeps a mention an address is written up against", () => {
+    expect(
+      buildChatMessagePreview(
+        "see https://example.test/x@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada please",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("see @Ada Lovelace please");
+  });
+
+  /** The `www.` inside a word is a word. */
+  it("leaves a word that only ends in an address alone", () => {
+    expect(buildChatMessagePreview("seewww.example.test now")).toBe(
+      "seewww.example.test now",
+    );
+  });
+
+  /** The stop belongs to the sentence, not to the address. */
+  it("keeps the punctuation that closes a sentence around an address", () => {
+    expect(
+      buildChatMessagePreview("go to https://example.test/a. Then wait"),
+    ).toBe("go to . Then wait");
+  });
+
+  /**
+   * A scheme without `//` stays: a rule that took `mailto:a@e.test` would
+   * take `note:remember` and `TODO:ship` with it.
+   */
+  it("leaves a word that only looks like a scheme alone", () => {
+    expect(buildChatMessagePreview("note:remember the standup")).toBe(
+      "note:remember the standup",
+    );
+  });
+
   /** A sentence is not an address, whatever the dots in it look like. */
   it("leaves a word with a dot in it alone", () => {
     expect(buildChatMessagePreview("node.js broke again, e.g. the build")).toBe(
