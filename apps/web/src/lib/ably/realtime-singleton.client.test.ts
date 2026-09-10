@@ -49,14 +49,30 @@ interface RealtimeClientOptions {
   echoMessages?: boolean;
 }
 
-function getConstructedRealtimeClient(): {
+function getConstructedRealtimeClient(index = 0): {
   close: ReturnType<typeof vi.fn>;
 } {
-  const constructed = RealtimeMock.mock.instances[0];
+  const constructed = RealtimeMock.mock.instances[index];
   if (!constructed) {
     throw new Error("Ably.Realtime was not constructed");
   }
   return constructed;
+}
+
+function mockUnauthorized(): void {
+  fetchMockValue({
+    ok: false,
+    status: 401,
+    text: async () => '{"error":"Unauthorized"}',
+  });
+}
+
+function mockTokenFor(clientId: string): void {
+  fetchMockValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ clientId, keyName: "key", mac: "mac" }),
+  });
 }
 
 function getRealtimeClientOptions(): RealtimeClientOptions {
@@ -85,8 +101,13 @@ async function invokeAuthCallback(): Promise<{
   });
 }
 
+const fetchMock = vi.fn();
+
+function fetchMockValue(response: unknown): void {
+  fetchMock.mockResolvedValue(response);
+}
+
 describe("getAblyRealtimeClient", () => {
-  const fetchMock = vi.fn();
   const consoleErrorMock = vi
     .spyOn(console, "error")
     .mockImplementation(() => undefined);
@@ -176,6 +197,11 @@ describe("getAblyRealtimeClient", () => {
     );
     expect(authResult.token).toBeNull();
     expect(authResult.error).toEqual(expect.any(String));
+    // The status is the only signal that tells a real logout from an outage.
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "Ably auth request failed",
+      expect.objectContaining({ status: 401 }),
+    );
     // close() is terminal for the instance AblyProvider already holds.
     // Production mixed 401 with 200 on this route in the same minute; treating
     // 401 as logout killed realtime until a page reload.
@@ -221,11 +247,7 @@ describe("getAblyRealtimeClient", () => {
   });
 
   it("reuses the same client after a 401 instead of building a second one", async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 401,
-      text: async () => '{"error":"Unauthorized"}',
-    });
+    mockUnauthorized();
 
     const client = getAblyRealtimeClient();
     await invokeAuthCallback();
@@ -258,5 +280,104 @@ describe("getAblyRealtimeClient", () => {
     expect(getAblyConnectionHealthy()).toBe(false);
     reportAblyConnectionConnected(true);
     expect(getAblyConnectionHealthy()).toBe(true);
+  /**
+   * ably-js re-runs the auth callback on its own backoff and never gives up on
+   * our auth failure, so a tab left open after a logout would POST
+   * /api/ably/auth every 30s for the life of the page.
+   */
+  it("retires the client once 401s prove the session is really gone", async () => {
+    mockUnauthorized();
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    // Two is still a blip — Core reported timed-out session reads as 401.
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+
+    await invokeAuthCallback();
+
+    expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
+
+    // Dropping the global is what makes close() survivable: the next mount
+    // builds a working client instead of holding a dead one.
+    mockTokenFor("user-b:inst_test01");
+    expect(getAblyRealtimeClient()).not.toBe(client);
+  });
+
+  it("does not count a 502 towards the session-loss limit", async () => {
+    fetchMockValue({
+      ok: false,
+      status: 502,
+      text: async () => '{"error":"Failed to create Ably token"}',
+    });
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    // An outage must stay retriable however long it lasts.
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+  });
+
+  it("forgets earlier 401s once a token comes back", async () => {
+    const client = getAblyRealtimeClient();
+
+    mockUnauthorized();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    mockTokenFor("user-a:inst_test01");
+    await invokeAuthCallback();
+
+    mockUnauthorized();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Core mints `${userId}:${clientInstanceId}`. ably-js rejects a token whose
+   * clientId contradicts the one the client latched (40102) and fails the
+   * connection terminally, which no retry and no remount can undo while the
+   * global still points at that client.
+   */
+  it("retires the client when a second user signs in to the tab", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    const firstResult = await invokeAuthCallback();
+    expect(firstResult.error).toBeNull();
+
+    mockTokenFor("user-b:inst_test01");
+    const secondResult = await invokeAuthCallback();
+
+    expect(secondResult.token).toBeNull();
+    expect(secondResult.error).toEqual(expect.any(String));
+    expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
+
+    const replacement = getAblyRealtimeClient();
+    expect(replacement).not.toBe(client);
+    expect(getConstructedRealtimeClient(1).close).not.toHaveBeenCalled();
+  });
+
+  it("keeps serving the same user across token renewals", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    const renewal = await invokeAuthCallback();
+
+    expect(renewal.error).toBeNull();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
   });
 });
