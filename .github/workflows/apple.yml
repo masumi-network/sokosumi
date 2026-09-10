@@ -5,6 +5,21 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
+  # Lint on main after Apple merges so the Mint cache is saved on the default
+  # branch. PR caches are scoped to refs/pull/N/merge and cannot be restored
+  # by sibling PRs.
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/apple/**"
+      - ".github/workflows/apple.yml"
+
+concurrency:
+  # A new push to the same PR cancels the queued or running run for the old
+  # commit. Runs on main are never cancelled so the Mint cache save completes.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -38,7 +53,9 @@ jobs:
   build:
     name: Xcode build
     needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    # PR (Apple paths) or dispatch only. Skip `push` — main push exists to seed
+    # the Mint cache via `lint` (PR caches are ref-scoped).
+    if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
     # Packages declare `swift-tools-version: 6.2`, which needs Xcode 26 (macOS 26).
     runs-on: macos-26
     steps:
@@ -49,7 +66,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
@@ -57,13 +74,27 @@ jobs:
       - name: Build Sokosumi for macOS
         run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
 
-  test:
-    name: Xcode test
-    # Same path/dispatch gate as `build` above (and as build.yml/test.yml
+  test-suite:
+    name: ${{ matrix.name }}
+    # Same PR/dispatch gate as `build` above (and as build.yml/test.yml
     # for the JS apps): build and test run in parallel, neither waits.
     needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Xcode app tests
+            package: ""
+          - name: Swift tests (SokosumiChat)
+            package: SokosumiChat
+          - name: Swift tests (SokosumiAuth)
+            package: SokosumiAuth
+          - name: Swift tests (CoreAPI)
+            package: CoreAPI
+          - name: Swift tests (SokosumiRealtime)
+            package: SokosumiRealtime
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -72,29 +103,43 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
 
       - name: Test Sokosumi app target
+        if: matrix.package == ''
         # Coverage stays off: ably-cocoa's C target (AblyDeltaCodec) cannot
         # link the profile runtime, so gathering coverage fails the test
         # build (SOK-976). Nothing consumes coverage today. Restore later by
         # excluding AblyDeltaCodec, not by re-enabling coverage on this job.
         run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests -enableCodeCoverage NO
 
-      - name: Test Swift packages
-        run: |
-          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth apps/apple/Packages/CoreAPI apps/apple/Packages/SokosumiRealtime; do
-            swift test --package-path "$package"
-          done
+      - name: Test Swift package
+        if: matrix.package != ''
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: swift test --package-path "apps/apple/Packages/$PACKAGE"
+
+  # Preserve the existing check name and require every suite to pass.
+  test:
+    name: Xcode test
+    needs: test-suite
+    if: always() && needs.test-suite.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all Apple test suites
+        env:
+          RESULT: ${{ needs.test-suite.result }}
+        run: test "$RESULT" = success
 
   lint:
     name: Swift lint and format
     needs: changes
-    # Same path/dispatch gate as `build`/`test` above.
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    # Same PR/dispatch gate as `build`/`test`, plus path-filtered `push` to
+    # main so `actions/cache` saves ~/.mint on the default branch.
+    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: macos-26
     steps:
       - name: Checkout repository
@@ -104,7 +149,7 @@ jobs:
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version

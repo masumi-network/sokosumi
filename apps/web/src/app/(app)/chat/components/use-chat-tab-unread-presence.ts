@@ -1,24 +1,28 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getActiveRoomIdFromPathname } from "@/components/chat/active-room-id";
 import { countChatRoomsWithUnreadAttention } from "@/components/chat/chat-unread-document-title";
+import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
-import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
   reconcileRoomAttention,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
+import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
+import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
+import { useSession } from "@/lib/auth/auth.client";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-const CHAT_TAB_UNREAD_POLL_MS = 15_000;
+/** Poll cadence while the Ably connection is unavailable. */
+const CHAT_TAB_UNREAD_FALLBACK_MS = 15_000;
 
 function getInitialRoomsFromSessionSnapshot(): ChatRoom[] {
   const snapshot = getLatestMembershipVisibleRoomsSnapshot();
@@ -34,6 +38,9 @@ interface UseChatTabUnreadPresenceResult {
 
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const currentUserId = session?.user.id ?? "";
+  const organizationId = session?.session.activeOrganizationId ?? null;
   const latestAppliedRefreshRef = useRef(0);
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const [rooms, setRooms] = useState<ChatRoom[]>(
@@ -43,37 +50,57 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   const showUnreadDot =
     countChatRoomsWithUnreadAttention(rooms, { activeRoomId }) > 0;
 
+  const scope = currentUserId
+    ? `${organizationId ?? ""}:${currentUserId}`
+    : null;
+  const previousScopeRef = useRef<string | null>(null);
+
+  // Drop the previous workspace's rows before the new GET lands so an
+  // in-flight response cannot light the dot for the wrong org (SOK-986).
   useEffect(() => {
-    let cancelled = false;
-
-    const refreshRooms = async () => {
-      const requestRevision = beginRoomAttentionRefresh();
-      const result = await listOrganizationChatRoomsAction();
-      if (
-        cancelled ||
-        requestRevision < latestAppliedRefreshRef.current ||
-        !result.ok
-      ) {
-        return;
-      }
-      latestAppliedRefreshRef.current = requestRevision;
-      setRooms(reconcileRoomAttention(result.value.rooms, requestRevision));
-    };
-
-    void refreshRooms();
-
-    const intervalId = window.setInterval(
-      refreshRooms,
-      CHAT_TAB_UNREAD_POLL_MS,
+    if (previousScopeRef.current === scope) {
+      return;
+    }
+    const previous = previousScopeRef.current;
+    previousScopeRef.current = scope;
+    if (!scope || previous === null) {
+      return;
+    }
+    latestAppliedRefreshRef.current = 0;
+    const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+    setRooms(
+      snapshot &&
+        snapshot.currentUserId === currentUserId &&
+        snapshot.organizationId === organizationId
+        ? applyRoomReadOverlays([...snapshot.rooms])
+        : [],
     );
-    window.addEventListener("focus", refreshRooms);
+  }, [scope, currentUserId, organizationId]);
 
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshRooms);
-    };
+  // Same GET read and scheduling rules as the sidebar's active collection
+  // (SOK-986): paused while hidden or unfocused, one read on return, and a
+  // slow recovery cadence while Ably is connected.
+  const refreshRooms = useCallback(async (isCurrent: () => boolean) => {
+    const requestRevision = beginRoomAttentionRefresh();
+    const page = await fetchSidebarRoomCollection("active");
+    if (
+      !isCurrent() ||
+      !page ||
+      requestRevision < latestAppliedRefreshRef.current
+    ) {
+      return;
+    }
+    latestAppliedRefreshRef.current = requestRevision;
+    setRooms(reconcileRoomAttention(page.rooms, requestRevision));
   }, []);
+  const requestRefresh = useChatRefreshScheduler({
+    key: scope && `${scope}:unread`,
+    refresh: refreshRooms,
+    healthy: useAblyConnectionHealthy(),
+    fallbackIntervalMs: CHAT_TAB_UNREAD_FALLBACK_MS,
+    refreshOnMount: true,
+    refreshOnRecovery: true,
+  });
 
   useEffect(() => {
     const handleRoomRead = (event: Event) => {
@@ -112,8 +139,6 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
     const handleRoomsChanged = (event: Event) => {
       const detail = (event as CustomEvent<OrganizationChatRoomsChangedDetail>)
         .detail;
@@ -136,18 +161,11 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
         return;
       }
 
-      const requestRevision = beginRoomAttentionRefresh();
-      void listOrganizationChatRoomsAction().then((result) => {
-        if (
-          cancelled ||
-          requestRevision < latestAppliedRefreshRef.current ||
-          !result.ok
-        ) {
-          return;
-        }
-        latestAppliedRefreshRef.current = requestRevision;
-        setRooms(reconcileRoomAttention(result.value.rooms, requestRevision));
-      });
+      // Only the active collection feeds the dot; other invalidations are
+      // the sidebar's business.
+      if (!detail?.collections || detail.collections.includes("active")) {
+        requestRefresh();
+      }
     };
 
     window.addEventListener(
@@ -155,13 +173,12 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
       handleRoomsChanged,
     );
     return () => {
-      cancelled = true;
       window.removeEventListener(
         ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
         handleRoomsChanged,
       );
     };
-  }, []);
+  }, [requestRefresh]);
 
   return { showUnreadDot };
 }

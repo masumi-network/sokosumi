@@ -4,20 +4,42 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
 let mockPathname = "/chat";
+let mockUserId = "user-1";
+let mockOrganizationId: string | null = "org-1";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
 }));
 
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  listOrganizationChatRoomsAction: vi.fn(),
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: mockUserId
+      ? {
+          user: { id: mockUserId },
+          session: { activeOrganizationId: mockOrganizationId },
+        }
+      : null,
+  }),
+}));
+
+const { listRoomsMock } = vi.hoisted(() => ({ listRoomsMock: vi.fn() }));
+
+/** Same `{ ok, value }` shape the action tests used; the GET helper maps it. */
+type ListResult =
+  | { ok: true; value: { rooms: ChatRoom[]; nextCursor: string | null } }
+  | { ok: false; error?: unknown };
+
+vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
+  fetchSidebarRoomCollection: async () => {
+    const result = (await listRoomsMock()) as ListResult;
+    return result.ok ? result.value : null;
+  },
 }));
 
 import {
   clearMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
-import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import {
   beginRoomAttentionChange,
   clearRoomReadOverlays,
@@ -27,7 +49,19 @@ import {
 
 import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
 
-const listRoomsMock = vi.mocked(listOrganizationChatRoomsAction);
+let hasFocus: ReturnType<typeof vi.spyOn>;
+
+/**
+ * Leave the foreground, learn the rooms went stale while away, and come
+ * back: the one focus gesture that turns into a read.
+ */
+function returnToForeground() {
+  hasFocus.mockReturnValue(false);
+  window.dispatchEvent(new Event("blur"));
+  window.dispatchEvent(new Event("organization-chat-rooms-changed"));
+  hasFocus.mockReturnValue(true);
+  window.dispatchEvent(new Event("focus"));
+}
 
 function room(partial: Partial<ChatRoom> & Pick<ChatRoom, "id">): ChatRoom {
   return {
@@ -53,6 +87,8 @@ function Harness() {
 describe("useChatTabUnreadPresence", () => {
   beforeEach(() => {
     mockPathname = "/chat";
+    mockUserId = "user-1";
+    mockOrganizationId = "org-1";
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
     listRoomsMock.mockReset();
@@ -60,11 +96,13 @@ describe("useChatTabUnreadPresence", () => {
       ok: true,
       value: { rooms: [], nextCursor: null },
     });
+    hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
 
   afterEach(() => {
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
+    vi.restoreAllMocks();
   });
 
   it("seeds the unread dot from the session snapshot before fetch", () => {
@@ -146,9 +184,7 @@ describe("useChatTabUnreadPresence", () => {
       );
     });
 
-    await act(async () => {
-      window.dispatchEvent(new Event("focus"));
-    });
+    await act(async () => returnToForeground());
 
     await waitFor(() => {
       expect(listRoomsMock).toHaveBeenCalledTimes(2);
@@ -195,12 +231,19 @@ describe("useChatTabUnreadPresence", () => {
 describe("authoritative tab attention", () => {
   beforeEach(() => {
     mockPathname = "/chat";
+    mockUserId = "user-1";
+    mockOrganizationId = "org-1";
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
     listRoomsMock.mockReset();
+    hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
 
-  it("applies successful polls that take longer than the polling interval", async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("never overlaps a slow read and re-arms the fallback poll after it completes", async () => {
     vi.useFakeTimers();
     const responseDelayMs = 16_000;
     listRoomsMock.mockImplementation(
@@ -224,7 +267,8 @@ describe("authoritative tab attention", () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60_000);
       });
-      expect(listRoomsMock).toHaveBeenCalledTimes(5);
+      // Mount read (0–16s), 15s fallback timer, second read (31–47s), timer.
+      expect(listRoomsMock).toHaveBeenCalledTimes(2);
       expect(screen.getByTestId("presence")).toHaveAttribute(
         "data-show",
         "yes",
@@ -267,23 +311,27 @@ describe("authoritative tab attention", () => {
     );
   });
 
-  it("does not let an earlier refresh clear a newer unread dot", async () => {
-    const older =
-      Promise.withResolvers<
-        Awaited<ReturnType<typeof listOrganizationChatRoomsAction>>
-      >();
-    const newer =
-      Promise.withResolvers<
-        Awaited<ReturnType<typeof listOrganizationChatRoomsAction>>
-      >();
+  it("queues one follow-up read behind an in-flight read instead of overlapping", async () => {
+    const older = Promise.withResolvers<ListResult>();
+    const newer = Promise.withResolvers<ListResult>();
     listRoomsMock
       .mockReturnValueOnce(older.promise)
       .mockReturnValueOnce(newer.promise);
     render(<Harness />);
     await act(async () => {
-      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("organization-chat-rooms-changed"));
+      window.dispatchEvent(new Event("organization-chat-rooms-changed"));
     });
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
 
+    await act(async () =>
+      older.resolve({
+        ok: true,
+        value: { rooms: [room({ id: "a" })], nextCursor: null },
+      }),
+    );
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    expect(listRoomsMock).toHaveBeenCalledTimes(2);
     await act(async () =>
       newer.resolve({
         ok: true,
@@ -291,20 +339,53 @@ describe("authoritative tab attention", () => {
       }),
     );
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+  });
+
+  it("ignores invalidations that do not name the active collection", async () => {
+    render(<Harness />);
+    await act(async () => undefined);
+    listRoomsMock.mockClear();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("organization-chat-rooms-changed", {
+          detail: { collections: ["archived"] },
+        }),
+      );
+    });
+    expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("discards an in-flight read after a workspace switch", async () => {
+    const older = Promise.withResolvers<ListResult>();
+    const newer = Promise.withResolvers<ListResult>();
+    listRoomsMock
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    const { rerender } = render(<Harness />);
+    await act(async () => undefined);
+
+    mockOrganizationId = "org-2";
+    rerender(<Harness />);
     await act(async () =>
       older.resolve({
         ok: true,
-        value: { rooms: [room({ id: "a" })], nextCursor: null },
+        value: { rooms: [room({ id: "a", unreadCount: 5 })], nextCursor: null },
+      }),
+    );
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    await act(async () =>
+      newer.resolve({
+        ok: true,
+        value: { rooms: [room({ id: "b", unreadCount: 1 })], nextCursor: null },
       }),
     );
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
   });
 
   it("protects a local read completed during a tab refresh", async () => {
-    const response =
-      Promise.withResolvers<
-        Awaited<ReturnType<typeof listOrganizationChatRoomsAction>>
-      >();
+    const response = Promise.withResolvers<ListResult>();
     listRoomsMock.mockReturnValue(response.promise);
     render(<Harness />);
     const readRoom = room({ id: "a" });

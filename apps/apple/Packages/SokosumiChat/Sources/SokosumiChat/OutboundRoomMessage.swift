@@ -45,35 +45,6 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
   }
 }
 
-/// Single-flight slot for one room composer. Failed (and confirmed) frees
-/// it; a second begin while occupied is a no-op.
-public struct ClassicOutboundFlight: Equatable, Sendable {
-  public private(set) var clientMessageId: String?
-
-  public init() {}
-
-  public var isInFlight: Bool {
-    clientMessageId != nil
-  }
-
-  /// Occupies the slot. Returns false when a send is already in flight.
-  public mutating func begin(_ clientMessageId: String) -> Bool {
-    guard self.clientMessageId == nil else { return false }
-    self.clientMessageId = clientMessageId
-    return true
-  }
-
-  public mutating func end(_ clientMessageId: String) {
-    if self.clientMessageId == clientMessageId {
-      self.clientMessageId = nil
-    }
-  }
-
-  public mutating func clear() {
-    clientMessageId = nil
-  }
-}
-
 public func outboundLocalMessageId(_ clientTurnId: String) -> String {
   outboundLocalIdPrefix + clientTurnId
 }

@@ -34,6 +34,8 @@ public actor OAuthSession {
   private let store: any TokenStore
   private let transport: any TokenEndpointTransport
   private let now: @Sendable () -> Date
+  private var generation = 0
+  private var refreshTask: Task<String, any Error>?
 
   public init(
     configuration: OAuthConfiguration,
@@ -58,6 +60,7 @@ public actor OAuthSession {
       let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
       components.scheme == OAuthConfiguration.callbackScheme,
       components.path == OAuthConfiguration.redirectPath,
+      components.host == nil,
       let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
       !code.isEmpty
     else {
@@ -67,6 +70,10 @@ public actor OAuthSession {
     guard state == expectedState else {
       throw OAuthError.stateMismatch
     }
+    generation += 1
+    let attempt = generation
+    refreshTask?.cancel()
+    refreshTask = nil
     let payload = try await postToken(fields: [
       (name: "grant_type", value: "authorization_code"),
       (name: "code", value: code),
@@ -74,6 +81,8 @@ public actor OAuthSession {
       (name: "client_id", value: configuration.clientID),
       (name: "code_verifier", value: codeVerifier)
     ])
+    try Task.checkCancellation()
+    guard generation == attempt else { throw CancellationError() }
     try store.save(payload.tokens(now: now()))
   }
 
@@ -87,16 +96,38 @@ public actor OAuthSession {
     if !tokens.isExpired(now: now()) {
       return tokens.accessToken
     }
-    return try await refresh(tokens: tokens)
+    let attempt = generation
+    if let refreshTask {
+      let token = try await refreshTask.value
+      try Task.checkCancellation()
+      guard generation == attempt else { throw CancellationError() }
+      return token
+    }
+    let task = Task { try await self.refresh(tokens: tokens, generation: attempt) }
+    refreshTask = task
+    defer {
+      if generation == attempt {
+        refreshTask = nil
+      }
+    }
+    let token = try await task.value
+    try Task.checkCancellation()
+    guard generation == attempt else { throw CancellationError() }
+    return token
   }
 
   /// True only when the store confirms the tokens are gone.
   @discardableResult
   public func signOut() -> Bool {
-    store.clear()
+    generation += 1
+    refreshTask?.cancel()
+    refreshTask = nil
+    return store.clear()
   }
 
-  private func refresh(tokens: OAuthTokens) async throws -> String {
+  private func refresh(tokens: OAuthTokens, generation attempt: Int) async throws -> String {
+    try Task.checkCancellation()
+    guard generation == attempt else { throw CancellationError() }
     guard let refreshToken = tokens.refreshToken, !refreshToken.isEmpty else {
       store.clear()
       throw OAuthError.needsSignIn
@@ -107,6 +138,8 @@ public actor OAuthSession {
         (name: "refresh_token", value: refreshToken),
         (name: "client_id", value: configuration.clientID)
       ])
+      try Task.checkCancellation()
+      guard generation == attempt else { throw CancellationError() }
       // Some providers rotate without returning a new refresh token.
       var next = payload.tokens(now: now())
       if next.refreshToken == nil {
@@ -115,6 +148,8 @@ public actor OAuthSession {
       try store.save(next)
       return next.accessToken
     } catch let failure as OAuthError where failure.isInvalidGrant {
+      try Task.checkCancellation()
+      guard generation == attempt else { throw CancellationError() }
       // Definitive rejection: the grant is dead, so drop the session and
       // send the user back to sign-in. Anything else (network, 5xx) keeps
       // the stored tokens so the caller can retry later.

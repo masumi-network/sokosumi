@@ -13,7 +13,6 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
-  propertiesTitle: string;
   status: string;
   statusLabels: Record<TaskStatus, string>;
   owner: string;
@@ -159,6 +158,7 @@ function resolveTaskAssigneeDisplay(
 }
 
 interface TaskMetadataProps {
+  title: string;
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
   labels: TaskMetadataLabels;
@@ -167,6 +167,7 @@ interface TaskMetadataProps {
 }
 
 export function TaskMetadata({
+  title,
   task,
   project,
   labels,
@@ -183,145 +184,132 @@ export function TaskMetadata({
   const creator = resolveTaskCreatorDisplay(task, labels);
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-        {labels.propertiesTitle}
-      </h3>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-sm">{labels.status}</span>
-          <TaskStatusBadge
-            status={task.status}
-            label={labels.statusLabels[task.status]}
-            showLabel
-          />
-        </div>
-
-        <MetadataAvatarValue
-          label={labels.owner}
-          name={task.owner.name}
-          image={ownerImage}
-          fallback={task.owner.name}
+    <section className="space-y-3">
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground text-sm">{labels.status}</span>
+        <TaskStatusBadge
+          status={task.status}
+          label={labels.statusLabels[task.status]}
+          showLabel
         />
+      </div>
 
-        {creator ? (
-          <MetadataAvatarValue
-            label={labels.creator}
-            name={creator.name}
-            image={creator.image}
-            fallback={creator.name}
-            avatarSeed={creator.avatarSeed}
-            role={creator.role}
-          />
-        ) : null}
+      <MetadataAvatarValue
+        label={labels.owner}
+        name={task.owner.name}
+        image={ownerImage}
+        fallback={task.owner.name}
+      />
 
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground text-sm">
-            {labels.organization}
-          </span>
-          <span className="text-right text-sm font-medium">
-            {task.organization?.name ?? labels.personalWorkspace}
-          </span>
-        </div>
+      {creator ? (
+        <MetadataAvatarValue
+          label={labels.creator}
+          name={creator.name}
+          image={creator.image}
+          fallback={creator.name}
+          avatarSeed={creator.avatarSeed}
+          role={creator.role}
+        />
+      ) : null}
 
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground text-sm">
-            {labels.project}
-          </span>
-          {project ? (
-            <Link
-              href={`/projects/${project.id}`}
-              className="hover:text-primary truncate text-right text-sm font-medium transition-colors"
-            >
-              {project.name}
-            </Link>
-          ) : (
-            <span className="text-right text-sm font-medium">—</span>
-          )}
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-muted-foreground text-sm">
+          {labels.organization}
+        </span>
+        <span className="text-right text-sm font-medium">
+          {task.organization?.name ?? labels.personalWorkspace}
+        </span>
+      </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-sm">
-            {labels.coworker}
-          </span>
-          <div className="flex min-w-0 items-center gap-2">
-            {assignee.avatarSeed ? (
-              <AssistantOrb
-                seed={assignee.avatarSeed}
-                expression="idle"
-                animate={false}
-                size={20}
-                className="size-5 shrink-0"
-                alt={assignee.name}
-              />
-            ) : (
-              <Avatar className="size-5">
-                {assignee.image ? (
-                  <AvatarImage
-                    src={assignee.image}
-                    alt={assignee.name}
-                    className="object-cover"
-                  />
-                ) : null}
-                <AvatarFallback className="bg-muted text-[0.625rem]">
-                  {assignee.name === "—"
-                    ? "?"
-                    : assignee.name.slice(0, 1).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            )}
-            <span className="truncate text-right text-sm font-medium">
-              {assignee.name}
-            </span>
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-muted-foreground text-sm">{labels.project}</span>
+        {project ? (
+          <Link
+            href={`/projects/${project.id}`}
+            className="hover:text-primary truncate text-right text-sm font-medium transition-colors"
+          >
+            {project.name}
+          </Link>
+        ) : (
+          <span className="text-right text-sm font-medium">—</span>
+        )}
+      </div>
 
-        {task.credits > 0 ? (
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground text-sm">
-              {labels.credits}
-            </span>
-            <span className="text-right text-sm font-medium tabular-nums">
-              {formatCreditsForDisplay(task.credits)}
-            </span>
-          </div>
-        ) : null}
-
-        {task.metadata || task.nextRunAt ? (
-          <div className="flex items-start justify-between gap-4">
-            <span className="text-muted-foreground text-sm">
-              {labels.schedule}
-            </span>
-            <TaskScheduleDisplay
-              className="text-right"
-              metadata={task.metadata}
-              nextRunAt={task.nextRunAt ?? null}
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground text-sm">{labels.coworker}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          {assignee.avatarSeed ? (
+            <AssistantOrb
+              seed={assignee.avatarSeed}
+              expression="idle"
+              animate={false}
+              size={20}
+              className="size-5 shrink-0"
+              alt={assignee.name}
             />
-          </div>
-        ) : null}
-
-        <div className="border-border/50 my-3 border-t" />
-
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-sm">
-            {labels.created}
-          </span>
-          <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {createdAtLabel}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-sm">
-            {labels.updated}
-          </span>
-          <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {updatedAtLabel}
+          ) : (
+            <Avatar className="size-5">
+              {assignee.image ? (
+                <AvatarImage
+                  src={assignee.image}
+                  alt={assignee.name}
+                  className="object-cover"
+                />
+              ) : null}
+              <AvatarFallback className="bg-muted text-[0.625rem]">
+                {assignee.name === "—"
+                  ? "?"
+                  : assignee.name.slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          )}
+          <span className="truncate text-right text-sm font-medium">
+            {assignee.name}
           </span>
         </div>
       </div>
-    </div>
+
+      {task.credits > 0 ? (
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground text-sm">
+            {labels.credits}
+          </span>
+          <span className="text-right text-sm font-medium tabular-nums">
+            {formatCreditsForDisplay(task.credits)}
+          </span>
+        </div>
+      ) : null}
+
+      {task.metadata || task.nextRunAt ? (
+        <div className="flex items-start justify-between gap-4">
+          <span className="text-muted-foreground text-sm">
+            {labels.schedule}
+          </span>
+          <TaskScheduleDisplay
+            className="text-right"
+            metadata={task.metadata}
+            nextRunAt={task.nextRunAt ?? null}
+          />
+        </div>
+      ) : null}
+
+      <div className="border-border/50 my-3 border-t" />
+
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground text-sm">{labels.created}</span>
+        <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
+          {createdAtLabel}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground text-sm">{labels.updated}</span>
+        <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
+          {updatedAtLabel}
+        </span>
+      </div>
+    </section>
   );
 }
 

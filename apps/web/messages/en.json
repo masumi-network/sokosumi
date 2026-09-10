@@ -740,17 +740,6 @@
           "sent": "Sent",
           "failed": "Failed"
         }
-      },
-      "LeaveOrganizationModal": {
-        "title": "Do you really want to leave the organization?",
-        "description": "Leave the organization \"{organization}\".",
-        "leave": "Leave",
-        "cancel": "Cancel",
-        "success": "You have left the organization",
-        "error": "Failed to leave organization",
-        "Errors": {
-          "unauthorizedAction": "Login"
-        }
       }
     },
     "Modals": {

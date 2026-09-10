@@ -264,7 +264,9 @@ describe("canonical share page", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Shared Task" })).toBeVisible();
-    expect(screen.getAllByText("Ops Agent")).toHaveLength(3);
+    // Assignee in the metadata column + actor on the comment activity row
+    // (single mount — no md:hidden / aside duplicate of properties).
+    expect(screen.getAllByText("Ops Agent")).toHaveLength(2);
     expect(screen.getByText("Research Agent")).toBeVisible();
     expect(screen.getByText("Private Agent")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Activities" })).toBeVisible();

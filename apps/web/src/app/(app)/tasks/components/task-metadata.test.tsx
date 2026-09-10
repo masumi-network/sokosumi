@@ -12,7 +12,6 @@ vi.mock("@/components/aurora-orb", () => ({
 }));
 
 const baseLabels = {
-  propertiesTitle: "Properties",
   status: "Status",
   statusLabels: {
     [TaskStatus.RUNNING]: "Running",
@@ -78,9 +77,34 @@ function createTask(
 }
 
 describe("TaskMetadata", () => {
+  it("renders Properties as a quiet section heading above metadata", () => {
+    render(
+      <TaskMetadata
+        title="Properties"
+        task={createTask()}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", {
+      level: 2,
+      name: "Properties",
+    });
+    expect(heading).toHaveClass(
+      "text-muted-foreground",
+      "text-xs",
+      "font-medium",
+    );
+    expect(heading).not.toHaveClass("tracking-wider", "uppercase");
+  });
+
   it("shows credits after coworker when task has charged credits", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={createTask({ credits: 12 })}
         project={null}
         createdAtLabel="Jul 16, 10:28 AM"
@@ -97,6 +121,7 @@ describe("TaskMetadata", () => {
   it("hides credits row when total is zero", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={createTask({ credits: 0 })}
         project={null}
         createdAtLabel="Jul 16, 10:28 AM"
@@ -111,6 +136,7 @@ describe("TaskMetadata", () => {
   it("shows coworker creator when different from owner", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={createTask({
           creator: {
             type: "coworker",
@@ -137,6 +163,7 @@ describe("TaskMetadata", () => {
   it("says whose personal assistant created the task", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={createTask({
           creator: {
             type: "sokoBot",
@@ -179,6 +206,7 @@ describe("TaskMetadata", () => {
     // Claimed mascot is the bot's face; the orb is only the fallback.
     render(
       <TaskMetadata
+        title="Properties"
         task={createTask({
           creator: {
             type: "sokoBot",
@@ -209,6 +237,7 @@ describe("TaskMetadata", () => {
   it("does not print the role twice when the bot is named after it", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={createTask({
           creator: {
             type: "sokoBot",
@@ -237,6 +266,7 @@ describe("TaskMetadata", () => {
   it("renders an sokoBot assignee with the assistant orb", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={{
           ...createTask({ assigneeName: null }),
           assignee: {
@@ -265,6 +295,7 @@ describe("TaskMetadata", () => {
   it("renders a user assignee by name (SOK-868)", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={{
           ...createTask({ assigneeName: null }),
           assignee: {
@@ -286,6 +317,7 @@ describe("TaskMetadata", () => {
   it("falls back to Member for a blank user assignee name (SOK-868)", () => {
     render(
       <TaskMetadata
+        title="Properties"
         task={{
           ...createTask({ assigneeName: null }),
           assignee: {

@@ -1,12 +1,12 @@
 # Sokosumi Apple Clients Agent Guidelines
 
-> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Product intent is [`VISION.md`](./VISION.md); the Mac tracer spec is [`MAC-TRACER.md`](./MAC-TRACER.md).
+> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Before Apple work, read [`VISION.md`](./VISION.md) for the ongoing goal and [`PARITY.md`](./PARITY.md) for the authorized scope, iteration rules, current PR, and verification record. Verify the handoff against GitHub before continuing.
 
 ## App-Specific Architecture
 
 **Stack**: One Xcode project (`Sokosumi.xcodeproj`, product `Sokosumi`), macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth state, workspace state, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (OAuth session, Keychain-adjacent auth), `Packages/SokosumiChat/` (workspace/rooms/chat flows), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `SokosumiTests/` (app-target tests).
 
 ## App-Specific Conventions
 
@@ -43,7 +43,7 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 
 - Swift package tests run via `swift test --package-path Packages/<name>`; app-target tests via `xcodebuild test -only-testing:SokosumiTests`.
 - Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `macos-26` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with the same gate.
+- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `macos-26` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with that same PR/dispatch gate, plus path-filtered pushes to `main` so the Mint binary cache is saved on the default branch.
 
 ## App-Specific Gotchas
 
@@ -51,3 +51,16 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 - **Bumping tool versions is deliberate.** `Mintfile` pins `swiftlint`/`swiftformat` exactly. To upgrade: bump the pin, run `mint bootstrap`, run both checks, commit the pin together with any tree/config fallout. Never float the pin to chase a single new rule.
 - **Xcode template code ships 4-space indent.** Run `swiftformat .` on new files from templates.
 - **Hop `@Published` writes off the current view update.** `List(selection:)` setters, `onScrollGeometryChange` / preference callbacks, `onAppear`, and `onChange` schedule `Task { @MainActor in … }` before calling `WorkspaceState` / `AuthState`. Button and Menu actions publish in place. The models stay synchronous so tests call them directly. Lint and `xcodebuild test` do not catch this; a debug run's Issue navigator (purple SwiftUI) or `/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.apple.runtime-issues" AND process == "Sokosumi"'` does. A burst of the same fault in one millisecond is this pattern.
+
+### Interactive signing
+
+For interactive launches use the configured Apple Development identity and team `Y3ZJFLUYRB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=Y3ZJFLUYRB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
+
+
+### OAuth and Core setup
+
+- Use a first-party public OAuth client with PKCE (no embedded client secret), registered through the existing Core OAuth client machinery by an operator. Scopes are `openid`, `sokosumi:api`, and `offline_access`; use the system browser and Keychain-backed token persistence. Do not substitute API keys or browser cookies for the human session.
+- Register the exact redirect URI `com.sokosumi.app:/auth` (one slash, no host), with callback scheme `com.sokosumi.app`. The double-slash form is not interchangeable. Configuration lives in `Packages/SokosumiAuth/Sources/SokosumiAuth/OAuthConfiguration.swift`.
+- Configure the Core base URL for the intended environment. Local Core uses this checkout's portless HTTPS URL. Personal requests omit `X-Organization-Slug`; organization requests carry their slug. `GET /v1/users/me/workspace-access` must return `ready` before chat is usable; other gates open the corresponding web setup flow.
+- Refresh the selected OpenAPI operations from a generated Core specification with `python3 scripts/update-core-api.py /path/to/core-openapi.json` from `apps/apple`. Append an existing Core path such as `/chats/rooms/{id}/unread` to include it. The script retains selected operations, resolves transitive schemas, and writes literal UTF-8 because escaped non-BMP examples can break the generator's YAML parser. Never hand-edit the snapshot or generated Swift output. This workflow does not authorize changing Core contracts or web files.
+- Realtime uses the existing workspace-scoped Ably token endpoint and a persisted per-install `clientInstanceId`; follow ADR 0003 and ADR 0014 for identity and event contracts. Behavior and the authorized feature boundary are tracked in `PARITY.md`; architecture decisions remain in `docs/adr/` (including ADR 0027).

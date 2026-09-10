@@ -19,11 +19,17 @@ const {
   invitationFindUniqueMock,
   invitationUpdateManyMock,
   prismaTransactionMock,
+  publishChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   invitationFindUniqueMock: vi.fn(),
   invitationUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  publishChatRoomsChangedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: publishChatRoomsChangedMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -124,6 +130,12 @@ describe("POST /chats/invitations/{id}/decline", () => {
         data: { status: "declined" },
       }),
     );
+    // Sidebar invalidation for the decliner's other tabs (SOK-986).
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledWith({
+      userIds: [GUEST_ID],
+      collections: ["invitations"],
+      roomId: ROOM_ID,
+    });
   });
 
   it("decline rejects email mismatch", async () => {

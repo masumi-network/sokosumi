@@ -27,6 +27,24 @@ import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 const NO_ROOMS: ChatRoom[] = [];
 const NO_INVITATIONS: ChatRoomInvitation[] = [];
 
+let hasFocus: ReturnType<typeof vi.spyOn>;
+
+/**
+ * Leave the foreground, learn the active collection went stale while away,
+ * and come back: the one focus gesture that turns into a read.
+ */
+function returnToForeground() {
+  hasFocus.mockReturnValue(false);
+  window.dispatchEvent(new Event("blur"));
+  window.dispatchEvent(
+    new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+      detail: { collections: ["active"] },
+    }),
+  );
+  hasFocus.mockReturnValue(true);
+  window.dispatchEvent(new Event("focus"));
+}
+
 function channel(id: string, overrides: Partial<ChatRoom> = {}): ChatRoom {
   return makeRoom({ ...overrides, id, kind: "channel", myAccess: "member" });
 }
@@ -74,10 +92,12 @@ describe("useOrganizationChatRooms", () => {
   beforeEach(() => {
     resetOrganizationChatListMocks();
     clearRoomReadOverlays();
+    hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
 
   afterEach(() => {
     clearMembershipVisibleRoomsSnapshot();
+    vi.restoreAllMocks();
   });
 
   it("paints the rooms it was given without subscribing, when paintOnly", () => {
@@ -290,6 +310,11 @@ describe("authoritative sidebar refresh", () => {
   beforeEach(() => {
     resetOrganizationChatListMocks();
     clearRoomReadOverlays();
+    hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("updates unread while an invitation request stays pending", async () => {
@@ -305,7 +330,7 @@ describe("authoritative sidebar refresh", () => {
     );
   });
 
-  it("keeps the last rows after a rejected request and retries on focus", async () => {
+  it("keeps the last rows after a rejected request and retries on foreground return", async () => {
     const original = channel("room");
     listRoomsMock.mockRejectedValueOnce(new Error("network offline"));
     const { result } = mount({ rooms: [original] });
@@ -315,7 +340,7 @@ describe("authoritative sidebar refresh", () => {
     listRoomsMock.mockResolvedValue(
       emptyListResult([{ ...original, unreadCount: 2 }]),
     );
-    await act(async () => window.dispatchEvent(new Event("focus")));
+    await act(async () => returnToForeground());
     expect(result.current.roomRows[0]?.unreadCount).toBe(2);
   });
 
@@ -333,7 +358,7 @@ describe("authoritative sidebar refresh", () => {
     expect(result.current.roomRows[0]?.unreadCount).toBe(4);
   });
 
-  it("applies successful polls that take longer than the polling interval", async () => {
+  it("never overlaps a slow read and re-arms the fallback poll after it completes", async () => {
     vi.useFakeTimers();
     const original = channel("slow-room");
     const responseDelayMs = 16_000;
@@ -351,7 +376,8 @@ describe("authoritative sidebar refresh", () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60_000);
       });
-      expect(listRoomsMock).toHaveBeenCalledTimes(5);
+      // Mount read (0–16s), 15s fallback timer, second read (31–47s), timer.
+      expect(listRoomsMock).toHaveBeenCalledTimes(2);
       expect(result.current.roomRows[0]?.unreadCount).toBe(4);
     } finally {
       unmount();
@@ -387,7 +413,7 @@ describe("authoritative sidebar refresh", () => {
     );
   });
 
-  it("keeps a newer refresh when an earlier request finishes last", async () => {
+  it("queues one follow-up read behind an in-flight read instead of overlapping", async () => {
     const original = channel("room");
     const older = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
     const newer = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
@@ -396,16 +422,71 @@ describe("authoritative sidebar refresh", () => {
       .mockReturnValueOnce(newer.promise);
     const { result } = mount({ rooms: [original] });
     await act(async () => {
-      window.dispatchEvent(new Event("focus"));
+      for (let i = 0; i < 3; i += 1) {
+        window.dispatchEvent(
+          new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+            detail: { collections: ["active"] },
+          }),
+        );
+      }
     });
-    expect(listRoomsMock).toHaveBeenCalledTimes(2);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
 
+    await act(async () => older.resolve(emptyListResult([original])));
+    expect(listRoomsMock).toHaveBeenCalledTimes(2);
     await act(async () =>
       newer.resolve(emptyListResult([{ ...original, unreadCount: 1 }])),
     );
     expect(result.current.roomRows[0]?.unreadCount).toBe(1);
-    await act(async () => older.resolve(emptyListResult([original])));
-    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("refetches only the collections an invalidation names", async () => {
+    mount();
+    await act(async () => undefined);
+    listRoomsMock.mockClear();
+    listPendingMock.mockClear();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { collections: ["invitations"] },
+        }),
+      );
+    });
+    expect(listPendingMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("defers an invalidation while hidden and reads once on return", async () => {
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("visible");
+    mount();
+    await act(async () => undefined);
+    listRoomsMock.mockClear();
+
+    await act(async () => {
+      visibility.mockReturnValue("hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { collections: ["active"] },
+        }),
+      );
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { collections: ["active"] },
+        }),
+      );
+    });
+    expect(listRoomsMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      visibility.mockReturnValue("visible");
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not restore a removed room from an older poll", async () => {
@@ -451,7 +532,13 @@ describe("authoritative sidebar refresh", () => {
         .mockResolvedValue({ ok: false });
       const { result, rerender } = mount({ rooms: [original] });
       await act(async () => undefined);
-      await act(async () => window.dispatchEvent(new Event(trigger)));
+      await act(async () => {
+        if (trigger === "focus") {
+          returnToForeground();
+        } else {
+          window.dispatchEvent(new Event(trigger));
+        }
+      });
       rerender({
         rooms: [replacement],
         archivedRooms: NO_ROOMS,
@@ -502,9 +589,7 @@ describe("authoritative sidebar refresh", () => {
 
       const refreshed = { ...updated, name: "Later room name" };
       listRoomsMock.mockResolvedValue(emptyListResult([refreshed]));
-      await act(async () => {
-        window.dispatchEvent(new Event("focus"));
-      });
+      await act(async () => returnToForeground());
       expect(result.current.roomRows).toEqual([refreshed]);
     },
   );
@@ -536,9 +621,7 @@ describe("authoritative sidebar refresh", () => {
     listRoomsMock.mockResolvedValue(
       emptyListResult([{ ...original, unreadCount: 1 }]),
     );
-    await act(async () => {
-      window.dispatchEvent(new Event("focus"));
-    });
+    await act(async () => returnToForeground());
     expect(result.current.roomRows[0]?.unreadCount).toBe(1);
   });
 });

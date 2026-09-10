@@ -48,7 +48,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { getActiveRoomIdFromPathname } from "./active-room-id";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
-import { ChatMembershipRevokedListBridge } from "./chat-membership-revoked-list-bridge";
+import { ChatControlListBridge } from "./chat-control-list-bridge";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
@@ -143,7 +143,7 @@ export function OrganizationChatList({
   const membershipRevokedBridge =
     !paintOnly && currentUserId.length > 0 ? (
       <LazyAblyProvider>
-        <ChatMembershipRevokedListBridge currentUserId={currentUserId} />
+        <ChatControlListBridge currentUserId={currentUserId} />
       </LazyAblyProvider>
     ) : null;
 

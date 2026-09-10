@@ -20,6 +20,12 @@ import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
+import {
+  TASK_DETAIL_GRID_CLASS,
+  TASK_DETAIL_MAIN_CLASS,
+  TASK_DETAIL_SHELL_CLASS,
+  TASK_DETAIL_SIDEBAR_CLASS,
+} from "@/app/tasks/constants";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   getCoworkerOptions,
@@ -120,7 +126,7 @@ export async function TaskDetailView({
 
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl pb-8 md:px-4">
+      <div className={TASK_DETAIL_SHELL_CLASS}>
         <Suspense fallback={null}>
           <TaskDetailRealtimeListener
             taskId={taskId}
@@ -137,84 +143,92 @@ export async function TaskDetailView({
           </Suspense>
         ) : null}
 
-        <TaskDetailHeader
-          taskName={task.name}
-          backLabel={t("back")}
-          parentLink={
-            parentTask ? (
-              <p className="text-muted-foreground text-sm">
-                <Link
-                  href={`/tasks/${parentTask.id}`}
-                  className="text-primary hover:underline"
-                >
-                  {t("clonedFrom", { name: parentTask.name })}
-                </Link>
-              </p>
-            ) : null
-          }
-          actions={
-            <Suspense fallback={<TaskDetailActionsFallback />}>
-              <TaskDetailActionsSlot
-                taskId={taskId}
+        <div className={TASK_DETAIL_GRID_CLASS}>
+          <div className={TASK_DETAIL_MAIN_CLASS}>
+            <TaskDetailHeader
+              taskName={task.name}
+              backLabel={t("back")}
+              parentLink={
+                parentTask ? (
+                  <p className="text-muted-foreground text-sm">
+                    <Link
+                      href={`/tasks/${parentTask.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {t("clonedFrom", { name: parentTask.name })}
+                    </Link>
+                  </p>
+                ) : null
+              }
+              actions={
+                <Suspense fallback={<TaskDetailActionsFallback />}>
+                  <TaskDetailActionsSlot
+                    taskId={taskId}
+                    task={task}
+                    forceReadOnly={forceReadOnly}
+                    hasAssignedSeatPromise={hasAssignedSeatPromise}
+                    coworkersPromise={coworkersPromise}
+                    ownerBotPromise={ownerBotPromise}
+                    agentsPromise={agentsPromise}
+                    membersPromise={membersPromise}
+                    workspaceAccessPromise={workspaceAccessPromise}
+                    sessionPromise={sessionPromise}
+                  />
+                </Suspense>
+              }
+            />
+
+            <Suspense fallback={null}>
+              <TaskVendorGrantApprovalBannerSlot
                 task={task}
                 forceReadOnly={forceReadOnly}
-                hasAssignedSeatPromise={hasAssignedSeatPromise}
-                coworkersPromise={coworkersPromise}
-                ownerBotPromise={ownerBotPromise}
-                agentsPromise={agentsPromise}
                 membersPromise={membersPromise}
-                workspaceAccessPromise={workspaceAccessPromise}
                 sessionPromise={sessionPromise}
               />
             </Suspense>
-          }
-        />
 
-        <Suspense fallback={null}>
-          <TaskVendorGrantApprovalBannerSlot
-            task={task}
-            forceReadOnly={forceReadOnly}
-            membersPromise={membersPromise}
-            sessionPromise={sessionPromise}
-          />
-        </Suspense>
-
-        <div className="mt-6 space-y-8">
-          <Suspense
-            fallback={
-              <TaskOverviewFallback
-                descriptionTitle={t("description")}
-                propertiesTitle={t("properties")}
+            <Suspense
+              fallback={
+                <TaskSectionFallback title={t("description")} rows={3} />
+              }
+            >
+              <TaskDescriptionSection
+                task={task}
+                agentsPromise={agentsPromise}
               />
-            }
-          >
-            <TaskOverviewSection
-              task={task}
-              coworkersPromise={coworkersPromise}
-              agentsPromise={agentsPromise}
+            </Suspense>
+          </div>
+
+          <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
+            <Suspense
+              fallback={
+                <TaskSectionFallback title={t("properties")} rows={4} />
+              }
+            >
+              <TaskMetadataSection task={task} />
+            </Suspense>
+          </aside>
+
+          <div className={TASK_DETAIL_MAIN_CLASS}>
+            <TaskRelatedTasks
+              title={t("linkedTasksTitle")}
+              emptyLabel={t("linkedTasksEmpty")}
+              tasks={linkedTasks}
+              relationLabels={{
+                related: t("actions.relations.related"),
+                blocks: t("actions.relations.blocks"),
+                blocked_by: t("actions.relations.blockedBy"),
+                parent: t("actions.relations.subtask"),
+                child: t("actions.relations.parent"),
+                duplicate: t("actions.relations.duplicate"),
+                schedule_run: t("actions.relations.scheduleRun"),
+                schedule_series: t("actions.relations.scheduleSeries"),
+              }}
             />
-          </Suspense>
 
-          <TaskRelatedTasks
-            title={t("linkedTasksTitle")}
-            emptyLabel={t("linkedTasksEmpty")}
-            tasks={linkedTasks}
-            relationLabels={{
-              related: t("actions.relations.related"),
-              blocks: t("actions.relations.blocks"),
-              blocked_by: t("actions.relations.blockedBy"),
-              parent: t("actions.relations.subtask"),
-              child: t("actions.relations.parent"),
-              duplicate: t("actions.relations.duplicate"),
-              schedule_run: t("actions.relations.scheduleRun"),
-              schedule_series: t("actions.relations.scheduleSeries"),
-            }}
-          />
+            <TaskFiles title={t("files")} files={task.files ?? []} />
 
-          <TaskFiles title={t("files")} files={task.files ?? []} />
-
-          {task.jobs.length > 0 && (
-            <>
+            {task.jobs.length > 0 && (
               <Suspense
                 fallback={<TaskSectionFallback title={t("jobs")} rows={3} />}
               >
@@ -225,21 +239,21 @@ export async function TaskDetailView({
                   localePromise={localePromise}
                 />
               </Suspense>
-            </>
-          )}
-          <Suspense
-            fallback={<TaskSectionFallback title={t("activity")} rows={4} />}
-          >
-            <TaskActivitySectionContent
-              taskId={taskId}
-              task={task}
-              forceReadOnly={forceReadOnly}
-              hasAssignedSeatPromise={hasAssignedSeatPromise}
-              agentsPromise={agentsPromise}
-              sessionPromise={sessionPromise}
-              currentPlanPromise={currentPlanPromise}
-            />
-          </Suspense>
+            )}
+            <Suspense
+              fallback={<TaskSectionFallback title={t("activity")} rows={4} />}
+            >
+              <TaskActivitySectionContent
+                taskId={taskId}
+                task={task}
+                forceReadOnly={forceReadOnly}
+                hasAssignedSeatPromise={hasAssignedSeatPromise}
+                agentsPromise={agentsPromise}
+                sessionPromise={sessionPromise}
+                currentPlanPromise={currentPlanPromise}
+              />
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>
@@ -389,80 +403,74 @@ async function TaskVendorGrantApprovalBannerSlot({
   );
 }
 
-async function TaskOverviewSection({
+async function TaskDescriptionSection({
   task,
-  coworkersPromise,
   agentsPromise,
 }: {
   task: Task;
-  coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
 }) {
+  const [agents, t] = await Promise.all([
+    agentsPromise,
+    getTranslations("App.Tasks.Detail"),
+  ]);
+
+  return (
+    <TaskDescription
+      title={t("description")}
+      description={task.description}
+      agentNameById={buildAgentNameById(agents)}
+      expandLabel={t("expand")}
+      collapseLabel={t("collapse")}
+    />
+  );
+}
+
+async function TaskMetadataSection({ task }: { task: Task }) {
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
-  const [coworkers, agents, project, t, tTasks, tStatus, locale] =
-    await Promise.all([
-      coworkersPromise,
-      agentsPromise,
-      projectPromise,
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("App.Tasks"),
-      getTranslations("App.Tasks.Filters.statusOptions"),
-      getLocale(),
-    ]);
-  const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
-    task,
-    coworkers,
-    agents,
-    null,
-    tTasks("personalAssistant"),
-    { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
-  );
+  const [project, t, tTasks, tStatus, locale] = await Promise.all([
+    projectPromise,
+    getTranslations("App.Tasks.Detail"),
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Filters.statusOptions"),
+    getLocale(),
+  ]);
 
   return (
-    <>
-      <TaskDescription
-        title={t("description")}
-        description={taskWithCoworker.description}
-        agentNameById={agentNameById}
-        expandLabel={t("expand")}
-        collapseLabel={t("collapse")}
-      />
-
-      <TaskMetadata
-        task={{
-          status: task.status,
-          owner: task.owner,
-          organization: task.organization,
-          assignee: task.assignee,
-          creator: task.creator,
-          credits: task.credits,
-          metadata: task.metadata,
-          nextRunAt: task.nextRunAt,
-        }}
-        project={project ? { id: project.id, name: project.name } : null}
-        createdAtLabel={formatShortDateTime(task.createdAt, locale)}
-        updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
-        labels={{
-          propertiesTitle: t("properties"),
-          status: t("status"),
-          statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
-          owner: t("owner"),
-          creator: t("creator"),
-          organization: t("organization"),
-          personalWorkspace: t("personalWorkspace"),
-          project: t("project"),
-          coworker: t("assignee"),
-          credits: t("credits"),
-          created: t("created"),
-          updated: t("updated"),
-          schedule: t("schedule"),
-          personalAssistantFallback: tTasks("personalAssistant"),
-          formatSokoBotRole: (values) => t("actorSokoBotRole", values),
-        }}
-      />
-    </>
+    <TaskMetadata
+      title={t("properties")}
+      task={{
+        status: task.status,
+        owner: task.owner,
+        organization: task.organization,
+        assignee: task.assignee,
+        creator: task.creator,
+        credits: task.credits,
+        metadata: task.metadata,
+        nextRunAt: task.nextRunAt,
+      }}
+      project={project ? { id: project.id, name: project.name } : null}
+      createdAtLabel={formatShortDateTime(task.createdAt, locale)}
+      updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
+      labels={{
+        status: t("status"),
+        statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
+        owner: t("owner"),
+        creator: t("creator"),
+        organization: t("organization"),
+        personalWorkspace: t("personalWorkspace"),
+        project: t("project"),
+        coworker: t("assignee"),
+        credits: t("credits"),
+        created: t("created"),
+        updated: t("updated"),
+        schedule: t("schedule"),
+        personalAssistantFallback: tTasks("personalAssistant"),
+        formatSokoBotRole: (values) => t("actorSokoBotRole", values),
+      }}
+    />
   );
 }
 
@@ -758,35 +766,22 @@ function TaskDetailActionsFallback() {
   return <div className="bg-muted h-9 w-9 animate-pulse rounded-md" />;
 }
 
-function TaskOverviewFallback({
-  descriptionTitle,
-  propertiesTitle,
-}: {
-  descriptionTitle: string;
-  propertiesTitle: string;
-}) {
-  return (
-    <>
-      <TaskSectionFallback title={descriptionTitle} rows={3} />
-      <TaskSectionFallback title={propertiesTitle} rows={4} />
-    </>
-  );
-}
-
 function TaskSectionFallback({
   title,
   rows = 3,
 }: {
-  title: string;
+  title: string | null;
   rows?: number;
 }) {
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
+      {title ? (
+        <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+      ) : null}
       <div className="space-y-3">
         {Array.from({ length: rows }, (_, index) => (
           <div
-            key={`${title}-${index}`}
+            key={`${title ?? "section"}-${index}`}
             className="bg-muted h-4 animate-pulse rounded"
           />
         ))}

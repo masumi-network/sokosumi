@@ -32,8 +32,10 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   var pausePOST = false
   var pauseNextMessagesGET = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
+  private var messagesGETObserver: CheckedContinuation<Void, Never>?
   private var messagesGETWaiter: CheckedContinuation<Void, Never>?
   private var postReleased = false
+  private var messagesGETReleased = false
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
@@ -60,10 +62,23 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
     }
     if pauseNextMessagesGET, operationID == "get/chats/rooms/{id}/messages" {
       pauseNextMessagesGET = false
-      await withCheckedContinuation { messagesGETWaiter = $0 }
+      if !messagesGETReleased {
+        await withCheckedContinuation { messagesGETWaiter = $0
+          messagesGETObserver?.resume()
+          messagesGETObserver = nil
+        }
+      }
+      messagesGETReleased = false
     }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
+  }
+
+  func waitForMessagesGET() async {
+    if messagesGETWaiter != nil {
+      return
+    }
+    await withCheckedContinuation { messagesGETObserver = $0 }
   }
 
   func releasePOST() {
@@ -73,6 +88,7 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   }
 
   func releaseMessagesGET() {
+    messagesGETReleased = true
     messagesGETWaiter?.resume()
     messagesGETWaiter = nil
   }
@@ -119,9 +135,9 @@ private func realtimeMessageJSON(
   """
 }
 
-private func realtimePageBody(messages: [String]) -> String {
+private func realtimePageBody(messages: [String], nextCursor: String? = nil) -> String {
   """
-  {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(messages.count),"nextCursor":null}}}
+  {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(messages.count),"nextCursor":\(nextCursor.map { "\"\($0)\"" } ?? "null")}}}
   """
 }
 
@@ -168,16 +184,21 @@ private func realtimeState(
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
-    savedSelection: SavedWorkspaceSelection(defaults: defaults),
     savedRoom: SavedRoomSelection(defaults: defaults),
     instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
   )
+  state.readAttention.setVisible(true, window: UUID())
   state.clientResolver = { client }
   return (state, AuthState(store: RealtimeMemoryTokenStore()), transport)
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
-  for _ in 0 ..< 1000 where state.transcriptLoading || state.transcriptLoadingOlder || state.transcriptRefreshing || state.outboundInFlight {
+  while state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
+    await state.transcriptLoadTask?.value
+    await state.olderPageTask?.value
+    await state.transcriptRefreshTask?.value
+  }
+  for _ in 0 ..< 1000 where state.outboundInFlight {
     await Task.yield()
   }
 }
@@ -267,6 +288,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -291,6 +313,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: targetId, roomId: roomA, content: "hello"),
@@ -320,6 +343,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -340,6 +364,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -375,6 +400,31 @@ struct WorkspaceRealtimeTests {
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
   }
 
+  @Test func queuedEnvelopeAfterOlderPageIsRefetched() async throws {
+    let messageId = "550e8400-e29b-41d4-a716-446655440717"
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [], nextCursor: "older")),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: messageId, roomId: roomA, content: "arrived")])),
+      (200, realtimeReadBody(id: roomA))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    transport.pauseNextMessagesGET = true
+    // Both actions queue before either page request starts.
+    state.loadOlderMessages(auth: auth)
+    state.applyRealtimeEnvelope(.init(eventType: .create, messageId: messageId, roomId: roomA), auth: auth)
+    await transport.waitForMessagesGET()
+    transport.releaseMessagesGET()
+    await waitForRealtimeIdle(state)
+    #expect(state.transcriptMessages.map(\.content) == ["arrived"])
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
+  }
+
   @Test func envelopeCreateRefetchesAndMergesWithoutFakeRow() async throws {
     let oldId = "550e8400-e29b-41d4-a716-446655440717"
     let newId = "550e8400-e29b-41d4-a716-446655440718"
@@ -382,6 +432,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -389,7 +440,8 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old edited", editedAt: realtimeTimestamp),
         realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize body", createdAt: "2026-01-01T00:00:01.000Z")
-      ]))
+      ])),
+      (200, realtimeReadBody(id: roomA))
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
@@ -400,9 +452,9 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     #expect(state.transcriptMessages.map(\.content) == ["old edited", "oversize body"])
     #expect(state.transcriptError == nil)
-    // Refetch only: history re-read once, mark-read never re-posted.
+    // Refreshed visible content advances room attention again.
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
-    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 2)
   }
 
   @Test func envelopeCreateDuringHistoryLoadRefetchesAfterResolve() async throws {
@@ -412,13 +464,15 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
         realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize body", createdAt: "2026-01-01T00:00:01.000Z")
-      ]))
+      ])),
+      (200, realtimeReadBody(id: roomA))
     ])
     transport.pauseNextMessagesGET = true
     await state.reload(auth: auth)
@@ -444,21 +498,24 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
-      (200, realtimePageBody(messages: [
-        realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
-        realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize")
-      ])),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
       """),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
+        realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize")
+      ])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [
+        realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
         realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize"),
         realtimeMessageJSON(id: laterId, roomId: roomA, content: "later", createdAt: "2026-01-01T00:00:02.000Z")
-      ]))
+      ])),
+      (200, realtimeReadBody(id: roomA))
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
@@ -492,6 +549,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: targetId, roomId: roomA, content: "bye")])),
       (200, realtimeReadBody(id: roomA))
@@ -512,6 +570,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440720",
@@ -543,6 +602,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440721",
@@ -568,6 +628,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -603,6 +664,7 @@ struct WorkspaceRealtimeTests {
         (200, realtimeAccessBody()),
         (200, realtimeOrgsBody),
         (200, realtimeUserBody),
+        (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
         (200, realtimeRoomsBody(ids: [roomA])),
         (200, realtimePageBody(messages: [])),
         (200, realtimeReadBody(id: roomA)),
@@ -636,6 +698,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -677,6 +740,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
       (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -704,7 +768,7 @@ struct WorkspaceRealtimeTests {
     await waitForTokenMints(transport, count: 1)
     #expect(fake.reauthorizeCount == 1)
     #expect(fake.reauthorizedToken?.keyName == "test.app")
-    #expect(fake.watchedRooms == [roomA, roomB])
+    #expect(fake.watchedRooms == [roomA, nil, roomB])
     #expect(state.selectedRoomId == roomB)
   }
 }
