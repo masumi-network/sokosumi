@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { RoomComposer } from "../room-composer";
 import type { RoomMentionParticipant } from "../room-helpers";
 
