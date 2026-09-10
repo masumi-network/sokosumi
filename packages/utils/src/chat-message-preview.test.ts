@@ -2,7 +2,29 @@ import { describe, expect, it } from "vitest";
 import {
   buildChatMessagePreview,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+  readChatMentionKeys,
 } from "./chat-message-preview";
+
+describe("readChatMentionKeys", () => {
+  it("reads the key of every mention, once each and in order", () => {
+    expect(
+      readChatMentionKeys(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada @all:all @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada again",
+      ),
+    ).toEqual(["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "all"]);
+  });
+
+  it("reads the key of a mention whose slug is empty", () => {
+    expect(
+      readChatMentionKeys("@019fc7e4-e4bd-7005-900c-66e44d33f5e4: hi"),
+    ).toEqual(["019fc7e4-e4bd-7005-900c-66e44d33f5e4"]);
+  });
+
+  /** The same rule the preview reads by: a time is not a mention. */
+  it("reads nothing from text that only looks like a mention", () => {
+    expect(readChatMentionKeys("standup @10:30am")).toEqual([]);
+  });
+});
 
 describe("buildChatMessagePreview", () => {
   it("reads a plain message back as it was written", () => {
@@ -17,6 +39,56 @@ describe("buildChatMessagePreview", () => {
         "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada can you take this one",
       ),
     ).toBe("@Ada can you take this one");
+  });
+
+  /**
+   * The slug in a token is the name rewritten to lowercase ascii words, so a
+   * banner reading it back spells a person's name differently from the room.
+   * The map is what the caller looked up, and it wins.
+   */
+  it("shows a mention as the name the room shows, not its slug", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace can you take this one",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("@Ada Lovelace can you take this one");
+  });
+
+  /**
+   * A name the slug rule keeps nothing of leaves the token with no slug at
+   * all, and the id is what a reader would otherwise be shown.
+   */
+  it("shows a name the slug rule writes as nothing", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4: できますか",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "あかり"]]),
+      ),
+    ).toBe("@あかり できますか");
+  });
+
+  it("drops a mention that has neither a name nor a slug", () => {
+    expect(
+      buildChatMessagePreview("@019fc7e4-e4bd-7005-900c-66e44d33f5e4: hi"),
+    ).toBe("hi");
+  });
+
+  /** A key the lookup did not name is still written as the sender wrote it. */
+  it("keeps the slug of a mention the lookup does not name", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada hi",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e5", "Ben Green"]]),
+      ),
+    ).toBe("@Ada hi");
+  });
+
+  /** `all` names a room rather than a member, so it stands for itself. */
+  it("keeps a room-wide mention written without a slug", () => {
+    expect(buildChatMessagePreview("@all: standup in five")).toBe(
+      "@all standup in five",
+    );
   });
 
   it("shows a room-wide mention as the word the composer inserts", () => {

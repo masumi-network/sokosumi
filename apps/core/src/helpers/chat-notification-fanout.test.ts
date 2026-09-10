@@ -15,6 +15,7 @@ const {
   captureExceptionMock,
   transactionMock,
   queryRawMock,
+  loadChatMentionNamesMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   captureExceptionMock: vi.fn(),
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
+  loadChatMentionNamesMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -57,6 +59,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: notificationFindUniqueMock,
     },
   },
+}));
+
+vi.mock("@/helpers/chat-mention-names", () => ({
+  loadChatMentionNames: (...args: unknown[]) =>
+    loadChatMentionNamesMock(...args),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -123,6 +130,7 @@ beforeEach(() => {
   notificationUpdateManyMock.mockResolvedValue({ count: 1 });
   notificationFindUniqueMock.mockResolvedValue({ id: "notification_1" });
   resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: false });
+  loadChatMentionNamesMock.mockResolvedValue(new Map());
 });
 
 /** A row the reader already has for this room, unread and shown in the app. */
@@ -266,6 +274,33 @@ describe("fanOutChatNotifications", () => {
         }),
       );
     }
+  });
+
+  /**
+   * The slug in a token is a rewrite of a name, and a rewrite of a name that
+   * keeps no ascii is nothing at all. The room shows the member's name, so a
+   * banner for the same message has to show it too.
+   */
+  it("shows a mention as the name the room shows for that member", async () => {
+    const content = "@019fc7e4-e4bd-7005-900c-66e44d33f5e4: できますか";
+    messageSays(content);
+    loadChatMentionNamesMock.mockResolvedValue(
+      new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "あかり"]]),
+    );
+
+    await fanOutChatNotifications(params({ content }));
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      content,
+    });
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({
+          messagePreview: "@あかり できますか",
+        }),
+      }),
+    );
   });
 
   it("names the file when the message is only a file", async () => {
@@ -746,6 +781,37 @@ describe("rewriteChatNotificationPreviews", () => {
       roomName: "general",
       isGroup: true,
       count: 4,
+    });
+  });
+
+  /**
+   * A rewrite runs inside the transaction that holds the message, so the names
+   * are read on that client too. Reading them on another would step outside
+   * the lock this rewrite took.
+   */
+  it("shows a mention as a name on a row it rewrites", async () => {
+    notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+    loadChatMentionNamesMock.mockResolvedValue(
+      new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+    );
+
+    messageSays("@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping");
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        content: "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping",
+        client: expect.anything(),
+      }),
+    );
+    expect(paramsWrittenTo(0)).toEqual({
+      authorName: "Ada",
+      roomName: "general",
+      messagePreview: "@Ada Lovelace ping",
     });
   });
 

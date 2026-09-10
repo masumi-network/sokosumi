@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 
+import { loadChatMentionNames } from "@/helpers/chat-mention-names";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import {
   createNotification,
@@ -264,11 +265,19 @@ export async function fanOutChatNotifications(
   });
 
   // Built once rather than per reader: every recipient of one message is shown
-  // the same preview, and the rule reads the whole body to get there.
+  // the same preview, and the rule reads the whole body to get there. The
+  // mentioned members are read for the same reason a banner has a preview at
+  // all: a mention has to say who, and the id in the token says it to nobody.
   const messagePreview =
     message === null || message.deletedAt !== null
       ? ""
-      : buildChatMessagePreview(params.content);
+      : buildChatMessagePreview(
+          params.content,
+          await loadChatMentionNames({
+            roomId: params.roomId,
+            content: params.content,
+          }),
+        );
 
   for (const userId of notifyUserIds) {
     const input: CreateNotificationInput = {
@@ -451,8 +460,15 @@ async function rewriteRowFromMessage(
           where: { id: source.messageId, roomId: source.roomId },
           select: { content: true, deletedAt: true },
         });
+        const content =
+          message === null || message.deletedAt !== null ? "" : message.content;
         const preview = buildChatMessagePreview(
-          message === null || message.deletedAt !== null ? "" : message.content,
+          content,
+          await loadChatMentionNames({
+            roomId: source.roomId,
+            content,
+            client: tx,
+          }),
         );
         await rewriteRow(row, source.messageId, preview, tx);
       });

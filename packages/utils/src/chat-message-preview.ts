@@ -9,9 +9,46 @@ import { MARKDOWN_FENCED_BLOCK_REGEX } from "./markdown-fenced-block.js";
  * its key names someone in the room and leaves every other `word:word` as
  * written. A looser rule here eats the middle of ordinary text: `@10:30am` is
  * a time, and `git@github.com:org/repo.git` is an address.
+ *
+ * The slug may be empty. It is a name rewritten to lowercase ascii words, and
+ * a name written in a script that rewrite keeps nothing of leaves `@<uuid>:`,
+ * so a rule that demanded a slug would leave the uuid itself on a banner.
  */
 const MENTION_TOKEN_REGEX =
-  /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|all):(\S+)/g;
+  /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|all):(\S*)/g;
+
+/**
+ * The key of the room-wide mention, which names a room rather than a member.
+ *
+ * A lookup of who a mention names never finds it, so it is the one key that
+ * stands for itself.
+ */
+export const CHAT_MENTION_ALL_KEY = "all";
+
+/**
+ * The keys of the mention tokens in a message body, in the order written and
+ * without repeats.
+ *
+ * A caller that wants the preview to print names has to look them up, and this
+ * says whose. It reads the token by the same rule the preview does, so the two
+ * cannot come to disagree about what a mention is.
+ *
+ * The room-wide `all` is a key like any other here. It names no member, so a
+ * lookup finds nothing for it and the preview keeps the slug it was written
+ * with.
+ */
+export function readChatMentionKeys(content: string): string[] {
+  const keys = new Set<string>();
+
+  for (const match of content.matchAll(MENTION_TOKEN_REGEX)) {
+    const key = match[1];
+    if (key) {
+      keys.add(key);
+    }
+  }
+
+  return [...keys];
+}
 
 /** The `!` of `![alt](url)`, which the link scan leaves behind on its own. */
 const MARKDOWN_IMAGE_BANG_REGEX = /!(?=\[[^\][]*\]\()/g;
@@ -214,11 +251,22 @@ function capPreview(preview: string): string {
  * id the reader never sees anywhere else in the product. A file keeps the name
  * it was posted under, because that name is what the sender wrote.
  *
+ * `mentionNames` maps a token key to the display name the room shows for it,
+ * and is what makes the two agree. The slug in a token is a lowercased,
+ * hyphenated, ascii-only rewrite of a name, so `@ada-lovelace` on a banner is
+ * a second spelling of the `Ada Lovelace` the room prints, and a name that
+ * rewrites to nothing leaves the key standing in its place. A key the map does
+ * not name falls back to its slug, and a token with neither is dropped rather
+ * than printed: the id it carries means nothing to a reader.
+ *
  * Returns an empty string when the body cleans to nothing at all. The caller
  * decides what an empty preview means: a banner drops its body, and a
  * thread-list row falls back to the sender.
  */
-export function buildChatMessagePreview(content: string): string {
+export function buildChatMessagePreview(
+  content: string,
+  mentionNames?: ReadonlyMap<string, string>,
+): string {
   // A fence goes first, by the room's own rule. The room lifts one out before
   // it sanitizes, so an unclosed `<script>` or `<!--` written inside a fence
   // is text there, not markup. Reading it as markup here would swallow the
@@ -234,8 +282,16 @@ export function buildChatMessagePreview(content: string): string {
   const readable = stripTags(withoutCode)
     .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
     .replace(BACKTICK_RUN_REGEX, "`")
-    .replace(MENTION_TOKEN_REGEX, (_match, _key: string, slug: string) => {
-      return `@${slug}`;
+    .replace(MENTION_TOKEN_REGEX, (_match, key: string, slug: string) => {
+      // `all` is a word rather than an id, so it stands in for its own slug
+      // and a reader loses nothing when the token carries none. Every other
+      // key is a uuid, which says nothing to anyone, so a token left with no
+      // name and no slug says less by saying nothing.
+      const label =
+        mentionNames?.get(key) ??
+        (slug || (key === CHAT_MENTION_ALL_KEY ? key : ""));
+
+      return label ? `@${label}` : "";
     });
 
   const oneLine = cleanChatMessageText(readable).replace(/\s+/g, " ").trim();
