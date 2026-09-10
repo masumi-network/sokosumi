@@ -289,6 +289,33 @@ describe("sanitizeComposerHtml", () => {
     );
   });
 
+  it("admits no void tag other than br", () => {
+    // normalizeVoidTagSerialization rewrites only <br />. Any other void tag
+    // in the allow-list would keep sanitize-html's XML-style serialization
+    // and break the editors' skip-the-write guard.
+    const voidTags = [
+      "area",
+      "base",
+      "basefont",
+      "col",
+      "embed",
+      "hr",
+      "img",
+      "input",
+      "link",
+      "meta",
+      "param",
+      "source",
+      "track",
+      "wbr",
+    ];
+    for (const tag of voidTags) {
+      const sanitized = sanitizeComposerHtml(`<${tag}>`);
+      expect(sanitized).toBe("");
+    }
+    expect(sanitizeComposerHtml("a<br>b")).toBe("a<br>b");
+  });
+
   it("strips protocol-relative hrefs", () => {
     const root = document.createElement("div");
     root.innerHTML = sanitizeComposerHtml('<a href="//evil.test/x">x</a>');
@@ -374,10 +401,12 @@ describe("markdownToHtml sanitization boundary", () => {
     }
   });
 
-  it("serializes exactly as the browser does, so the editors can skip a write", () => {
+  it("serializes markup as the browser does, so the editors can skip a write", () => {
     // Both composers guard their innerHTML write with
     // `editor.innerHTML !== markdownToHtml(value)`. A serialization the
-    // browser rewrites makes that guard never hold.
+    // browser rewrites makes that guard never hold. Scope is markup only:
+    // a non-breaking space in the text still re-serializes to &nbsp;, which
+    // predates the sanitizer and is not fixed here.
     const sources = [
       "a\nb",
       "# h",

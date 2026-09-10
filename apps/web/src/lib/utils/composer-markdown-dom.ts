@@ -137,9 +137,16 @@ function normalizeVoidTagSerialization(html: string): string {
  *
  * Not `sanitizeMarkdown`: that is the room presentation policy, and it drops
  * `pre`, `blockquote`, `s`, and every chip attribute. `sanitize-html` rather
- * than DOMPurify because it takes per-tag attribute allow-lists and needs no
- * DOM, which keeps this function and `markdownToHtml` pure. `htmlToMarkdown`,
- * the reverse direction, still needs a DOM.
+ * than DOMPurify because it takes per-tag attribute allow-lists. Neither
+ * choice changes where this runs: `markdownToHtml` already needs a DOM,
+ * because the chip builders call `document.createElement`.
+ *
+ * No test pins the call from `markdownToHtml` to here, and none can without
+ * spying on the sanitizer. Every interpolation is escaped before it reaches
+ * the builder and both chip builders write `textContent`, so no reachable
+ * input produces dirty HTML for this to strip. What the tests do pin is the
+ * allow-list: drop an attribute and the round-trip cases fail, which is the
+ * failure mode that loses user content.
  */
 export function sanitizeComposerHtml(html: string): string {
   return normalizeVoidTagSerialization(
