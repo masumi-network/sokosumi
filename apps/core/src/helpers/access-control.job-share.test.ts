@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { EnvVariables } from "@/lib/hono";
 import type {
+  CoworkerAuthenticationContext,
   SokoBotAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
@@ -65,7 +66,8 @@ function varsFor(
   workspaceContext: WorkspaceContext | null,
   authContext:
     | UserAuthenticationContext
-    | SokoBotAuthenticationContext = memberAuthContext,
+    | SokoBotAuthenticationContext
+    | CoworkerAuthenticationContext = memberAuthContext,
 ): EnvVariables["Variables"] {
   return {
     isAuthenticated: true,
@@ -200,6 +202,36 @@ describe("requireJobShareCollaboration", () => {
     // SOK-1030 widens human access only. Agent policy is unchanged.
     expect(requireJobCollaborationMock).toHaveBeenCalledWith(
       sokoBotAuthContext,
+      "job_123",
+      tx,
+    );
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
+  });
+  it("leaves coworker access to the existing collaboration rules", async () => {
+    const tx = createTransactionClient();
+    const coworkerAuthContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: {
+        userId: "member_456",
+        organizationId: "org_123",
+      },
+    };
+
+    requireJobCollaborationMock.mockResolvedValueOnce({ id: "job_123" });
+
+    await expect(
+      requireJobShareCollaboration(
+        varsFor(organizationWorkspaceContext, coworkerAuthContext),
+        "job_123",
+        tx,
+      ),
+    ).resolves.toMatchObject({ id: "job_123" });
+
+    // A coworker still needs the tasks capability and a task assigned to it.
+    expect(requireJobCollaborationMock).toHaveBeenCalledWith(
+      coworkerAuthContext,
       "job_123",
       tx,
     );

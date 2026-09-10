@@ -113,16 +113,15 @@ export default function JobDetailsView({
               <Header
                 {...jobsHeader}
                 detailActions={
-                  !readOnly ? (
-                    <JobDetailsTopBarActions
-                      job={job}
-                      editing={nameController.editing}
-                      onEdit={nameController.startEditing}
-                      organizations={organizations}
-                      hasPersonalWorkspace={hasPersonalWorkspace}
-                      personalWorkspaceLabel={personalWorkspaceLabel}
-                    />
-                  ) : undefined
+                  <JobDetailsTopBarActions
+                    job={job}
+                    editing={nameController.editing}
+                    onEdit={nameController.startEditing}
+                    organizations={organizations}
+                    hasPersonalWorkspace={hasPersonalWorkspace}
+                    personalWorkspaceLabel={personalWorkspaceLabel}
+                    readOnly={readOnly}
+                  />
                 }
               />
             ) : null}
@@ -207,7 +206,7 @@ function JobDetailsHeader({
 }) {
   return (
     <div className="flex flex-col gap-2" key={`${job.id}-details-header`}>
-      {!readOnly && showInlineActions ? (
+      {showInlineActions ? (
         <div className="flex justify-end">
           <JobDetailsTopBarActions
             job={job}
@@ -216,6 +215,7 @@ function JobDetailsHeader({
             organizations={organizations}
             hasPersonalWorkspace={hasPersonalWorkspace}
             personalWorkspaceLabel={personalWorkspaceLabel}
+            readOnly={readOnly}
           />
         </div>
       ) : null}
@@ -237,6 +237,7 @@ function JobDetailsTopBarActions({
   hasPersonalWorkspace = false,
   onEdit,
   personalWorkspaceLabel,
+  readOnly,
 }: {
   job: Job;
   editing: boolean;
@@ -244,6 +245,7 @@ function JobDetailsTopBarActions({
   hasPersonalWorkspace?: boolean;
   onEdit: () => void;
   personalWorkspaceLabel?: string;
+  readOnly: boolean;
 }) {
   const tName = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const tActions = useTranslations("Components.Jobs.JobDetails.Header.Actions");
@@ -254,9 +256,11 @@ function JobDetailsTopBarActions({
     organizations,
     hasPersonalWorkspace,
   );
+  // Any member of the job's workspace may share it (SOK-1030). Renaming and
+  // moving stay with the owner, so `readOnly` still hides those.
   const canMoveStandaloneJob =
-    !job.taskId && moveTargetCount > 0 && !!personalWorkspaceLabel;
-  const isTaskControlledJob = !!job.taskId;
+    !readOnly && !job.taskId && moveTargetCount > 0 && !!personalWorkspaceLabel;
+  const isTaskControlledJob = !readOnly && !!job.taskId;
 
   return (
     <>
@@ -296,18 +300,20 @@ function JobDetailsTopBarActions({
             </TooltipContent>
           </Tooltip>
         ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-8 md:size-7"
-          onClick={onEdit}
-          title={tName("edit")}
-          aria-label={tName("edit")}
-          disabled={editing}
-        >
-          <Pencil className="size-4" />
-        </Button>
+        {!readOnly ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 md:size-7"
+            onClick={onEdit}
+            title={tName("edit")}
+            aria-label={tName("edit")}
+            disabled={editing}
+          >
+            <Pencil className="size-4" />
+          </Button>
+        ) : null}
         <JobShareButton
           job={job}
           variant="ghost"

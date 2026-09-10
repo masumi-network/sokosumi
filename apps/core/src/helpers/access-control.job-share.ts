@@ -2,7 +2,7 @@ import type { Job, Prisma } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
-import { isUserAuthContext, requireUserContext } from "@/middleware/auth";
+import { isUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 
 import {
@@ -41,8 +41,6 @@ export async function requireJobShareCollaboration(
   if (!isUserAuthContext(authContext)) {
     return await requireJobCollaboration(authContext, jobId, tx);
   }
-
-  requireUserContext(authContext);
 
   const job = await requireJobRead(
     requireWorkspaceContext(workspaceContext),

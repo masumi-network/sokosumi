@@ -239,6 +239,26 @@ describe("JobDetailsView", () => {
     expect(screen.getByLabelText("share")).toBeInTheDocument();
   });
 
+  // SOK-1030: a workspace member who does not own the job may still share it.
+  it("renders share but not edit for a job owned by another member", () => {
+    useJobsHeaderMock.mockReturnValue({
+      agent: {
+        id: "agent-1",
+        credits: 100,
+      },
+      ratingStats: { averageRating: 0, ratingCount: 0 },
+      canRate: false,
+      existingRating: null,
+      disabled: false,
+    });
+
+    render(<JobDetailsView job={createJob()} readOnly showAgentHeader />);
+
+    expect(screen.getByLabelText("share")).toBeInTheDocument();
+    expect(screen.queryByLabelText("edit")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("moveToWorkspace")).not.toBeInTheDocument();
+  });
+
   it("renders a move action for standalone jobs when another workspace is available", () => {
     useJobsHeaderMock.mockReturnValue({
       agent: {
