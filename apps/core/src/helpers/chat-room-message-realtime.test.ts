@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   findUniqueMessageMock,
+  findManyMembersMock,
   publishChatRoomMessageEventMock,
   mapChatRoomMessageMock,
 } = vi.hoisted(() => ({
   findUniqueMessageMock: vi.fn(),
+  findManyMembersMock: vi.fn(),
   publishChatRoomMessageEventMock: vi.fn(),
   mapChatRoomMessageMock: vi.fn(),
 }));
@@ -13,7 +15,7 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomUserMember: {
-      findMany: vi.fn().mockResolvedValue([{ userId: "user_b" }]),
+      findMany: (...args: unknown[]) => findManyMembersMock(...args),
     },
     chatRoomMessage: {
       findUnique: (...args: unknown[]) => findUniqueMessageMock(...args),
@@ -76,8 +78,10 @@ const viewerNeutralDto = {
 describe("publishChatRoomMessageRealtime", () => {
   beforeEach(() => {
     findUniqueMessageMock.mockReset();
+    findManyMembersMock.mockReset();
     publishChatRoomMessageEventMock.mockReset();
     mapChatRoomMessageMock.mockReset();
+    findManyMembersMock.mockResolvedValue([{ userId: "user_b" }]);
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
   });
@@ -105,6 +109,25 @@ describe("publishChatRoomMessageRealtime", () => {
     );
     expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
       userIds: [],
+      roomId: baseMessage.roomId,
+      collections: ["active"],
+    });
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledOnce();
+  });
+
+  it("still notifies remaining members when a separately notified member is excluded", async () => {
+    vi.mocked(publishChatRoomsChanged).mockClear();
+    findManyMembersMock.mockResolvedValue([
+      { userId: "user_guest" },
+      { userId: "user_other" },
+    ]);
+    await publishChatRoomMembershipStatusMessagesBestEffort(
+      [{ ...baseMessage, senderUserId: null } as never],
+      "chat invitation acceptance",
+      ["user_guest"],
+    );
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["user_other"],
       roomId: baseMessage.roomId,
       collections: ["active"],
     });
@@ -227,8 +250,10 @@ describe("publishChatRoomMessageRealtime", () => {
 describe("publishChatRoomMessageRealtimeById", () => {
   beforeEach(() => {
     findUniqueMessageMock.mockReset();
+    findManyMembersMock.mockReset();
     publishChatRoomMessageEventMock.mockReset();
     mapChatRoomMessageMock.mockReset();
+    findManyMembersMock.mockResolvedValue([{ userId: "user_b" }]);
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
   });
