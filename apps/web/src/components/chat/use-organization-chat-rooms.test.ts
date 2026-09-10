@@ -34,7 +34,7 @@ let hasFocus: ReturnType<typeof vi.spyOn>;
  * come back. The invalidation reads at once (the tab title needs it); the
  * return then has nothing stale left, so the round is exactly one read.
  */
-function returnToForeground() {
+function invalidateWhileAwayAndReturn() {
   hasFocus.mockReturnValue(false);
   window.dispatchEvent(new Event("blur"));
   window.dispatchEvent(
@@ -341,7 +341,7 @@ describe("authoritative sidebar refresh", () => {
     listRoomsMock.mockResolvedValue(
       emptyListResult([{ ...original, unreadCount: 2 }]),
     );
-    await act(async () => returnToForeground());
+    await act(async () => invalidateWhileAwayAndReturn());
     expect(result.current.roomRows[0]?.unreadCount).toBe(2);
   });
 
@@ -532,7 +532,7 @@ describe("authoritative sidebar refresh", () => {
       await act(async () => undefined);
       await act(async () => {
         if (trigger === "focus") {
-          returnToForeground();
+          invalidateWhileAwayAndReturn();
         } else {
           window.dispatchEvent(new Event(trigger));
         }
@@ -587,7 +587,7 @@ describe("authoritative sidebar refresh", () => {
 
       const refreshed = { ...updated, name: "Later room name" };
       listRoomsMock.mockResolvedValue(emptyListResult([refreshed]));
-      await act(async () => returnToForeground());
+      await act(async () => invalidateWhileAwayAndReturn());
       expect(result.current.roomRows).toEqual([refreshed]);
     },
   );
@@ -619,7 +619,7 @@ describe("authoritative sidebar refresh", () => {
     listRoomsMock.mockResolvedValue(
       emptyListResult([{ ...original, unreadCount: 1 }]),
     );
-    await act(async () => returnToForeground());
+    await act(async () => invalidateWhileAwayAndReturn());
     expect(result.current.roomRows[0]?.unreadCount).toBe(1);
   });
 });

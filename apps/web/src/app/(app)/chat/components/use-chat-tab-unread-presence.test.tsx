@@ -56,7 +56,7 @@ let hasFocus: ReturnType<typeof vi.spyOn>;
  * The invalidation reads at once (the unread dot needs it); the return then
  * has nothing stale left, so the round is exactly one read.
  */
-function returnToForeground() {
+function invalidateWhileAwayAndReturn() {
   hasFocus.mockReturnValue(false);
   window.dispatchEvent(new Event("blur"));
   window.dispatchEvent(new Event("organization-chat-rooms-changed"));
@@ -185,7 +185,7 @@ describe("useChatTabUnreadPresence", () => {
       );
     });
 
-    await act(async () => returnToForeground());
+    await act(async () => invalidateWhileAwayAndReturn());
 
     await waitFor(() => {
       expect(listRoomsMock).toHaveBeenCalledTimes(2);
