@@ -127,3 +127,21 @@ A Foundation probe confirms that full parsing already recognizes scheme URLs, ww
 The six additional grammars above were approved and merged in PR #4370 with all
 Apple CI checks passing. The renderer branch now includes them from main.
 Highlight query integration and remaining registry/detection gaps remain open.
+
+## Highlight query audit (2026-09-10)
+
+Executed the pinned upstream query files through SwiftTreeSitter 0.10.0 against
+representative source fixtures (`/tmp/apple-grammar-queries.log`). Objective-C,
+XML, Make, Diff, and INI queries compile and return named captures. XML's query
+is under `queries/xml/highlights.scm` rather than `queries/highlights.scm`.
+
+Kotlin 1.1.0 has no `queries` directory even though its Package.swift declares
+that resource. Parser tests passing therefore do not prove Kotlin highlighting.
+The renderer must supply a native Kotlin query against the pinned node schema;
+it must not silently render Kotlin as plaintext. Objective-C declares
+`; inherits: c`, requiring the existing C query to be composed before its own
+query. Tree-sitter treats that directive as a comment; it does not load C for us.
+
+These are renderer integration requirements, not reasons to add a JavaScript
+runtime or claim reduced syntax coverage. Full language detection, aliases,
+query resources in app bundles, and incomplete code/Unicode tests remain open.
