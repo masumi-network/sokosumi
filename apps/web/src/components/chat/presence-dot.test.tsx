@@ -89,8 +89,10 @@ describe("PresenceDot", () => {
     const sidebarMark = onSidebar.firstElementChild as HTMLElement;
     expect(sidebarMark.className).toContain("border-sidebar");
     expect(sidebarMark.className).toContain("bg-sidebar");
-    expect((onPopover.firstElementChild as HTMLElement).className).toContain(
-      "border-popover",
-    );
+    const popoverMark = onPopover.firstElementChild as HTMLElement;
+    expect(popoverMark.className).toContain("border-popover");
+    // The bite has to be the same colour as the ring, or the away mark stops
+    // reading as a crescent and becomes a disc with a dot on it.
+    expect(popoverMark.firstElementChild?.className).toContain("bg-popover");
   });
 });

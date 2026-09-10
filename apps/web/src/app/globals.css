@@ -97,7 +97,6 @@
   --color-presence-online: var(--presence-online);
   --color-presence-afk: var(--presence-afk);
   --color-presence-offline: var(--presence-offline);
-  --color-presence-afk-core: var(--presence-afk-core);
 
   --color-semantic-info: var(--semantic-info);
   --color-semantic-info-variant: var(--semantic-info-variant);
@@ -352,14 +351,6 @@
   --presence-online: hsla(142, 74%, 31%, 1);
   --presence-afk: hsla(32, 95%, 38%, 1);
   --presence-offline: hsla(220, 9%, 46%, 1);
-  /* The away crescent's bite is filled rather than cut through to the surface,
-     so the mark reads as a shape and not as a hole over an avatar. It tracks
-     the theme like any other surface colour: light grey on a light ground,
-     dark grey on a dark one. Both directions have to clear two neighbours, the
-     amber around it and the ground it sits over. Light: 2.51 against
-     --presence-afk, 1.64 against white. The amber is dark enough here that a
-     grey cannot separate further from it without closing on the ground. */
-  --presence-afk-core: hsla(220, 9%, 80%, 1);
 
   --semantic-info: hsla(192, 91%, 36%, 1);
   --semantic-info-variant: hsla(193, 82%, 31%, 1);
@@ -482,10 +473,6 @@
   --presence-online: hsla(142, 60%, 45%, 1);
   --presence-afk: hsla(36, 95%, 48%, 1);
   --presence-offline: hsla(215, 14%, 55%, 1);
-  /* Dark: 3.06 against --presence-afk, 2.71 against --background, 2.45 against
-     --sidebar and --popover. The dark amber is luminous, so this is the grey
-     that separates best from it while staying clearly lighter than the ground. */
-  --presence-afk-core: hsla(215, 14%, 35%, 1);
 
   --semantic-info: hsla(194, 70%, 27%, 1);
   --semantic-info-variant: hsla(189, 94%, 43%, 1);

@@ -2,9 +2,9 @@ import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /**
- * Ground the mark's ring and its hollow offline disc are painted in. It has to
- * match what actually sits behind the mark, or the ring reads as a hole punched
- * in whatever is underneath.
+ * Ground the mark's ring, its crescent bite, and its hollow offline disc are
+ * painted in. It has to match what actually sits behind the mark, or the ring
+ * reads as a hole punched in whatever is underneath.
  *
  * These are the resting grounds. A row that paints an accent on hover or while
  * active still shows a slight mismatch, worst in dark mode where `--accent` is
@@ -21,10 +21,11 @@ const GROUND_CLASSES = {
 } as const;
 
 /**
- * The crescent is the disc minus an offset copy of itself, filled with a bright
- * grey rather than cut through to the surface. Any smaller offset reads as a
- * dent rather than a bite; any larger one thins the crescent past legibility at
- * an 8px core.
+ * The crescent is the disc minus an offset copy of itself. The bite is painted
+ * in the ground, the same colour as the ring around the mark, because that is
+ * what makes the shape read as a crescent: any other colour turns it into a
+ * disc with a dot on it. Any smaller offset reads as a dent rather than a bite;
+ * any larger one thins the crescent past legibility at an 8px core.
  */
 const CRESCENT_BITE = "translate-x-[32%] -translate-y-[32%] scale-[0.72]";
 
@@ -68,10 +69,10 @@ export function PresenceDot({
       aria-hidden="true"
       title={title}
       className={cn(
-        // `overflow-hidden` clips the crescent's offset disc to the padding
-        // box. Without it that disc escapes the mark and reads as a second
-        // circle, which stayed invisible only while it was painted in the
-        // surface colour.
+        // `overflow-hidden` keeps the crescent's offset disc from eating into
+        // the ring on the way past. It reaches well beyond the mark's edge by
+        // design, so without the clip the ring thins wherever the bite crosses
+        // it, and any fill other than the ground would show as a second circle.
         "relative block size-3 overflow-hidden rounded-full border-2",
         ring,
         presence === "online" && "bg-presence-online",
@@ -82,10 +83,7 @@ export function PresenceDot({
     >
       {presence === "afk" ? (
         <span
-          className={cn(
-            "bg-presence-afk-core absolute inset-0 rounded-full",
-            CRESCENT_BITE,
-          )}
+          className={cn("absolute inset-0 rounded-full", CRESCENT_BITE, fill)}
         />
       ) : null}
       {/* The offline stroke is the mark itself, so its width is fixed rather
