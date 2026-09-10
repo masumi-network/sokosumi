@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -102,22 +103,26 @@ export function CreateTaskModalProvider({
   const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const handleOpen = useCallback(() => {
-    setAssigneeOverrideId(null);
-    setProjectOverrideId(initialProjectId || null);
-    setPromptOverride(null);
-    setScheduleOverride(null);
-    setFormInstanceKey((key) => key + 1);
-    setOpen(true);
+    startTransition(() => {
+      setAssigneeOverrideId(null);
+      setProjectOverrideId(initialProjectId || null);
+      setPromptOverride(null);
+      setScheduleOverride(null);
+      setFormInstanceKey((key) => key + 1);
+      setOpen(true);
+    });
   }, [initialProjectId]);
 
   const handleOpenWith = useCallback(
     (assigneeId: string, prompt?: string) => {
-      setAssigneeOverrideId(assigneeId || null);
-      setProjectOverrideId(initialProjectId || null);
-      setPromptOverride(prompt ?? null);
-      setScheduleOverride(null);
-      setFormInstanceKey((key) => key + 1);
-      setOpen(true);
+      startTransition(() => {
+        setAssigneeOverrideId(assigneeId || null);
+        setProjectOverrideId(initialProjectId || null);
+        setPromptOverride(prompt ?? null);
+        setScheduleOverride(null);
+        setFormInstanceKey((key) => key + 1);
+        setOpen(true);
+      });
     },
     [initialProjectId],
   );
@@ -128,22 +133,28 @@ export function CreateTaskModalProvider({
       schedule?: TaskScheduleSelection;
     }) => {
       const { schedule } = defaults;
-      setAssigneeOverrideId(null);
-      // A caller that omits `projectId` keeps the old default; the Calendar
-      // passes it explicitly, including `undefined` for "nothing chosen yet".
-      setProjectOverrideId(
-        "projectId" in defaults ? defaults.projectId : initialProjectId || null,
-      );
-      setPromptOverride(null);
-      setScheduleOverride(schedule ?? null);
-      setFormInstanceKey((key) => key + 1);
-      setOpen(true);
+      startTransition(() => {
+        setAssigneeOverrideId(null);
+        // A caller that omits `projectId` keeps the old default; the Calendar
+        // passes it explicitly, including `undefined` for "nothing chosen yet".
+        setProjectOverrideId(
+          "projectId" in defaults
+            ? defaults.projectId
+            : initialProjectId || null,
+        );
+        setPromptOverride(null);
+        setScheduleOverride(schedule ?? null);
+        setFormInstanceKey((key) => key + 1);
+        setOpen(true);
+      });
     },
     [initialProjectId],
   );
 
   const handleClose = useCallback(() => {
-    setOpen(false);
+    startTransition(() => {
+      setOpen(false);
+    });
   }, []);
 
   const clearPromptOverride = useCallback(() => {
@@ -289,6 +300,7 @@ export function CreateTaskModal({
       title={t("title")}
       cancelLabel={isCreated ? t("close") : t("cancel")}
       isDismissDisabled={isDismissDisabled}
+      viewTransition
     >
       <TaskForm
         key={`${formInstanceKey}-${resetKey}`}

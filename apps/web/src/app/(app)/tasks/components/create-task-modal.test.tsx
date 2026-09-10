@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +8,8 @@ import {
   useCreateTaskModal,
 } from "./create-task-modal";
 
-const { taskFormPropsSpy } = vi.hoisted(() => ({
+const { taskFormModalPropsSpy, taskFormPropsSpy } = vi.hoisted(() => ({
+  taskFormModalPropsSpy: vi.fn(),
   taskFormPropsSpy: vi.fn(),
 }));
 
@@ -42,9 +43,16 @@ vi.mock("@/app/tasks/actions", () => ({
 }));
 
 vi.mock("./task-form-modal", () => ({
-  TaskFormModal: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
+  TaskFormModal: ({
+    children,
+    ...props
+  }: {
+    children: React.ReactNode;
+    viewTransition?: boolean;
+  }) => {
+    taskFormModalPropsSpy(props);
+    return <div>{children}</div>;
+  },
 }));
 
 vi.mock("./task-form", () => ({
@@ -106,33 +114,55 @@ describe("CreateTaskModal", () => {
     vi.clearAllMocks();
   });
 
+  it("opts the create-task shell into View Transitions", () => {
+    render(
+      <CreateTaskModalProvider>
+        <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
+      </CreateTaskModalProvider>,
+    );
+
+    expect(taskFormModalPropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ viewTransition: true }),
+    );
+  });
+
   it("leaves the project unselected for an unfiltered Calendar", async () => {
     await openFromCalendar({ projectId: undefined });
 
-    expect(getLatestProjectId()).toBeUndefined();
+    await waitFor(() => {
+      expect(getLatestProjectId()).toBeUndefined();
+    });
   });
 
   it("preselects the Workspace for an explicit Workspace source", async () => {
     await openFromCalendar({ projectId: null });
 
-    expect(getLatestProjectId()).toBeNull();
+    await waitFor(() => {
+      expect(getLatestProjectId()).toBeNull();
+    });
   });
 
   it("preselects the Project for an explicit Project source", async () => {
     await openFromCalendar({ projectId: "project-1" });
 
-    expect(getLatestProjectId()).toBe("project-1");
+    await waitFor(() => {
+      expect(getLatestProjectId()).toBe("project-1");
+    });
   });
 
   it("falls back to the route Project on a Project Calendar", async () => {
     await openFromCalendar({}, { initialProjectId: "project-1" });
 
-    expect(getLatestProjectId()).toBe("project-1");
+    await waitFor(() => {
+      expect(getLatestProjectId()).toBe("project-1");
+    });
   });
 
   it("keeps the Workspace default when a caller omits the project", async () => {
     await openFromCalendar({});
 
-    expect(getLatestProjectId()).toBeNull();
+    await waitFor(() => {
+      expect(getLatestProjectId()).toBeNull();
+    });
   });
 });
