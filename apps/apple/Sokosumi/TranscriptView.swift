@@ -124,11 +124,14 @@ import SwiftUI
               }
               .id(message.id)
             }
-            Color.clear.frame(height: 1).id("timeline-bottom")
+            // Bottom anchor doubles as the trailing breathing room (1pt anchor
+            // plus the 8pt the stack used to pad outside). Padding below the
+            // anchor would park every scrollTo 8pt short of the true bottom.
+            Color.clear.frame(height: 9).id("timeline-bottom")
           }
           .scrollTargetLayout()
           .padding(.horizontal, 12)
-          .padding(.vertical, 8)
+          .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
         .scrollPosition(id: $visibleMessageId, anchor: .top)
