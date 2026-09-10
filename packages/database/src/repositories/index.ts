@@ -1,16 +1,3 @@
-/**
- * @sokosumi/database/repositories
- *
- * Domain-specific repository layer for all database entities.
- * All repositories follow the pattern of accepting an optional TransactionClient parameter.
- *
- * ## Usage:
- *
- * ```typescript
- * import { userRepository } from '@sokosumi/database/repositories'
- * ```
- */
-
 export * from "./blob.repository.js";
 export * from "./chat-room-guest-invite-link.repository.js";
 export * from "./credit-bucket.repository.js";
