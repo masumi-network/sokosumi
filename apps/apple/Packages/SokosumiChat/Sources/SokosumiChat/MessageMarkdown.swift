@@ -16,7 +16,7 @@ public struct MessageMarkdown: Equatable, Sendable {
 
   public init(_ source: String, baseURL: URL? = nil) {
     let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-    let document = Markdown.Document(parsing: MarkdownBareDomains(normalized).linkified())
+    let document = Markdown.Document(parsing: MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified())
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
     blocks = document.children.flatMap { builder.blocks(for: $0) }
   }
