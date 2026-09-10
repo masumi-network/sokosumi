@@ -132,8 +132,10 @@
   --color-alpha-5: var(--alpha-5);
 
   /* Custom Colors */
-  --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
-  --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
+  /* Duplicated the success ramp verbatim and, declared here, could not follow
+     the theme: 3.90:1 in dark. Alias the themed tokens instead. */
+  --color-agent-verified-background: var(--semantic-success-quinary);
+  --color-agent-verified-foreground: var(--semantic-success);
 
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
   /* Beautiful UI shimmer — register like reasoning-text-shine so Tailwind emits it. */
@@ -288,13 +290,13 @@
   --quinary: hsla(0, 0%, 4%, 0.05);
   --senary: hsla(0, 0%, 4%, 0.03);
   --muted: hsla(300, 0%, 96%, 1);
-  --muted-foreground: hsla(0, 0%, 4%, 0.5);
+  --muted-foreground: hsla(0, 0%, 4%, 0.58);
   --accent: hsla(300, 0%, 96%, 1);
   --accent-foreground: hsla(330, 0%, 9%, 1);
-  --destructive: hsla(0, 72%, 51%, 1);
+  --destructive: hsla(0, 74%, 42%, 1);
   --border: hsla(330, 0%, 90%, 1);
   --input: hsla(330, 0%, 90%, 1);
-  --ring: hsla(300, 100%, 91%, 1);
+  --ring: hsla(263.5, 100%, 50%, 1);
   --ring-semantic: hsla(0, 96%, 89%, 1);
   /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
   --chart-1: #00a4fa; /* kodosumi · Sky Blue */
@@ -312,19 +314,19 @@
   --sidebar-ring: hsla(0, 0%, 63%, 1);
 
   /* Semantic */
-  --semantic-destructive: hsla(0, 72%, 51%, 1);
+  --semantic-destructive: hsla(0, 74%, 42%, 1);
   --semantic-destructive-variant: hsla(0, 74%, 42%, 1);
-  --semantic-destructive-tertiary: hsla(0, 72%, 51%, 0.2);
-  --semantic-destructive-quaternary: hsla(0, 72%, 51%, 0.1);
-  --semantic-destructive-quinary: hsla(0, 72%, 51%, 0.05);
+  --semantic-destructive-tertiary: hsla(0, 74%, 42%, 0.2);
+  --semantic-destructive-quaternary: hsla(0, 74%, 42%, 0.1);
+  --semantic-destructive-quinary: hsla(0, 74%, 42%, 0.05);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
   --semantic-destructive-ring: hsla(0, 96%, 89%, 1);
 
-  --semantic-warning: hsla(50, 100%, 40%, 1);
-  --semantic-warning-variant: hsla(48, 95%, 45%, 1);
-  --semantic-warning-tertiary: hsla(50, 100%, 40%, 0.3);
-  --semantic-warning-quaternary: hsla(50, 100%, 40%, 0.2);
-  --semantic-warning-quinary: hsla(50, 100%, 40%, 0.1);
+  --semantic-warning: hsla(35, 92%, 33%, 1);
+  --semantic-warning-variant: hsla(35, 92%, 33%, 1);
+  --semantic-warning-tertiary: hsla(35, 92%, 33%, 0.2);
+  --semantic-warning-quaternary: hsla(35, 92%, 33%, 0.1);
+  --semantic-warning-quinary: hsla(35, 92%, 33%, 0.05);
   --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
   --semantic-warning-ring: hsla(52, 100%, 30%, 1);
 
@@ -336,11 +338,11 @@
   --semantic-critical-foreground: hsla(55, 92%, 95%, 1);
   --semantic-critical-ring: hsla(53, 98%, 77%, 1);
 
-  --semantic-success: hsla(142, 76%, 36%, 1);
+  --semantic-success: hsla(142, 72%, 29%, 1);
   --semantic-success-variant: hsla(142, 72%, 29%, 1);
-  --semantic-success-tertiary: hsla(142, 76%, 36%, 0.2);
-  --semantic-success-quaternary: hsla(142, 76%, 36%, 0.1);
-  --semantic-success-quinary: hsla(142, 76%, 36%, 0.05);
+  --semantic-success-tertiary: hsla(142, 72%, 29%, 0.2);
+  --semantic-success-quaternary: hsla(142, 72%, 29%, 0.1);
+  --semantic-success-quinary: hsla(142, 72%, 29%, 0.05);
   --semantic-success-foreground: hsla(138, 76%, 97%, 1);
   --semantic-success-ring: hsla(141, 79%, 85%, 1);
 
@@ -352,11 +354,11 @@
   --presence-afk: hsla(32, 95%, 38%, 1);
   --presence-offline: hsla(220, 9%, 46%, 1);
 
-  --semantic-info: hsla(192, 91%, 36%, 1);
+  --semantic-info: hsla(193, 82%, 31%, 1);
   --semantic-info-variant: hsla(193, 82%, 31%, 1);
-  --semantic-info-tertiary: hsla(192, 91%, 36%, 0.1);
-  --semantic-info-quaternary: hsla(192, 91%, 36%, 0.1);
-  --semantic-info-quinary: hsla(192, 91%, 36%, 0.1);
+  --semantic-info-tertiary: hsla(193, 82%, 31%, 0.2);
+  --semantic-info-quaternary: hsla(193, 82%, 31%, 0.1);
+  --semantic-info-quinary: hsla(193, 82%, 31%, 0.05);
   --semantic-info-foreground: hsla(183, 100%, 96%, 1);
   --semantic-info-ring: hsla(186, 94%, 82%, 1);
 
@@ -402,8 +404,8 @@
   --primary-tertiary: hsla(260, 100%, 73%, 0.3);
   --primary-quaternary: hsla(260, 100%, 73%, 0.2);
   --primary-quinary: hsla(260, 100%, 73%, 0.1);
-  --primary-foreground: hsla(0, 0%, 98%, 1);
-  --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
+  --primary-foreground: hsla(0, 0%, 4%, 1);
+  --primary-muted-foreground: hsla(0, 0%, 4%, 0.7);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 100%, 0.95);
   --secondary-foreground: hsla(0, 0%, 4%, 1);
@@ -416,10 +418,10 @@
   --muted-foreground: hsla(0, 0%, 100%, 0.6);
   --accent: hsla(0, 0%, 15%, 1);
   --accent-foreground: hsla(0, 0%, 98%, 1);
-  --destructive: hsla(0, 70%, 35%, 1);
+  --destructive: hsla(0, 84%, 60%, 1);
   --border: hsla(300, 50%, 100%, 0.1);
   --input: hsla(300, 50%, 100%, 0.15);
-  --ring: hsla(304, 63%, 32%, 1);
+  --ring: hsla(270, 64%, 63%, 1);
   --ring-semantic: hsla(0, 75%, 15%, 1);
   /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
   --chart-1: #00a4fa; /* kodosumi · Sky Blue */
@@ -437,20 +439,20 @@
   --sidebar-ring: hsla(300, 0%, 45%, 1);
 
   /* Semantic */
-  --semantic-destructive: hsla(0, 70%, 35%, 1);
+  --semantic-destructive: hsla(0, 84%, 60%, 1);
   --semantic-destructive-variant: hsla(0, 84%, 60%, 1);
-  --semantic-destructive-tertiary: hsla(0, 70%, 35%, 0.3);
-  --semantic-destructive-quaternary: hsla(0, 70%, 35%, 0.2);
-  --semantic-destructive-quinary: hsla(0, 70%, 35%, 0.1);
-  --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
+  --semantic-destructive-tertiary: hsla(0, 84%, 60%, 0.3);
+  --semantic-destructive-quaternary: hsla(0, 84%, 60%, 0.2);
+  --semantic-destructive-quinary: hsla(0, 84%, 60%, 0.1);
+  --semantic-destructive-foreground: hsla(0, 0%, 4%, 1);
   --semantic-destructive-ring: hsla(0, 75%, 15%, 1);
 
-  --semantic-warning: hsla(50, 100%, 40%, 1);
-  --semantic-warning-variant: hsla(48, 95%, 45%, 1);
-  --semantic-warning-tertiary: hsla(50, 100%, 40%, 0.3);
-  --semantic-warning-quaternary: hsla(50, 100%, 40%, 0.2);
-  --semantic-warning-quinary: hsla(50, 100%, 40%, 0.1);
-  --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
+  --semantic-warning: hsla(43, 96%, 56%, 1);
+  --semantic-warning-variant: hsla(43, 96%, 56%, 1);
+  --semantic-warning-tertiary: hsla(43, 96%, 56%, 0.3);
+  --semantic-warning-quaternary: hsla(43, 96%, 56%, 0.2);
+  --semantic-warning-quinary: hsla(43, 96%, 56%, 0.1);
+  --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
   --semantic-warning-ring: hsla(52, 100%, 30%, 1);
 
   --semantic-critical: hsla(32, 81%, 29%, 1);
@@ -461,12 +463,12 @@
   --semantic-critical-foreground: hsla(55, 92%, 95%, 1);
   --semantic-critical-ring: hsla(26, 83%, 14%, 1);
 
-  --semantic-success: hsla(143, 64%, 24%, 1);
+  --semantic-success: hsla(142, 71%, 45%, 1);
   --semantic-success-variant: hsla(142, 71%, 45%, 1);
-  --semantic-success-tertiary: hsla(143, 64%, 24%, 0.3);
-  --semantic-success-quaternary: hsla(143, 64%, 24%, 0.2);
-  --semantic-success-quinary: hsla(143, 64%, 24%, 0.1);
-  --semantic-success-foreground: hsla(138, 76%, 97%, 1);
+  --semantic-success-tertiary: hsla(142, 71%, 45%, 0.3);
+  --semantic-success-quaternary: hsla(142, 71%, 45%, 0.2);
+  --semantic-success-quinary: hsla(142, 71%, 45%, 0.1);
+  --semantic-success-foreground: hsla(0, 0%, 4%, 1);
   --semantic-success-ring: hsla(145, 80%, 10%, 1);
 
   /* Measured against the dark ground: 7.64 / 8.24 / 5.61. */
@@ -474,12 +476,12 @@
   --presence-afk: hsla(36, 95%, 48%, 1);
   --presence-offline: hsla(215, 14%, 55%, 1);
 
-  --semantic-info: hsla(194, 70%, 27%, 1);
+  --semantic-info: hsla(189, 94%, 43%, 1);
   --semantic-info-variant: hsla(189, 94%, 43%, 1);
-  --semantic-info-tertiary: hsla(194, 70%, 27%, 0.2);
-  --semantic-info-quaternary: hsla(194, 70%, 27%, 0.2);
-  --semantic-info-quinary: hsla(194, 70%, 27%, 0.2);
-  --semantic-info-foreground: hsla(183, 100%, 96%, 1);
+  --semantic-info-tertiary: hsla(189, 94%, 43%, 0.3);
+  --semantic-info-quaternary: hsla(189, 94%, 43%, 0.2);
+  --semantic-info-quinary: hsla(189, 94%, 43%, 0.1);
+  --semantic-info-foreground: hsla(0, 0%, 4%, 1);
   --semantic-info-ring: hsla(197, 79%, 15%, 1);
 
   /* Material */
@@ -510,7 +512,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
