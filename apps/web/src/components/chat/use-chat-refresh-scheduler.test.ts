@@ -104,18 +104,29 @@ describe("useChatRefreshScheduler", () => {
     expect(refresh).toHaveBeenCalledTimes(3);
   });
 
-  it("starts no read while hidden and reads once on return", async () => {
+  it("starts no timer read while hidden and reads once on return", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    mount(refresh, { healthy: false });
+
+    await act(async () => goBackground("hidden"));
+    await tick(FALLBACK_MS * 4);
+    expect(refresh).not.toHaveBeenCalled();
+
+    await act(async () => goForeground());
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs an explicit request while hidden, so the tab title can change while away", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     const { result } = mount(refresh, { healthy: false });
 
     await act(async () => goBackground("hidden"));
-    await tick(FALLBACK_MS * 4);
     await act(async () => {
       result.current();
-      result.current();
     });
-    expect(refresh).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalledTimes(1);
 
+    // The read already happened; the return has nothing stale to catch up.
     await act(async () => goForeground());
     expect(refresh).toHaveBeenCalledTimes(1);
   });
@@ -144,17 +155,20 @@ describe("useChatRefreshScheduler", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("reads once on return when a request arrived while away", async () => {
+  it("reads once on return when a timer elapsed after an explicit read while away", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     const { result } = mount(refresh);
 
     await act(async () => goBackground("hidden"));
     await act(async () => {
       result.current();
-      result.current();
     });
-    await act(async () => goForeground());
     expect(refresh).toHaveBeenCalledTimes(1);
+    await tick(CHAT_HEALTHY_REFRESH_MS);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => goForeground());
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 
   it("does not treat the first healthy flip as a recovery", async () => {

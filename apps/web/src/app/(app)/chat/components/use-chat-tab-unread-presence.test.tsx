@@ -52,8 +52,9 @@ import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
 let hasFocus: ReturnType<typeof vi.spyOn>;
 
 /**
- * Leave the foreground, learn the rooms went stale while away, and come
- * back: the one focus gesture that turns into a read.
+ * Leave the foreground, learn the rooms changed while away, and come back.
+ * The invalidation reads at once (the unread dot needs it); the return then
+ * has nothing stale left, so the round is exactly one read.
  */
 function returnToForeground() {
   hasFocus.mockReturnValue(false);

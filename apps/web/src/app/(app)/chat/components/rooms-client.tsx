@@ -214,7 +214,8 @@ const ROOM_MESSAGE_FALLBACK_MS = 3_000;
 /**
  * A message landed in a membership room that is not open here: its sidebar
  * row (order, unread) changed. Ask for the active collection only; the
- * scheduler coalesces a burst into one read and defers it while hidden.
+ * scheduler coalesces a burst into one read. It runs even while the tab is
+ * hidden, because the row's unread is what the tab title shows the reader.
  */
 function notifySidebarOfForeignRoomMessage() {
   notifyOrganizationChatRoomsChanged({ collections: ["active"] });
