@@ -2,11 +2,22 @@
 
 ## Resume checkpoint
 
-- Current slice: **10 — rich message text**, incomplete. Renderer work is preserved on `codex/apple-rich-message-rendering`; no renderer PR yet.
-- Current prerequisite: [PR #4382](https://github.com/masumi-network/sokosumi/pull/4382), `codex/apple-graphql-less-dependencies`, based on main `5551c36a653490204d66f0efbb2e352225eba67a`. The user approved GraphQL and LESS native grammars on 2026-09-10. GraphQL uses unchanged upstream C sources in a local SwiftPM target; LESS uses an exact-revision Swift package. Both parsers are linked only by dependency tests. Queries and MIT notices are bundled. See [provenance](docs/graphql-less-grammars.md).
-- Verification: all 185 Chat tests pass, including actual highlight captures and Unicode ranges for both grammars. Xcode app build/tests and arm64 iOS 17 compilation of the Chat test target pass. Auth 34, Realtime 27 and CoreAPI 1 tests also pass (247 package tests total). SwiftFormat and strict SwiftLint pass for changed Swift files. Logs: `/tmp/apple-graphql-less-tests.log`, `/tmp/apple-graphql-less-xcode.log`, `/tmp/apple-graphql-less-ios.log`.
-- Next: wait for this dependency PR to merge, then rebase the renderer branch and integrate these grammars. Registry/detection, remaining HTML behavior and visual checks remain unfinished. No new user-facing rendering behavior is claimed by this prerequisite.
-- Preserve the user's stashed Xcode project ordering edit (`apple-user-project-reorder-graphql-pr`) when returning to the renderer branch. The recurring automation remains deleted.
+- Current slice: **10 — rich message text**. Native dependency [PR #4368](https://github.com/masumi-network/sokosumi/pull/4368) merged. Rendering remains in progress on `codex/apple-rich-message-rendering`; no renderer PR yet.
+- Merged dependency follow-up: [PR #4370](https://github.com/masumi-network/sokosumi/pull/4370), all Apple CI checks passed. Rendering branch rebased on main `fe4c3d8a1`. Adds six missing native grammars (Kotlin, Objective-C, XML, Make, Diff, INI), initially linked only by dependency tests. User explicitly approved these additions on 2026-09-10.
+- Verification: 177 Chat tests, Xcode build/app tests, iOS 17 cross-build of the Chat test target (including all six native grammars), SwiftFormat and strict SwiftLint passed. No user-facing highlighting or scrolling fix is claimed by this dependency change.
+- Next: complete native rendering and syntax query integration for slice 10. Existing room scrolling lag is under investigation; automated native scroll input currently fails with `noWindowsAvailable`, so no performance fix is claimed. Removed the unused visible-message scroll binding as a candidate optimization; signed build and lint passed, user verification pending. See the [native rendering design](docs/rich-message-rendering.md).
+- Rebase verification: 190 Chat tests and Xcode app tests passed with the merged grammar packages. Rich rendering remains incomplete; the scroll-binding change is not yet visually verified.
+- The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
+
+### PR #4361 minor review follow-up
+
+- Clear the active parent after successful stream settlement; preserve failed-send parent routing. Thread thinking uses the same reasoning fallback as the room.
+- Settlement reuses a successful initial load that it opened after the room refresh; existing threads still refresh. Regression assertions cover one thread GET for reopen/resume and immediate parent cleanup.
+- Verification: Chat 174 tests passed, Xcode app build/tests passed, Swift lint clean.
+
+## GraphQL / LESS prerequisite
+
+PR #4382 merged as `b29e720a0dc1eabc7c8857cc0229f8e69bc8b234`. Both grammars were explicitly approved on 2026-09-10. Dependency verification passed 247 package tests, Xcode app tests, iOS 17 compilation and lint. See [provenance](docs/graphql-less-grammars.md). Renderer integration follows this rebase.
 
 ## Scope and audit baseline
 

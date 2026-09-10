@@ -21,7 +21,6 @@ import SwiftUI
     /// Eager first layout can report near-top before the bottom anchor
     /// lands. Require a trip away from the top before auto-loading.
     @State private var transcriptWasAwayFromTop = false
-    @State private var visibleMessageId: String?
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var userIsScrolling = false
 
@@ -44,7 +43,6 @@ import SwiftUI
       }
       .onChange(of: roomId) { _, _ in
         transcriptWasAwayFromTop = false
-        visibleMessageId = nil
         scrollIntent = TimelineScrollIntent()
       }
     }
@@ -144,7 +142,6 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
-        .scrollPosition(id: $visibleMessageId, anchor: .top)
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating
         }
