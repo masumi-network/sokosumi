@@ -22,6 +22,23 @@ struct MessageInlineHTMLTests {
     #expect(text.runs.allSatisfy { $0.link == nil })
   }
 
+  @Test func preservesMediaSourcesAsSafeLinks() throws {
+    let baseURL = try #require(URL(string: "https://example.com"))
+    let result = MessageMarkdown(
+      "Watch <video src='/clip.mp4'></video> and <audio><source src='/sound.mp3'></audio> plus <video>fallback only</video>",
+      baseURL: baseURL
+    )
+    let text = try #require(result.blocks.first?.text)
+    #expect(String(text.characters) == "Watch /clip.mp4 and /sound.mp3 plus fallback only")
+    #expect(text.runs.compactMap(\.link).map(\.absoluteString) == [
+      "https://example.com/clip.mp4", "https://example.com/sound.mp3"
+    ])
+    let unsafe = MessageMarkdown("Before <video src='javascript:alert(1)'>Unsafe</video>")
+    let unsafeText = try #require(unsafe.blocks.first?.text)
+    #expect(String(unsafeText.characters) == "Before Unsafe")
+    #expect(unsafeText.runs.allSatisfy { $0.link == nil })
+  }
+
   @Test func formatsNestedInlineTagsAndBreaks() throws {
     let markdown = MessageMarkdown("Text <b>bold <i>both</i></b> <u>under</u><br>next")
     let text = try #require(markdown.blocks.first?.text)

@@ -56,6 +56,13 @@ enum MessageInlineHTML {
       let label = (try? element.attr("alt")) ?? ""
       result = AttributedString(label.isEmpty ? ((try? element.attr("src")) ?? "") : label)
     }
+    if element.tagName() == "video" || element.tagName() == "audio" {
+      // Previews are attachment work; meanwhile preserve the source as text like `img`.
+      let source = mediaSource(element)
+      if !source.isEmpty {
+        result = AttributedString(source)
+      }
+    }
     let intent = inlineIntent(element.tagName())
     if !intent.isEmpty {
       for run in result.runs {
@@ -81,17 +88,31 @@ enum MessageInlineHTML {
   }
 
   private static func linkURL(_ element: Element, baseURL: URL?) -> URL? {
-    let attribute: String
+    let href: String?
     switch element.tagName() {
-    case "a": attribute = "href"
-    case "img": attribute = "src"
+    case "a": href = try? element.attr("href")
+    case "img": href = try? element.attr("src")
+    case "video", "audio": href = mediaSource(element)
     default: return nil
     }
-    guard let href = try? element.attr(attribute), !href.isEmpty,
+    guard let href, !href.isEmpty,
           let url = URL(string: href, relativeTo: baseURL)?.absoluteURL,
           url.scheme == nil || ["http", "https", "mailto", "irc", "ircs", "xmpp"].contains(url.scheme?.lowercased() ?? "")
     else { return nil }
     return url
+  }
+
+  private static func mediaSource(_ element: Element) -> String {
+    if let src = try? element.attr("src"), !src.isEmpty {
+      return src
+    }
+    for child in element.getChildNodes() {
+      if let source = child as? Element, source.tagName() == "source",
+         let src = try? source.attr("src"), !src.isEmpty {
+        return src
+      }
+    }
+    return ""
   }
 
   private static func restore(
