@@ -49,10 +49,11 @@ struct RoomOutboxTests {
     response.id = "confirmed"
     let confirmed = response
     var gate: CheckedContinuation<Void, Never>?
+    var confirmations = 0
     outbox.enqueue(pending, send: {
       await withCheckedContinuation { gate = $0 }
       return confirmed
-    }, confirmed: { _ in }, failed: { _ in Issue.record("Unexpected failure") })
+    }, confirmed: { _ in confirmations += 1 }, failed: { _ in Issue.record("Unexpected failure") })
     while gate == nil {
       await Task.yield()
     }
@@ -63,6 +64,7 @@ struct RoomOutboxTests {
     while outbox.isSending {
       await Task.yield()
     }
+    #expect(confirmations == 1)
     #expect(outbox.sentAt[confirmed.id] == first)
     outbox.reset()
     #expect(outbox.sentAt.isEmpty)

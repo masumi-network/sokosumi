@@ -152,6 +152,33 @@ struct ThreadSessionTests {
     #expect(try testRequestJSON(#require(transport.bodies.last))["parentMessageId"] as? String == "root")
   }
 
+  @Test func replyCountsWhenRealtimeEchoArrivesBeforeHTTPResponse() async throws {
+    let root = try await parent()
+    let replyBody = testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "unused")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    let client = try makeTestClient(TestTransport([(201, replyBody)]))
+    let session = ThreadSession()
+    session.open(root)
+    var confirmations = 0
+    session.send("Reply", client: client, organizationSlug: nil, sender: sender,
+                 settled: {
+                   if case .success = $0 {
+                     confirmations += 1
+                   }
+                 })
+    // Core publishes before it returns 201, so the echo usually wins.
+    var echo = try chatRoomMessage(from: #require(session.outbox.shells.first))
+    echo.id = "reply"
+    session.apply(eventType: .create, message: echo)
+    #expect(session.outbox.shells.isEmpty)
+    while session.outbox.isSending {
+      await Task.yield()
+    }
+    #expect(confirmations == 1)
+    #expect(session.timeline.messages.map(\.id) == ["reply"])
+    #expect(session.parent?.threadReplyCount == 1)
+  }
+
   @Test func openThreadAcceptsReplyWhileHistoryLoadsButRejectsEmptyText() async throws {
     let transport = TestTransport([(201, testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "unused")
         .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\""))])
