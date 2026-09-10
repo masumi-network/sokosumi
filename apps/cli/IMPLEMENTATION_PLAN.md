@@ -33,6 +33,7 @@
 - INFERRED: A standard-library `.env` parser is sufficient for the small set of CLI configuration keys and avoids adding a dependency for one file format.
 - VERIFIED: Packaged CLI cannot depend on local `apps/cli/.env`; hosted defaults are registered target IDs (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) and hosted auth derives from selected Core API URL + `/auth`.
 - REPORTED: User reports both mainnet and preprod CLI OAuth succeed, including successful preprod authorization-code token exchange after fixing wrong preprod `BETTER_AUTH_SECRET` that caused JWK token verification failure. Cause and fix are not independently verified in this repository; SOK-1040 tracks the reported Core issue.
+- VERIFIED: `npm view sokosumi@2.1.3 version --json` → `"2.1.3"`; `npm view sokosumi@2.1.3 dist.tarball --json` → `"https://registry.npmjs.org/sokosumi/-/sokosumi-2.1.3.tgz"`; `npm view sokosumi@2.1.3 bin --json` → `{"sokosumi":"dist/bin/sokosumi.js"}`; `npm exec --yes --package sokosumi@2.1.3 -- sokosumi --help` → exit 0, `Sokosumi CLI v2.1.3`; `npm exec --yes --package sokosumi@2.1.3 -- sokosumi auth status --json` → exit 0, `{"authenticated":false,"authMethod":null,"apiKeyAvailable":false,"target":"mainnet","apiUrl":"https://api.sokosumi.com","expiresAt":null}`.
 
 ## File Map
 

@@ -93,7 +93,7 @@ T14|x|load non-secret local/home config; preserve explicit env precedence|V17,I
 T15|x|typed Core transport, tolerant models, and route services|V5,V18
 T16|x|headless discovery, Agent, Coworker, Task, and Job commands|V18,V19,I
 T17|x|selector TUI plus signed-in resource views|V20,V18,I
-T18|~|publish npm package `sokosumi`; verify tarball + bin|V26,I
+T18|x|publish npm package `sokosumi`; verify tarball + bin|V26,I
 T19|x|fail browser launch without callback timeout|V27
 T20|x|custom target vault scope → canonical URL encoding|V28
 T21|x|custom vault scope → lowercase hex byte encoding; Windows case-fold test|V29
