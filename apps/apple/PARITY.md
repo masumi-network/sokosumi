@@ -4,7 +4,7 @@
 
 - Current slice: **10 — rich message text**, branch `codex/apple-rich-message-text`, based on main `afbbd5f86`. Auditing web rendering and existing native capabilities before implementation.
 - Slice 09b merged in [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361). Head `19b4c3a29` passed Apple CI: Xcode build/app tests, all package tests, lint/format.
-- Next: complete the slice 10 rendering audit and implement its vertical slice. No new dependencies or API changes are approved.
+- Next: await explicit approval of the [resource dependency proposal](docs/rich-message-rendering.md) for syntax highlighting and emoji conversion. Foundation parsing was probed locally; no new dependencies or API changes are approved. Prepare the separate dependency PR only after approval, then complete slice 10.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ### PR #4361 minor review follow-up
