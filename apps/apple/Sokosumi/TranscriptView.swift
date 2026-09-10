@@ -416,7 +416,7 @@ import SwiftUI
                              sentAt: sentAt)
           }
           if let onReply, message.threadReplyCount > 0 {
-            Button("\(message.threadReplyCount) replies", action: onReply)
+            Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
               .buttonStyle(.borderless)
               .font(.caption)
           }

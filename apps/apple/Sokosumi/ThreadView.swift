@@ -18,7 +18,7 @@ import SwiftUI
               VStack(alignment: .leading, spacing: 8) {
                 MessageRow(message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
                 Divider()
-                Text("\(parent.threadReplyCount) replies").font(.caption).foregroundStyle(.secondary)
+                Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
                 replies
                 Color.clear.frame(height: 17).id("thread-bottom")
               }
