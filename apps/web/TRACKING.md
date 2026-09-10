@@ -82,7 +82,7 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
 | `purchase` `{transaction_id, value, currency, items}` | **a credit / coupon purchase succeeds** (Stripe returns with `session_id`). Subscription checkouts return with `status=success` only and do **not** fire `purchase` yet — see below | `components/billing/purchase-tracker.tsx` |
-| `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start`, `doi_confirmed` (defined, not yet fired — no call site) | funnel context | various |
+| `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start` | funnel context | various |
 | `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made (banner) **and** on every full page load when the cookie already exists (`consent-mode-init.tsx`). Not re-pushed on SPA route changes — see [Why events go missing](#why-events-go-missing) | banner, `consent-mode-init.tsx` |
 | `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
 

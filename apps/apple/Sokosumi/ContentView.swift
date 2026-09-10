@@ -20,11 +20,11 @@ struct ContentView: View {
       }
     }
     .task(id: scenePhase) {
-      workspaces.readAttention.setVisible(scenePhase == .active, window: windowID)
+      workspaces.setWindowVisible(scenePhase == .active, window: windowID)
       await workspaces.syncReadAttention(auth: auth)
     }
     .onDisappear {
-      Task { @MainActor in workspaces.readAttention.setVisible(false, window: windowID) }
+      Task { @MainActor in workspaces.setWindowVisible(false, window: windowID) }
     }
     .onChange(of: workspaces.transcriptMessages.map { RoomReadAttention.Message(id: $0.id, content: $0.content) }) { _, _ in
       Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }

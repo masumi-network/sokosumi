@@ -3,7 +3,7 @@ import Foundation
 /// Room + control subscription over one Ably connection (SOK-976).
 ///
 /// The app owns one connection while signed in; `WorkspaceState` drives it
-/// (connect after rooms load, watch the open room, reauthorize on remint,
+/// (connect after rooms load, observe the open room, refresh membership,
 /// disconnect on sign-out). ably-cocoa backs the real thing; tests inject a
 /// fake. No presence enter (ADR 0003), no push (ADR 0022 / 0023).
 ///
@@ -25,10 +25,9 @@ public protocol RealtimeConnection: AnyObject, Sendable {
   )
   /// Retargets future token mints (workspace switch). Does not remint.
   func setOrganizationSlug(_ slug: String?)
-  /// Switches the room channel subscription. Nil detaches (room closed).
+  /// Observes the selected room health. Nil removes that observation.
   func watchRoom(_ roomId: String?)
-  /// Forces a token remint with the TokenRequest Core just issued, so Ably
-  /// does not call `authCallback` again (one Core POST per remint).
-  func reauthorize(token: AblyTokenFields)
+  func setMembershipRooms(_ roomIds: Set<String>)
+  func refreshMembership()
   func disconnect()
 }
