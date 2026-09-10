@@ -39,3 +39,24 @@ Required tests: block/inline fixtures, nested structures, tables, unsupported/ma
 - TreeSitterLanguages resolves Runestone 0.4.2 transitively. No Runestone product, UIKit editor, or JavaScript runtime is linked by the dependency tests.
 - Representative dependency tests run Swift and JSON highlight queries; Swift verifies UTF-16 capture ranges across emoji text. Dependency products are test-only until the renderer integrates them in slice 10.
 - macOS: Chat 176 tests passed, Xcode app suite passed, Swift lint/format passed. iOS17 compatibility build is recorded in PARITY.md when complete.
+
+## Additional native grammars (approved 2026-09-10)
+
+TreeSitterLanguages does not provide the six grammars below. Use their native
+SwiftPM packages with the existing SwiftTreeSitter binding; no JavaScript engine
+or web view is required. The separate dependency PR links them into tests first.
+Rendering and language detection remain part of slice 10 after this PR merges.
+
+| Language | Package | Exact version | License |
+| --- | --- | --- | --- |
+| Kotlin | tree-sitter-grammars/tree-sitter-kotlin | 1.1.0 | MIT |
+| Objective-C | tree-sitter-grammars/tree-sitter-objc | 3.0.2 | MIT |
+| XML | tree-sitter-grammars/tree-sitter-xml | 0.7.0 | MIT |
+| Make | tree-sitter-grammars/tree-sitter-make | 1.1.1 | MIT |
+| Diff | tree-sitter-grammars/tree-sitter-diff | 0.2.0 | MIT |
+| INI | justinmk/tree-sitter-ini | 1.4.0 | Apache-2.0 |
+
+The dependency tests parse Unicode fixtures and validate UTF-16 source ranges
+for every grammar. They prove parser compatibility, not finished highlighting.
+Query integration and the remaining web language registry gaps still need to be
+covered by the renderer implementation.
