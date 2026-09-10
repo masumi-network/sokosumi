@@ -3,6 +3,15 @@ import SokosumiChat
 import Testing
 
 struct NativeSyntaxHighlighterTests {
+  @Test func resolvesFenceInfoWithoutMislabelingUnknownLanguages() {
+    #expect(SyntaxLanguage(fenceInfo: "Swift title=example") == .swift)
+    #expect(SyntaxLanguage(fenceInfo: " KT ") == .kotlin)
+    #expect(SyntaxLanguage(fenceInfo: "kts") == .kotlin)
+    #expect(SyntaxLanguage(fenceInfo: "json") == .json)
+    #expect(SyntaxLanguage(fenceInfo: "jsonc") == nil)
+    #expect(SyntaxLanguage(fenceInfo: "") == nil)
+  }
+
   @Test func highlightsKotlinUnicodeAndComments() throws {
     let source = "val greeting = \"Hello 👋\" // welcome\nval answer = 42"
     let captures = try NativeSyntaxHighlighter.captures(in: source, language: .kotlin)

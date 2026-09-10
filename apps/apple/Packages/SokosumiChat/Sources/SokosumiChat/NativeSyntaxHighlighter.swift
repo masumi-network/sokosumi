@@ -15,6 +15,15 @@ public struct SyntaxCapture: Equatable, Sendable {
 
 public enum SyntaxLanguage: String, Sendable {
   case swift, json, kotlin
+
+  public init?(fenceInfo: String) {
+    switch fenceInfo.split(whereSeparator: { $0.isWhitespace }).first?.lowercased() {
+    case "swift": self = .swift
+    case "json": self = .json
+    case "kotlin", "kt", "kts": self = .kotlin
+    default: return nil
+    }
+  }
 }
 
 public enum NativeSyntaxHighlighter {

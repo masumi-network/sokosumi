@@ -59,6 +59,7 @@ private struct MarkdownBlockView: View {
     switch block.kind {
     case let .header(level):
       Text(block.text)
+        .fixedSize(horizontal: false, vertical: true)
         .font(headingFont(level))
         .fontWeight(.semibold)
         .accessibilityAddTraits(.isHeader)
@@ -76,18 +77,7 @@ private struct MarkdownBlockView: View {
     case .thematicBreak:
       Divider().padding(.vertical, 4)
     case let .codeBlock(languageHint):
-      VStack(alignment: .leading, spacing: 6) {
-        if let languageHint, !languageHint.isEmpty {
-          Text(languageHint).font(.caption).foregroundStyle(.secondary)
-        }
-        ScrollView(.horizontal) {
-          Text(block.text)
-            .font(.system(.body, design: .monospaced))
-            .fixedSize(horizontal: true, vertical: false)
-        }
-      }
-      .padding(10)
-      .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 6))
+      MessageCodeBlock(source: String(block.text.characters), languageHint: languageHint)
     case let .table(columns):
       ScrollView(.horizontal) {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
@@ -110,6 +100,7 @@ private struct MarkdownBlockView: View {
     default:
       if block.children.isEmpty {
         Text(block.text)
+          .fixedSize(horizontal: false, vertical: true)
       } else {
         MarkdownBlocksView(blocks: block.children)
       }

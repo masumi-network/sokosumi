@@ -159,3 +159,14 @@ parity. The language enum currently covers Swift, JSON and Kotlin only; extend
 it to the web registry, compose inherited queries, cover Kotlin's remaining
 semantic captures, and connect background parsing plus native color styling
 before opening the renderer PR. No code-block highlighting is visible yet.
+
+## Code-block view checkpoint
+
+`MessageCodeBlock` now applies native token colors to Swift/JSON/Kotlin fenced
+blocks. Each block parses off the main actor with a task keyed by source and
+fence info; stale results are rejected, and source text remains selectable and
+unchanged. Kotlin `kt`/`kts` aliases and case-insensitive fence info are covered.
+The app builds and four highlighter tests pass; Swift lint/format pass. Visual
+colors/copy/streaming verification and remaining registry integration are still
+required. Paragraph/heading wrapping also now requests its full vertical size
+to avoid the report's earlier truncation; that visual follow-up remains pending.
