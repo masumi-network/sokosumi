@@ -12,6 +12,19 @@ enum MessageEmoji {
   private static let shortcodePattern = pattern(#":\+1:|:-1:|:[A-Za-z0-9_-]+:"#)
   private static let emoticonPattern = pattern(#"(^|[\u0009-\u000D\u0020\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF])[@$|*'",;.=:\-)(\[\]\\/<>038BOopPsSdDxXzZ]{2,5}"#)
 
+  static func emoji(shortcode: String) -> String? {
+    shortcodes[shortcode.lowercased()]
+  }
+
+  static let composerEmoticons: [(text: String, emoji: String)] = {
+    var seen = Set<String>()
+    return emoticons.flatMap { entry in
+      entry.emoticons.compactMap { text in
+        seen.insert(text).inserted ? (text: text, emoji: entry.emoji) : nil
+      }
+    }.sorted { $0.text.utf16.count > $1.text.utf16.count }
+  }()
+
   static func replacing(in text: String) -> String {
     let expanded = replacing(shortcodePattern, in: text) { match in
       shortcodes[String(match.dropFirst().dropLast())]

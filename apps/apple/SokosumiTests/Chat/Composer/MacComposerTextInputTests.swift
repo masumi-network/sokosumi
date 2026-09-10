@@ -6,6 +6,58 @@
 
   @MainActor
   struct MacComposerTextInputTests {
+    @Test func emojiConversionSupportsUndoAndRedo() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.string = ":D"
+      input.setSelectedRange(NSRange(location: 2, length: 0))
+      delegate.manager.beginUndoGrouping()
+      input.insertText(" ", replacementRange: input.selectedRange())
+      delegate.manager.endUndoGrouping()
+      #expect(input.string == "😄 ")
+      delegate.manager.undo()
+      #expect(input.string == ":D")
+      delegate.manager.redo()
+      #expect(input.string == "😄 ")
+    }
+
+    @Test func markedTextIsNotConvertedUntilCommitted() {
+      let input = MacComposerTextInput.InputView()
+      input.setMarkedText(":D ", selectedRange: NSRange(location: 3, length: 0), replacementRange: NSRange(location: 0, length: 0))
+      #expect(input.hasMarkedText())
+      #expect(input.string == ":D ")
+      input.insertText(":D ", replacementRange: input.markedRange())
+      #expect(!input.hasMarkedText())
+      #expect(input.string == "😄 ")
+    }
+
+    private final class UndoDelegate: NSObject, NSTextViewDelegate {
+      let manager = UndoManager()
+      func undoManager(for _: NSTextView) -> UndoManager? {
+        manager
+      }
+    }
+
+    @Test func emojiConversionPreservesCaretAndSurroundingText() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "😀 :D tail"
+      input.setSelectedRange(NSRange(location: 5, length: 0))
+      input.insertText(" ", replacementRange: input.selectedRange())
+      #expect(input.string == "😀 😄  tail")
+      #expect(input.selectedRange() == NSRange(location: 6, length: 0))
+    }
+
+    @Test func nativeEmojiInsertionReplacesSelection() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "before selected after"
+      input.setSelectedRange(NSRange(location: 7, length: 8))
+      input.insertText("👩🏽‍💻", replacementRange: input.selectedRange())
+      #expect(input.string == "before 👩🏽‍💻 after")
+      #expect(input.selectedRange().location == 7 + "👩🏽‍💻".utf16.count)
+    }
+
     @Test(arguments: [CGFloat.zero, 400, .infinity])
     func measurementDoesNotMutateEditor(_ width: CGFloat) {
       let scroll = MacComposerTextInput.InputScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 30))

@@ -1,12 +1,14 @@
 #if os(macOS)
   import AppKit
+  import SokosumiChat
   import SwiftUI
 
-  /// Native marked-text handling is the only reason for this AppKit adapter.
+  /// Isolates native marked-text handling and character-picker presentation.
   struct MacComposerTextInput: NSViewRepresentable {
     @Binding var text: String
     let submit: () -> Bool
     var placeholder = "Message"
+    var emojiPickerRequest = 0
 
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
@@ -19,6 +21,7 @@
       scroll.hasVerticalScroller = true
       let input = InputView(frame: scroll.contentView.bounds)
       input.isRichText = false
+      input.allowsUndo = true
       input.isAutomaticQuoteSubstitutionEnabled = false
       input.isAutomaticDashSubstitutionEnabled = false
       input.drawsBackground = false
@@ -43,6 +46,14 @@
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
       input.placeholder = placeholder
+      if context.coordinator.emojiPickerRequest != emojiPickerRequest {
+        context.coordinator.emojiPickerRequest = emojiPickerRequest
+        Task { @MainActor [weak input] in
+          guard let input, let window = input.window else { return }
+          window.makeFirstResponder(input)
+          NSApp.orderFrontCharacterPalette(nil)
+        }
+      }
       if input.string != text, !input.hasMarkedText() {
         input.string = text
       }
@@ -88,6 +99,7 @@
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
+      var emojiPickerRequest = 0
       var parent: MacComposerTextInput
 
       init(_ parent: MacComposerTextInput) {
@@ -104,6 +116,16 @@
       var submit: () -> Bool = { false }
       var placeholder = "Message" {
         didSet { needsDisplay = true }
+      }
+
+      override func insertText(_ insertString: Any, replacementRange: NSRange) {
+        let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
+        super.insertText(insertString, replacementRange: replacementRange)
+        guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0,
+              let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) else { return }
+        breakUndoCoalescing()
+        super.insertText(edit.replacement, replacementRange: edit.range)
+        breakUndoCoalescing()
       }
 
       override func draw(_ dirtyRect: NSRect) {

@@ -17,8 +17,8 @@
 		E174B026304F3FBD00C517E4 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = E174B053304F3FBD00C517E4 /* HTTPTypes */; };
 		E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
 		E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
-		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 		E176D032304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
+		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 		E179D032304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 /* End PBXBuildFile section */
 

@@ -35,7 +35,7 @@ import SwiftUI
     }
 
     private var canSend: Bool {
-      ComposerContent(draft).canSend
+      ComposerContent(ComposerEmoji.preparingToSend(draft)).canSend
         && !workspaces.directStream.isBusy
         && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
@@ -73,9 +73,10 @@ import SwiftUI
     @discardableResult
     private func sendDraft() -> Bool {
       guard canSend else { return false }
+      let content = ComposerEmoji.preparingToSend(draft)
       let accepted = parentMessageId == nil
-        ? workspaces.sendMessage(draft, auth: auth)
-        : workspaces.sendThreadReply(draft, auth: auth)
+        ? workspaces.sendMessage(content, auth: auth)
+        : workspaces.sendThreadReply(content, auth: auth)
       guard accepted else { return false }
       draft = ""
       savedDraft.save("")
