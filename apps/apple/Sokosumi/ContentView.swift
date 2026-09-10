@@ -245,6 +245,13 @@ struct ContentView: View {
                 ThreadView()
               }
           }
+          .task(id: workspaces.streamingThreadToOpen?.id) {
+            await Task { @MainActor in
+              if let parent = workspaces.streamingThreadToOpen {
+                workspaces.openThread(parent, auth: auth)
+              }
+            }.value
+          }
         } else {
           Text("Pick a room to read it.")
             .foregroundStyle(.secondary)

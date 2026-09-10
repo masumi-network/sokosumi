@@ -13,6 +13,17 @@ struct ThreadSessionTests {
     return try #require(rows.first)
   }
 
+  @Test func reopeningTheSameParentDoesNotResetTheTimeline() async throws {
+    var root = try await parent()
+    let session = ThreadSession()
+    #expect(session.open(root))
+    let generation = session.timeline.generation
+    root.content = "Edited parent"
+    #expect(session.open(root))
+    #expect(session.timeline.generation == generation)
+    #expect(session.parent?.content == "Edited parent")
+  }
+
   @Test func parentAndReplyEventsHaveIndependentDestinations() async throws {
     var root = try await parent()
     let session = ThreadSession()

@@ -82,6 +82,45 @@ struct DirectStreamSessionTests {
     #expect(session.errorMessage == nil)
   }
 
+  @Test func threadStreamRoutesBothOverlaysAndSharesRoomSendLock() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(200, completedStream)]))
+    #expect(session.send("Reply", client: client, organizationSlug: nil, parentMessageId: "parent",
+                         settled: { false }, failed: { Issue.record($0) }))
+    #expect(!session.send("Room turn", client: client, organizationSlug: nil,
+                          settled: { true }, failed: { Issue.record($0) }))
+    await session.task?.value
+    #expect(session.parentMessageId == "parent")
+    #expect(session.overlayMessages.map(\.parentMessageId) == ["parent", "parent"])
+    #expect(session.displayedMessages(persisted: []).isEmpty)
+    #expect(session.displayedMessages(persisted: [], parentMessageId: "other").isEmpty)
+    #expect(session.displayedMessages(persisted: [], parentMessageId: "parent").map(\.content) == ["Reply", "Answer"])
+  }
+
+  @Test func retainedParentIsScopedAndClearsAfterResumeSettlement() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room(), userId: "me", organizationId: "team")
+    let client = try makeTestClient(TestTransport([(200, completedStream), (200, completedStream)]))
+    #expect(session.send("Reply", client: client, organizationSlug: "team", parentMessageId: "parent",
+                         settled: { false }, failed: { Issue.record($0) }))
+    await session.task?.value
+    session.reset(room: room(), userId: "other", organizationId: "team")
+    #expect(session.parentMessageId == nil)
+    session.reset(room: room(), userId: "me", organizationId: nil)
+    #expect(session.parentMessageId == nil)
+    session.reset(room: room(), userId: "me", organizationId: "team")
+    #expect(session.parentMessageId == "parent")
+    session.resume(client: client, organizationSlug: "team", settled: {
+      #expect(session.overlayMessages.first?.parentMessageId == "parent")
+      return true
+    }, failed: { Issue.record($0) })
+    await session.task?.value
+    #expect(session.parentMessageId == nil)
+    session.reset(room: room(), userId: "me", organizationId: "team")
+    #expect(session.parentMessageId == nil)
+  }
+
   @Test func oldSettlementCannotClearNewRoomState() async throws {
     let session = DirectStreamSession()
     session.reset(room: room())
@@ -207,6 +246,28 @@ struct DirectStreamSessionTests {
     #expect(session.restoredDraft == "Hello")
     #expect(session.errorMessage != nil)
     #expect(!session.isBusy)
+  }
+
+  @Test func failedThreadSendKeepsParentForMatchingComposerRestore() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(409, """
+    {"error":"Conflict","message":"A coworker response is already in progress for this room.","meta":{"timestamp":"\(testTimestamp)","requestId":"req","path":"/v1/chats/rooms/room/stream","method":"POST"}}
+    """)]))
+    #expect(session.send("Hello", client: client, organizationSlug: nil, parentMessageId: "parent",
+                         settled: {
+                           Issue.record("Pre-stream failure must not settle history")
+                           return true
+                         }, failed: { _ in }))
+    await session.task?.value
+    #expect(session.parentMessageId == "parent")
+    #expect(session.restoredDraft(for: testRoomId, parentMessageId: "parent") == "Hello")
+    #expect(session.restoredDraft(for: testRoomId, parentMessageId: nil) == nil)
+    let suiteName = "stream-draft-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let draft = SavedComposeDraft(userId: "me", organizationId: nil, roomId: testRoomId, parentMessageId: "parent", defaults: defaults)
+    #expect(draft.restoreFailedSend("Hello", preserving: "Newer") == "Hello\n\nNewer")
   }
 }
 

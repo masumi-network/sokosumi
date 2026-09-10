@@ -172,7 +172,6 @@ export async function publishMentionThoughtPlaceholder(params: {
     await Promise.all([
       invalidateChatRoomMessageReaders({
         roomId: params.roomId,
-        authorUserId: null,
       }),
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);
