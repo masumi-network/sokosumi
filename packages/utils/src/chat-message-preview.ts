@@ -33,6 +33,51 @@ const MENTION_TOKEN_REGEX =
 export const CHAT_MENTION_ALL_KEY = "all";
 
 /**
+ * What a name has to keep to still name anyone: anything that is not
+ * punctuation, a space or a control character.
+ *
+ * Written the wide way round. A name is a person's to choose, and people
+ * choose emoji and symbols for one, so a rule naming the scripts it accepts
+ * would take the name off a member the room shows by it.
+ */
+const NAMING_CHARACTER_REGEX = /[^\p{P}\p{Z}\p{C}\s]/u;
+
+/** The text back when it names someone, and nothing when it does not. */
+function whatNamesSomeone(text: string): string {
+  return NAMING_CHARACTER_REGEX.test(text) ? text : "";
+}
+
+/**
+ * A `www.` address whose `www` a name ends with and whose dot the message
+ * text carries: read without the word rule that guards the one in a sentence.
+ *
+ * `seewww.example.test` is a word, and the address rule leaves it alone for
+ * that reason. A name and the message it sits in are two texts by two hands,
+ * though, so a member named `Bobwww` and a message whose words go on
+ * `.evil.test/pay` spell an address between them that no word rule should
+ * protect.
+ */
+const SEAM_ADDRESS_REGEX =
+  /(?<=[A-Za-z0-9_])www\.[A-Za-z0-9\-._~:/?#!$&*+,;=%[\]]+/giu;
+
+/**
+ * The name up to the address it starts, when the message text carries the
+ * rest of that address. The message keeps its own words: what is left of them
+ * is a domain with no scheme, which this module leaves standing either way.
+ */
+function withoutSeamAddress(label: string, after: string): string {
+  for (const match of `${label}${after}`.matchAll(SEAM_ADDRESS_REGEX)) {
+    const end = match.index + match[0].length;
+
+    if (match.index < label.length && end > label.length) {
+      return label.slice(0, match.index);
+    }
+  }
+
+  return label;
+}
+
+/**
  * The keys of the mention tokens in a message body, in the order written and
  * without repeats.
  *
@@ -49,14 +94,6 @@ export const CHAT_MENTION_ALL_KEY = "all";
  * answer up the same way, which is what keeps `@019FC7E4-…` a name rather
  * than a miss.
  */
-/** A letter or a digit: what a name has to keep to still name anyone. */
-const NAMING_CHARACTER_REGEX = /[\p{L}\p{N}]/u;
-
-/** The text back when it names someone, and nothing when it does not. */
-function whatNamesSomeone(text: string): string {
-  return NAMING_CHARACTER_REGEX.test(text) ? text : "";
-}
-
 export function readChatMentionKeys(content: string): string[] {
   const keys = new Set<string>();
 
@@ -448,8 +485,18 @@ export function buildChatMessagePreview(
   // to length has to count the names it shows rather than the markers.
   const withNames = oneLine.replace(
     MENTION_MARKER_REGEX,
-    (_match, index: string) => {
-      const label = labels[Number(index)] ?? "";
+    (match: string, index: string, at: number) => {
+      // A name that starts an address the message text finishes is cut where
+      // that address starts, before the name reaches the line at all.
+      const label = whatNamesSomeone(
+        withoutSeamAddress(
+          labels[Number(index)] ?? "",
+          oneLine.slice(at + match.length),
+        ),
+      );
+
+      labels[Number(index)] = label;
+
       // Each name keeps a marker of its own, so the read after the addresses
       // can tell an `@` this code wrote from an `@` the sender typed, as in
       // "meet @ 5pm".

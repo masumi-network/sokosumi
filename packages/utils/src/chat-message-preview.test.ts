@@ -318,6 +318,29 @@ describe("buildChatMessagePreview", () => {
     ).toBe("hi @zz there");
   });
 
+  /**
+   * A word rule guards the `www` inside a word a person wrote. It does not
+   * guard one a name and a message spell between them, by two hands.
+   */
+  it("takes an address a name ending in `www` starts", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x.evil.test/pay now",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Bobwww"]]),
+      ),
+    ).toBe("hi @Bob.evil.test/pay now");
+  });
+
+  /** A name is a person's to choose, emoji and all. */
+  it("names a member whose name has no letter in it", () => {
+    expect(
+      buildChatMessagePreview(
+        "x @019fc7e4-e4bd-7005-900c-66e44d33f5e4: y",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "\u{1F389}"]]),
+      ),
+    ).toBe("x @\u{1F389} y");
+  });
+
   /** The `www.` inside a word is a word. */
   it("leaves a word that only ends in an address alone", () => {
     expect(buildChatMessagePreview("seewww.example.test now")).toBe(
