@@ -17,16 +17,46 @@ import type { CoreAuthReadErrorReason } from "./core-auth-read-error";
 export type RouteSessionRead =
   | { status: "authenticated"; session: Session }
   | { status: "signedOut" }
-  | { status: "unavailable"; reason: CoreAuthReadErrorReason };
+  | {
+      status: "unavailable";
+      reason: CoreAuthReadErrorReason;
+      /** The status Core answered with, when it answered at all. */
+      httpStatus?: number;
+    };
+
+export type RouteSessionUnavailable = Extract<
+  RouteSessionRead,
+  { status: "unavailable" }
+>;
 
 /** Come back shortly — the session is fine, Core was only slow. */
 const RETRY_AFTER_HEADERS = { "Retry-After": "1" };
+
+/**
+ * A Core auth status that no amount of waiting clears: Better Auth's
+ * trusted-origin check, a WAF rule on the web-to-Core hop, or a route that is
+ * gone. These are not a logout, so they still read as unavailable, but telling
+ * the browser to retry in a second would have it hammer a misconfiguration
+ * until someone notices.
+ */
+const PERMANENT_CORE_AUTH_STATUSES = [403, 404];
+
+function isRetriable(read: RouteSessionUnavailable): boolean {
+  return (
+    read.httpStatus === undefined ||
+    !PERMANENT_CORE_AUTH_STATUSES.includes(read.httpStatus)
+  );
+}
 
 export async function readRouteSession(): Promise<RouteSessionRead> {
   const result = await getSessionResult();
 
   if (result.isErr()) {
-    return { status: "unavailable", reason: result.error.reason };
+    return {
+      status: "unavailable",
+      reason: result.error.reason,
+      httpStatus: result.error.status,
+    };
   }
 
   const session = result.value;
@@ -42,20 +72,27 @@ export async function readRouteSession(): Promise<RouteSessionRead> {
  */
 export function coreSessionUnavailableJson(
   message: string,
-  reason: CoreAuthReadErrorReason,
+  read: RouteSessionUnavailable,
 ): NextResponse {
-  return NextResponse.json(
-    { error: message, reason },
-    { status: 503, headers: RETRY_AFTER_HEADERS },
-  );
+  return isRetriable(read)
+    ? NextResponse.json(
+        { error: message, reason: read.reason },
+        { status: 503, headers: RETRY_AFTER_HEADERS },
+      )
+    : NextResponse.json(
+        { error: message, reason: read.reason },
+        { status: 502 },
+      );
 }
 
 /** Same answer for the routes that speak plain text (the chat stream proxies). */
 export function coreSessionUnavailableText(
-  reason: CoreAuthReadErrorReason,
+  read: RouteSessionUnavailable,
 ): Response {
-  return new Response(`Service Unavailable: ${reason}`, {
-    status: 503,
-    headers: RETRY_AFTER_HEADERS,
-  });
+  return isRetriable(read)
+    ? new Response(`Service Unavailable: ${read.reason}`, {
+        status: 503,
+        headers: RETRY_AFTER_HEADERS,
+      })
+    : new Response(`Bad Gateway: ${read.reason}`, { status: 502 });
 }

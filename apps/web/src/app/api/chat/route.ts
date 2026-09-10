@@ -21,7 +21,7 @@ function coreRoomStreamMessagesUrl(roomId: string, search: URLSearchParams) {
 export async function GET(req: NextRequest) {
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "unavailable") {
-    return coreSessionUnavailableText(sessionRead.reason);
+    return coreSessionUnavailableText(sessionRead);
   }
   if (sessionRead.status === "signedOut") {
     return new Response("Unauthorized", { status: 401 });
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "unavailable") {
-    return coreSessionUnavailableText(sessionRead.reason);
+    return coreSessionUnavailableText(sessionRead);
   }
   if (sessionRead.status === "signedOut") {
     return new Response("Unauthorized", { status: 401 });

@@ -15,7 +15,7 @@ export async function GET(
 ) {
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "unavailable") {
-    return coreSessionUnavailableJson("Turn unavailable", sessionRead.reason);
+    return coreSessionUnavailableJson("Turn unavailable", sessionRead);
   }
   if (sessionRead.status === "signedOut") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

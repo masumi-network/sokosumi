@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getSessionOrRedirectMock = vi.fn();
+const readRouteSessionMock = vi.fn();
+const redirectMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const getMyPendingOrganizationInvitationsMock = vi.fn();
 const getPendingOrganizationJoinTokenMock = vi.fn();
@@ -12,9 +13,16 @@ vi.mock("next-intl/server", () => ({
   getTranslations: (...args: unknown[]) => getTranslationsMock(...args),
 }));
 
+vi.mock("next/navigation", () => ({
+  redirect: (...args: unknown[]) => redirectMock(...args),
+}));
+
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSessionOrRedirect: (...args: unknown[]) =>
-    getSessionOrRedirectMock(...args),
+  signInRedirectPath: async () => "/signin",
+}));
+
+vi.mock("@/lib/auth/route-session", () => ({
+  readRouteSession: (...args: unknown[]) => readRouteSessionMock(...args),
 }));
 
 vi.mock("@/lib/services", () => ({
@@ -39,6 +47,10 @@ vi.mock("@/lib/clients/core.client", () => ({
     resolveOrganizationInviteLink: (...args: unknown[]) =>
       resolveOrganizationInviteLinkMock(...args),
   },
+}));
+
+vi.mock("@/app/components/core-unavailable-notice.client", () => ({
+  CoreUnavailableNotice: () => <div data-testid="core-unavailable-notice" />,
 }));
 
 vi.mock("./components/workspace-gate-sign-out.client", () => ({
@@ -79,13 +91,34 @@ vi.mock("./components/pending-invites-queue.client", () => ({
 describe("WorkspaceGatePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionOrRedirectMock.mockResolvedValue({
-      user: { id: "user-1", name: "Ada Lovelace" },
-      session: { id: "session-1" },
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session: {
+        user: { id: "user-1", name: "Ada Lovelace" },
+        session: { id: "session-1" },
+      },
     });
     getTranslationsMock.mockResolvedValue((key: string) => key);
     getMyPendingOrganizationInvitationsMock.mockResolvedValue([]);
     getPendingOrganizationJoinTokenMock.mockResolvedValue(null);
+  });
+
+  it("shows the Core notice instead of throwing when the session read fails", async () => {
+    // `(flows)` has no `error.tsx`, so a throw here lands on the bare
+    // "Application error" page rather than anything themed.
+    readRouteSessionMock.mockResolvedValue({
+      status: "unavailable",
+      reason: "timeout",
+    });
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    const ui = await WorkspaceGatePage();
+
+    const { CoreUnavailableNotice } = await import(
+      "@/app/components/core-unavailable-notice.client"
+    );
+    expect((ui as { type: unknown }).type).toBe(CoreUnavailableNotice);
+    expect(getWorkspaceAccessMock).not.toHaveBeenCalled();
   });
 
   it("keeps a ready user on the identity form so an open wizard can survive refresh", async () => {
@@ -156,9 +189,12 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("asks a nameless user to enter their name", async () => {
-    getSessionOrRedirectMock.mockResolvedValue({
-      user: { id: "user-1", name: "" },
-      session: { id: "session-1" },
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session: {
+        user: { id: "user-1", name: "" },
+        session: { id: "session-1" },
+      },
     });
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",

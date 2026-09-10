@@ -137,7 +137,7 @@ function createHeaderElements(
 export async function POST(request: NextRequest) {
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "unavailable") {
-    return coreSessionUnavailableJson("Export unavailable", sessionRead.reason);
+    return coreSessionUnavailableJson("Export unavailable", sessionRead);
   }
   if (sessionRead.status === "signedOut") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

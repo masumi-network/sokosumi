@@ -229,10 +229,13 @@ async function fetchSessionResult(
       searchParams: {
         disableCookieCache: options?.refresh ? "true" : undefined,
       },
-      // Core answers 200 with a null body for a signed-out browser, so these
-      // statuses are not expected. Keep them out of Sentry anyway: an auth
-      // status is about this request, not about Core being down.
-      sentryIgnoreHttpStatuses: [...CORE_SIGNED_OUT_STATUSES, 403, 404],
+      // Core answers 200 with a null body for a signed-out browser, so a 401
+      // here is not expected and still says nothing about Core's health. 403
+      // and 404 are not on this list: they read as an outage now, and the
+      // misconfiguration behind them (a trusted-origin check, a WAF rule on
+      // the web-to-Core hop, a route that is gone) is exactly what should
+      // reach Sentry.
+      sentryIgnoreHttpStatuses: CORE_SIGNED_OUT_STATUSES,
     },
   );
 

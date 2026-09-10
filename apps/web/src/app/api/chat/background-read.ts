@@ -31,7 +31,7 @@ export async function respondToBackgroundChatRead(
     // A Core timeout is not a logout. Answering 401 for one told the browser
     // the session was gone and cost it its realtime client; 503 says retry.
     if (sessionRead.status === "unavailable") {
-      return coreSessionUnavailableJson(unavailableMessage, sessionRead.reason);
+      return coreSessionUnavailableJson(unavailableMessage, sessionRead);
     }
     if (sessionRead.status === "signedOut") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

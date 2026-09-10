@@ -406,6 +406,35 @@ describe("getAblyRealtimeClient", () => {
     expect(getConstructedRealtimeClient(1).close).not.toHaveBeenCalled();
   });
 
+  /**
+   * A retired client is closed, so its health says nothing about the page. A
+   * late failure that still reported would flip the replacement's health to
+   * unhealthy and start the fallback polling for a client that is fine.
+   */
+  it("does not report health for a failure that lands after the retire", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    const retiredCallback = getRealtimeClientOptions().authCallback;
+    if (!retiredCallback) {
+      throw new Error("expected an authCallback");
+    }
+    await invokeAuthCallback();
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    // The replacement is delivering.
+    setAblyConnectionHealthy(true);
+
+    mockUnauthorized();
+    await new Promise<void>((resolve) => {
+      retiredCallback({}, () => resolve());
+    });
+
+    expect(getAblyConnectionHealthy()).toBe(true);
+  });
+
   it("rebuilds the client for mounted providers after an identity change", async () => {
     mockTokenFor("user-a:inst_test01");
 

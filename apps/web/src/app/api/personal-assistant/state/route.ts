@@ -15,7 +15,7 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 export async function GET() {
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "unavailable") {
-    return coreSessionUnavailableJson("State unavailable", sessionRead.reason);
+    return coreSessionUnavailableJson("State unavailable", sessionRead);
   }
   if (sessionRead.status === "signedOut") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
