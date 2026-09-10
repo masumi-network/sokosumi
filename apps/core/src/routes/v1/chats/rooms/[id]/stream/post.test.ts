@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import {
-  bindCoreRequestId,
+  bindCoreRequestContext,
   coreEvlogMiddleware,
   initCoreLogger,
 } from "@/lib/evlog";
@@ -1195,7 +1195,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
       const app = new Hono();
       app.use(requestId());
       app.use(coreEvlogMiddleware());
-      app.use(bindCoreRequestId());
+      app.use(bindCoreRequestContext());
       app.onError(errorHandler);
       app.route("/", inner);
       return await app.request(`/${ROOM_ID}/stream`, {

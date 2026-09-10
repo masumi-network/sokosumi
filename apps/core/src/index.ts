@@ -11,7 +11,7 @@ import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import {
-  bindCoreRequestId,
+  bindCoreRequestContext,
   coreEvlogMiddleware,
   initCoreLogger,
 } from "@/lib/evlog";
@@ -39,11 +39,15 @@ const app = new OpenAPIHono<{
 }>();
 
 app.use(requestId());
+// Directly after requestId, which it reads, and before every other
+// middleware: sentryMiddleware forks the isolation scope and redacts the raw
+// request the sdk put on it. Anything registered above it captures against
+// the unredacted parent scope.
+app.use(sentryMiddleware());
 app.use(coreEvlogMiddleware());
-app.use(bindCoreRequestId());
+app.use(bindCoreRequestContext());
 app.use(betterAuthEvlogMiddleware());
 app.use(maintenanceMiddleware());
-app.use(sentryMiddleware());
 
 app.onError(errorHandler);
 
