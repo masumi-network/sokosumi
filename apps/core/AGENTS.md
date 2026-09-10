@@ -623,7 +623,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 ### Authentication
 
 - `OpenAPIHonoWithAuth` automatically applies auth middleware
-- Don't manually call `app.use("*", requireAuth)` when using these classes
+- Don't manually call `app.use("*", requireAuth)` when using this class
 - Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
 - Use `c.var.user` for direct user access, or `c.get("auth")` for full auth context
