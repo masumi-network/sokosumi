@@ -8,10 +8,12 @@ import {
   SUPPORTED_LOCALES,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import { PUSH_WORKER_MESSAGES_PATH } from "@/config/push-worker-assets";
 import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
+  NOTIFICATION_TARGET_PARAM,
   SHOWS_NOTIFICATIONS_QUERY,
 } from "@/lib/utils/notification-service-worker";
 import deMessages from "@/messages/de.json";
@@ -32,6 +34,14 @@ const SERVICE_WORKER_PATH = join(
   "public",
   NOTIFICATION_SERVICE_WORKER_URL,
 );
+
+/** The path the worker's own `importScripts` call names. */
+const IMPORTED_PATH =
+  readFileSync(SERVICE_WORKER_PATH, "utf8").match(
+    /importScripts\("([^"]*)"\);/,
+  )?.[1] ?? "";
+
+const MESSAGES_PATH = join(process.cwd(), "public", IMPORTED_PATH);
 
 const CATALOGS = {
   en: enMessages,
@@ -109,7 +119,12 @@ function localeStrings(source: string, locale: string): Map<string, string> {
 }
 
 describe("ably-push-sw message map", () => {
-  const source = readFileSync(SERVICE_WORKER_PATH, "utf8");
+  // Both halves of what the browser runs: the worker and the catalog it
+  // imports. Read together so a string moving between the two is invisible
+  // here, which is what a split is allowed to do.
+  const source = [SERVICE_WORKER_PATH, MESSAGES_PATH]
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
 
   /**
    * Add a locale to the app and this fails until the worker carries it, rather
@@ -171,6 +186,30 @@ describe("ably-push-sw message map", () => {
     expect(declared).toBe(
       enMessages.Components.NotificationCenter.browserNotificationTitle,
     );
+  });
+
+  /**
+   * Read from the declaration rather than the file: the parameter name is an
+   * ordinary word, so a plain `toContain` would pass on prose that happens to
+   * use it. The two copies drifting apart would open a window the page then
+   * ignores, landing the reader on the front page with no word of why.
+   */
+  it("names the URL parameter the app reads a click target from", () => {
+    const declared = source.match(/const TARGET_PARAM = "([^"]*)";/)?.[1];
+
+    expect(declared).toBe(NOTIFICATION_TARGET_PARAM);
+  });
+
+  /**
+   * Three places outside the worker have to name this file: the header that
+   * keeps it revalidating, the proxy path list that serves it without a
+   * session, and the tests. None of them can read it from the worker at run
+   * time, so they share one constant, and this holds that constant to the
+   * import the browser actually performs. Move the file and update only the
+   * constant, and every reader's worker fails to evaluate.
+   */
+  it("imports the catalog the app serves and caches", () => {
+    expect(IMPORTED_PATH).toBe(PUSH_WORKER_MESSAGES_PATH);
   });
 
   it("asks the question the app answers", () => {

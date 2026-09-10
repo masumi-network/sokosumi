@@ -43,6 +43,18 @@ export const NOTIFICATION_ICON_PATH = "/images/app-icons/apple-icon-180.png";
 export const NOTIFICATION_CLICK_MESSAGE = "sokosumi:notification-click";
 
 /**
+ * Carries a clicked banner's target on the URL of a window the worker opens.
+ *
+ * A click the worker cannot hand to an open tab opens a window instead, and
+ * that window has no listener to post to: it does not exist yet when the
+ * handler ends, and the worker may be stopped before it loads. So the target
+ * rides on the URL, and the page that comes up runs the routing a focused tab
+ * runs. Not an href, because a notification from another workspace has to
+ * switch the active organization before its room will open at all.
+ */
+export const NOTIFICATION_TARGET_PARAM = "notification";
+
+/**
  * Asked by the worker before it skips a banner, to learn whether the focused
  * page shows notifications in the app itself. Only pages that mount the
  * notification listener answer.
@@ -73,6 +85,71 @@ export const notificationTargetSchema = notificationEventDataSchema
   .extend({ id: z.string().min(1) });
 
 export type NotificationTarget = z.infer<typeof notificationTargetSchema>;
+
+/**
+ * Take the target off the URL.
+ *
+ * Called once the notification is open, so that a reload cannot open the same
+ * one a second time and drag a reader who has moved on back to it.
+ *
+ * Not called before then. Until the open runs, the URL is the only copy of the
+ * target anything outside the component holds, and a sign-in redirect built
+ * from `window.location` is what carries it across. See
+ * `notification-url-target-opener.tsx`.
+ */
+export function clearNotificationTargetFromUrl(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(NOTIFICATION_TARGET_PARAM)) {
+    return;
+  }
+
+  url.searchParams.delete(NOTIFICATION_TARGET_PARAM);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
+/**
+ * The target this page was opened for, read off the URL and left there.
+ *
+ * A parameter that will not parse names no notification, which is the same
+ * answer as no parameter at all. That one is spent here rather than left: it
+ * has nothing to carry across a sign-in, and leaving it would put a string
+ * that can never work in the address bar and in every link built from it.
+ */
+export function readNotificationTargetFromUrl(): NotificationTarget | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = new URL(window.location.href).searchParams.get(
+    NOTIFICATION_TARGET_PARAM,
+  );
+  if (raw === null) {
+    return null;
+  }
+
+  const target = parseNotificationTargetParam(raw);
+  if (!target) {
+    clearNotificationTargetFromUrl();
+  }
+  return target;
+}
+
+function parseNotificationTargetParam(raw: string): NotificationTarget | null {
+  try {
+    const parsed = notificationTargetSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The target a realtime event routes to. It sits next to the schema so a field
@@ -170,6 +247,17 @@ async function register(): Promise<ServiceWorkerRegistration | null> {
   try {
     const registration = await navigator.serviceWorker.register(
       getNotificationServiceWorkerUrl(),
+      // The worker imports its message catalog, and the default,
+      // `"imports"`, checks an imported script against the HTTP cache on
+      // update. `"none"` revalidates both.
+      //
+      // Not the guarantee on its own: Ably registers this same worker URL
+      // with no options inside `push.activate()`, and the Register algorithm
+      // writes the job's mode onto an existing registration, so whichever
+      // call runs last decides. The catalog's own `Cache-Control` is what
+      // holds either way (`config/push-worker-assets.ts`). This stays because
+      // it is right for the registration this app makes.
+      { updateViaCache: "none" },
     );
     // A registration that is installing cannot show anything yet. Awaited
     // rather than returned: a returned promise settles after the `try` is
