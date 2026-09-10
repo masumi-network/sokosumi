@@ -60,3 +60,31 @@ The dependency tests parse Unicode fixtures and validate UTF-16 source ranges
 for every grammar. They prove parser compatibility, not finished highlighting.
 Query integration and the remaining web language registry gaps still need to be
 covered by the renderer implementation.
+
+## Approved structural parser and emoji prerequisite
+
+Approved by the user on 2026-09-10, in a separate PR from native rendering:
+
+- SwiftSoup 2.13.9 (`SwiftSoup` product), MIT; Swift HTML parsing only.
+- swift-markdown 0.8.0 (`Markdown` product), Apache 2.0 with Runtime Library Exception.
+- Resolved swift-cmark 0.8.0, with its complete COPYING notices (BSD-style and MIT-derived components). SwiftPM records exact revisions in Package.resolved. The effective dependency graph adds these three packages; no new DocC package resolved on this Swift 6.2 toolchain.
+- Data-only emojilib 2.4.0 and emoticon 4.1.0 resources, MIT notices included verbatim. The resource README records versions, counts, hashes and regeneration steps. No npm package runs in the application.
+
+Parser products are linked by the Chat test target only. Resources live in the
+Chat bundle for later integration. Six dependency tests verify empty code blocks,
+empty table headers/middle/trailing rows/cells, nested and unfinished Markdown,
+HTML nesting repair, entity/URL attributes, explicit handling of unsafe HTML,
+and emoji decoding. The HTML parser deliberately preserves scripts and unsafe
+URLs: a parsing library is not the application's configured sanitizer. Apply the
+web policy during renderer integration, with separate parity fixtures.
+
+After this prerequisite merges, use the full Markdown tree to replace the lossy
+Foundation block reconstruction, use SwiftSoup for HTML fragments, and convert
+emoji text nodes in Swift. Keep all presentation native. Include the parser
+libraries' full license notices in app distribution when linking their products.
+
+Prerequisite verification: Chat 183, Auth 34, CoreAPI 1 and Realtime 27 tests
+passed. Xcode app build/tests and the iOS 17 Chat test-target cross-build passed,
+including both native parsers. Changed Swift files pass SwiftFormat/SwiftLint;
+the data regeneration script passes Node syntax checking and reproduces hashes.
+Logs: `/tmp/apple-parser-*.log`.
