@@ -54,8 +54,19 @@ export function isAdminAccessRequiredError(
  * it reads as a logout to a user whose session is fine and throws away what
  * they were doing. This one falls through to the normal retryable error UI.
  */
+/**
+ * The outage's counterpart to `UNAUTHENTICATED_ERROR_DIGEST`, and for the same
+ * reason: `reason` and the name are gone by the time a deployed browser sees
+ * this error, so the boundary had no way to tell a Core stall from a bug and
+ * showed "an unexpected error. Our team has been notified" for both. That copy
+ * is wrong here. The stall is expected, nobody is fixing it, and waiting a
+ * moment is the action that actually works.
+ */
+export const CORE_AUTH_UNAVAILABLE_ERROR_DIGEST = "CORE_AUTH_UNAVAILABLE";
+
 export class CoreAuthUnavailableError extends Error {
   public readonly reason: string;
+  public readonly digest = CORE_AUTH_UNAVAILABLE_ERROR_DIGEST;
 
   constructor(reason: string, message = "Session could not be read") {
     super(message);

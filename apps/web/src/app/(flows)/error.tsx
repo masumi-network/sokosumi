@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useErrorCardCopy } from "@/hooks/use-error-card-copy";
 import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 
 /**
@@ -36,6 +37,7 @@ export default function Error({
   reset: () => void;
 }) {
   const t = useTranslations("App.Error");
+  const copy = useErrorCardCopy(error);
   const { renderIfAuthenticated } = useUnAuthenticatedErrorHandler(error);
 
   useEffect(() => {
@@ -46,10 +48,10 @@ export default function Error({
     <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
+          <CardTitle>{copy.title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-muted-foreground">{t("description")}</p>
+          <p className="text-muted-foreground">{copy.description}</p>
           {error.digest && (
             <p className="text-muted-foreground text-xs">
               {t("errorId", { errorId: error.digest })}

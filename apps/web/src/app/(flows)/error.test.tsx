@@ -11,6 +11,8 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+import { CORE_AUTH_UNAVAILABLE_ERROR_DIGEST } from "@/lib/auth/errors";
+
 import FlowsError from "./error";
 
 function unauthenticated(): Error {
@@ -40,5 +42,20 @@ describe("(flows) error boundary", () => {
 
     expect(screen.getByText("title")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("says the service is unavailable when Core could not be reached", () => {
+    // Production leaves only the digest, so that is what the card reads. The
+    // generic copy claims an unexpected error that someone was notified about,
+    // which is wrong for a stall the user can simply wait out.
+    const masked: Error & { digest?: string } = new Error(
+      "An error occurred in the Server Components render.",
+    );
+    masked.digest = CORE_AUTH_UNAVAILABLE_ERROR_DIGEST;
+
+    render(<FlowsError error={masked} reset={vi.fn()} />);
+
+    expect(screen.getByText("unavailableTitle")).toBeInTheDocument();
+    expect(screen.queryByText("title")).toBeNull();
   });
 });

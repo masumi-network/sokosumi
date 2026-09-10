@@ -26,10 +26,10 @@ export function CoreUnavailableNotice() {
     <div className="mx-auto flex min-h-[80vh] max-w-4xl items-center justify-center px-4 py-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
+          <CardTitle>{t("unavailableTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">{t("description")}</p>
+          <p className="text-muted-foreground">{t("unavailableDescription")}</p>
         </CardContent>
         <CardFooter>
           <Button
