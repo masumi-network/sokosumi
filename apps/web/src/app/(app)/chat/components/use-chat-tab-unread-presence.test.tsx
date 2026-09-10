@@ -342,6 +342,43 @@ describe("authoritative tab attention", () => {
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
   });
 
+  it("reads an invalidation while hidden so the unread dot can change while away", async () => {
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("visible");
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [room({ id: "a" })], nextCursor: null },
+    });
+    render(<Harness />);
+    await waitFor(() => {
+      expect(listRoomsMock).toHaveBeenCalled();
+    });
+    listRoomsMock.mockClear();
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [room({ id: "a", unreadCount: 2 })], nextCursor: null },
+    });
+
+    await act(async () => {
+      visibility.mockReturnValue("hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(
+        new CustomEvent("organization-chat-rooms-changed", {
+          detail: { collections: ["active"] },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      );
+    });
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
   it("ignores invalidations that do not name the active collection", async () => {
     render(<Harness />);
     await act(async () => undefined);

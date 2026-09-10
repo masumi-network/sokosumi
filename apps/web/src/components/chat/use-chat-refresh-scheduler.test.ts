@@ -116,9 +116,36 @@ describe("useChatRefreshScheduler", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("runs an explicit request while hidden, so the tab title can change while away", async () => {
-    const refresh = vi.fn().mockResolvedValue(undefined);
-    const { result } = mount(refresh, { healthy: false });
+  it.each(["hidden", "blur"] as const)(
+    "runs an explicit request while %s, so the tab title can change while away",
+    async (kind) => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      const { result } = mount(refresh, { healthy: false });
+
+      await act(async () => goBackground(kind));
+      await act(async () => {
+        result.current();
+      });
+      expect(refresh).toHaveBeenCalledTimes(1);
+
+      // The read already happened; the return has nothing stale to catch up.
+      await act(async () => goForeground());
+      expect(refresh).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("runs a queued explicit request as soon as the in-flight read finishes, even while hidden", async () => {
+    const pending = Promise.withResolvers<void>();
+    const refresh = vi
+      .fn()
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValue(undefined);
+    const { result } = mount(refresh);
+
+    await act(async () => {
+      result.current();
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
 
     await act(async () => goBackground("hidden"));
     await act(async () => {
@@ -126,9 +153,11 @@ describe("useChatRefreshScheduler", () => {
     });
     expect(refresh).toHaveBeenCalledTimes(1);
 
-    // The read already happened; the return has nothing stale to catch up.
+    await act(async () => pending.resolve());
+    expect(refresh).toHaveBeenCalledTimes(2);
+
     await act(async () => goForeground());
-    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 
   it("treats a visible but unfocused window as background", async () => {

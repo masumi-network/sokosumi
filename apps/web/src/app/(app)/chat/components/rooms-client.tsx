@@ -2517,7 +2517,7 @@ export function RoomsClient({
             currentUserId ? (
               <LazyAblyProvider>
                 <RoomMessageRealtimeBridge
-                  roomIds={rooms.map((room) => room.id)}
+                  roomIds={channelCatalogRooms.map((room) => room.id)}
                   currentUserId={currentUserId}
                   selectedRoomId={selectedRoomId}
                   onMessage={handleChatRoomRealtimeMessage}
