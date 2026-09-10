@@ -12,6 +12,7 @@ public final class DirectStreamSession: ObservableObject {
   @Published public private(set) var phase = Phase.idle
   @Published public private(set) var errorMessage: String?
   @Published public private(set) var restoredDraft: String?
+  @Published public private(set) var parentMessageId: String?
   @Published private var response = DirectStreamMessage()
   @Published private var userMessage: Components.Schemas.ChatRoomMessage?
   public private(set) var task: Task<Void, Never>?
@@ -42,11 +43,12 @@ public final class DirectStreamSession: ObservableObject {
       && room.userMembers.count == 1 && room.sokoBotMembers.isEmpty
   }
 
-  public func reset(room: Components.Schemas.ChatRoom? = nil) {
+  public func reset(room: Components.Schemas.ChatRoom? = nil, parentMessageId: String? = nil) {
     generation = UUID()
     task?.cancel()
     task = nil
     roomId = room.flatMap { Self.supports($0) ? $0.id : nil }
+    self.parentMessageId = roomId == nil ? nil : parentMessageId
     sender = roomId == nil ? nil : room?.userMembers.first
     coworker = roomId == nil ? nil : room?.coworkerMembers.first
     clearOverlay()
@@ -64,7 +66,7 @@ public final class DirectStreamSession: ObservableObject {
     if hasResponse, let roomId, let coworker {
       messages.append(.init(
         id: "stream:" + (response.id ?? "resume-pending"), roomId: roomId,
-        parentMessageId: nil, content: response.text, createdAt: responseDate,
+        parentMessageId: parentMessageId, content: response.text, createdAt: responseDate,
         deletedAt: nil, editedAt: nil,
         sender: .case2(.init(_type: .coworker, coworker: coworker)),
         mentions: [], reactions: [], threadReplyCount: 0, threadLastReplyAt: nil,
@@ -77,8 +79,8 @@ public final class DirectStreamSession: ObservableObject {
   /// Core persists the user (and later the coworker) before overlays clear.
   /// Hide the newest matching occurrence of each overlay role so settlement
   /// cannot flash a duplicate bubble.
-  public func displayedMessages(persisted: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {
-    let overlay = overlayMessages
+  public func displayedMessages(persisted: [Components.Schemas.ChatRoomMessage], parentMessageId: String? = nil) -> [Components.Schemas.ChatRoomMessage] {
+    let overlay = overlayMessages.filter { $0.parentMessageId == parentMessageId }
     guard !overlay.isEmpty else { return persisted }
     let ids = Set(overlay.map(\.id))
     let hidden = Set(overlay.compactMap { row in newestPersistedDuplicate(of: row, in: persisted, overlayIds: ids) })
@@ -98,22 +100,24 @@ public final class DirectStreamSession: ObservableObject {
 
   @discardableResult
   public func send(
-    _ content: String, client: Client, organizationSlug: String?,
+    _ content: String, client: Client, organizationSlug: String?, parentMessageId: String? = nil,
     settled: @escaping () async -> Bool, failed: @escaping (Error) -> Void
   ) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId, let sender, !isBusy, draft.canSend else { return false }
     restoredDraft = nil
+    self.parentMessageId = parentMessageId
     clearOverlay()
     let id = UUID().uuidString
     var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: roomId, content: draft.text, sender: sender))
     message.id = "stream:" + id
     message.metadata = nil
+    message.parentMessageId = parentMessageId
     userMessage = message
     phase = .submitted
     run(body: { [service] in
       try await service.startDirectStream(client: client, roomId: roomId, organizationSlug: organizationSlug,
-                                          messageId: id, text: draft.text)
+                                          messageId: id, text: draft.text, parentMessageId: parentMessageId)
     }, settled: settled, failed: failed)
     return true
   }
@@ -191,7 +195,7 @@ public final class DirectStreamSession: ObservableObject {
     let text = ComposerContent(overlay.content).text
     guard !text.isEmpty else { return nil }
     return persisted.last { message in
-      guard !overlayIds.contains(message.id), sameSenderKind(message, overlay) else { return false }
+      guard message.parentMessageId == overlay.parentMessageId, !overlayIds.contains(message.id), sameSenderKind(message, overlay) else { return false }
       return ComposerContent(message.content).text == text
     }?.id
   }

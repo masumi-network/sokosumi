@@ -82,6 +82,22 @@ struct DirectStreamSessionTests {
     #expect(session.errorMessage == nil)
   }
 
+  @Test func threadStreamRoutesBothOverlaysAndSharesRoomSendLock() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(200, completedStream)]))
+    #expect(session.send("Reply", client: client, organizationSlug: nil, parentMessageId: "parent",
+                         settled: { false }, failed: { Issue.record($0) }))
+    #expect(!session.send("Room turn", client: client, organizationSlug: nil,
+                          settled: { true }, failed: { Issue.record($0) }))
+    await session.task?.value
+    #expect(session.parentMessageId == "parent")
+    #expect(session.overlayMessages.map(\.parentMessageId) == ["parent", "parent"])
+    #expect(session.displayedMessages(persisted: []).isEmpty)
+    #expect(session.displayedMessages(persisted: [], parentMessageId: "other").isEmpty)
+    #expect(session.displayedMessages(persisted: [], parentMessageId: "parent").map(\.content) == ["Reply", "Answer"])
+  }
+
   @Test func oldSettlementCannotClearNewRoomState() async throws {
     let session = DirectStreamSession()
     session.reset(room: room())

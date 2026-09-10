@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Current slice: **09b — coworker streaming in reply threads**, branch `codex/apple-thread-streaming`, based on main `8f6aab44b`. Web behavior audit is in progress; implementation has not started.
+- Current slice: **09b — coworker streaming in reply threads**, branch `codex/apple-thread-streaming`, based on main `8f6aab44b`. Shared transport/session parent routing is implemented and package-tested; app wiring and end-to-end verification remain.
 - Slice 09a merged in [PR #4352](https://github.com/masumi-network/sokosumi/pull/4352). Final follow-up `f27b972aa` passed Apple CI, including Xcode build/app tests, all package tests, and lint/format.
 - Next: implement and verify 09b as one vertical slice, then open one draft PR. Do not start another feature before its merge.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
@@ -415,3 +415,9 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Reuse candidates: `DirectStreamSession` for the one active stream and cancellation generation; `ChatService+Streaming` for existing POST/GET operations; `ThreadSession`/`RoomTimeline` for reply reconciliation; `SavedComposeDraft` for failed-send restoration scoped to the correct composer. Extend these seams instead of adding another streaming engine.
 - Remaining audit: settlement refresh ordering, thread closure/re-entry, reply counts, deletion and error routing, and session-scoped parent retention across room switches. Then implement model/networking/views/tests together. No API or dependency change is planned.
 - Swift Concurrency plugin applied: app target uses Swift 5 mode with MainActor default isolation and approachable concurrency; shared streaming session has explicit MainActor isolation. Preserve iOS 17 API compatibility. The unrelated Xcode project entry reorder remains unstaged.
+
+### Slice 09b transport/session checkpoint
+
+- Extended the existing POST with optional `parentMessageId`; generated Core contract already supports it. Both user and coworker overlays carry the parent. Overlay merging filters by the requested thread, preserving the shared room send lock.
+- Added request-body and session routing/concurrent-send regression tests. All 171 Chat tests and strict SwiftLint passed (`/tmp/slice09b-session.log`, `/tmp/slice09b-lint.log`).
+- Remaining: scoped parent retention on room re-entry, thread composer/error/restored-draft routing, thread thinking rendering, room/thread settlement and parent reply-count refresh, resume auto-opening, app integration tests, full build and verification. No PR yet; this checkpoint is not a completed slice.
