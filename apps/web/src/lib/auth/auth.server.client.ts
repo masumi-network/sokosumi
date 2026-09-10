@@ -10,7 +10,8 @@ import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 import { getAuthClientPlugins } from "./auth-client.plugins";
 
 const CORE_AUTH_BASE_PATH = "/auth";
-const CORE_AUTH_REQUEST_TIMEOUT_MS = 5000;
+// Keep in step with the server-side budget in `auth.server.ts`.
+const CORE_AUTH_REQUEST_TIMEOUT_MS = 8000;
 
 export function getCoreAuthBaseUrl(): string {
   return joinCoreApiPath(getServerCoreAppBaseUrl(), CORE_AUTH_BASE_PATH);

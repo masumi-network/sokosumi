@@ -1,8 +1,10 @@
 import type { TokenRequest } from "ably";
 
 const ABLY_BROWSER_AUTH_PATH = "/api/ably/auth";
-// Allow the Core token request its five-second deadline plus proxy overhead.
-const ABLY_BROWSER_AUTH_TIMEOUT_MS = 10_000;
+// 9s: the Core token request's 7s deadline plus proxy overhead, and one second
+// under the ably-js `realtimeRequestTimeout` default. At 10s the two raced and
+// ably-js won, replacing the status we classify here with its own message.
+const ABLY_BROWSER_AUTH_TIMEOUT_MS = 9_000;
 
 export class AblyBrowserAuthError extends Error {
   readonly status: number;
