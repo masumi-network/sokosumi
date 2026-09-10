@@ -61,6 +61,9 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
   const env = getEnvSecrets();
+  const securityHeaderOptions = {
+    includeHsts: env.VERCEL_ENV === "production",
+  };
   const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
     network: env.NETWORK,
     vercelEnv: env.VERCEL_ENV,
@@ -71,19 +74,22 @@ export async function proxy(request: NextRequest) {
   const isMaintenanceMode = env.MAINTENANCE_MODE;
   if (isMaintenanceMode) {
     if (pathname.startsWith("/api")) {
-      return expireRetiredOnboardingGateCookie(
-        request,
-        NextResponse.json(
-          { error: "Service is under maintenance" },
-          { status: 503 },
-        ),
+      const maintenanceApiResponse = NextResponse.json(
+        { error: "Service is under maintenance" },
+        { status: 503 },
       );
+      applyDocumentSecurityHeaders(
+        maintenanceApiResponse,
+        securityHeaderOptions,
+      );
+      return expireRetiredOnboardingGateCookie(request, maintenanceApiResponse);
     }
     if (pathname !== "/maintenance") {
-      return expireRetiredOnboardingGateCookie(
-        request,
-        NextResponse.redirect(new URL("/maintenance", request.url)),
+      const maintenanceRedirect = NextResponse.redirect(
+        new URL("/maintenance", request.url),
       );
+      applyDocumentSecurityHeaders(maintenanceRedirect, securityHeaderOptions);
+      return expireRetiredOnboardingGateCookie(request, maintenanceRedirect);
     }
   }
 
@@ -101,7 +107,7 @@ export async function proxy(request: NextRequest) {
       const redirectResponse = NextResponse.redirect(
         new URL(`/signin?returnUrl=${returnUrl}`, request.url),
       );
-      applyDocumentSecurityHeaders(redirectResponse);
+      applyDocumentSecurityHeaders(redirectResponse, securityHeaderOptions);
       return expireRetiredOnboardingGateCookie(request, redirectResponse);
     }
   }
@@ -110,7 +116,7 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
-  applyDocumentSecurityHeaders(response);
+  applyDocumentSecurityHeaders(response, securityHeaderOptions);
 
   // Persist `/join/:token` on the response (not an RSC cookies().set).
   const joinToken = joinTokenFromJoinPath(pathname);
@@ -134,12 +140,11 @@ export async function proxy(request: NextRequest) {
   if (!sessionCookie) {
     const currentUrl = pathname + searchParams;
     const returnUrl = encodeURIComponent(currentUrl);
-    return expireRetiredOnboardingGateCookie(
-      request,
-      NextResponse.redirect(
-        new URL(`/signin?returnUrl=${returnUrl}`, request.url),
-      ),
+    const signInRedirect = NextResponse.redirect(
+      new URL(`/signin?returnUrl=${returnUrl}`, request.url),
     );
+    applyDocumentSecurityHeaders(signInRedirect, securityHeaderOptions);
+    return expireRetiredOnboardingGateCookie(request, signInRedirect);
   }
 
   // Workspace gate (not ready → /setup) is enforced server-side in
