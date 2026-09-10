@@ -278,3 +278,17 @@ changed-file lint/format passed (`/tmp/apple-inline-html-*.log`). This is an
 inline-formatting checkpoint, not an HTML sanitizer or complete HTML support.
 Block HTML (including standalone br blocks), HTML links/code, disallowed-tag
 handling, entities and native visual verification still need completion.
+
+## Kotlin semantic coverage
+
+The existing authored query now captures function/class/object/type-alias names,
+referenced types, reification modifiers, and break/continue. The pinned generated
+parser represents break/continue as identifiers; predicates recognize their exact
+text without matching string contents. No grammar dependency changed. Tests cover
+the semantic captures after an emoji, plus string literals containing the same
+words. Verification: 207 Chat tests, iOS 17 shared compilation, Xcode app build/tests,
+and changed-file SwiftFormat/SwiftLint passed (`/tmp/apple-kotlin-*.log`).
+
+This extends native highlighting but does not complete Kotlin or registry parity.
+String interpolation, annotations, language detection, remaining registry entries,
+and the rich-text/visual checks above remain open.

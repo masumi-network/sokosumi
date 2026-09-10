@@ -91,6 +91,34 @@ struct NativeSyntaxHighlighterTests {
     #expect(contains("number", "42"))
   }
 
+  @Test func highlightsKotlinDeclarationsAndControlFlow() throws {
+    let source = """
+    // 👋 Keep UTF-16 offsets correct after non-BMP text.
+    class Greeter
+    object Registry
+    typealias Count = Int
+    inline fun <reified T> greet(value: T): Int {
+      for (item in listOf(1, 2)) {
+        if (item == 1) continue
+        break
+      }
+      return 42
+    }
+    """
+    let captures = try NativeSyntaxHighlighter.captures(in: source, language: .kotlin)
+    for (name, text) in [
+      ("type", "Greeter"), ("type", "Registry"), ("type", "Count"),
+      ("type", "Int"), ("type", "T"), ("function", "greet"),
+      ("keyword", "reified"), ("keyword", "continue"), ("keyword", "break")
+    ] {
+      #expect(captures.contains { $0.name == name && (source as NSString).substring(with: $0.range) == text })
+    }
+    let literal = "val text = \"class Greeter fun greet break continue reified\""
+    let literalCaptures = try NativeSyntaxHighlighter.captures(in: literal, language: .kotlin)
+    #expect(!literalCaptures.contains { $0.name == "type" || $0.name == "function" })
+    #expect(literalCaptures.filter { $0.name == "keyword" }.count == 1)
+  }
+
   @Test func highlightsSwiftAndJSONThroughSharedAPI() throws {
     let swift = "let text = \"👋\""
     let swiftCaptures = try NativeSyntaxHighlighter.captures(in: swift, language: .swift)

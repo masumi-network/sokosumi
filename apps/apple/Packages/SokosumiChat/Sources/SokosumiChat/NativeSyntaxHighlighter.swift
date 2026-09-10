@@ -252,6 +252,13 @@ public enum NativeSyntaxHighlighter {
   [(line_comment) (block_comment)] @comment
   [(string_literal) (multiline_string_literal) (character_literal)] @string
   [(number_literal) (float_literal)] @number
+  (reification_modifier) @keyword
+  ((identifier) @keyword (#any-of? @keyword "break" "continue"))
+  (function_declaration name: (identifier) @function)
+  (class_declaration name: (identifier) @type)
+  (object_declaration name: (identifier) @type)
+  (type_alias type: (identifier) @type)
+  (user_type (identifier) @type)
   ["abstract" "actual" "annotation" "as" "as?" "by" "catch" "class"
    "companion" "const" "constructor" "crossinline" "data" "do" "dynamic"
    "else" "enum" "expect" "external" "final" "finally" "for" "fun" "get"
