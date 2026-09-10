@@ -8,7 +8,7 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
@@ -77,7 +77,7 @@ export default async function AuthenticatedAppFrame({
   return (
     <>
       <AuthSessionHydrator session={session} />
-      <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
+      <OrganizationSeatContext value={hasAssignedSeat}>
         <NotificationProvider userId={session.user.id}>
           <OrgPresenceProvider organizationId={activeOrganizationId}>
             <AccountNoticeProvider notice={null} sessionId={session.session.id}>
@@ -142,7 +142,7 @@ export default async function AuthenticatedAppFrame({
             </AccountNoticeProvider>
           </OrgPresenceProvider>
         </NotificationProvider>
-      </OrganizationSeatProvider>
+      </OrganizationSeatContext>
     </>
   );
 }
