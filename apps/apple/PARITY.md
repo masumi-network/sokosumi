@@ -3,9 +3,10 @@
 ## Resume checkpoint
 
 - Current slice: **10 — rich message text**. Native dependency [PR #4368](https://github.com/masumi-network/sokosumi/pull/4368) merged. Rendering remains in progress on `codex/apple-rich-message-rendering`; no renderer PR yet.
-- Separate approved dependency follow-up: [PR #4370](https://github.com/masumi-network/sokosumi/pull/4370), `codex/apple-additional-grammars`, based on main `667feb522`. Adds six missing native grammars (Kotlin, Objective-C, XML, Make, Diff, INI), initially linked only by dependency tests. User explicitly approved these additions on 2026-09-10.
-- Verification: 177 Chat tests, Xcode build/app tests, iOS 17 cross-build of the Chat test target (including all six native grammars), SwiftFormat and strict SwiftLint passed. No user-facing highlighting or scrolling fix is claimed by this dependency change.
-- Next: verify and merge the grammar dependency PR before integrating it into slice 10. Existing room scrolling lag is under investigation; automated native scroll input currently fails with `noWindowsAvailable`, so no performance fix is claimed. See the [native rendering design](docs/rich-message-rendering.md).
+- Grammar prerequisite [PR #4370](https://github.com/masumi-network/sokosumi/pull/4370) is merged. The rendering implementation remains on `codex/apple-rich-message-rendering` and is not included here.
+- Current approved prerequisite: [PR #4374](https://github.com/masumi-network/sokosumi/pull/4374), `codex/apple-markdown-parser-dependencies`, based on main at `acca42086`. Adds SwiftSoup 2.13.9, swift-markdown 0.8.0 (test-target products), and licensed emoji JSON resources from emojilib 2.4.0 / emoticon 4.1.0. User explicitly approved all three on 2026-09-10.
+- Verification: 183 Chat tests pass, including preservation of empty code/table structure, malformed HTML/entity parsing and emoji bundle loading. Xcode app build/tests, iOS 17 cross-build of the Chat test target (including both parsers), strict SwiftLint and SwiftFormat passed. Other package suites: Auth 34, CoreAPI 1, Realtime 27 passed. Emoji regeneration reproduced the recorded hashes.
+- Next: merge this separate dependency PR before switching back to and rebasing the rendering branch. The renderer still needs HTML/Markdown integration and emoji conversion; this PR adds no rendering behavior. The user confirmed improved scrolling on that separate branch.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ### PR #4361 minor review follow-up

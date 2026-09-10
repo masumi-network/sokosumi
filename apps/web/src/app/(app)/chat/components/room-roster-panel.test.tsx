@@ -8,8 +8,15 @@ import { RoomRosterPanel } from "./room-roster-panel";
 
 const copyTextWithToastMock = vi.fn();
 
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => <span data-testid="presence-dot" />,
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => {
+    const labels: Record<string, string> = {
+      "Presence.online": "Online",
+      "Presence.afk": "Away",
+      "Presence.offline": "Offline",
+    };
+    return labels[key] ?? key;
+  },
 }));
 
 vi.mock("@/hooks/use-clipboard", () => ({
@@ -61,6 +68,38 @@ describe("RoomRosterPanel", () => {
   beforeEach(() => {
     copyTextWithToastMock.mockReset();
     copyTextWithToastMock.mockResolvedValue(true);
+  });
+
+  it("announces each member's availability with their name", () => {
+    render(
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <RoomRosterPanel
+          participants={[humanAda, coworkerHannah]}
+          currentUserId="user-self"
+          canOpenHumanDirect
+          onOpenDirect={vi.fn()}
+          openingDirectKey={null}
+          onClose={vi.fn()}
+          labels={labels}
+        />
+      </OrganizationSeatProvider>,
+    );
+
+    const [adaRow, hannahRow] = screen.getAllByTestId("room-roster-member");
+
+    // getByText alone would pass on text buried in an aria-hidden subtree,
+    // which is exactly how this defect stayed invisible. Assert the state is
+    // reachable, not merely present in the DOM.
+    expect(within(adaRow).getByText("Ada")).toBeTruthy();
+    expect(
+      within(adaRow).getByText("Online").closest('[aria-hidden="true"]'),
+    ).toBeNull();
+    // Hannah is a coworker, so ADR-0003 reports her online whatever the
+    // fixture's own "afk" says.
+    expect(within(hannahRow).getByText("Hannah")).toBeTruthy();
+    expect(
+      within(hannahRow).getByText("Online").closest('[aria-hidden="true"]'),
+    ).toBeNull();
   });
 
   it("lists members and closes", async () => {

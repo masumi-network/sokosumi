@@ -2232,7 +2232,7 @@
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",
         "planLabel": "Plan",
-        "openSummary": "Abrir el resumen de la cuenta: {name}, {summary}",
+        "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}",
         "collapsedSummary": "{name} · {summary}"
       },
       "Content": {
