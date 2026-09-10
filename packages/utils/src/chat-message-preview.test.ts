@@ -331,6 +331,24 @@ describe("buildChatMessagePreview", () => {
     ).toBe("hi @Bob.evil.test/pay now");
   });
 
+  /**
+   * A name is one hand's text throughout, so the word rule that guards a
+   * `www` inside a word guards nothing here: a member who writes a whole
+   * address into their name, one word character in front of it, is the case
+   * this rule exists for.
+   */
+  it("takes an address out of a name that reads as a word", () => {
+    const preview = (name: string) =>
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: now",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", name]]),
+      );
+
+    expect(preview("Bobwww.evil.test/pay")).toBe("hi @Bob now");
+    expect(preview("BobWWW.evil.test")).toBe("hi @Bob now");
+    expect(preview("Bobwww.evil.test Guy")).toBe("hi @Bob now");
+  });
+
   /** A name is a person's to choose, emoji and all. */
   it("names a member whose name has no letter in it", () => {
     expect(

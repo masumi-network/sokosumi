@@ -61,15 +61,17 @@ const SEAM_ADDRESS_REGEX =
   /(?<=[A-Za-z0-9_])www\.[A-Za-z0-9\-._~:/?#!$&*+,;=%[\]]+/giu;
 
 /**
- * The name up to the address it starts, when the message text carries the
- * rest of that address. The message keeps its own words: what is left of them
- * is a domain with no scheme, which this module leaves standing either way.
+ * The name up to the address it starts, whether that address ends inside the
+ * name or the message text carries the rest of it.
+ *
+ * The message keeps its own words either way: what is left of them is a
+ * domain with no scheme, which this module leaves standing wherever it is
+ * written. An address that starts in the message rather than in the name is
+ * the message's, and the word rule guards it as it guards any other word.
  */
 function withoutSeamAddress(label: string, after: string): string {
   for (const match of `${label}${after}`.matchAll(SEAM_ADDRESS_REGEX)) {
-    const end = match.index + match[0].length;
-
-    if (match.index < label.length && end > label.length) {
+    if (match.index < label.length) {
       return label.slice(0, match.index);
     }
   }
