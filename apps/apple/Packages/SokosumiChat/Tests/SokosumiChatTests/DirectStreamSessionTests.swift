@@ -116,6 +116,7 @@ struct DirectStreamSessionTests {
       return true
     }, failed: { Issue.record($0) })
     await session.task?.value
+    #expect(session.parentMessageId == nil)
     session.reset(room: room(), userId: "me", organizationId: "team")
     #expect(session.parentMessageId == nil)
   }

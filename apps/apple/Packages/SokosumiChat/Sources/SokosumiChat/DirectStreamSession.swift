@@ -198,6 +198,7 @@ public final class DirectStreamSession: ObservableObject {
         retainedParents[scope] = nil
       }
       clearOverlay()
+      parentMessageId = nil
     }
   }
 

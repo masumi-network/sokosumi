@@ -2,10 +2,16 @@
 
 ## Resume checkpoint
 
-- Current slice: **09b — coworker streaming in reply threads**, branch `codex/apple-thread-streaming`, based on main `8f6aab44b`. Thread streaming is implemented and locally verified; draft [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361) awaits CI, review and human merge.
+- Current slice: **09b — coworker streaming in reply threads**, branch `codex/apple-thread-streaming`, based on main `8f6aab44b`. Thread streaming is implemented and locally verified; [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361) awaits CI, review and human merge.
 - Slice 09a merged in [PR #4352](https://github.com/masumi-network/sokosumi/pull/4352). Final follow-up `f27b972aa` passed Apple CI, including Xcode build/app tests, all package tests, and lint/format.
 - Next: monitor PR #4361, address review feedback and wait for human merge. Do not start another feature before its merge.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
+
+### PR #4361 minor review follow-up
+
+- Clear the active parent after successful stream settlement; preserve failed-send parent routing. Thread thinking uses the same reasoning fallback as the room.
+- Settlement reuses a successful initial load that it opened after the room refresh; existing threads still refresh. Regression assertions cover one thread GET for reopen/resume and immediate parent cleanup.
+- Verification: Chat 174 tests passed, Xcode app build/tests passed, Swift lint clean.
 
 ## Scope and audit baseline
 
@@ -434,7 +440,7 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - Added app integration coverage for the shared send lock, no classic outbox POST, parent-specific overlay display, and persisted settlement with both an open and closed thread. Independent review found a failed draft missed by an unmounted composer; initial observation now restores it when that composer returns, guarded by room and parent.
 - Verification: 172 Chat tests and iOS 17 shared compilation passed; Final Xcode app tests passed, including the initial-observation fix (`/tmp/slice09b-final-app.log`). Lint/format checks passed. No production messages were sent; live thread-provider UI interaction remains a manual PR test.
 
-- Published draft [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361). CoreAPI 1, Auth 34 and Realtime 27 tests also passed (`/tmp/slice09b-{CoreAPI,SokosumiAuth,SokosumiRealtime}.log`). Wait for CI/review/merge; no next slice before merge.
+- Published [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361). CoreAPI 1, Auth 34 and Realtime 27 tests also passed (`/tmp/slice09b-{CoreAPI,SokosumiAuth,SokosumiRealtime}.log`). Wait for CI/review/merge; no next slice before merge.
 
 ### Slice 09b review follow-up (2026-09-10)
 

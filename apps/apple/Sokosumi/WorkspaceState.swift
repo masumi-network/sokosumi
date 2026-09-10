@@ -585,8 +585,10 @@ final class WorkspaceState: ObservableObject {
     }
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
     guard await refresh(auth: auth, generation: generation) else { return false }
+    var openedGeneration: Int?
     if let parent = streamingThreadToOpen {
       openThread(parent, auth: auth)
+      openedGeneration = thread.timeline.generation
     }
     guard let parentId = directStream.parentMessageId, thread.parent?.id == parentId else {
       return true
@@ -594,6 +596,10 @@ final class WorkspaceState: ObservableObject {
     await thread.loadTask?.value
     guard generation == transcriptGeneration else { return false }
     guard thread.parent?.id == parentId else { return true }
+    // A thread opened after the room refresh already fetched the completed turn.
+    if openedGeneration == thread.timeline.generation, thread.timeline.hasLoadedHistory, thread.timeline.errorMessage == nil {
+      return true
+    }
     loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
     await thread.loadTask?.value
     guard generation == transcriptGeneration else { return false }

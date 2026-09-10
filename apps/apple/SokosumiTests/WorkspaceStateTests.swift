@@ -999,15 +999,12 @@ struct WorkspaceStateTests {
     let reply = transcriptMessage(id: "reply", roomId: roomId, content: "Answer")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
     let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
-    var responses: [(Int, String)] = [
+    let responses: [(Int, String)] = [
       (200, transcriptPageBody(messages: [root], nextCursor: nil)),
       (200, stream),
       (200, transcriptPageBody(messages: [root], nextCursor: nil)),
       (200, transcriptPageBody(messages: [reply], nextCursor: nil))
     ]
-    if closeThread {
-      responses.append((200, transcriptPageBody(messages: [reply], nextCursor: nil)))
-    }
     let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
     let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
@@ -1029,6 +1026,7 @@ struct WorkspaceStateTests {
     #expect(state.thread.parent?.id == "root")
     #expect(state.displayedThreadReplies.map(\.id) == ["reply"])
     #expect(state.directStream.overlayMessages.isEmpty)
+    #expect(transport.threadGets == 1)
     #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/messages"))
   }
 
@@ -1126,11 +1124,10 @@ struct WorkspaceStateTests {
     await waitWhile { prepared.transport.threadGets == 0 }
     prepared.state.openThread(parent, auth: prepared.auth)
     prepared.transport.releasePOST()
-    await waitWhile { prepared.transport.threadGets < 2 && prepared.state.directStream.task != nil }
-    prepared.transport.releasePOST()
     await prepared.state.directStream.task?.value
     #expect(prepared.state.thread.parent?.id == "root")
     #expect(prepared.state.directStream.overlayMessages.isEmpty)
+    #expect(prepared.transport.threadGets == 1)
   }
 
   @Test func roomReentryResumeOpensRetainedThreadOnSettle() async throws {
@@ -1167,12 +1164,11 @@ struct WorkspaceStateTests {
     prepared.transport.releasePOST()
     await waitWhile { prepared.transport.threadGets == 0 }
     prepared.transport.releasePOST()
-    await waitWhile { prepared.transport.threadGets < 2 && prepared.state.directStream.task != nil }
-    prepared.transport.releasePOST()
     await prepared.state.directStream.task?.value
     #expect(prepared.state.thread.parent?.id == "root")
     #expect(prepared.state.displayedThreadReplies.map(\.id) == ["reply"])
     #expect(prepared.state.directStream.overlayMessages.isEmpty)
+    #expect(prepared.transport.threadGets == 1)
   }
 }
 
