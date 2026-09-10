@@ -437,12 +437,11 @@ import SwiftUI
             Text("This message was deleted")
               .italic()
               .foregroundStyle(.secondary)
-          } else if isContinuation, message.editedAt != nil {
-            Text("\(Text(message.content))\(Text(" Edited").font(.caption).foregroundStyle(.secondary))")
-              .textSelection(.enabled)
           } else {
-            Text(message.content)
-              .textSelection(.enabled)
+            MessageMarkdownView(source: message.content)
+            if isContinuation, message.editedAt != nil {
+              Text("Edited").font(.caption).foregroundStyle(.secondary)
+            }
           }
           if outbound?.status == .pending || sentAt != nil {
             DeliveryFeedback(pendingSince: outbound?.status == .pending ? outbound?.createdAt : nil,
