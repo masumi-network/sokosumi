@@ -5,6 +5,7 @@ import {
   replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
+import sanitizeHtml from "sanitize-html";
 
 import {
   createChannelLinkSpan,
@@ -81,6 +82,57 @@ function defaultResolveMentionDisplay(
     displayName: mentionSlug,
     isKnown: false,
   };
+}
+
+// The composer allow-list is the set of tags `markdownToHtml` emits, and the
+// set of attributes `htmlToMarkdown` reads back. Change the two together: an
+// attribute dropped here is silently lost from the user's stored markdown.
+const COMPOSER_ALLOWED_TAGS = [
+  "a",
+  "blockquote",
+  "br",
+  "code",
+  "em",
+  "h1",
+  "h2",
+  "h3",
+  "li",
+  "ol",
+  "pre",
+  "s",
+  "span",
+  "strong",
+  "u",
+  "ul",
+] as const;
+
+const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
+  a: ["href"],
+  code: ["class", "data-language"],
+  span: [
+    "class",
+    "contenteditable",
+    "data-channel-label",
+    "data-mention-key",
+    "data-mention-slug",
+  ],
+};
+
+/**
+ * Boundary between the hand-built composer HTML and the two `innerHTML` sinks.
+ * The transform escapes its input and gates each interpolation; this rejects
+ * anything those passes let through, so no single site has to be perfect.
+ */
+export function sanitizeComposerHtml(html: string): string {
+  if (!html) return "";
+
+  return sanitizeHtml(html, {
+    allowedTags: [...COMPOSER_ALLOWED_TAGS],
+    allowedAttributes: COMPOSER_ALLOWED_ATTRIBUTES,
+    // No allowedClasses: chip and code classes are Tailwind utilities that
+    // change with styling, so an allow-list of values would break on restyle.
+    disallowedTagsMode: "discard",
+  });
 }
 
 /**
@@ -282,9 +334,11 @@ export function markdownToHtml(
     return result.replace(block.token, () => block.html);
   }, withRestoredLinks);
 
-  return underlineTokens.reduce((result, underline) => {
+  const restored = underlineTokens.reduce((result, underline) => {
     return result.replace(underline.token, () => underline.html);
   }, withRestoredCode);
+
+  return sanitizeComposerHtml(restored);
 }
 
 function getCodeContent(codeContainer: HTMLElement): string {

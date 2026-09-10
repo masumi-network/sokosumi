@@ -4,6 +4,7 @@ import {
   htmlToMarkdown,
   markdownToHtml,
   normalizeLooseInlineMarkdown,
+  sanitizeComposerHtml,
   wrapInlineMarkdownMarker,
 } from "@/lib/utils/composer-markdown-dom";
 
@@ -191,5 +192,195 @@ describe("wrapInlineMarkdownMarker", () => {
   it("keeps empty or whitespace-only content unmarked", () => {
     expect(wrapInlineMarkdownMarker("", "**", "**")).toBe("");
     expect(wrapInlineMarkdownMarker("   ", "**", "**")).toBe("   ");
+  });
+});
+
+describe("sanitizeComposerHtml", () => {
+  it("keeps every tag the composer emits", () => {
+    const html =
+      "<h1>a</h1><h2>b</h2><h3>c</h3><ul><li>d</li></ul><ol><li>e</li></ol>" +
+      "<blockquote>f</blockquote><pre><code>g</code></pre>" +
+      "<strong>h</strong><em>i</em><s>j</s><u>k</u><code>l</code><br>";
+    const root = document.createElement("div");
+    root.innerHTML = sanitizeComposerHtml(html);
+    expect(
+      Array.from(root.querySelectorAll("*")).map((element) =>
+        element.tagName.toLowerCase(),
+      ),
+    ).toEqual([
+      "h1",
+      "h2",
+      "h3",
+      "ul",
+      "li",
+      "ol",
+      "li",
+      "blockquote",
+      "pre",
+      "code",
+      "strong",
+      "em",
+      "s",
+      "u",
+      "code",
+      "br",
+    ]);
+    expect(root.textContent).toBe("abcdefghijkl");
+  });
+
+  it("keeps the attributes htmlToMarkdown reads back", () => {
+    const html =
+      '<span data-mention-key="user_1" data-mention-slug="alice" ' +
+      'class="text-primary" contenteditable="false">@Alice</span>' +
+      '<span data-channel-label="general" contenteditable="false">#general</span>' +
+      '<pre><code data-language="ts">x</code></pre>' +
+      '<a href="https://a.test/">link</a>';
+    const root = document.createElement("div");
+    root.innerHTML = sanitizeComposerHtml(html);
+
+    const mention = root.querySelector("[data-mention-key]");
+    expect(mention?.getAttribute("data-mention-slug")).toBe("alice");
+    expect(mention?.getAttribute("contenteditable")).toBe("false");
+    expect(mention?.getAttribute("class")).toBe("text-primary");
+    expect(
+      root
+        .querySelector("[data-channel-label]")
+        ?.getAttribute("contenteditable"),
+    ).toBe("false");
+    expect(root.querySelector("code")?.getAttribute("data-language")).toBe(
+      "ts",
+    );
+    expect(root.querySelector("a")?.getAttribute("href")).toBe(
+      "https://a.test/",
+    );
+  });
+
+  it("strips tags the composer never emits", () => {
+    const sanitized = sanitizeComposerHtml(
+      '<img src="x"><table><tr><td>t</td></tr></table><p>keep</p>',
+    );
+    expect(sanitized).not.toContain("<img");
+    expect(sanitized).not.toContain("<table");
+    expect(sanitized).toContain("keep");
+  });
+
+  it("strips scripts and event handlers", () => {
+    const sanitized = sanitizeComposerHtml(
+      '<script>alert(1)</script><strong onmouseover="alert(1)">hi</strong>' +
+        '<img src=x onerror="alert(1)">',
+    );
+    const root = document.createElement("div");
+    root.innerHTML = sanitized;
+    expect(root.querySelector("script")).toBeNull();
+    expect(root.querySelector("img")).toBeNull();
+    expect(
+      Array.from(root.querySelector("strong")?.attributes ?? []).map(
+        (attribute) => attribute.name,
+      ),
+    ).toEqual([]);
+  });
+
+  it("strips javascript: hrefs while keeping http and mailto", () => {
+    expect(
+      sanitizeComposerHtml('<a href="javascript:alert(1)">x</a>'),
+    ).not.toContain("javascript:");
+    expect(sanitizeComposerHtml('<a href="mailto:a@b.test">x</a>')).toContain(
+      "mailto:a@b.test",
+    );
+  });
+
+  it("strips inline styles", () => {
+    expect(
+      sanitizeComposerHtml('<strong style="color:red">x</strong>'),
+    ).not.toContain("style");
+  });
+});
+
+describe("markdownToHtml sanitization boundary", () => {
+  function roundTrip(
+    source: string,
+    resolve?: Parameters<typeof markdownToHtml>[1],
+    options?: Parameters<typeof markdownToHtml>[2],
+  ): string {
+    const root = document.createElement("div");
+    root.innerHTML = markdownToHtml(source, resolve, options);
+    return htmlToMarkdown(root).trim();
+  }
+
+  it("round-trips a known mention chip", () => {
+    const source = "ping @user_1:alice-smith hey";
+    expect(
+      roundTrip(source, (mentionKey, mentionSlug) =>
+        mentionKey === "user_1"
+          ? { displayName: "Alice Smith", isKnown: true }
+          : { displayName: mentionSlug, isKnown: false },
+      ),
+    ).toBe(source);
+  });
+
+  it("round-trips an unknown mention chip", () => {
+    const source = "ping @missing:ghost hey";
+    expect(roundTrip(source)).toBe(source);
+  });
+
+  it("round-trips a channel link chip", () => {
+    expect(
+      roundTrip("see #general please", undefined, {
+        channelLinks: [{ name: "general", slug: "general" }],
+      }),
+    ).toBe("see #general please");
+  });
+
+  it("round-trips fenced code with and without a language", () => {
+    expect(roundTrip("```ts\nconst a = 1;\n```")).toBe(
+      "```ts\nconst a = 1;\n```",
+    );
+    expect(roundTrip("```\nplain\n```")).toBe("```\nplain\n```");
+  });
+
+  it("round-trips links", () => {
+    expect(roundTrip("[x](https://a.test/)")).toBe("[x](https://a.test/)");
+    expect(roundTrip("[mail](mailto:a@b.test)")).toBe(
+      "[mail](mailto:a@b.test)",
+    );
+  });
+
+  it("round-trips every inline format", () => {
+    const source = "a _b_ **c** ~~d~~ `e` <u>f</u>";
+    expect(roundTrip(source)).toBe(source);
+  });
+
+  it("keeps chips non-editable after sanitization", () => {
+    const root = document.createElement("div");
+    root.innerHTML = markdownToHtml(
+      "hi @missing:ghost and #general",
+      undefined,
+      {
+        channelLinks: [{ name: "general", slug: "general" }],
+      },
+    );
+    const chips = root.querySelectorAll(
+      "[data-mention-key], [data-channel-label]",
+    );
+    expect(chips).toHaveLength(2);
+    for (const chip of Array.from(chips)) {
+      expect(chip.getAttribute("contenteditable")).toBe("false");
+    }
+  });
+
+  it("does not double-encode entities the escape pass already produced", () => {
+    expect(roundTrip("a & b < c")).toBe("a & b < c");
+    expect(roundTrip("```\na & b < c\n```")).toBe("```\na & b < c\n```");
+    expect(roundTrip("[a & b](https://a.test/)")).toBe(
+      "[a & b](https://a.test/)",
+    );
+  });
+
+  it("renders literal HTML text as text", () => {
+    const html = markdownToHtml("<script>alert(1)</script>");
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    expect(root.querySelector("script")).toBeNull();
+    expect(root.textContent).toBe("<script>alert(1)</script>");
   });
 });
