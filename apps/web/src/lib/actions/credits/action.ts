@@ -13,7 +13,6 @@ import {
   CreditsErrorCode,
 } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import {
   type AuthenticatedRequest,
@@ -126,13 +125,6 @@ export const claimFreeCreditsWithCoupon = withSession<
     return toActionResult(ok({ url: data.url }));
   } catch (error) {
     console.error("Failed to get free credits with coupon", error);
-    if (error instanceof CouponError) {
-      return toActionResult(
-        err({
-          code: error.code,
-        }),
-      );
-    }
     // Core returns 404 (unknown coupon) or 400 (not a valid credit coupon) when
     // the coupon cannot be validated/claimed; surface the specific
     // invalid-coupon message instead of a generic internal error.
