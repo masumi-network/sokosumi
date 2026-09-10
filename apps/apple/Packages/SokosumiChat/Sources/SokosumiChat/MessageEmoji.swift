@@ -16,6 +16,8 @@ enum MessageEmoji {
     shortcodes[shortcode.lowercased()]
   }
 
+  static let shortcodeNames = shortcodes.keys.sorted()
+
   static let composerEmoticons: [(text: String, emoji: String)] = {
     var seen = Set<String>()
     return emoticons.flatMap { entry in

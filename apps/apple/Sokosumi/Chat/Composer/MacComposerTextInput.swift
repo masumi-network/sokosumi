@@ -113,6 +113,7 @@
     }
 
     final class InputView: NSTextView {
+      private var showingCompletions = false
       var submit: () -> Bool = { false }
       var placeholder = "Message" {
         didSet { needsDisplay = true }
@@ -121,10 +122,42 @@
       override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
         super.insertText(insertString, replacementRange: replacementRange)
-        guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0,
-              let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) else { return }
+        guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0 else { return }
+        if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
+          breakUndoCoalescing()
+          super.insertText(edit.replacement, replacementRange: edit.range)
+          breakUndoCoalescing()
+        } else if window != nil, !showingCompletions, rangeForUserCompletion.location != NSNotFound {
+          showingCompletions = true
+          complete(nil)
+        }
+      }
+
+      override var rangeForUserCompletion: NSRange {
+        guard !hasMarkedText(), selectedRange().length == 0 else { return NSRange(location: NSNotFound, length: 0) }
+        return ComposerEmoji.completionRange(in: string, caret: selectedRange().location) ?? NSRange(location: NSNotFound, length: 0)
+      }
+
+      override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
+        guard charRange.location != NSNotFound, NSMaxRange(charRange) <= string.utf16.count else { return nil }
+        let query = (string as NSString).substring(with: charRange).dropFirst()
+        let words = ComposerEmoji.completions(for: String(query))
+        if words.isEmpty {
+          showingCompletions = false
+        }
+        index.pointee = 0
+        return words
+      }
+
+      override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal: Bool) {
+        guard isFinal else { return }
+        showingCompletions = false
+        guard movement != NSCancelTextMovement, word.hasSuffix(":"), NSMaxRange(charRange) <= string.utf16.count else { return }
+        let suffix = (string as NSString).substring(from: NSMaxRange(charRange))
+        guard let edit = ComposerEmoji.match(in: word + suffix, caret: word.utf16.count) else { return }
+        // Native completion owns navigation/cancellation; persist only the accepted result.
         breakUndoCoalescing()
-        super.insertText(edit.replacement, replacementRange: edit.range)
+        super.insertText(edit.replacement, replacementRange: charRange)
         breakUndoCoalescing()
       }
 
@@ -154,6 +187,10 @@
         // Capture this before AppKit commits marked text. Checking inside
         // a submit/delegate callback is too late for the committing Return.
         let isReturn = event.keyCode == 36 || event.keyCode == 76
+        if showingCompletions {
+          super.keyDown(with: event)
+          return
+        }
         guard isReturn, !hasMarkedText() else {
           super.keyDown(with: event)
           return

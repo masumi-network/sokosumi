@@ -6,8 +6,8 @@ PARITY row 12: a WYSIWYG composer for rooms and reply threads, with bold, italic
 
 ## Delivery split
 
-- **12a — emoji entry**: native Emoji & Symbols picker plus caret-local exact shortcode/emoticon conversion and trailing emoticon conversion on send. The system picker owns search/categories/recents. Existing draft storage and room/thread transports are unchanged. No new network contract or dependency.
-- **12b — rich formatting**: the remaining formatting controls, Markdown round trips and partial-shortcode suggestions. Emoji entry does not require the rich editor's attributed formatting model and can ship independently.
+- **12a — emoji entry**: native Emoji & Symbols picker, partial-shortcode completion menu, plus caret-local exact shortcode/emoticon conversion and trailing emoticon conversion on send. The system picker owns search/categories/recents. Existing draft storage and room/thread transports are unchanged. No new network contract or dependency.
+- **12b — rich formatting**: the remaining formatting controls and Markdown round trips. Emoji entry does not require the rich editor's attributed formatting model and can ship independently.
 
 ## Existing implementations to reuse
 

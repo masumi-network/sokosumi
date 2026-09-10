@@ -6,6 +6,27 @@
 
   @MainActor
   struct MacComposerTextInputTests {
+    @Test func acceptsCompletionWithoutReplacingSurroundingText() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "😀 :sm tail"
+      input.setSelectedRange(NSRange(location: 6, length: 0))
+      #expect(input.rangeForUserCompletion == NSRange(location: 3, length: 3))
+      input.insertCompletion(":smile:", forPartialWordRange: input.rangeForUserCompletion, movement: NSReturnTextMovement, isFinal: true)
+      #expect(input.string == "😀 😄 tail")
+      #expect(input.selectedRange().location == 5)
+    }
+
+    @Test func completionPreviewAndCancelPreserveDraft() {
+      let input = MacComposerTextInput.InputView()
+      input.string = ":sm"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      let range = input.rangeForUserCompletion
+      input.insertCompletion(":smile:", forPartialWordRange: range, movement: NSDownTextMovement, isFinal: false)
+      #expect(input.string == ":sm")
+      input.insertCompletion(":sm", forPartialWordRange: range, movement: NSCancelTextMovement, isFinal: true)
+      #expect(input.string == ":sm")
+    }
+
     @Test func emojiConversionSupportsUndoAndRedo() {
       let input = MacComposerTextInput.InputView()
       let delegate = UndoDelegate()

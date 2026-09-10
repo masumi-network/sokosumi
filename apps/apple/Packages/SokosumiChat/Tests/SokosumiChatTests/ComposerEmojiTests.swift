@@ -3,6 +3,18 @@ import SokosumiChat
 import Testing
 
 struct ComposerEmojiTests {
+  @Test func suggestsPartialShortcodes() {
+    #expect(ComposerEmoji.completionRange(in: "hello :sm", caret: 9) == NSRange(location: 6, length: 3))
+    #expect(ComposerEmoji.completions(for: "sm").contains(":smile:"))
+    #expect(ComposerEmoji.completions(for: "SM") == ComposerEmoji.completions(for: "sm"))
+    #expect(ComposerEmoji.completions(for: "").count == 20)
+    #expect(ComposerEmoji.completions(for: "not_a_real_emoji_xyz").isEmpty)
+    for text in [":", ":s", "https://host", "word:sm", "`code :sm`", "```\n:sm", ":smile:"] {
+      let caret = text.hasSuffix("`") ? text.utf16.count - 1 : text.utf16.count
+      #expect(ComposerEmoji.completionRange(in: text, caret: caret) == nil)
+    }
+  }
+
   @Test func matchesWebBoundariesAndLongestEmoticon() throws {
     for (text, expected) in [("hi :D ", "hi 😄 "), ("wink ;).", "wink 😉."), (":-) ", "😃 "), ("😀 :D ", "😀 😄 ")] {
       let edit = try #require(ComposerEmoji.match(in: text, caret: text.utf16.count))

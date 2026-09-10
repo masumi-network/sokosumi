@@ -15,6 +15,31 @@ public struct ComposerEmoji: Equatable, Sendable {
     return edit
   }
 
+  public static func completionRange(in text: String, caret: Int) -> NSRange? {
+    let source = text as NSString
+    guard caret > 0, caret <= source.length else { return nil }
+    for index in stride(from: caret - 1, through: 0, by: -1) {
+      let char = source.substring(with: NSRange(location: index, length: 1))
+      if char == ":" {
+        guard caret - index >= 3 else { return nil }
+        guard index == 0 || isWhitespace(source.substring(with: NSRange(location: index - 1, length: 1))) else { return nil }
+        let lines = source.substring(to: index).components(separatedBy: "\n")
+        let location = SourceLocation(line: lines.count, column: (lines.last?.utf8.count ?? 0) + 1, source: nil)
+        guard !isCode(Document(parsing: text), at: location) else { return nil }
+        return NSRange(location: index, length: caret - index)
+      }
+      guard char.rangeOfCharacter(from: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-").inverted) == nil else { return nil }
+    }
+    return nil
+  }
+
+  public static func completions(for query: String) -> [String] {
+    let query = query.lowercased()
+    let names = MessageEmoji.shortcodeNames
+    let matches = names.filter { $0.hasPrefix(query) } + names.filter { !$0.hasPrefix(query) && $0.contains(query) }
+    return matches.prefix(20).map { ":\($0):" }
+  }
+
   private static func isCode(_ node: any Markup, at location: SourceLocation) -> Bool {
     if node is CodeBlock || node is InlineCode,
        let range = node.range, range.contains(location) {
