@@ -240,12 +240,11 @@ function rethrowTaskActionError(
 async function armTaskSchedule(
   taskId: string,
   schedule: TaskScheduleSelection,
-): Promise<TaskStatus> {
-  const task = await taskScheduleService.setSchedule(
+): Promise<Task> {
+  return taskScheduleService.setSchedule(
     taskId,
     getActiveScheduleBody(schedule),
   );
-  return task.status;
 }
 
 /**
@@ -257,16 +256,38 @@ async function applyTaskSeriesChange(
   taskId: string,
   schedule: TaskScheduleSelection,
   precondition: TaskScheduleSeriesPrecondition,
-): Promise<TaskStatus> {
-  const task =
-    schedule.mode === "none"
-      ? await taskScheduleService.removeCalendarSeries(taskId, precondition)
-      : await taskScheduleService.editCalendarSeries(
-          taskId,
-          precondition,
-          getActiveScheduleBody(schedule),
-        );
-  return task.status;
+): Promise<Task> {
+  return schedule.mode === "none"
+    ? await taskScheduleService.removeCalendarSeries(taskId, precondition)
+    : await taskScheduleService.editCalendarSeries(
+        taskId,
+        precondition,
+        getActiveScheduleBody(schedule),
+      );
+}
+
+interface EditableTaskFields {
+  name: string;
+  description: string;
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+  assigneeUserId: string | null;
+  projectId?: string | null;
+}
+
+function taskMatchesEditableFields(
+  task: Task,
+  fields: EditableTaskFields,
+): boolean {
+  return (
+    task.name === fields.name &&
+    task.description === fields.description &&
+    task.assigneeId === fields.assigneeId &&
+    task.assigneeSokoBotId === fields.assigneeSokoBotId &&
+    task.assigneeUserId === fields.assigneeUserId &&
+    (typeof fields.projectId === "undefined" ||
+      task.projectId === fields.projectId)
+  );
 }
 
 function resolveUpdateTargetStatus(
@@ -849,24 +870,19 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
 
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
-
       const assigneeWrite = resolveAssigneeWrite(
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,
       );
-      // While a series is live, field edits take the same revision as release,
-      // so Core rejects an edit written against a revision the release already
-      // moved past.
-      const patchedTask = await taskService.patchTask(taskId, {
+      const editableFields: EditableTaskFields = {
         name: trimmedName,
         description: trimmedDescription,
         ...assigneeWrite,
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
-        ...(hadSchedule ? { expectedScheduleRevision } : {}),
-      });
+      };
 
       let statusAfterSchedule = currentStatus;
       let scheduleActiveOnServer = hadSchedule || schedule?.mode !== "none";
@@ -878,20 +894,50 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
           hadSchedule,
         );
       let scheduleWasMutated = false;
+      let savedTask: Task;
 
-      if (schedule && scheduleChanged) {
+      if (schedule && scheduleChanged && hadSchedule) {
         scheduleWasMutated = true;
-        // The field edit above incremented the revision, so the schedule write
-        // in this same user operation must send the value it returned.
-        statusAfterSchedule = hadSchedule
-          ? await applyTaskSeriesChange(taskId, schedule, {
-              operationId: requireOperationId(scheduleOperationId),
-              expectedScheduleRevision: requireScheduleRevision(
-                patchedTask.scheduleRevision ?? expectedScheduleRevision,
-              ),
-            })
-          : await armTaskSchedule(taskId, schedule);
+        const taskAfterSchedule = await applyTaskSeriesChange(
+          taskId,
+          schedule,
+          {
+            operationId: requireOperationId(scheduleOperationId),
+            expectedScheduleRevision: requireScheduleRevision(
+              expectedScheduleRevision,
+            ),
+          },
+        );
+        statusAfterSchedule = taskAfterSchedule.status;
         scheduleActiveOnServer = schedule.mode !== "none";
+
+        // An idempotent replay returns the current Task. If a previous field
+        // patch committed but its response was lost, the retry can finish
+        // without trying to write against the now-advanced revision again.
+        savedTask = taskMatchesEditableFields(taskAfterSchedule, editableFields)
+          ? taskAfterSchedule
+          : await taskService.patchTask(taskId, {
+              ...editableFields,
+              ...(scheduleActiveOnServer
+                ? {
+                    expectedScheduleRevision: requireScheduleRevision(
+                      taskAfterSchedule.scheduleRevision,
+                    ),
+                  }
+                : {}),
+            });
+      } else {
+        savedTask = await taskService.patchTask(taskId, {
+          ...editableFields,
+          ...(hadSchedule ? { expectedScheduleRevision } : {}),
+        });
+
+        if (schedule && scheduleChanged) {
+          scheduleWasMutated = true;
+          savedTask = await armTaskSchedule(taskId, schedule);
+          statusAfterSchedule = savedTask.status;
+          scheduleActiveOnServer = true;
+        }
       }
 
       const isAgentAssignee =
@@ -913,7 +959,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
 
       if (scheduleWasMutated) {
         // Already covers both Task routes, plus the Calendar ones.
-        revalidateCalendarTaskMutationRoutes(patchedTask);
+        revalidateCalendarTaskMutationRoutes(savedTask);
       } else {
         revalidatePath("/tasks");
         revalidatePath(`/tasks/${taskId}`);

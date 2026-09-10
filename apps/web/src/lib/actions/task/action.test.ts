@@ -753,20 +753,26 @@ describe("updateTask schedule status", () => {
 
     expect(taskScheduleServiceMock.removeCalendarSeries).toHaveBeenCalledWith(
       "task-1",
-      { operationId: OPERATION_ID, expectedScheduleRevision: 5 },
+      { operationId: OPERATION_ID, expectedScheduleRevision: 4 },
+    );
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.not.objectContaining({
+        expectedScheduleRevision: expect.anything(),
+      }),
     );
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("sends the observed revision with an active-series field edit and the incremented one with the schedule write", async () => {
+  it("changes the series first and patches fields with the returned revision", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",
-      scheduleRevision: 5,
+      scheduleRevision: 6,
     });
     taskScheduleServiceMock.editCalendarSeries.mockResolvedValue({
       id: "task-1",
       status: TaskStatus.QUEUED,
-      scheduleRevision: 6,
+      scheduleRevision: 5,
     });
 
     const { updateTask } = await import("./action");
@@ -787,19 +793,79 @@ describe("updateTask schedule status", () => {
       schedule: { ...recurringSchedule, cron: "0 10 * * *" },
     });
 
+    expect(taskScheduleServiceMock.editCalendarSeries).toHaveBeenCalledWith(
+      "task-1",
+      { operationId: OPERATION_ID, expectedScheduleRevision: 4 },
+      expect.objectContaining({ expr: "0 10 * * *" }),
+    );
     expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
       "task-1",
       expect.objectContaining({
         name: "Renamed task",
-        expectedScheduleRevision: 4,
+        expectedScheduleRevision: 5,
       }),
     );
-    expect(taskScheduleServiceMock.editCalendarSeries).toHaveBeenCalledWith(
-      "task-1",
-      { operationId: OPERATION_ID, expectedScheduleRevision: 5 },
-      expect.objectContaining({ expr: "0 10 * * *" }),
-    );
+    expect(
+      taskScheduleServiceMock.editCalendarSeries.mock.invocationCallOrder[0],
+    ).toBeLessThan(taskServiceMock.patchTask.mock.invocationCallOrder[0] ?? 0);
     expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
+  });
+
+  it("replays a lost field-patch response without repeating the patch", async () => {
+    const input = {
+      taskId: "task-1",
+      name: "Renamed task",
+      description: "Do work",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.QUEUED,
+      hadSchedule: true,
+      expectedScheduleRevision: 4,
+      scheduleOperationId: OPERATION_ID,
+      originalSchedule: recurringSchedule,
+      schedule: { ...recurringSchedule, cron: "0 10 * * *" },
+    };
+    taskScheduleServiceMock.editCalendarSeries
+      .mockResolvedValueOnce({
+        id: "task-1",
+        name: "Task",
+        description: "Do work",
+        assigneeId: "coworker-1",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        status: TaskStatus.QUEUED,
+        scheduleRevision: 5,
+      })
+      .mockResolvedValueOnce({
+        id: "task-1",
+        name: "Renamed task",
+        description: "Do work",
+        assigneeId: "coworker-1",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        status: TaskStatus.QUEUED,
+        scheduleRevision: 6,
+      });
+    taskServiceMock.patchTask.mockRejectedValueOnce(
+      new Error("response lost after commit"),
+    );
+
+    const { updateTask } = await import("./action");
+
+    await expect(updateTask(input)).rejects.toThrow(
+      "response lost after commit",
+    );
+    await expect(updateTask(input)).resolves.toEqual({
+      ok: true,
+      value: { taskId: "task-1" },
+    });
+
+    expect(taskScheduleServiceMock.editCalendarSeries).toHaveBeenCalledTimes(2);
+    expect(taskServiceMock.patchTask).toHaveBeenCalledTimes(1);
   });
 
   it("refuses to invent a revision when Core reports none for a live series", async () => {
@@ -825,6 +891,7 @@ describe("updateTask schedule status", () => {
     ).rejects.toThrow();
 
     expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
+    expect(taskServiceMock.patchTask).not.toHaveBeenCalled();
   });
 
   it("maps a stale revision to an actionable conflict result instead of throwing", async () => {
@@ -896,6 +963,7 @@ describe("updateTask schedule status", () => {
       ok: false,
       error: { kind: "schedule_quarantined" },
     });
+    expect(taskServiceMock.patchTask).not.toHaveBeenCalled();
   });
 
   it("does not revert to draft after adding a schedule", async () => {

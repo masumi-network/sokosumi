@@ -928,6 +928,9 @@ export function WorkspaceCalendar({
       if (requestId !== eventRequestId.current) {
         return;
       }
+      const taskRevision = result.data.scheduleRevision ?? 0;
+      const ledgerMatchesTask =
+        occurrencePage?.data.scheduleRevision === taskRevision;
       setEditState({
         initialSelection: metadataToSelection(
           result.data.metadata,
@@ -935,17 +938,14 @@ export function WorkspaceCalendar({
         ),
         requestId,
         task: result.data,
-        scheduleRevision:
-          occurrencePage?.data.scheduleRevision ??
-          result.data.scheduleRevision ??
-          0,
-        futureExceptionCount:
-          occurrencePage?.data.futureExceptionCount ??
-          // A Task with no live rule has nothing to discard, so an unread
-          // ledger only leaves the count unknown for a series that has one.
-          (hasActiveTaskSchedule(result.data.metadata, result.data.nextRunAt)
+        scheduleRevision: taskRevision,
+        futureExceptionCount: ledgerMatchesTask
+          ? occurrencePage.data.futureExceptionCount
+          : // A Task with no live rule has nothing to discard, so an unread
+            // ledger only leaves the count unknown for a series that has one.
+            hasActiveTaskSchedule(result.data.metadata, result.data.nextRunAt)
             ? null
-            : 0),
+            : 0,
       });
     } catch {
       if (requestId === eventRequestId.current) {

@@ -1092,6 +1092,27 @@ describe("WorkspaceCalendar editing", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
+  it("refuses a full-series edit when the Task and ledger revisions differ", async () => {
+    const user = userEvent.setup();
+    getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });
+    getTaskScheduleOccurrencesMock.mockResolvedValue({
+      data: { scheduleRevision: 4, futureExceptionCount: 0, occurrences: [] },
+      meta: { pagination: { nextCursor: null } },
+    });
+    renderCalendar();
+
+    await openEditor(user);
+    await user.click(screen.getByRole("button", { name: "save schedule" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent(
+        "unknownCount",
+      ),
+    );
+    expect(saveCalendarTaskScheduleMock).not.toHaveBeenCalled();
+  });
+
   it("still removes a series through its confirmation while the count is unknown", async () => {
     const user = userEvent.setup();
     getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });

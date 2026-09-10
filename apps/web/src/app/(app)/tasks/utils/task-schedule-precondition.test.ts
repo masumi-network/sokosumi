@@ -36,7 +36,7 @@ describe("readTaskScheduleSeriesPrecondition", () => {
 
   it("reads the revision and exact exception count of a live series", async () => {
     listOccurrencesMock.mockResolvedValue({
-      scheduleRevision: 6,
+      scheduleRevision: 4,
       futureExceptionCount: 3,
       occurrences: [],
       nextCursor: null,
@@ -44,11 +44,24 @@ describe("readTaskScheduleSeriesPrecondition", () => {
 
     await expect(
       readTaskScheduleSeriesPrecondition(buildTask(ACTIVE_SERIES)),
-    ).resolves.toEqual({ scheduleRevision: 6, futureExceptionCount: 3 });
+    ).resolves.toEqual({ scheduleRevision: 4, futureExceptionCount: 3 });
     expect(listOccurrencesMock).toHaveBeenCalledWith("task-1", {
       view: "upcoming",
       limit: 1,
     });
+  });
+
+  it("does not combine a newer ledger revision with stale Task metadata", async () => {
+    listOccurrencesMock.mockResolvedValue({
+      scheduleRevision: 5,
+      futureExceptionCount: 0,
+      occurrences: [],
+      nextCursor: null,
+    });
+
+    await expect(
+      readTaskScheduleSeriesPrecondition(buildTask(ACTIVE_SERIES)),
+    ).resolves.toEqual({ scheduleRevision: 4, futureExceptionCount: null });
   });
 
   it("skips the ledger read for a Task with no live rule", async () => {

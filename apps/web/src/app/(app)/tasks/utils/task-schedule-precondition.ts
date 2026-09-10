@@ -41,8 +41,11 @@ export async function readTaskScheduleSeriesPrecondition(
       view: "upcoming",
       limit: 1,
     });
+    if (page.scheduleRevision !== taskRevision) {
+      return { scheduleRevision: taskRevision, futureExceptionCount: null };
+    }
     return {
-      scheduleRevision: page.scheduleRevision,
+      scheduleRevision: taskRevision,
       futureExceptionCount: page.futureExceptionCount,
     };
   } catch (error) {
