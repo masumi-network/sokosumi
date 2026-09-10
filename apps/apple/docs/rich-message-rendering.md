@@ -395,3 +395,23 @@ only. The screenshot still shows recent messages at the bottom, with both report
 outside the viewport. Therefore visual clipping, pointer hit testing, scrolling,
 selection and resizing remain unverified. Do not treat accessibility state
 transitions as proof of the on-screen expansion layout or the latest code colors.
+
+## Visible thread expansion and window resizing
+
+Opening the existing Noodles report through Reply in thread brought its parent
+message into view without sending a message. The signed app screenshot showed
+the collapsed report ending after the Engagement section, with Show more below.
+Activating it exposed later sections through Findings and the task link, followed
+by Show less. Collapsing restored the compact report and reply summary.
+
+Window zoom enlarged the window while retaining Collapsed. Expanding at that
+size changed the accessibility value to Expanded; restoring the original window
+size preserved Expanded and showed the later report sections. One screenshot
+request at the enlarged size failed with ScreenCaptureKit -3811; the screenshot
+after restoring the window succeeded. The report was collapsed and the Everyone
+room reopened afterward. These checks cover discrete window resizing, not a
+continuous resize drag or scroll-performance profile.
+
+This supersedes the earlier offscreen limitation for this report's thread view.
+Native pointer text selection/copy, light-mode appearance, streaming layout and
+latest syntax-color verification remain open. No messages or drafts were sent.
