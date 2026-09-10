@@ -11,7 +11,7 @@
 - Bare-domain links now use the web allowlist and exclusions before native Markdown parsing; code and existing links remain protected. Parser/integration tests pass.
 - Long-message expansion is implemented using 16 measured native body lines. Xcode build/tests and lint pass; signed launch exposes collapsed Show more controls on existing reports; pointer expand/collapse and resizing remain unverified because CUA scroll input fails (`noWindowsAvailable`).
 - Inline HTML bold/italic/underline and line breaks now render natively; escaped/code tags stay literal. Block HTML, sanitization and visual verification remain incomplete.
-- Proposed prerequisite: SwiftSoup 2.13.9 for native HTML parsing; explicit dependency approval is pending. See the proposal in [rich-message-rendering.md](docs/rich-message-rendering.md). No dependency was added.
+- Proposed prerequisites: SwiftSoup 2.13.9 for native HTML parsing and swift-markdown 0.8.0 for a complete Markdown tree; explicit dependency approval is pending. Fresh probes show Foundation drops empty blocks and the installed Markdown grammar misparses an empty middle table row. See the proposal in [rich-message-rendering.md](docs/rich-message-rendering.md). No dependency was added.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ### PR #4361 minor review follow-up

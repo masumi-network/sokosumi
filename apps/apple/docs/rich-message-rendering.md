@@ -325,3 +325,42 @@ or executable content is needed to parse message HTML.
 
 Release evidence: [manifest](https://github.com/scinfu/SwiftSoup/blob/2.13.9/Package.swift),
 [license](https://github.com/scinfu/SwiftSoup/blob/2.13.9/LICENSE).
+
+## Structural parser audit (2026-09-10)
+
+A fresh Foundation probe confirms that an empty fenced code block between two
+paragraphs is omitted entirely. In a table with an empty middle row and an empty
+last row, only the nonempty row survives (with rowIndex 2). A table whose header
+and body cells are all empty produces an empty AttributedString. Therefore,
+presentation-intent reconstruction cannot recover the complete source tree.
+
+Reproduction inputs:
+
+- `before\n\n```swift\n```\n\nafter`
+- `| A | B |\n|---|---|\n| | |\n| x | y |\n| | |`
+- `| | |\n|---|---|\n| | |`
+
+The already-approved TreeSitterMarkdown parser was also tested using its current
+SwiftTreeSitter binding. It preserves empty fenced blocks and the fully empty
+table, but emits an ERROR node outside the table for the mixed table above.
+It is not a reliable replacement for the structural Markdown parser based on
+these fixtures. Probe output: `/tmp/apple-empty-structure.log`. The temporary
+probe test was removed; no production parser or dependency changed.
+
+Recommend extending the pending dependency proposal with **swift-markdown 0.8.0**
+(product `Markdown`, swiftlang/swift-markdown). It exposes a full Markdown tree
+backed by native cmark-gfm. Its manifest uses Swift tools 6.2 and declares
+swift-cmark from 0.8.0 plus the build-time swift-docc-plugin from 1.1.0.
+Resolved versions must be recorded and reviewed in the separate dependency PR.
+The package license is Apache 2.0 with Runtime Library Exception; dependency
+licenses must be included in that review. This still needs explicit approval.
+
+Before integration, the prerequisite PR must prove all three fixtures preserve
+blocks, rows and cells, cover nested lists/quotes and partial streamed fences,
+and compile for iOS 17 and macOS. If verified, replace Foundation's lossy block
+reconstruction with this tree; retain native AttributedString/SwiftUI output
+and Tree-sitter for code highlighting. SwiftSoup remains separately responsible
+for HTML fragments. Do not introduce a second full Markdown parse per message
+or a sentinel-based repair pass to conceal missing blocks.
+
+Manifest: https://github.com/swiftlang/swift-markdown/blob/0.8.0/Package.swift
