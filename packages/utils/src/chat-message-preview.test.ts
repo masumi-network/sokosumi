@@ -139,6 +139,41 @@ describe("buildChatMessagePreview", () => {
     ).toBe("@ada hi");
   });
 
+  /**
+   * A reader cannot check an address from a lock screen, and the room is
+   * where they would open it anyway. So the words stay and the link goes.
+   */
+  it("says the words around a link the sender typed as words", () => {
+    expect(
+      buildChatMessagePreview("see https://example.test/a/b?q=1 for details"),
+    ).toBe("see for details");
+  });
+
+  it("takes an address written without a scheme", () => {
+    expect(buildChatMessagePreview("try www.example.test today")).toBe(
+      "try today",
+    );
+  });
+
+  /** The caller shows the line naming the author and the room instead. */
+  it("says nothing at all for a message that is only a link", () => {
+    expect(buildChatMessagePreview("https://example.test/a")).toBe("");
+  });
+
+  /** A label is words the sender wrote, and it is what the room shows. */
+  it("still says the label of a markdown link", () => {
+    expect(buildChatMessagePreview("[the plan](https://example.test/a)")).toBe(
+      "the plan",
+    );
+  });
+
+  /** A sentence is not an address, whatever the dots in it look like. */
+  it("leaves a word with a dot in it alone", () => {
+    expect(buildChatMessagePreview("node.js broke again, e.g. the build")).toBe(
+      "node.js broke again, e.g. the build",
+    );
+  });
+
   /** The words around a dropped mention still read as one line. */
   it("closes the line up around a mention it drops", () => {
     expect(
@@ -152,6 +187,28 @@ describe("buildChatMessagePreview", () => {
     expect(
       buildChatMessagePreview("@019fc7e4-e4bd-7005-900c-66e44d33f5e4: hi"),
     ).toBe("hi");
+  });
+
+  /**
+   * The composer writes the id as the slug for a soko bot whose name has no
+   * ascii in it, so the token reads `@<id>:<id>`. Once that bot leaves the
+   * room the lookup stops naming it, and the id must not stand in for a name.
+   */
+  it("drops a mention whose slug is the id again", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4-e4bd-7005-900c-66e44d33f5e4 ping",
+      ),
+    ).toBe("ping");
+  });
+
+  it("names that bot while the room still holds it", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4-e4bd-7005-900c-66e44d33f5e4 ping",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "そこ"]]),
+      ),
+    ).toBe("@そこ ping");
   });
 
   /** A key the lookup did not name is still written as the sender wrote it. */

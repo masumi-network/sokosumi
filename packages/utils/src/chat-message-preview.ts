@@ -75,6 +75,17 @@ const MENTION_MARKER = "\u0000";
 /** A marker and the mention it stands for, as written above. */
 const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
 
+/**
+ * A web address written as words: a scheme, or the `www.` people write
+ * instead of one, running to the next space.
+ *
+ * Deliberately narrower than what a browser accepts. A bare `example.test`
+ * with no scheme is left standing, because the rule that told it apart from
+ * `node.js` or `e.g.` would have to guess, and guessing takes words out of a
+ * sentence a person wrote.
+ */
+const BARE_URL_REGEX = /(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S+/gi;
+
 /** The `!` of `![alt](url)`, which the link scan leaves behind on its own. */
 const MARKDOWN_IMAGE_BANG_REGEX = /!(?=\[[^\][]*\]\()/g;
 
@@ -322,12 +333,17 @@ export function buildChatMessagePreview(
       // and a reader loses nothing when the token carries none. Every other
       // key is a uuid, which says nothing to anyone, so a token left with no
       // name and no slug says less by saying nothing.
+      // A slug that repeats the key is not a name. The composer writes one
+      // for a soko bot whose name has no ascii in it, so the fallback below
+      // would put the id on a banner once that bot leaves the room and the
+      // lookup stops naming it.
+      const readableSlug = slug.toLowerCase() === lookupKey ? "" : slug;
       // Read for what it says rather than for whether it is there: a member
       // whose display name is empty is named no better than one the map does
       // not carry, and the slug is what is left to say who.
       const label =
         mentionNames?.get(lookupKey) ||
-        slug ||
+        readableSlug ||
         (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
 
       labels.push(label ? `@${label}` : "");
@@ -335,7 +351,16 @@ export function buildChatMessagePreview(
       return `${MENTION_MARKER}${labels.length - 1}${MENTION_MARKER}`;
     });
 
-  const oneLine = cleanChatMessageText(readable).replace(/\s+/g, " ").trim();
+  // An address goes after the markdown clean, which has already turned
+  // `[docs](url)` into `docs`, so what is left is a link the sender typed as
+  // words. A reader cannot check one from a lock screen and cannot act on it
+  // there either, so the preview says the words around it and nothing else.
+  // A message that is only a link cleans to nothing and the caller falls back
+  // to the line naming the author and the room.
+  const oneLine = cleanChatMessageText(readable)
+    .replace(BARE_URL_REGEX, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   // The names go in last, and the line is closed up again: a mention that
   // stands for nobody leaves the space its marker sat in, and a preview cut
   // to length has to count the names it shows rather than the markers.
