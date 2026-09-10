@@ -59,7 +59,7 @@ describe("PresenceDot", () => {
     expect(mark(online).children).toHaveLength(0);
     expect(mark(afk).children).toHaveLength(1);
     expect(mark(offline).children).toHaveLength(1);
-    expect(mark(afk).className).toContain("bg-presence-afk");
+    expect(mark(afk).className).toContain("bg-semantic-warning");
     expect(mark(offline).className).toContain("bg-background");
     expect(mark(offline).firstElementChild?.className).toContain(
       "border-presence-offline",
