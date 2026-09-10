@@ -336,3 +336,11 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - `RoomOutbox` now reports HTTP success even when a realtime echo already removed the shell, matching web's `drainClassicOutboundQueue`. Previously the own-reply thread count and room reply link stayed stale whenever the echo beat the 201. A send that times out and is confirmed only by its echo still does not count, same as web.
 - Reply counts use Foundation inflection (`1 reply`, `2 replies`).
 - Chat 150 tests in 16 suites passed, including a new echo-first thread regression that failed before the fix. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` passed. SwiftFormat required no changes; strict SwiftLint found zero violations.
+
+### Slice 08 review findings 1–5 (2026-09-10)
+
+- Deleted-message rows retain existing reply-count links but no longer offer hover, context-menu or accessibility Reply actions.
+- Parent envelopes request one room refresh. Thread-specific envelopes still refresh the parent preview when the room resolver ignores them.
+- Room and thread sends share the participant builder, including the empty-name email fallback. Missing thread clients settle initial loading with a retryable configuration error.
+- Room and thread attention use the same resolved-history gate, allowing failed older-page loads while excluding failed initial/latest loads. The separate product question about reading hidden room messages is unchanged.
+- Verification: Xcode app-target tests passed (`/tmp/review1-5-app3.log`), including parent-envelope refresh counts, sender name fallback, missing-client loading and all four initial-thread/older-room failure combinations. SwiftLint, SwiftFormat and diff checks passed. The shared package was unchanged; its 150 tests passed immediately before these app-only fixes.

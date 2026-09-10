@@ -23,7 +23,10 @@ extension WorkspaceState {
   }
 
   func loadThreadPage(_ page: RoomTimeline.Page, auth: AuthState) {
-    guard let client = resolveClient(auth: auth) else { return }
+    guard let client = resolveClient(auth: auth) else {
+      thread.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: thread.timeline.generation)
+      return
+    }
     thread.loadPage(page, client: client, organizationSlug: selection?.workspace.organizationSlug,
                     syncAttention: { [weak self, weak auth] in
                       guard let self, let auth else { return }
@@ -39,7 +42,7 @@ extension WorkspaceState {
   }
 
   func syncThreadAttention(auth: AuthState) async {
-    guard readAttention.isVisible, timeline.hasLoadedHistory, timeline.failedPage == nil,
+    guard readAttention.isVisible, roomHistoryReadable,
           let client = resolveClient(auth: auth) else { return }
     do {
       guard try await thread.markLooked(client: client, organizationSlug: selection?.workspace.organizationSlug),
@@ -58,10 +61,7 @@ extension WorkspaceState {
   @discardableResult
   func sendThreadReply(_ content: String, auth: AuthState) -> Bool {
     guard let client = resolveClient(auth: auth), thread.parent?.roomId == transcriptRoomId else { return false }
-    let sender = Components.Schemas.ChatRoomUserParticipant(
-      id: currentUserId, name: currentUserName, email: currentUserEmail, image: currentUserImageURL, presence: .online
-    )
-    return thread.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: sender) { [weak self, weak auth] result in
+    return thread.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender) { [weak self, weak auth] result in
       guard let self, let auth else { return }
       switch result {
       case .success:

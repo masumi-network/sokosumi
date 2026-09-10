@@ -582,33 +582,61 @@ struct WorkspaceStateTests {
     #expect(transport.remainingStubs == 0)
   }
 
-  @Test(arguments: [false, true]) func openingThreadLooksThenReadsRoomBeforeFetchingReplies(initialFailure: Bool) async throws {
+  @Test func missingThreadClientEndsInitialLoading() throws {
+    let (state, _, _, _) = try ephemeralState([])
+    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: MacOAuthBrowser(), restoreSession: false)
+    state.clientResolver = nil
+    #expect(state.resolveClient(auth: auth) == nil)
+    state.thread.timeline.reset(roomId: "room", parentMessageId: "parent")
+    #expect(state.thread.timeline.isLoading)
+    state.loadThreadPage(.initial, auth: auth)
+    #expect(!state.thread.timeline.isLoading)
+    #expect(state.thread.timeline.failedPage == .initial)
+    #expect(state.thread.timeline.errorMessage == "Sign-in is not configured.")
+  }
+
+  @Test(arguments: ["Me", ""]) func outboundSenderUsesEmailForEmptyName(name: String) async throws {
+    let (state, auth, _, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody),
+      (200, userBody.replacingOccurrences(of: "\"name\":\"Me\"", with: "\"name\":\"\(name)\"")),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: []))
+    ])
+    await state.reload(auth: auth)
+    #expect(state.outboundSender.name == (name.isEmpty ? "me@example.com" : name))
+    #expect(state.outboundSender.email == "me@example.com")
+  }
+
+  @Test(arguments: [false, true], [false, true]) func openingThreadLooksThenReadsRoomBeforeFetchingReplies(initialFailure: Bool, olderRoomFailure: Bool) async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let rootID = "550e8400-e29b-41d4-a716-446655440034"
     let root = transcriptMessage(id: rootID, roomId: roomID, content: "Parent")
     let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: roomID, content: "Reply")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    var responses: [(Int, String)] = [
       (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
       (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
-      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
-      (200, roomReadBody(id: roomID, unread: 3)),
-      (200, """
-      {"data":{"parentMessageId":"\(rootID)","lastReadAt":"\(timestamp)"},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
-      """),
+      (200, transcriptPageBody(messages: [root], nextCursor: olderRoomFailure ? "older-room" : nil)),
+      (200, roomReadBody(id: roomID, unread: 3))
+    ]
+    responses += olderRoomFailure ? [(503, "{}")] : []
+    let attention: [(Int, String)] = [
+      (200, #"{"data":{"parentMessageId":"\#(rootID)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
       (200, roomReadBody(id: roomID, unread: 2))
-    ] + (initialFailure ? [
-      (503, "{}"),
-      (200, """
-      {"data":{"parentMessageId":"\(rootID)","lastReadAt":"\(timestamp)"},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
-      """),
-      (200, roomReadBody(id: roomID, unread: 2))
-    ] : []) + [(200, transcriptPageBody(messages: [reply], nextCursor: "older-replies"))])
+    ]
+    responses += attention
+    responses += initialFailure ? [(503, "{}")] + attention : []
+    responses.append((200, transcriptPageBody(messages: [reply], nextCursor: "older-replies")))
+    let (state, auth, transport, _) = try ephemeralState(responses)
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
-    let parent = try #require(state.transcriptMessages.first)
-    state.openThread(parent, auth: auth)
+    if olderRoomFailure {
+      state.loadOlderMessages(auth: auth)
+      await state.olderPageTask?.value
+      #expect(state.timeline.failedPage == .older)
+    }
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
     await state.thread.loadTask?.value
     if initialFailure {
       #expect(state.thread.timeline.failedPage == .initial)

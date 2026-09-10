@@ -491,11 +491,11 @@ final class WorkspaceState: ObservableObject {
   /// ignored. The refetch merges — it never invents a row.
   func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
     let refreshParent = thread.apply(envelope)
-    if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
-      transcriptRecovery.requestRefresh()
-    }
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: transcriptRoomId) {
     case .ignore:
+      if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
+        transcriptRecovery.requestRefresh()
+      }
       if envelope.eventType == .create {
         sidebarRecovery.requestRefresh()
       }
@@ -579,13 +579,17 @@ final class WorkspaceState: ObservableObject {
       clientTurnId: clientMessageId,
       roomId: roomId,
       content: content,
-      sender: .init(
-        id: currentUserId,
-        name: currentUserName.isEmpty ? currentUserEmail : currentUserName,
-        email: currentUserEmail,
-        image: currentUserImageURL,
-        presence: .online
-      )
+      sender: outboundSender
+    )
+  }
+
+  var outboundSender: Components.Schemas.ChatRoomUserParticipant {
+    .init(
+      id: currentUserId,
+      name: currentUserName.isEmpty ? currentUserEmail : currentUserName,
+      email: currentUserEmail,
+      image: currentUserImageURL,
+      presence: .online
     )
   }
 
@@ -624,14 +628,17 @@ final class WorkspaceState: ObservableObject {
           replies: thread.timeline.messages.map { .init(id: $0.id, content: $0.content) })
   }
 
+  var roomHistoryReadable: Bool {
+    timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
+  }
+
   func syncReadAttention(auth: AuthState) async {
     guard let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
     do {
       try await readAttention.readIfNeeded(
         room: room,
         content: readContent,
-        historyReadable: timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
-          && !thread.timeline.isLoading,
+        historyReadable: roomHistoryReadable && !thread.timeline.isLoading,
         client: client,
         organizationSlug: selection?.workspace.organizationSlug
       )

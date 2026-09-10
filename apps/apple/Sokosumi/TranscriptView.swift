@@ -445,7 +445,7 @@ import SwiftUI
       .contentShape(.rect)
       .background((isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
-        if let onReply {
+        if let onReply, message.deletedAt == nil {
           Button(action: onReply) {
             HStack(spacing: 4) {
               Image(systemName: "text.bubble")
@@ -494,13 +494,13 @@ import SwiftUI
         }
       }
       .contextMenu {
-        if let onReply {
+        if let onReply, message.deletedAt == nil {
           Button("Reply in thread", systemImage: "bubble.right", action: onReply)
         }
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
-        if let onReply {
+        if let onReply, message.deletedAt == nil {
           Button("Reply in thread", action: onReply)
         }
       }
