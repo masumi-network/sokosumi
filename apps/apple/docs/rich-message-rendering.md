@@ -121,3 +121,20 @@ Verification: 188 Chat tests in 22 suites, Xcode app tests, iOS17 shared build, 
 MessageMarkdown now receives CoreSettings.webBaseURL from the app so relative Markdown destinations resolve against the configured production/local web origin. A regression test verifies relative routing, unchanged external links and rejection of local-file destinations. Ten parser tests and Xcode build passed (`/tmp/apple-relative-link-tests.log`, `/tmp/apple-relative-link-build.log`); changed files pass format lint.
 
 A Foundation probe confirms that full parsing already recognizes scheme URLs, www links, emails and angle-bracket autolinks. The remaining bare-domain behavior is the explicit allowlist in `packages/utils/src/linkify-bare-domains.ts`, including filename exclusions and protection of code/existing links. Do not replace it with unrestricted data detection. Its transformation runs before Markdown interpretation on web, which matters for URL paths containing Markdown punctuation.
+
+## Additional grammar dependency proposal (approval pending)
+
+Scratch verification outside the repository succeeded for these exact native packages with SwiftTreeSitter 0.10.0:
+
+| Package repository | Version | Coverage |
+| --- | --- | --- |
+| https://github.com/tree-sitter-grammars/tree-sitter-kotlin | 1.1.0 | Kotlin |
+| https://github.com/tree-sitter-grammars/tree-sitter-objc | 3.0.2 | Objective-C |
+| https://github.com/tree-sitter-grammars/tree-sitter-xml | 0.7.0 | XML/DTD |
+| https://github.com/tree-sitter-grammars/tree-sitter-make | 1.1.1 | Makefile |
+| https://github.com/tree-sitter-grammars/tree-sitter-diff | 0.2.0 | Diff |
+| https://github.com/justinmk/tree-sitter-ini | 1.4.0 | INI |
+
+The scratch package resolved, built and parsed one fixture per language with no syntax errors on macOS, and compiled its target for arm64 iOS17. Logs: `/tmp/apple-extra-grammar-resolve.log`, `/tmp/apple-extra-grammar-build.log`, `/tmp/apple-extra-grammar-ios17.log`. Manifest/source: `/tmp/apple-extra-grammar-probe`. These are parser integration probes, not full highlighting/query parity tests. INI is Apache-2.0; the other five repositories carry MIT license text. Preserve notices when adding dependencies.
+
+No new dependency has been added to the repository. Request explicit approval for these six additions, then validate their highlight queries and open a separate dependency PR before integrating them. Remaining web registry/detection gaps remain open; these additions do not reduce slice 10's acceptance scope.
