@@ -674,15 +674,29 @@ describe("loadNewTaskWizardOptions", () => {
     getProjectFilterOptionsMock.mockResolvedValue([
       { id: "project-1", name: "Project One" },
     ]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([
+      { id: "agent-1", name: "Agent One" },
+    ]);
+    resolveEffectiveDesignMdMock.mockResolvedValue({
+      label: "Design",
+      url: "https://example.com/design.md",
+      owner: { type: "organization", name: "Acme Inc", logo: null },
+    });
   });
 
-  it("loads the active workspace's assignees and projects", async () => {
+  it("loads the workspace's assignees, projects, and create data in one call", async () => {
     const result = await loadNewTaskWizardOptions();
 
     expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org-1");
     expect(result).toEqual({
       coworkerOptions: [{ id: "coworker-1", kind: "coworker" }],
       projectOptions: [{ id: "project-1", name: "Project One" }],
+      agentNameById: { "agent-1": "Agent One" },
+      designMdAttachment: {
+        label: "Design",
+        url: "https://example.com/design.md",
+        owner: { type: "organization", name: "Acme Inc", logo: null },
+      },
     });
   });
 

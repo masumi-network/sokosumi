@@ -12,6 +12,15 @@ import {
   useCreateTaskModal,
 } from "@/app/tasks/components/create-task-modal";
 
+type NewTaskWizardData = Awaited<ReturnType<typeof loadNewTaskWizardOptions>>;
+
+function toWizardOptions(data: NewTaskWizardData) {
+  return {
+    ...data,
+    agentNameById: new Map(Object.entries(data.agentNameById)),
+  };
+}
+
 interface NewTaskWizardProps {
   /** Which open this is; a new number means a fresh wizard with fresh lists. */
   instance: number;
@@ -37,6 +46,7 @@ function NewTaskWizardModal({ instance }: NewTaskWizardProps) {
     // Keyed per open so the lists always belong to the current workspace.
     queryKey: ["new-task-wizard-options", instance],
     queryFn: () => loadNewTaskWizardOptions(),
+    select: toWizardOptions,
     gcTime: 0,
     retry: false,
   });
@@ -51,6 +61,8 @@ function NewTaskWizardModal({ instance }: NewTaskWizardProps) {
     <CreateTaskModal
       coworkerOptions={options?.coworkerOptions ?? []}
       projectOptions={options?.projectOptions ?? []}
+      agentNameById={options?.agentNameById}
+      initialDesignMdAttachment={options?.designMdAttachment ?? null}
       isLoadingOptions={options === undefined}
     />
   );

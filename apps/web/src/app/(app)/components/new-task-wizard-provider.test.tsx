@@ -1,7 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { wizardMountSpy } = vi.hoisted(() => ({ wizardMountSpy: vi.fn() }));
+const { wizardMountSpy, wizardModuleLoadSpy } = vi.hoisted(() => ({
+  wizardMountSpy: vi.fn(),
+  wizardModuleLoadSpy: vi.fn(),
+}));
+
+vi.mock("./new-task-wizard", () => {
+  wizardModuleLoadSpy();
+  return { NewTaskWizard: () => null };
+});
 
 vi.mock("next/dynamic", async () => {
   const { useEffect } = await import("react");
@@ -72,6 +80,24 @@ describe("NewTaskWizardProvider", () => {
       "data-instance",
       "2",
     );
+  });
+
+  it("warms the wizard chunk once the shell is idle", async () => {
+    const requestIdleCallback = vi.fn((callback: () => void) => {
+      callback();
+      return 1;
+    });
+    Object.assign(window, { requestIdleCallback, cancelIdleCallback: vi.fn() });
+
+    render(
+      <NewTaskWizardProvider>
+        <NewTaskTrigger />
+      </NewTaskWizardProvider>,
+    );
+
+    expect(requestIdleCallback).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(wizardModuleLoadSpy).toHaveBeenCalled());
+    expect(screen.queryByTestId("new-task-wizard")).toBeNull();
   });
 
   it("reads as unavailable outside the provider", () => {

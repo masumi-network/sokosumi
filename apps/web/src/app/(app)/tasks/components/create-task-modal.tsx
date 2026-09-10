@@ -7,7 +7,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -174,12 +173,19 @@ export function CreateTaskModalProvider({
 
 // --- Modal ---
 
+interface LoadedCreateData {
+  agentNameById: Map<string, string>;
+  designMdAttachment: TaskFormInitialDesignMdAttachment | null;
+}
+
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
   /** Omit to hide the project picker (e.g. when opened from the agents page). */
   projectOptions?: ProjectFilterOption[];
   lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
+  /** A caller that passes this owns the create data (agent names and
+   *  design.md) and the modal does not load it itself. */
   agentNameById?: Map<string, string>;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   initialCreateTaskOpen?: boolean;
@@ -194,7 +200,7 @@ export function CreateTaskModal({
   projectOptions,
   lockProjectSelection = false,
   defaultProjectId,
-  agentNameById: initialAgentNameById,
+  agentNameById: agentNameByIdProp,
   initialDesignMdAttachment: initialDesignMdAttachmentProp = null,
   initialCreateTaskOpen = false,
   isLoadingOptions = false,
@@ -220,34 +226,30 @@ export function CreateTaskModal({
   const [isCreated, setIsCreated] = useState(false);
   // Bumped to remount the form with a clean slate for "Create another task".
   const [resetKey, setResetKey] = useState(0);
-  const [agentNameById, setAgentNameById] = useState(
-    () => initialAgentNameById ?? new Map<string, string>(),
-  );
-  const [initialDesignMdAttachment, setInitialDesignMdAttachment] = useState(
-    initialDesignMdAttachmentProp,
-  );
-  const hasLoadedCreateDataRef = useRef(
-    Boolean(
-      (initialAgentNameById && initialAgentNameById.size > 0) ||
-        initialDesignMdAttachmentProp,
-    ),
-  );
+  const ownsCreateData = agentNameByIdProp !== undefined;
+  const [loadedCreateData, setLoadedCreateData] =
+    useState<LoadedCreateData | null>(null);
+  const agentNameById = agentNameByIdProp ?? loadedCreateData?.agentNameById;
+  const initialDesignMdAttachment =
+    initialDesignMdAttachmentProp ??
+    loadedCreateData?.designMdAttachment ??
+    null;
   const selectedProjectId =
     projectOverrideId !== undefined ? projectOverrideId : defaultProjectId;
 
   useEffect(() => {
+    if (ownsCreateData || isLoadingOptions) return;
     if (!open && !initialCreateTaskOpen) return;
-    if (hasLoadedCreateDataRef.current) return;
+    if (loadedCreateData) return;
 
     let cancelled = false;
     void loadCreateTaskModalData()
       .then((data) => {
         if (cancelled) return;
-        hasLoadedCreateDataRef.current = true;
-        setAgentNameById(new Map(Object.entries(data.agentNameById)));
-        if (data.designMdAttachment) {
-          setInitialDesignMdAttachment(data.designMdAttachment);
-        }
+        setLoadedCreateData({
+          agentNameById: new Map(Object.entries(data.agentNameById)),
+          designMdAttachment: data.designMdAttachment,
+        });
       })
       .catch(() => {
         if (cancelled) return;
@@ -257,7 +259,14 @@ export function CreateTaskModal({
     return () => {
       cancelled = true;
     };
-  }, [initialCreateTaskOpen, open, tTasksErrors]);
+  }, [
+    initialCreateTaskOpen,
+    isLoadingOptions,
+    loadedCreateData,
+    open,
+    ownsCreateData,
+    tTasksErrors,
+  ]);
 
   const stripCreateTaskSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -302,7 +311,6 @@ export function CreateTaskModal({
       ) : (
         <TaskForm
           key={`${formInstanceKey}-${resetKey}`}
-          variant="modal"
           mode="create"
           showCancel={false}
           labels={{
@@ -321,12 +329,9 @@ export function CreateTaskModal({
             projectCreateNamed: t.raw("projectCreateNamed") as string,
             coworker: t("coworker"),
             coworkerDescription: t("coworkerDescription"),
-            chooseAgent: t("chooseAgent"),
-            chooseAgentDescription: t("chooseAgentDescription"),
             defaultBadge: t("defaultBadge"),
             modelLabel: t("modelLabel"),
             hostingLabel: t("hostingLabel"),
-            examplesTitle: t.raw("examplesTitle") as string,
             continueLabel: t("continue"),
             taskStepTitle: t.raw("taskStepTitle") as string,
             previousLabel: t("previousAgent"),

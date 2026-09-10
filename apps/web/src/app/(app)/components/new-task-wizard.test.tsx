@@ -2,12 +2,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { loadNewTaskWizardOptionsMock, taskFormPropsSpy, toastErrorMock } =
-  vi.hoisted(() => ({
-    loadNewTaskWizardOptionsMock: vi.fn(),
-    taskFormPropsSpy: vi.fn(),
-    toastErrorMock: vi.fn(),
-  }));
+const {
+  loadCreateTaskModalDataMock,
+  loadNewTaskWizardOptionsMock,
+  taskFormPropsSpy,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  loadCreateTaskModalDataMock: vi.fn(),
+  loadNewTaskWizardOptionsMock: vi.fn(),
+  taskFormPropsSpy: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/chat",
@@ -32,10 +37,7 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/app/tasks/actions", () => ({
-  loadCreateTaskModalData: vi.fn().mockResolvedValue({
-    agentNameById: {},
-    designMdAttachment: null,
-  }),
+  loadCreateTaskModalData: loadCreateTaskModalDataMock,
   loadNewTaskWizardOptions: loadNewTaskWizardOptionsMock,
 }));
 
@@ -83,6 +85,8 @@ function getLatestTaskFormProps() {
   return taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
     coworkerOptions: Array<{ id: string }>;
     projectOptions: Array<{ id: string }>;
+    agentNameById: Map<string, string>;
+    initialDesignMdAttachment: { url: string } | null;
   };
 }
 
@@ -91,10 +95,12 @@ describe("NewTaskWizard", () => {
     vi.clearAllMocks();
   });
 
-  it("opens with a loading state, then shows the form with the loaded lists", async () => {
+  it("opens with a loading state, then shows the form with everything from one call", async () => {
     loadNewTaskWizardOptionsMock.mockResolvedValue({
       coworkerOptions: [COWORKER],
       projectOptions: [PROJECT],
+      agentNameById: { "agent-1": "Agent One" },
+      designMdAttachment: { url: "https://example.com/design.md" },
     });
 
     renderWizard();
@@ -115,6 +121,13 @@ describe("NewTaskWizard", () => {
     expect(getLatestTaskFormProps().projectOptions.map((o) => o.id)).toEqual([
       "project-1",
     ]);
+    expect(getLatestTaskFormProps().agentNameById.get("agent-1")).toBe(
+      "Agent One",
+    );
+    expect(getLatestTaskFormProps().initialDesignMdAttachment).toEqual({
+      url: "https://example.com/design.md",
+    });
+    expect(loadCreateTaskModalDataMock).not.toHaveBeenCalled();
   });
 
   it("closes with an error toast when the lists fail to load", async () => {

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,10 +8,12 @@ import {
   useCreateTaskModal,
 } from "./create-task-modal";
 
-const { taskFormPropsSpy, routerReplaceMock } = vi.hoisted(() => ({
-  taskFormPropsSpy: vi.fn(),
-  routerReplaceMock: vi.fn(),
-}));
+const { taskFormPropsSpy, routerReplaceMock, loadCreateTaskModalDataMock } =
+  vi.hoisted(() => ({
+    taskFormPropsSpy: vi.fn(),
+    routerReplaceMock: vi.fn(),
+    loadCreateTaskModalDataMock: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/calendar",
@@ -36,10 +38,7 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/app/tasks/actions", () => ({
-  loadCreateTaskModalData: vi.fn().mockResolvedValue({
-    agentNameById: {},
-    designMdAttachment: null,
-  }),
+  loadCreateTaskModalData: loadCreateTaskModalDataMock,
 }));
 
 vi.mock("./task-form-modal", () => ({
@@ -80,6 +79,12 @@ function CalendarSlotButton({
   );
 }
 
+function getLatestTaskFormProps() {
+  return taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
+    agentNameById: Map<string, string>;
+  };
+}
+
 function getLatestProjectId() {
   const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
     initialValues: { projectId?: string | null };
@@ -105,6 +110,10 @@ async function openFromCalendar(
 describe("CreateTaskModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadCreateTaskModalDataMock.mockResolvedValue({
+      agentNameById: { "agent-1": "Agent One" },
+      designMdAttachment: null,
+    });
   });
 
   it("leaves the project unselected for an unfiltered Calendar", async () => {
@@ -174,6 +183,39 @@ describe("CreateTaskModal", () => {
 
       expect(routerReplaceMock).not.toHaveBeenCalled();
     });
+  });
+
+  it("loads agent names itself when opened without them", async () => {
+    render(
+      <CreateTaskModalProvider initialOpen>
+        <CreateTaskModal coworkerOptions={[]} />
+      </CreateTaskModalProvider>,
+    );
+
+    await waitFor(() =>
+      expect(getLatestTaskFormProps().agentNameById.get("agent-1")).toBe(
+        "Agent One",
+      ),
+    );
+    expect(loadCreateTaskModalDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not load create data when the caller owns it", async () => {
+    render(
+      <CreateTaskModalProvider initialOpen>
+        <CreateTaskModal
+          coworkerOptions={[]}
+          agentNameById={new Map([["agent-2", "Agent Two"]])}
+        />
+      </CreateTaskModalProvider>,
+    );
+
+    await waitFor(() =>
+      expect(getLatestTaskFormProps().agentNameById.get("agent-2")).toBe(
+        "Agent Two",
+      ),
+    );
+    expect(loadCreateTaskModalDataMock).not.toHaveBeenCalled();
   });
 
   it("shows a loading state instead of the form while the wizard lists load", () => {

@@ -8,12 +8,25 @@ import {
   useContext,
   useState,
 } from "react";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
-// The wizard pulls in the whole task form; load that chunk on first open only.
+// The wizard pulls in the whole task form, so it ships as its own chunk that
+// is warmed once the shell is idle rather than on the shell's critical path.
+const loadNewTaskWizard = () => import("./new-task-wizard");
+
 const NewTaskWizard = dynamic(
-  () => import("./new-task-wizard").then((module) => module.NewTaskWizard),
+  () => loadNewTaskWizard().then((module) => module.NewTaskWizard),
   { ssr: false },
 );
+
+function prefetchNewTaskWizardWhenIdle(): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const handle = window.requestIdleCallback(() => void loadNewTaskWizard());
+    return () => window.cancelIdleCallback(handle);
+  }
+  const timeout = window.setTimeout(() => void loadNewTaskWizard(), 2000);
+  return () => window.clearTimeout(timeout);
+}
 
 interface NewTaskWizardContextValue {
   openNewTaskWizard: () => void;
@@ -45,6 +58,8 @@ export function NewTaskWizardProvider({
   children,
 }: NewTaskWizardProviderProps) {
   const [openCount, setOpenCount] = useState(0);
+
+  useMountEffect(prefetchNewTaskWizardWhenIdle);
 
   const openNewTaskWizard = useCallback(() => {
     setOpenCount((count) => count + 1);

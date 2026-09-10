@@ -267,11 +267,10 @@ export async function loadJobsTabData(
   };
 }
 
-export async function loadCreateTaskModalData() {
-  const session = await getSession();
+async function loadCreateTaskData(userId: string | null) {
   const [agents, designMdAttachment] = await Promise.all([
     agentService.getAvailableAgentsWithCreditsPrice(),
-    session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+    userId ? designMdService.resolveEffectiveDesignMd() : null,
   ]);
 
   return {
@@ -280,16 +279,23 @@ export async function loadCreateTaskModalData() {
   };
 }
 
+export async function loadCreateTaskModalData() {
+  const session = await getSession();
+  return loadCreateTaskData(session?.user.id ?? null);
+}
+
 /**
- * Lists for the New Task wizard opened from the sidebar: assignees and
- * projects of the active workspace.
+ * Everything the New Task wizard opened from the sidebar needs, in one round
+ * trip: assignees and projects of the active workspace plus the create data
+ * the modal would otherwise load itself.
  */
 export async function loadNewTaskWizardOptions() {
   const session = await getSession();
-  const [coworkerOptions, projectOptions] = await Promise.all([
+  const [coworkerOptions, projectOptions, createData] = await Promise.all([
     listTaskAssigneeOptions(session?.session.activeOrganizationId ?? null),
     getProjectFilterOptions(),
+    loadCreateTaskData(session?.user.id ?? null),
   ]);
 
-  return { coworkerOptions, projectOptions };
+  return { coworkerOptions, projectOptions, ...createData };
 }
