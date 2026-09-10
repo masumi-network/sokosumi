@@ -76,19 +76,21 @@ const MENTION_MARKER = "\u0000";
 const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
 
 /**
- * The `@` of a name this code wrote, with nothing left after it. The marker
- * behind it is what separates it from an `@` the sender typed.
+ * A name this code wrote, as it stands on the line once the addresses are
+ * out of it: the `@` in front of it, and the number saying whose name it is.
  *
  * The marker sits behind the `@` rather than in front of it. An `@` is a
  * character an address is written with, so a marker in front of one cuts the
  * address a message and a name spell together: `www.@<id>:x` with a member
  * named `evil.test/pay` reads as one address only while nothing stands
- * between the two halves.
+ * between the two halves. The `@` is optional here because that read eats it.
+ *
+ * The number is what says whether the name after it is still there. An
+ * address inside a name runs rightwards, so it takes the end of a name and
+ * never the start: a name whose first character is gone is gone, and the `@`
+ * in front of it names nobody.
  */
-const LABEL_AT_LEFT_REGEX = /@\u0000(?=\s|$)/g;
-
-/** The marker each name is written with, once the read above is done. */
-const LABEL_MARKER_REGEX = /\u0000/g;
+const LABEL_MARKER_REGEX = /@?\u0000(\d+)\u0000/g;
 
 /**
  * A web address written as words: a scheme, or the `www.` people write
@@ -406,17 +408,15 @@ export function buildChatMessagePreview(
       // into a message: taken out. Otherwise a member renames themselves
       // `www.evil.test/pay` and every reader of the room has that on a lock
       // screen, which is what this rule exists to prevent.
-      const name = withoutAddresses(mentionNames?.get(lookupKey) ?? "");
+      // Trimmed, because a name of nothing but spaces says as little as an
+      // empty one and the slug below says more.
+      const name = withoutAddresses(mentionNames?.get(lookupKey) ?? "").trim();
       const label =
         name ||
         readableSlug ||
         (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
 
-      // The label carries a marker of its own so the read below can tell an
-      // `@` this code wrote from an `@` the sender typed, as in "meet @ 5pm".
-      // It goes behind the `@`, which is a character an address is written
-      // with and has to stay joined to whatever precedes it.
-      labels.push(label ? `@${MENTION_MARKER}${label}` : "");
+      labels.push(label);
 
       return `${MENTION_MARKER}${labels.length - 1}${MENTION_MARKER}`;
     });
@@ -433,18 +433,32 @@ export function buildChatMessagePreview(
   // The names go in last, and the line is closed up again: a mention that
   // stands for nobody leaves the space its marker sat in, and a preview cut
   // to length has to count the names it shows rather than the markers.
-  const named = withoutAddresses(
-    oneLine.replace(MENTION_MARKER_REGEX, (_match, index: string) => {
-      return labels[Number(index)] ?? "";
-    }),
-  )
-    // A name and the words after it can spell an address between them: a
-    // member named `www` and a message reading `@<id>:x.evil.test` put one on
-    // the line only once the name was in it. So the line is read once more,
-    // and an `@` this code wrote, left standing by that read, is not a
-    // mention any more. An `@` the sender typed is left alone.
-    .replace(LABEL_AT_LEFT_REGEX, "")
-    .replace(LABEL_MARKER_REGEX, "")
+  const withNames = oneLine.replace(
+    MENTION_MARKER_REGEX,
+    (_match, index: string) => {
+      const label = labels[Number(index)] ?? "";
+      // Each name keeps a marker of its own, so the read after the addresses
+      // can tell an `@` this code wrote from an `@` the sender typed, as in
+      // "meet @ 5pm".
+      return label ? `@${MENTION_MARKER}${index}${MENTION_MARKER}${label}` : "";
+    },
+  );
+
+  // A name and the words around it can spell an address between them: a
+  // member named `www` and a message reading `@<id>:x.evil.test` put one on
+  // the line only once the name was in it. So the line is read once more, and
+  // a name that read took says nobody, `@` and all.
+  const named = withoutAddresses(withNames)
+    .replace(
+      LABEL_MARKER_REGEX,
+      (match: string, index: string, at: number, line: string) => {
+        const label = labels[Number(index)] ?? "";
+        const kept =
+          label !== "" && line.startsWith(label[0], at + match.length);
+
+        return kept && match.startsWith("@") ? "@" : "";
+      },
+    )
     .replace(/\s+/g, " ")
     .trim();
 

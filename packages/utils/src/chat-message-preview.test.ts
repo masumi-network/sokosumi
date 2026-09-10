@@ -275,6 +275,39 @@ describe("buildChatMessagePreview", () => {
     expect(buildChatMessagePreview("price is 30 @")).toBe("price is 30 @");
   });
 
+  /**
+   * The punctuation that closes a sentence comes back after an address goes.
+   * The `@` in front of the name the address took does not.
+   */
+  it("leaves no `@` behind when an address takes the whole name", () => {
+    const names = new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www"]]);
+
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz.evil.test/pay!",
+        names,
+      ),
+    ).toBe("!");
+    expect(
+      buildChatMessagePreview(
+        "(@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz.evil.test/pay)",
+        names,
+      ),
+    ).toBe("()");
+  });
+
+  /** A name of nothing but spaces names nobody, so the slug says who. */
+  it("names a member by their slug when their name is only spaces", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz there",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "  www.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @zz there");
+  });
+
   /** The `www.` inside a word is a word. */
   it("leaves a word that only ends in an address alone", () => {
     expect(buildChatMessagePreview("seewww.example.test now")).toBe(
