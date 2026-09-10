@@ -80,6 +80,24 @@
       #expect(input.serializedDraft == "[site](https://example.com/)")
     }
 
+    @Test func blockFormatLeavesCaretForContinuedTyping() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("hello")
+      input.setSelectedRange(NSRange(location: 5, length: 0))
+      input.applyBlockFormat(.unorderedList)
+      #expect(input.selectedRange().length == 0)
+      input.insertText("!", replacementRange: input.selectedRange())
+      #expect(input.captureDraft() == "- hello!\n")
+    }
+
+    @Test func linkInsertedAtListMarkerIsSerialized() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("- item\n")
+      input.insertLink(label: "site", destination: "https://example.com", range: NSRange(location: 0, length: 0))
+      #expect(input.captureDraft().contains("[site](https://example.com/)"))
+      #expect(input.captureDraft().contains("item"))
+    }
+
     @Test func toolbarCommandUsesExistingEditorSelection() {
       let input = MacComposerTextInput.InputView()
       input.restoreDraft("hello world")

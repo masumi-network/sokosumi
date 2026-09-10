@@ -13,21 +13,27 @@ public enum ComposerInlineText {
   public static func isActive(_ style: Style, in text: NSAttributedString) -> Bool {
     guard text.length > 0 else { return false }
     var active = true
-    text.enumerateAttribute(style.attribute, in: NSRange(location: 0, length: text.length)) { value, _, _ in
-      if value as? Bool != true {
+    var sawContent = false
+    text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { values, _, _ in
+      if values[ComposerBlockText.listMarker] as? Bool == true { return }
+      sawContent = true
+      if values[style.attribute] as? Bool != true {
         active = false
       }
     }
-    return active
+    return sawContent && active
   }
 
   public static func toggling(_ style: Style, in text: NSAttributedString) -> NSAttributedString {
     let result = NSMutableAttributedString(attributedString: text)
-    let range = NSRange(location: 0, length: result.length)
-    if isActive(style, in: text) {
-      result.removeAttribute(style.attribute, range: range)
-    } else {
-      result.addAttribute(style.attribute, value: true, range: range)
+    let shouldRemove = isActive(style, in: text)
+    result.enumerateAttribute(ComposerBlockText.listMarker, in: NSRange(location: 0, length: result.length)) { marker, range, _ in
+      if marker as? Bool == true { return }
+      if shouldRemove {
+        result.removeAttribute(style.attribute, range: range)
+      } else {
+        result.addAttribute(style.attribute, value: true, range: range)
+      }
     }
     return result
   }

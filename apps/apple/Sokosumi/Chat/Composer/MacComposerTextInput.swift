@@ -195,6 +195,8 @@
         let replacement = MacComposerAttributedText.styled(format.applying(to: selected))
         breakUndoCoalescing()
         replaceFormatting(replacement, range: range)
+        let caret = range.location + replacement.length - (replacement.string.hasSuffix("\n") ? 1 : 0)
+        setSelectedRange(NSRange(location: caret, length: 0))
         breakUndoCoalescing()
       }
 
@@ -222,6 +224,7 @@
           if attributedString().length > 0 {
             attributes = attributedString().attributes(at: min(range.location, attributedString().length - 1), effectiveRange: nil)
           }
+          attributes.removeValue(forKey: ComposerBlockText.listMarker)
           replacement = NSMutableAttributedString(string: label.isEmpty ? "link" : label, attributes: attributes)
         }
         replacement.addAttribute(ComposerInlineText.link, value: url, range: NSRange(location: 0, length: replacement.length))

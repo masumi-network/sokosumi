@@ -35,4 +35,17 @@ struct ComposerInlineTextTests {
     let content: [ComposerDocument.Inline] = [.link([.text("site")], destination: "https://example.com"), .code("**literal**")]
     #expect(ComposerInlineText.content(ComposerInlineText.attributedText(content)) == content)
   }
+
+  @Test func ignoresListMarkersWhenTogglingInlineStyle() {
+    let text = ComposerBlockText.attributedText(
+      ComposerDocument(blocks: [.unorderedList([[.paragraph([.bold([.text("item")])])]])])
+    )
+    #expect(ComposerInlineText.isActive(.bold, in: text))
+    let plain = ComposerInlineText.toggling(.bold, in: text)
+    #expect(!ComposerInlineText.isActive(.bold, in: plain))
+    #expect(ComposerBlockText.document(plain).markdown == "- item\n")
+    let restored = ComposerInlineText.toggling(.bold, in: plain)
+    #expect(ComposerInlineText.isActive(.bold, in: restored))
+    #expect(ComposerBlockText.document(restored).markdown == "- **item**\n")
+  }
 }
