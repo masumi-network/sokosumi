@@ -6,6 +6,108 @@
 
   @MainActor
   struct MacComposerTextInputTests {
+    @Test func acceptsCompletionWithoutReplacingSurroundingText() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "😀 :sm tail"
+      input.setSelectedRange(NSRange(location: 6, length: 0))
+      #expect(input.rangeForUserCompletion == NSRange(location: 3, length: 3))
+      var selectedIndex = 0
+      let completions = input.completions(forPartialWordRange: input.rangeForUserCompletion, indexOfSelectedItem: &selectedIndex)
+      #expect(completions?.contains("😄  :smile:") == true)
+      input.insertCompletion("😄  :smile:", forPartialWordRange: input.rangeForUserCompletion, movement: NSReturnTextMovement, isFinal: true)
+      #expect(input.string == "😀 😄 tail")
+      #expect(input.selectedRange().location == 5)
+    }
+
+    @Test(arguments: [NSOtherTextMovement, NSRightTextMovement, NSLeftTextMovement, NSCancelTextMovement])
+    func finalizingCompletionWithoutAcceptancePreservesTyping(_ movement: Int) {
+      let input = MacComposerTextInput.InputView()
+      input.string = ":sm"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.insertCompletion("🛩️  :small_airplane:", forPartialWordRange: input.rangeForUserCompletion, movement: movement, isFinal: true)
+      input.insertText("i", replacementRange: input.selectedRange())
+      #expect(input.string == ":smi")
+      #expect(input.selectedRange().location == 4)
+    }
+
+    @Test func completionPreviewAndCancelPreserveDraft() {
+      let input = MacComposerTextInput.InputView()
+      input.string = ":sm"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      let range = input.rangeForUserCompletion
+      input.insertCompletion(":smile:", forPartialWordRange: range, movement: NSDownTextMovement, isFinal: false)
+      #expect(input.string == ":sm")
+      input.insertCompletion(":sm", forPartialWordRange: range, movement: NSCancelTextMovement, isFinal: true)
+      #expect(input.string == ":sm")
+    }
+
+    @Test func emojiConversionSupportsUndoAndRedo() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.string = ":D"
+      input.setSelectedRange(NSRange(location: 2, length: 0))
+      delegate.manager.beginUndoGrouping()
+      input.insertText(" ", replacementRange: input.selectedRange())
+      delegate.manager.endUndoGrouping()
+      #expect(input.string == "😄 ")
+      delegate.manager.undo()
+      #expect(input.string == ":D")
+      delegate.manager.redo()
+      #expect(input.string == "😄 ")
+    }
+
+    @Test func emojiUndoWithoutExplicitGrouping() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.string = ":D"
+      input.setSelectedRange(NSRange(location: 2, length: 0))
+      input.insertText(" ", replacementRange: input.selectedRange())
+      #expect(input.string == "😄 ")
+      delegate.manager.undo()
+      #expect(input.string == ":D")
+      delegate.manager.redo()
+      #expect(input.string == "😄 ")
+    }
+
+    @Test func markedTextIsNotConvertedUntilCommitted() {
+      let input = MacComposerTextInput.InputView()
+      input.setMarkedText(":D ", selectedRange: NSRange(location: 3, length: 0), replacementRange: NSRange(location: 0, length: 0))
+      #expect(input.hasMarkedText())
+      #expect(input.string == ":D ")
+      input.insertText(":D ", replacementRange: input.markedRange())
+      #expect(!input.hasMarkedText())
+      #expect(input.string == "😄 ")
+    }
+
+    private final class UndoDelegate: NSObject, NSTextViewDelegate {
+      let manager = UndoManager()
+      func undoManager(for _: NSTextView) -> UndoManager? {
+        manager
+      }
+    }
+
+    @Test func emojiConversionPreservesCaretAndSurroundingText() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "😀 :D tail"
+      input.setSelectedRange(NSRange(location: 5, length: 0))
+      input.insertText(" ", replacementRange: input.selectedRange())
+      #expect(input.string == "😀 😄  tail")
+      #expect(input.selectedRange() == NSRange(location: 6, length: 0))
+    }
+
+    @Test func nativeEmojiInsertionReplacesSelection() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "before selected after"
+      input.setSelectedRange(NSRange(location: 7, length: 8))
+      input.insertText("👩🏽‍💻", replacementRange: input.selectedRange())
+      #expect(input.string == "before 👩🏽‍💻 after")
+      #expect(input.selectedRange().location == 7 + "👩🏽‍💻".utf16.count)
+    }
+
     @Test(arguments: [CGFloat.zero, 400, .infinity])
     func measurementDoesNotMutateEditor(_ width: CGFloat) {
       let scroll = MacComposerTextInput.InputScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 30))
@@ -69,6 +171,36 @@
       input.submit = { false }
       try input.keyDown(with: returnEvent())
       #expect(input.string == "unsent draft")
+    }
+
+    @Test func acceptedSendClearsUndoHistory() throws {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.insertText(":D ", replacementRange: input.selectedRange())
+      #expect(input.string == "😄 ")
+      #expect(delegate.manager.canUndo)
+      input.submit = { true }
+      try input.keyDown(with: returnEvent())
+      #expect(input.string.isEmpty)
+      #expect(!delegate.manager.canUndo)
+      delegate.manager.undo()
+      #expect(input.string.isEmpty)
+    }
+
+    @Test func externalClearAfterSendDiscardsUndoHistory() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.insertText("hello", replacementRange: input.selectedRange())
+      #expect(delegate.manager.canUndo)
+      input.clearAfterSend()
+      #expect(input.string.isEmpty)
+      #expect(!delegate.manager.canUndo)
+      delegate.manager.undo()
+      #expect(input.string.isEmpty)
     }
 
     @Test(arguments: [NSEvent.ModifierFlags.shift, .command, .control])

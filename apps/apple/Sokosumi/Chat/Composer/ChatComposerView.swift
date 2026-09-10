@@ -34,8 +34,12 @@ import SwiftUI
       return "Message \(roomDisplayName(room, currentUserId: workspaces.currentUserId))"
     }
 
+    private var preparedContent: ComposerContent {
+      ComposerContent(ComposerEmoji.preparingToSend(draft))
+    }
+
     private var canSend: Bool {
-      ComposerContent(draft).canSend
+      preparedContent.canSend
         && !workspaces.directStream.isBusy
         && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
@@ -43,6 +47,7 @@ import SwiftUI
     }
 
     var body: some View {
+      let content = preparedContent
       HStack {
         ComposerTextInput(text: Binding(
           get: { draft },
@@ -51,11 +56,11 @@ import SwiftUI
             savedDraft.save(text)
           }
         ), submit: sendDraft, placeholder: composerPlaceholder)
-        if ComposerContent(draft).showsCounter {
-          Text("\(ComposerContent(draft).count)/\(ComposerContent.maximumLength)")
+        if content.showsCounter {
+          Text("\(content.count)/\(ComposerContent.maximumLength)")
             .font(.caption)
-            .foregroundStyle(ComposerContent(draft).isTooLong ? .red : .secondary)
-            .accessibilityLabel("Message length: \(ComposerContent(draft).count) of \(ComposerContent.maximumLength)")
+            .foregroundStyle(content.isTooLong ? .red : .secondary)
+            .accessibilityLabel("Message length: \(content.count) of \(ComposerContent.maximumLength)")
         }
         Button("Send") { sendDraft() }
           .disabled(!canSend)
@@ -73,9 +78,10 @@ import SwiftUI
     @discardableResult
     private func sendDraft() -> Bool {
       guard canSend else { return false }
+      let content = ComposerEmoji.preparingToSend(draft)
       let accepted = parentMessageId == nil
-        ? workspaces.sendMessage(draft, auth: auth)
-        : workspaces.sendThreadReply(draft, auth: auth)
+        ? workspaces.sendMessage(content, auth: auth)
+        : workspaces.sendThreadReply(content, auth: auth)
       guard accepted else { return false }
       draft = ""
       savedDraft.save("")

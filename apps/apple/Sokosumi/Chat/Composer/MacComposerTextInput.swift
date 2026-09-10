@@ -1,12 +1,14 @@
 #if os(macOS)
   import AppKit
+  import SokosumiChat
   import SwiftUI
 
-  /// Native marked-text handling is the only reason for this AppKit adapter.
+  /// Isolates native marked-text handling and character-picker presentation.
   struct MacComposerTextInput: NSViewRepresentable {
     @Binding var text: String
     let submit: () -> Bool
     var placeholder = "Message"
+    var emojiPickerRequest = 0
 
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
@@ -19,6 +21,7 @@
       scroll.hasVerticalScroller = true
       let input = InputView(frame: scroll.contentView.bounds)
       input.isRichText = false
+      input.allowsUndo = true
       input.isAutomaticQuoteSubstitutionEnabled = false
       input.isAutomaticDashSubstitutionEnabled = false
       input.drawsBackground = false
@@ -43,8 +46,20 @@
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
       input.placeholder = placeholder
+      if context.coordinator.emojiPickerRequest != emojiPickerRequest {
+        context.coordinator.emojiPickerRequest = emojiPickerRequest
+        Task { @MainActor [weak input] in
+          guard let input, let window = input.window else { return }
+          window.makeFirstResponder(input)
+          NSApp.orderFrontCharacterPalette(nil)
+        }
+      }
       if input.string != text, !input.hasMarkedText() {
-        input.string = text
+        if text.isEmpty {
+          input.clearAfterSend()
+        } else {
+          input.string = text
+        }
       }
     }
 
@@ -88,6 +103,7 @@
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
+      var emojiPickerRequest = 0
       var parent: MacComposerTextInput
 
       init(_ parent: MacComposerTextInput) {
@@ -101,9 +117,58 @@
     }
 
     final class InputView: NSTextView {
+      private var showingCompletions = false
       var submit: () -> Bool = { false }
       var placeholder = "Message" {
         didSet { needsDisplay = true }
+      }
+
+      override func insertText(_ insertString: Any, replacementRange: NSRange) {
+        let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
+        super.insertText(insertString, replacementRange: replacementRange)
+        guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0 else { return }
+        if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
+          breakUndoCoalescing()
+          super.insertText(edit.replacement, replacementRange: edit.range)
+          breakUndoCoalescing()
+        } else if window != nil, !showingCompletions, rangeForUserCompletion.location != NSNotFound {
+          showingCompletions = true
+          complete(nil)
+        }
+      }
+
+      override var rangeForUserCompletion: NSRange {
+        guard !hasMarkedText(), selectedRange().length == 0 else { return NSRange(location: NSNotFound, length: 0) }
+        return ComposerEmoji.completionRange(in: string, caret: selectedRange().location) ?? NSRange(location: NSNotFound, length: 0)
+      }
+
+      override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
+        guard charRange.location != NSNotFound, NSMaxRange(charRange) <= string.utf16.count else { return nil }
+        let query = (string as NSString).substring(with: charRange).dropFirst()
+        let words = ComposerEmoji.completions(for: String(query))
+        if words.isEmpty {
+          showingCompletions = false
+        }
+        index.pointee = 0
+        return words.map { ComposerEmoji.completionPreview(for: $0) }
+      }
+
+      override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal: Bool) {
+        guard isFinal else { return }
+        showingCompletions = false
+        let mouseSelection = movement == NSOtherTextMovement
+          && (NSApp.currentEvent?.type == .leftMouseDown || NSApp.currentEvent?.type == .leftMouseUp)
+        let explicitSelection = movement == NSReturnTextMovement || movement == NSTabTextMovement || mouseSelection
+        // AppKit also finalizes when typing dismisses the list. That is not acceptance.
+        guard explicitSelection, word.hasSuffix(":"), NSMaxRange(charRange) <= string.utf16.count else { return }
+        // The menu label includes a preview; only the shortcode participates in insertion.
+        let shortcode = String(word.split(separator: " ").last ?? Substring(word))
+        let suffix = (string as NSString).substring(from: NSMaxRange(charRange))
+        guard let edit = ComposerEmoji.match(in: shortcode + suffix, caret: shortcode.utf16.count) else { return }
+        // Native completion owns navigation/cancellation; persist only the accepted result.
+        breakUndoCoalescing()
+        super.insertText(edit.replacement, replacementRange: charRange)
+        breakUndoCoalescing()
       }
 
       override func draw(_ dirtyRect: NSRect) {
@@ -128,10 +193,21 @@
         return super.performKeyEquivalent(with: event)
       }
 
+      /// Clears the composer after an accepted send. Typing history must not
+      /// survive: Cmd+Z after send must not resurrect just-sent text.
+      func clearAfterSend() {
+        string = ""
+        undoManager?.removeAllActions()
+      }
+
       override func keyDown(with event: NSEvent) {
         // Capture this before AppKit commits marked text. Checking inside
         // a submit/delegate callback is too late for the committing Return.
         let isReturn = event.keyCode == 36 || event.keyCode == 76
+        if showingCompletions {
+          super.keyDown(with: event)
+          return
+        }
         guard isReturn, !hasMarkedText() else {
           super.keyDown(with: event)
           return
@@ -140,7 +216,7 @@
           insertNewline(nil)
         } else {
           if submit() {
-            string = ""
+            clearAfterSend()
             didChangeText()
           }
         }
