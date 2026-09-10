@@ -29,10 +29,15 @@ import { createAgentClient, hashInput, hashResult } from "@sokosumi/masumi";
 ### Hash Export (`@sokosumi/masumi/hash`)
 
 - **Purpose**: Hash utilities for job verification
-- **Includes**: `hashInput`, `hashResult`, verification functions
+- **Includes**: `hashInput`, `hashResult`, `isInputHashVerified`, `isResultHashVerified`
 
 ```typescript
-import { hashInput, hashResult, verifyInputHash } from "@sokosumi/masumi/hash";
+import {
+  hashInput,
+  hashResult,
+  isInputHashVerified,
+  isResultHashVerified,
+} from "@sokosumi/masumi/hash";
 
 const inputHash = hashInput(JSON.stringify(inputData), purchaserId);
 const resultHash = hashResult(resultString, purchaserId);
@@ -60,6 +65,7 @@ const agentClient = createAgentClient({
 import {
   jobStatusResponseSchema,
   inputSchemaResponseSchema,
+  type InputSchemaType,
 } from "@sokosumi/masumi/schemas";
 ```
 
@@ -69,7 +75,7 @@ import {
 - **Includes**: Agent types, input types
 
 ```typescript
-import type { Agent, InputSchemaType } from "@sokosumi/masumi/types";
+import type { Agent } from "@sokosumi/masumi/types";
 ```
 
 ### Tools Export (`@sokosumi/masumi/tools`)
@@ -153,7 +159,6 @@ const resultHash = hashResult(resultString, purchaserId);
 
 ### URL Handling
 
-- Use `safeAddPathComponent` for URL construction
 - Validate agent API base URLs (no query strings, no hashes)
 - Support HTTP and HTTPS protocols
 
