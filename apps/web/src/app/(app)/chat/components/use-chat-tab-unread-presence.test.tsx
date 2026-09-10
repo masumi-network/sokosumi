@@ -68,6 +68,7 @@ import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridg
 import {
   clearMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
+  registerMembershipVisibleRoomsPublisher,
 } from "@/components/chat/membership-visible-rooms-store";
 import {
   beginRoomAttentionChange,
@@ -205,6 +206,74 @@ describe("useChatTabUnreadPresence", () => {
       expect(listRoomsMock).toHaveBeenCalledTimes(1);
     },
   );
+
+  it("does not read for a control event about the open room", async () => {
+    mockPathname = "/chat/rooms/selected";
+    render(
+      <AppMobileChrome>
+        <div>room content</div>
+      </AppMobileChrome>,
+    );
+    await act(async () => {});
+    listRoomsMock.mockClear();
+    await act(async () => {
+      const handler = controlSubscribe.mock.calls.find(
+        ([name]) => name === "chat_rooms_changed",
+      )?.[1];
+      expect(handler).toBeTypeOf("function");
+      handler({
+        data: {
+          collections: ["active"],
+          roomId: "selected",
+          at: "2026-09-10T12:00:00Z",
+        },
+      });
+    });
+    expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves the latest sidebar unread while the handoff read is pending", async () => {
+    const releaseSidebar = registerMembershipVisibleRoomsPublisher();
+    publishMembershipVisibleRooms([], "org-1", "user-1");
+    render(<Harness />);
+    await act(async () => {
+      publishMembershipVisibleRooms(
+        [room({ id: "foreign", unreadCount: 1 })],
+        "org-1",
+        "user-1",
+      );
+    });
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+
+    listRoomsMock.mockImplementation(() => new Promise(() => {}));
+    await act(async () => {
+      releaseSidebar();
+    });
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+  });
+
+  it("mirrors a live sidebar list instead of reading the active collection itself", async () => {
+    const releaseSidebar = registerMembershipVisibleRoomsPublisher();
+    publishMembershipVisibleRooms(
+      [room({ id: "a", unreadCount: 1 })],
+      "org-1",
+      "user-1",
+    );
+    render(<Harness />);
+    await act(async () => {});
+    expect(listRoomsMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+
+    await act(async () => {
+      publishMembershipVisibleRooms([room({ id: "a" })], "org-1", "user-1");
+    });
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+
+    await act(async () => {
+      releaseSidebar();
+    });
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
 
   it("seeds the unread dot from the session snapshot before fetch", () => {
     publishMembershipVisibleRooms(

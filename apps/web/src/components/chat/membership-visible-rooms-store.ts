@@ -23,6 +23,7 @@ let snapshotOrganizationKey: string | null = null;
 let snapshot: readonly ChatRoom[] = EMPTY_ROOMS;
 let snapshotCurrentUserId = "";
 let latestSnapshot: MembershipVisibleRoomsSnapshot | null = null;
+let livePublisherCount = 0;
 const listeners = new Set<() => void>();
 
 function organizationKey(organizationId: string | null): string {
@@ -59,6 +60,24 @@ export function publishMembershipVisibleRooms(
   snapshotCurrentUserId = currentUserId;
   rebuildLatestSnapshot();
   notifyListeners();
+}
+
+/**
+ * A mounted sidebar list that reads the active collection itself. While one
+ * is live, the tab unread indicator mirrors its rows instead of running a
+ * second reader for the same collection.
+ */
+export function registerMembershipVisibleRoomsPublisher(): () => void {
+  livePublisherCount += 1;
+  notifyListeners();
+  return () => {
+    livePublisherCount -= 1;
+    notifyListeners();
+  };
+}
+
+export function hasLiveMembershipVisibleRoomsPublisher(): boolean {
+  return livePublisherCount > 0;
 }
 
 export function clearMembershipVisibleRoomsSnapshot(): void {
