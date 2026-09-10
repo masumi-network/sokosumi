@@ -330,8 +330,17 @@ describe("TaskMetadata", () => {
       statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
     });
 
-    expect(
-      screen.getByRole("combobox", { name: "Running" }),
-    ).toBeInTheDocument();
+    const trigger = screen.getByRole("combobox", { name: "Running" });
+    expect(trigger).toBeInTheDocument();
+
+    const pill = trigger.querySelector("span.inline-flex");
+    expect(pill).toHaveClass(
+      "bg-emerald-500/10",
+      "rounded-sm",
+      "px-2.5",
+      "py-1",
+      "text-xs",
+    );
+    expect(pill?.textContent).toContain("Running");
   });
 });

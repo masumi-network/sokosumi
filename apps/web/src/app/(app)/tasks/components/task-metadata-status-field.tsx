@@ -1,7 +1,7 @@
 "use client";
 
 import { userTaskStatusTransitionRequiresComment } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/select";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
-import { TaskStatusBadge } from "./task-status-badge";
+import { getTaskStatusPillTone } from "./task-status-badge";
 
 export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
@@ -108,6 +109,8 @@ export function TaskMetadataStatusField({
 
   const displayStatus =
     isPending && pendingStatus ? pendingStatus : currentStatus;
+  const displayLabel = labels.statusLabels[displayStatus];
+  const pillTone = getTaskStatusPillTone(displayStatus);
 
   return (
     <>
@@ -117,19 +120,27 @@ export function TaskMetadataStatusField({
         disabled={isPending}
       >
         <SelectTrigger
-          aria-label={labels.statusLabels[displayStatus]}
-          className="h-auto w-auto min-w-[8rem] border-0 bg-transparent p-0 shadow-none focus:ring-0"
+          aria-label={displayLabel}
+          className={cn(
+            "h-auto w-auto gap-0 rounded-sm border-0 bg-transparent p-0 shadow-none",
+            "dark:bg-transparent dark:hover:bg-transparent",
+            "data-[size=default]:h-auto",
+            "[&>svg]:hidden",
+          )}
         >
           <SelectValue>
-            <span className="inline-flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
+                pillTone.bg,
+                pillTone.text,
+              )}
+            >
               {isPending ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                <Loader2 className="size-3 animate-spin" aria-hidden />
               ) : null}
-              <TaskStatusBadge
-                status={displayStatus}
-                label={labels.statusLabels[displayStatus]}
-                showLabel
-              />
+              <span>{displayLabel}</span>
+              <ChevronDown className="size-3 opacity-70" aria-hidden />
             </span>
           </SelectValue>
         </SelectTrigger>
