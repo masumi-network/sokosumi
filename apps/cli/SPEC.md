@@ -6,7 +6,7 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 ## §C CONSTRAINTS
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md:43]
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md:44]
-- package identity ∈ {npm name: `sokosumi`, workspace name: `sokosumi-cli`, bin: `sokosumi`}.
+- package identity ∈ {npm/workspace name: `sokosumi`, package path: `apps/cli`, bin: `sokosumi`}.
 - CLI source/tests ∈ TypeScript. Typecheck required.
 - OAuth tokens & user API keys ∈ OS vault. Linux persistent auth → Secret Service. ⊥ plaintext credential file.
 - non-secret preferences ∈ optional `~/.sokosumi/config.json`. Accepted keys: `apiUrl`, `authUrl`, `webUrl`, `mainnetOAuthClientId`, `preprodOAuthClientId`. ⊥ token/key/client-secret fields.
@@ -14,7 +14,7 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - API-key login target → reserved key prefix. Legacy untagged key → explicit target. ⊥ cross-target bearer probing.
 - API-key input ∉ argv. Use env or stdin.
 - signup/login ∈ web `/signin` during OAuth authorize. ⊥ CLI email/password form.
-- public native client ID defaults to `sokosumi_cli`; target-specific environment values and `--client-id` override it. OAuth flow uses PKCE. loopback `http://127.0.0.1/oauth/callback` + `http://[::1]/oauth/callback`. ⊥ `localhost`.
+- hosted public OAuth IDs built in: mainnet → `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod → `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override. OAuth flow uses PKCE. loopback `http://127.0.0.1/oauth/callback` + `http://[::1]/oauth/callback`. ⊥ `localhost`.
 - consent on (`skipConsent: false`). scopes `openid sokosumi:api offline_access`.
 - TUI menus use arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
 - Biome format. Conventional Commits. pinned deps (no semver ranges).
@@ -29,10 +29,10 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - cmd: `discover` → command catalog + Core resource snapshot; partial resource failure → JSON/text errors
 - cmd: `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get` → Core HTTP; `--json` → JSON-only stdout
 - global: `--json`, `--api-url`, `--preprod`, `--client-id`, `--api-key-stdin`
-- env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`; hosted OAuth default client: `sokosumi_cli`
+- env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`; hosted OAuth IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted auth base = selected API URL + `/auth`
 - file: `~/.sokosumi/config.json` → non-secret preferences only
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
-- pkg: npm `sokosumi` → workspace filter `sokosumi-cli` → bin `sokosumi`; install → CLI commands
+- pkg: npm/workspace `sokosumi` @ `apps/cli` → bin `sokosumi`; install → CLI commands
 
 ## §V INVARIANTS
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
@@ -50,7 +50,7 @@ V12: user-key mint/rotate/revoke → Core feature with trusted CLI OAuth guard. 
 V13: signed-in identity copy = auth method + target + signed-in state. ⊥ email/name on status screen.
 V14: Register menu presets ∈ {pi-sokosumi, Eve, Hermes, OpenClaw}. Those are Coworker runtimes. ⊥ Hire Agent. Workspace connect later.
 V15: vault writes use native secret setters or stdin; credential values ∉ child-process argv and error output.
-V16: hosted target OAuth launch/refresh → client ID `sokosumi_cli` by default; explicit flag, target-specific, or generic client ID overrides; the resolved ID stays consistent through refresh.
+V16: hosted target OAuth launch/refresh → registered target client ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) by default; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override; resolved ID stays consistent through refresh.
 V17: home config parser accepts only listed non-secret preference keys. ⊥ API key, access token, refresh token, client secret persistence.
 V18: resource command data path → Core HTTP client → typed service. ⊥ direct database access.
 V19: `--json` command → one parseable JSON document on stdout. ⊥ progress/text mixing.
@@ -69,11 +69,14 @@ V31: mainnet/preprod resource request → API-key target matches selected target
 V32: TUI hosted target selection → explicit selected API URL
 V33: direct browser GET `/auth/oauth2/authorize` → HTTP redirect to Better Auth's returned URL; other auth responses keep their JSON envelope.
 V34: TUI hosted target selection → preserve explicit `--client-id`; without an override, resolve the selected target's client ID and default.
+V35: CLI `--version` output = package manifest `version`.
+V36: packaged hosted CLI → registered target OAuth ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) + Core auth base (selected API URL + `/auth`) without local `.env` or runtime client-ID configuration; overrides optional.
+V37: hosted target OAuth release gate → real authorization-code exchange returns token for mainnet & preprod; metadata/authorize-only checks insufficient.
 
 ## §T TASKS
 
 id|status|task|cites
-T1|x|package spec; npm package `sokosumi`, workspace `sokosumi-cli`, binary `sokosumi`|V7,I
+T1|x|package spec; npm/workspace package `sokosumi`, path `apps/cli`, binary `sokosumi`|V7,I
 T2|x|scaffold `apps/cli` package (ESM, Ink, pinned deps)|V7,I
 T3|x|OAuth PKCE + loopback + keychain|V1,V4,V8
 T4|x|`auth login` / `auth logout` + `--json`|I,V1
@@ -97,6 +100,7 @@ T21|x|custom vault scope → lowercase hex byte encoding; Windows case-fold test
 T22|x|resource request → preflight API-key target check|V31
 T23|x|configured API target → key-prefix inference precedence|V30
 T24|x|TUI hosted target → explicit API URL override|V32
+T25|~|preprod live OAuth smoke: fresh authorization-code exchange → token; compare mainnet/preprod|V37,I
 
 ## §B BUGS
 
@@ -117,3 +121,7 @@ B13|2026-09-08|target-coded key overrode configured API URL ∴ request routed t
 B14|2026-09-08|TUI Mainnet choice retained preprod API URL ∴ target selection did not switch host|V32
 B15|2026-09-09|hosted CLI OAuth authorization received Better Auth's `{redirect,url}` envelope as JSON, so browser navigation did not reach consent|V33
 B16|2026-09-09|TUI hosted target selection rebuilt config without carrying explicit `--client-id` ∴ a valid override was lost before browser launch|V34
+B17|2026-09-10|release version changed manifest but binary test hardcoded prior version|V35
+B18|2026-09-10|generic mock callbacks omitted parameter annotations ∴ CLI typecheck failed|-
+B19|2026-09-10|VERIFIED manifest omission: package omits local `apps/cli/.env` ∴ unregistered `sokosumi_cli` fallback; REPORTED user error: old published bundle used `https://app.sokosumi.com/api/auth`, not Core auth base|V36
+B20|2026-09-10|REPORTED worker evidence: preprod metadata + authorize passed; fake code → 400 `invalid_grant`; exact local cmd `env -u SOKOSUMI_API_URL -u SOKOSUMI_AUTH_URL -u SOKOSUMI_OAUTH_CLIENT_ID -u SOKOSUMI_MAINNET_OAUTH_CLIENT_ID -u SOKOSUMI_PREPROD_OAUTH_CLIENT_ID -u SOKOSUMI_OAUTH_CLIENT_SECRET -u SOKOSUMI_API_KEY node apps/cli/dist/bin/sokosumi.js auth login --preprod --json --oauth-timeout-ms 180000` → OAuth token request failed with status 500; no fresh credentials/successful exchange; server DB/config cause undetermined; mainnet OAuth succeeds per user report; pnpm warning repaired but no post-install OAuth retry recorded; Core issue SOK-1040 tracks unknown server cause|V37

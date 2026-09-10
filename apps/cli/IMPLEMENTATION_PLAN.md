@@ -15,22 +15,24 @@
 - Source of truth is `apps/cli`; do not add new product code to `/Volumes/Sarthi MAC/Soko/sokosumi-cli`.
 - CLI database access is forbidden. Use Core HTTP routes only.
 - External package versions in `package.json` stay exact and pinned.
-- OAuth client ID `sokosumi_cli` is a public first-party value for hosted targets. Explicit client IDs remain optional overrides. OAuth tokens, API keys, and client secrets never enter plaintext config files.
+- Hosted OAuth IDs are registered and built in: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`. Core auth derives from selected API URL + `/auth`; explicit client IDs remain optional overrides. OAuth tokens, API keys, and client secrets never enter plaintext config files.
 - API-key values never enter process arguments or diagnostic errors.
-- The first-party OAuth client must exist in each hosted Core database before publishing the CLI.
+- Registered hosted OAuth clients (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) must exist in each hosted Core database before publishing the CLI.
 - TUI menus use arrow keys and Enter. Back uses Esc. Quit uses q. Letter aliases do not select menu items.
 - Tests must cover observable behavior, target precedence, secret boundaries, and failure before side effects.
 - Do not hand-edit generated files.
 
 ## Evidence and Decisions
 
-- VERIFIED: Before this change, `apps/cli/src/auth/config.ts` returned an empty client ID for hosted targets when no target-specific or generic value existed; only custom targets used the `sokosumi_cli` fallback.
+- VERIFIED: Before this change, `apps/cli/src/auth/config.ts` fell back to generic/unregistered `sokosumi_cli` for hosted targets when no target-specific or generic override existed.
 - VERIFIED: `apps/cli/.env` contains target OAuth client IDs, and the CLI now loads local `.env` values below explicit process environment values.
 - VERIFIED: Before this change, running the built CLI without a loaded client ID produced an OAuth flow ending at `error=invalid_client&error_description=client_id+is+required`.
 - VERIFIED: `apps/cli/src/auth/secure-store.ts` now keeps credential payloads out of macOS process arguments and sanitizes native vault errors. Commit `df3895398` contains that fix.
 - VERIFIED: The sibling CLI writes an API key into `~/.sokosumi/config.json` and loads it as an environment value. That path is excluded from the port.
 - REPORTED: The sibling advisor recommends one canonical `apps/cli` source, non-secret home preferences, and OS-vault secrets. The recommendation cites `apps/cli/SPEC.md`, `apps/cli/src/auth/secure-store.ts`, and the sibling `src/utils/env.mjs`.
 - INFERRED: A standard-library `.env` parser is sufficient for the small set of CLI configuration keys and avoids adding a dependency for one file format.
+- VERIFIED: Packaged CLI cannot depend on local `apps/cli/.env`; hosted defaults are registered target IDs (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) and hosted auth derives from selected Core API URL + `/auth`.
+- REPORTED: User reports mainnet CLI OAuth succeeds; preprod browser sign-in reaches token exchange then CLI reports exactly `OAuth token request failed with status 500`; `pnpm install --frozen-lockfile` repaired workspace warning, but no post-install OAuth retry recorded, so dependency drift not fully excluded; SOK-1040 tracks standalone Core preprod OAuth token exchange HTTP 500, while SOK-949 (CLI OAuth) and SOK-948 (first-party OAuth client provisioning) remain In Review.
 
 ## File Map
 
@@ -86,24 +88,25 @@ export function loadCliEnvironment(options?: CliConfigLoadOptions): Record<strin
 - [x] Call the loader once before global flags are applied. Do not mutate `process.env`.
 - [x] Test that explicit environment wins, home preferences win over `.env`, and secrets in config never reach the returned environment.
 
-- **Verification:** `pnpm --filter sokosumi-cli test -- test/config/loader.test.ts`.
+- **Verification:** `pnpm --filter ./apps/cli test -- test/config/loader.test.ts`.
 
 ## Task 2: Fix hosted OAuth resolution
 
 **Files:** Modify `apps/cli/src/auth/config.ts`, `apps/cli/src/cli/auth-login.ts`, `apps/cli/src/cli/index.ts`, and `apps/cli/src/tui/status-app.ts`. Extend `apps/cli/test/cli/auth-login.test.ts`, `apps/cli/test/cli/index.test.ts`, and `apps/cli/test/tui/status-app.test.ts`.
 
-**Interface:** `resolveCliConfig()` continues returning `CliTargetConfig`. `clientId` defaults to the public first-party value `sokosumi_cli`; explicit flags, target-specific environment values, and generic environment values override it.
+**Interface:** `resolveCliConfig()` continues returning `CliTargetConfig`. `clientId` defaults to the registered target ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod); explicit `--client-id`, target-specific environment values, and generic `SOKOSUMI_OAUTH_CLIENT_ID` override it. Hosted `authBaseUrl` defaults to selected API URL + `/auth`; custom `authUrl` remains scoped to custom targets.
 
 **Steps:**
 
 - [x] Preserve flag precedence for `--client-id` and target-specific environment precedence.
 - [x] Use `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID` for mainnet and `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID` for preprod as optional overrides.
-- [x] Use the stable first-party fallback `sokosumi_cli` when no override exists.
+- [x] Use built-in registered target IDs (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) when no override exists; packaged CLI must not require local `.env`.
+- [x] Derive hosted auth base from selected API URL + `/auth`; keep custom `authUrl` override scoped to custom targets.
 - [x] Preserve an explicit `--client-id` when the TUI changes hosted targets.
-- [x] Add tests that hosted OAuth uses the first-party client without configuration and that explicit overrides reach the target selection.
+- [x] Add tests that hosted OAuth uses each registered target ID without configuration and that explicit overrides reach target selection.
 - [x] Keep API-key login independent of OAuth client ID availability.
 
-- **Verification:** `pnpm --filter sokosumi-cli test -- test/cli/auth-login.test.ts test/cli/index.test.ts`.
+- **Verification:** `pnpm --filter ./apps/cli test -- test/cli/auth-login.test.ts test/cli/index.test.ts`.
 
 ## Task 3: Replace confusing TUI aliases
 
@@ -136,7 +139,7 @@ export function SelectInput<T>(props: {
 - [x] Keep raw API-key input on stdin and preserve hidden input behavior.
 - [x] Test selection state transitions with a pure helper or Ink test harness. The test must prove an old letter alias does not select a menu option.
 
-- **Verification:** `pnpm --filter sokosumi-cli test -- test/tui/select-input.test.ts` plus a built TUI smoke run.
+- **Verification:** `pnpm --filter ./apps/cli test -- test/tui/select-input.test.ts` plus a built TUI smoke run.
 
 ## Task 4: Port Core transport and models
 
@@ -171,7 +174,7 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Port service paths after checking the matching Core route mounts in `apps/core/src/routes/v1/index.ts`.
 - [x] Add transport tests for auth precedence, JSON parsing, status errors, and secret redaction.
 
-- **Verification:** `pnpm --filter sokosumi-cli test -- test/api`.
+- **Verification:** `pnpm --filter ./apps/cli test -- test/api`.
 
 ## Task 5: Port headless command slices
 
@@ -190,7 +193,7 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Add the complete command catalog to help and discovery output.
 - [x] Match Core coworker create schema by requiring `--vendor-id` and emitting `vendorId`.
 
-- **Verification:** `pnpm --filter sokosumi-cli test -- test/cli/commands`.
+- **Verification:** `pnpm --filter ./apps/cli test -- test/cli/commands`.
 
 ## Task 6: Port useful views and finish canonical ownership
 
@@ -203,26 +206,27 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Keep resource views read-only; job input-request submission remains a headless command/API follow-up.
 - [x] Document that `apps/cli` is canonical and the sibling repository is not a second source.
 - [x] Document the exact non-secret config JSON keys and target-scoped vault behavior.
-- [x] Keep published package identity `sokosumi`, workspace package identity `sokosumi-cli`, and binary `sokosumi`.
+- [x] Keep published and workspace package identity `sokosumi`, package path `apps/cli`, and binary `sokosumi`.
 - [x] Update `apps/cli/SPEC.md` task status through the spec workflow after the corresponding behavior was verified.
 
-**Verification:** `pnpm --filter sokosumi-cli test && pnpm --filter sokosumi-cli typecheck && pnpm --filter sokosumi-cli build`.
+**Verification:** `pnpm --filter ./apps/cli test && pnpm --filter ./apps/cli typecheck && pnpm --filter ./apps/cli build`.
 
 ## Final Verification
 
-- [x] `pnpm --filter sokosumi-cli test`
-- [x] Quote both package test globs; full CLI suite collected 84 tests, including all 12 nested command tests.
-- [x] `pnpm --filter sokosumi-cli typecheck`
-- [x] `pnpm --filter sokosumi-cli build`
+- [x] `pnpm --filter ./apps/cli test`
+- [x] Quote both package test globs; full CLI suite currently collects 100 tests, including all 12 nested command tests.
+- [x] `pnpm --filter ./apps/cli typecheck`
+- [x] `pnpm --filter ./apps/cli build`
 - [x] `pnpm check`
 - [x] `pnpm typecheck`
 - [x] Run `node apps/cli/dist/bin/sokosumi.js --help` and `node apps/cli/dist/bin/sokosumi.js auth status --json`.
 - [x] PTY smoke with a local fixture API: API-key selector, signed-in Agents list, Agent detail, Esc back, and q exit.
 - [x] Confirm no CLI source imports `@sokosumi/database` or writes secrets to `~/.sokosumi/config.json`.
 - [x] Confirm the sibling repository has no product-source edits.
+- [ ] Live hosted OAuth gate: mainnet pass reported; preprod token exchange currently 500; SOK-1040/Core investigation + SPEC §V37 remain open.
 
 ## Least confident decisions
 
 1. The standard-library `.env` parser may need one additional escaping rule if real deployment files use multiline or export-prefixed values.
 2. Resource views remain read-only. Input-request submission stays headless until a tested interactive flow exists.
-3. The hosted Core seed and hourly repair route must run in both hosted environments before the published CLI relies on the first-party client.
+3. Registered hosted clients `GxmewjdHVAaqUEglxWdyCqVFvnTASycj` (mainnet) and `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` (preprod) plus hourly repair route must run in both hosted environments before the published CLI relies on built-in defaults. Live hosted OAuth gate remains open pending SOK-1040 Core investigation.

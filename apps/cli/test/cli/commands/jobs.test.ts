@@ -32,7 +32,7 @@ test("jobs input submits JSON and emits the submitted input", async () => {
   const calls: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: null }) as T,
-    post: async <T>(path, body) => {
+    post: async <T>(path: string, body: unknown) => {
       calls.push({ path, body });
       return {
         data: { id: "input-1", inputHash: "hash-1", signature: "signature-1" },
@@ -109,7 +109,7 @@ test("jobs get requires an id", async () => {
 test("jobs get text surfaces the newest Core event result", async () => {
   const output: string[] = [];
   const client: CoreHttpClient = {
-    get: async <T>(path) => {
+    get: async <T>(path: string) => {
       let data: unknown = null;
       if (path === "/v1/jobs/job-1") {
         data = { id: "job-1", status: "PROCESSING" };

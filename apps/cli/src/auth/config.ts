@@ -14,7 +14,22 @@ export interface CliTargetConfig {
 
 export const MAINNET_API_URL = "https://api.sokosumi.com";
 export const PREPROD_API_URL = "https://api.preprod.sokosumi.com";
+export const MAINNET_OAUTH_CLIENT_ID = "GxmewjdHVAaqUEglxWdyCqVFvnTASycj";
+export const PREPROD_OAUTH_CLIENT_ID = "lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR";
 export const DEFAULT_OAUTH_CLIENT_ID = "sokosumi_cli";
+
+const BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET: Readonly<
+  Record<Exclude<CliTarget, "custom">, string>
+> = {
+  mainnet: MAINNET_OAUTH_CLIENT_ID,
+  preprod: PREPROD_OAUTH_CLIENT_ID,
+};
+
+function builtInOAuthClientIdForTarget(target: CliTarget): string {
+  return target === "custom"
+    ? DEFAULT_OAUTH_CLIENT_ID
+    : BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET[target];
+}
 
 export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
   Record<Exclude<CliTarget, "custom">, string>
@@ -108,7 +123,7 @@ export function resolveCliConfig({
     clientId ||
       targetClientIdEnv ||
       env.SOKOSUMI_OAUTH_CLIENT_ID ||
-      DEFAULT_OAUTH_CLIENT_ID,
+      builtInOAuthClientIdForTarget(target),
   ).trim();
   const resolvedAuthBaseUrl = resolveAuthBaseUrl(
     target,

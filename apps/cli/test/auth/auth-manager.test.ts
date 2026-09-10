@@ -6,6 +6,7 @@ import {
   type OAuthCredentials,
   type RefreshTokenRequest,
 } from "../../src/auth/auth-manager.js";
+import { resolveCliConfig } from "../../src/auth/config.js";
 import type { CredentialStore } from "../../src/auth/secure-store.js";
 
 const emptyApiKeyStore: CredentialStore<{ apiKey: string }> = {
@@ -66,6 +67,39 @@ test("refreshes an expired OAuth session and persists the new token", async () =
       expiresAt: "2030-01-01T00:00:00.000Z",
     },
   ]);
+});
+test("hosted OAuth refresh uses the resolved first-party client", async () => {
+  const config = resolveCliConfig({
+    env: { SOKOSUMI_API_URL: "https://api.sokosumi.com" },
+  });
+  let refreshRequest: RefreshTokenRequest | undefined;
+  const manager = new AuthManager({
+    credentialStore: {
+      read: () => ({
+        authToken: "expired-access-token",
+        refreshToken: "refresh-token",
+        expiresAt: "2020-01-01T00:00:00.000Z",
+      }),
+      write: () => {},
+      clear: () => {},
+    },
+    apiKeyStore: emptyApiKeyStore,
+    refreshTokenFn: async (request) => {
+      refreshRequest = request;
+      return { authToken: "fresh-access-token" };
+    },
+    environment: {},
+  });
+
+  assert.equal(
+    await manager.getAuthTokenAsync({
+      authBaseUrl: config.authBaseUrl,
+      clientId: config.clientId,
+    }),
+    "fresh-access-token",
+  );
+  assert.equal(refreshRequest?.authBaseUrl, "https://api.sokosumi.com/auth");
+  assert.equal(refreshRequest?.clientId, "GxmewjdHVAaqUEglxWdyCqVFvnTASycj");
 });
 
 test("TestV16 hosted refresh does not use an unconfigured fallback client", async () => {

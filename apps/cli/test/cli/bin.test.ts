@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { isDirectEntrypoint, main } from "../../bin/sokosumi.js";
+import packageJson from "../../package.json" with { type: "json" };
 import {
   AuthManager,
   type OAuthCredentials,
@@ -69,7 +70,7 @@ test("treats a PATH symlink as a direct entrypoint", () => {
   assert.equal(isDirectEntrypoint(linkPath), true);
 });
 
-test("PATH symlink still prints --version", () => {
+test("V35: PATH symlink prints package manifest --version", () => {
   const dir = mkdtempSync(join(tmpdir(), "sokosumi-bin-"));
   const linkPath = join(dir, "sokosumi.ts");
   symlinkSync(binPath, linkPath);
@@ -79,5 +80,5 @@ test("PATH symlink still prints --version", () => {
     { encoding: "utf8" },
   );
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "3.0.0");
+  assert.equal(result.stdout.trim(), packageJson.version);
 });

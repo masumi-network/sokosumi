@@ -1,4 +1,4 @@
-import { DEFAULT_OAUTH_CLIENT_ID } from "./config.js";
+import { MAINNET_OAUTH_CLIENT_ID } from "./config.js";
 import { refreshAccessToken } from "./oauth.js";
 import {
   type CredentialStore,
@@ -285,7 +285,7 @@ const authManagerInstances = new Map<string, AuthManager>();
 
 export function getAuthManager({
   targetScope = "mainnet",
-  clientId = DEFAULT_OAUTH_CLIENT_ID,
+  clientId = MAINNET_OAUTH_CLIENT_ID,
   environment = process.env,
 }: {
   targetScope?: string;

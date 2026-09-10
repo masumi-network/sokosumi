@@ -215,7 +215,7 @@ test("auth login sends the target-scoped mainnet client ID", async () => {
   assert.equal(loginRequest?.clientId, "mainnet-client");
 });
 
-test("TestV16 hosted OAuth uses first-party client without configuration", async () => {
+test("hosted mainnet OAuth uses the compiled first-party client without configuration", async () => {
   let loginRequest: BrowserLoginOptions | undefined;
   await runAuthLogin({
     env: { SOKOSUMI_API_URL: "https://api.sokosumi.com" },
@@ -232,6 +232,30 @@ test("TestV16 hosted OAuth uses first-party client without configuration", async
     },
     stdout: { write: () => undefined },
   });
-  assert.equal(loginRequest?.clientId, "sokosumi_cli");
+  assert.equal(loginRequest?.clientId, "GxmewjdHVAaqUEglxWdyCqVFvnTASycj");
   assert.equal(loginRequest?.authBaseUrl, "https://api.sokosumi.com/auth");
+});
+
+test("hosted preprod OAuth uses the compiled first-party client without configuration", async () => {
+  let loginRequest: BrowserLoginOptions | undefined;
+  await runAuthLogin({
+    env: { SOKOSUMI_API_URL: "https://api.preprod.sokosumi.com" },
+    loginFn: async (request) => {
+      loginRequest = request;
+      return {
+        authToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: "2030-01-01T00:00:00.000Z",
+      };
+    },
+    authManager: {
+      saveCredentials: (credentials) => credentials,
+    },
+    stdout: { write: () => undefined },
+  });
+  assert.equal(loginRequest?.clientId, "lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR");
+  assert.equal(
+    loginRequest?.authBaseUrl,
+    "https://api.preprod.sokosumi.com/auth",
+  );
 });

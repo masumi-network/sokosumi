@@ -62,7 +62,7 @@ jobs:
         target:
           - { name: Web, command: "pnpm exec turbo run test:ci --filter=web" }
           - { name: Core, command: "pnpm exec turbo run test:ci --filter=@sokosumi/core" }
-          - { name: CLI, command: "pnpm exec turbo run test:ci --filter=sokosumi-cli" }
+          - { name: CLI, command: "pnpm exec turbo run test:ci --filter=./apps/cli" }
           - { name: Packages, command: 'pnpm exec turbo run test:ci --filter="./packages/*"' }
           - { name: Local env, command: "pnpm local-env:test" }
           - { name: CI config, command: "pnpm ci:test" }
