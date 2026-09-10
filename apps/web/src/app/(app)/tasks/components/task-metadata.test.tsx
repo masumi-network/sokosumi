@@ -1,10 +1,12 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -68,6 +70,7 @@ function createTask(
     assigneeName?: string | null;
     assignee?: TaskMetadataTask["assignee"];
     creator?: Task["creator"];
+    status?: TaskMetadataTask["status"];
   } = {},
 ): TaskMetadataTask {
   const creator: Task["creator"] = overrides.creator ?? {
@@ -97,7 +100,7 @@ function createTask(
           };
 
   return {
-    status: TaskStatus.RUNNING,
+    status: overrides.status ?? TaskStatus.RUNNING,
     owner: {
       id: "user_1",
       name: "Andreas Osberghaus",
@@ -342,5 +345,40 @@ describe("TaskMetadata", () => {
       "text-xs",
     );
     expect(pill?.textContent).toContain("Running");
+  });
+
+  it("disables Queued without a schedule and shows no helper copy (SOK-1033)", async () => {
+    const user = userEvent.setup();
+    const statusLabels = Object.fromEntries(
+      TASK_STATUS_DISPLAY_ORDER.map((status) => [
+        status,
+        status === TaskStatus.DRAFT
+          ? "Draft"
+          : status === TaskStatus.QUEUED
+            ? "Queued"
+            : status === TaskStatus.READY
+              ? "Ready"
+              : status,
+      ]),
+    ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
+
+    renderTaskMetadata({
+      task: createTask({ status: TaskStatus.DRAFT }),
+      editable: true,
+      labels: { ...baseLabels, statusLabels },
+      statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
+    });
+
+    expect(
+      screen.queryByText("Set a schedule before choosing Queued."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Queued is only available for scheduled agent work."),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Draft" }));
+    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
+      "data-disabled",
+    );
   });
 });
