@@ -362,6 +362,30 @@ describe("buildChatMessagePreview", () => {
         new Map([["11111111-1111-4111-8111-111111111111", "Bobwww"]]),
       ),
     ).toBe("Hi @Bob.evil.test/pay");
+
+    // The mention between them is read first and names nobody either.
+    expect(
+      buildChatMessagePreview(
+        "Hi @11111111-1111-4111-8111-111111111111:bob@22222222-2222-4222-8222-222222222222:.evil.test/pay",
+        new Map([
+          ["11111111-1111-4111-8111-111111111111", "Bobwww"],
+          ["22222222-2222-4222-8222-222222222222", "_www"],
+        ]),
+      ),
+    ).toBe("Hi @Bob.evil.test/pay");
+  });
+
+  /** A mention that names someone stands between the words around it. */
+  it("keeps a name the mention after it holds apart from the words", () => {
+    expect(
+      buildChatMessagePreview(
+        "@11111111-1111-4111-8111-111111111111:x@22222222-2222-4222-8222-222222222222:y.evil.test",
+        new Map([
+          ["11111111-1111-4111-8111-111111111111", "Bobwww"],
+          ["22222222-2222-4222-8222-222222222222", "Ann"],
+        ]),
+      ),
+    ).toBe("@Bobwww@Ann.evil.test");
   });
 
   /** A name is a person's to choose, emoji and all. */

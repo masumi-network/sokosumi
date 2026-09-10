@@ -502,30 +502,41 @@ export function buildChatMessagePreview(
   // The names go in last, and the line is closed up again: a mention that
   // stands for nobody leaves the space its marker sat in, and a preview cut
   // to length has to count the names it shows rather than the markers.
-  const withNames = oneLine.replace(
-    MENTION_MARKER_REGEX,
-    (match: string, index: string, at: number) => {
-      // A name that starts an address the message text finishes is cut where
-      // that address starts, before the name reaches the line at all.
-      const label = whatNamesSomeone(
-        withoutSeamAddress(
-          labels[Number(index)] ?? "",
-          // Read with the markers after it taken out. A mention that names
-          // nobody leaves nothing on the line, so the words on either side of
-          // it end up against each other and can spell an address between
-          // them the same way a name and the words after it can.
-          oneLine.slice(at + match.length).replace(MENTION_MARKER_REGEX, ""),
-        ),
-      );
+  // Read from the last mention back to the first, so each name is read
+  // against the line as it will stand rather than as it stands now. A mention
+  // that names nobody leaves nothing where its marker was, and the words on
+  // either side of it then close up and can spell an address between them.
+  const markers = [...oneLine.matchAll(MENTION_MARKER_REGEX)];
+  let tail = "";
+  let cursor = oneLine.length;
 
-      labels[Number(index)] = label;
+  for (let position = markers.length - 1; position >= 0; position -= 1) {
+    const marker = markers[position];
+    if (!marker) {
+      continue;
+    }
 
-      // Each name keeps a marker of its own, so the read after the addresses
-      // can tell an `@` this code wrote from an `@` the sender typed, as in
-      // "meet @ 5pm".
-      return label ? `@${MENTION_MARKER}${index}${MENTION_MARKER}${label}` : "";
-    },
-  );
+    const index = marker[1] ?? "";
+    const start = marker.index;
+    tail = `${oneLine.slice(start + marker[0].length, cursor)}${tail}`;
+
+    // A name that starts an address the words after it finish is cut where
+    // that address starts, before the name reaches the line at all.
+    const label = whatNamesSomeone(
+      withoutSeamAddress(labels[Number(index)] ?? "", tail),
+    );
+
+    labels[Number(index)] = label;
+    // Each name keeps a marker of its own, so the read after the addresses
+    // can tell an `@` this code wrote from an `@` the sender typed, as in
+    // "meet @ 5pm".
+    tail = label
+      ? `@${MENTION_MARKER}${index}${MENTION_MARKER}${label}${tail}`
+      : tail;
+    cursor = start;
+  }
+
+  const withNames = `${oneLine.slice(0, cursor)}${tail}`;
 
   // A name and the words around it can spell an address between them: a
   // member named `www` and a message reading `@<id>:x.evil.test` put one on
