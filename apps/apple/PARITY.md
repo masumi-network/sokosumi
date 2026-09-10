@@ -2,18 +2,11 @@
 
 ## Resume checkpoint
 
-- Current slice: **10 — rich message text**. Native dependency [PR #4368](https://github.com/masumi-network/sokosumi/pull/4368) merged. Rendering remains in progress on `codex/apple-rich-message-rendering`; no renderer PR yet.
-- Grammar prerequisite [PR #4370](https://github.com/masumi-network/sokosumi/pull/4370) is merged. The rendering implementation remains on `codex/apple-rich-message-rendering` and is not included here.
-- Current approved prerequisite: [PR #4374](https://github.com/masumi-network/sokosumi/pull/4374), `codex/apple-markdown-parser-dependencies`, based on main at `acca42086`. Adds SwiftSoup 2.13.9, swift-markdown 0.8.0 (test-target products), and licensed emoji JSON resources from emojilib 2.4.0 / emoticon 4.1.0. User explicitly approved all three on 2026-09-10.
-- Verification: 183 Chat tests pass, including preservation of empty code/table structure, malformed HTML/entity parsing and emoji bundle loading. Xcode app build/tests, iOS 17 cross-build of the Chat test target (including both parsers), strict SwiftLint and SwiftFormat passed. Other package suites: Auth 34, CoreAPI 1, Realtime 27 passed. Emoji regeneration reproduced the recorded hashes.
-- Next: merge this separate dependency PR before switching back to and rebasing the rendering branch. The renderer still needs HTML/Markdown integration and emoji conversion; this PR adds no rendering behavior. The user confirmed improved scrolling on that separate branch.
-- The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
-
-### PR #4361 minor review follow-up
-
-- Clear the active parent after successful stream settlement; preserve failed-send parent routing. Thread thinking uses the same reasoning fallback as the room.
-- Settlement reuses a successful initial load that it opened after the room refresh; existing threads still refresh. Regression assertions cover one thread GET for reopen/resume and immediate parent cleanup.
-- Verification: Chat 174 tests passed, Xcode app build/tests passed, Swift lint clean.
+- Current slice: **10 — rich message text**, incomplete. Renderer work is preserved on `codex/apple-rich-message-rendering`; no renderer PR yet.
+- Current prerequisite: [PR #4382](https://github.com/masumi-network/sokosumi/pull/4382), `codex/apple-graphql-less-dependencies`, based on main `5551c36a653490204d66f0efbb2e352225eba67a`. The user approved GraphQL and LESS native grammars on 2026-09-10. GraphQL uses unchanged upstream C sources in a local SwiftPM target; LESS uses an exact-revision Swift package. Both parsers are linked only by dependency tests. Queries and MIT notices are bundled. See [provenance](docs/graphql-less-grammars.md).
+- Verification: all 185 Chat tests pass, including actual highlight captures and Unicode ranges for both grammars. Xcode app build/tests and arm64 iOS 17 compilation of the Chat test target pass. Auth 34, Realtime 27 and CoreAPI 1 tests also pass (247 package tests total). SwiftFormat and strict SwiftLint pass for changed Swift files. Logs: `/tmp/apple-graphql-less-tests.log`, `/tmp/apple-graphql-less-xcode.log`, `/tmp/apple-graphql-less-ios.log`.
+- Next: wait for this dependency PR to merge, then rebase the renderer branch and integrate these grammars. Registry/detection, remaining HTML behavior and visual checks remain unfinished. No new user-facing rendering behavior is claimed by this prerequisite.
+- Preserve the user's stashed Xcode project ordering edit (`apple-user-project-reorder-graphql-pr`) when returning to the renderer branch. The recurring automation remains deleted.
 
 ## Scope and audit baseline
 
