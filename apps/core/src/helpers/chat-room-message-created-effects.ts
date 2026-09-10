@@ -76,7 +76,7 @@ export async function emitChatRoomMessageCreatedEffects(
 ): Promise<void> {
   const memberUserIds = await getMemberUserIds(params);
   const results = await Promise.allSettled([
-    invalidateChatRoomMessageReaders({ ...params, memberUserIds }),
+    invalidateChatRoomMessageReaders({ roomId: params.roomId, memberUserIds }),
     emitChatRoomMessageNotifications(params, memberUserIds),
   ]);
   for (const result of results) {
@@ -88,7 +88,6 @@ export async function emitChatRoomMessageCreatedEffects(
 
 interface ChatRoomMessageReaders {
   roomId: string;
-  authorUserId: string | null;
   memberUserIds?: readonly string[];
 }
 
@@ -106,15 +105,13 @@ async function getMemberUserIds(
   );
 }
 
-/** After commit only. Unread attention does not depend on notification settings. */
+/** After commit: refresh every member, including the author’s other tabs. */
 export async function invalidateChatRoomMessageReaders(
   params: ChatRoomMessageReaders,
 ): Promise<void> {
   try {
     const memberUserIds = await getMemberUserIds(params);
-    const userIds = [
-      ...new Set(memberUserIds.filter((id) => id !== params.authorUserId)),
-    ];
+    const userIds = [...new Set(memberUserIds)];
     if (userIds.length === 0) return;
     await publishChatRoomsChanged({
       userIds,

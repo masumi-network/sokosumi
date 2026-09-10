@@ -126,7 +126,6 @@ export async function publishChatRoomMembershipStatusMessagesBestEffort(
       await Promise.all([
         invalidateChatRoomMessageReaders({
           roomId: message.roomId,
-          authorUserId: message.senderUserId,
         }),
         publishChatRoomMessageRealtime(message, "create"),
       ]);
