@@ -22,7 +22,9 @@ export function MembershipStatusRow({ message }: { message: ChatRoomMessage }) {
       id={`message-${message.id}`}
       data-message-id={message.id}
       data-membership-status={membership.action}
-      className="flex items-center justify-center py-2"
+      // relative isolate: a jump can land here too, and the highlight in
+      // globals.css paints on ::before/::after at z-index -1.
+      className="relative isolate flex items-center justify-center py-2"
       role="status"
     >
       <p className="text-muted-foreground text-center text-xs">{text}</p>
