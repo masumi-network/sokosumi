@@ -330,3 +330,9 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 - User screenshots showed the alignment-guide implementation left Reply inside the highlight. Replaced it with an explicit upward offset of half the button height; the height scales with the body text size.
 - Removed sidebar hover suppression at the user’s request. Sidebar and message hover states remain independent.
 - Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/reply-offset-final-build.log`, `/tmp/reply-offset-final-lint.log`). Native visual confirmation remains manual.
+
+### Slice 08 review fixes (2026-09-10)
+
+- `RoomOutbox` now reports HTTP success even when a realtime echo already removed the shell, matching web's `drainClassicOutboundQueue`. Previously the own-reply thread count and room reply link stayed stale whenever the echo beat the 201. A send that times out and is confirmed only by its echo still does not count, same as web.
+- Reply counts use Foundation inflection (`1 reply`, `2 replies`).
+- Chat 150 tests in 16 suites passed, including a new echo-first thread regression that failed before the fix. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` passed. SwiftFormat required no changes; strict SwiftLint found zero violations.
