@@ -400,13 +400,13 @@ export function scrollToRoomMessageElement(
 }
 
 const ROOM_MESSAGE_HIGHLIGHT_MS = 2500;
-const ROOM_MESSAGE_HIGHLIGHT_CLASSES = [
-  "ring-2",
-  "ring-primary",
-  "bg-primary/20",
-] as const;
 
-/** Scroll into view and apply a short-lived highlight when the node exists. */
+/**
+ * Scroll into view and mark the row as landed for a moment when the node
+ * exists. The row styles the mark itself, off `data-search-landed`, so a
+ * React re-render inside that moment cannot wipe it, as it would a class
+ * added here.
+ */
 export function highlightRoomMessageElement(messageId: string): boolean {
   if (!scrollToRoomMessageElement(messageId, { behavior: "auto" })) {
     return false;
@@ -418,10 +418,8 @@ export function highlightRoomMessageElement(messageId: string): boolean {
     return false;
   }
   target.dataset.searchLanded = "true";
-  target.classList.add(...ROOM_MESSAGE_HIGHLIGHT_CLASSES);
   window.setTimeout(() => {
     delete target.dataset.searchLanded;
-    target.classList.remove(...ROOM_MESSAGE_HIGHLIGHT_CLASSES);
   }, ROOM_MESSAGE_HIGHLIGHT_MS);
   return true;
 }
