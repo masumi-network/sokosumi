@@ -163,8 +163,6 @@ export {
   DRIVE_FOLDER_MARKER_BASENAME,
   isDriveFolderMarker,
   isDriveFolderMarkerName,
-  isOwnedOrganizationDriveFileUrl,
-  isOwnedUserDriveFileUrl,
   normalizeDriveFolderPath,
   sanitizeDriveFileName,
   validateDriveFolderPath,
