@@ -219,3 +219,18 @@ iOS 17 compilation and lint/format passed (`/tmp/apple-alias-*.log`). This gives
 31 native grammar choices; it does not complete the web registry. Embedded JSP,
 Objective-C++, IPython and the remaining registry entries require further
 syntax coverage work, as do automatic detection and full rendering verification.
+
+## Bare-domain linkification
+
+`MarkdownBareDomains` applies the web utility's allowlist, filename exclusions,
+code/link scanning, and Markdown escaping before Foundation parsing. Scheme URLs,
+www hosts, emails, IP addresses, localhost and unknown TLDs are left to their
+existing behavior. The transformation is display-only and never changes stored
+messages. Existing task recognition uses the transformed source positions.
+
+Tests cover domains with paths/query/fragments, punctuation, escaped path text,
+code fences/inline code, titled links, excluded tokens, Unicode prose and native
+link/task integration. All 202 Chat tests, Xcode app build/tests, iOS 17 compilation
+and changed-file lint/format passed (`/tmp/apple-domain-*.log`). Full slice 10
+remains incomplete: HTML/underline, emoji conversion, empty block preservation,
+expansion, remaining syntax coverage/detection and visual verification remain.

@@ -54,7 +54,8 @@ public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
 
   public init(_ source: String, baseURL: URL? = nil) {
-    let source = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+    let normalizedSource = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+    let source = MarkdownBareDomains(normalizedSource).linkified()
     let parsed: AttributedString
     do {
       parsed = try AttributedString(
