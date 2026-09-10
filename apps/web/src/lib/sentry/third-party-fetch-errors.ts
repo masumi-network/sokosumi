@@ -68,7 +68,18 @@ const bareTransientNetworkFailurePattern =
  */
 const bareNetworkErrorPattern = /^(?:TypeError: )?network error$/i;
 
-export const bareNetworkErrorIgnoreErrors: RegExp[] = [bareNetworkErrorPattern];
+/**
+ * Firefox TypeError/DOMException for a failed fetch (SOKOSUMI-MY).
+ * Ably authCallback passes `error.message` as a string, so Ably wraps it as
+ * ErrorInfo 40170 with quotes around the message (SOKOSUMI-S1).
+ */
+const firefoxFetchNetworkErrorPattern =
+  /^(?:TypeError: )?"?NetworkError when attempting to fetch resource\."?$/;
+
+export const bareNetworkErrorIgnoreErrors: RegExp[] = [
+  bareNetworkErrorPattern,
+  firefoxFetchNetworkErrorPattern,
+];
 
 /** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13, SOKOSUMI-JB). */
 export const thirdPartyScriptDenyUrls: RegExp[] = [
@@ -136,7 +147,10 @@ export function isBareTransientNetworkFailure(message: string): boolean {
 }
 
 export function isBareNetworkError(message: string): boolean {
-  return bareNetworkErrorPattern.test(message);
+  return (
+    bareNetworkErrorPattern.test(message) ||
+    firefoxFetchNetworkErrorPattern.test(message)
+  );
 }
 
 export function beforeSendClientEvent(
