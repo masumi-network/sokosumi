@@ -252,6 +252,9 @@ export function ThreadPanel({
         <div ref={scrollerRef} className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
           <div
             ref={contentRef}
+            // A jump can land in a thread too, so the spotlight in globals.css
+            // scopes to this list the same way it does the room transcript.
+            data-chat-message-list
             className="flex min-w-0 w-full flex-col justify-end px-4 pt-4 pb-0"
             style={
               contentMinHeight != null

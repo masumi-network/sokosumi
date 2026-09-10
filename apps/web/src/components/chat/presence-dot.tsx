@@ -25,7 +25,8 @@ const GROUND_CLASSES = {
  * in the ground, the same colour as the ring around the mark, because that is
  * what makes the shape read as a crescent: any other colour turns it into a
  * disc with a dot on it. Any smaller offset reads as a dent rather than a bite;
- * any larger one thins the crescent past legibility at an 8px core.
+ * any larger one thins the crescent past legibility at a 6px core, the
+ * smallest this mark is drawn at.
  */
 const CRESCENT_BITE = "translate-x-[32%] -translate-y-[32%] scale-[0.72]";
 
@@ -74,11 +75,11 @@ export function PresenceDot({
         // design, so without the clip the ring thins wherever the bite crosses
         // it, and any fill other than the ground would show as a second circle.
         //
-        // 10px with a 1px halo leaves the 8px core the crescent and the hollow
-        // ring are drawn for, sized for the 24 to 32px avatars most surfaces
-        // use. Whole pixels only: a 1.5px halo blurs on 1x displays. The 20px
-        // sidebar row and the inline marks drop the halo (`size-2 border-0`)
-        // to keep that core; the 48px hover card raises the mark to `size-3`.
+        // 10px with a 1px halo leaves an 8px core, sized for the 24 to 32px
+        // avatars most surfaces use. Whole pixels only: a 1.5px halo blurs on
+        // 1x displays. The 20px sidebar row goes down to `size-2` (6px core),
+        // the inline marks next to text drop the halo (`border-0`), and the
+        // 48px hover card raises the mark to `size-3`.
         "relative block size-2.5 overflow-hidden rounded-full border",
         ring,
         presence === "online" && "bg-presence-online",
@@ -95,12 +96,14 @@ export function PresenceDot({
       {/* The offline stroke is the mark itself, so its width is fixed rather
           than inherited from the ring above. Callers override that ring
           (`border-0`) to tune the halo against their ground; inheriting here
-          would erase the mark wherever the halo is `border-0`.
+          would erase the mark wherever the halo is `border-0`. 1px is the
+          widest stroke that still leaves a hole in the 6px sidebar core; 2px
+          turns that state into a solid grey dot.
           The disc behind it is filled with the ground rather than left clear,
           so the hollow state reads as a ring and not as a hole showing the
           avatar underneath. */}
       {presence === "offline" ? (
-        <span className="border-presence-offline absolute inset-0 rounded-full border-2" />
+        <span className="border-presence-offline absolute inset-0 rounded-full border" />
       ) : null}
     </span>
   );
