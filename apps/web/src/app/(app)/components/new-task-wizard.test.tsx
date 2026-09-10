@@ -132,12 +132,18 @@ describe("NewTaskWizard", () => {
 
   it("closes with an error toast when the lists fail to load", async () => {
     loadNewTaskWizardOptionsMock.mockRejectedValue(new Error("core down"));
+    const onClose = vi.fn();
 
-    renderWizard();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <NewTaskWizard instance={1} onClose={onClose} />
+      </QueryClientProvider>,
+    );
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith("loadCreateTask"),
     );
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(screen.getByTestId("task-form-modal")).toHaveAttribute(
       "data-open",
       "false",

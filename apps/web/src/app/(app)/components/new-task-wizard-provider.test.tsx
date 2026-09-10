@@ -15,11 +15,23 @@ vi.mock("next/dynamic", async () => {
   const { useEffect } = await import("react");
   return {
     default: () =>
-      function NewTaskWizardMock({ instance }: { instance: number }) {
+      function NewTaskWizardMock({
+        instance,
+        onClose,
+      }: {
+        instance: number;
+        onClose?: () => void;
+      }) {
         useEffect(() => {
           wizardMountSpy(instance);
         }, [instance]);
-        return <div data-testid="new-task-wizard" data-instance={instance} />;
+        return (
+          <div data-testid="new-task-wizard" data-instance={instance}>
+            <button type="button" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        );
       },
   };
 });
@@ -79,6 +91,26 @@ describe("NewTaskWizardProvider", () => {
     expect(screen.getByTestId("new-task-wizard")).toHaveAttribute(
       "data-instance",
       "2",
+    );
+  });
+
+  it("unmounts the wizard on close so the next open is a new mount", () => {
+    render(
+      <NewTaskWizardProvider>
+        <NewTaskTrigger />
+      </NewTaskWizardProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "New Task" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByTestId("new-task-wizard")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Task" }));
+
+    expect(screen.getByTestId("new-task-wizard")).toHaveAttribute(
+      "data-instance",
+      "1",
     );
   });
 

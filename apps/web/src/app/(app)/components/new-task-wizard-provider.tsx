@@ -52,7 +52,8 @@ interface NewTaskWizardProviderProps {
 /**
  * App-wide New Task wizard, opened in place from the sidebar. Every open
  * mounts a fresh wizard (keyed) so its lists reload for the current
- * workspace; the wizard closes itself.
+ * workspace. Dismiss unmounts it so the options query does not keep
+ * refetching behind a closed modal.
  */
 export function NewTaskWizardProvider({
   children,
@@ -65,11 +66,19 @@ export function NewTaskWizardProvider({
     setOpenCount((count) => count + 1);
   }, []);
 
+  const closeNewTaskWizard = useCallback(() => {
+    setOpenCount(0);
+  }, []);
+
   return (
     <NewTaskWizardContext value={{ openNewTaskWizard }}>
       {children}
       {openCount > 0 ? (
-        <NewTaskWizard key={openCount} instance={openCount} />
+        <NewTaskWizard
+          key={openCount}
+          instance={openCount}
+          onClose={closeNewTaskWizard}
+        />
       ) : null}
     </NewTaskWizardContext>
   );
