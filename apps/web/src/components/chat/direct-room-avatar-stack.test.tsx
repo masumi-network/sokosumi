@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +19,9 @@ vi.mock("next-intl", () => ({
       coworkerBadge: "AI coworker",
       humanBadge: "Human",
       openDirectMessage: "Message",
+      "Presence.online": "Online",
+      "Presence.afk": "Away",
+      "Presence.offline": "Offline",
     };
     return labels[key] ?? key;
   },
@@ -38,10 +41,6 @@ vi.mock("@/components/ui/hover-card", () => ({
     children: ReactNode;
     "data-testid"?: string;
   }) => <div {...props}>{children}</div>,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => <span data-testid="presence-dot" />,
 }));
 
 vi.mock(
@@ -82,6 +81,17 @@ function makeCoworker(id: string, name: string, slug: string) {
   };
 }
 
+function makeSokoBot(id: string, name: string) {
+  return {
+    id,
+    name,
+    caption: `${name} caption`,
+    image: null as string | null,
+    avatarSeed: null as string | null,
+    presence: "offline" as const,
+  };
+}
+
 function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "dm-1",
@@ -113,6 +123,72 @@ describe("DirectRoomAvatarStack", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     openDirectMock.mockResolvedValue({ ok: true, roomId: "dm-2" });
+  });
+
+  it("states availability on a 1:1 row and stays silent on a group row", () => {
+    const { unmount } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom()}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    // A two-person direct gets no roster panel, so this row is the only place
+    // availability can reach a screen reader at all. Assert it is reachable,
+    // not merely in the DOM: getByText finds text inside aria-hidden too.
+    const solo = screen.getByTestId("dm-sidebar-avatar-patrick");
+    expect(
+      within(solo).getByText("Online").closest("[aria-hidden]"),
+    ).toBeNull();
+    unmount();
+
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    // A group row's label already lists these people, so per-face states would
+    // make the link speak every name twice. The roster panel reports there.
+    expect(
+      within(screen.getByTestId("dm-sidebar-avatar-alice")).queryByText(
+        "Online",
+      ),
+    ).toBeNull();
+  });
+
+  it("reports a soko bot as online whatever its own presence says", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [makeUser("me", "Me")],
+          sokoBotMembers: [makeSokoBot("bot-1", "Zero")],
+        })}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    // Soko bots are AI and report always-online (ADR-0003), same as coworkers.
+    // Miss that arm and the mark says "Offline" while the hover card on the
+    // same avatar says "Online". The mark is aria-hidden, so its tooltip is
+    // where that state is observable.
+    const trigger = screen.getByTestId("dm-sidebar-avatar-bot-1");
+    expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
+      "Online",
+    );
   });
 
   it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {

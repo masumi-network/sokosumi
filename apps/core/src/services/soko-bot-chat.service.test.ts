@@ -5,6 +5,10 @@ const {
   mentionUpdateMany,
   messageUpdate,
   messageDelete,
+  messageCreate,
+  messageFindFirst,
+  roomFindFirst,
+  sokoBotFindFirst,
   roomUpdate,
   publish,
 } = vi.hoisted(() => ({
@@ -12,18 +16,36 @@ const {
   mentionUpdateMany: vi.fn(),
   messageUpdate: vi.fn(),
   messageDelete: vi.fn(),
+  messageCreate: vi.fn(),
+  messageFindFirst: vi.fn(),
+  roomFindFirst: vi.fn(),
+  sokoBotFindFirst: vi.fn(),
   roomUpdate: vi.fn(),
   publish: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomUserMember: {
+      findMany: vi.fn().mockResolvedValue([{ userId: "reader" }]),
+    },
+    sokoBot: { findFirst: sokoBotFindFirst },
     sokoBotTurn: { findUnique: turnFindUnique },
-    chatRoomMessage: { update: messageUpdate, updateMany: messageUpdate },
+    chatRoom: { findFirst: roomFindFirst },
+    chatRoomMessage: {
+      update: messageUpdate,
+      updateMany: messageUpdate,
+      findFirst: messageFindFirst,
+      create: messageCreate,
+    },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
         chatRoomMention: { updateMany: mentionUpdateMany },
-        chatRoomMessage: { update: messageUpdate, delete: messageDelete },
+        chatRoomMessage: {
+          update: messageUpdate,
+          delete: messageDelete,
+          create: messageCreate,
+        },
         chatRoom: { update: roomUpdate },
       }),
     ),
@@ -33,8 +55,16 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publish,
 }));
 
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
+
 import {
+  deliverSokoBotTurnToDirectRoom,
   finalizeSokoBotChatTurn,
+  introduceSokoBot,
   publishSokoBotChatProgress,
 } from "./soko-bot-chat.service";
 
@@ -68,6 +98,14 @@ beforeEach(() => {
   mentionUpdateMany.mockResolvedValue({ count: 1 });
   messageUpdate.mockResolvedValue({ id: "response-a" });
   messageDelete.mockResolvedValue({ id: "response-a" });
+  messageCreate.mockResolvedValue({ id: "msg-new" });
+  messageFindFirst.mockResolvedValue(null);
+  roomFindFirst.mockResolvedValue({ id: "room-a" });
+  sokoBotFindFirst.mockResolvedValue({
+    id: "bot-a",
+    name: "Eve",
+    user: { name: "Ada" },
+  });
   roomUpdate.mockResolvedValue({ id: "room-a" });
   publish.mockResolvedValue(undefined);
 });
@@ -79,6 +117,11 @@ describe("finalizeSokoBotChatTurn", () => {
       .mockResolvedValueOnce({ count: 0 });
     await finalizeSokoBotChatTurn("turn-a");
     await finalizeSokoBotChatTurn("turn-a");
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["reader"],
+      roomId: "room-a",
+      collections: ["active"],
+    });
     expect(messageUpdate).toHaveBeenCalledOnce();
     expect(roomUpdate).toHaveBeenCalledOnce();
     expect(publish).toHaveBeenCalledTimes(2);
@@ -91,6 +134,34 @@ describe("finalizeSokoBotChatTurn", () => {
       data: { content: "The answer is ready.", metadata: expect.any(Object) },
     });
     expect(messageUpdate.mock.calls[0][0].data).not.toHaveProperty("createdAt");
+  });
+
+  it("does not invalidate a completed turn with an empty answer", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ finalAnswer: "", chainDepth: 0 }),
+    );
+    await finalizeSokoBotChatTurn("turn-a");
+    expect(mentionUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "failed" }),
+      }),
+    );
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
+    expect(publish).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishes the response while control fan-out is pending", async () => {
+    const control = Promise.withResolvers<void>();
+    vi.mocked(publishChatRoomsChanged).mockReturnValueOnce(control.promise);
+    const finishing = finalizeSokoBotChatTurn("turn-a");
+    try {
+      await vi.waitFor(() =>
+        expect(publish).toHaveBeenCalledWith("response-a", "update"),
+      );
+    } finally {
+      control.resolve();
+      await finishing;
+    }
   });
 
   it("does not overwrite a response after another finalizer wins", async () => {
@@ -135,6 +206,54 @@ describe("finalizeSokoBotChatTurn", () => {
     await finalizeSokoBotChatTurn("turn-a");
     expect(messageDelete).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+describe("introduceSokoBot", () => {
+  it("invalidates readers after the introduction is committed", async () => {
+    const result = await introduceSokoBot({
+      userId: "owner",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    expect(result).toEqual({ messageId: "msg-new" });
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["reader"],
+      roomId: "room-a",
+      collections: ["active"],
+    });
+  });
+
+  it("does not invalidate when the bot already introduced itself", async () => {
+    messageFindFirst.mockResolvedValue({ id: "msg-existing" });
+    const result = await introduceSokoBot({
+      userId: "owner",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    expect(result).toEqual({ messageId: "msg-existing" });
+    expect(messageCreate).not.toHaveBeenCalled();
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
+  });
+});
+
+describe("deliverSokoBotTurnToDirectRoom", () => {
+  it("invalidates readers after posting a non-chat turn into the direct room", async () => {
+    turnFindUnique.mockResolvedValue({
+      source: "SCHEDULE",
+      status: "COMPLETED",
+      finalAnswer: "Here is the digest.",
+      userId: "owner",
+      chatMention: null,
+      sokoBotId: "bot-a",
+    });
+    await deliverSokoBotTurnToDirectRoom("turn-a");
+    expect(messageCreate).toHaveBeenCalledOnce();
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["reader"],
+      roomId: "room-a",
+      collections: ["active"],
+    });
   });
 });
 

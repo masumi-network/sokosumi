@@ -84,6 +84,23 @@ struct DirectStreamTests {
     #expect(messages.first?["parts"] as? [[String: String]] == [["type": "text", "text": "Hello"]])
   }
 
+  @Test func threadSendCarriesParentWithoutChangingRoomOrUserMessage() async throws {
+    let transport = TestTransport([(200, "")])
+    _ = try await ChatService().startDirectStream(
+      client: makeTestClient(transport), roomId: testRoomId, organizationSlug: "team",
+      messageId: "turn", text: "Thread reply", parentMessageId: "parent"
+    )
+    let json = try testRequestJSON(#require(transport.bodies.first))
+    #expect(json["parentMessageId"] as? String == "parent")
+    #expect(json["roomId"] as? String == testRoomId)
+    #expect(json["id"] as? String == testRoomId)
+    let messages = try #require(json["messages"] as? [[String: Any]])
+    #expect(messages.count == 1)
+    #expect(messages.first?["id"] as? String == "turn")
+    #expect(messages.first?["parts"] as? [[String: String]] == [["type": "text", "text": "Thread reply"]])
+    #expect(try testOrgSlugHeader(#require(transport.requests.first).request) == "team")
+  }
+
   @Test func idleResumeHasNoStreamAndPersonalOmitsWorkspace() async throws {
     let transport = TestTransport([(204, "")])
     let body = try await ChatService().resumeDirectStream(

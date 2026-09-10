@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  findRoomMembersMock,
   findUniqueMessageMock,
   publishChatRoomMessageEventMock,
   mapChatRoomMessageMock,
 } = vi.hoisted(() => ({
+  findRoomMembersMock: vi.fn().mockResolvedValue([{ userId: "user_b" }]),
   findUniqueMessageMock: vi.fn(),
   publishChatRoomMessageEventMock: vi.fn(),
   mapChatRoomMessageMock: vi.fn(),
@@ -12,6 +14,9 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomUserMember: {
+      findMany: findRoomMembersMock,
+    },
     chatRoomMessage: {
       findUnique: (...args: unknown[]) => findUniqueMessageMock(...args),
     },
@@ -19,6 +24,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
   publishChatRoomMessageEvent: (...args: unknown[]) =>
     publishChatRoomMessageEventMock(...args),
 }));
@@ -34,7 +40,9 @@ vi.mock("@/schemas/chat-room.schema", () => ({
   },
 }));
 
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import {
+  publishChatRoomMembershipStatusMessagesBestEffort,
   publishChatRoomMessageRealtime,
   publishChatRoomMessageRealtimeById,
 } from "./chat-room-message-realtime";
@@ -70,10 +78,64 @@ const viewerNeutralDto = {
 describe("publishChatRoomMessageRealtime", () => {
   beforeEach(() => {
     findUniqueMessageMock.mockReset();
+    findRoomMembersMock.mockReset();
     publishChatRoomMessageEventMock.mockReset();
     mapChatRoomMessageMock.mockReset();
+    findRoomMembersMock.mockResolvedValue([{ userId: "user_b" }]);
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
+  });
+
+  it("invalidates all members after committed membership messages, but not generic replay", async () => {
+    findRoomMembersMock.mockResolvedValueOnce([
+      { userId: "user_a" },
+      { userId: "user_b" },
+    ]);
+    vi.mocked(publishChatRoomsChanged).mockClear();
+    await publishChatRoomMembershipStatusMessagesBestEffort([
+      baseMessage as never,
+    ]);
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["user_a", "user_b"],
+      roomId: baseMessage.roomId,
+      collections: ["active"],
+    });
+    await publishChatRoomMessageRealtime(baseMessage as never, "create");
+    expect(publishChatRoomsChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips members whose collection refresh is sent separately", async () => {
+    vi.mocked(publishChatRoomsChanged).mockClear();
+    await publishChatRoomMembershipStatusMessagesBestEffort(
+      [baseMessage as never],
+      {
+        logContext: "chat invitation acceptance",
+        separatelyNotifiedUserIds: ["user_b"],
+      },
+    );
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledOnce();
+  });
+
+  it("still notifies remaining members when a separately notified member is excluded", async () => {
+    vi.mocked(publishChatRoomsChanged).mockClear();
+    findRoomMembersMock.mockResolvedValue([
+      { userId: "user_guest" },
+      { userId: "user_other" },
+    ]);
+    await publishChatRoomMembershipStatusMessagesBestEffort(
+      [{ ...baseMessage, senderUserId: null } as never],
+      {
+        logContext: "chat invitation acceptance",
+        separatelyNotifiedUserIds: ["user_guest"],
+      },
+    );
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["user_other"],
+      roomId: baseMessage.roomId,
+      collections: ["active"],
+    });
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledOnce();
   });
 
   it("maps once without a viewer id and publishes once to the room channel", async () => {
@@ -192,8 +254,10 @@ describe("publishChatRoomMessageRealtime", () => {
 describe("publishChatRoomMessageRealtimeById", () => {
   beforeEach(() => {
     findUniqueMessageMock.mockReset();
+    findRoomMembersMock.mockReset();
     publishChatRoomMessageEventMock.mockReset();
     mapChatRoomMessageMock.mockReset();
+    findRoomMembersMock.mockResolvedValue([{ userId: "user_b" }]);
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
   });

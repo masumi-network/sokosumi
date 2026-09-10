@@ -2,7 +2,36 @@ import { describe, expect, it } from "vitest";
 import {
   buildChatMessagePreview,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+  readChatMentionKeys,
 } from "./chat-message-preview";
+
+describe("readChatMentionKeys", () => {
+  it("reads the key of every mention, once each and in order", () => {
+    expect(
+      readChatMentionKeys(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada @all:all @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada again",
+      ),
+    ).toEqual(["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "all"]);
+  });
+
+  /** A uuid is stored lowercased, so a key is looked up that way. */
+  it("reads a key written in capitals as the id it stands for", () => {
+    expect(
+      readChatMentionKeys("@019FC7E4-E4BD-7005-900C-66E44D33F5E4:Ada hi"),
+    ).toEqual(["019fc7e4-e4bd-7005-900c-66e44d33f5e4"]);
+  });
+
+  it("reads the key of a mention whose slug is empty", () => {
+    expect(
+      readChatMentionKeys("@019fc7e4-e4bd-7005-900c-66e44d33f5e4: hi"),
+    ).toEqual(["019fc7e4-e4bd-7005-900c-66e44d33f5e4"]);
+  });
+
+  /** The same rule the preview reads by: a time is not a mention. */
+  it("reads nothing from text that only looks like a mention", () => {
+    expect(readChatMentionKeys("standup @10:30am")).toEqual([]);
+  });
+});
 
 describe("buildChatMessagePreview", () => {
   it("reads a plain message back as it was written", () => {
@@ -17,6 +46,598 @@ describe("buildChatMessagePreview", () => {
         "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada can you take this one",
       ),
     ).toBe("@Ada can you take this one");
+  });
+
+  /**
+   * The slug in a token is the name rewritten to lowercase ascii words, so a
+   * banner reading it back spells a person's name differently from the room.
+   * The map is what the caller looked up, and it wins.
+   */
+  it("shows a mention as the name the room shows, not its slug", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace can you take this one",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("@Ada Lovelace can you take this one");
+  });
+
+  /**
+   * A name the slug rule keeps nothing of leaves the token with no slug at
+   * all, and the id is what a reader would otherwise be shown.
+   */
+  it("shows a name the slug rule writes as nothing", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4: できますか",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "あかり"]]),
+      ),
+    ).toBe("@あかり できますか");
+  });
+
+  /**
+   * The markdown clean takes `* _ ~ > #` out of what it is handed, and a name
+   * is a person's to spell. So the name goes in after the clean.
+   */
+  it("keeps the punctuation a member spells their name with", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:c-r-d ping",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "C# R_D"]]),
+      ),
+    ).toBe("@C# R_D ping");
+  });
+
+  /**
+   * A slug is letters, digits, `_` and `-`. What follows one is the message,
+   * and reading it into the token deletes it: the comma below, and the
+   * bracket that closes the link in the two after it.
+   */
+  it("keeps the punctuation that follows a mention", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada, are you free?",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("@Ada Lovelace, are you free?");
+  });
+
+  it("shows only the label of a link whose address holds a mention", () => {
+    expect(
+      buildChatMessagePreview(
+        "[docs](https://example.test/@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada)",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("docs");
+  });
+
+  it("names a mention written inside a link label", () => {
+    expect(
+      buildChatMessagePreview(
+        "[hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada](https://example.test/p)",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("hi @Ada Lovelace");
+  });
+
+  it("names a mention written inside a code span", () => {
+    expect(
+      buildChatMessagePreview(
+        "code `@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada` end",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("code @Ada Lovelace end");
+  });
+
+  /**
+   * A slug stands in for a name the lookup does not carry. The markdown clean
+   * takes `_` out of what it is handed, and a slug is an ascii rewrite of a
+   * name already, so it says `adalovelace`. The rest of it stays.
+   */
+  it("says the slug when a name is missing", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada_lovelace hi",
+      ),
+    ).toBe("@adalovelace hi");
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace hi",
+      ),
+    ).toBe("@ada-lovelace hi");
+  });
+
+  /**
+   * One member can be mentioned twice, spelled two ways. Each mention says
+   * what its own slug says, and an empty slug says nothing about the next.
+   */
+  it("keeps the spelling of each mention of one member", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:bob hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+      ),
+    ).toBe("@bob hi @ada");
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: and @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada ok",
+      ),
+    ).toBe("hi and @ada ok");
+  });
+
+  /**
+   * A slug the room never shows is not a name. The clean drops a link
+   * destination whole, so the mention that survives keeps its own slug.
+   */
+  it("reads no slug out of a link destination", () => {
+    expect(
+      buildChatMessagePreview(
+        "[docs](https://e.test/@019fc7e4-e4bd-7005-900c-66e44d33f5e4:call_555_0100_now) hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+      ),
+    ).toBe("docs hi @ada");
+  });
+
+  /**
+   * A uuid is written with dashes and without, and a slug keeps either whole.
+   * A slug that spells the key is the id again, whichever way it is written.
+   */
+  it("says nothing for a slug that spells the key undashed", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4e4bd7005900c66e44d33f5e4 hi",
+      ),
+    ).toBe("hi");
+  });
+
+  /**
+   * A control character shows as nothing, or as a box, on a banner. It also
+   * hides an address from a rule that reads the characters an address is
+   * written with, so it goes before any of those rules run.
+   */
+  it("takes control characters out of a body and a name", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada\u0000 hi",
+      ),
+    ).toBe("@ada hi");
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www\u0000.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @ada");
+    expect(buildChatMessagePreview("see www\u0000.evil.test/pay now")).toBe(
+      "see now",
+    );
+  });
+
+  /**
+   * Every invisible character, not the ones a C0 range happens to name. Each
+   * of these hides an address from the rules that read one by its characters,
+   * and `U+202E` turns the rest of a banner back to front.
+   */
+  it("takes every invisible character out of a body", () => {
+    for (const invisible of [
+      "\u0085",
+      "\u0080",
+      "\u009f",
+      "\u00ad",
+      "\u200b",
+      "\u200e",
+      "\u2060",
+      "\ufeff",
+      "\ud800",
+    ]) {
+      expect(
+        buildChatMessagePreview(`see www${invisible}.evil.test/pay now`),
+      ).toBe("see now");
+    }
+
+    expect(buildChatMessagePreview("hello \u202edoog si live")).toBe(
+      "hello doog si live",
+    );
+  });
+
+  /**
+   * The joiner holds the parts of one emoji together, so it stays inside a
+   * name. Beside an ascii character it joins nothing a person wrote, and what
+   * it hides there is an address.
+   */
+  it("keeps a joiner inside an emoji and takes one beside ascii out", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "\u{1f468}\u200d\u{1f4bb}"],
+        ]),
+      ),
+    ).toBe("hi @\u{1f468}\u200d\u{1f4bb}");
+    expect(buildChatMessagePreview("see www\u200d.evil.test/pay now")).toBe(
+      "see now",
+    );
+  });
+
+  /**
+   * A variation selector says how to draw the character before it, and shows
+   * nothing itself. Beside ascii it hides an address the same way a joiner
+   * does. A keycap is the one place ascii carries one.
+   */
+  it("takes a variation selector beside ascii out and keeps a keycap", () => {
+    expect(buildChatMessagePreview("see www\ufe0e.evil.test/pay now")).toBe(
+      "see now",
+    );
+    expect(buildChatMessagePreview("see https\ufe0e://evil.test/pay now")).toBe(
+      "see now",
+    );
+    expect(buildChatMessagePreview("see www.\ufe0eevil.test/pay now")).toBe(
+      "see now",
+    );
+    expect(buildChatMessagePreview("pick 1\ufe0f\u20e3 or 2\ufe0f\u20e3")).toBe(
+      "pick 1\ufe0f\u20e3 or 2\ufe0f\u20e3",
+    );
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www\ufe0e.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @x");
+  });
+
+  /** An empty name is no name, so the slug is what is left to say who. */
+  it("keeps the slug when the lookup carries an empty name", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada hi",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", ""]]),
+      ),
+    ).toBe("@ada hi");
+  });
+
+  /**
+   * A reader cannot check an address from a lock screen, and the room is
+   * where they would open it anyway. So the words stay and the link goes.
+   */
+  it("says the words around a link the sender typed as words", () => {
+    expect(
+      buildChatMessagePreview("see https://example.test/a/b?q=1 for details"),
+    ).toBe("see for details");
+  });
+
+  it("takes an address written without a scheme", () => {
+    expect(buildChatMessagePreview("try www.example.test today")).toBe(
+      "try today",
+    );
+  });
+
+  /** The caller shows the line naming the author and the room instead. */
+  it("says nothing at all for a message that is only a link", () => {
+    expect(buildChatMessagePreview("https://example.test/a")).toBe("");
+  });
+
+  /** A label is words the sender wrote, and it is what the room shows. */
+  it("still says the label of a markdown link", () => {
+    expect(buildChatMessagePreview("[the plan](https://example.test/a)")).toBe(
+      "the plan",
+    );
+  });
+
+  /** The sender's words are read on their own, so an address ends with them. */
+  it("keeps a mention an address is written up against", () => {
+    expect(
+      buildChatMessagePreview(
+        "see https://example.test/x@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada please",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("see @Ada Lovelace please");
+  });
+
+  /**
+   * Chinese, Japanese and Thai are written without spaces. An address rule
+   * that waits for one never starts, and never ends either.
+   */
+  it("takes an address out of a sentence written without spaces", () => {
+    expect(buildChatMessagePreview("请访问www.example.test获取密码")).toBe(
+      "请访问获取密码",
+    );
+    expect(buildChatMessagePreview("見てhttps://example.test/xを")).toBe(
+      "見てを",
+    );
+  });
+
+  /**
+   * A scheme is named rather than read as a word before `://`. A rule that
+   * read one takes the word in front of the address with it.
+   */
+  it("keeps the word an address is written up against", () => {
+    expect(buildChatMessagePreview("Read the notes.https://example.test")).toBe(
+      "Read the notes.",
+    );
+    expect(buildChatMessagePreview("our cta-https://example.test today")).toBe(
+      "our cta- today",
+    );
+    expect(
+      buildChatMessagePreview("see the docs*https://example.test* now"),
+    ).toBe("see the docs now");
+  });
+
+  /**
+   * A display name is a member's to choose and nobody's to check. A member
+   * who renames themselves after an address would otherwise put one on every
+   * reader's lock screen.
+   */
+  it("takes an address out of a display name", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @ada");
+  });
+
+  it("names a member after an address in their name is taken out", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada https://evil.test"],
+        ]),
+      ),
+    ).toBe("hi @Ada");
+  });
+
+  /** The words before a name can spell one with it too. */
+  it("takes an address the message and a name spell together", () => {
+    expect(
+      buildChatMessagePreview(
+        "see www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz now",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "evil.test/pay"]]),
+      ),
+    ).toBe("see now");
+    expect(
+      buildChatMessagePreview(
+        "mail me at www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "evil.test/pay?x=1"],
+        ]),
+      ),
+    ).toBe("mail me at");
+  });
+
+  /** A name and the words after it can spell an address between them. */
+  it("takes an address a name and the message spell together", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x.evil.test",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www"]]),
+      ),
+    ).toBe("hi");
+  });
+
+  /**
+   * The `@` a person types is theirs. Only the one this code writes in front
+   * of a name is dropped, and only when the address rule took the name.
+   */
+  it("keeps an `@` the sender wrote as a word", () => {
+    expect(buildChatMessagePreview("meet @ 5pm at the cafe")).toBe(
+      "meet @ 5pm at the cafe",
+    );
+    expect(buildChatMessagePreview("rates @ 5% and @ 10%")).toBe(
+      "rates @ 5% and @ 10%",
+    );
+    expect(buildChatMessagePreview("price is 30 @")).toBe("price is 30 @");
+  });
+
+  /**
+   * The punctuation that closes a sentence comes back after an address goes.
+   * The `@` in front of the name the address took does not.
+   */
+  it("leaves no `@` behind when an address takes the whole name", () => {
+    const names = new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www"]]);
+
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz.evil.test/pay!",
+        names,
+      ),
+    ).toBe("!");
+    expect(
+      buildChatMessagePreview(
+        "(@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz.evil.test/pay)",
+        names,
+      ),
+    ).toBe("()");
+  });
+
+  /** A name the address rule cut down to punctuation names nobody either. */
+  it("names a member by their slug when an address leaves only a stop", () => {
+    expect(
+      buildChatMessagePreview(
+        "x @019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz y",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www.evil.test."]]),
+      ),
+    ).toBe("x @zz y");
+  });
+
+  /** A name of nothing but spaces names nobody, so the slug says who. */
+  it("names a member by their slug when their name is only spaces", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz there",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "  www.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @zz there");
+  });
+
+  /**
+   * A word rule guards the `www` inside a word a person wrote. It does not
+   * guard one a name and a message spell between them, by two hands.
+   */
+  it("takes an address a name ending in `www` starts", () => {
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x.evil.test/pay now",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Bobwww"]]),
+      ),
+    ).toBe("hi @Bob now");
+  });
+
+  /**
+   * A name is one hand's text throughout, so the word rule that guards a
+   * `www` inside a word guards nothing here: a member who writes a whole
+   * address into their name, one word character in front of it, is the case
+   * this rule exists for.
+   */
+  it("takes an address out of a name that reads as a word", () => {
+    const preview = (name: string) =>
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: now",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", name]]),
+      );
+
+    expect(preview("Bobwww.evil.test/pay")).toBe("hi @Bob now");
+    expect(preview("BobWWW.evil.test")).toBe("hi @Bob now");
+    expect(preview("Bobwww.evil.test Guy")).toBe("hi @Bob Guy now");
+    expect(preview("www.еvil.test/pay")).toBe("hi now");
+    expect(preview("Bobwww.еvil.test")).toBe("hi @Bob now");
+  });
+
+  /**
+   * A mention that names nobody leaves nothing on the line, so the name
+   * before it ends up against the words after it.
+   */
+  it("takes an address a dropped mention closes up into", () => {
+    expect(
+      buildChatMessagePreview(
+        "Hi @11111111-1111-4111-8111-111111111111:bob@22222222-2222-4222-8222-222222222222:.evil.test/pay",
+        new Map([["11111111-1111-4111-8111-111111111111", "Bobwww"]]),
+      ),
+    ).toBe("Hi @Bob");
+
+    // The mention between them is read first and names nobody either.
+    expect(
+      buildChatMessagePreview(
+        "Hi @11111111-1111-4111-8111-111111111111:bob@22222222-2222-4222-8222-222222222222:.evil.test/pay",
+        new Map([
+          ["11111111-1111-4111-8111-111111111111", "Bobwww"],
+          ["22222222-2222-4222-8222-222222222222", "_www"],
+        ]),
+      ),
+    ).toBe("Hi @Bobwww@_");
+  });
+
+  /** A mention that names someone stands between the words around it. */
+  it("keeps a name the mention after it holds apart from the words", () => {
+    expect(
+      buildChatMessagePreview(
+        "@11111111-1111-4111-8111-111111111111:x@22222222-2222-4222-8222-222222222222:y.evil.test",
+        new Map([
+          ["11111111-1111-4111-8111-111111111111", "Bobwww"],
+          ["22222222-2222-4222-8222-222222222222", "Ann"],
+        ]),
+      ),
+    ).toBe("@Bobwww@Ann.evil.test");
+  });
+
+  /** A name is a person's to choose, emoji and all. */
+  it("names a member whose name has no letter in it", () => {
+    expect(
+      buildChatMessagePreview(
+        "x @019fc7e4-e4bd-7005-900c-66e44d33f5e4: y",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "\u{1F389}"]]),
+      ),
+    ).toBe("x @\u{1F389} y");
+  });
+
+  /** The `www.` inside a word the sender wrote is a word. */
+  it("leaves a word that only ends in an address alone", () => {
+    expect(buildChatMessagePreview("seewww.example.test now")).toBe(
+      "seewww.example.test now",
+    );
+  });
+
+  /** The stop belongs to the sentence, not to the address. */
+  it("keeps the punctuation that closes a sentence around an address", () => {
+    expect(
+      buildChatMessagePreview("go to https://example.test/a. Then wait"),
+    ).toBe("go to . Then wait");
+  });
+
+  /**
+   * A scheme without `//` stays: a rule that took `mailto:a@e.test` would
+   * take `note:remember` and `TODO:ship` with it.
+   */
+  it("leaves a word that only looks like a scheme alone", () => {
+    expect(buildChatMessagePreview("note:remember the standup")).toBe(
+      "note:remember the standup",
+    );
+  });
+
+  /** A sentence is not an address, whatever the dots in it look like. */
+  it("leaves a word with a dot in it alone", () => {
+    expect(buildChatMessagePreview("node.js broke again, e.g. the build")).toBe(
+      "node.js broke again, e.g. the build",
+    );
+  });
+
+  /** The words around a dropped mention still read as one line. */
+  it("closes the line up around a mention it drops", () => {
+    expect(
+      buildChatMessagePreview(
+        "before @019fc7e4-e4bd-7005-900c-66e44d33f5e4: after",
+      ),
+    ).toBe("before after");
+  });
+
+  it("drops a mention that has neither a name nor a slug", () => {
+    expect(
+      buildChatMessagePreview("@019fc7e4-e4bd-7005-900c-66e44d33f5e4: hi"),
+    ).toBe("hi");
+  });
+
+  /**
+   * The composer writes the id as the slug for a soko bot whose name has no
+   * ascii in it, so the token reads `@<id>:<id>`. Once that bot leaves the
+   * room the lookup stops naming it, and the id must not stand in for a name.
+   */
+  it("drops a mention whose slug is the id again", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4-e4bd-7005-900c-66e44d33f5e4 ping",
+      ),
+    ).toBe("ping");
+  });
+
+  it("names that bot while the room still holds it", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4-e4bd-7005-900c-66e44d33f5e4 ping",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "そこ"]]),
+      ),
+    ).toBe("@そこ ping");
+  });
+
+  /** A key the lookup did not name is still written as the sender wrote it. */
+  it("keeps the slug of a mention the lookup does not name", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada hi",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e5", "Ben Green"]]),
+      ),
+    ).toBe("@Ada hi");
+  });
+
+  /** `all` names a room rather than a member, so it stands for itself. */
+  it("keeps a room-wide mention written without a slug", () => {
+    expect(buildChatMessagePreview("@all: standup in five")).toBe(
+      "@all standup in five",
+    );
   });
 
   it("shows a room-wide mention as the word the composer inserts", () => {
@@ -55,6 +676,16 @@ describe("buildChatMessagePreview", () => {
         "@019FC7E4-E4BD-7005-900C-66E44D33F5E4:Ada can you take this one",
       ),
     ).toBe("@Ada can you take this one");
+  });
+
+  /** The id is stored lowercased, and the token is not always written so. */
+  it("names a member whose key is written in capitals", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019FC7E4-E4BD-7005-900C-66E44D33F5E4:ada-lovelace hi",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("@Ada Lovelace hi");
   });
 
   /**

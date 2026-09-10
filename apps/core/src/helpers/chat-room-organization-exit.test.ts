@@ -17,7 +17,7 @@ const chatRoomUpdateManyMock = vi.fn();
 const guestInvitationUpdateManyMock = vi.fn();
 const guestInviteLinkUpdateManyMock = vi.fn();
 const recordChannelMembershipStatusMock = vi.fn();
-const publishChatRoomMessageRealtimeMock = vi.fn();
+const publishChatRoomMembershipStatusMessagesBestEffortMock = vi.fn();
 const publishChatMembershipRevokedMock = vi.fn();
 const transactionMock = vi.fn();
 
@@ -37,8 +37,8 @@ vi.mock("@/routes/v1/chats/rooms/membership-status", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: (...args: unknown[]) =>
-    publishChatRoomMessageRealtimeMock(...args),
+  publishChatRoomMembershipStatusMessagesBestEffort: (...args: unknown[]) =>
+    publishChatRoomMembershipStatusMessagesBestEffortMock(...args),
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -85,7 +85,9 @@ beforeEach(() => {
   guestInvitationUpdateManyMock.mockResolvedValue({ count: 0 });
   guestInviteLinkUpdateManyMock.mockResolvedValue({ count: 0 });
   recordChannelMembershipStatusMock.mockResolvedValue([{ id: "status-msg-1" }]);
-  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+  publishChatRoomMembershipStatusMessagesBestEffortMock.mockResolvedValue(
+    undefined,
+  );
   publishChatMembershipRevokedMock.mockResolvedValue(undefined);
   transactionMock.mockImplementation(async (callback) => callback(createTx()));
 });
@@ -354,7 +356,9 @@ describe("publishOrganizationExitChatRevocation", () => {
       statusMessages: [{ id: "m1" } as never, { id: "m2" } as never],
     });
 
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledTimes(2);
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledTimes(2);
     expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
       userId: "user_1",
       roomId: "room-a",

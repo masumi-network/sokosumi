@@ -27,7 +27,7 @@ const {
   queryRawMock,
   executeRawMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
   publishChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
@@ -42,7 +42,7 @@ const {
   queryRawMock: vi.fn(),
   executeRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
   publishChatRoomsChangedMock: vi.fn(),
 }));
 
@@ -57,7 +57,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffort:
+    publishChatRoomMembershipStatusMessagesBestEffortMock,
 }));
 
 const INVITE_ID = "550e8400-e29b-41d4-a716-446655440010";
@@ -247,7 +248,12 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(lockSql).toContain("FOR UPDATE");
     // No org Member create — only the host-membership check.
     expect(memberFindUniqueMock).toHaveBeenCalled();
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledOnce();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledExactlyOnceWith(expect.any(Array), {
+      logContext: "chat invitation acceptance",
+      separatelyNotifiedUserIds: [GUEST_ID],
+    });
     // Sidebar invalidation for the acceptor's other tabs (SOK-986).
     expect(publishChatRoomsChangedMock).toHaveBeenCalledWith({
       userIds: [GUEST_ID],
@@ -380,7 +386,9 @@ describe("POST /chats/invitations/{id}/accept", () => {
         }),
       }),
     );
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("accept does not demote concurrent host-member row on unique race", async () => {
@@ -402,7 +410,9 @@ describe("POST /chats/invitations/{id}/accept", () => {
     // Invite accept runs in beforeCreate; throwing after the unique race rolls
     // that write back with the rest of the transaction.
     expect(userMemberCreateMock).toHaveBeenCalled();
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("accept returns accepted when concurrent guest create races", async () => {
@@ -429,6 +439,11 @@ describe("POST /chats/invitations/{id}/accept", () => {
     const body = await response.json();
     expect(body.data.status).toBe("accepted");
     expect(userMemberCreateMock).toHaveBeenCalled();
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledExactlyOnceWith([], {
+      logContext: "chat invitation acceptance",
+      separatelyNotifiedUserIds: [GUEST_ID],
+    });
   });
 });

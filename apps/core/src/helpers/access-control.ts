@@ -1052,7 +1052,7 @@ export async function requireJobReadForRouteVars(
   return job;
 }
 
-async function requireParentTaskNotParked(
+export async function requireParentTaskNotParked(
   job: Pick<Job, "taskId">,
   tx: Prisma.TransactionClient,
 ): Promise<void> {

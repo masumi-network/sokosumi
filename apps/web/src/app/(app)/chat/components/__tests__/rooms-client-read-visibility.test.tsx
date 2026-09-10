@@ -297,6 +297,7 @@ vi.mock("@/components/chat/channel-discoverability-icon", () => ({
 
 vi.mock("@/components/chat/live-member-presence-dot", () => ({
   LiveMemberPresenceDot: () => null,
+  LiveMemberPresenceText: () => null,
 }));
 
 vi.mock("sonner", () => ({
@@ -844,7 +845,7 @@ describe("RoomsClient read visibility", () => {
     expect(rememberRoomRead).not.toHaveBeenCalled();
   });
 
-  it("attaches catalog rooms and invalidates the sidebar on a create in a room that is not selected", async () => {
+  it("attaches only the selected room and ignores foreign-room creates", async () => {
     const otherRoom = { ...channelRoom(), id: "room-other", name: "other" };
     publishMembershipVisibleRooms([otherRoom], "org-1", "user-1");
     const seen = vi.fn();
@@ -854,7 +855,7 @@ describe("RoomsClient read visibility", () => {
       await act(async () => {});
 
       const options = vi.mocked(useChatRoomRealtime).mock.calls.at(-1)?.[0];
-      expect(options?.roomIds).toEqual(["room-other", "room-channel"]);
+      expect(options?.roomIds).toEqual(["room-channel"]);
       expect(options?.onMessage).toBeTypeOf("function");
 
       const incoming = {
@@ -869,10 +870,7 @@ describe("RoomsClient read visibility", () => {
         options?.onMessage?.(event);
       });
 
-      expect(seen).toHaveBeenCalledTimes(1);
-      expect(seen.mock.calls[0]?.[0]).toMatchObject({
-        detail: { collections: ["active"] },
-      });
+      expect(seen).not.toHaveBeenCalled();
     } finally {
       window.removeEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, seen);
     }

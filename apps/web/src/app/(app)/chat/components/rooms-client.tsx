@@ -211,18 +211,7 @@ interface RoomsClientProps {
 /** Poll cadence for the open room while Ably or its channel is unavailable. */
 const ROOM_MESSAGE_FALLBACK_MS = 3_000;
 
-/**
- * A message landed in a membership room that is not open here: its sidebar
- * row (order, unread) changed. Ask for the active collection only; the
- * scheduler coalesces a burst into one read. It runs even while the tab is
- * hidden, because the row's unread is what the tab title shows the reader.
- */
-function notifySidebarOfForeignRoomMessage() {
-  notifyOrganizationChatRoomsChanged({ collections: ["active"] });
-}
-
 function RoomMessageRealtimeBridge({
-  roomIds,
   currentUserId,
   selectedRoomId,
   onMessage,
@@ -230,7 +219,6 @@ function RoomMessageRealtimeBridge({
   onContinuityLost,
   onSelectedRoomHealthChange,
 }: {
-  roomIds: readonly string[];
   currentUserId: string;
   selectedRoomId: string | null;
   onMessage: (event: ChatRoomMessageEventData) => void;
@@ -262,7 +250,7 @@ function RoomMessageRealtimeBridge({
   );
 
   useChatRoomRealtime({
-    roomIds,
+    roomIds: selectedRoomId ? [selectedRoomId] : [],
     currentUserId,
     onMessage,
     onPinnedMessage,
@@ -857,9 +845,6 @@ export function RoomsClient({
           selectedRoomIdRef.current,
         );
         if (action.kind === "ignore") {
-          if (event.eventType === "create") {
-            notifySidebarOfForeignRoomMessage();
-          }
           return;
         }
         if (action.kind === "refresh") {
@@ -970,9 +955,6 @@ export function RoomsClient({
 
       const message = hydrateChatRoomMessageFromRealtime(event.message);
       if (message.roomId !== selectedRoomIdRef.current) {
-        if (event.eventType === "create") {
-          notifySidebarOfForeignRoomMessage();
-        }
         return;
       }
 
@@ -1195,6 +1177,24 @@ export function RoomsClient({
         sokoBot,
       ]),
     );
+  }, [selectedRoom]);
+  /**
+   * The display name of every member of this room, by the id a mention token
+   * carries. A thread row reads a message body the same way a banner does, so
+   * it names the members the same way too.
+   */
+  const roomMentionNames = useMemo(() => {
+    return new Map<string, string>([
+      ...(selectedRoom?.userMembers ?? []).map(
+        (user) => [user.id, user.name] as const,
+      ),
+      ...(selectedRoom?.coworkerMembers ?? []).map(
+        (coworker) => [coworker.id, coworker.name] as const,
+      ),
+      ...(selectedRoom?.sokoBotMembers ?? []).map(
+        (sokoBot) => [sokoBot.id, sokoBot.name] as const,
+      ),
+    ]);
   }, [selectedRoom]);
   const usersById = useMemo(() => {
     return new Map(
@@ -2517,7 +2517,6 @@ export function RoomsClient({
             currentUserId ? (
               <LazyAblyProvider>
                 <RoomMessageRealtimeBridge
-                  roomIds={channelCatalogRooms.map((room) => room.id)}
                   currentUserId={currentUserId}
                   selectedRoomId={selectedRoomId}
                   onMessage={handleChatRoomRealtimeMessage}
@@ -2656,6 +2655,7 @@ export function RoomsClient({
             ) : threadListOpen ? (
               <ThreadListPanel
                 roomId={selectedRoom.id}
+                mentionNames={roomMentionNames}
                 onOpenThread={handleOpenThreadFromList}
                 onClose={() => {
                   setThreadListOpen(false);

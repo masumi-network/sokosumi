@@ -27,7 +27,10 @@ export function ChatControlListBridge({
       notifyOrganizationChatRoomsChanged({ removedRoomId: event.roomId });
     },
     onRoomsChanged: (event) => {
-      notifyOrganizationChatRoomsChanged({ collections: event.collections });
+      notifyOrganizationChatRoomsChanged({
+        collections: event.collections,
+        roomId: event.roomId,
+      });
     },
   });
 

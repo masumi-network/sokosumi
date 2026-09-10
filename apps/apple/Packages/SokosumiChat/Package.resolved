@@ -1,5 +1,5 @@
 {
-  "originHash" : "97928294d2c23e4e3926cb84f74c212e902fb93ea30e523e47c811663d8a654c",
+  "originHash" : "7a27903052bcb08025a8abcd2a4a72bc7b3f8066212f6232e9c2d59be26b7af4",
   "pins" : [
     {
       "identity" : "openapikit",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "57b6318128e3f901c93f4fbf98d1c1464ec168d3",
         "version" : "6.2.0"
+      }
+    },
+    {
+      "identity" : "runestone",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/simonbs/Runestone",
+      "state" : {
+        "revision" : "1884b67110ce35d830a73b34827d3cd1f50418c5",
+        "version" : "0.4.2"
       }
     },
     {
@@ -29,6 +38,15 @@
       }
     },
     {
+      "identity" : "swift-cmark",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-cmark.git",
+      "state" : {
+        "revision" : "924936d0427cb25a61169739a7660230bffa6ea6",
+        "version" : "0.8.0"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections",
@@ -44,6 +62,15 @@
       "state" : {
         "revision" : "bff4b6903cdc99dda49649dd52f46c11cfd3ed50",
         "version" : "1.8.0"
+      }
+    },
+    {
+      "identity" : "swift-markdown",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-markdown.git",
+      "state" : {
+        "revision" : "3c6f9523da3a1ec2fd829673e472d95b8097a3b8",
+        "version" : "0.8.0"
       }
     },
     {
@@ -80,6 +107,104 @@
       "state" : {
         "revision" : "08796d36c99ad2318929bfa1d1e40f82194b65cc",
         "version" : "1.3.1"
+      }
+    },
+    {
+      "identity" : "swift-tree-sitter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter/swift-tree-sitter",
+      "state" : {
+        "revision" : "f97df585296977d8fcaf644cbde567151d1367b8",
+        "version" : "0.10.0"
+      }
+    },
+    {
+      "identity" : "swiftsoup",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/scinfu/SwiftSoup.git",
+      "state" : {
+        "revision" : "18b80329749eca5ea29fc50211dca5c7eff5bfec",
+        "version" : "2.13.9"
+      }
+    },
+    {
+      "identity" : "tree-sitter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter/tree-sitter",
+      "state" : {
+        "revision" : "da6fe9beb4f7f67beb75914ca8e0d48ae48d6406",
+        "version" : "0.25.10"
+      }
+    },
+    {
+      "identity" : "tree-sitter-diff",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-diff",
+      "state" : {
+        "revision" : "ada384ac7bfc1307f32de474620120add29998fb",
+        "version" : "0.2.0"
+      }
+    },
+    {
+      "identity" : "tree-sitter-ini",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/justinmk/tree-sitter-ini",
+      "state" : {
+        "revision" : "f0285fe577ad298ad79f8633e643ad60646e3027",
+        "version" : "1.4.0"
+      }
+    },
+    {
+      "identity" : "tree-sitter-kotlin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-kotlin",
+      "state" : {
+        "revision" : "77dd60ea0a9003ce062c9728a513ffe1aaff8c82",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "tree-sitter-less",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mdovale/tree-sitter-less",
+      "state" : {
+        "revision" : "02988c765d30adb0476657b5d220e8dfde1c07d3"
+      }
+    },
+    {
+      "identity" : "tree-sitter-make",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-make",
+      "state" : {
+        "revision" : "5e9e8f8ff3387b0edcaa90f46ddf3629f4cfeb1d",
+        "version" : "1.1.1"
+      }
+    },
+    {
+      "identity" : "tree-sitter-objc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-objc",
+      "state" : {
+        "revision" : "18802acf31d0b5c1c1d50bdbc9eb0e1636cab9ed",
+        "version" : "3.0.2"
+      }
+    },
+    {
+      "identity" : "tree-sitter-xml",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-xml",
+      "state" : {
+        "revision" : "4b64dd3a03ec002258d6268d712fd93716d6ab57",
+        "version" : "0.7.0"
+      }
+    },
+    {
+      "identity" : "treesitterlanguages",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/simonbs/TreeSitterLanguages",
+      "state" : {
+        "revision" : "15cf3a9ec3ab95e0d058b7df9f35619123c9e02d",
+        "version" : "0.1.10"
       }
     },
     {

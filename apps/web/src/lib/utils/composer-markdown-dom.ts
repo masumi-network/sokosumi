@@ -5,6 +5,7 @@ import {
   replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
+import sanitizeHtml from "sanitize-html";
 
 import {
   createChannelLinkSpan,
@@ -25,6 +26,9 @@ import { parseMentions } from "@/lib/utils/mention-parser";
 
 const PERSISTED_INTERNAL_MENTION_REGEX = /@@MENTION_?(\d+)@@/g;
 const INTERNAL_MENTION_PLACEHOLDER_PREFIX = "unknown-mention-";
+// Info strings reach a double-quoted HTML attribute, so anything outside this
+// set is dropped rather than escaped into the attribute.
+const CODE_LANGUAGE_PATTERN = /^[a-zA-Z0-9_+#.-]+$/;
 
 function internalMentionPlaceholderKey(index: string): string {
   return `${INTERNAL_MENTION_PLACEHOLDER_PREFIX}${index}`;
@@ -80,6 +84,83 @@ function defaultResolveMentionDisplay(
   };
 }
 
+// The composer allow-list is the set of tags `markdownToHtml` emits, and the
+// set of attributes `htmlToMarkdown` reads back. Change the two together: an
+// attribute dropped here is silently lost from the user's stored markdown.
+const COMPOSER_ALLOWED_TAGS = [
+  "a",
+  "blockquote",
+  "br",
+  "code",
+  "em",
+  "h1",
+  "h2",
+  "h3",
+  "li",
+  "ol",
+  "pre",
+  "s",
+  "span",
+  "strong",
+  "u",
+  "ul",
+];
+
+const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
+  a: ["href"],
+  code: ["class", "data-language"],
+  span: [
+    "class",
+    "contenteditable",
+    "data-channel-label",
+    "data-mention-key",
+    "data-mention-slug",
+  ],
+};
+
+/**
+ * Boundary between the hand-built composer HTML and the two `markdownToHtml`
+ * call sites, both of which assign the result to `innerHTML`. The transform
+ * escapes its input and gates each interpolation; this rejects anything those
+ * passes let through, so no single site has to be perfect.
+ *
+ * Not `sanitizeMarkdown`: that is the room presentation policy, and it drops
+ * `pre`, `blockquote`, `s`, and every chip attribute. `sanitize-html` rather
+ * than DOMPurify because it takes per-tag attribute allow-lists. This needs a
+ * DOM. Both call sites already run browser-only, and `markdownToHtml` already
+ * needs a DOM whenever the text carries a chip, because the chip builders call
+ * `document.createElement`. What changes is that plain text needs one too.
+ *
+ * The boundary is load-bearing, not belt-and-braces. Escaping each
+ * interpolation is not enough, because a token can be restored into an
+ * attribute value rather than into element content, where element-context
+ * escaping does not apply: `@a:b[x](https://y.test/)` lets the mention slug
+ * swallow the link placeholder and injects `https:` and `y.test` as bare
+ * attributes on the chip. That is what this strips.
+ */
+export function sanitizeComposerHtml(html: string): string {
+  const sanitized = sanitizeHtml(html, {
+    allowedTags: COMPOSER_ALLOWED_TAGS,
+    allowedAttributes: COMPOSER_ALLOWED_ATTRIBUTES,
+    // No allowedClasses: chip and code classes are Tailwind utilities that
+    // change with styling, so an allow-list of values would break on restyle.
+    disallowedTagsMode: "discard",
+    // The transform only ever emits http, https and mailto, already gated by
+    // normalizeUrl. Protocol-relative URLs are not a composer feature.
+    allowProtocolRelative: false,
+  });
+
+  // Re-serialize through the DOM. `sanitize-html` writes void tags XML-style
+  // (`<br />`) and escapes `<` inside attribute values; a browser does
+  // neither. Both composers skip their `innerHTML` write while
+  // `editor.innerHTML === markdownToHtml(value)`, so any such difference
+  // makes the editor DOM rewrite on every sync. Parsing sanitized markup
+  // back out is what makes the two strings comparable.
+  const host = document.createElement("div");
+  host.innerHTML = sanitized;
+  return host.innerHTML;
+}
+
 /**
  * Markdown → HTML for contentEditable composers.
  * Supports bold/italic/strike/code/underline (`<u>`), links, lists,
@@ -126,9 +207,10 @@ export function markdownToHtml(
     ) => {
       const token = `@@CODEBLOCKTOKEN${codeBlocks.length}@@`;
       const language = info.trim();
-      const html = `<pre><code${
-        language ? ` data-language="${language}"` : ""
-      }>${code}</code></pre>`;
+      const languageAttribute = CODE_LANGUAGE_PATTERN.test(language)
+        ? ` data-language="${language}"`
+        : "";
+      const html = `<pre><code${languageAttribute}>${code}</code></pre>`;
       codeBlocks.push({ token, html });
       return `${leadingNewline}${token}`;
     },
@@ -144,9 +226,13 @@ export function markdownToHtml(
       }
 
       const token = `@@LINKTOKEN${linkTokens.length}@@`;
+      // The mailto branch of normalizeUrl passes quotes through verbatim, and
+      // & here is already the upstream entity escape; re-escaping & would
+      // double-encode rendered URLs. Only " can break out of the attribute.
+      const attributeSafeUrl = normalizedUrl.replace(/"/g, "&quot;");
       linkTokens.push({
         token,
-        html: `<a href="${normalizedUrl}">${label}</a>`,
+        html: `<a href="${attributeSafeUrl}">${label}</a>`,
       });
       return token;
     },
@@ -274,9 +360,11 @@ export function markdownToHtml(
     return result.replace(block.token, () => block.html);
   }, withRestoredLinks);
 
-  return underlineTokens.reduce((result, underline) => {
+  const restored = underlineTokens.reduce((result, underline) => {
     return result.replace(underline.token, () => underline.html);
   }, withRestoredCode);
+
+  return sanitizeComposerHtml(restored);
 }
 
 function getCodeContent(codeContainer: HTMLElement): string {
