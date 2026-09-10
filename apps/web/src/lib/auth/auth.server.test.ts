@@ -113,8 +113,13 @@ describe("auth.server", () => {
   it("skips Core when no session cookie is present", async () => {
     headersMock.mockResolvedValue(new Headers({}));
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult();
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBeNull();
+    }
     await expect(getSession()).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -122,8 +127,13 @@ describe("auth.server", () => {
   it("skips Core for refresh when no session cookie is present", async () => {
     headersMock.mockResolvedValue(new Headers({}));
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult({ refresh: true });
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBeNull();
+    }
     await expect(getSession({ refresh: true })).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -168,28 +178,79 @@ describe("auth.server", () => {
       json: async () => null,
     });
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult({ refresh: true });
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBeNull();
+    }
     await expect(getSession({ refresh: true })).resolves.toBeNull();
   });
 
-  it("returns null when Core responds with a non-ok status", async () => {
+  it("returns err, not ok(null), when Core responds with a non-ok status", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
+      status: 500,
       json: async () => null,
     });
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult({ refresh: true });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toMatchObject({
+        path: "/auth/get-session",
+        reason: "http",
+        status: 500,
+      });
+    }
     await expect(getSession({ refresh: true })).resolves.toBeNull();
   });
 
-  it("returns null when the fetch rejects instead of throwing", async () => {
+  it("returns err, not ok(null), when the fetch rejects", async () => {
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult({ refresh: true });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toMatchObject({
+        path: "/auth/get-session",
+        reason: "network",
+      });
+    }
     await expect(getSession({ refresh: true })).resolves.toBeNull();
+  });
+
+  it("returns err with reason timeout when the session read times out", async () => {
+    fetchMock.mockRejectedValue(
+      new DOMException("The operation timed out.", "TimeoutError"),
+    );
+
+    const { getSession, getSessionResult } = await import("./auth.server");
+
+    const result = await getSessionResult({ refresh: true });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toMatchObject({
+        path: "/auth/get-session",
+        reason: "timeout",
+      });
+    }
+    await expect(getSession({ refresh: true })).resolves.toBeNull();
+  });
+
+  it("gives the Core session read 8 seconds", async () => {
+    const timeoutMock = vi.spyOn(AbortSignal, "timeout");
+
+    const { getSession } = await import("./auth.server");
+    await getSession({ refresh: true });
+
+    expect(timeoutMock).toHaveBeenCalledWith(8000);
+    timeoutMock.mockRestore();
   });
 
   it("rethrows Cache Components hanging-promise aborts instead of null", async () => {
@@ -203,7 +264,7 @@ describe("auth.server", () => {
     await expect(getSession({ refresh: true })).rejects.toBe(hanging);
   });
 
-  it("returns null when the response body is not valid JSON", async () => {
+  it("returns err, not ok(null), when the response body is not valid JSON", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
@@ -211,8 +272,16 @@ describe("auth.server", () => {
       },
     });
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult({ refresh: true });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toMatchObject({
+        path: "/auth/get-session",
+        reason: "invalid_json",
+      });
+    }
     await expect(getSession({ refresh: true })).resolves.toBeNull();
   });
 

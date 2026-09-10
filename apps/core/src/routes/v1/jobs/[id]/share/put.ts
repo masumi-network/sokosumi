@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { publicShareRepository } from "@sokosumi/database/repositories";
 
-import { requireJobCollaboration } from "@/helpers/access-control.js";
+import { requireJobShareCollaboration } from "@/helpers/access-control.job-share.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -50,7 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { allowSearchIndexing } = c.req.valid("json");
 
     const share = await prisma.$transaction(async (tx) => {
-      await requireJobCollaboration(c.var.authContext, id, tx);
+      await requireJobShareCollaboration(c.var, id, tx);
 
       return await publicShareRepository.upsertForJob(
         id,

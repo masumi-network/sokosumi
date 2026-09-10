@@ -458,7 +458,7 @@ struct WorkspaceRealtimeTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
   }
 
-  @Test func envelopeCreateRefetchesAndMergesWithoutFakeRow() async throws {
+  @Test(arguments: [false, true]) func envelopeCreateRefetchesAndMergesWithoutFakeRow(openParent: Bool) async throws {
     let oldId = "550e8400-e29b-41d4-a716-446655440717"
     let newId = "550e8400-e29b-41d4-a716-446655440718"
     let (state, auth, transport) = try realtimeState([
@@ -478,9 +478,13 @@ struct WorkspaceRealtimeTests {
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
+    if openParent {
+      try state.thread.open(#require(state.transcriptMessages.first))
+    }
     state.applyRealtimeEnvelope(
-      .init(eventType: .create, messageId: newId, roomId: roomA)
+      .init(eventType: .create, messageId: openParent ? oldId : newId, roomId: roomA)
     )
+    state.thread.close()
     await waitForRealtimeIdle(state)
     #expect(state.transcriptMessages.map(\.content) == ["old edited", "oversize body"])
     #expect(state.transcriptError == nil)

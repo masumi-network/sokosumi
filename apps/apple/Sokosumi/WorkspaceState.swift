@@ -20,6 +20,9 @@ final class WorkspaceState: ObservableObject {
   typealias Phase = WorkspaceSession.Phase
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
+  let thread = ThreadSession()
+  let directStream = DirectStreamSession()
+  private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
   var phase: Phase {
     workspaceSession.phase
@@ -142,7 +145,7 @@ final class WorkspaceState: ObservableObject {
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end).
   var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells)
+    directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
   }
 
   var transcriptCursor: String? {
@@ -160,7 +163,7 @@ final class WorkspaceState: ObservableObject {
   private(set) var roomsRefreshTask: Task<Void, Never>?
   private var roomsRefreshID = UUID()
   private var sidebarRecoveryGeneration = UUID()
-  private var transcriptRealtimeHealthy = false
+  private(set) var transcriptRealtimeHealthy = false
 
   private let service = ChatService()
   private var hasLoaded = false
@@ -177,6 +180,9 @@ final class WorkspaceState: ObservableObject {
   ) {
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    for publisher in [thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+      publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
+    }
     outboxObservation = outbox.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -196,7 +202,7 @@ final class WorkspaceState: ObservableObject {
 
   /// Test seam: when set, replaces `auth.coreClient()` as the client source.
   var clientResolver: (() -> Client?)?
-  private func resolveClient(auth: AuthState) -> Client? {
+  func resolveClient(auth: AuthState) -> Client? {
     clientResolver?() ?? auth.coreClient()
   }
 
@@ -258,6 +264,8 @@ final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    directStream.reset()
+    thread.close()
     transcriptRealtimeHealthy = false
     transcriptRecovery.stop()
     readAttention.roomChanged()
@@ -275,6 +283,8 @@ final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    directStream.reset(room: room)
+    thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
     timeline.reset(roomId: room.id)
@@ -284,6 +294,15 @@ final class WorkspaceState: ObservableObject {
     clearOutbound()
     realtime?.watchRoom(room.id)
     transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
+    if directStream.roomId != nil, let client = resolveClient(auth: auth) {
+      directStream.resume(client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self, weak auth] in
+        guard let self, let auth else { return false }
+        return await settleDirectStream(auth: auth, generation: generation)
+      }, failed: { [weak self, weak auth] error in
+        guard let self, let auth, let error = error as? ChatServiceError else { return }
+        signOutIfUnauthorized(error, auth: auth)
+      })
+    }
     transcriptRecovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
       guard let self, let auth else { return }
       await recoverTranscript(auth: auth, generation: generation)
@@ -293,6 +312,7 @@ final class WorkspaceState: ObservableObject {
   func setWindowVisible(_ visible: Bool, window: UUID) {
     let wasVisible = readAttention.isVisible
     readAttention.setVisible(visible, window: window)
+    thread.recovery.setForeground(readAttention.isVisible)
     transcriptRecovery.setForeground(readAttention.isVisible)
     sidebarRecovery.setForeground(readAttention.isVisible)
     if !wasVisible, readAttention.isVisible {
@@ -325,6 +345,16 @@ final class WorkspaceState: ObservableObject {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
+    if directStream.roomId == roomId {
+      let generation = transcriptGeneration
+      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self, weak auth] in
+        guard let self, let auth else { return false }
+        return await settleDirectStream(auth: auth, generation: generation)
+      }, failed: { [weak self, weak auth] error in
+        guard let self, let auth, let error = error as? ChatServiceError else { return }
+        signOutIfUnauthorized(error, auth: auth)
+      })
+    }
     let id = UUID().uuidString
     let slug = selection?.workspace.organizationSlug
     let shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
@@ -417,6 +447,7 @@ final class WorkspaceState: ObservableObject {
     case let .message(roomId, eventType, message):
       applyRealtimeMessage(roomId: roomId, eventType: eventType, message: message)
     case let .patch(patch):
+      thread.apply(patch)
       guard patch.roomId == transcriptRoomId else { return }
       transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
     case let .pin(roomId, messageId, isPinned, count):
@@ -444,8 +475,10 @@ final class WorkspaceState: ObservableObject {
   private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
     guard roomId == transcriptRoomId else { return }
     transcriptRealtimeHealthy = healthy
+    thread.recovery.setHealthy(healthy)
     transcriptRecovery.setHealthy(healthy)
     if continuityLost {
+      thread.recovery.requestRefresh()
       transcriptRecovery.requestRefresh()
     }
   }
@@ -460,10 +493,11 @@ final class WorkspaceState: ObservableObject {
     eventType: ChatRoomMessageRealtimeEventType,
     message: Components.Schemas.ChatRoomMessage
   ) {
+    thread.apply(eventType: eventType, message: message)
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh()
     }
-    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId else { return }
+    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
     let result = applyRealtimeFullEvent(
       messages: transcriptMessages,
       shells: outboundShells,
@@ -478,8 +512,15 @@ final class WorkspaceState: ObservableObject {
   /// create/update refetch history for the focused room, everything else is
   /// ignored. The refetch merges — it never invents a row.
   func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
+    let refreshParent = thread.apply(envelope)
+    if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete, !refreshParent {
+      return
+    }
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: transcriptRoomId) {
     case .ignore:
+      if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
+        transcriptRecovery.requestRefresh()
+      }
       if envelope.eventType == .create {
         sidebarRecovery.requestRefresh()
       }
@@ -496,14 +537,16 @@ final class WorkspaceState: ObservableObject {
   /// wipes resolved history on failure.
   func refreshTranscript(auth: AuthState) {
     guard transcriptRoomId != nil else { return }
+    guard !directStream.isBusy || thread.parent != nil else { return }
     if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
       return
     }
     let generation = transcriptGeneration
-    transcriptRefreshTask = Task { await refresh(auth: auth, generation: generation) }
+    transcriptRefreshTask = Task { _ = await refresh(auth: auth, generation: generation) }
   }
 
-  func refresh(auth: AuthState, generation: Int) async {
+  @discardableResult
+  func refresh(auth: AuthState, generation: Int) async -> Bool {
     defer {
       if generation == transcriptGeneration {
         transcriptRefreshTask = nil
@@ -513,19 +556,35 @@ final class WorkspaceState: ObservableObject {
       if generation == transcriptGeneration {
         transcriptError = "Sign-in is not configured."
       }
-      return
+      return false
     }
     do {
-      guard try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
+      let applied = try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
+      guard applied else { return false }
+      if let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
+        thread.apply(eventType: .update, message: parent)
+      }
       await syncReadAttention(auth: auth)
+      return generation == transcriptGeneration && !Task.isCancelled
     } catch let error as ChatServiceError {
-      guard generation == transcriptGeneration else { return }
+      guard generation == transcriptGeneration else { return false }
       transcriptError = transcriptFailureMessage(error, auth: auth)
+      return false
     } catch {
-      guard generation == transcriptGeneration else { return }
+      guard generation == transcriptGeneration else { return false }
       NSLog("Sokosumi transcript refresh failed: %@", String(describing: error))
       transcriptError = friendlyMessage(for: error)
+      return false
     }
+  }
+
+  private func settleDirectStream(auth: AuthState, generation: Int) async -> Bool {
+    while generation == transcriptGeneration,
+          let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
+      await task.value
+    }
+    guard generation == transcriptGeneration, !Task.isCancelled else { return false }
+    return await refresh(auth: auth, generation: generation)
   }
 
   /// Drop a revoked room from the sidebar (chat-control event, SOK-742).
@@ -560,13 +619,17 @@ final class WorkspaceState: ObservableObject {
       clientTurnId: clientMessageId,
       roomId: roomId,
       content: content,
-      sender: .init(
-        id: currentUserId,
-        name: currentUserName.isEmpty ? currentUserEmail : currentUserName,
-        email: currentUserEmail,
-        image: currentUserImageURL,
-        presence: .online
-      )
+      sender: outboundSender
+    )
+  }
+
+  var outboundSender: Components.Schemas.ChatRoomUserParticipant {
+    .init(
+      id: currentUserId,
+      name: currentUserName.isEmpty ? currentUserEmail : currentUserName,
+      email: currentUserEmail,
+      image: currentUserImageURL,
+      presence: .online
     )
   }
 
@@ -599,13 +662,23 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
+  var readContent: RoomReadAttention.Content {
+    .init(messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
+          parentMessageId: thread.parent?.id,
+          replies: thread.timeline.messages.map { .init(id: $0.id, content: $0.content) })
+  }
+
+  var roomHistoryReadable: Bool {
+    timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
+  }
+
   func syncReadAttention(auth: AuthState) async {
     guard let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
     do {
       try await readAttention.readIfNeeded(
         room: room,
-        messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
-        historyReadable: timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest,
+        content: readContent,
+        historyReadable: roomHistoryReadable && !thread.timeline.isLoading,
         client: client,
         organizationSlug: selection?.workspace.organizationSlug
       )
@@ -633,6 +706,7 @@ final class WorkspaceState: ObservableObject {
   /// clears resolved history on failure.
   func loadOlderMessages(auth: AuthState) {
     guard transcriptRoomId != nil, transcriptHasMore,
+          !directStream.isBusy,
           !transcriptLoading, !transcriptLoadingOlder, !transcriptRefreshing,
           olderPageTask == nil, transcriptRefreshTask == nil,
           transcriptCursor != nil
@@ -679,7 +753,7 @@ final class WorkspaceState: ObservableObject {
   /// Signs out when Core rejects the session. Returns whether it did, so
   /// silent callers (attention sync) can keep the side effect explicit.
   @discardableResult
-  private func signOutIfUnauthorized(_ error: ChatServiceError, auth: AuthState) -> Bool {
+  func signOutIfUnauthorized(_ error: ChatServiceError, auth: AuthState) -> Bool {
     if case let .unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       return true
