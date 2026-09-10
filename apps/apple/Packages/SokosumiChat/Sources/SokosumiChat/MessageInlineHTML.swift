@@ -7,11 +7,6 @@ public enum MessageUnderlineAttribute: AttributedStringKey {
   public static let name = "sokosumi.message.underline"
 }
 
-enum MessageHTMLTokenAttribute: AttributedStringKey {
-  typealias Value = Int
-  static let name = "sokosumi.message.htmlToken"
-}
-
 enum MessageInlineHTML {
   static func applying(to parsed: AttributedString, baseURL: URL? = nil) -> AttributedString {
     guard parsed.runs.contains(where: { $0.inlinePresentationIntent?.contains(.inlineHTML) == true }) else {
@@ -97,7 +92,7 @@ enum MessageInlineHTML {
     }
     guard let href, !href.isEmpty,
           let url = URL(string: href, relativeTo: baseURL)?.absoluteURL,
-          url.scheme == nil || ["http", "https", "mailto", "irc", "ircs", "xmpp"].contains(url.scheme?.lowercased() ?? "")
+          url.scheme == nil || MessageHTML.linkSchemes.contains(url.scheme?.lowercased() ?? "")
     else { return nil }
     return url
   }

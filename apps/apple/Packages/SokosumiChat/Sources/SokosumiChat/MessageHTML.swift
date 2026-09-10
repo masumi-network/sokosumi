@@ -3,6 +3,9 @@ import SwiftSoup
 
 /// The HTML allowlist used by web's sanitizeMarkdown, independent of presentation.
 enum MessageHTML {
+  /// micromark’s default link schemes, applied after HTML sanitization.
+  static let linkSchemes: Set<String> = ["http", "https", "mailto", "irc", "ircs", "xmpp"]
+
   private static let allowedTags: Set<String> = [
     "b", "i", "em", "strong", "a", "source", "p", "h1", "h2", "h3",
     "ul", "ol", "li", "br", "img", "video", "audio", "code", "mark", "span", "u"
@@ -12,7 +15,7 @@ enum MessageHTML {
     "a": ["href"],
     "img": ["src", "alt", "title", "width", "height"],
     "video": ["src", "controls", "loop", "muted", "width", "height"],
-    "audio": ["src", "controls", "loop", "muted"],
+    "audio": ["src", "controls", "loop", "muted", "width", "height"],
     "source": ["src"],
     "mark": ["class"],
     "span": ["class", "data-direct-kind", "data-direct-id"]

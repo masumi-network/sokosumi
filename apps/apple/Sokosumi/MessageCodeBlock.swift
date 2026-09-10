@@ -15,8 +15,8 @@ struct MessageCodeBlock: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      if let languageHint, !languageHint.isEmpty {
-        Text(languageHint).font(.caption).foregroundStyle(.secondary)
+      if let language = languageHint?.split(whereSeparator: \.isWhitespace).first {
+        Text(String(language)).font(.caption).foregroundStyle(.secondary)
       }
       ScrollView(.horizontal) {
         Text(highlightedInput == input ? highlighted ?? AttributedString(source) : AttributedString(source))

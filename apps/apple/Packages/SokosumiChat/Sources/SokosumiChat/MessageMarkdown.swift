@@ -146,7 +146,6 @@ private struct MarkdownBlockBuilder {
     if let html = node as? InlineHTML {
       var text = AttributedString(html.rawHTML)
       text.inlinePresentationIntent = .inlineHTML
-      text[MessageHTMLTokenAttribute.self] = node.indexInParent
       return text
     }
     if let html = node as? HTMLBlock {
@@ -170,7 +169,7 @@ private struct MarkdownBlockBuilder {
     }
     if let destination,
        let url = URL(string: destination, relativeTo: baseURL)?.absoluteURL,
-       url.scheme == nil || ["http", "https", "mailto", "irc", "ircs", "xmpp"].contains(url.scheme?.lowercased() ?? "") {
+       url.scheme == nil || MessageHTML.linkSchemes.contains(url.scheme?.lowercased() ?? "") {
       result.link = url
     }
     return result

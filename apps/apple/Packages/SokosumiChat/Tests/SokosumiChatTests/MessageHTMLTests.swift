@@ -22,6 +22,15 @@ struct MessageHTMLTests {
     #expect(video.hasAttr("muted"))
   }
 
+  @Test func preservesAudioDimensionsButRejectsEventHandlers() throws {
+    let body = try MessageHTML.parse("<audio src='/clip' width='320' height='48' controls onplay='bad()'></audio>")
+    let audio = try #require(body.select("audio").first())
+    #expect(try audio.attr("width") == "320")
+    #expect(try audio.attr("height") == "48")
+    #expect(audio.hasAttr("controls"))
+    #expect(!audio.hasAttr("onplay"))
+  }
+
   @Test func rejectsEncodedAndControlCharacterSchemes() throws {
     let body = try MessageHTML.parse("<a href='java&#x09;script:alert(1)'>bad</a><img src='data:image/png;base64,x'><a href='/chat'>room</a><a href='https://example.com'>site</a><a href='//example.com'>relative</a>")
     let links = try body.select("a")
