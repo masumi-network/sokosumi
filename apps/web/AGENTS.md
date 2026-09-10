@@ -336,7 +336,10 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 ### Styling
 
-- Use semantic colors from `globals.css`
+- Use semantic tokens from `globals.css`. No raw Tailwind palette colors, no hex/rgb/hsl
+  literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
+  (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits. Guard:
+  `src/lib/utils/__tests__/color-tokens.test.ts`. See `.cursor/rules/color-tokens.mdc`.
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
 - **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
