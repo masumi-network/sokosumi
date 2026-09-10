@@ -228,7 +228,7 @@ export function ChatParticipantHoverCard({
               </Avatar>
             )}
             <LiveMemberPresenceDot
-              className="absolute -right-0.5 -bottom-0.5"
+              className="absolute -right-0.5 -bottom-0.5 size-3"
               fallback={profile.presence}
               ground="popover"
               isCoworker={isAi}
