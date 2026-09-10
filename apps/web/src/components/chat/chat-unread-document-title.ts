@@ -14,7 +14,7 @@ interface CountChatRoomsWithUnreadAttentionOptions {
  * One per room — not a sum of unread messages. Skips active and muted rooms.
  */
 export function countChatRoomsWithUnreadAttention(
-  rooms: ChatRoomUnreadAttention[],
+  rooms: readonly ChatRoomUnreadAttention[],
   options: CountChatRoomsWithUnreadAttentionOptions = {},
 ): number {
   let total = 0;

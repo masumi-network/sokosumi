@@ -12,6 +12,9 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomUserMember: {
+      findMany: vi.fn().mockResolvedValue([{ userId: "user_b" }]),
+    },
     chatRoomMessage: {
       findUnique: (...args: unknown[]) => findUniqueMessageMock(...args),
     },
@@ -19,6 +22,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
   publishChatRoomMessageEvent: (...args: unknown[]) =>
     publishChatRoomMessageEventMock(...args),
 }));
@@ -34,7 +38,9 @@ vi.mock("@/schemas/chat-room.schema", () => ({
   },
 }));
 
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import {
+  publishChatRoomMembershipStatusMessagesBestEffort,
   publishChatRoomMessageRealtime,
   publishChatRoomMessageRealtimeById,
 } from "./chat-room-message-realtime";
@@ -74,6 +80,20 @@ describe("publishChatRoomMessageRealtime", () => {
     mapChatRoomMessageMock.mockReset();
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
+  });
+
+  it("invalidates remaining readers after committed membership messages, but not generic replay", async () => {
+    vi.mocked(publishChatRoomsChanged).mockClear();
+    await publishChatRoomMembershipStatusMessagesBestEffort([
+      baseMessage as never,
+    ]);
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["user_b"],
+      roomId: baseMessage.roomId,
+      collections: ["active"],
+    });
+    await publishChatRoomMessageRealtime(baseMessage as never, "create");
+    expect(publishChatRoomsChanged).toHaveBeenCalledTimes(1);
   });
 
   it("maps once without a viewer id and publishes once to the room channel", async () => {

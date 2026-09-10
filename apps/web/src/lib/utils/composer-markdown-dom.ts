@@ -25,6 +25,9 @@ import { parseMentions } from "@/lib/utils/mention-parser";
 
 const PERSISTED_INTERNAL_MENTION_REGEX = /@@MENTION_?(\d+)@@/g;
 const INTERNAL_MENTION_PLACEHOLDER_PREFIX = "unknown-mention-";
+// Info strings reach a double-quoted HTML attribute, so anything outside this
+// set is dropped rather than escaped into the attribute.
+const CODE_LANGUAGE_PATTERN = /^[a-zA-Z0-9_+#.-]+$/;
 
 function internalMentionPlaceholderKey(index: string): string {
   return `${INTERNAL_MENTION_PLACEHOLDER_PREFIX}${index}`;
@@ -126,9 +129,10 @@ export function markdownToHtml(
     ) => {
       const token = `@@CODEBLOCKTOKEN${codeBlocks.length}@@`;
       const language = info.trim();
-      const html = `<pre><code${
-        language ? ` data-language="${language}"` : ""
-      }>${code}</code></pre>`;
+      const languageAttribute = CODE_LANGUAGE_PATTERN.test(language)
+        ? ` data-language="${language}"`
+        : "";
+      const html = `<pre><code${languageAttribute}>${code}</code></pre>`;
       codeBlocks.push({ token, html });
       return `${leadingNewline}${token}`;
     },
@@ -144,9 +148,13 @@ export function markdownToHtml(
       }
 
       const token = `@@LINKTOKEN${linkTokens.length}@@`;
+      // The mailto branch of normalizeUrl passes quotes through verbatim, and
+      // & here is already the upstream entity escape; re-escaping & would
+      // double-encode rendered URLs. Only " can break out of the attribute.
+      const attributeSafeUrl = normalizedUrl.replace(/"/g, "&quot;");
       linkTokens.push({
         token,
-        html: `<a href="${normalizedUrl}">${label}</a>`,
+        html: `<a href="${attributeSafeUrl}">${label}</a>`,
       });
       return token;
     },

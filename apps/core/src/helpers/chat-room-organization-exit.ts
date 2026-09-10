@@ -1,6 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { publishChatMembershipRevoked } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { recordChannelMembershipStatus } from "@/routes/v1/chats/rooms/membership-status";
@@ -184,7 +184,7 @@ export async function publishOrganizationExitChatRevocation(
   // Each publish is a separate settled entry so one failure does not hide others.
   const outcomes = await Promise.allSettled([
     ...statusMessages.map((message) =>
-      publishChatRoomMessageRealtime(message, "create"),
+      publishChatRoomMembershipStatusMessagesBestEffort([message]),
     ),
     ...revokedRoomIds.map((roomId) =>
       publishChatMembershipRevoked({

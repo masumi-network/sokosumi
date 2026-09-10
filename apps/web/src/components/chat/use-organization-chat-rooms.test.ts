@@ -13,7 +13,10 @@ import {
   makeRoom,
   resetOrganizationChatListMocks,
 } from "./__tests__/organization-chat-list-harness";
-import { clearMembershipVisibleRoomsSnapshot } from "./membership-visible-rooms-store";
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  hasLiveMembershipVisibleRoomsPublisher,
+} from "./membership-visible-rooms-store";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import {
   beginRoomAttentionChange,
@@ -110,6 +113,17 @@ describe("useOrganizationChatRooms", () => {
     // avoid is the paint it causes.
     expect(listRoomsMock).not.toHaveBeenCalled();
     expect(listPendingMock).not.toHaveBeenCalled();
+  });
+
+  it("announces itself as the live list only while mounted and reading", () => {
+    const painted = mount({ paintOnly: true });
+    expect(hasLiveMembershipVisibleRoomsPublisher()).toBe(false);
+    painted.unmount();
+
+    const live = mount();
+    expect(hasLiveMembershipVisibleRoomsPublisher()).toBe(true);
+    live.unmount();
+    expect(hasLiveMembershipVisibleRoomsPublisher()).toBe(false);
   });
 
   it("refreshes from Core on mount, so a stale remount corrects itself", async () => {

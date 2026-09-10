@@ -18,6 +18,8 @@ export interface OrganizationChatRoomsChangedDetail {
    * a message in another room). Absent means refetch every collection.
    */
   collections?: readonly ChatRoomCollection[];
+  /** The room the invalidation is about, when Core named one. */
+  roomId?: string | null;
 }
 
 function isChatRoom(
