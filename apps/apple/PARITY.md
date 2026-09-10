@@ -297,3 +297,9 @@ Verification:
 Known parity limitation: parent ID envelopes hydrate from the latest room page, matching current web. A parent outside that page may remain stale until revisited or receiving a full DTO. Existing thread lookup is not a general root-message lookup (zero-reply roots can be absent), so it is not silently substituted.
 
 Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread overview (24) remain later slices. Poll PR state and reviews; address review feedback before the next slice. Do not recreate the deleted automation.
+
+### Slice 08 hover flicker follow-up (2026-09-10)
+
+- User recording shows flicker while hovering message actions. Hover tracking now surrounds the row and its Reply overlay, using continuous tracking with state writes only on entry/exit. This addresses the suspected tracking-region feedback without changing message layout.
+- Signed Apple Development build, app-target tests, SwiftLint and SwiftFormat passed (`/tmp/hover-flicker-build.log`, `/tmp/hover-flicker-tests.log`, `/tmp/hover-flicker-lint.log`, `/tmp/hover-flicker-format.log`). Updated signed app relaunched.
+- Visual resolution remains unconfirmed: CUA pointer placement returned `noWindowsAvailable`; retest row-to-toolbar movement and resting over Reply manually.

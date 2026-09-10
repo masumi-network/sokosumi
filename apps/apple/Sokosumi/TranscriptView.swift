@@ -442,7 +442,6 @@ import SwiftUI
       .padding(.bottom, 2)
       .contentShape(.rect)
       .background(isHovered && onReply != nil ? Color.primary.opacity(0.04) : .clear)
-      .onHover { isHovered = $0 }
       .overlay(alignment: .topTrailing) {
         if let onReply {
           Button(action: onReply) {
@@ -459,6 +458,17 @@ import SwiftUI
           .accessibilityLabel("Reply in thread")
           .opacity(isHovered || replyFocused ? 1 : 0)
           .allowsHitTesting(isHovered || replyFocused)
+        }
+      }
+      // Track the complete row, including its action overlay. The toolbar
+      // must not change the hover region when it becomes interactive.
+      .onContinuousHover { phase in
+        let hovering = switch phase {
+        case .active: true
+        case .ended: false
+        }
+        if isHovered != hovering {
+          isHovered = hovering
         }
       }
       .contextMenu {
