@@ -233,6 +233,24 @@ describe("buildChatMessagePreview", () => {
     ).toBe("hi @Ada");
   });
 
+  /** The words before a name can spell one with it too. */
+  it("takes an address the message and a name spell together", () => {
+    expect(
+      buildChatMessagePreview(
+        "see www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz now",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "evil.test/pay"]]),
+      ),
+    ).toBe("see evil.test/pay now");
+    expect(
+      buildChatMessagePreview(
+        "mail me at www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "evil.test/pay?x=1"],
+        ]),
+      ),
+    ).toBe("mail me at evil.test/pay?x=1");
+  });
+
   /** A name and the words after it can spell an address between them. */
   it("takes an address a name and the message spell together", () => {
     expect(

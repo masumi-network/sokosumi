@@ -77,9 +77,15 @@ const MENTION_MARKER_REGEX = /\u0000(\d+)\u0000/g;
 
 /**
  * The `@` of a name this code wrote, with nothing left after it. The marker
- * in front of it is what separates it from an `@` the sender typed.
+ * behind it is what separates it from an `@` the sender typed.
+ *
+ * The marker sits behind the `@` rather than in front of it. An `@` is a
+ * character an address is written with, so a marker in front of one cuts the
+ * address a message and a name spell together: `www.@<id>:x` with a member
+ * named `evil.test/pay` reads as one address only while nothing stands
+ * between the two halves.
  */
-const LABEL_AT_LEFT_REGEX = /\u0000@(?=\s|$)/g;
+const LABEL_AT_LEFT_REGEX = /@\u0000(?=\s|$)/g;
 
 /** The marker each name is written with, once the read above is done. */
 const LABEL_MARKER_REGEX = /\u0000/g;
@@ -408,7 +414,9 @@ export function buildChatMessagePreview(
 
       // The label carries a marker of its own so the read below can tell an
       // `@` this code wrote from an `@` the sender typed, as in "meet @ 5pm".
-      labels.push(label ? `${MENTION_MARKER}@${label}` : "");
+      // It goes behind the `@`, which is a character an address is written
+      // with and has to stay joined to whatever precedes it.
+      labels.push(label ? `@${MENTION_MARKER}${label}` : "");
 
       return `${MENTION_MARKER}${labels.length - 1}${MENTION_MARKER}`;
     });
