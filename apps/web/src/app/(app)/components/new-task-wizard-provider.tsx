@@ -21,7 +21,9 @@ const NewTaskWizard = dynamic(
 
 function prefetchNewTaskWizardWhenIdle(): () => void {
   if (typeof window.requestIdleCallback === "function") {
-    const handle = window.requestIdleCallback(() => void loadNewTaskWizard());
+    const handle = window.requestIdleCallback(() => void loadNewTaskWizard(), {
+      timeout: 2000,
+    });
     return () => window.cancelIdleCallback(handle);
   }
   const timeout = window.setTimeout(() => void loadNewTaskWizard(), 2000);
@@ -51,32 +53,34 @@ interface NewTaskWizardProviderProps {
 
 /**
  * App-wide New Task wizard, opened in place from the sidebar. Every open
- * mounts a fresh wizard (keyed) so its lists reload for the current
- * workspace. Dismiss unmounts it so the options query does not keep
- * refetching behind a closed modal.
+ * mounts a fresh wizard under a new instance number so its lists reload for
+ * the current workspace; closing unmounts it so nothing keeps fetching
+ * behind a closed modal.
  */
 export function NewTaskWizardProvider({
   children,
 }: NewTaskWizardProviderProps) {
-  const [openCount, setOpenCount] = useState(0);
+  const [instance, setInstance] = useState(0);
+  const [open, setOpen] = useState(false);
 
   useMountEffect(prefetchNewTaskWizardWhenIdle);
 
   const openNewTaskWizard = useCallback(() => {
-    setOpenCount((count) => count + 1);
+    setInstance((current) => current + 1);
+    setOpen(true);
   }, []);
 
   const closeNewTaskWizard = useCallback(() => {
-    setOpenCount(0);
+    setOpen(false);
   }, []);
 
   return (
     <NewTaskWizardContext value={{ openNewTaskWizard }}>
       {children}
-      {openCount > 0 ? (
+      {open ? (
         <NewTaskWizard
-          key={openCount}
-          instance={openCount}
+          key={instance}
+          instance={instance}
           onClose={closeNewTaskWizard}
         />
       ) : null}

@@ -68,6 +68,8 @@ export function useCreateTaskModal() {
 interface CreateTaskModalProviderProps {
   children: React.ReactNode;
   initialOpen?: boolean;
+  /** Runs whenever the modal closes (dismiss, load error, or success). */
+  onClose?: () => void;
   initialAssigneeId?: string | null;
   initialProjectId?: string | null;
   initialPrompt?: string | null;
@@ -76,6 +78,7 @@ interface CreateTaskModalProviderProps {
 export function CreateTaskModalProvider({
   children,
   initialOpen = false,
+  onClose,
   initialAssigneeId = null,
   initialProjectId = null,
   initialPrompt = null,
@@ -144,7 +147,8 @@ export function CreateTaskModalProvider({
 
   const handleClose = useCallback(() => {
     setOpen(false);
-  }, []);
+    onClose?.();
+  }, [onClose]);
 
   const clearPromptOverride = useCallback(() => {
     setPromptOverride(null);
@@ -332,14 +336,8 @@ export function CreateTaskModal({
             defaultBadge: t("defaultBadge"),
             modelLabel: t("modelLabel"),
             hostingLabel: t("hostingLabel"),
-            continueLabel: t("continue"),
             taskStepTitle: t.raw("taskStepTitle") as string,
-            previousLabel: t("previousAgent"),
-            nextLabel: t("nextAgent"),
-            searchPlaceholder: t("searchAgents"),
             noResults: t("noAgentsFound"),
-            askPrompt: t.raw("askPrompt") as string,
-            promptHint: t("promptHint"),
             tasksTitle: t.has("tasksTitle")
               ? t("tasksTitle")
               : "Ready-To-Run Tasks",
@@ -356,7 +354,6 @@ export function CreateTaskModal({
             previewEmpty: t.has("previewEmpty")
               ? t("previewEmpty")
               : "No example output available yet.",
-            allCompanies: t("allCompanies"),
             status: t("status"),
             statusDescription: t("statusDescription"),
             statusDraft: t("statusDraft"),
@@ -422,9 +419,13 @@ export function CreateTaskModal({
 // Same wrapper as the wizard's first step, so the skeleton sits exactly where
 // the spotlight will.
 function NewTaskWizardLoading() {
+  const tTasks = useTranslations("App.Tasks");
+
   return (
     <div
+      role="status"
       aria-busy="true"
+      aria-label={tTasks("Actions.loading")}
       data-testid="new-task-wizard-loading"
       className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8"
     >

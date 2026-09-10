@@ -110,7 +110,7 @@ describe("NewTaskWizardProvider", () => {
 
     expect(screen.getByTestId("new-task-wizard")).toHaveAttribute(
       "data-instance",
-      "1",
+      "2",
     );
   });
 

@@ -81,7 +81,6 @@ describe("workspace switcher", () => {
 
     it("returns null for task edit and list routes", () => {
       expect(getTaskDetailBasePath("/tasks")).toBeNull();
-      expect(getTaskDetailBasePath("/tasks/new")).toBeNull();
       expect(getTaskDetailBasePath("/tasks/task-9/edit")).toBeNull();
     });
   });

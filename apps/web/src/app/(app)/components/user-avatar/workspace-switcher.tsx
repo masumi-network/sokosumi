@@ -21,7 +21,7 @@ export function getAgentJobsBasePath(pathname: string): string | null {
 }
 
 export function getTaskDetailBasePath(pathname: string): string | null {
-  const taskDetailRouteMatch = pathname.match(/^\/tasks\/(?!new$)[^/]+$/);
+  const taskDetailRouteMatch = pathname.match(/^\/tasks\/[^/]+$/);
   if (!taskDetailRouteMatch) {
     return null;
   }

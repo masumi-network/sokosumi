@@ -97,7 +97,6 @@ export default async function TaskEditModalPage({
         coworker: tEdit("coworker"),
         coworkerDescription: tEdit("coworkerDescription"),
         unassigned: tEdit("unassigned"),
-        unassignedDescription: tEdit("unassignedDescription"),
         status: tEdit("status"),
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),

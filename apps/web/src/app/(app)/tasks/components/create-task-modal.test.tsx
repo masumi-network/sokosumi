@@ -171,6 +171,19 @@ describe("CreateTaskModal", () => {
       expect(routerReplaceMock).toHaveBeenCalledWith("/calendar");
     });
 
+    it("reports every close to the provider's onClose", () => {
+      const onClose = vi.fn();
+      render(
+        <CreateTaskModalProvider initialOpen onClose={onClose}>
+          <CreateTaskModal coworkerOptions={[]} />
+        </CreateTaskModalProvider>,
+      );
+
+      dismissLatestForm();
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
     it("leaves the page URL alone when opened in place", () => {
       window.history.replaceState({}, "", "/calendar?create=true");
       render(
@@ -226,6 +239,9 @@ describe("CreateTaskModal", () => {
     );
 
     expect(screen.getByTestId("new-task-wizard-loading")).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "Actions.loading" }),
+    ).toBeInTheDocument();
     expect(taskFormPropsSpy).not.toHaveBeenCalled();
   });
 });
