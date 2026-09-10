@@ -7,15 +7,15 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
-import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import { signInRedirectPath } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
+import { readRouteSession } from "@/lib/auth/route-session";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import type { Notice } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
-
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import AppShellOverlays from "./app-shell-overlays";
 import {
@@ -24,6 +24,7 @@ import {
   APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
 } from "./app-shell-safe-area";
 import { AuthSessionHydrator } from "./auth-session-hydrator.client";
+import { CoreUnavailableNotice } from "./core-unavailable-notice.client";
 import Header from "./header";
 import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./notice-dialog-context";
@@ -40,7 +41,14 @@ interface AuthenticatedAppFrameProps {
 export default async function AuthenticatedAppFrame({
   children,
 }: AuthenticatedAppFrameProps) {
-  const session = await getSessionOrRedirect();
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return <CoreUnavailableNotice />;
+  }
+  if (sessionRead.status === "signedOut") {
+    redirect(await signInRedirectPath());
+  }
+  const session = sessionRead.session;
 
   // Workspace gate is the only access decision for product chrome — not
   // `onboardingCompleted`. Fail closed: not-ready or workspace-access failure → gate

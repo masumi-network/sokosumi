@@ -374,23 +374,44 @@ describe("auth.server", () => {
    * reachable. Answering 503 with `Retry-After` would tell the browser to
    * retry a condition that never clears.
    */
-  it.each([401, 403])(
-    "reads a Core %i as signed out rather than an outage",
-    async (status) => {
-      fetchMock.mockResolvedValue({
-        ok: false,
-        status,
-        json: async () => null,
-      });
+  it("reads a Core 401 as signed out rather than an outage", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => null,
+    });
 
-      const { getSessionResult } = await import("./auth.server");
+    const { getSessionResult } = await import("./auth.server");
 
-      const result = await getSessionResult({ refresh: true });
+    const result = await getSessionResult({ refresh: true });
 
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap()).toBeNull();
-    },
-  );
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toBeNull();
+  });
+
+  /**
+   * Neither status is about this browser's credentials. A 403 is Better
+   * Auth's trusted-origin check or a WAF rule on the web-to-Core hop; a 404
+   * means the route is gone. Reading either as "signed out" logs every user
+   * out silently and hides the misconfiguration behind a sign-in page.
+   */
+  it.each([403, 404])("keeps a Core %i in the outage path", async (status) => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => null,
+    });
+
+    const { getSessionResult } = await import("./auth.server");
+
+    const result = await getSessionResult({ refresh: true });
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      path: "/auth/get-session",
+      reason: "http",
+      status,
+    });
+  });
 
   it("reports an unexpected Core status as an outage", async () => {
     fetchMock.mockResolvedValue({
@@ -415,9 +436,9 @@ describe("auth.server", () => {
    * here would assert the budget against itself and let any drift through.
    * 8s is what the callers in front of this read allow - the background chat
    * reads give the browser 20-30s - and 5s is what turned a Core stall into
-   * "no session".
+   * "no session". The Better Auth client hop keeps its own 5s on purpose.
    */
-  it("spends the shared 8s Core auth budget on the session read", async () => {
+  it("spends the 8s Core auth budget on the session read", async () => {
     const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
 
     const { getSession } = await import("./auth.server");

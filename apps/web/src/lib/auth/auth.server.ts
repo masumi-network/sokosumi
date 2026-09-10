@@ -40,11 +40,13 @@ const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
 // give the browser 20-30s.
 const CORE_AUTH_REQUEST_TIMEOUT_MS = 8000;
 /**
- * Core auth statuses that mean "this browser has no session", never "Core is
- * down". A 404 is deliberately not here: on `/auth/get-session` it means the
- * route is gone, which is an outage worth a 503.
+ * The one Core auth status that means "this browser has no session". 403 and
+ * 404 are deliberately absent: on `/auth/get-session` a 403 is Better Auth's
+ * trusted-origin check or a WAF rule on the web-to-Core hop, and a 404 means
+ * the route is gone. Reading either as "signed out" would log every user out
+ * silently and hide the misconfiguration behind a sign-in page.
  */
-const CORE_SIGNED_OUT_STATUSES = [401, 403];
+const CORE_SIGNED_OUT_STATUSES = [401];
 
 /**
  * Classifies a thrown Core auth read failure.
@@ -230,7 +232,7 @@ async function fetchSessionResult(
       // Core answers 200 with a null body for a signed-out browser, so these
       // statuses are not expected. Keep them out of Sentry anyway: an auth
       // status is about this request, not about Core being down.
-      sentryIgnoreHttpStatuses: [...CORE_SIGNED_OUT_STATUSES, 404],
+      sentryIgnoreHttpStatuses: [...CORE_SIGNED_OUT_STATUSES, 403, 404],
     },
   );
 
@@ -360,6 +362,17 @@ export async function getOAuthClientPublic(
  * @returns Promise resolving to the user's session if authenticated
  * @throws {NextError} Redirects to login page with return URL when not authenticated
  */
+/**
+ * `/signin` carrying the page the user was on. Shared with the app-shell gates,
+ * which redirect for a signed-out browser but must not for a Core outage.
+ */
+export async function signInRedirectPath(): Promise<string> {
+  const headersList = await getRequestHeaders();
+  const pathname = headersList.get("x-pathname") ?? "";
+  const searchParams = headersList.get("x-search-params") ?? "";
+  return `/signin?returnUrl=${encodeURIComponent(pathname + searchParams)}`;
+}
+
 export async function getSessionOrRedirect(): Promise<Session> {
   const result = await getSessionResult();
   // Redirect only for an answered read that carried no session. A Core stall
@@ -372,13 +385,7 @@ export async function getSessionOrRedirect(): Promise<Session> {
   if (session) {
     return session;
   }
-  // Get the current URL from headers for server-side redirect
-  const headersList = await getRequestHeaders();
-  const pathname = headersList.get("x-pathname") ?? "";
-  const searchParams = headersList.get("x-search-params") ?? "";
-  const currentUrl = pathname + searchParams;
-  const returnUrl = encodeURIComponent(currentUrl);
-  redirect(`/signin?returnUrl=${returnUrl}`);
+  redirect(await signInRedirectPath());
 }
 
 /**

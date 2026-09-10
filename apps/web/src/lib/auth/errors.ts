@@ -46,9 +46,3 @@ export class CoreAuthUnavailableError extends Error {
     this.reason = reason;
   }
 }
-
-export function isCoreAuthUnavailableError(
-  error: unknown,
-): error is CoreAuthUnavailableError {
-  return error instanceof CoreAuthUnavailableError;
-}

@@ -97,7 +97,11 @@ describe("withSession", () => {
 
     const rejection = wrapped({ value: "input" });
     await expect(rejection).rejects.toBeInstanceOf(CoreAuthUnavailableError);
-    await expect(rejection).rejects.not.toBeInstanceOf(UnAuthenticatedError);
+    // The reason is what tells a stall from a parse fault in the logs.
+    await expect(rejection).rejects.toMatchObject({
+      name: "CoreAuthUnavailableError",
+      reason: "timeout",
+    });
     expect(handler).not.toHaveBeenCalled();
   });
 });

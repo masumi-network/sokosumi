@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getSessionOrRedirectMock = vi.fn();
+const readRouteSessionMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
@@ -11,8 +11,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSessionOrRedirect: (...args: unknown[]) =>
-    getSessionOrRedirectMock(...args),
+  signInRedirectPath: async () => "/signin?returnUrl=%2F",
+}));
+
+vi.mock("@/lib/auth/route-session", () => ({
+  readRouteSession: (...args: unknown[]) => readRouteSessionMock(...args),
 }));
 
 vi.mock("@/lib/services", () => ({
@@ -24,9 +27,9 @@ vi.mock("@/lib/services", () => ({
 describe("WorkspaceAccessGate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionOrRedirectMock.mockResolvedValue({
-      user: { id: "user-1" },
-      session: { id: "session-1" },
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session: { user: { id: "user-1" }, session: { id: "session-1" } },
     });
   });
 

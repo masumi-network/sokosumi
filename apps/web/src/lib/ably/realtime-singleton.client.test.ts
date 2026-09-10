@@ -32,7 +32,10 @@ import {
   reportAblyConnectionConnected,
   setAblyConnectionHealthy,
 } from "./ably-connection-health-store";
-import { getAblyRealtimeClient } from "./realtime-singleton.client";
+import {
+  getAblyRealtimeClient,
+  subscribeToAblyRealtimeClient,
+} from "./realtime-singleton.client";
 
 interface RealtimeAuthCallback {
   (
@@ -280,6 +283,8 @@ describe("getAblyRealtimeClient", () => {
     expect(getAblyConnectionHealthy()).toBe(false);
     reportAblyConnectionConnected(true);
     expect(getAblyConnectionHealthy()).toBe(true);
+  });
+
   /**
    * ably-js re-runs the auth callback on its own backoff and never gives up on
    * our auth failure, so a tab left open after a logout would POST
@@ -367,6 +372,95 @@ describe("getAblyRealtimeClient", () => {
     const replacement = getAblyRealtimeClient();
     expect(replacement).not.toBe(client);
     expect(getConstructedRealtimeClient(1).close).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A callback that was already in flight when its own client was retired
+   * must not close the replacement. Closing whatever happens to be global at
+   * settle time kills a healthy client built for the user who just signed in,
+   * and a counter left armed retires that replacement on its first failure.
+   */
+  it("does not let a late 401 from a retired client close its replacement", async () => {
+    mockUnauthorized();
+
+    const client = getAblyRealtimeClient();
+    const retiredCallback = getRealtimeClientOptions().authCallback;
+    if (!retiredCallback) {
+      throw new Error("expected an authCallback");
+    }
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
+
+    const replacement = getAblyRealtimeClient();
+    expect(replacement).not.toBe(client);
+
+    // A fourth 401 settles on the retired client's own closure.
+    await new Promise<void>((resolve) => {
+      retiredCallback({}, () => resolve());
+    });
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
+    expect(getConstructedRealtimeClient(1).close).not.toHaveBeenCalled();
+  });
+
+  it("rebuilds the client for mounted providers after an identity change", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    await invokeAuthCallback();
+
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    // Without the notification a mounted provider keeps the closed client and
+    // stays silent for the rest of the page's life.
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("does not rebuild for a signed-out browser", async () => {
+    mockUnauthorized();
+
+    getAblyRealtimeClient();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    // Rebuilding here would restart the polling the retire just stopped.
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  /**
+   * A TokenRequest without a clientId does not contradict the latched one, so
+   * ably-js accepts it. Treating a missing clientId as a changed identity
+   * would retire a healthy client on a routine renewal.
+   */
+  it("keeps the client when a renewal carries no clientId", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+
+    fetchMockValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ keyName: "key", mac: "mac" }),
+    });
+    const renewal = await invokeAuthCallback();
+
+    expect(renewal.error).toBeNull();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
   });
 
   it("keeps serving the same user across token renewals", async () => {

@@ -60,6 +60,7 @@ describe("POST /api/export/docx", () => {
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "Unauthorized" });
+    expect(withDocxExportFetchGuardMock).not.toHaveBeenCalled();
   });
 
   it("returns 503, not 401, when the Core session read fails", async () => {
@@ -79,7 +80,6 @@ describe("POST /api/export/docx", () => {
       error: "Export unavailable",
       reason: "timeout",
     });
+    expect(withDocxExportFetchGuardMock).not.toHaveBeenCalled();
   });
-
-  expect(withDocxExportFetchGuardMock).not.toHaveBeenCalled();
 });
