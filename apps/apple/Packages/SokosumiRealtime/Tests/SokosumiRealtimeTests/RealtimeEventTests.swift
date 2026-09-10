@@ -37,6 +37,145 @@ private func messageDict(
 }
 
 struct RealtimeEventTests {
+  @Test(arguments: ["viewer", "other"])
+  func fullMessagesAndReactionPatchesPersonalizeForViewer(_ viewer: String) throws {
+    let reactions: [[String: Any]] = [["emoji": "👍", "count": 1,
+                                       "reactedByCurrentUser": false,
+                                       "reactors": [["id": "viewer", "name": "Viewer"]]]]
+    var original = messageDict()
+    original["reactions"] = reactions
+    let full = resolveRealtimeDelivery(
+      channel: "chat_rooms:room_\(roomId)", event: "chat_room_message",
+      data: ["eventType": "create", "message": original]
+    ).personalized(for: viewer)
+    let patched = resolveRealtimeDelivery(
+      channel: "chat_rooms:room_\(roomId)", event: "chat_room_message",
+      data: ["eventType": "reaction", "roomId": roomId, "messageId": messageId,
+             "parentMessageId": NSNull(), "patch": ["reactions": reactions]]
+    ).personalized(for: viewer)
+    guard case let .message(_, _, message) = full,
+          case let .patch(patch) = patched,
+          case let .reactions(values) = patch.value else {
+      Issue.record("Expected full message and reaction patch")
+      return
+    }
+    #expect(try #require(message.reactions.first).reactedByCurrentUser == (viewer == "viewer"))
+    #expect(values == message.reactions)
+    #expect(message.content == "hello")
+    #expect(values.first?.count == 1)
+  }
+
+  @Test(arguments: ["pin", "unpin"])
+  func pinEventsValidateChannelAndCount(action: String) {
+    let payload: [String: Any] = ["action": action, "roomId": roomId, "messageId": messageId, "pinnedMessageCount": 2]
+    guard case let .pin(actualRoom, actualMessage, isPinned, count) = resolveRealtimeDelivery(
+      channel: chatRoomChannelName(roomId: roomId), event: chatRoomPinnedMessageEventName, data: payload
+    ) else { Issue.record("Expected pin event")
+      return
+    }
+    #expect(actualRoom == roomId)
+    #expect(actualMessage == messageId)
+    #expect(isPinned == (action == "pin"))
+    #expect(count == 2)
+    for invalid in [
+      payload.merging(["roomId": "foreign"], uniquingKeysWith: { _, new in new }),
+      payload.merging(["messageId": ""], uniquingKeysWith: { _, new in new }),
+      payload.merging(["action": "other"], uniquingKeysWith: { _, new in new }),
+      payload.merging(["pinnedMessageCount": -1], uniquingKeysWith: { _, new in new }),
+      payload.merging(["pinnedMessageCount": 1.5], uniquingKeysWith: { _, new in new }),
+      payload.merging(["pinnedMessageCount": true], uniquingKeysWith: { _, new in new })
+    ] {
+      guard case .ignored = resolveRealtimeDelivery(channel: chatRoomChannelName(roomId: roomId),
+                                                    event: chatRoomPinnedMessageEventName, data: invalid)
+      else { Issue.record("Accepted invalid pin event")
+        continue
+      }
+    }
+  }
+
+  @MainActor @Test func pinOverridesAreRoomScopedAndResetWithHistory() {
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: roomId)
+    timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: true)
+    timeline.applyPin(roomId: "foreign", messageId: messageId, isPinned: false)
+    #expect(timeline.pinOverrides[messageId] == true)
+    timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: false)
+    #expect(timeline.pinOverrides[messageId] == false)
+    timeline.reset(roomId: roomId)
+    #expect(timeline.pinOverrides.isEmpty)
+  }
+
+  @Test(arguments: ["reaction", "mention_status", "unfurl"])
+  func fieldPatchesPreserveMessageBodyAndIdentity(_ type: String) {
+    let field = type == "reaction" ? "reactions" : type == "mention_status" ? "mentions" : "unfurls"
+    var original = messageDict()
+    original["reactions"] = [["emoji": "👍", "count": 1, "reactedByCurrentUser": false, "reactors": []]]
+    original["mentions"] = [["id": messageId, "coworkerId": "coworker", "sokoBotId": NSNull(),
+                             "status": "pending", "responseMessageId": NSNull()]]
+    original["unfurls"] = [["url": "https://example.com", "title": "Example", "description": NSNull(),
+                            "imageUrl": NSNull(), "siteName": NSNull()]]
+    let event = resolveRealtimeDelivery(
+      channel: "chat_rooms:room_\(roomId)", event: "chat_room_message",
+      data: ["eventType": type, "roomId": roomId, "messageId": messageId,
+             "parentMessageId": NSNull(), "patch": [field: []]]
+    )
+    guard case let .patch(patch) = event,
+          case let .message(_, _, message) = resolveRealtimeDelivery(
+            channel: "chat_rooms:room_\(roomId)", event: "chat_room_message",
+            data: ["eventType": "create", "message": original]
+          ) else { Issue.record("Expected typed patch and message")
+      return
+    }
+    let result = applyRealtimePatch(patch, messages: [message])
+    #expect(result.count == 1)
+    #expect(result[0].id == message.id)
+    #expect(result[0].content == message.content)
+    #expect(result[0].createdAt == message.createdAt)
+    #expect(result[0].sender == message.sender)
+    #expect(result[0].reactions == (type == "reaction" ? [] : message.reactions))
+    #expect(result[0].mentions == (type == "mention_status" ? [] : message.mentions))
+    #expect(result[0].unfurls == (type == "unfurl" ? [] : message.unfurls))
+    #expect(applyRealtimePatch(patch, messages: []).isEmpty)
+    var foreign = message
+    foreign.roomId = "another-room"
+    #expect(applyRealtimePatch(patch, messages: [foreign]) == [foreign])
+    let reply = RealtimeMessagePatch(roomId: roomId, messageId: messageId,
+                                     parentMessageId: "parent", value: patch.value)
+    #expect(applyRealtimePatch(reply, messages: [message]) == [message])
+  }
+
+  @Test func nullableUnfurlsAreAnExplicitPatch() {
+    let event = resolveRealtimeDelivery(
+      channel: "chat_rooms:room_\(roomId)", event: "chat_room_message",
+      data: ["eventType": "unfurl", "roomId": roomId, "messageId": messageId,
+             "parentMessageId": NSNull(), "patch": ["unfurls": NSNull()]]
+    )
+    guard case let .patch(patch) = event, case .unfurls(nil) = patch.value else {
+      Issue.record("Expected explicit null unfurls")
+      return
+    }
+  }
+
+  @Test func malformedAndForeignPatchesAreIgnored() {
+    let payloads: [[String: Any]] = [
+      ["eventType": "reaction", "roomId": "foreign", "messageId": messageId,
+       "parentMessageId": NSNull(), "patch": ["reactions": []]],
+      ["eventType": "reaction", "roomId": roomId, "messageId": messageId,
+       "parentMessageId": NSNull(), "patch": ["reactions": "invalid"]],
+      ["eventType": "unfurl", "roomId": roomId, "messageId": messageId,
+       "parentMessageId": NSNull(), "patch": [:]],
+      ["eventType": "mention_status", "roomId": roomId, "messageId": messageId,
+       "parentMessageId": 12, "patch": ["mentions": []]]
+    ]
+    for payload in payloads {
+      guard case .ignored = resolveRealtimeDelivery(
+        channel: "chat_rooms:room_\(roomId)", event: "chat_room_message", data: payload
+      ) else { Issue.record("Accepted malformed patch")
+        continue
+      }
+    }
+  }
+
   @Test func fullCreateResolvesWithDecodedMessage() {
     let event = resolveRealtimeDelivery(
       channel: "chat_rooms:room_\(roomId)",

@@ -10,6 +10,7 @@ public final class RoomTimeline: ObservableObject {
 
   @Published public private(set) var roomId: String?
   @Published public var messages: [Components.Schemas.ChatRoomMessage] = []
+  @Published public private(set) var pinOverrides: [String: Bool] = [:]
   @Published public private(set) var hasLoadedHistory = false
   @Published public private(set) var hasMore = false
   @Published public private(set) var isLoading = false
@@ -29,6 +30,7 @@ public final class RoomTimeline: ObservableObject {
     activePage = nil
     self.roomId = roomId
     messages = []
+    pinOverrides = [:]
     hasLoadedHistory = false
     cursor = nil
     hasMore = false
@@ -37,6 +39,11 @@ public final class RoomTimeline: ObservableObject {
     isRefreshing = false
     errorMessage = nil
     failedPage = nil
+  }
+
+  public func applyPin(roomId: String, messageId: String, isPinned: Bool) {
+    guard self.roomId == roomId else { return }
+    pinOverrides[messageId] = isPinned
   }
 
   /// Settle a queued initial load when authentication cannot supply a client.

@@ -5,7 +5,7 @@ import Foundation
 //
 // Mirrors web `merge-room-messages` + `apply-chat-room-message-id-envelope`
 // (ADR 0014), scoped to the tracer: top-level messages only (no threads UI),
-// no reaction/unfurl/mention field patches. Full DTOs merge; an id envelope
+// field patches merge through RealtimeMessagePatch. Full DTOs merge; an id envelope
 // on the focused room refetches history instead of inventing a fake row.
 // Own confirmed send and the Ably create dedupe to one bubble by client
 // turn id (ADR 0004).
