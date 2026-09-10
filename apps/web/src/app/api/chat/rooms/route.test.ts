@@ -1,16 +1,23 @@
+import { err, ok } from "neverthrow";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
-const { getSessionMock, listRoomsMock, listArchivedMock, listPendingMock } =
-  vi.hoisted(() => ({
-    getSessionMock: vi.fn(),
-    listRoomsMock: vi.fn(),
-    listArchivedMock: vi.fn(),
-    listPendingMock: vi.fn(),
-  }));
-vi.mock("@/lib/auth/auth.server", () => ({ getSession: getSessionMock }));
+const {
+  getSessionResultMock,
+  listRoomsMock,
+  listArchivedMock,
+  listPendingMock,
+} = vi.hoisted(() => ({
+  getSessionResultMock: vi.fn(),
+  listRoomsMock: vi.fn(),
+  listArchivedMock: vi.fn(),
+  listPendingMock: vi.fn(),
+}));
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSessionResult: getSessionResultMock,
+}));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listRooms: listRoomsMock,
@@ -30,7 +37,7 @@ function request(collection: string) {
 describe("GET /api/chat/rooms", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    getSessionResultMock.mockResolvedValue(ok({ user: { id: "user-1" } }));
     listRoomsMock.mockResolvedValue({
       rooms: [{ id: "room-1" }],
       nextCursor: null,
@@ -71,11 +78,26 @@ describe("GET /api/chat/rooms", () => {
   });
 
   it("returns JSON 401 without a sign-in redirect", async () => {
-    getSessionMock.mockResolvedValue(null);
+    getSessionResultMock.mockResolvedValue(ok(null));
     const result = await GET(request("active"));
     expect(result.status).toBe(401);
     expect(result.headers.get("location")).toBeNull();
     expect(await result.json()).toEqual({ error: "Unauthorized" });
+    expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 503, not 401, when the Core session read times out", async () => {
+    getSessionResultMock.mockResolvedValue(
+      err({ path: "/auth/get-session", reason: "timeout" }),
+    );
+    const result = await GET(request("active"));
+    // 401 told the browser its session was gone and cost it the realtime
+    // client; the session was fine and Core was only slow.
+    expect(result.status).toBe(503);
+    expect(await result.json()).toEqual({
+      error: "Chat rooms unavailable",
+      reason: "timeout",
+    });
     expect(listRoomsMock).not.toHaveBeenCalled();
   });
 

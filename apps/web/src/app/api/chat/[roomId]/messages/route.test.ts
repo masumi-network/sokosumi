@@ -1,16 +1,18 @@
+import { err, ok } from "neverthrow";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
-const { getSessionMock, listMessagesMock, listThreadMessagesMock } = vi.hoisted(
-  () => ({
-    getSessionMock: vi.fn(),
+const { getSessionResultMock, listMessagesMock, listThreadMessagesMock } =
+  vi.hoisted(() => ({
+    getSessionResultMock: vi.fn(),
     listMessagesMock: vi.fn(),
     listThreadMessagesMock: vi.fn(),
-  }),
-);
-vi.mock("@/lib/auth/auth.server", () => ({ getSession: getSessionMock }));
+  }));
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSessionResult: getSessionResultMock,
+}));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listMessages: listMessagesMock,
@@ -32,7 +34,7 @@ function get(query = "") {
 describe("GET /api/chat/[roomId]/messages", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    getSessionResultMock.mockResolvedValue(ok({ user: { id: "user-1" } }));
     listMessagesMock.mockResolvedValue({
       messages: [{ id: "msg-1" }],
       nextCursor: "cursor-2",
@@ -70,11 +72,24 @@ describe("GET /api/chat/[roomId]/messages", () => {
   });
 
   it("returns JSON 401 without a sign-in redirect", async () => {
-    getSessionMock.mockResolvedValue(null);
+    getSessionResultMock.mockResolvedValue(ok(null));
     const result = await get();
     expect(result.status).toBe(401);
     expect(result.headers.get("location")).toBeNull();
     expect(await result.json()).toEqual({ error: "Unauthorized" });
+    expect(listMessagesMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 503, not 401, when the Core session read times out", async () => {
+    getSessionResultMock.mockResolvedValue(
+      err({ path: "/auth/get-session", reason: "timeout" }),
+    );
+    const result = await get();
+    expect(result.status).toBe(503);
+    expect(await result.json()).toEqual({
+      error: "Chat messages unavailable",
+      reason: "timeout",
+    });
     expect(listMessagesMock).not.toHaveBeenCalled();
   });
 
