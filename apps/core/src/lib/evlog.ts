@@ -6,6 +6,8 @@ import { createSentryDrain } from "evlog/sentry";
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 
+import { matchedRouteTemplate } from "./route-template.js";
+
 const OPENAPI_SPEC_PATH = "/v1/openapi.json";
 
 export interface InitCoreLoggerOptions {
@@ -42,11 +44,24 @@ export function coreEvlogMiddleware() {
   });
 }
 
-export function bindCoreRequestId(): MiddlewareHandler<{
+/**
+ * Label the request event with the Core requestId and the matched route
+ * template.
+ *
+ * evlog's hono adapter seeds the event with `c.req.path`, the concrete path.
+ * Paths carry capability tokens (share links, invite links, password reset
+ * links), and `createSentryDrain` sends `path` to Sentry as both the log body
+ * and an attribute on every request, not only sampled ones. Overwriting `path`
+ * here keeps the token out of the drain while the route stays queryable.
+ */
+export function bindCoreRequestContext(): MiddlewareHandler<{
   Variables: RequestIdVariables;
 }> {
   return async (c, next) => {
-    tryUseLogger()?.set({ requestId: c.var.requestId });
+    tryUseLogger()?.set({
+      requestId: c.var.requestId,
+      path: matchedRouteTemplate(c),
+    });
     return await next();
   };
 }

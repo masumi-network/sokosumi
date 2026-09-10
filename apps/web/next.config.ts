@@ -4,7 +4,7 @@ import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-import { CROSS_ORIGIN_OPENER_POLICY } from "./src/config/document-security-headers";
+import { documentSecurityHeaders } from "./src/config/document-security-headers";
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
   getCoreRelatedProjectName,
@@ -15,6 +15,9 @@ import {
 
 const coreNetwork = resolveCoreNetwork(process.env.NETWORK);
 const isWebpackDev = process.env.NEXT_WEBPACK_DEV === "1";
+// Vercel production deployments only — not NODE_ENV. Local dev serves plain
+// http, so HSTS below must not apply there.
+const isVercelProduction = process.env.VERCEL_ENV === "production";
 const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
   withRelatedProject({
     projectName: getCoreRelatedProjectName(coreNetwork),
@@ -38,12 +41,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: [
-          {
-            key: "Cross-Origin-Opener-Policy",
-            value: CROSS_ORIGIN_OPENER_POLICY,
-          },
-        ],
+        headers: documentSecurityHeaders({ includeHsts: isVercelProduction }),
       },
     ];
   },
