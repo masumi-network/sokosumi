@@ -12,7 +12,7 @@ import {
 } from "@/lib/types/core-dto";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
-import { JobsHeaderProvider } from "./components/jobs-header-context";
+import { JobsHeaderContext } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
 
 export async function generateMetadata({
@@ -78,7 +78,7 @@ async function JobLayoutInner({
   ]);
 
   return (
-    <JobsHeaderProvider
+    <JobsHeaderContext
       value={{
         agent,
         ratingStats,
@@ -109,7 +109,7 @@ async function JobLayoutInner({
         </div>
         {modal}
       </div>
-    </JobsHeaderProvider>
+    </JobsHeaderContext>
   );
 }
 

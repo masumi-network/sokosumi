@@ -35,15 +35,15 @@
   },
   "dependencies": {
     "@react-email/render": "2.1.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "react-email": "6.9.5",
     "use-intl": "4.14.2"
   },
   "devDependencies": {
-    "@types/node": "24.13.3",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.7",
+    "@types/node": "24.13.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@typescript/typescript6": "6.0.2",
     "typescript": "7.0.2",
     "vitest": "5.0.0"

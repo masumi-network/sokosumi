@@ -1,13 +1,3 @@
-export function parseDate(
-  value: string | number | Date | null | undefined,
-): Date | undefined {
-  if (value == null) return undefined;
-  if (value instanceof Date) return value;
-  const date =
-    typeof value === "number" ? new Date(value) : new Date(String(value));
-  return isNaN(date.getTime()) ? undefined : date;
-}
-
 export function parseMonth(value: string | null | undefined): Date | undefined {
   if (!value) return undefined;
   const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);

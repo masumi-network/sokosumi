@@ -2,7 +2,7 @@
 
 import { createContext, type ReactNode, useContext } from "react";
 
-const OrganizationSeatContext = createContext(false);
+export const OrganizationSeatContext = createContext(false);
 
 export function OrganizationSeatProvider({
   hasAssignedSeat,
@@ -12,9 +12,9 @@ export function OrganizationSeatProvider({
   children: ReactNode;
 }) {
   return (
-    <OrganizationSeatContext.Provider value={hasAssignedSeat}>
+    <OrganizationSeatContext value={hasAssignedSeat}>
       {children}
-    </OrganizationSeatContext.Provider>
+    </OrganizationSeatContext>
   );
 }
 
