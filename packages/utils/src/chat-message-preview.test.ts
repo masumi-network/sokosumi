@@ -88,6 +88,57 @@ describe("buildChatMessagePreview", () => {
     ).toBe("@C# R_D ping");
   });
 
+  /**
+   * A slug is letters, digits, `_` and `-`. What follows one is the message,
+   * and reading it into the token deletes it: the comma below, and the
+   * bracket that closes the link in the two after it.
+   */
+  it("keeps the punctuation that follows a mention", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada, are you free?",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("@Ada Lovelace, are you free?");
+  });
+
+  it("shows only the label of a link whose address holds a mention", () => {
+    expect(
+      buildChatMessagePreview(
+        "[docs](https://example.test/@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada)",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("docs");
+  });
+
+  it("names a mention written inside a link label", () => {
+    expect(
+      buildChatMessagePreview(
+        "[hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada](https://example.test/p)",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("hi @Ada Lovelace");
+  });
+
+  it("names a mention written inside a code span", () => {
+    expect(
+      buildChatMessagePreview(
+        "code `@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada` end",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+      ),
+    ).toBe("code @Ada Lovelace end");
+  });
+
+  /** An empty name is no name, so the slug is what is left to say who. */
+  it("keeps the slug when the lookup carries an empty name", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada hi",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", ""]]),
+      ),
+    ).toBe("@ada hi");
+  });
+
   /** The words around a dropped mention still read as one line. */
   it("closes the line up around a mention it drops", () => {
     expect(

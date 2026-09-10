@@ -13,9 +13,16 @@ import { MARKDOWN_FENCED_BLOCK_REGEX } from "./markdown-fenced-block.js";
  * The slug may be empty. It is a name rewritten to lowercase ascii words, and
  * a name written in a script that rewrite keeps nothing of leaves `@<uuid>:`,
  * so a rule that demanded a slug would leave the uuid itself on a banner.
+ *
+ * The slug ends at the first character the rewrite cannot produce: letters,
+ * digits, `_` and `-` are a slug, and everything else belongs to the message.
+ * Reading to the next space instead takes the comma out of `@<uuid>:ada, are
+ * you free?` and the closing bracket out of `[docs](https://e.test/@<uuid>:x)`,
+ * which leaves the address of a broken link on a lock screen where the label
+ * alone belongs.
  */
 const MENTION_TOKEN_REGEX =
-  /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|all):(\S*)/g;
+  /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|all):([\p{L}\p{N}_-]*)/gu;
 
 /**
  * The key of the room-wide mention, which names a room rather than a member.
@@ -315,9 +322,13 @@ export function buildChatMessagePreview(
       // and a reader loses nothing when the token carries none. Every other
       // key is a uuid, which says nothing to anyone, so a token left with no
       // name and no slug says less by saying nothing.
+      // Read for what it says rather than for whether it is there: a member
+      // whose display name is empty is named no better than one the map does
+      // not carry, and the slug is what is left to say who.
       const label =
-        mentionNames?.get(lookupKey) ??
-        (slug || (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : ""));
+        mentionNames?.get(lookupKey) ||
+        slug ||
+        (lookupKey === CHAT_MENTION_ALL_KEY ? lookupKey : "");
 
       labels.push(label ? `@${label}` : "");
 
