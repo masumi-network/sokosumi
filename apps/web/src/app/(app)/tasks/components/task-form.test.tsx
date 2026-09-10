@@ -5,7 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
-import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
+import {
+  TASK_STATUS_DISPLAY_ORDER,
+  TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT,
+} from "@/lib/utils/task-status-order";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {
@@ -1186,6 +1189,51 @@ describe("TaskForm", () => {
       "aria-disabled",
       "true",
     );
+  });
+
+  it("hides internal statuses from the edit status dropdown", async () => {
+    const user = userEvent.setup();
+    const hiddenManualStatusLabels: Partial<Record<TaskStatus, string>> = {
+      [TaskStatus.GRANT_PENDING]: "Grant pending",
+      [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
+      [TaskStatus.OUT_OF_CREDITS]: "Paused: credits needed",
+      [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
+      [TaskStatus.FAILED]: "Failed",
+    };
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={{
+          ...baseLabels,
+          statusLabels: {
+            ...baseLabels.statusLabels,
+            ...hiddenManualStatusLabels,
+          },
+        }}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+
+    for (const status of TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT) {
+      const label = hiddenManualStatusLabels[status];
+      if (!label) continue;
+      expect(
+        screen.queryByRole("option", { name: label }),
+      ).not.toBeInTheDocument();
+    }
   });
 
   it("saves the status selected in the edit dropdown", async () => {
