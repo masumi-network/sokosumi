@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -120,5 +120,43 @@ describe("ImageViewer", () => {
     );
 
     expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+  });
+
+  it("prints without injecting markup from alt text into the print document", async () => {
+    const maliciousAlt = 'evil" onerror="alert(1)</title></style><script>alert(1)</script>';
+    const printSpy = vi.fn();
+
+    render(
+      <ImageViewer
+        open
+        onOpenChange={vi.fn()}
+        src="https://example.com/photo.png"
+        alt={maliciousAlt}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+
+    const iframe = document.querySelector("iframe");
+    expect(iframe).not.toBeNull();
+
+    // happy-dom does not implement window.print(); provide it before the
+    // iframe load event triggers printing.
+    Object.defineProperty(iframe!.contentWindow, "print", {
+      value: printSpy,
+      writable: true,
+    });
+
+    const printDoc = iframe!.contentDocument;
+    expect(printDoc).not.toBeNull();
+
+    const image = printDoc!.querySelector("img");
+    expect(image).not.toBeNull();
+
+    expect(image!.getAttributeNames().sort()).toEqual(["alt", "src"]);
+    expect(image!.getAttribute("alt")).toBe(maliciousAlt);
+    expect(printDoc!.title).toBe(maliciousAlt);
+
+    await waitFor(() => expect(printSpy).toHaveBeenCalled());
   });
 });

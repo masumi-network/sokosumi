@@ -188,9 +188,6 @@ importers:
       '@sokosumi/ai-provider':
         specifier: workspace:*
         version: link:../../packages/ai-provider
-      '@sokosumi/chat':
-        specifier: workspace:*
-        version: link:../../packages/chat
       '@sokosumi/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -351,12 +348,6 @@ importers:
       '@sentry/nextjs':
         specifier: 10.74.0
         version: 10.74.0(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(next@16.3.4(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@8.1.1)(webpack@5.107.2(@swc/core@1.16.1(@swc/helpers@0.5.23))(clean-css@5.3.3)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.28))
-      '@sokosumi/chat':
-        specifier: workspace:*
-        version: link:../../packages/chat
-      '@sokosumi/email':
-        specifier: workspace:*
-        version: link:../../packages/email
       '@sokosumi/masumi':
         specifier: workspace:*
         version: link:../../packages/masumi
