@@ -96,6 +96,11 @@ import SwiftUI
               inlineError(error)
                 .padding(.horizontal, 12)
             }
+            if let error = workspaces.directStream.errorMessage {
+              Text(error)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+            }
             let messages = workspaces.displayedTranscript
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -121,8 +126,10 @@ import SwiftUI
                     onRemove: outbound.map { shell in
                       { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                     },
-                    onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil,
-                    horizontalInset: 12
+                    onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                    horizontalInset: 12,
+                    streamReasoning: streamReasoning(for: message),
+                    streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy
                   )
                 }
               }
@@ -215,6 +222,18 @@ import SwiftUI
         Button("Retry", action: retry)
       }
     }
+
+    private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+      message.id.hasPrefix("stream:") && isCoworkerMessage(message)
+    }
+
+    private func streamReasoning(for message: Components.Schemas.ChatRoomMessage) -> String? {
+      guard isLiveCoworkerOverlay(message) else { return nil }
+      if ComposerContent(message.content).text.isEmpty, workspaces.directStream.isBusy {
+        return workspaces.directStream.latestThought ?? workspaces.directStream.reasoning
+      }
+      return workspaces.directStream.reasoning
+    }
   }
 
   /// Owns typing state so edits do not invalidate the transcript. The parent
@@ -248,6 +267,7 @@ import SwiftUI
 
     private var canSend: Bool {
       ComposerContent(draft).canSend
+        && (parentMessageId != nil || !workspaces.directStream.isBusy)
         && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
         && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
@@ -272,6 +292,13 @@ import SwiftUI
           .disabled(!canSend)
       }
       .padding(8)
+      .onChange(of: workspaces.directStream.restoredDraft) { _, text in
+        guard parentMessageId == nil, let text, !text.isEmpty else { return }
+        draft = savedDraft.restoreFailedSend(text, preserving: draft)
+        Task { @MainActor in
+          workspaces.directStream.consumeRestoredDraft()
+        }
+      }
     }
 
     @discardableResult
@@ -368,6 +395,8 @@ import SwiftUI
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
     var horizontalInset: CGFloat = 0
+    var streamReasoning: String?
+    var streamThinking = false
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
@@ -399,6 +428,10 @@ import SwiftUI
                   .foregroundStyle(.secondary)
               }
             }
+          }
+          if isCoworkerMessage(message), message.deletedAt == nil {
+            CoworkerThoughtView(thought: CoworkerThought(message: message, streamedText: streamReasoning),
+                                working: streamThinking, startedAt: message.createdAt)
           }
           if message.deletedAt != nil {
             Text("This message was deleted")
@@ -590,3 +623,10 @@ import SwiftUI
   #endif
 
 #endif
+
+private func isCoworkerMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  if case .case2 = message.sender {
+    return true
+  }
+  return false
+}
