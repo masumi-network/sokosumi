@@ -144,16 +144,30 @@ describe("getAblyRealtimeClient", () => {
   });
 
   it("keeps the shared client when /api/ably/auth returns 401", async () => {
-    fetchMock.mockResolvedValue({
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        keyName: "app.key",
+        capability: "{}",
+        timestamp: 1,
+        nonce: "n",
+        mac: "m",
+      }),
+    });
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    reportAblyConnectionConnected(true);
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 401,
       text: async () => '{"error":"Unauthorized"}',
     });
-
-    const client = getAblyRealtimeClient();
     const authResult = await invokeAuthCallback();
 
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/ably/auth?clientInstanceId=inst_test01",
       expect.objectContaining({
         method: "POST",
@@ -171,18 +185,31 @@ describe("getAblyRealtimeClient", () => {
       "Ably auth request failed",
       expect.objectContaining({ status: 401 }),
     );
-    reportAblyConnectionConnected(true);
     expect(getAblyConnectionHealthy()).toBe(false);
   });
 
   it("does not clear the singleton when /api/ably/auth returns 502", async () => {
-    fetchMock.mockResolvedValue({
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        keyName: "app.key",
+        capability: "{}",
+        timestamp: 1,
+        nonce: "n",
+        mac: "m",
+      }),
+    });
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    reportAblyConnectionConnected(true);
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 502,
       text: async () => '{"error":"Failed to create Ably token"}',
     });
-
-    const client = getAblyRealtimeClient();
     const authResult = await invokeAuthCallback();
 
     expect(authResult.token).toBeNull();
@@ -190,6 +217,7 @@ describe("getAblyRealtimeClient", () => {
     expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
     expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
     expect(consoleErrorMock).toHaveBeenCalled();
+    expect(getAblyConnectionHealthy()).toBe(false);
   });
 
   it("reuses the same client after a 401 instead of building a second one", async () => {

@@ -113,8 +113,13 @@ describe("auth.server", () => {
   it("skips Core when no session cookie is present", async () => {
     headersMock.mockResolvedValue(new Headers({}));
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult();
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBeNull();
+    }
     await expect(getSession()).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -122,8 +127,13 @@ describe("auth.server", () => {
   it("skips Core for refresh when no session cookie is present", async () => {
     headersMock.mockResolvedValue(new Headers({}));
 
-    const { getSession } = await import("./auth.server");
+    const { getSession, getSessionResult } = await import("./auth.server");
 
+    const result = await getSessionResult({ refresh: true });
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBeNull();
+    }
     await expect(getSession({ refresh: true })).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });

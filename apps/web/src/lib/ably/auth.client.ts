@@ -17,7 +17,9 @@ export class AblyBrowserAuthError extends Error {
 
 /**
  * Browser fetch of POST /api/ably/auth (cookies included).
- * 401 is session-loss; other HTTP failures stay distinguishable by status.
+ * 401 is Core unauthorized on this mint, not a confirmed logout. The
+ * singleton passes it to ably-js to retry. Other HTTP failures stay
+ * distinguishable by status.
  */
 export async function fetchAblyBrowserAuthTokenRequest(
   clientInstanceId: string,
