@@ -53,13 +53,14 @@ public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
 public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
 
-  public init(_ source: String) {
+  public init(_ source: String, baseURL: URL? = nil) {
     let source = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
     let parsed: AttributedString
     do {
       parsed = try AttributedString(
         markdown: source,
-        options: .init(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible, appliesSourcePositionAttributes: true)
+        options: .init(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible, appliesSourcePositionAttributes: true),
+        baseURL: baseURL
       )
     } catch {
       parsed = AttributedString(source)

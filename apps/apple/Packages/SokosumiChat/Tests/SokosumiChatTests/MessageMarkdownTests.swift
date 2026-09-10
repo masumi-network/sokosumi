@@ -11,6 +11,15 @@ struct MessageMarkdownTests {
       == ["Done", "Open", "[x] Literal", "[x] Code", "Uppercase", "[x] Bold literal"])
   }
 
+  @Test func relativeLinksResolveAgainstConfiguredWebOrigin() throws {
+    let baseURL = try #require(URL(string: "https://worktree.web.sokosumi.localhost"))
+    let result = MessageMarkdown("[chat](/chat?room=123) [external](https://example.com) [unsafe](file:///tmp/test)", baseURL: baseURL)
+    let text = try #require(result.blocks.first?.text)
+    #expect(text.runs.compactMap(\.link).map(\.absoluteString) == [
+      "https://worktree.web.sokosumi.localhost/chat?room=123", "https://example.com"
+    ])
+  }
+
   @Test func reportHeadingsAndEmphasis() throws {
     let result = MessageMarkdown("### Report\n\nFinished **analysis** with _results_ and ~~old data~~.")
     #expect(result.blocks.map(\.kind) == [.header(level: 3), .paragraph])

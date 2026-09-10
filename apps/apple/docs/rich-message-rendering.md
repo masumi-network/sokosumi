@@ -115,3 +115,9 @@ Verification: Xcode build and app tests passed (`/tmp/apple-markdown-view-build.
 Task-list parsing uses Foundation source positions to distinguish actual markers from escaped, code, bold and linked text. SwiftUI renders read-only checkbox symbols. Compared edge cases with the web's installed remark-parse/remark-gfm: empty markers remain literal, a tab is accepted, and exactly one separator is removed. Raw emoji-only messages use web's Extended_Pictographic/flag/keycap criteria, whitespace handling, 23-count maximum and four relative size tiers. Shortcodes still need their separate conversion; they do not trigger jumbo sizing.
 
 Verification: 188 Chat tests in 22 suites, Xcode app tests, iOS17 shared build, and changed-file lint/format passed. A final parser-only test run also passed after the lint-mandated failable UTF-8 conversion. Logs: `/tmp/apple-task-emoji-suite.log`, `/tmp/apple-task-emoji-app.log`, `/tmp/apple-task-emoji-ios17.log`, `/tmp/apple-task-final-tests.log`. Native visual verification remains pending.
+
+## Link routing checkpoint
+
+MessageMarkdown now receives CoreSettings.webBaseURL from the app so relative Markdown destinations resolve against the configured production/local web origin. A regression test verifies relative routing, unchanged external links and rejection of local-file destinations. Ten parser tests and Xcode build passed (`/tmp/apple-relative-link-tests.log`, `/tmp/apple-relative-link-build.log`); changed files pass format lint.
+
+A Foundation probe confirms that full parsing already recognizes scheme URLs, www links, emails and angle-bracket autolinks. The remaining bare-domain behavior is the explicit allowlist in `packages/utils/src/linkify-bare-domains.ts`, including filename exclusions and protection of code/existing links. Do not replace it with unrestricted data detection. Its transformation runs before Markdown interpretation on web, which matters for URL paths containing Markdown punctuation.

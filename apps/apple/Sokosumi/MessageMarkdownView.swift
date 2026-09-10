@@ -30,8 +30,9 @@ struct MessageMarkdownView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .task(id: source) {
       let source = source
+      let baseURL = CoreSettings.webBaseURL
       let parsed = await Task.detached(priority: .userInitiated) {
-        MessageMarkdown(source)
+        MessageMarkdown(source, baseURL: baseURL)
       }.value
       guard !Task.isCancelled else { return }
       document = parsed
