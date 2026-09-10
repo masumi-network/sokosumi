@@ -90,3 +90,10 @@ passed. Xcode app build/tests and the iOS 17 Chat test-target cross-build passed
 including both native parsers. Changed Swift files pass SwiftFormat/SwiftLint;
 the data regeneration script passes Node syntax checking and reproduces hashes.
 Logs: `/tmp/apple-parser-*.log`.
+## Post-merge implementation audit
+
+PR #4368 merged on 2026-09-10 with all Apple CI checks passing. The rendering branch starts at main `2ac96d30b`. No renderer is connected yet: raw Markdown in the user's screenshots is still the existing behavior.
+
+The pinned TreeSitterLanguages product manifest has no dedicated grammar for web registry entries Arduino, diff, INI, Kotlin, Less, Makefile, Objective-C, PHP-template, Python REPL, shell sessions, VB.NET, WebAssembly, or XML. HTML, TOML, Bash, Python and C++ products must not be treated as exact substitutes without checking language behavior. Plaintext intentionally needs no grammar. Tree-sitter parsing also does not supply highlight.js language detection scores. Resolve these coverage and detection differences before claiming syntax parity; do not silently reduce the registry to Swift and JSON. Extra dependency additions still require their own approved PR.
+
+Existing reuse candidates: MessageRow is the room/thread presentation seam; MessagePresentation only models grouping and metadata; the approved Foundation parser provides block/inline structure. No existing Apple Markdown or link-routing helper was found in that seam. Image attachment previews remain slice 15, while clickable Markdown links belong to slice 10.
