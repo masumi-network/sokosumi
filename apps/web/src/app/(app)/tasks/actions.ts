@@ -18,12 +18,14 @@ import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Task } from "@/lib/clients/generated/core";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
+import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { listTaskAssigneeMemberOptions } from "./utils/task-assignee-members";
+import { listTaskAssigneeOptions } from "./utils/task-assignee-options";
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 import { getTasksListPage } from "./utils/tasks-list-page";
 
@@ -276,4 +278,18 @@ export async function loadCreateTaskModalData() {
     agentNameById: Object.fromEntries(buildAgentNameById(agents)),
     designMdAttachment,
   };
+}
+
+/**
+ * Lists for the New Task wizard opened from the sidebar: assignees and
+ * projects of the active workspace.
+ */
+export async function loadNewTaskWizardOptions() {
+  const session = await getSession();
+  const [coworkerOptions, projectOptions] = await Promise.all([
+    listTaskAssigneeOptions(session?.session.activeOrganizationId ?? null),
+    getProjectFilterOptions(),
+  ]);
+
+  return { coworkerOptions, projectOptions };
 }

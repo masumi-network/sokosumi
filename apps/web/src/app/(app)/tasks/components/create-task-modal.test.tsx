@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CreateTaskModal,
@@ -8,15 +8,16 @@ import {
   useCreateTaskModal,
 } from "./create-task-modal";
 
-const { taskFormPropsSpy } = vi.hoisted(() => ({
+const { taskFormPropsSpy, routerReplaceMock } = vi.hoisted(() => ({
   taskFormPropsSpy: vi.fn(),
+  routerReplaceMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/calendar",
   useRouter: () => ({
     push: vi.fn(),
-    replace: vi.fn(),
+    replace: routerReplaceMock,
     refresh: vi.fn(),
     prefetch: vi.fn(),
   }),
@@ -134,5 +135,55 @@ describe("CreateTaskModal", () => {
     await openFromCalendar({});
 
     expect(getLatestProjectId()).toBeNull();
+  });
+
+  describe("dismiss", () => {
+    afterEach(() => {
+      window.history.replaceState({}, "", "/");
+    });
+
+    function dismissLatestForm() {
+      const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
+        onCancel: () => void;
+      };
+      act(() => props.onCancel());
+    }
+
+    it("clears the deep-link params from the URL when opened by ?create=true", () => {
+      window.history.replaceState({}, "", "/calendar?create=true&assignee=cow");
+      render(
+        <CreateTaskModalProvider initialOpen>
+          <CreateTaskModal coworkerOptions={[]} initialCreateTaskOpen />
+        </CreateTaskModalProvider>,
+      );
+
+      dismissLatestForm();
+
+      expect(routerReplaceMock).toHaveBeenCalledWith("/calendar");
+    });
+
+    it("leaves the page URL alone when opened in place", () => {
+      window.history.replaceState({}, "", "/calendar?create=true");
+      render(
+        <CreateTaskModalProvider initialOpen>
+          <CreateTaskModal coworkerOptions={[]} />
+        </CreateTaskModalProvider>,
+      );
+
+      dismissLatestForm();
+
+      expect(routerReplaceMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("shows a loading state instead of the form while the wizard lists load", () => {
+    render(
+      <CreateTaskModalProvider initialOpen>
+        <CreateTaskModal coworkerOptions={[]} isLoadingOptions />
+      </CreateTaskModalProvider>,
+    );
+
+    expect(screen.getByTestId("new-task-wizard-loading")).toBeInTheDocument();
+    expect(taskFormPropsSpy).not.toHaveBeenCalled();
   });
 });

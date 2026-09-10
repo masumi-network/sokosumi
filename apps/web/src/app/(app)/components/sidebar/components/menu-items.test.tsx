@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const openHistorySearchMock = vi.fn();
 const setOpenMobileMock = vi.fn();
+const openNewTaskWizardMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
@@ -22,6 +23,14 @@ let historySearchValue: {
 
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
   useOptionalHistorySearch: () => historySearchValue,
+}));
+
+let newTaskWizardValue: {
+  openNewTaskWizard: typeof openNewTaskWizardMock;
+} | null = { openNewTaskWizard: openNewTaskWizardMock };
+
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => newTaskWizardValue,
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -95,6 +104,7 @@ describe("MenuItems search action", () => {
       openHistorySearch: openHistorySearchMock,
       searchShortcutLabel: "Ctrl+K",
     };
+    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
   });
 
   it("opens history search and closes the mobile sidebar when search is clicked", () => {
@@ -125,7 +135,18 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("shows New Task by default", () => {
+  it("opens the New Task wizard in place and closes the mobile sidebar for seated members", () => {
+    renderMenu();
+
+    expect(screen.queryByRole("link", { name: /newTask/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /newTask/i }));
+
+    expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
+    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
+  });
+
+  it("links New Task to the Task Manager while the wizard is unavailable", () => {
+    newTaskWizardValue = null;
     renderMenu();
 
     expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
@@ -143,7 +164,10 @@ describe("MenuItems search action", () => {
   it("keeps product destinations when the member has no assigned seat", () => {
     renderMenu(false);
 
-    expect(screen.getByRole("link", { name: /newTask/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
+      "href",
+      "/tasks?create=true",
+    );
     expect(
       screen.getByRole("link", { name: /taskManager/i }),
     ).toBeInTheDocument();

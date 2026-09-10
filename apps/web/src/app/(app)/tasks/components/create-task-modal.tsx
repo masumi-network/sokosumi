@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
@@ -182,6 +183,9 @@ interface CreateTaskModalProps {
   agentNameById?: Map<string, string>;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   initialCreateTaskOpen?: boolean;
+  /** Shows a skeleton instead of the form while the caller still loads
+   *  `coworkerOptions` / `projectOptions` (the sidebar New Task wizard). */
+  isLoadingOptions?: boolean;
   onCreateTask?: TaskFormCreateHandler;
 }
 
@@ -193,6 +197,7 @@ export function CreateTaskModal({
   agentNameById: initialAgentNameById,
   initialDesignMdAttachment: initialDesignMdAttachmentProp = null,
   initialCreateTaskOpen = false,
+  isLoadingOptions = false,
   onCreateTask,
 }: CreateTaskModalProps) {
   const {
@@ -273,10 +278,12 @@ export function CreateTaskModal({
   }, [pathname, router]);
 
   const handleDismiss = useCallback(() => {
-    stripCreateTaskSearchParams();
+    // Only the `?create=true` deep link put those params in the URL; a wizard
+    // opened in place must leave the page's own URL alone.
+    if (initialCreateTaskOpen) stripCreateTaskSearchParams();
     setIsCreated(false);
     handleClose();
-  }, [handleClose, stripCreateTaskSearchParams]);
+  }, [handleClose, initialCreateTaskOpen, stripCreateTaskSearchParams]);
 
   const handleOnOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) handleDismiss();
@@ -290,115 +297,136 @@ export function CreateTaskModal({
       cancelLabel={isCreated ? t("close") : t("cancel")}
       isDismissDisabled={isDismissDisabled}
     >
-      <TaskForm
-        key={`${formInstanceKey}-${resetKey}`}
-        variant="modal"
-        mode="create"
-        showCancel={false}
-        labels={{
-          details: t("details"),
-          detailsDescription: t("detailsDescription"),
-          name: t("name"),
-          namePlaceholder: t("namePlaceholder"),
-          descriptionPlaceholder: t("descriptionPlaceholder"),
-          projectLabel: t("projectLabel"),
-          projectNone: t("projectNone"),
-          projectPlaceholder: t("projectPlaceholder"),
-          projectRequired: t("projectRequired"),
-          projectSearchPlaceholder: t("projectSearchPlaceholder"),
-          projectEmptyResults: t("projectEmptyResults"),
-          projectCreate: t("projectCreate"),
-          projectCreateNamed: t.raw("projectCreateNamed") as string,
-          coworker: t("coworker"),
-          coworkerDescription: t("coworkerDescription"),
-          chooseAgent: t("chooseAgent"),
-          chooseAgentDescription: t("chooseAgentDescription"),
-          defaultBadge: t("defaultBadge"),
-          modelLabel: t("modelLabel"),
-          hostingLabel: t("hostingLabel"),
-          examplesTitle: t.raw("examplesTitle") as string,
-          continueLabel: t("continue"),
-          taskStepTitle: t.raw("taskStepTitle") as string,
-          previousLabel: t("previousAgent"),
-          nextLabel: t("nextAgent"),
-          searchPlaceholder: t("searchAgents"),
-          noResults: t("noAgentsFound"),
-          askPrompt: t.raw("askPrompt") as string,
-          promptHint: t("promptHint"),
-          tasksTitle: t.has("tasksTitle")
-            ? t("tasksTitle")
-            : "Ready-To-Run Tasks",
-          startFromScratch: t.has("startFromScratch")
-            ? t("startFromScratch")
-            : "Start from scratch",
-          startFromScratchHint: t.has("startFromScratchHint")
-            ? t("startFromScratchHint")
-            : "Write your own instructions",
-          previewExample: t.has("previewExample")
-            ? t("previewExample")
-            : "Preview example",
-          previewUse: t.has("previewUse") ? t("previewUse") : "Use this task",
-          previewEmpty: t.has("previewEmpty")
-            ? t("previewEmpty")
-            : "No example output available yet.",
-          allCompanies: t("allCompanies"),
-          status: t("status"),
-          statusDescription: t("statusDescription"),
-          statusDraft: t("statusDraft"),
-          statusQueued: t("statusQueued"),
-          statusReady: t("statusReady"),
-          back: t("back"),
-          uploadFile: t("uploadFile"),
-          uploadFileError: t("uploadFileError"),
-          uploadingFile: getTaskAttachmentUploadLabelTemplate(
-            t,
-            "uploadingFile",
-          ),
-          uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-            t,
-            "uploadingFiles",
-          ),
-          removeAttachment: t("removeAttachment"),
-          submit: t("saveDraft"),
-          saveAsDraft: t("saveAsDraft"),
-          createTask: t("createTask"),
-          scheduleTask: t("scheduleTask"),
-          openSchedule: t("openSchedule"),
-          cancel: t("cancel"),
-          ctrl: t("ctrl"),
-          taskCreated: t("taskCreated"),
-          taskCreatedHint: t("taskCreatedHint"),
-          goToTask: t("goToTask"),
-          createAnother: t("createAnother"),
-        }}
-        coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
-        lockProjectSelection={lockProjectSelection}
-        agentNameById={agentNameById}
-        initialDesignMdAttachment={initialDesignMdAttachment}
-        initialValues={{
-          ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
-          ...(promptOverride ? { description: promptOverride } : {}),
-          projectId: selectedProjectId,
-          ...(scheduleOverride ? { schedule: scheduleOverride } : {}),
-        }}
-        onCreateTask={onCreateTask}
-        onCancel={handleDismiss}
-        onSubmittingChange={setIsDismissDisabled}
-        onCreatedChange={setIsCreated}
-        onCreated={() => {
-          router.refresh();
-        }}
-        onSuccess={(taskId) => {
-          handleClose();
-          router.push(`/tasks/${taskId}`);
-        }}
-        onCreateAnother={() => {
-          clearPromptOverride();
-          setIsCreated(false);
-          setResetKey((key) => key + 1);
-        }}
-      />
+      {isLoadingOptions ? (
+        <NewTaskWizardLoading />
+      ) : (
+        <TaskForm
+          key={`${formInstanceKey}-${resetKey}`}
+          variant="modal"
+          mode="create"
+          showCancel={false}
+          labels={{
+            details: t("details"),
+            detailsDescription: t("detailsDescription"),
+            name: t("name"),
+            namePlaceholder: t("namePlaceholder"),
+            descriptionPlaceholder: t("descriptionPlaceholder"),
+            projectLabel: t("projectLabel"),
+            projectNone: t("projectNone"),
+            projectPlaceholder: t("projectPlaceholder"),
+            projectRequired: t("projectRequired"),
+            projectSearchPlaceholder: t("projectSearchPlaceholder"),
+            projectEmptyResults: t("projectEmptyResults"),
+            projectCreate: t("projectCreate"),
+            projectCreateNamed: t.raw("projectCreateNamed") as string,
+            coworker: t("coworker"),
+            coworkerDescription: t("coworkerDescription"),
+            chooseAgent: t("chooseAgent"),
+            chooseAgentDescription: t("chooseAgentDescription"),
+            defaultBadge: t("defaultBadge"),
+            modelLabel: t("modelLabel"),
+            hostingLabel: t("hostingLabel"),
+            examplesTitle: t.raw("examplesTitle") as string,
+            continueLabel: t("continue"),
+            taskStepTitle: t.raw("taskStepTitle") as string,
+            previousLabel: t("previousAgent"),
+            nextLabel: t("nextAgent"),
+            searchPlaceholder: t("searchAgents"),
+            noResults: t("noAgentsFound"),
+            askPrompt: t.raw("askPrompt") as string,
+            promptHint: t("promptHint"),
+            tasksTitle: t.has("tasksTitle")
+              ? t("tasksTitle")
+              : "Ready-To-Run Tasks",
+            startFromScratch: t.has("startFromScratch")
+              ? t("startFromScratch")
+              : "Start from scratch",
+            startFromScratchHint: t.has("startFromScratchHint")
+              ? t("startFromScratchHint")
+              : "Write your own instructions",
+            previewExample: t.has("previewExample")
+              ? t("previewExample")
+              : "Preview example",
+            previewUse: t.has("previewUse") ? t("previewUse") : "Use this task",
+            previewEmpty: t.has("previewEmpty")
+              ? t("previewEmpty")
+              : "No example output available yet.",
+            allCompanies: t("allCompanies"),
+            status: t("status"),
+            statusDescription: t("statusDescription"),
+            statusDraft: t("statusDraft"),
+            statusQueued: t("statusQueued"),
+            statusReady: t("statusReady"),
+            back: t("back"),
+            uploadFile: t("uploadFile"),
+            uploadFileError: t("uploadFileError"),
+            uploadingFile: getTaskAttachmentUploadLabelTemplate(
+              t,
+              "uploadingFile",
+            ),
+            uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+              t,
+              "uploadingFiles",
+            ),
+            removeAttachment: t("removeAttachment"),
+            submit: t("saveDraft"),
+            saveAsDraft: t("saveAsDraft"),
+            createTask: t("createTask"),
+            scheduleTask: t("scheduleTask"),
+            openSchedule: t("openSchedule"),
+            cancel: t("cancel"),
+            ctrl: t("ctrl"),
+            taskCreated: t("taskCreated"),
+            taskCreatedHint: t("taskCreatedHint"),
+            goToTask: t("goToTask"),
+            createAnother: t("createAnother"),
+          }}
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          lockProjectSelection={lockProjectSelection}
+          agentNameById={agentNameById}
+          initialDesignMdAttachment={initialDesignMdAttachment}
+          initialValues={{
+            ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
+            ...(promptOverride ? { description: promptOverride } : {}),
+            projectId: selectedProjectId,
+            ...(scheduleOverride ? { schedule: scheduleOverride } : {}),
+          }}
+          onCreateTask={onCreateTask}
+          onCancel={handleDismiss}
+          onSubmittingChange={setIsDismissDisabled}
+          onCreatedChange={setIsCreated}
+          onCreated={() => {
+            router.refresh();
+          }}
+          onSuccess={(taskId) => {
+            handleClose();
+            router.push(`/tasks/${taskId}`);
+          }}
+          onCreateAnother={() => {
+            clearPromptOverride();
+            setIsCreated(false);
+            setResetKey((key) => key + 1);
+          }}
+        />
+      )}
     </TaskFormModal>
+  );
+}
+
+function NewTaskWizardLoading() {
+  return (
+    <div
+      aria-busy="true"
+      data-testid="new-task-wizard-loading"
+      className="flex flex-1 flex-col gap-6 px-6 py-6 md:px-8"
+    >
+      <Skeleton className="h-10 w-full max-w-md" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-40 w-full rounded-xl" />
+        ))}
+      </div>
+    </div>
   );
 }
