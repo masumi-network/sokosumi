@@ -16,6 +16,7 @@ struct NativeSyntaxHighlighterTests {
   @Test func resolvesCommonAliasesAndDistinctDialects() {
     let fixtures: [(String, SyntaxLanguage)] = [
       ("JS", .javascript), ("py", .python), ("objc", .objectivec),
+      ("jsp", .java), ("ipython", .python), ("obj-c++", .objectivec), ("objective-c++", .objectivec),
       ("c++", .cpp), ("c#", .csharp), ("sh", .bash), ("md", .markdown),
       ("yml", .yaml), ("rs", .rust), ("make", .makefile), ("patch", .diff),
       ("html", .html), ("toml", .toml), ("tsx", .tsx), ("svg", .xml)
