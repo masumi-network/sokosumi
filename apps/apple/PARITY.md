@@ -2,9 +2,10 @@
 
 ## Resume checkpoint
 
-- Current slice: **10 — rich message text**, branch `codex/apple-native-syntax-dependencies`, based on main `afbbd5f86`. Native dependency [PR #4368](https://github.com/masumi-network/sokosumi/pull/4368) is open as a draft before rendering implementation.
-- Slice 09b merged in [PR #4361](https://github.com/masumi-network/sokosumi/pull/4361). Head `19b4c3a29` passed Apple CI: Xcode build/app tests, all package tests, lint/format.
-- Next: wait for CI/review and human merge of PR #4368, then complete slice 10. Dependency verification passed: Chat 176 tests, Xcode app build/tests, lint/format, and iOS17 cross-build of the Chat test target including native grammar/query products. The user rejected JavaScript-based rendering. See the [native rendering design](docs/rich-message-rendering.md).
+- Current slice: **10 — rich message text**. Native dependency [PR #4368](https://github.com/masumi-network/sokosumi/pull/4368) merged. Rendering remains in progress on `codex/apple-rich-message-rendering`; no renderer PR yet.
+- Separate approved dependency follow-up: [PR #4370](https://github.com/masumi-network/sokosumi/pull/4370), `codex/apple-additional-grammars`, based on main `667feb522`. Adds six missing native grammars (Kotlin, Objective-C, XML, Make, Diff, INI), initially linked only by dependency tests. User explicitly approved these additions on 2026-09-10.
+- Verification: 177 Chat tests, Xcode build/app tests, iOS 17 cross-build of the Chat test target (including all six native grammars), SwiftFormat and strict SwiftLint passed. No user-facing highlighting or scrolling fix is claimed by this dependency change.
+- Next: verify and merge the grammar dependency PR before integrating it into slice 10. Existing room scrolling lag is under investigation; automated native scroll input currently fails with `noWindowsAvailable`, so no performance fix is claimed. See the [native rendering design](docs/rich-message-rendering.md).
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ### PR #4361 minor review follow-up

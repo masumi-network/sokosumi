@@ -15,6 +15,12 @@ let package = Package(
     .package(path: "../CoreAPI"),
     .package(url: "https://github.com/tree-sitter/swift-tree-sitter", exact: "0.10.0"),
     .package(url: "https://github.com/simonbs/TreeSitterLanguages", exact: "0.1.10"),
+    .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-kotlin", exact: "1.1.0"),
+    .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-objc", exact: "3.0.2"),
+    .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-xml", exact: "0.7.0"),
+    .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-make", exact: "1.1.1"),
+    .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-diff", exact: "0.2.0"),
+    .package(url: "https://github.com/justinmk/tree-sitter-ini", exact: "1.4.0"),
     .package(url: "https://github.com/apple/swift-openapi-runtime", from: "1.8.2"),
     // Direct `import HTTPTypes` needs a declared dependency: SwiftPM links
     // the transitive closure, but Xcode links each product against its
@@ -39,6 +45,12 @@ let package = Package(
         .product(name: "TreeSitterSwiftQueries", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterJSON", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterJSONQueries", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterKotlin", package: "tree-sitter-kotlin"),
+        .product(name: "TreeSitterObjc", package: "tree-sitter-objc"),
+        .product(name: "TreeSitterXML", package: "tree-sitter-xml"),
+        .product(name: "TreeSitterMake", package: "tree-sitter-make"),
+        .product(name: "TreeSitterDiff", package: "tree-sitter-diff"),
+        .product(name: "TreeSitterIni", package: "tree-sitter-ini"),
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")

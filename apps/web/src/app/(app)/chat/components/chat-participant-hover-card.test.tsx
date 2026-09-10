@@ -54,6 +54,40 @@ const coworkerProfile: ChatParticipantHoverProfile = {
 };
 
 describe("ChatParticipantHoverCard", () => {
+  it("states availability as text", async () => {
+    const user = userEvent.setup();
+    render(
+      <ChatParticipantHoverCard profile={humanProfile}>
+        <span>Ada Lovelace</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    await user.hover(screen.getByRole("button", { name: "Ada Lovelace" }));
+
+    // The mark is decorative, so this line is the only availability the card
+    // shows. It pins what a sighted user reads, not what is announced: the
+    // suite mocks HoverCardContent to a plain div, where the real Radix content
+    // portals out of the trigger with no ARIA tying the two together.
+    expect(screen.getByTestId("chat-participant-hover-card")).toHaveTextContent(
+      "Online",
+    );
+  });
+
+  it("reports a coworker as online whatever presence says", async () => {
+    const user = userEvent.setup();
+    render(
+      <ChatParticipantHoverCard profile={coworkerProfile}>
+        <span>Hannah</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    await user.hover(screen.getByRole("button", { name: "Hannah" }));
+
+    const card = screen.getByTestId("chat-participant-hover-card");
+    expect(card).toHaveTextContent("Online");
+    expect(card).not.toHaveTextContent("Away");
+  });
+
   it("shows human email and human badge", async () => {
     const user = userEvent.setup();
     render(
@@ -68,7 +102,6 @@ describe("ChatParticipantHoverCard", () => {
     expect(card).toHaveTextContent("Ada Lovelace");
     expect(card).toHaveTextContent("Human");
     expect(card).toHaveTextContent("ada@example.com");
-    expect(card).not.toHaveTextContent("Online");
     expect(card).not.toHaveTextContent("AI coworker");
   });
 

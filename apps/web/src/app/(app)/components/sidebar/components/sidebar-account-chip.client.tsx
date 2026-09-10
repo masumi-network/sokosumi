@@ -102,7 +102,11 @@ function SidebarAccountChipDesktop({
   const trigger = (
     <button
       type="button"
-      aria-label={t("openSummary", { name: displayName, summary })}
+      aria-label={t("openSummary", {
+        name: displayName,
+        presence: presenceLabel,
+        summary,
+      })}
       className={cn(
         "group/chip hover:bg-sidebar-accent focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent flex cursor-pointer items-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
         isCollapsed ? "size-8 justify-center" : "w-full gap-2.5 p-2",
@@ -126,8 +130,9 @@ function SidebarAccountChipDesktop({
         </Avatar>
         <PresenceDot
           presence={presence}
-          label={presenceLabel}
-          className="border-sidebar absolute -right-0.5 -bottom-0.5"
+          ground="sidebar"
+          className="absolute -right-0.5 -bottom-0.5"
+          title={presenceLabel}
         />
       </span>
       {isCollapsed ? null : (

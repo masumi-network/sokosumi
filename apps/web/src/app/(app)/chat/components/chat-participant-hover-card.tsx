@@ -11,7 +11,10 @@ import {
 } from "react";
 
 import { AuroraOrb } from "@/components/aurora-orb";
-import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import {
+  LiveMemberPresenceDot,
+  LiveMemberPresenceText,
+} from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -224,14 +227,13 @@ export function ChatParticipantHoverCard({
                 </AvatarFallback>
               </Avatar>
             )}
-            <span aria-hidden="true">
-              <LiveMemberPresenceDot
-                className="absolute -right-0.5 -bottom-0.5 size-3"
-                fallback={profile.presence}
-                isCoworker={isAi}
-                userId={profile.id}
-              />
-            </span>
+            <LiveMemberPresenceDot
+              className="absolute -right-0.5 -bottom-0.5"
+              fallback={profile.presence}
+              ground="popover"
+              isCoworker={isAi}
+              userId={profile.id}
+            />
           </div>
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
@@ -246,6 +248,21 @@ export function ChatParticipantHoverCard({
             <p className="text-muted-foreground text-xs font-medium">
               {kindLabel}
             </p>
+            {/* Sighted affordance. Radix's hover card emits no ARIA and portals
+                to the end of the body with nothing pointing back at the trigger,
+                so this text is reachable by a virtual cursor while the card is
+                open but is never tied to the person who opened it. Availability
+                reaches assistive technology from the roster panel, which puts
+                it in a hidden sibling on each row, and from the sidebar row of
+                a 1:1 direct.
+                `block` because `space-y-1` sets margin-top on siblings, which
+                an inline box ignores. */}
+            <LiveMemberPresenceText
+              className="text-muted-foreground block text-xs"
+              fallback={profile.presence}
+              isCoworker={isAi}
+              userId={profile.id}
+            />
             {detail ? (
               <p className="text-muted-foreground truncate text-xs">{detail}</p>
             ) : null}
