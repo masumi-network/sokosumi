@@ -49,7 +49,7 @@ import prisma from "@/lib/db/prisma";
 import { tryUseLogger } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import {
   getResumableUiStreamContext,
@@ -106,7 +106,7 @@ async function validateUiMessagesOrBadRequest(
   }
 }
 
-const route = withGlobalHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/{id}/stream",

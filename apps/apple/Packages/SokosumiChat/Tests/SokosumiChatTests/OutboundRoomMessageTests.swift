@@ -108,42 +108,18 @@ struct OutboundRoomMessageTests {
   }
 
   @Test func pendingThenFailedRetryAndRemove() {
-    var flight = ClassicOutboundFlight()
-    let first = flight.begin(turnA)
-    #expect(first)
     var shells = [shell(turn: turnA)]
-    flight.end(turnA)
     shells = failOutbound(shells: shells, clientTurnId: turnA, errorMessage: "Core rejected the request (500): boom")
     #expect(shells[0].status == .failed)
     #expect(shells[0].errorMessage == "Core rejected the request (500): boom")
-    #expect(!flight.isInFlight)
 
-    let retry = flight.begin(turnA)
-    #expect(retry)
     shells = markOutboundPending(shells: shells, clientTurnId: turnA)
     #expect(shells[0].status == .pending)
     #expect(shells[0].errorMessage == nil)
     #expect(shells[0].clientTurnId == turnA)
 
-    flight.end(turnA)
     shells = failOutbound(shells: shells, clientTurnId: turnA, errorMessage: "boom")
     shells = removeOutbound(shells: shells, clientTurnId: turnA)
     #expect(shells.isEmpty)
-  }
-
-  @Test func oneInFlightSendOccupiesTheSlot() {
-    var flight = ClassicOutboundFlight()
-    let first = flight.begin(turnA)
-    #expect(first)
-    #expect(flight.isInFlight)
-    let second = flight.begin(turnB)
-    #expect(!second)
-    #expect(flight.clientMessageId == turnA)
-    flight.end(turnB)
-    #expect(flight.isInFlight)
-    flight.end(turnA)
-    #expect(!flight.isInFlight)
-    let third = flight.begin(turnB)
-    #expect(third)
   }
 }

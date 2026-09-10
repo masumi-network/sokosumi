@@ -1,8 +1,3 @@
-export interface SearchableJobLink {
-  title: string | null | undefined;
-  url: string | null | undefined;
-}
-
 interface SearchableJobEvent {
   input: string | null;
   result: string | null;

@@ -1,7 +1,7 @@
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
 import { AppHeaderFallback } from "./app-header-fallback";
@@ -48,9 +48,9 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
                 sessionId={INSTANT_NAV_SHELL_FALLBACK_SESSION_ID}
               >
                 <NotificationFallbackProvider>
-                  <OrganizationSeatProvider hasAssignedSeat={false}>
+                  <OrganizationSeatContext value={false}>
                     <AppMobileChrome>{children}</AppMobileChrome>
-                  </OrganizationSeatProvider>
+                  </OrganizationSeatContext>
                 </NotificationFallbackProvider>
               </AccountNoticeProvider>
             </div>
