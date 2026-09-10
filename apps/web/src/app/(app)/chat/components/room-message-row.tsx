@@ -2211,7 +2211,10 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 data-[search-landed=true]:bg-primary/20 data-[search-landed=true]:ring-2 data-[search-landed=true]:ring-primary",
+        // Landed mark: a left rail plus a tint fading rightwards, drawn by a
+        // pseudo-element under the content (`isolate` scopes its -z-10 to the
+        // row). Nothing paints outside the row, so the scroller cannot clip it.
+        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-md before:border-l-[3px] before:border-primary before:bg-linear-to-r before:from-primary/12 before:to-transparent before:opacity-0 before:transition-opacity before:duration-700 before:ease-out motion-reduce:before:transition-none data-[search-landed=true]:before:opacity-100 data-[search-landed=true]:before:duration-[180ms]",
         reserveHoverActionGutter && "[@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation

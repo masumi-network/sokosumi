@@ -23,8 +23,6 @@ describe("search jump highlight", () => {
       block: "center",
     });
     expect(article.dataset.searchLanded).toBe("true");
-    expect(article.className).toContain("ring-primary");
-    expect(article.className).toContain("bg-primary/");
   });
 
   it("quote jump still uses smooth scroll and does not paint search highlight", () => {
