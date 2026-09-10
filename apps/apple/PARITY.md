@@ -474,3 +474,5 @@ Maintenance verification: Xcode app tests passed before and after extraction; th
 - Autocomplete verification: 241 Chat tests passed, Xcode app tests passed, signed build passed, strict lint and format passed. Computer control did not enter the test draft reliably, so visual menu/keyboard interaction still needs user verification. No message was sent.
 
 - User screenshot confirms the native shortcode completion menu appears. Added emoji previews beside each shortcode at the user's request. The native adapter strips the display preview before insertion; the app test checks the displayed option and verifies only one emoji is inserted. Xcode build/app tests, five ComposerEmoji tests and strict lint passed after this change.
+
+- Fixed premature emoji acceptance while continuing `:sm` → `:smi`: native completion `isFinal` also signals dismissal, so insertion now requires Return, Tab or a mouse selection. Regression tests cover final callbacks for continued typing, cursor movement and cancellation; Xcode build/app tests and strict lint passed. Interactive confirmation of this correction remains pending.

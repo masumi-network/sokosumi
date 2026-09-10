@@ -19,6 +19,17 @@
       #expect(input.selectedRange().location == 5)
     }
 
+    @Test(arguments: [NSOtherTextMovement, NSRightTextMovement, NSLeftTextMovement, NSCancelTextMovement])
+    func finalizingCompletionWithoutAcceptancePreservesTyping(_ movement: Int) {
+      let input = MacComposerTextInput.InputView()
+      input.string = ":sm"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.insertCompletion("🛩️  :small_airplane:", forPartialWordRange: input.rangeForUserCompletion, movement: movement, isFinal: true)
+      input.insertText("i", replacementRange: input.selectedRange())
+      #expect(input.string == ":smi")
+      #expect(input.selectedRange().location == 4)
+    }
+
     @Test func completionPreviewAndCancelPreserveDraft() {
       let input = MacComposerTextInput.InputView()
       input.string = ":sm"

@@ -156,7 +156,11 @@
       override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal: Bool) {
         guard isFinal else { return }
         showingCompletions = false
-        guard movement != NSCancelTextMovement, word.hasSuffix(":"), NSMaxRange(charRange) <= string.utf16.count else { return }
+        let mouseSelection = movement == NSOtherTextMovement
+          && (NSApp.currentEvent?.type == .leftMouseDown || NSApp.currentEvent?.type == .leftMouseUp)
+        let explicitSelection = movement == NSReturnTextMovement || movement == NSTabTextMovement || mouseSelection
+        // AppKit also finalizes when typing dismisses the list. That is not acceptance.
+        guard explicitSelection, word.hasSuffix(":"), NSMaxRange(charRange) <= string.utf16.count else { return }
         // The menu label includes a preview; only the shortcode participates in insertion.
         let shortcode = String(word.split(separator: " ").last ?? Substring(word))
         let suffix = (string as NSString).substring(from: NSMaxRange(charRange))
