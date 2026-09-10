@@ -169,6 +169,8 @@ public final class WorkspaceState: ObservableObject {
   /// device in every token it mints.
   let ablyClientInstanceId: String
 
+  /// Creates a workspace coordinator. The host app must inject its authenticated
+  /// client provider; the default resolves no client.
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),

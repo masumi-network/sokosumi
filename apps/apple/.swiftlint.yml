@@ -8,9 +8,9 @@
 # wrapping them buys nothing and SwiftFormat does not wrap, so line length
 # stays unchecked.
 #
-# Length caps are off too: SwiftUI views (ContentView) and fixture-heavy
-# test targets (ChatServiceTests) legitimately exceed them, and splitting
-# them is out of scope for style enforcement.
+# Length caps are off too: SwiftUI views (ChatRootView,
+# ConversationSidebarView) and fixture-heavy test targets (ChatServiceTests)
+# legitimately exceed them, and splitting them is out of scope for style enforcement.
 disabled_rules:
   - line_length
   - type_body_length

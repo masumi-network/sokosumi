@@ -445,7 +445,7 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 ### Slice 09b review follow-up (2026-09-10)
 
 - `ThreadSession.open` is a no-op for the same parent. Settlement succeeds if the room refresh applied even when the thread was closed or reopened during the wait, so overlays cannot stick after an idle stream.
-- Auto-open in `ContentView` hops `@Published` writes off the view update. Failed thread drafts restore only when room and parent match the composer.
+- Auto-open in `ChatRootView` hops `@Published` writes off the view update. Failed thread drafts restore only when room and parent match the composer.
 - App tests cover close-during-settle overlay clear and re-entry resume auto-open. Chat 174 tests passed. `xcodebuild test -only-testing:SokosumiTests -enableCodeCoverage NO` passed. Strict SwiftLint and SwiftFormat passed.
 
 ### Maintenance architecture update
