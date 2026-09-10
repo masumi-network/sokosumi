@@ -54,11 +54,17 @@ function orbLabelProps(alt: string) {
   };
 }
 
-function AuroraOrbPlaceholder({ className }: { className?: string }) {
+function AuroraOrbPlaceholder({
+  className,
+  alt,
+}: {
+  className?: string;
+  alt: string;
+}) {
   return (
     <span
-      aria-hidden
       className={cn("bg-muted block shrink-0 rounded-full", className)}
+      {...orbLabelProps(alt)}
     />
   );
 }
@@ -189,7 +195,9 @@ export function AuroraOrb({
   }
 
   return (
-    <Suspense fallback={<AuroraOrbPlaceholder className={className} />}>
+    <Suspense
+      fallback={<AuroraOrbPlaceholder className={className} alt={alt} />}
+    >
       <AuroraOrbStatic
         seed={seed}
         size={size}
