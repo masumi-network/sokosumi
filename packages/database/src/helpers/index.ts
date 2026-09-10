@@ -1,25 +1,3 @@
-/**
- * @sokosumi/database/helpers
- *
- * Domain helper functions and utilities for database operations.
- * These helpers work exclusively with database types.
- *
- * ## Usage:
- *
- * ### Import helpers:
- * ```typescript
- * import {
- *   computeJobStatus,
- *   mapJobWithStatus,
- * } from '@sokosumi/database/helpers'
- * ```
- *
- * ### Job Status Computation:
- * ```typescript
- * const status = computeJobStatus(job);
- * ```
- */
-
 export * from "./credit.js";
 export * from "./credit-bucket-scope.js";
 export * from "./enterprise-contract.js";
