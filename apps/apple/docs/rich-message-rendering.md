@@ -466,3 +466,17 @@ requesting a separate dependency PR. Arduino, PHP-template, Python REPL and shel
 sessions also need verified treatment; adjacent grammars alone do not establish
 parity. Language detection remains separate unfinished work. No new dependency
 approval is implied by this audit.
+
+### Validated GraphQL / LESS proposal
+
+Temporary native probes on 2026-09-10, outside the project dependency graph:
+
+- GraphQL: `11bit/tree-sitter-graphql` at `951bde9fb3145b5f676204231e35f8b21d21f7b3`, MIT with full notice present. No SwiftPM manifest: propose vendoring unchanged generated C/header/query sources plus license in a small C target inside the existing Chat package, recording the upstream revision. No new runtime.
+- LESS: reject the codepen candidate (`UNLICENSED` in package.json). Use `mdovale/tree-sitter-less` at `02988c765d30adb0476657b5d220e8dfde1c07d3` instead. It includes SwiftPM, generated C parser/scanner, highlight queries and a full MIT notice. Pin the revision; reuse the existing SwiftTreeSitter version.
+- Both compiled and ran against the installed Tree-sitter runtime: GraphQL query fixture produced 20 captures; LESS variables/nested selector fixture produced 27. Neither fixture had parse errors; both highlight queries compiled. Generated C sources also compiled for arm64 iOS 17. This is representative compatibility evidence, not exhaustive language validation.
+- Probe files: `/tmp/apple-grammar-probe.c`, `/tmp/apple-grammar-probe`, and `/tmp/apple-grammar-audit-*-20260910` checkouts. Project manifests remain unchanged.
+
+Request explicit approval for a separate GraphQL/LESS dependency PR before adding
+these sources or packages. The PR must validate SwiftPM/macOS/iOS integration and
+bundle the upstream notices. VB.NET/WAT/WAST, dialect/session handling and native
+detection remain unfinished; this proposal does not reduce their parity scope.
