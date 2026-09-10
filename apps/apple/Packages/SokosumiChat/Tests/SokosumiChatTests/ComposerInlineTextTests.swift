@@ -1,0 +1,38 @@
+import Foundation
+import SokosumiChat
+import Testing
+
+struct ComposerInlineTextTests {
+  @Test(arguments: ComposerInlineText.Style.allCases)
+  func togglesStylesWithoutChangingUnicodeText(_ style: ComposerInlineText.Style) {
+    let original = NSAttributedString(string: "👋 hello")
+    let formatted = ComposerInlineText.toggling(style, in: original)
+    #expect(formatted.string == original.string)
+    #expect(ComposerInlineText.isActive(style, in: formatted))
+    #expect(!ComposerInlineText.isActive(style, in: ComposerInlineText.toggling(style, in: formatted)))
+  }
+
+  @Test func roundTripsNestedFormattingAndUnicode() {
+    let content: [ComposerDocument.Inline] = [.bold([.text("👋 "), .italic([.text("hello")])]), .text(" world")]
+    let text = ComposerInlineText.attributedText(content)
+    #expect(text.string == "👋 hello world")
+    #expect(ComposerInlineText.content(text) == content)
+  }
+
+  @Test func retainsStylesWhenNativeStorageReplacesSelectedText() {
+    let text = NSMutableAttributedString(attributedString: ComposerInlineText.attributedText([.bold([.text("hello")])]))
+    text.replaceCharacters(in: NSRange(location: 1, length: 3), with: "i")
+    #expect(ComposerInlineText.content(text) == [.bold([.text("hio")])])
+  }
+
+  @Test func coalescesAdjacentStyleRunsAndIgnoresPresentationAttributes() {
+    let text = NSMutableAttributedString(attributedString: ComposerInlineText.attributedText([.bold([.text("one"), .text("two")])]))
+    text.addAttribute(NSAttributedString.Key("presentation-only"), value: 1, range: NSRange(location: 0, length: 3))
+    #expect(ComposerInlineText.content(text) == [.bold([.text("onetwo")])])
+  }
+
+  @Test func preservesLinksAndCodeLiterals() {
+    let content: [ComposerDocument.Inline] = [.link([.text("site")], destination: "https://example.com"), .code("**literal**")]
+    #expect(ComposerInlineText.content(ComposerInlineText.attributedText(content)) == content)
+  }
+}

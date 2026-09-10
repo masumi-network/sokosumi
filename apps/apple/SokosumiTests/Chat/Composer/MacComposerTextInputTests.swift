@@ -6,6 +6,143 @@
 
   @MainActor
   struct MacComposerTextInputTests {
+    @Test func modifiedReturnExitsQuoteAndSupportsUndo() throws {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.restoreDraft("> hello\n")
+      input.setSelectedRange(NSRange(location: 5, length: 0))
+      try input.keyDown(with: returnEvent(.shift))
+      let quoted = input.captureDraft()
+      try input.keyDown(with: returnEvent(.shift))
+      #expect(input.captureDraft() == "> hello\n\n")
+      input.insertText("outside", replacementRange: input.selectedRange())
+      #expect(input.captureDraft() == "> hello\noutside\n")
+      delegate.manager.undo()
+      delegate.manager.undo()
+      #expect(input.captureDraft() == quoted)
+    }
+
+    @Test func newlineWithinListPreservesSingleItem() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("- firstsecond\n")
+      input.setSelectedRange(NSRange(location: 7, length: 0))
+      input.insertNewline(nil)
+      #expect(input.captureDraft() == "- first\n  second\n")
+    }
+
+    @Test func typingFormatNotifiesToolbarBeforeTextInsertion() {
+      let input = MacComposerTextInput.InputView()
+      var notifications = 0
+      input.formattingDidChange = { notifications += 1 }
+      input.toggleFormat(.bold)
+      #expect(notifications == 1)
+      #expect(input.string.isEmpty)
+      input.toggleFormat(.bold)
+      #expect(notifications == 2)
+      #expect(input.string.isEmpty)
+    }
+
+    @Test func pastesTextWithoutImportingClipboardFormatting() {
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      pasteboard.setString("hello", forType: .string)
+      pasteboard.setString("{\\rtf1\\b hello}", forType: .rtf)
+      let input = MacComposerTextInput.InputView()
+      input.isRichText = true
+      input.pasteText(from: pasteboard)
+      #expect(input.captureDraft() == "hello\n")
+    }
+
+    @Test func linkReplacementWithDifferentLengthIsUndoable() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.restoreDraft("old")
+      input.insertLink(label: "new label", destination: "https://example.com", range: NSRange(location: 0, length: 3))
+      #expect(input.captureDraft() == "[new label](https://example.com/)\n")
+      delegate.manager.undo()
+      #expect(input.captureDraft() == "old\n")
+    }
+
+    @Test func linkEditorExpandsExistingLinkAtCaret() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("[site](https://example.com/)")
+      input.setSelectedRange(NSRange(location: 2, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.beginLink()
+      #expect(commands.linkEditor?.text == "site")
+      #expect(commands.linkEditor?.url == "https://example.com/")
+      #expect(commands.linkEditor?.range == NSRange(location: 0, length: 4))
+      #expect(input.serializedDraft == "[site](https://example.com/)")
+    }
+
+    @Test func toolbarCommandUsesExistingEditorSelection() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("hello world")
+      let selection = NSRange(location: 6, length: 5)
+      input.setSelectedRange(selection)
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.toggle(.italic)
+      #expect(input.selectedRange() == selection)
+      #expect(input.captureDraft() == "hello _world_\n")
+    }
+
+    @Test func formattingSelectionPreservesTextSelectionAndUndo() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.restoreDraft("hello")
+      let selection = NSRange(location: 0, length: 5)
+      input.setSelectedRange(selection)
+      input.toggleFormat(.bold)
+      #expect(input.selectedRange() == selection)
+      #expect(input.captureDraft() == "**hello**\n")
+      input.undoManager?.undo()
+      #expect(input.captureDraft() == "hello\n")
+    }
+
+    @Test func togglingFormatOffRemovesVisualAndSemanticStyle() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("<u>hello</u>")
+      input.setSelectedRange(NSRange(location: 0, length: 5))
+      input.toggleFormat(.underline)
+      #expect(input.captureDraft() == "hello\n")
+      #expect(input.attributedString().attribute(.underlineStyle, at: 0, effectiveRange: nil) == nil)
+    }
+
+    @Test func restoresFormattedDraftAndSerializesNativeEdits() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("**hello**")
+      #expect(input.string == "hello\n")
+      #expect(input.serializedDraft == "**hello**")
+      input.textStorage?.replaceCharacters(in: NSRange(location: 1, length: 3), with: "i")
+      #expect(input.captureDraft() == "**hio**\n")
+    }
+
+    @Test func retainsUnsupportedDraftVerbatim() {
+      let source = "![image](https://example.com/image.png)"
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft(source)
+      #expect(input.string == source)
+      #expect(input.captureDraft() == source)
+    }
+
+    @Test func doesNotConvertEmojiInsideRestoredCode() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("`:D`")
+      input.setSelectedRange(NSRange(location: 2, length: 0))
+      input.typingAttributes = input.attributedString().attributes(at: 0, effectiveRange: nil)
+      input.insertText(" ", replacementRange: input.selectedRange())
+      #expect(input.string == ":D \n")
+      #expect(input.rangeForUserCompletion.location == NSNotFound)
+    }
+
     @Test func acceptsCompletionWithoutReplacingSurroundingText() {
       let input = MacComposerTextInput.InputView()
       input.string = "😀 :sm tail"
@@ -134,9 +271,10 @@
       let scroll = MacComposerTextInput.InputScrollView()
       let input = MacComposerTextInput.InputView()
       scroll.documentView = input
-      input.string = "first"
+      input.font = .preferredFont(forTextStyle: .body)
+      input.string = "first\nsecond\nthird\nfourth"
       let first = scroll.measuredSize(for: ProposedViewSize(width: 400, height: nil))
-      input.string = "first\n"
+      input.string = "first\nsecond\nthird\nfourth\n"
       let second = scroll.measuredSize(for: ProposedViewSize(width: 400, height: nil))
       #expect(second.height > first.height)
     }
