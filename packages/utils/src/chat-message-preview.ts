@@ -42,6 +42,14 @@ export const CHAT_MENTION_ALL_KEY = "all";
  */
 const NAMING_CHARACTER_REGEX = /[^\p{P}\p{Z}\p{C}\s]/u;
 
+/**
+ * The control characters a banner has no way to show, tab and the line breaks
+ * aside. They are taken out rather than spaced out, so a `www` and a `.test`
+ * one of them sits between are read as the one address they spell.
+ */
+const CONTROL_CHARACTER_REGEX =
+  /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+
 /** The text back when it names someone, and nothing when it does not. */
 function whatNamesSomeone(text: string): string {
   return NAMING_CHARACTER_REGEX.test(text) ? text : "";
@@ -393,6 +401,7 @@ export function buildChatMessagePreview(
   // the room renders "use `` not ``" for "use `<Button>` not `<button>`", and
   // a preview that kept the tag names would read back words the room removed.
   const withoutCode = content
+    .replace(CONTROL_CHARACTER_REGEX, "")
     .replace(MARKDOWN_FENCED_BLOCK_REGEX, " ")
     .replace(FENCE_DELIMITER_LINE_REGEX, "");
   // The markdown clean runs over the whole body, with the tokens still in it.
@@ -472,6 +481,14 @@ export function buildChatMessagePreview(
  * room prints and stands in when the lookup finds none. A token left with
  * neither says nothing, because the id it carries means nothing to a reader.
  */
+/** Two spellings of one word, read without the dashes either one carries. */
+function sameSpelling(one: string, other: string): boolean {
+  return (
+    one.toLowerCase().replaceAll("-", "") ===
+    other.toLowerCase().replaceAll("-", "")
+  );
+}
+
 function whoAMentionNames(
   key: string,
   slug: string,
@@ -485,12 +502,19 @@ function whoAMentionNames(
   // soko bot whose name has no ascii in it, so the fallback below would put
   // the id on a banner once that bot leaves the room and the lookup stops
   // naming it.
-  const readableSlug = slug.toLowerCase() === lookupKey ? "" : slug;
+  // The dashes are taken out of both before they are read against each other,
+  // because a uuid is written both ways and the slug rule keeps a uuid whole
+  // either way: `019fc7e4e4bd7005900c66e44d33f5e4` is the key as well.
+  const readableSlug = sameSpelling(slug, lookupKey) ? "" : slug;
   // Read for what a name says rather than for whether it is there: a member
   // whose display name is empty, or is nothing but spaces, is named no better
   // than one the map does not carry, and the slug is what is left to say who.
+  // A name comes from the lookup rather than from the body, so the body's own
+  // read for control characters never sees it.
   const name = whatNamesSomeone(
-    withoutNameAddresses(mentionNames?.get(lookupKey) ?? "").trim(),
+    withoutNameAddresses(
+      (mentionNames?.get(lookupKey) ?? "").replace(CONTROL_CHARACTER_REGEX, ""),
+    ).trim(),
   );
   // `all` is a word rather than an id, so it stands in for its own slug and a
   // reader loses nothing when the token carries none.

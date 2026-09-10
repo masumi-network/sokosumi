@@ -176,6 +176,42 @@ describe("buildChatMessagePreview", () => {
     ).toBe("docs hi @ada");
   });
 
+  /**
+   * A uuid is written with dashes and without, and a slug keeps either whole.
+   * A slug that spells the key is the id again, whichever way it is written.
+   */
+  it("says nothing for a slug that spells the key undashed", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4e4bd7005900c66e44d33f5e4 hi",
+      ),
+    ).toBe("hi");
+  });
+
+  /**
+   * A control character shows as nothing, or as a box, on a banner. It also
+   * hides an address from a rule that reads the characters an address is
+   * written with, so it goes before any of those rules run.
+   */
+  it("takes control characters out of a body and a name", () => {
+    expect(
+      buildChatMessagePreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada\u0000 hi",
+      ),
+    ).toBe("@ada hi");
+    expect(
+      buildChatMessagePreview(
+        "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+        new Map([
+          ["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "www\u0000.evil.test/pay"],
+        ]),
+      ),
+    ).toBe("hi @ada");
+    expect(buildChatMessagePreview("see www\u0000.evil.test/pay now")).toBe(
+      "see now",
+    );
+  });
+
   /** An empty name is no name, so the slug is what is left to say who. */
   it("keeps the slug when the lookup carries an empty name", () => {
     expect(
