@@ -1,8 +1,9 @@
 import "server-only";
 
+import type { Session } from "@sokosumi/utils";
 import { NextResponse } from "next/server";
 
-import { getSessionResult, type Session } from "./auth.server";
+import { getSessionResult } from "./auth.server";
 import type { CoreAuthReadErrorReason } from "./core-auth-read-error";
 
 /**

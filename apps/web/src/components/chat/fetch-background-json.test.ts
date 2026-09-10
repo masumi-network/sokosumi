@@ -131,6 +131,26 @@ describe("fetchBackgroundJson", () => {
     },
   );
 
+  it("retries a 200 whose body never arrives", async () => {
+    // The headers landed, then the connection dropped mid-body. That is the
+    // same stall as a request that never answered, not an answer.
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new TypeError("network error");
+        },
+      } as unknown as Response)
+      .mockResolvedValueOnce(response(200, { data: ["room-1"] }));
+
+    const result = fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect(result).resolves.toEqual({ data: ["room-1"] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("does not retry a 200 whose body will not parse", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

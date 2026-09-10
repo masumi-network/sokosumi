@@ -70,15 +70,14 @@ export async function fetchBackgroundJson(
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     for (let attempt = 0; ; attempt++) {
-      let response: Response | undefined;
-      let stalled: boolean;
       const attemptController = new AbortController();
       const attemptTimer = window.setTimeout(
         () => attemptController.abort(),
         ATTEMPT_STALL_TIMEOUT_MS,
       );
+      let stalled: boolean;
       try {
-        response = await fetch(url, {
+        const response = await fetch(url, {
           cache: "no-store",
           redirect: "error",
           signal: AbortSignal.any([
@@ -86,6 +85,21 @@ export async function fetchBackgroundJson(
             attemptController.signal,
           ]),
         });
+
+        // The body is read under the same attempt ceiling as the headers. A
+        // route that answers and then stalls mid-body is the same stall, and
+        // reading it outside the ceiling gave it the caller's whole budget.
+        if (response.ok) {
+          try {
+            return await response.json();
+          } catch (error) {
+            // A body that will not parse is an answer, however wrong, so it
+            // costs one attempt. A body that never arrived is a stall, so it
+            // falls through to the retry below.
+            if (error instanceof SyntaxError) return null;
+            throw error;
+          }
+        }
         stalled = response.status === 503;
       } catch {
         // Anything thrown here is the request not completing: a dropped
@@ -97,11 +111,6 @@ export async function fetchBackgroundJson(
       } finally {
         window.clearTimeout(attemptTimer);
       }
-
-      // Parsing runs outside the retry decision. A body that will not parse is
-      // an answer, however wrong, so it fails through to `null` on one attempt
-      // rather than costing three requests.
-      if (response?.ok) return await response.json();
 
       const retryDelay = stalled
         ? RETRY_DELAYS_ON_UNAVAILABLE_MS[attempt]
