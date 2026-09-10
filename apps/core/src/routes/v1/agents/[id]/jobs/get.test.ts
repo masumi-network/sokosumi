@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
-
+import mountGetAgentReviews from "../reviews/get";
 import mountGetAgentJobs from "./get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -12,12 +13,45 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { getUserJobsMock, workspaceRepositoryMock } = vi.hoisted(() => ({
+const {
+  getUserJobsMock,
+  requireAssignedOrganizationSeatMock,
+  workspaceRepositoryMock,
+} = vi.hoisted(() => ({
   getUserJobsMock: vi.fn(),
+  requireAssignedOrganizationSeatMock: vi.fn(),
   workspaceRepositoryMock: {
     resolveWorkspaceForContext: vi.fn(),
   },
 }));
+
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
+}));
+
+// Sibling route (GET /{id}/reviews) dependencies, used by the
+// "gate does not spread" test.
+vi.mock("@/helpers/agent", () => ({
+  buildAvailableAgentWhereClause: vi.fn(() => ({})),
+  getCardanoV2ReadySources: vi.fn(),
+  getCreditCostsOrThrow: vi.fn(),
+}));
+
+const { agentRatingMock, prismaMock } = vi.hoisted(() => ({
+  agentRatingMock: {
+    getAgentRatingDistribution: vi.fn(),
+    getRecentAgentReviews: vi.fn(),
+  },
+  prismaMock: {
+    agent: {
+      findFirst: vi.fn(),
+    },
+  },
+}));
+
+vi.mock("@/helpers/agent-rating", () => agentRatingMock);
+
+vi.mock("@/lib/db/prisma", () => ({ default: prismaMock }));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   const actual =
@@ -76,6 +110,16 @@ describe("GET /agents/{id}/jobs", () => {
       count: 0,
       hasMore: false,
     });
+    requireAssignedOrganizationSeatMock.mockResolvedValue(undefined);
+    agentRatingMock.getAgentRatingDistribution.mockResolvedValue({
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+    });
+    agentRatingMock.getRecentAgentReviews.mockResolvedValue([]);
+    prismaMock.agent.findFirst.mockResolvedValue({ id: "agent_123" });
   });
 
   it("returns 403 when workspaceContext is missing", async () => {
@@ -218,5 +262,79 @@ describe("GET /agents/{id}/jobs", () => {
         skip: undefined,
       },
     );
+  });
+
+  it("returns 403 when the human user has no assigned organization seat", async () => {
+    requireAssignedOrganizationSeatMock.mockRejectedValue(
+      forbidden("An assigned seat is required to use this organization"),
+    );
+
+    const app = new OpenAPIHonoWithAuth();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetAgentJobs(app);
+
+    const response = await app.request("http://localhost/agent_123/jobs");
+
+    expect(response.status).toBe(403);
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+    );
+    expect(getUserJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("does not gate the sibling reviews route on the same router", async () => {
+    requireAssignedOrganizationSeatMock.mockRejectedValue(
+      forbidden("An assigned seat is required to use this organization"),
+    );
+
+    const app = new OpenAPIHonoWithAuth();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetAgentJobs(app);
+    mountGetAgentReviews(app);
+
+    const jobsResponse = await app.request("http://localhost/agent_123/jobs");
+    const reviewsResponse = await app.request(
+      "http://localhost/agent_123/reviews",
+    );
+
+    expect(jobsResponse.status).toBe(403);
+    expect(getUserJobsMock).not.toHaveBeenCalled();
+    expect(reviewsResponse.status).toBe(200);
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledTimes(1);
   });
 });
