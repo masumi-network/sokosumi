@@ -110,6 +110,20 @@
       #expect(input.captureDraft() == "hello _world_\n")
     }
 
+    @Test func linkSheetExcludesListPrefixAndKeepsItWhenRenaming() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("- item\n")
+      input.setSelectedRange(NSRange(location: 0, length: 6))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.beginLink()
+      #expect(commands.linkEditor?.text == "item")
+      guard let editor = commands.linkEditor else { return }
+      commands.saveLink(editor, text: "site", url: "https://example.com")
+      #expect(input.string.hasPrefix("•\t"))
+      #expect(input.captureDraft() == "- [site](https://example.com/)\n")
+    }
+
     @Test func formattingSelectionPreservesTextSelectionAndUndo() {
       let input = MacComposerTextInput.InputView()
       let delegate = UndoDelegate()

@@ -22,6 +22,15 @@
       guard let input, !input.hasMarkedText() else { return }
       var range = input.selectedRange()
       let content = input.attributedString()
+      // The list prefix belongs to the paragraph, not the link label.
+      if range.length > 0, range.location < content.length {
+        var markerRange = NSRange()
+        if content.attribute(ComposerBlockText.listMarker, at: range.location, effectiveRange: &markerRange) as? Bool == true {
+          let end = min(NSMaxRange(range), NSMaxRange(markerRange))
+          range.length = NSMaxRange(range) - end
+          range.location = end
+        }
+      }
       var destination = ""
       if content.length > 0 {
         var linkRange = NSRange()
