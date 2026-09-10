@@ -10,7 +10,7 @@ import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-t
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
-import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,

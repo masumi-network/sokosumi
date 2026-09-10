@@ -724,17 +724,6 @@
           "sent": "Enviada",
           "failed": "Fallida"
         }
-      },
-      "LeaveOrganizationModal": {
-        "title": "¿Seguro que quieres salir de la organización?",
-        "description": "Salir de la organización \"{organization}\".",
-        "leave": "Salir",
-        "cancel": "Cancelar",
-        "success": "Has salido de la organización",
-        "error": "No se pudo salir de la organización",
-        "Errors": {
-          "unauthorizedAction": "Iniciar sesión"
-        }
       }
     },
     "Modals": {
