@@ -12,6 +12,7 @@
 - Long-message expansion is implemented using 16 measured native body lines. Xcode build/tests and lint pass; signed-app accessibility actions now verify expand/collapse for two existing reports with independent state. Opening a report thread also verifies visible clipping, expansion/collapse and preservation of expansion across window zoom/restore. Pointer text selection, light mode and continuous resizing remain unverified; prior CUA scroll input failed (`noWindowsAvailable`).
 - Inline HTML bold/italic/underline and line breaks now render natively; escaped/code tags stay literal. Block HTML, sanitization and visual verification remain incomplete.
 - Proposed prerequisites: SwiftSoup 2.13.9 for native HTML parsing and swift-markdown 0.8.0 for a complete Markdown tree; explicit dependency approval is pending. Fresh probes show Foundation drops empty blocks and the installed Markdown grammar misparses an empty middle table row. See the proposal in [rich-message-rendering.md](docs/rich-message-rendering.md). No dependency was added.
+- Emoji prerequisite proposal: data-only JSON from web’s emojilib 2.4.0 and emoticon 4.1.0 (MIT), about 36 KB; approval pending. No npm runtime is needed. See the rendering design for exact lookup/boundary behavior.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ### PR #4361 minor review follow-up
