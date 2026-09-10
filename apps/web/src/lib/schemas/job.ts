@@ -73,15 +73,6 @@ export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
 >;
 
-export const provideJobInputResponseSchema = z.object({
-  input_hash: z.string(),
-  signature: z.string(),
-});
-
-export type ProvideJobInputResponseSchemaType = z.infer<
-  typeof provideJobInputResponseSchema
->;
-
 export const provideJobInputSchema = z.object({
   jobId: z.string(),
   eventId: z.string(),

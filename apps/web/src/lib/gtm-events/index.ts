@@ -22,12 +22,6 @@ export const fireGTMEvent = {
     });
   },
 
-  doiConfirmed() {
-    fireEvent({
-      event: "doi_confirmed",
-    });
-  },
-
   viewLoginArea() {
     fireEvent({
       event: "view_login_area",

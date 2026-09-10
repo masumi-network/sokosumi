@@ -15,6 +15,7 @@ public final class ConversationSidebar: ObservableObject {
   @Published public var isLoading = false
   @Published public private(set) var errorMessage: String?
   @Published public private(set) var collapsedSections: Set<Section> = []
+  public let readAttention = RoomReadAttention()
   private let savedRoom: SavedRoomSelection
   private var generation = 0
 
@@ -36,6 +37,7 @@ public final class ConversationSidebar: ObservableObject {
 
   public func reset() {
     invalidateRefresh()
+    readAttention.reset()
     rooms = []
     selectedRoomId = nil
     collapsedSections = []
@@ -70,6 +72,7 @@ public final class ConversationSidebar: ObservableObject {
     guard !isLoading else { return false }
     generation += 1
     let attempt = generation
+    let attentionRevision = readAttention.beginRefresh()
     isLoading = true
     errorMessage = nil
     defer {
@@ -80,7 +83,7 @@ public final class ConversationSidebar: ObservableObject {
     do {
       let loaded = try await ChatService().listRooms(client: client, organizationSlug: organizationSlug)
       guard generation == attempt, !Task.isCancelled else { return false }
-      rooms = loaded
+      rooms = readAttention.reconcile(loaded, requestRevision: attentionRevision)
       return true
     } catch {
       guard generation == attempt, !Task.isCancelled else { return false }

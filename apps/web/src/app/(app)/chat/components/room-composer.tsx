@@ -57,7 +57,7 @@ import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
   type MentionRecordEntry,
   type NormalizedMention,
-} from "@/components/ui/mention-textarea";
+} from "@/components/ui/mention-textarea-utils";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import type {
   ChatRoomCoworkerParticipant,

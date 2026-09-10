@@ -27,6 +27,7 @@ public final class WorkspaceSession: ObservableObject {
   @Published public private(set) var isSwitching = false
   private var generation = 0
   private var switchTask: Task<[Components.Schemas.ChatRoom], Error>?
+  private var revokedDuringSwitch: Set<String> = []
   private let service = ChatService()
 
   public init() {}
@@ -39,6 +40,7 @@ public final class WorkspaceSession: ObservableObject {
     generation += 1
     switchTask?.cancel()
     switchTask = nil
+    revokedDuringSwitch = []
     phase = .idle
     options = []
     selectionId = nil
@@ -82,11 +84,13 @@ public final class WorkspaceSession: ObservableObject {
   public func select(_ option: Option, client: Client) async throws -> [Components.Schemas.ChatRoom]? {
     guard phase == .ready, !isSwitching, options.contains(option), option.id != selectionId else { return nil }
     isSwitching = true
+    revokedDuringSwitch = []
     let attempt = generation
     defer {
       if attempt == generation {
         isSwitching = false
         switchTask = nil
+        revokedDuringSwitch = []
       }
     }
     do {
@@ -101,11 +105,19 @@ public final class WorkspaceSession: ObservableObject {
       guard attempt == generation, !Task.isCancelled else { return nil }
       selectionId = option.id
       errorMessage = nil
-      return rooms
+      return rooms.filter { !revokedDuringSwitch.contains($0.id) }
     } catch {
       guard attempt == generation, !Task.isCancelled else { return nil }
       errorMessage = friendlyMessage(for: error)
       throw error
+    }
+  }
+
+  /// User-control events can revoke destination rooms while their list is
+  /// loading. A snapshot started before that event must not restore them.
+  public func applyMembershipRevoked(roomId: String) {
+    if isSwitching {
+      revokedDuringSwitch.insert(roomId)
     }
   }
 }
