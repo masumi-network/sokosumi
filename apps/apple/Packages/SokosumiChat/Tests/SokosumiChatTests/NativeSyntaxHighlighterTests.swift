@@ -15,7 +15,7 @@ struct NativeSyntaxHighlighterTests {
 
   @Test func resolvesCommonAliasesAndDistinctDialects() {
     let fixtures: [(String, SyntaxLanguage)] = [
-      ("JS", .javascript), ("py", .python), ("objc", .objectivec),
+      ("graphql", .graphql), ("LESS", .less), ("JS", .javascript), ("py", .python), ("objc", .objectivec),
       ("jsp", .java), ("ipython", .python), ("obj-c++", .objectivec), ("objective-c++", .objectivec),
       ("c++", .cpp), ("c#", .csharp), ("sh", .bash), ("md", .markdown),
       ("yml", .yaml), ("rs", .rust), ("make", .makefile), ("patch", .diff),
@@ -23,6 +23,19 @@ struct NativeSyntaxHighlighterTests {
     ]
     for (alias, expected) in fixtures {
       #expect(SyntaxLanguage(fenceInfo: alias + " title=example") == expected)
+    }
+  }
+
+  @Test func highlightsGraphQLAndLESSFromBundledQueries() throws {
+    let fixtures: [SyntaxLanguage: (String, String)] = [
+      .graphql: ("query Greeting { hello(message: \"👋\") }", "query"),
+      .less: ("@color: red; .hello { color: @color; content: \"👋\"; }", "@color")
+    ]
+    for (language, (source, token)) in fixtures {
+      let name = language == .graphql ? "keyword" : "variable"
+      let captures = try NativeSyntaxHighlighter.captures(in: source, language: language)
+      #expect(captures.contains { $0.name == name && (source as NSString).substring(with: $0.range) == token })
+      #expect(captures.contains { $0.name == "string" && (source as NSString).substring(with: $0.range).contains("👋") })
     }
   }
 

@@ -13,6 +13,7 @@ import TreeSitterCSSQueries
 import TreeSitterDiff
 import TreeSitterGo
 import TreeSitterGoQueries
+import TreeSitterGraphQL
 import TreeSitterHTML
 import TreeSitterHTMLQueries
 import TreeSitterIni
@@ -23,6 +24,7 @@ import TreeSitterJavaScriptQueries
 import TreeSitterJSON
 import TreeSitterJSONQueries
 import TreeSitterKotlin
+import TreeSitterLess
 import TreeSitterLua
 import TreeSitterLuaQueries
 import TreeSitterMake
@@ -65,7 +67,7 @@ public struct SyntaxCapture: Equatable, Sendable {
 }
 
 public enum SyntaxLanguage: String, Sendable {
-  case swift, json, kotlin, objectivec, xml, makefile, diff, ini, html, toml, tsx
+  case graphql, less, swift, json, kotlin, objectivec, xml, makefile, diff, ini, html, toml, tsx
   // Standard language names match fenced-code identifiers.
   // swiftlint:disable:next identifier_name
   case bash, c, cpp, csharp, css, go, java, javascript, lua, markdown, perl, php, python, r, ruby, rust, scss, sql, typescript, yaml
@@ -140,6 +142,8 @@ public enum SyntaxLanguage: String, Sendable {
 
   fileprivate var pointer: OpaquePointer {
     switch self {
+    case .graphql: tree_sitter_graphql()
+    case .less: tree_sitter_less()
     case .html: tree_sitter_html()
     case .toml: tree_sitter_toml()
     case .tsx: tree_sitter_tsx()
@@ -174,6 +178,19 @@ public enum SyntaxLanguage: String, Sendable {
     }
   }
 
+  fileprivate var bundledQueryResource: (String, String)? {
+    switch self {
+    case .graphql: ("graphql-highlights", "GrammarDependencies")
+    case .less: ("less-highlights", "GrammarDependencies")
+    case .objectivec: ("objc", "HighlightQueries")
+    case .xml: ("xml", "HighlightQueries")
+    case .makefile: ("make", "HighlightQueries")
+    case .diff: ("diff", "HighlightQueries")
+    case .ini: ("ini", "HighlightQueries")
+    default: nil
+    }
+  }
+
   fileprivate var queryURLs: [URL] {
     switch self {
     case .html: [TreeSitterHTMLQueries.Query.highlightsFileURL]
@@ -201,7 +218,7 @@ public enum SyntaxLanguage: String, Sendable {
     case .yaml: [TreeSitterYAMLQueries.Query.highlightsFileURL]
     case .swift: [TreeSitterSwiftQueries.Query.highlightsFileURL]
     case .json: [TreeSitterJSONQueries.Query.highlightsFileURL]
-    case .kotlin, .xml, .makefile, .diff, .ini: []
+    case .graphql, .less, .kotlin, .xml, .makefile, .diff, .ini: []
     case .objectivec: [TreeSitterCQueries.Query.highlightsFileURL]
     }
   }
@@ -240,16 +257,8 @@ public enum NativeSyntaxHighlighter {
       source = source.replacingOccurrences(of: "(match? ", with: "(#match? ")
       source += "\n[(variable_name) (variable_value)] @variable"
     }
-    let resourceName: String? = switch language {
-    case .objectivec: "objc"
-    case .xml: "xml"
-    case .makefile: "make"
-    case .diff: "diff"
-    case .ini: "ini"
-    default: nil
-    }
-    if let resourceName {
-      guard let url = Bundle.module.url(forResource: resourceName, withExtension: "scm", subdirectory: "HighlightQueries") else {
+    if let (resourceName, subdirectory) = language.bundledQueryResource {
+      guard let url = Bundle.module.url(forResource: resourceName, withExtension: "scm", subdirectory: subdirectory) else {
         throw CocoaError(.fileNoSuchFile)
       }
       try source += "\n" + String(contentsOf: url, encoding: .utf8)

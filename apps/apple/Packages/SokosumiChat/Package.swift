@@ -41,6 +41,8 @@ let package = Package(
     .target(
       name: "SokosumiChat",
       dependencies: [
+        "TreeSitterGraphQL",
+        .product(name: "TreeSitterLess", package: "tree-sitter-less"),
         .product(name: "SwiftSoup", package: "SwiftSoup"),
         .product(name: "Markdown", package: "swift-markdown"),
         .product(name: "TreeSitterHTML", package: "TreeSitterLanguages"),

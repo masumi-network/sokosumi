@@ -191,6 +191,14 @@
       }
     },
     {
+      "identity" : "tree-sitter-less",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mdovale/tree-sitter-less",
+      "state" : {
+        "revision" : "02988c765d30adb0476657b5d220e8dfde1c07d3"
+      }
+    },
+    {
       "identity" : "tree-sitter-make",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tree-sitter-grammars/tree-sitter-make",
