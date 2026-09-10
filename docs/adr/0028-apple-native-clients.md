@@ -1,4 +1,4 @@
-# ADR 0027: Native Apple clients in `apps/apple`
+# ADR 0028: Native Apple clients in `apps/apple`
 
 - Status: Accepted
 - Date: 2026-09-07

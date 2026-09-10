@@ -49,7 +49,7 @@ const {
   queryRawMock,
   userMemberCountMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
   publishChatMembershipRevokedToUsersMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -84,7 +84,7 @@ const {
   guestInviteLinkCountMock: vi.fn(),
   queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
   publishChatMembershipRevokedToUsersMock: vi.fn(),
 }));
 
@@ -104,7 +104,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffort:
+    publishChatRoomMembershipStatusMessagesBestEffortMock,
 }));
 
 vi.mock("@/helpers/chat-room-mention-status", () => ({
@@ -333,7 +334,9 @@ beforeEach(() => {
     replies: [],
     _count: { replies: 0 },
   }));
-  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+  publishChatRoomMembershipStatusMessagesBestEffortMock.mockResolvedValue(
+    undefined,
+  );
   publishChatMembershipRevokedToUsersMock.mockResolvedValue(undefined);
   failOpenMentionsMock.mockResolvedValue([]);
   publishMentionStatusesMock.mockResolvedValue(undefined);
@@ -661,7 +664,9 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(
       messageCreateMock.mock.calls.map((call) => call[0].data.content),
     ).toEqual(["OldBot left", "Bob joined", "NewBot joined"]);
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledTimes(3);
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledTimes(3);
     // No human removed — only coworker left / Bob joined; empty revoke fan-out.
     expect(publishChatMembershipRevokedToUsersMock).toHaveBeenCalledWith(
       ROOM_ID,

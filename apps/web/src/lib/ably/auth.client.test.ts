@@ -42,7 +42,7 @@ describe("fetchAblyBrowserAuthTokenRequest", () => {
     );
 
     await outcome;
-    expect(timeoutMock).toHaveBeenCalledWith(10_000);
+    expect(timeoutMock).toHaveBeenCalledWith(9_000);
   });
 
   it("POSTs to /api/ably/auth with cookies and clientInstanceId", async () => {

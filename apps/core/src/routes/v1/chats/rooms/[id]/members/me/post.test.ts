@@ -25,7 +25,7 @@ const {
   userFindUniqueMock,
   messageCreateMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomFindFirstOrThrowMock: vi.fn(),
@@ -39,7 +39,7 @@ const {
   userFindUniqueMock: vi.fn(),
   messageCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -47,7 +47,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffort:
+    publishChatRoomMembershipStatusMessagesBestEffortMock,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -178,7 +179,9 @@ beforeEach(() => {
   readStateCreateManyMock.mockResolvedValue({ count: 1 });
   userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
   messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
-  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+  publishChatRoomMembershipStatusMessagesBestEffortMock.mockResolvedValue(
+    undefined,
+  );
   const joined = publicChannel({
     userMembers: [member(OTHER_ID), member(SELF_ID)],
   });
@@ -231,10 +234,9 @@ describe("POST /chats/rooms/{id}/members/me", () => {
         }),
       }),
     );
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
-      MEMBERSHIP_MESSAGE,
-      "create",
-    );
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledWith([MEMBERSHIP_MESSAGE]);
   });
 
   it("is idempotent when already a member", async () => {
@@ -255,7 +257,9 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     expect(userMemberUpdateMock).not.toHaveBeenCalled();
     expect(readStateCreateManyMock).not.toHaveBeenCalled();
     expect(messageCreateMock).not.toHaveBeenCalled();
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("upgrades guest to member when host-org member self-joins", async () => {
@@ -286,7 +290,9 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     expect(userMemberCreateMock).not.toHaveBeenCalled();
     // Already in the room as guest — no second join status.
     expect(messageCreateMock).not.toHaveBeenCalled();
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns 404 for a private channel", async () => {

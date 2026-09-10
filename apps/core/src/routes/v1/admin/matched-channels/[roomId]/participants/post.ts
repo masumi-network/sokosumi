@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { ensureMatchedChannelParticipant } from "@/helpers/chat-room-matched-membership.js";
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime.js";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -51,7 +51,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     for (const message of statusMessages) {
-      await publishChatRoomMessageRealtime(message, "create");
+      await publishChatRoomMembershipStatusMessagesBestEffort([message]);
     }
 
     return ok(
