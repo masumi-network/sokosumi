@@ -57,8 +57,25 @@ function whatNamesSomeone(text: string): string {
  * `.evil.test/pay` spell an address between them that no word rule should
  * protect.
  */
-const SEAM_ADDRESS_REGEX =
-  /(?<=[A-Za-z0-9_])www\.[A-Za-z0-9\-._~:/?#!$&*+,;=%[\]]+/giu;
+const SEAM_ADDRESS_REGEX = /(?<=[A-Za-z0-9_])www\.[^\s\u0000]*/giu;
+
+/**
+ * An address inside a display name, read by a stricter rule than a sentence
+ * gets: from the scheme or the `www.` to the next space.
+ *
+ * A sentence is read to the last character an address is written with, so a
+ * domain spelled in another script ends one early and stays as written. That
+ * is a person's own sentence, and cutting words out of it on a guess costs
+ * more than it saves. A display name is not a sentence: nobody writes one
+ * around an address by accident, and `www.еvil.test/pay` with a Cyrillic
+ * letter in it is the rename this rule exists to stop.
+ */
+const NAME_ADDRESS_REGEX = /(?:(?:https?|ftps?):\/\/|www\.)[^\s\u0000]*/giu;
+
+/** A display name with every address it carries taken out of it. */
+function withoutNameAddresses(name: string): string {
+  return name.replace(NAME_ADDRESS_REGEX, "");
+}
 
 /**
  * The name up to the address it starts, whether that address ends inside the
@@ -461,7 +478,7 @@ export function buildChatMessagePreview(
       // slug below says more. A member renaming themselves `www.evil.test.`
       // otherwise reads as `@.` on every lock screen in the room.
       const name = whatNamesSomeone(
-        withoutAddresses(mentionNames?.get(lookupKey) ?? "").trim(),
+        withoutNameAddresses(mentionNames?.get(lookupKey) ?? "").trim(),
       );
       const label =
         name ||
@@ -493,7 +510,11 @@ export function buildChatMessagePreview(
       const label = whatNamesSomeone(
         withoutSeamAddress(
           labels[Number(index)] ?? "",
-          oneLine.slice(at + match.length),
+          // Read with the markers after it taken out. A mention that names
+          // nobody leaves nothing on the line, so the words on either side of
+          // it end up against each other and can spell an address between
+          // them the same way a name and the words after it can.
+          oneLine.slice(at + match.length).replace(MENTION_MARKER_REGEX, ""),
         ),
       );
 

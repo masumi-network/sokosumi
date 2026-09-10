@@ -346,7 +346,22 @@ describe("buildChatMessagePreview", () => {
 
     expect(preview("Bobwww.evil.test/pay")).toBe("hi @Bob now");
     expect(preview("BobWWW.evil.test")).toBe("hi @Bob now");
-    expect(preview("Bobwww.evil.test Guy")).toBe("hi @Bob now");
+    expect(preview("Bobwww.evil.test Guy")).toBe("hi @Bob Guy now");
+    expect(preview("www.еvil.test/pay")).toBe("hi now");
+    expect(preview("Bobwww.еvil.test")).toBe("hi @Bob now");
+  });
+
+  /**
+   * A mention that names nobody leaves nothing on the line, so the name
+   * before it ends up against the words after it.
+   */
+  it("takes an address a dropped mention closes up into", () => {
+    expect(
+      buildChatMessagePreview(
+        "Hi @11111111-1111-4111-8111-111111111111:bob@22222222-2222-4222-8222-222222222222:.evil.test/pay",
+        new Map([["11111111-1111-4111-8111-111111111111", "Bobwww"]]),
+      ),
+    ).toBe("Hi @Bob.evil.test/pay");
   });
 
   /** A name is a person's to choose, emoji and all. */
