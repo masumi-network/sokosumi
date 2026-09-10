@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { NotificationKind } from "@/lib/clients/generated/core";
 import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access-notification";
-import { NOTIFICATION_TARGET_PARAM } from "@/lib/utils/notification-service-worker";
 
 const onNotificationRef = {
   current: null as ((notification: NotificationEventData) => void) | null,
@@ -451,42 +450,6 @@ describe("NotificationToastListener OS banner", () => {
     await vi.waitFor(() => {
       expect(laterMarkRead).toHaveBeenCalledWith("notification-1");
     });
-    expect(markRead).not.toHaveBeenCalled();
-  });
-
-  /**
-   * A click no tab could take opens a window instead, and the target arrives
-   * on that window's URL. It has to reach the same routing a posted click
-   * reaches, or the reader lands on whatever page opened and no further.
-   */
-  it("opens the notification a window was opened for", async () => {
-    window.history.replaceState(
-      {},
-      "",
-      `/?${NOTIFICATION_TARGET_PARAM}=${encodeURIComponent(JSON.stringify(TARGET))}`,
-    );
-
-    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
-
-    await vi.waitFor(() => {
-      expect(handleNotificationNavigation).toHaveBeenCalledWith(
-        TARGET,
-        null,
-        expect.anything(),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-    expect(markRead).toHaveBeenCalledWith("notification-1");
-    expect(window.location.search).toBe("");
-  });
-
-  it("opens nothing when the URL names no notification", () => {
-    window.history.replaceState({}, "", "/");
-
-    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
-
-    expect(handleNotificationNavigation).not.toHaveBeenCalled();
     expect(markRead).not.toHaveBeenCalled();
   });
 

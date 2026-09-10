@@ -131,8 +131,9 @@ describe("showNotification", () => {
     ).resolves.toBe(true);
 
     // The option is the pin, not noise: the default lets the HTTP cache
-    // answer for the catalog the worker imports, which strands readers on
-    // last release's strings when a release changes nothing else.
+    // answer for the catalog the worker imports. It is not the whole
+    // guarantee, because Ably's own registration can reset it, so the
+    // catalog's `Cache-Control` carries the rest.
     expect(register).toHaveBeenCalledWith(NOTIFICATION_SERVICE_WORKER_URL, {
       updateViaCache: "none",
     });

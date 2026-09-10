@@ -1,18 +1,15 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffectEvent } from "react";
 import { toast } from "sonner";
 
-import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
-import { authClient } from "@/lib/auth/auth.client";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,
@@ -21,7 +18,6 @@ import {
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
 import { buildNotificationBannerContent } from "@/lib/utils/notification-banner";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
-import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
 import {
   answerShowsNotificationsQuery,
@@ -29,10 +25,11 @@ import {
   getNotificationServiceWorker,
   showNotification,
   subscribeNotificationClicks,
-  takeNotificationTargetFromUrl,
   toNotificationTarget,
 } from "@/lib/utils/notification-service-worker";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
+
+import { useOpenNotification } from "./use-open-notification";
 
 interface NotificationToastListenerProps {
   userId: string;
@@ -112,35 +109,12 @@ export function NotificationToastListener({
   markRead,
 }: NotificationToastListenerProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const tDetail = useTranslations("App.Tasks.Detail");
   const formatMessage = useNotificationMessage();
-  const router = useRouter();
-  const { handleSelectWorkspace } = useWorkspaceSwitcher();
-
-  function openNotification(target: NotificationTarget, isRead: boolean) {
-    void (async () => {
-      if (!isRead) {
-        void markRead(target.id).catch(() => {
-          // Still open the link when mark-read fails.
-        });
-      }
-
-      const sessionResponse = await authClient.getSession();
-      const activeOrganizationId =
-        sessionResponse.data?.session.activeOrganizationId ?? null;
-
-      await handleNotificationNavigation(
-        target,
-        activeOrganizationId,
-        router,
-        handleSelectWorkspace,
-        tDetail,
-      );
-    })();
-  }
+  const openNotification = useOpenNotification(markRead);
 
   /**
-   * `handleSelectWorkspace` is a new function on every render, so subscribing
+   * `handleSelectWorkspace` inside the hook is a new function on every render,
+   * so subscribing
    * on each change would tear the worker's message listener down and back up
    * constantly, and a click landing in that gap would be lost. This keeps one
    * stable identity that always runs the current render's callback.
@@ -271,15 +245,6 @@ export function NotificationToastListener({
   useMountEffect(() => {
     if (getBrowserNotificationPermission() === "granted") {
       void getNotificationServiceWorker();
-    }
-
-    // A click no tab could take opened this window and left its target on the
-    // URL, because there was no page yet to post it to. Read before the
-    // subscription rather than after, so a target waiting here is opened even
-    // if the worker never speaks to this page at all.
-    const opened = takeNotificationTargetFromUrl();
-    if (opened) {
-      openClickedNotification(opened);
     }
 
     const unsubscribeClicks = subscribeNotificationClicks((target) => {

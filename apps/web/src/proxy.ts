@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { PUSH_WORKER_MESSAGES_PATH } from "@/config/push-worker-assets";
 import {
   applyPendingOrganizationJoinCookie,
   joinTokenFromJoinPath,
@@ -41,8 +42,8 @@ const EXCLUDED_PATHS = [
   // redirect exactly as the worker's own does, and it fails harder: the
   // import throws, so worker evaluation fails and the reader is left with no
   // push worker at all. `proxy.test.ts` reads this path out of the worker's
-  // `importScripts` call, so a rename fails there rather than silently here.
-  "/ably-push-messages.js",
+  // `importScripts` call, so a move fails there rather than silently here.
+  PUSH_WORKER_MESSAGES_PATH,
   "/maintenance",
 ];
 

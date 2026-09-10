@@ -8,6 +8,7 @@ import {
   SUPPORTED_LOCALES,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import { PUSH_WORKER_MESSAGES_PATH } from "@/config/push-worker-assets";
 import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
@@ -34,18 +35,13 @@ const SERVICE_WORKER_PATH = join(
   NOTIFICATION_SERVICE_WORKER_URL,
 );
 
-/**
- * The catalog the worker loads with `importScripts`, read from the path the
- * worker itself names. A rename that leaves the two disagreeing fails here
- * rather than at a reader's first push.
- */
-const MESSAGES_PATH = join(
-  process.cwd(),
-  "public",
+/** The path the worker's own `importScripts` call names. */
+const IMPORTED_PATH =
   readFileSync(SERVICE_WORKER_PATH, "utf8").match(
     /importScripts\("([^"]*)"\);/,
-  )?.[1] ?? "",
-);
+  )?.[1] ?? "";
+
+const MESSAGES_PATH = join(process.cwd(), "public", IMPORTED_PATH);
 
 const CATALOGS = {
   en: enMessages,
@@ -202,6 +198,18 @@ describe("ably-push-sw message map", () => {
     const declared = source.match(/const TARGET_PARAM = "([^"]*)";/)?.[1];
 
     expect(declared).toBe(NOTIFICATION_TARGET_PARAM);
+  });
+
+  /**
+   * Three places outside the worker have to name this file: the header that
+   * keeps it revalidating, the proxy path list that serves it without a
+   * session, and the tests. None of them can read it from the worker at run
+   * time, so they share one constant, and this holds that constant to the
+   * import the browser actually performs. Move the file and update only the
+   * constant, and every reader's worker fails to evaluate.
+   */
+  it("imports the catalog the app serves and caches", () => {
+    expect(IMPORTED_PATH).toBe(PUSH_WORKER_MESSAGES_PATH);
   });
 
   it("asks the question the app answers", () => {

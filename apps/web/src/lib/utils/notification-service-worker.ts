@@ -218,11 +218,14 @@ async function register(): Promise<ServiceWorkerRegistration | null> {
       getNotificationServiceWorkerUrl(),
       // The worker imports its message catalog, and the default,
       // `"imports"`, checks an imported script against the HTTP cache on
-      // update. A release that changes only a translated string leaves the
-      // worker itself byte for byte the same, so under the default the
-      // catalog is the only thing that moved and the only thing the cache is
-      // allowed to answer for: readers keep last release's strings until it
-      // expires. `"none"` revalidates both.
+      // update. `"none"` revalidates both.
+      //
+      // Not the guarantee on its own: Ably registers this same worker URL
+      // with no options inside `push.activate()`, and the Register algorithm
+      // writes the job's mode onto an existing registration, so whichever
+      // call runs last decides. The catalog's own `Cache-Control` is what
+      // holds either way (`config/push-worker-assets.ts`). This stays because
+      // it is right for the registration this app makes.
       { updateViaCache: "none" },
     );
     // A registration that is installing cannot show anything yet. Awaited
