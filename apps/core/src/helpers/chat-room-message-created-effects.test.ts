@@ -138,7 +138,7 @@ describe("emitChatRoomMessageCreatedEffects", () => {
 
     expect(createNotificationMock).not.toHaveBeenCalled();
     expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: [SUBSCRIBER_ID, QUIET_ID],
+      userIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID],
       roomId: ROOM_ID,
       collections: ["active"],
     });

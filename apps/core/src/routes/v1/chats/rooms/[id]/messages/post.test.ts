@@ -474,7 +474,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
       expect(response.status).toBe(201);
       expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
-        userIds: recipients,
+        userIds: [USER_ID, ...recipients],
         collections: ["active"],
         roomId: ROOM_ID,
       });
@@ -549,7 +549,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
     await effects;
     expect(response.status).toBe(201);
     expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
-      userIds: [ALICE_ID],
+      userIds: [USER_ID, ALICE_ID],
       collections: ["active"],
       roomId: ROOM_ID,
     });
@@ -1249,7 +1249,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
       await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
       expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
-        userIds: [ALICE_ID],
+        userIds: [USER_ID, ALICE_ID],
         roomId: ROOM_ID,
         collections: ["active"],
       });

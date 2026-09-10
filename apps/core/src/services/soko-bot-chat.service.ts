@@ -231,7 +231,6 @@ export async function introduceSokoBot(input: {
   await Promise.all([
     invalidateChatRoomMessageReaders({
       roomId: room.id,
-      authorUserId: null,
     }),
     publishChatRoomMessageRealtimeById(message.id, "create"),
   ]);
@@ -293,7 +292,6 @@ export async function deliverSokoBotTurnToDirectRoom(
   await Promise.all([
     invalidateChatRoomMessageReaders({
       roomId: room.id,
-      authorUserId: null,
     }),
     publishChatRoomMessageRealtimeById(message.id, "create"),
   ]);
@@ -404,7 +402,6 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
     succeeded
       ? invalidateChatRoomMessageReaders({
           roomId: mention.roomId,
-          authorUserId: null,
         })
       : undefined,
     publishRealtime(responseMessageId, "update"),
