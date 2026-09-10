@@ -4,11 +4,6 @@ import {
 } from "@sokosumi/utils";
 
 /**
- * Application constants for the Core API
- * Centralized configuration values for better maintainability
- */
-
-/**
  * Time durations in seconds
  */
 export const TIME = {
@@ -124,7 +119,4 @@ export const CRYPTO = {
 export const STORAGE = {
   /** Default directory for image uploads */
   IMAGES_UPLOAD_DIR: "images",
-
-  /** Root directory for user file uploads */
-  USER_UPLOADS_DIR: "users",
 } as const;

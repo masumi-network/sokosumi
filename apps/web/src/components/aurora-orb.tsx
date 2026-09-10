@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, use, useEffect, useRef } from "react";
+import { browser } from "react-dom";
 
 import {
   type MountHandle,
@@ -44,32 +45,74 @@ interface AuroraOrbProps {
   event?: OrbEvent | null;
 }
 
-/**
- * Deterministic generative "aurora orb" avatar.
- *
- * - `animate` → a live `<canvas>` + rAF loop (hero/profile use only); the
- *   canvas resolution tracks its rendered size for crispness.
- * - default (static) → a cached PNG via `<img>` for lists/small/repeated
- *   avatars (the library's performance rule).
- *
- * Display size comes from `className` (so callers keep their responsive size
- * classes). Both variants are circle-clipped. SSR-safe: a neutral circular
- * placeholder renders until the browser can paint, so the first client render
- * matches the server (no hydration mismatch).
- */
-export function AuroraOrb({
-  seed,
-  size = 64,
-  animate = false,
-  speed = 1,
-  className,
-  alt = "",
-  expression = null,
-  event = null,
-}: AuroraOrbProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+function orbLabelProps(alt: string) {
+  const labelled = alt !== "";
+  return {
+    "aria-hidden": labelled ? undefined : true,
+    "aria-label": labelled ? alt : undefined,
+    role: labelled ? ("img" as const) : undefined,
+  };
+}
 
+function AuroraOrbPlaceholder({
+  className,
+  alt,
+}: {
+  className?: string;
+  alt: string;
+}) {
+  return (
+    <span
+      className={cn("bg-muted block shrink-0 rounded-full", className)}
+      {...orbLabelProps(alt)}
+    />
+  );
+}
+
+function AuroraOrbStatic({
+  seed,
+  size,
+  expression,
+  className,
+  alt,
+}: {
+  seed: string;
+  size: number;
+  expression: OrbExpression | null;
+  className?: string;
+  alt: string;
+}) {
+  use(browser());
+  const dataUrl = toDataURL(seed, size, expression);
+
+  return (
+    // Data-URL PNG (already DPR-scaled + cached) — next/image adds no value here.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={dataUrl}
+      alt={alt}
+      className={cn("block shrink-0 rounded-full object-cover", className)}
+    />
+  );
+}
+
+function AuroraOrbAnimated({
+  seed,
+  size,
+  speed,
+  className,
+  alt,
+  expression,
+  event,
+}: {
+  seed: string;
+  size: number;
+  speed: number;
+  className?: string;
+  alt: string;
+  expression: OrbExpression | null;
+  event: OrbEvent | null;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handleRef = useRef<MountHandle | null>(null);
   const expressionRef = useRef(expression);
@@ -77,7 +120,6 @@ export function AuroraOrb({
   const speedRef = useRef(speed);
   speedRef.current = speed;
   useEffect(() => {
-    if (!animate) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const handle = mount(canvas, {
@@ -91,7 +133,7 @@ export function AuroraOrb({
       handle.stop();
       handleRef.current = null;
     };
-  }, [animate, seed, size]);
+  }, [seed, size]);
   useEffect(() => {
     handleRef.current?.setExpression(expression ?? null);
   }, [expression]);
@@ -106,43 +148,64 @@ export function AuroraOrb({
     }
   }, [event]);
 
-  const dataUrl = useMemo(
-    () => (mounted && !animate ? toDataURL(seed, size, expression) : null),
-    [mounted, animate, seed, size, expression],
+  return (
+    <canvas
+      ref={canvasRef}
+      className={cn("block shrink-0 rounded-full", className)}
+      {...orbLabelProps(alt)}
+    />
   );
+}
 
-  const labelled = alt !== "";
-
+/**
+ * Deterministic generative "aurora orb" avatar.
+ *
+ * - `animate` → a live `<canvas>` + rAF loop (hero/profile use only); the
+ *   canvas resolution tracks its rendered size for crispness.
+ * - default (static) → a cached PNG via `<img>` for lists/small/repeated
+ *   avatars (the library's performance rule).
+ *
+ * Display size comes from `className` (so callers keep their responsive size
+ * classes). Both variants are circle-clipped. Static orbs opt out of SSR with
+ * `use(browser())` because `toDataURL` needs a canvas; the Suspense fallback
+ * is a same-footprint placeholder so layout does not shift.
+ */
+export function AuroraOrb({
+  seed,
+  size = 64,
+  animate = false,
+  speed = 1,
+  className,
+  alt = "",
+  expression = null,
+  event = null,
+}: AuroraOrbProps) {
   if (animate) {
     return (
-      <canvas
-        ref={canvasRef}
-        className={cn("block shrink-0 rounded-full", className)}
-        aria-hidden={labelled ? undefined : true}
-        aria-label={labelled ? alt : undefined}
-        role={labelled ? "img" : undefined}
-      />
-    );
-  }
-
-  if (!dataUrl) {
-    // SSR / pre-paint placeholder — same circular footprint, no layout shift.
-    return (
-      <span
-        aria-hidden
-        className={cn("bg-muted block shrink-0 rounded-full", className)}
+      <AuroraOrbAnimated
+        seed={seed}
+        size={size}
+        speed={speed}
+        className={className}
+        alt={alt}
+        expression={expression}
+        event={event}
       />
     );
   }
 
   return (
-    // Data-URL PNG (already DPR-scaled + cached) — next/image adds no value here.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={dataUrl}
-      alt={alt}
-      className={cn("block shrink-0 rounded-full object-cover", className)}
-    />
+    <Suspense
+      fallback={<AuroraOrbPlaceholder className={className} alt={alt} />}
+    >
+      <AuroraOrbStatic
+        seed={seed}
+        size={size}
+        expression={expression}
+        className={className}
+        alt={alt}
+      />
+    </Suspense>
   );
 }
 
@@ -225,14 +288,11 @@ export function PlaceholderOrb({
     }
   }, [event]);
 
-  const labelled = alt !== "";
   return (
     <canvas
       ref={canvasRef}
       className={cn("block shrink-0 rounded-full", className)}
-      aria-hidden={labelled ? undefined : true}
-      aria-label={labelled ? alt : undefined}
-      role={labelled ? "img" : undefined}
+      {...orbLabelProps(alt)}
     />
   );
 }

@@ -6,6 +6,8 @@ import SwiftUI
 struct ContentView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
+  @State private var windowID = UUID()
+  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.openSettings) private var openSettings
 
   var body: some View {
@@ -16,6 +18,31 @@ struct ContentView: View {
       default:
         authCard
       }
+    }
+    .task(id: scenePhase) {
+      workspaces.setWindowVisible(scenePhase == .active, window: windowID)
+      await workspaces.syncReadAttention(auth: auth)
+    }
+    .onDisappear {
+      Task { @MainActor in workspaces.setWindowVisible(false, window: windowID) }
+    }
+    .onChange(of: workspaces.transcriptMessages.map { RoomReadAttention.Message(id: $0.id, content: $0.content) }) { _, _ in
+      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
+    }
+    .onChange(of: workspaces.timeline.hasLoadedHistory) { _, _ in
+      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
+    }
+    .alert("Couldn’t update unread status", isPresented: Binding(
+      get: { workspaces.readAttention.errorMessage != nil },
+      set: {
+        if !$0 {
+          workspaces.readAttention.clearError()
+        }
+      }
+    )) {
+      Button("OK") { workspaces.readAttention.clearError() }
+    } message: {
+      Text(workspaces.readAttention.errorMessage ?? "")
     }
     .onChange(of: auth.isSignedIn) { _, signedIn in
       // Hop off this view update: startIfNeeded/reset publish WorkspaceState.
@@ -200,12 +227,14 @@ struct ContentView: View {
         .navigationSplitViewColumnWidth(min: 220, ideal: 260)
       } detail: {
         if let selectedRoomId = workspaces.selectedRoomId,
-           workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
+           let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
           TranscriptView(roomId: selectedRoomId)
+            .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
         } else {
           Text("Pick a room to read it.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationTitle(workspaces.selection?.title ?? "")
         }
       }
     }
@@ -263,7 +292,8 @@ struct ContentView: View {
       unreadCount: room.unreadCount,
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
-      isMuted: room.mutedAt != nil
+      isMuted: room.mutedAt != nil,
+      isActive: room.id == workspaces.selectedRoomId
     )
     return Label {
       VStack(alignment: .leading, spacing: 2) {
@@ -288,6 +318,12 @@ struct ContentView: View {
     .labelStyle(RoomRowLabelStyle())
     .tag(room.id)
     .badge(attention.badgeCount)
+    .contextMenu {
+      Button("Mark unread", systemImage: "envelope.badge") {
+        Task { @MainActor in await workspaces.markRoomUnread(room, auth: auth) }
+      }
+      .disabled(room.id == workspaces.selectedRoomId || room.mutedAt != nil)
+    }
   }
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with
@@ -420,10 +456,10 @@ private struct DirectRoomAvatarStack: View {
   }
 }
 
-private struct CircleAvatar: View {
+struct CircleAvatar: View {
   let imageURL: String?
   let name: String
-  var size: CGFloat = DirectRoomAvatarStack.faceSize
+  var size: CGFloat = 20
 
   @Environment(\.displayScale) private var displayScale
   @State private var cgImage: CGImage?

@@ -4,7 +4,7 @@ import OpenAPIRuntime
 
 /// UI-free workspace + rooms + transcript + classic send (SOK-973–975).
 ///
-/// Rules from `MAC-TRACER.md`: only `ready` continues into chat; personal
+/// Workspace and room rules: only `ready` continues into chat; personal
 /// omits `X-Organization-Slug` while organizations send it; rooms walk Core
 /// pages (`status=active`) like web's membership-visible walk; unread chrome
 /// trusts Core's `unreadCount` / `unreadMentionCount` (ADR 0013 leftover

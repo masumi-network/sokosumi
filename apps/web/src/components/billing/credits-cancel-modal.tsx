@@ -3,7 +3,7 @@
 import { useQueryState } from "nuqs";
 import { Suspense } from "react";
 
-import CancelCard from "@/app/credits/components/cancel-card";
+import CancelCard from "@/components/billing/credits-cancel-card";
 import {
   Dialog,
   DialogContent,

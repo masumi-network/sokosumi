@@ -8,6 +8,7 @@ import Foundation
 /// No org presence channels here — the tracer never enters presence
 /// (ADR 0003) and never activates push (ADR 0022 / 0023).
 public let chatRoomMessageEventName = "chat_room_message"
+public let chatRoomPinnedMessageEventName = "chat_room_pinned_message"
 public let chatMembershipRevokedEventName = "chat_membership_revoked"
 
 /// Shared room-scoped channel for `chat_room_message` fan-out.

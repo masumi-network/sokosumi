@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   withCoworkerContextHeaderParameters,
-  withGlobalHeaderParameters,
   withOrganizationSlugHeaderParameter,
 } from "./hono";
 
@@ -34,12 +33,6 @@ describe("OpenAPI header parameter helpers", () => {
     expect(
       parameterRefs(withOrganizationSlugHeaderParameter(baseRoute)),
     ).toEqual(["#/components/parameters/OrganizationSlug"]);
-  });
-
-  it("withGlobalHeaderParameters matches organization-slug-only default", () => {
-    expect(parameterRefs(withGlobalHeaderParameters(baseRoute))).toEqual(
-      parameterRefs(withOrganizationSlugHeaderParameter(baseRoute)),
-    );
   });
 
   it("withCoworkerContextHeaderParameters documents coworker context headers", () => {

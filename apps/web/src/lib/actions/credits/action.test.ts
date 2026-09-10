@@ -138,7 +138,7 @@ describe("credits actions", () => {
       organizationId: null,
       credits: 250_000,
       promotionCodeId: "promo_1",
-      returnPath: "/coupon",
+      returnPath: "/billing?tab=coupon",
     });
     expect(result).toEqual({
       ok: true,
