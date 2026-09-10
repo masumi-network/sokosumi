@@ -113,13 +113,10 @@ export function YouPageClient({
               data-testid="you-status-plan"
             >
               <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                <span aria-hidden="true">
-                  <PresenceDot
-                    presence={presence}
-                    label={presenceLabel}
-                    className="size-2 border-0"
-                  />
-                </span>
+                <PresenceDot
+                  presence={presence}
+                  className="size-2 shrink-0 border-0"
+                />
                 {presenceLabel}
               </span>
               {planName !== null ? (

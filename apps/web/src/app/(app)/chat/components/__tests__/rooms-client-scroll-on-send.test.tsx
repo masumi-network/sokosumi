@@ -248,6 +248,7 @@ vi.mock("@/components/chat/channel-discoverability-icon", () => ({
 
 vi.mock("@/components/chat/live-member-presence-dot", () => ({
   LiveMemberPresenceDot: () => null,
+  LiveMemberPresenceText: () => null,
 }));
 
 vi.mock("sonner", () => ({
