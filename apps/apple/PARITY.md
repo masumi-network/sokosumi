@@ -313,3 +313,9 @@ Coworker streaming (09a), rich rendering, attachment/reaction/pin UI, and thread
 
 - Moved the room transcript horizontal inset into message content. Hover backgrounds and tracking now span the chat pane; avatars, text and Reply retain their 12pt inset. Reply-count alignment and error/status insets are preserved.
 - Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/full-width-hover-build.log`, `/tmp/full-width-hover-lint.log`). Native pointer verification remains manual.
+
+### Slice 08 consistent message spacing (2026-09-10)
+
+- Every message now has 4pt vertical padding inside its full-width hover background. The 8pt sender-group gap sits outside that background. Continuation rows retain the avatar column width without imposing an avatar-height minimum.
+- Reply counts now live in the message text column and inside the same hover region. The Reply toolbar uses compact vertical padding to fit continuation rows.
+- Signed Apple Development build, SwiftLint, SwiftFormat and diff checks passed (`/tmp/message-spacing-build.log`, `/tmp/message-spacing-lint.log`). Native hover appearance remains a manual verification step.

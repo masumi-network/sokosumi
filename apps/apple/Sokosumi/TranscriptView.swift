@@ -124,14 +124,6 @@ import SwiftUI
                     onReply: outbound == nil ? { workspaces.openThread(message, auth: auth) } : nil,
                     horizontalInset: 12
                   )
-                  if outbound == nil, message.threadReplyCount > 0 {
-                    Button("\(message.threadReplyCount) replies") {
-                      workspaces.openThread(message, auth: auth)
-                    }
-                    .buttonStyle(.borderless)
-                    .font(.caption)
-                    .padding(.leading, 60)
-                  }
                 }
               }
               .id(message.id)
@@ -384,7 +376,7 @@ import SwiftUI
       HStack(alignment: .top, spacing: 14) {
         if isContinuation {
           Color.clear
-            .frame(width: Self.avatarDiameter, height: Self.avatarDiameter)
+            .frame(width: Self.avatarDiameter, height: 0)
         } else {
           avatarView
         }
@@ -422,6 +414,11 @@ import SwiftUI
             DeliveryFeedback(pendingSince: outbound?.status == .pending ? outbound?.createdAt : nil,
                              sentAt: sentAt)
           }
+          if let onReply, message.threadReplyCount > 0 {
+            Button("\(message.threadReplyCount) replies", action: onReply)
+              .buttonStyle(.borderless)
+              .font(.caption)
+          }
           if let outbound, outbound.status == .failed {
             if let error = outbound.errorMessage, !error.isEmpty {
               Text(error)
@@ -442,8 +439,7 @@ import SwiftUI
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .padding(.top, isContinuation ? 2 : 10)
-      .padding(.bottom, 2)
+      .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
       .background(isHovered && onReply != nil ? Color.primary.opacity(0.04) : .clear)
@@ -452,7 +448,7 @@ import SwiftUI
           Button(action: onReply) {
             Label("Reply", systemImage: "bubble.right")
               .padding(.horizontal, 10)
-              .padding(.vertical, 6)
+              .padding(.vertical, 4)
               .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
                           in: .rect(cornerRadius: 8))
               .contentShape(.rect(cornerRadius: 8))
@@ -500,6 +496,8 @@ import SwiftUI
           Button("Reply in thread", action: onReply)
         }
       }
+      // Sender-group separation is outside the consistently padded hover row.
+      .padding(.top, isContinuation ? 0 : 8)
     }
 
     private var avatarView: some View {
