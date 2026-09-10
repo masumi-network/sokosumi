@@ -203,3 +203,19 @@ The app-host test loads all five resources, covering app bundle lookup separatel
 from SwiftPM tests. Every copied query/license matches its pinned checkout exactly.
 There are now 28 integrated grammars; remaining registry gaps, aliases/detection,
 semantic fidelity, and other rendering requirements still block slice completion.
+
+## Fence aliases and native dialects
+
+Common aliases now resolve from the web's installed highlight.js 11.11.1 registry
+(e.g. js/jsx, py, objc, c++, c#, yml, sh, md, rs, make and patch). HTML, TOML and
+TSX use distinct products already included in the approved native package, rather
+than routing those dialects to XML, INI or plain TypeScript. JavaScript/TSX compose
+the package's separate JSX query so element names receive captures. JSONC uses
+the JSON grammar, whose packaged query includes comment nodes.
+
+Tests cover alias normalization, HTML void elements, TOML date values, JSX/TSX
+elements, and JSON comments. Verification: 199 Chat tests, Xcode app build/tests,
+iOS 17 compilation and lint/format passed (`/tmp/apple-alias-*.log`). This gives
+31 native grammar choices; it does not complete the web registry. Embedded JSP,
+Objective-C++, IPython and the remaining registry entries require further
+syntax coverage work, as do automatic detection and full rendering verification.

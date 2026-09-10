@@ -41,6 +41,12 @@ let package = Package(
     .target(
       name: "SokosumiChat",
       dependencies: [
+        .product(name: "TreeSitterHTML", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterHTMLQueries", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterTOML", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterTOMLQueries", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterTSX", package: "TreeSitterLanguages"),
+        .product(name: "TreeSitterTSXQueries", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterBash", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterBashQueries", package: "TreeSitterLanguages"),
         .product(name: "TreeSitterC", package: "TreeSitterLanguages"),

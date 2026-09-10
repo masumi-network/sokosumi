@@ -13,6 +13,8 @@ import TreeSitterCSSQueries
 import TreeSitterDiff
 import TreeSitterGo
 import TreeSitterGoQueries
+import TreeSitterHTML
+import TreeSitterHTMLQueries
 import TreeSitterIni
 import TreeSitterJava
 import TreeSitterJavaQueries
@@ -45,6 +47,10 @@ import TreeSitterSQL
 import TreeSitterSQLQueries
 import TreeSitterSwift
 import TreeSitterSwiftQueries
+import TreeSitterTOML
+import TreeSitterTOMLQueries
+import TreeSitterTSX
+import TreeSitterTSXQueries
 import TreeSitterTypeScript
 import TreeSitterTypeScriptQueries
 import TreeSitterXML
@@ -59,18 +65,80 @@ public struct SyntaxCapture: Equatable, Sendable {
 }
 
 public enum SyntaxLanguage: String, Sendable {
-  case swift, json, kotlin, objectivec, xml, makefile, diff, ini
+  case swift, json, kotlin, objectivec, xml, makefile, diff, ini, html, toml, tsx
   // Standard language names match fenced-code identifiers.
   // swiftlint:disable:next identifier_name
   case bash, c, cpp, csharp, css, go, java, javascript, lua, markdown, perl, php, python, r, ruby, rust, scss, sql, typescript, yaml
 
   public init?(fenceInfo: String) {
     let name = fenceInfo.split(whereSeparator: { $0.isWhitespace }).first?.lowercased() ?? ""
-    self.init(rawValue: ["kt": "kotlin", "kts": "kotlin"][name] ?? name)
+    self.init(rawValue: Self.aliases[name] ?? name)
   }
+
+  /// Fence aliases from the web registry. Dialects with their own native
+  /// grammar (HTML, TOML and TSX) retain distinct cases.
+  private static let aliases: [String: String] = [
+    "jsonc": "json",
+    "kt": "kotlin",
+    "kts": "kotlin",
+    "objc": "objectivec",
+    "obj-c": "objectivec",
+    "mm": "objectivec",
+    "xhtml": "xml",
+    "rss": "xml",
+    "atom": "xml",
+    "xjb": "xml",
+    "xsd": "xml",
+    "xsl": "xml",
+    "plist": "xml",
+    "wsf": "xml",
+    "svg": "xml",
+    "mk": "makefile",
+    "mak": "makefile",
+    "make": "makefile",
+    "patch": "diff",
+    "sh": "bash",
+    "zsh": "bash",
+    "h": "c",
+    "cc": "cpp",
+    "c++": "cpp",
+    "h++": "cpp",
+    "hpp": "cpp",
+    "hh": "cpp",
+    "hxx": "cpp",
+    "cxx": "cpp",
+    "cs": "csharp",
+    "c#": "csharp",
+    "golang": "go",
+    "js": "javascript",
+    "jsx": "javascript",
+    "mjs": "javascript",
+    "cjs": "javascript",
+    "pluto": "lua",
+    "md": "markdown",
+    "mkdown": "markdown",
+    "mkd": "markdown",
+    "pl": "perl",
+    "pm": "perl",
+    "py": "python",
+    "gyp": "python",
+    "rb": "ruby",
+    "gemspec": "ruby",
+    "podspec": "ruby",
+    "thor": "ruby",
+    "irb": "ruby",
+    "rs": "rust",
+    "ts": "typescript",
+    "mts": "typescript",
+    "cts": "typescript",
+    "yml": "yaml"
+  ]
 
   fileprivate var pointer: OpaquePointer {
     switch self {
+    case .html: tree_sitter_html()
+    case .toml: tree_sitter_toml()
+    case .tsx: tree_sitter_tsx()
     case .objectivec: tree_sitter_objc()
     case .xml: tree_sitter_xml()
     case .makefile: tree_sitter_make()
@@ -104,6 +172,9 @@ public enum SyntaxLanguage: String, Sendable {
 
   fileprivate var queryURLs: [URL] {
     switch self {
+    case .html: [TreeSitterHTMLQueries.Query.highlightsFileURL]
+    case .toml: [TreeSitterTOMLQueries.Query.highlightsFileURL]
+    case .tsx: [TreeSitterJavaScriptQueries.Query.highlightsFileURL, TreeSitterJavaScriptQueries.Query.highlightsJSXFileURL, TreeSitterTSXQueries.Query.highlightsFileURL]
     case .bash: [TreeSitterBashQueries.Query.highlightsFileURL]
     case .c: [TreeSitterCQueries.Query.highlightsFileURL]
     case .cpp: [TreeSitterCQueries.Query.highlightsFileURL, TreeSitterCPPQueries.Query.highlightsFileURL]
@@ -111,7 +182,7 @@ public enum SyntaxLanguage: String, Sendable {
     case .css: [TreeSitterCSSQueries.Query.highlightsFileURL]
     case .go: [TreeSitterGoQueries.Query.highlightsFileURL]
     case .java: [TreeSitterJavaQueries.Query.highlightsFileURL]
-    case .javascript: [TreeSitterJavaScriptQueries.Query.highlightsFileURL]
+    case .javascript: [TreeSitterJavaScriptQueries.Query.highlightsFileURL, TreeSitterJavaScriptQueries.Query.highlightsJSXFileURL]
     case .lua: [TreeSitterLuaQueries.Query.highlightsFileURL]
     case .markdown: [TreeSitterMarkdownQueries.Query.highlightsFileURL]
     case .perl: [TreeSitterPerlQueries.Query.highlightsFileURL]

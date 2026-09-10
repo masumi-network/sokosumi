@@ -8,8 +8,35 @@ struct NativeSyntaxHighlighterTests {
     #expect(SyntaxLanguage(fenceInfo: " KT ") == .kotlin)
     #expect(SyntaxLanguage(fenceInfo: "kts") == .kotlin)
     #expect(SyntaxLanguage(fenceInfo: "json") == .json)
-    #expect(SyntaxLanguage(fenceInfo: "jsonc") == nil)
+    #expect(SyntaxLanguage(fenceInfo: "jsonc") == .json)
+    #expect(SyntaxLanguage(fenceInfo: "unknown-language") == nil)
     #expect(SyntaxLanguage(fenceInfo: "") == nil)
+  }
+
+  @Test func resolvesCommonAliasesAndDistinctDialects() {
+    let fixtures: [(String, SyntaxLanguage)] = [
+      ("JS", .javascript), ("py", .python), ("objc", .objectivec),
+      ("c++", .cpp), ("c#", .csharp), ("sh", .bash), ("md", .markdown),
+      ("yml", .yaml), ("rs", .rust), ("make", .makefile), ("patch", .diff),
+      ("html", .html), ("toml", .toml), ("tsx", .tsx), ("svg", .xml)
+    ]
+    for (alias, expected) in fixtures {
+      #expect(SyntaxLanguage(fenceInfo: alias + " title=example") == expected)
+    }
+  }
+
+  @Test func highlightsDialectSpecificSyntax() throws {
+    let fixtures: [SyntaxLanguage: (String, String)] = [
+      .html: ("<input disabled><br><p>Hello</p>", "input"),
+      .toml: ("created = 2026-09-10T12:00:00Z", "2026-09-10T12:00:00Z"),
+      .tsx: ("const view: JSX.Element = <div>Hello</div>;", "div"),
+      .javascript: ("const view = <button>Hello</button>;", "button"),
+      .json: ("{\"count\": 42 // comment\n}", "// comment")
+    ]
+    for (language, (source, expected)) in fixtures {
+      let captures = try NativeSyntaxHighlighter.captures(in: source, language: language)
+      #expect(captures.contains { (source as NSString).substring(with: $0.range) == expected })
+    }
   }
 
   @Test func highlightsAdditionalPackagedLanguages() throws {

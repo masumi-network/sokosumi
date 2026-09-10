@@ -7,7 +7,7 @@
 - Verification: 177 Chat tests, Xcode build/app tests, iOS 17 cross-build of the Chat test target (including all six native grammars), SwiftFormat and strict SwiftLint passed. No user-facing highlighting or scrolling fix is claimed by this dependency change.
 - Next: complete native rendering and syntax query integration for slice 10. Removed the unused visible-message scroll binding; signed build and lint passed. On 2026-09-10 the user confirmed that scrolling feels better and supplied a follow-up recording. Keep this improvement; hitch-free scrolling has not been established by profiling. Automated native scroll input remains unavailable (`noWindowsAvailable`). See the [native rendering design](docs/rich-message-rendering.md).
 - Rebase verification: 190 Chat tests and Xcode app tests passed with the merged grammar packages. Rich rendering remains incomplete; the user has confirmed improved scrolling with the scroll-binding change.
-- Native highlighting checkpoint: 28 grammars integrated; 197 Chat tests, Xcode app build/tests (including bundled query lookup), iOS 17 compilation and lint/format passed. Full registry, aliases/detection and remaining rich-text behavior are still incomplete.
+- Native highlighting checkpoint: 31 grammar choices and common fence aliases integrated; 199 Chat tests, Xcode app build/tests (including bundled query lookup), iOS 17 compilation and lint/format passed. Full registry, aliases/detection and remaining rich-text behavior are still incomplete.
 - The recurring “Continue Apple chat after PR changes” automation remains deleted. Coordinate ownership before resuming from another app.
 
 ### PR #4361 minor review follow-up
