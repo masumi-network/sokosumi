@@ -1,3 +1,4 @@
+import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { reasoningPartsToMetadata } from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
@@ -166,6 +167,10 @@ export async function publishMentionThoughtPlaceholder(params: {
       data: { updatedAt: new Date() },
     });
     return row;
+  });
+  await invalidateChatRoomMessageReaders({
+    roomId: params.roomId,
+    authorUserId: null,
   });
   try {
     await publishChatRoomMessageRealtimeById(created.id, "create");

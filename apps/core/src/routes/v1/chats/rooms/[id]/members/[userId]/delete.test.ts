@@ -18,7 +18,7 @@ const {
   readStateDeleteManyMock,
   messageCreateMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
   publishChatMembershipRevokedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -27,7 +27,7 @@ const {
   readStateDeleteManyMock: vi.fn(),
   messageCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
   publishChatMembershipRevokedMock: vi.fn(),
 }));
 
@@ -36,7 +36,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffort:
+    publishChatRoomMembershipStatusMessagesBestEffortMock,
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -163,7 +164,9 @@ describe("DELETE /chats/rooms/{id}/members/{userId}", () => {
     messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     readStateDeleteManyMock.mockResolvedValue({ count: 1 });
-    publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+    publishChatRoomMembershipStatusMessagesBestEffortMock.mockResolvedValue(
+      undefined,
+    );
     publishChatMembershipRevokedMock.mockResolvedValue(undefined);
   });
 

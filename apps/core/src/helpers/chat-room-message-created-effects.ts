@@ -3,6 +3,7 @@ import {
   type NotificationCategory,
 } from "@sokosumi/utils";
 import { resolveNotificationDelivery } from "@/helpers/notification-delivery";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 import { shouldEmitChatDirectMessageNotifications } from "./chat-direct-message-notifications";
@@ -30,7 +31,7 @@ function arrives(reader: Reader, category: NotificationCategory): boolean {
   return delivery.inApp || delivery.osBanner;
 }
 
-export interface EmitChatRoomMessageNotificationsParams {
+export interface ChatRoomMessageCreatedEffectsParams {
   roomId: string;
   roomName: string;
   /** Decides whether the direct-message row already covers this room. */
@@ -48,8 +49,9 @@ export interface EmitChatRoomMessageNotificationsParams {
 }
 
 /**
- * Emit CHAT notifications for every message in a room, for the members who
- * asked for them. Schedule via waitUntil.
+ * Invalidate reader collections and emit opted-in CHAT notifications after a
+ * committed message creation. Schedule via waitUntil. Notification failures
+ * cannot suppress unread invalidations.
  *
  * Three questions decide who hears about a message, and all three are asked
  * before anything is written:
@@ -69,18 +71,65 @@ export interface EmitChatRoomMessageNotificationsParams {
  * A gate that asked a looser question would write a notification row per member
  * per message that no surface ever shows.
  */
-export async function emitChatRoomMessageNotifications(
-  params: EmitChatRoomMessageNotificationsParams,
+export async function emitChatRoomMessageCreatedEffects(
+  params: ChatRoomMessageCreatedEffectsParams,
 ): Promise<void> {
-  const memberUserIds =
+  const memberUserIds = await getMemberUserIds(params);
+  const results = await Promise.allSettled([
+    invalidateChatRoomMessageReaders({ ...params, memberUserIds }),
+    emitChatRoomMessageNotifications(params, memberUserIds),
+  ]);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("Failed to emit chat room message effects", result.reason);
+    }
+  }
+}
+
+interface ChatRoomMessageReaders {
+  roomId: string;
+  authorUserId: string | null;
+  memberUserIds?: readonly string[];
+}
+
+async function getMemberUserIds(
+  params: ChatRoomMessageReaders,
+): Promise<readonly string[]> {
+  return (
     params.memberUserIds ??
     (
       await prisma.chatRoomUserMember.findMany({
         where: { roomId: params.roomId },
         select: { userId: true },
       })
-    ).map((member) => member.userId);
+    ).map((member) => member.userId)
+  );
+}
 
+/** After commit only. Unread attention does not depend on notification settings. */
+export async function invalidateChatRoomMessageReaders(
+  params: ChatRoomMessageReaders,
+): Promise<void> {
+  try {
+    const memberUserIds = await getMemberUserIds(params);
+    const userIds = [
+      ...new Set(memberUserIds.filter((id) => id !== params.authorUserId)),
+    ];
+    if (userIds.length === 0) return;
+    await publishChatRoomsChanged({
+      userIds,
+      collections: ["active"],
+      roomId: params.roomId,
+    });
+  } catch (error) {
+    console.error("Failed to invalidate chat room message readers", error);
+  }
+}
+
+async function emitChatRoomMessageNotifications(
+  params: ChatRoomMessageCreatedEffectsParams,
+  memberUserIds: readonly string[],
+): Promise<void> {
   if (
     shouldEmitChatDirectMessageNotifications({
       kind: params.roomKind,

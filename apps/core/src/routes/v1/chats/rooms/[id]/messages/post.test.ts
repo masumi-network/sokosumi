@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -28,9 +28,11 @@ const {
   dispatchMock,
   emitChatMentionNotificationsMock,
   emitChatDirectMessageNotificationsMock,
-  emitChatRoomMessageNotificationsMock,
+  emitChatRoomMessageCreatedEffectsMock,
   waitUntilMock,
   scheduleUnfurlsMock,
+  publishChatRoomsChangedMock,
+  userFindManyMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomUpdateMock: vi.fn(),
@@ -47,13 +49,16 @@ const {
   dispatchMock: vi.fn(),
   emitChatMentionNotificationsMock: vi.fn(),
   emitChatDirectMessageNotificationsMock: vi.fn(),
-  emitChatRoomMessageNotificationsMock: vi.fn(),
+  emitChatRoomMessageCreatedEffectsMock: vi.fn(),
   waitUntilMock: vi.fn(),
   scheduleUnfurlsMock: vi.fn(),
+  publishChatRoomsChangedMock: vi.fn(),
+  userFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    user: { findMany: userFindManyMock },
     $transaction: prismaTransactionMock,
     chatRoom: {
       findFirst: roomFindFirstMock,
@@ -99,17 +104,28 @@ vi.mock(
   },
 );
 
-vi.mock("@/helpers/chat-room-message-notifications", async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import("@/helpers/chat-room-message-notifications")
-    >();
-  return {
-    ...actual,
-    emitChatRoomMessageNotifications: (...args: unknown[]) =>
-      emitChatRoomMessageNotificationsMock(...args),
-  };
-});
+vi.mock(
+  "@/helpers/chat-room-message-created-effects",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/helpers/chat-room-message-created-effects")
+      >();
+    return {
+      ...actual,
+      emitChatRoomMessageCreatedEffects: (
+        ...args: Parameters<typeof actual.emitChatRoomMessageCreatedEffects>
+      ) => {
+        emitChatRoomMessageCreatedEffectsMock(...args);
+        return actual.emitChatRoomMessageCreatedEffects(...args);
+      },
+    };
+  },
+);
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: publishChatRoomsChangedMock,
+}));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
@@ -380,6 +396,24 @@ function quotedSourceMessage(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  membershipFindManyMock.mockResolvedValue([]);
+  userFindManyMock.mockImplementation(
+    async ({ where }: { where: { id: { in: string[] } } }) =>
+      where.id.in.map((id) => ({
+        id,
+        pushOptIn: false,
+        notificationPreferences: [
+          { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
+          { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
+          {
+            category: "CHAT_DIRECT_MESSAGE",
+            channel: "IN_APP",
+            enabled: false,
+          },
+        ],
+      })),
+  );
+  publishChatRoomsChangedMock.mockResolvedValue(undefined);
   prismaTransactionMock.mockImplementation(async (callback) => callback(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
@@ -391,15 +425,154 @@ beforeEach(() => {
   });
   messageFindUniqueMock.mockResolvedValue(null);
   emitChatMentionNotificationsMock.mockResolvedValue(undefined);
+  emitChatDirectMessageNotificationsMock.mockResolvedValue(undefined);
+  dispatchMock.mockResolvedValue(undefined);
   scheduleUnfurlsMock.mockResolvedValue({
     messageId: MESSAGE_ID,
     attempted: 0,
     persisted: 0,
   });
-  waitUntilMock.mockImplementation(() => {});
+  waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+    void promise.catch(() => {});
+  });
+});
+
+afterEach(async () => {
+  await Promise.allSettled(
+    waitUntilMock.mock.calls.map(([promise]) => promise),
+  );
 });
 
 describe("POST /chats/rooms/{id}/messages", () => {
+  it.each([
+    { kind: "channel" as const, recipients: [ALICE_ID, BOB_ID] },
+    { kind: "direct" as const, recipients: [ALICE_ID] },
+    { kind: "direct" as const, recipients: [ALICE_ID, BOB_ID] },
+  ])(
+    "invalidates $kind members with notifications disabled after a committed message",
+    async ({ kind, recipients }) => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind,
+          userMembers: [USER_ID, ...recipients, ALICE_ID].map((userId) => ({
+            userId,
+            user: { name: userId },
+          })),
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: "Hello" }),
+        },
+      );
+      await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
+      expect(response.status).toBe(201);
+      expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
+        userIds: recipients,
+        collections: ["active"],
+        roomId: ROOM_ID,
+      });
+    },
+  );
+
+  it.each([coworkerAuthContext, sokoBotAuthContext])(
+    "invalidates all human members for a non-human sender ($actor)",
+    async (auth) => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      membershipFindManyMock.mockResolvedValue([
+        { userId: ALICE_ID },
+        { userId: BOB_ID },
+        { userId: ALICE_ID },
+      ]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage(
+          auth.actor === "coworker"
+            ? { senderCoworkerId: COWORKER_ID }
+            : { senderSokoBotId: SOKO_BOT_ID },
+        ),
+      );
+      const response = await createApp(auth).request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "Hello" }),
+      });
+      await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
+      expect(response.status).toBe(201);
+      expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
+        userIds: [ALICE_ID, BOB_ID],
+        collections: ["active"],
+        roomId: ROOM_ID,
+      });
+    },
+  );
+
+  it("keeps invalidation independent of failed notification discovery", async () => {
+    const publishing = Promise.withResolvers<void>();
+    publishChatRoomsChangedMock.mockReturnValueOnce(publishing.promise);
+    userFindManyMock.mockRejectedValueOnce(
+      new Error("notification lookup failed"),
+    );
+    roomFindFirstMock.mockResolvedValue(
+      roomWithMembers({
+        userMembers: [USER_ID, ALICE_ID].map((userId) => ({
+          userId,
+          user: { name: userId },
+        })),
+      }),
+    );
+    messageCreateMock.mockResolvedValue(
+      createdMessage({ senderUserId: USER_ID }),
+    );
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "Hello" }),
+      },
+    );
+    let effectsSettled = false;
+    const effects = Promise.allSettled(
+      waitUntilMock.mock.calls.map(([promise]) => promise),
+    ).then(() => {
+      effectsSettled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(effectsSettled).toBe(false);
+    publishing.resolve();
+    await effects;
+    expect(response.status).toBe(201);
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
+      userIds: [ALICE_ID],
+      collections: ["active"],
+      roomId: ROOM_ID,
+    });
+    expect(publishChatRoomMessageRealtime).toHaveBeenCalled();
+  });
+
+  it("publishes no invalidation when message creation rolls back", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      new Error("transaction rolled back"),
+    );
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "Hello" }),
+      },
+    );
+    expect(response.status).toBe(500);
+    expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtime).not.toHaveBeenCalled();
+  });
+
   describe("coworker actor", () => {
     it("lets a member coworker post as itself without mention rows", async () => {
       roomFindFirstMock.mockResolvedValue({
@@ -454,7 +627,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
           }),
         }),
       );
-      expect(membershipFindManyMock).not.toHaveBeenCalled();
+      expect(membershipFindManyMock).toHaveBeenCalledTimes(1);
     });
 
     it("emits a CHAT Direct notification to the human in a coworker 1:1", async () => {
@@ -498,7 +671,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       // the direct-message row, which is the only place that decision can see
       // how many humans are in it. The roster this route already read goes
       // with it, so the emitter does not ask for it again.
-      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith(
+      expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           roomKind: "direct",
           memberUserIds: [ALICE_ID],
@@ -538,7 +711,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(response.status).toBe(201);
       expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
-      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith(
+      expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           roomKind: "direct",
           memberUserIds: [ALICE_ID, BOB_ID, USER_ID],
@@ -568,9 +741,9 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
 
       expect(response.status).toBe(201);
-      expect(membershipFindManyMock).not.toHaveBeenCalled();
+      expect(membershipFindManyMock).toHaveBeenCalledTimes(1);
       expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
-      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith({
+      expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         roomName: "general",
         roomKind: "channel",
@@ -595,6 +768,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(response.status).toBe(404);
       expect(messageCreateMock).not.toHaveBeenCalled();
+      expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
     });
   });
 
@@ -700,7 +874,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
 
       expect(response.status).toBe(201);
-      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith(
+      expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           roomId: ROOM_ID,
           roomKind: "channel",
@@ -790,7 +964,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
   describe("thread replies", () => {
     it("delivers a user thread reply to coworkers already in the thread", async () => {
-      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          userMembers: [{ userId: ALICE_ID, user: { name: "Alice" } }],
+        }),
+      );
       messageFindFirstMock.mockResolvedValue({
         id: PARENT_MESSAGE_ID,
         parentMessageId: null,
@@ -858,6 +1036,12 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
       expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
+      await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
+      expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
+        userIds: [ALICE_ID],
+        roomId: ROOM_ID,
+        collections: ["active"],
+      });
     });
 
     it("does not add coworkers for a top-level message without mentions", async () => {
@@ -1063,6 +1247,12 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
       expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
+      await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
+      expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
+        userIds: [ALICE_ID],
+        roomId: ROOM_ID,
+        collections: ["active"],
+      });
     });
 
     it("does not emit direct-message notifications for group directs", async () => {
@@ -1271,7 +1461,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
         ],
       });
 
-      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          userMembers: [{ userId: ALICE_ID, user: { name: "Alice" } }],
+        }),
+      );
       messageFindUniqueMock
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(existing);
@@ -1305,6 +1499,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(secondBody.data.id).toBe(MESSAGE_ID);
       expect(messageCreateMock).toHaveBeenCalledTimes(1);
       expect(dispatchMock).toHaveBeenCalledTimes(1);
+      await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
+      expect(publishChatRoomsChangedMock).toHaveBeenCalledTimes(1);
       // Idempotent hit must not re-schedule unfurls
       expect(scheduleUnfurlsMock).toHaveBeenCalledTimes(1);
     });
@@ -1408,6 +1604,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(response.status).toBe(400);
       expect(messageCreateMock).not.toHaveBeenCalled();
+      expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
     });
 
     it("keeps quote independent of parentMessageId", async () => {

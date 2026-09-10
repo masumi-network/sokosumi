@@ -2,6 +2,7 @@ import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
+import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import {
   reasoningPartsToMetadata,
@@ -611,6 +612,11 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       }
 
       mentionPublished = true;
+      // Finalization advances the reply attention clock, even with a Thought placeholder.
+      await invalidateChatRoomMessageReaders({
+        roomId: mention.message.roomId,
+        authorUserId: null,
+      });
       await publishChatRoomMessageRealtimeById(
         publishedMessageIds.responseMessageId,
         placeholderId ? "update" : "create",

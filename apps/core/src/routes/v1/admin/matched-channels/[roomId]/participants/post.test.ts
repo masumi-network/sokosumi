@@ -11,7 +11,7 @@ import mountAddAdminMatchedChannelParticipant from "./post";
 const {
   ensureMatchedChannelParticipantMock,
   prismaTransactionMock,
-  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMembershipStatusMessagesBestEffortMock,
   authContextState,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -24,7 +24,7 @@ const {
   },
   ensureMatchedChannelParticipantMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatRoomMembershipStatusMessagesBestEffortMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -54,8 +54,8 @@ vi.mock("@/helpers/chat-room-matched-membership.js", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime.js", () => ({
-  publishChatRoomMessageRealtime: (...args: unknown[]) =>
-    publishChatRoomMessageRealtimeMock(...args),
+  publishChatRoomMembershipStatusMessagesBestEffort: (...args: unknown[]) =>
+    publishChatRoomMembershipStatusMessagesBestEffortMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -127,10 +127,9 @@ describe("POST /admin/matched-channels/{roomId}/participants", () => {
       expect.anything(),
       { userId: "user_1", roomId: ROOM_ID },
     );
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
-      { id: "msg_joined" },
-      "create",
-    );
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledWith([{ id: "msg_joined" }]);
   });
 
   it("does not publish when already a member", async () => {
@@ -148,6 +147,8 @@ describe("POST /admin/matched-channels/{roomId}/participants", () => {
     const response = await post();
     expect(response.status).toBe(200);
     expect((await response.json()).data.outcome).toBe("already_member");
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import {
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
+import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 
 import prisma from "@/lib/db/prisma";
 
@@ -227,6 +228,10 @@ export async function introduceSokoBot(input: {
   const { publishChatRoomMessageRealtimeById } = await import(
     "@/helpers/chat-room-message-realtime"
   );
+  await invalidateChatRoomMessageReaders({
+    roomId: room.id,
+    authorUserId: null,
+  });
   await publishChatRoomMessageRealtimeById(message.id, "create");
   return { messageId: message.id };
 }
@@ -283,6 +288,10 @@ export async function deliverSokoBotTurnToDirectRoom(
   const { publishChatRoomMessageRealtimeById } = await import(
     "@/helpers/chat-room-message-realtime"
   );
+  await invalidateChatRoomMessageReaders({
+    roomId: room.id,
+    authorUserId: null,
+  });
   await publishChatRoomMessageRealtimeById(message.id, "create");
 }
 
@@ -387,6 +396,12 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
   });
 
   if (!finalized) return;
+  if (turn.status === "COMPLETED") {
+    await invalidateChatRoomMessageReaders({
+      roomId: mention.roomId,
+      authorUserId: null,
+    });
+  }
   await publishRealtime(responseMessageId, "update");
   await publishRealtime(mention.messageId, "mention_status");
 }

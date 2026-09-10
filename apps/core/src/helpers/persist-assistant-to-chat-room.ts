@@ -1,3 +1,4 @@
+import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -178,6 +179,7 @@ export async function persistAssistantToChatRoom(params: {
       });
       return message;
     });
+    await invalidateChatRoomMessageReaders({ roomId, authorUserId: null });
     await publishChatRoomMessageRealtimeById(created.id, "create");
     return { id: created.id };
   } catch (error) {
@@ -270,6 +272,10 @@ export async function persistUserMessageToChatRoom(params: {
       return message;
     });
 
+    await invalidateChatRoomMessageReaders({
+      roomId,
+      authorUserId: senderUserId,
+    });
     await publishChatRoomMessageRealtimeById(created.id, "create");
     return { id: created.id };
   } catch (error) {

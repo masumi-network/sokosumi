@@ -1,3 +1,7 @@
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -46,7 +50,7 @@ vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
 }));
 
-import { emitChatRoomMessageNotifications } from "./chat-room-message-notifications";
+import { emitChatRoomMessageCreatedEffects } from "./chat-room-message-created-effects";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
@@ -74,7 +78,7 @@ function stranger(id: string) {
 }
 
 function emit(overrides: Record<string, unknown> = {}) {
-  return emitChatRoomMessageNotifications({
+  return emitChatRoomMessageCreatedEffects({
     roomId: ROOM_ID,
     roomName: "general",
     roomKind: "channel",
@@ -98,7 +102,7 @@ beforeEach(() => {
   resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: true });
 });
 
-describe("emitChatRoomMessageNotifications", () => {
+describe("emitChatRoomMessageCreatedEffects", () => {
   it("notifies the members who asked for every message", async () => {
     await emit();
 

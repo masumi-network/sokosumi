@@ -18,6 +18,9 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomUserMember: {
+      findMany: vi.fn().mockResolvedValue([{ userId: "reader" }]),
+    },
     sokoBotTurn: { findUnique: turnFindUnique },
     chatRoomMessage: { update: messageUpdate, updateMany: messageUpdate },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -32,6 +35,12 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publish,
 }));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 
 import {
   finalizeSokoBotChatTurn,
@@ -79,6 +88,11 @@ describe("finalizeSokoBotChatTurn", () => {
       .mockResolvedValueOnce({ count: 0 });
     await finalizeSokoBotChatTurn("turn-a");
     await finalizeSokoBotChatTurn("turn-a");
+    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
+      userIds: ["reader"],
+      roomId: "room-a",
+      collections: ["active"],
+    });
     expect(messageUpdate).toHaveBeenCalledOnce();
     expect(roomUpdate).toHaveBeenCalledOnce();
     expect(publish).toHaveBeenCalledTimes(2);
