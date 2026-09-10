@@ -956,9 +956,17 @@ struct WorkspaceStateTests {
     let echo = chatRoomMessage(from: .init(clientTurnId: "echo", roomId: roomId, content: "Hello", sender: sender))
     state.applyRealtimeMessage(roomId: roomId, eventType: .create, message: echo)
     #expect(state.transcriptMessages.isEmpty)
+    var root = echo
+    root.id = "root"
+    state.transcriptMessages = [root]
+    #expect(state.thread.open(root))
+    state.applyRealtimeEnvelope(.init(eventType: .delete, messageId: "root", roomId: roomId))
+    #expect(state.thread.parent?.deletedAt != nil)
+    #expect(state.transcriptMessages.first?.deletedAt != nil)
     await state.directStream.task?.value
     #expect(state.directStream.overlayMessages.isEmpty)
-    #expect(state.displayedTranscript.map(\.id) == ["persisted"])
+    #expect(Set(state.displayedTranscript.map(\.id)) == ["persisted", "root"])
+    #expect(state.transcriptMessages.first { $0.id == "root" }?.deletedAt != nil)
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages", "post/chats/rooms/{id}/stream", "get/chats/rooms/{id}/messages"])
     state.clearTranscript()
     #expect(state.directStream.roomId == nil)

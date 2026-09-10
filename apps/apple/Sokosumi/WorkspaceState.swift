@@ -497,7 +497,7 @@ final class WorkspaceState: ObservableObject {
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh()
     }
-    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy else { return }
+    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
     let result = applyRealtimeFullEvent(
       messages: transcriptMessages,
       shells: outboundShells,
@@ -512,10 +512,10 @@ final class WorkspaceState: ObservableObject {
   /// create/update refetch history for the focused room, everything else is
   /// ignored. The refetch merges — it never invents a row.
   func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
-    if envelope.roomId == directStream.roomId, directStream.isBusy {
+    let refreshParent = thread.apply(envelope)
+    if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete {
       return
     }
-    let refreshParent = thread.apply(envelope)
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: transcriptRoomId) {
     case .ignore:
       if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
