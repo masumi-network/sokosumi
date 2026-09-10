@@ -13,10 +13,10 @@ import { toast } from "sonner";
 
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
+import { AgentSpotlightSkeleton } from "./agent-spotlight";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   TaskForm,
@@ -419,19 +419,16 @@ export function CreateTaskModal({
   );
 }
 
+// Same wrapper as the wizard's first step, so the skeleton sits exactly where
+// the spotlight will.
 function NewTaskWizardLoading() {
   return (
     <div
       aria-busy="true"
       data-testid="new-task-wizard-loading"
-      className="flex flex-1 flex-col gap-6 px-6 py-6 md:px-8"
+      className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8"
     >
-      <Skeleton className="h-10 w-full max-w-md" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} className="h-40 w-full rounded-xl" />
-        ))}
-      </div>
+      <AgentSpotlightSkeleton />
     </div>
   );
 }
