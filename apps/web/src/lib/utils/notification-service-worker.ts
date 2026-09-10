@@ -216,6 +216,14 @@ async function register(): Promise<ServiceWorkerRegistration | null> {
   try {
     const registration = await navigator.serviceWorker.register(
       getNotificationServiceWorkerUrl(),
+      // The worker imports its message catalog, and the default,
+      // `"imports"`, checks an imported script against the HTTP cache on
+      // update. A release that changes only a translated string leaves the
+      // worker itself byte for byte the same, so under the default the
+      // catalog is the only thing that moved and the only thing the cache is
+      // allowed to answer for: readers keep last release's strings until it
+      // expires. `"none"` revalidates both.
+      { updateViaCache: "none" },
     );
     // A registration that is installing cannot show anything yet. Awaited
     // rather than returned: a returned promise settles after the `try` is

@@ -130,7 +130,12 @@ describe("showNotification", () => {
       }),
     ).resolves.toBe(true);
 
-    expect(register).toHaveBeenCalledWith(NOTIFICATION_SERVICE_WORKER_URL);
+    // The option is the pin, not noise: the default lets the HTTP cache
+    // answer for the catalog the worker imports, which strands readers on
+    // last release's strings when a release changes nothing else.
+    expect(register).toHaveBeenCalledWith(NOTIFICATION_SERVICE_WORKER_URL, {
+      updateViaCache: "none",
+    });
     expect(showNotificationSpy).toHaveBeenCalledWith("Sokosumi", {
       body: "Ada mentioned you",
       tag: "sokosumi-room:room-1",
