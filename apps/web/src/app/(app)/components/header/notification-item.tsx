@@ -51,12 +51,17 @@ export function NotificationItem({
 
   const body = (
     <div className="flex w-full items-start gap-3">
-      <Icon
+      <span
         className={cn(
-          "mt-0.5 size-4 shrink-0",
-          notification.isRead ? "text-muted-foreground" : "text-primary",
+          "flex size-8 shrink-0 items-center justify-center rounded-full",
+          notification.isRead
+            ? "bg-muted text-muted-foreground"
+            : "bg-primary/10 text-primary",
         )}
-      />
+        aria-hidden
+      >
+        <Icon className="size-4" />
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {showPendingAccessActions ? (
           <button
