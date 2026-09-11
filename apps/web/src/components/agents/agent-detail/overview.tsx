@@ -20,7 +20,7 @@ function AgentDetailOverview({ agent }: { agent: CoreAgentDto }) {
           </h2>
           <ExpandableMarkdown
             content={agentDescription}
-            className="text-foreground/80"
+            className="text-foreground"
             expandLabel={tTaskDetail("expand")}
             collapseLabel={tTaskDetail("collapse")}
             fadeClassName="to-background"

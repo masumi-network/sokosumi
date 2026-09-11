@@ -20,7 +20,10 @@ export function TaskFileStatusBadge({
     return (
       <Badge
         variant="default"
-        className={cn("bg-semantic-warning-quinary text-foreground", className)}
+        className={cn(
+          "bg-semantic-warning-quaternary text-foreground",
+          className,
+        )}
       >
         {t("pending")}
       </Badge>
@@ -31,7 +34,7 @@ export function TaskFileStatusBadge({
       <Badge
         variant="default"
         className={cn(
-          "bg-semantic-destructive-quinary text-foreground",
+          "bg-semantic-destructive-quaternary text-foreground",
           className,
         )}
       >

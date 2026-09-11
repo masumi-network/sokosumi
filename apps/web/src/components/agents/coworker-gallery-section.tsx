@@ -359,7 +359,7 @@ function VendorDashboard({
           </div>
 
           {active.description ? (
-            <p className="text-foreground/80 text-sm leading-relaxed text-pretty">
+            <p className="text-foreground text-sm leading-relaxed text-pretty">
               {active.description}
             </p>
           ) : null}

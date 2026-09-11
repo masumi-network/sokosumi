@@ -31,7 +31,7 @@ export function TaskDescription({
         <div className="space-y-2">
           <ExpandableMarkdown
             content={content}
-            className="text-foreground/80"
+            className="text-foreground"
             expandLabel={expandLabel}
             collapseLabel={collapseLabel}
             fadeClassName="to-background"

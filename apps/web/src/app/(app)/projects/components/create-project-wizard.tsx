@@ -292,7 +292,7 @@ export function CreateProjectWizard({
                     </dt>
                     <dd>
                       {briefing.trim() ? (
-                        <p className="text-foreground/80 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+                        <p className="text-foreground max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
                           {briefing.trim()}
                         </p>
                       ) : (
