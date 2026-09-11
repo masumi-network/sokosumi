@@ -15,7 +15,7 @@ struct DocumentAttachmentPreview: View {
         NativePDFPreview(document: document)
       } else if let textDocument {
         ScrollView {
-          MarkdownBlocksView(blocks: textDocument.blocks)
+          MarkdownBlocksView(blocks: textDocument.blocks, presentsFileAttachments: false)
             .textSelection(.enabled)
             .frame(maxWidth: 680, alignment: .leading)
             .padding(24)
@@ -53,7 +53,7 @@ struct DocumentAttachmentPreview: View {
         document = PDFDocument(data: data)
       } catch {
         if !Task.isCancelled {
-          errorMessage = friendlyMessage(for: error)
+          errorMessage = (error as? AttachmentDownload.Failure)?.errorDescription ?? friendlyMessage(for: error)
         }
       }
     }

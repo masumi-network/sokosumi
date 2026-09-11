@@ -78,11 +78,12 @@ struct MessageMarkdownView: View {
 
 struct MarkdownBlocksView: View {
   let blocks: [MessageMarkdownBlock]
+  var presentsFileAttachments = true
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       ForEach(blocks) { block in
-        MarkdownBlockView(block: block)
+        MarkdownBlockView(block: block, presentsFileAttachments: presentsFileAttachments)
       }
     }
   }
@@ -90,6 +91,7 @@ struct MarkdownBlocksView: View {
 
 private struct MarkdownBlockView: View {
   let block: MessageMarkdownBlock
+  var presentsFileAttachments = true
 
   var body: some View {
     switch block.kind {
@@ -106,7 +108,7 @@ private struct MarkdownBlockView: View {
     case .blockQuote:
       HStack(alignment: .top, spacing: 10) {
         Rectangle().fill(.secondary.opacity(0.4)).frame(width: 3)
-        MarkdownBlocksView(blocks: block.children)
+        MarkdownBlocksView(blocks: block.children, presentsFileAttachments: presentsFileAttachments)
       }
       .fixedSize(horizontal: false, vertical: true)
       .foregroundStyle(.secondary)
@@ -137,7 +139,7 @@ private struct MarkdownBlockView: View {
       if block.children.isEmpty {
         attachmentContent(block.text)
       } else {
-        MarkdownBlocksView(blocks: block.children)
+        MarkdownBlocksView(blocks: block.children, presentsFileAttachments: presentsFileAttachments)
       }
     }
   }
@@ -149,14 +151,14 @@ private struct MarkdownBlockView: View {
     }
     return VStack(alignment: .leading, spacing: 8) {
       ForEach(segments) { segment in
-        if let attachment = segment.attachment {
+        if let attachment = segment.attachment, presentsFileAttachments || attachment.kind != .file {
           MessageAttachmentView(attachment: attachment).id(attachment.url)
         } else {
           Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         }
       }
     }
-    .padding(.bottom, segments.last?.attachment?.kind == .file ? 8 : 0)
+    .padding(.bottom, presentsFileAttachments && segments.last?.attachment?.kind == .file ? 8 : 0)
   }
 
   private func styled(_ text: AttributedString) -> AttributedString {
@@ -184,7 +186,7 @@ private struct MarkdownBlockView: View {
           } else {
             Text("•")
           }
-          MarkdownBlocksView(blocks: item.children)
+          MarkdownBlocksView(blocks: item.children, presentsFileAttachments: presentsFileAttachments)
         }
       }
     }
