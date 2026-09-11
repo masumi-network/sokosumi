@@ -169,7 +169,7 @@ export function ProjectMemoryRow({
                 {t("memory.loading")}
               </p>
             ) : content ? (
-              <Markdown className="text-foreground/80">{content}</Markdown>
+              <Markdown className="text-foreground">{content}</Markdown>
             ) : null}
           </div>
 
