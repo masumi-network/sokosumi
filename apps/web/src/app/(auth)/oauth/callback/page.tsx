@@ -369,7 +369,7 @@ export default function OAuthCallbackPage() {
               </div>
 
               {error && (
-                <div className="bg-destructive/10 rounded-md p-3">
+                <div className="bg-semantic-destructive-quinary rounded-md p-3">
                   <p className="text-destructive text-sm">{error}</p>
                 </div>
               )}

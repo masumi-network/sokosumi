@@ -168,7 +168,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="text-muted-foreground hover:text-foreground hover:bg-card-background border-border focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+      className="text-muted-foreground hover:text-foreground hover:bg-card-background border-border focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
     >
       {copied ? (
         <>

@@ -107,7 +107,7 @@ export function SokoBotMessageFooter({ metadata }: { metadata: unknown }) {
       {pending > 0 ? (
         <Link
           href={`${SOKO_BOT_ROUTE}?turn=${encodeURIComponent(info.turn_id)}`}
-          className={`${chip} border-primary/40 text-foreground`}
+          className={`${chip} border-primary-tertiary text-foreground`}
         >
           <ShieldCheck aria-hidden className="text-primary size-3.5" />
           <span className="font-medium">

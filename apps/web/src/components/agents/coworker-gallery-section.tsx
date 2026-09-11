@@ -42,7 +42,7 @@ interface OfferItem {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/40 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo outline-none focus-visible:ring-2";
 
 // Initial caps so the section stays tight as the team grows; both expand on
 // demand and are bypassed entirely while searching.

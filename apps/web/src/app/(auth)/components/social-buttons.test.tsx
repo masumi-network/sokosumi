@@ -262,7 +262,7 @@ describe("SocialButtons", () => {
 
     expect(lastUsedLabel).toBeInTheDocument();
     expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
-    expect(button).toHaveClass("border-primary/60", "bg-primary/10");
+    expect(button).toHaveClass("border-primary-tertiary", "bg-primary-quinary");
     expect(badgeContainer).toHaveClass("relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
@@ -278,7 +278,7 @@ describe("SocialButtons", () => {
 
     expect(lastUsedLabel).toBeInTheDocument();
     expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
-    expect(button).toHaveClass("border-primary/60", "bg-primary/10");
+    expect(button).toHaveClass("border-primary-tertiary", "bg-primary-quinary");
     expect(badgeContainer).toHaveClass("relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });

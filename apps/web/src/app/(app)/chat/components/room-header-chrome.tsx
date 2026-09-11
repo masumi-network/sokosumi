@@ -64,7 +64,7 @@ function RoomParticipantStack({
                 "text-[0.625rem]",
                 participant.kind === "coworker" ||
                   participant.kind === "sokoBot"
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary-quinary text-primary"
                   : "bg-muted text-muted-foreground",
               )}
             >

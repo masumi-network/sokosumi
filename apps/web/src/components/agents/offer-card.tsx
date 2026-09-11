@@ -135,11 +135,31 @@ const NEUTRAL_COLOR: CategoryColor = {
   ring: "border-muted-foreground/30",
 };
 const CHART_COLOR: Record<number, CategoryColor> = {
-  1: { chip: "bg-chart-1/15", accent: "bg-chart-1", ring: "border-chart-1" },
-  2: { chip: "bg-chart-2/15", accent: "bg-chart-2", ring: "border-chart-2" },
-  3: { chip: "bg-chart-3/15", accent: "bg-chart-3", ring: "border-chart-3" },
-  4: { chip: "bg-chart-4/15", accent: "bg-chart-4", ring: "border-chart-4" },
-  5: { chip: "bg-chart-5/15", accent: "bg-chart-5", ring: "border-chart-5" },
+  1: {
+    chip: "bg-chart-1-quinary",
+    accent: "bg-chart-1",
+    ring: "border-chart-1",
+  },
+  2: {
+    chip: "bg-chart-2-quinary",
+    accent: "bg-chart-2",
+    ring: "border-chart-2",
+  },
+  3: {
+    chip: "bg-chart-3-quinary",
+    accent: "bg-chart-3",
+    ring: "border-chart-3",
+  },
+  4: {
+    chip: "bg-chart-4-quinary",
+    accent: "bg-chart-4",
+    ring: "border-chart-4",
+  },
+  5: {
+    chip: "bg-chart-5-quinary",
+    accent: "bg-chart-5",
+    ring: "border-chart-5",
+  },
 };
 const CATEGORY_CHART: Record<string, number> = {
   Research: 1,
@@ -389,7 +409,7 @@ function OfferThumb({
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/40 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo outline-none focus-visible:ring-2";
 
 interface OfferCardProps {
   offer: CoworkerOffer;

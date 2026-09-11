@@ -19,7 +19,7 @@ const TONE_CLASSES: Record<StatusTone, string> = {
     "border-semantic-warning-tertiary bg-semantic-warning-quinary text-semantic-warning",
   danger:
     "border-semantic-destructive-tertiary bg-semantic-destructive-quinary text-semantic-destructive",
-  accent: "border-primary/30 bg-primary/10 text-primary",
+  accent: "border-primary-tertiary bg-primary-quinary text-primary",
 };
 
 const DOT_CLASSES: Record<StatusTone, string> = {

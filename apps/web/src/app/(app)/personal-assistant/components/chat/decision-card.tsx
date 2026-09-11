@@ -63,7 +63,7 @@ export function DecisionCard({
     <div
       className={cn(
         "bg-card w-full max-w-xl rounded-lg border",
-        pending ? "border-primary/40" : "border-border",
+        pending ? "border-primary-tertiary" : "border-border",
       )}
     >
       <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">

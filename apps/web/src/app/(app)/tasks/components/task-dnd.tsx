@@ -155,7 +155,7 @@ export function DroppableColumn({
       ref={setNodeRef}
       className={cn(
         "z-0 flex h-full min-h-0 flex-col",
-        isOver ? "ring-primary/30 rounded-xl ring-2 ring-inset" : null,
+        isOver ? "ring-ring-halo rounded-xl ring-2 ring-inset" : null,
         className,
       )}
       data-dnd-column={id}

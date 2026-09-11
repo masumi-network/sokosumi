@@ -43,7 +43,7 @@ interface AgentSpotlightProps {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/30 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo outline-none focus-visible:ring-2";
 const SCROLLBAR =
   "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tertiary [&::-webkit-scrollbar-track]:bg-transparent [scrollbar-width:thin]";
 
