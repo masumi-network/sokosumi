@@ -17,6 +17,9 @@
       Coordinator(self)
     }
 
+    var attachFiles: (([URL]) -> Void)?
+    var attachImage: ((Data) -> Void)?
+
     func makeNSView(context: Context) -> NSScrollView {
       let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
       scroll.drawsBackground = false
@@ -44,6 +47,8 @@
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
       input.placeholder = placeholder
+      input.attachFiles = attachFiles
+      input.attachImage = attachImage
       input.mentions = mentions
       input.channels = channels
       commands?.refresh()
@@ -56,6 +61,8 @@
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
       input.placeholder = placeholder
+      input.attachFiles = attachFiles
+      input.attachImage = attachImage
       input.mentions = mentions
       input.channels = channels
       if context.coordinator.emojiPickerRequest != emojiPickerRequest {
@@ -282,11 +289,55 @@
         return pasteboard.setString(text as String, forType: type)
       }
 
+      var attachFiles: (([URL]) -> Void)?
+      var attachImage: ((Data) -> Void)?
+
+      override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if attachFiles != nil, !droppedFiles(sender).isEmpty {
+          return .copy
+        }
+        return super.draggingEntered(sender)
+      }
+
+      override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if attachFiles != nil, !droppedFiles(sender).isEmpty {
+          return .copy
+        }
+        return super.draggingUpdated(sender)
+      }
+
+      override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        let files = droppedFiles(sender)
+        if let attachFiles, !files.isEmpty {
+          attachFiles(files)
+          return true
+        }
+        return super.performDragOperation(sender)
+      }
+
+      private func droppedFiles(_ sender: any NSDraggingInfo) -> [URL] {
+        (sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+      }
+
       override func paste(_: Any?) {
         pasteText(from: .general)
       }
 
       func pasteText(from pasteboard: NSPasteboard) {
+        if let attachFiles, let files = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !files.isEmpty {
+          attachFiles(files)
+          return
+        }
+        if let attachImage {
+          if let png = pasteboard.data(forType: .png) {
+            attachImage(png)
+            return
+          }
+          if let tiff = pasteboard.data(forType: .tiff), let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:]) {
+            attachImage(png)
+            return
+          }
+        }
         let plain = pasteboard.string(forType: .string) ?? ""
         let text = plain.isEmpty ? ComposerPaste.plainText(html: pasteboard.string(forType: .html) ?? "") : plain
         guard !text.isEmpty else { return }
