@@ -30,15 +30,27 @@ export function mapTaskListItemToTaskPickerTask(
   };
 }
 
-export function mapVisibleTaskLinks(links: TaskLink[]): VisibleTaskLink[] {
+export interface MapVisibleTaskLinksOptions {
+  /** Drop the scheduler's template -> run links (owned by the Schedule section). */
+  hideScheduleRuns?: boolean;
+}
+
+export function mapVisibleTaskLinks(
+  links: TaskLink[],
+  { hideScheduleRuns = false }: MapVisibleTaskLinksOptions = {},
+): VisibleTaskLink[] {
   return (
     links
       .filter((link) => link.peerTask.archivedAt === null)
-      // A series' released runs are managed by the schedule series and surface
-      // under Upcoming/History on the template, so they are not user-managed
-      // "linked tasks". The reverse run -> series link (`schedule_series`) stays
-      // so a released run can still navigate back to its template.
-      .filter((link) => link.relation !== TaskLinkRelation.SCHEDULE_RUN)
+      // A beta Calendar viewer sees a series' released runs under
+      // Upcoming/History on the template, so they are not duplicated as
+      // "linked tasks". A non-beta viewer has no Schedule section, so those runs
+      // stay visible here. The reverse run -> series link (`schedule_series`)
+      // always stays, so a released run can navigate back to its template.
+      .filter(
+        (link) =>
+          !hideScheduleRuns || link.relation !== TaskLinkRelation.SCHEDULE_RUN,
+      )
       .map((link) => ({
         id: link.peerTask.id,
         name: link.peerTask.name,

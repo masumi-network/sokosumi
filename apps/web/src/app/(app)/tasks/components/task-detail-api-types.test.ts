@@ -23,38 +23,59 @@ function link(
   };
 }
 
+const links = [
+  link("link-1", TaskLinkRelation.RELATED, {
+    id: "task-2",
+    name: "Visible task",
+    status: TaskStatus.READY,
+    archivedAt: null,
+  }),
+  link("link-2", TaskLinkRelation.BLOCKED_BY, {
+    id: "task-3",
+    name: "Archived task",
+    status: TaskStatus.CANCELED,
+    archivedAt: new Date("2026-03-31T10:00:00.000Z"),
+  }),
+  link("link-3", TaskLinkRelation.SCHEDULE_RUN, {
+    id: "task-4",
+    name: "Released run",
+    status: TaskStatus.COMPLETED,
+    archivedAt: null,
+  }),
+  link("link-4", TaskLinkRelation.SCHEDULE_SERIES, {
+    id: "task-5",
+    name: "Series template",
+    status: TaskStatus.QUEUED,
+    archivedAt: null,
+  }),
+];
+
 describe("task-detail-api-types", () => {
-  it("filters archived peers and schedule runs from visible linked tasks", () => {
-    const result = mapVisibleTaskLinks([
-      link("link-1", TaskLinkRelation.RELATED, {
+  it("keeps schedule runs and filters archived peers by default", () => {
+    expect(mapVisibleTaskLinks(links)).toEqual([
+      {
         id: "task-2",
         name: "Visible task",
         status: TaskStatus.READY,
-        archivedAt: null,
-      }),
-      link("link-2", TaskLinkRelation.BLOCKED_BY, {
-        id: "task-3",
-        name: "Archived task",
-        status: TaskStatus.CANCELED,
-        archivedAt: new Date("2026-03-31T10:00:00.000Z"),
-      }),
-      // A series run is managed by the Schedule section, not "Linked tasks".
-      link("link-3", TaskLinkRelation.SCHEDULE_RUN, {
+        relation: TaskLinkRelation.RELATED,
+      },
+      {
         id: "task-4",
         name: "Released run",
         status: TaskStatus.COMPLETED,
-        archivedAt: null,
-      }),
-      // The run -> series backlink stays so a released run can navigate back.
-      link("link-4", TaskLinkRelation.SCHEDULE_SERIES, {
+        relation: TaskLinkRelation.SCHEDULE_RUN,
+      },
+      {
         id: "task-5",
         name: "Series template",
         status: TaskStatus.QUEUED,
-        archivedAt: null,
-      }),
+        relation: TaskLinkRelation.SCHEDULE_SERIES,
+      },
     ]);
+  });
 
-    expect(result).toEqual([
+  it("hides schedule runs for beta viewers while keeping the series backlink", () => {
+    expect(mapVisibleTaskLinks(links, { hideScheduleRuns: true })).toEqual([
       {
         id: "task-2",
         name: "Visible task",
