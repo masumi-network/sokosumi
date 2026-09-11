@@ -8,7 +8,11 @@ export function getJobStatusBadgeLabelKey(status: SokosumiJobStatus) {
       return "failed";
     case SokosumiJobStatus.PAYMENT_FAILED:
       return "paymentFailed";
+    // Two statuses, two labels. Both printing "paymentPending" put two badges
+    // and two status filter options on screen reading the same word, with no
+    // way to tell which one a job was actually in.
     case SokosumiJobStatus.STARTED:
+      return "started";
     case SokosumiJobStatus.PAYMENT_PENDING:
       return "paymentPending";
     case SokosumiJobStatus.PROCESSING:
