@@ -251,12 +251,14 @@ function resolveUpdateTargetStatus(
   statusAfterSchedule: TaskStatus,
   scheduleWasMutated: boolean,
   scheduleActiveOnServer: boolean,
+  isAgentAssignee: boolean,
 ): TaskStatus {
   if (scheduleWasMutated) {
     if (scheduleActiveOnServer) {
-      // Schedule apply may land Ready (e.g. human assignee). Honor an
-      // explicit Queued choice so Core can accept or reject it.
+      // Schedule apply may land Ready. For agents, honor an explicit Queued
+      // choice with a follow-up event. Humans stay on the schedule result.
       if (
+        isAgentAssignee &&
         desiredStatus === TaskStatus.QUEUED &&
         statusAfterSchedule !== TaskStatus.QUEUED
       ) {
@@ -448,13 +450,17 @@ async function createTaskFromDescription(input: {
     ? toCoreTaskContext(input.context, input.userId)
     : undefined;
 
+  const assigneeWrite = resolveAssigneeWrite(
+    input.assigneeId,
+    input.assigneeSokoBotId,
+    input.assigneeUserId,
+  );
+  const isAgentAssignee =
+    assigneeWrite.assigneeId != null || assigneeWrite.assigneeSokoBotId != null;
+
   const task = await taskService.createTask({
     description: trimmedDescription,
-    ...resolveAssigneeWrite(
-      input.assigneeId,
-      input.assigneeSokoBotId,
-      input.assigneeUserId,
-    ),
+    ...assigneeWrite,
     projectId: normalizedProjectId ?? null,
     ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
@@ -471,11 +477,10 @@ async function createTaskFromDescription(input: {
         input.schedule,
         false,
       );
-      // Create always goes Draft → schedule. Schedule apply may leave the
-      // task Ready (human assignee). Carry an explicit Queued choice through
-      // so Core accepts it for agents or rejects it for humans instead of
-      // silently succeeding as Ready.
+      // Create always goes Draft → schedule. Agents that asked for Queued but
+      // landed Ready need a follow-up event. Humans keep Ready and save.
       if (
+        isAgentAssignee &&
         input.status === TaskStatus.QUEUED &&
         statusAfterSchedule != null &&
         statusAfterSchedule !== TaskStatus.QUEUED
@@ -790,10 +795,15 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
 
+      const assigneeWrite = resolveAssigneeWrite(
+        assigneeId,
+        assigneeSokoBotId,
+        assigneeUserId,
+      );
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        ...resolveAssigneeWrite(assigneeId, assigneeSokoBotId, assigneeUserId),
+        ...assigneeWrite,
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
@@ -844,11 +854,15 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         scheduleActiveOnServer = schedule.mode !== "none";
       }
 
+      const isAgentAssignee =
+        assigneeWrite.assigneeId != null ||
+        assigneeWrite.assigneeSokoBotId != null;
       const targetStatus = resolveUpdateTargetStatus(
         desiredStatus,
         statusAfterSchedule,
         scheduleWasMutated,
         scheduleActiveOnServer,
+        isAgentAssignee,
       );
 
       if (targetStatus !== statusAfterSchedule) {
