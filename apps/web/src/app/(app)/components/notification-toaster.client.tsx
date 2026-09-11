@@ -37,7 +37,7 @@ export function NotificationToaster() {
             // the accent fill, not the page inverse: this block now sets it to
             // near-black in dark mode, the same value as --background, so the
             // button and its label both disappeared at 1.00:1.
-            "bg-foreground text-background hover:bg-foreground/90 h-8 rounded-md px-3 text-xs font-medium",
+            "bg-foreground text-background hover:bg-foreground h-8 rounded-md px-3 text-xs font-medium",
         },
       }}
     />

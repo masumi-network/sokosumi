@@ -72,7 +72,7 @@ export function CreateState() {
             <img
               src={avatar.imageUrl}
               alt={tChat("avatarAlt")}
-              className="ring-primary/30 size-32 rounded-full object-cover ring-4"
+              className="ring-ring-halo size-32 rounded-full object-cover ring-4"
             />
           ) : null}
         </div>

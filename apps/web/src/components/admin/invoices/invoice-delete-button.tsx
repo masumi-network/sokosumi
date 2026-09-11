@@ -90,7 +90,7 @@ export function InvoiceDeleteButton({
           <AlertDialogAction
             onClick={handleDelete}
             disabled={isDeleting}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
           >
             {isDeleting ? t("deleting") : t("delete")}
           </AlertDialogAction>

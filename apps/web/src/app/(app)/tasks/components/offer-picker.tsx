@@ -27,7 +27,7 @@ interface OfferPickerProps {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/40 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo outline-none focus-visible:ring-2";
 // Mirrors OfferCard's outer shell so "Start from scratch" is the exact same size.
 const CARD_SHELL =
   "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]";

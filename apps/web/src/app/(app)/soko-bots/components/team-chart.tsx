@@ -42,9 +42,9 @@ async function BotNode({ member }: { member: Member }) {
     return (
       <Link
         href={SOKO_BOT_ROUTE}
-        className="border-primary/40 hover:border-primary hover:bg-primary/5 flex items-center gap-3 rounded-lg border border-dashed px-3 py-3 text-sm transition-colors"
+        className="border-primary-tertiary hover:border-primary hover:bg-primary-quinary flex items-center gap-3 rounded-lg border border-dashed px-3 py-3 text-sm transition-colors"
       >
-        <span className="bg-primary/10 text-primary inline-flex size-9 shrink-0 items-center justify-center rounded-full">
+        <span className="bg-primary-quinary text-primary inline-flex size-9 shrink-0 items-center justify-center rounded-full">
           <Plus aria-hidden className="size-4" />
         </span>
         <span className="min-w-0">
@@ -124,7 +124,7 @@ async function PersonNode({ member }: { member: Member }) {
       <div
         className={cn(
           "bg-card-background flex items-center gap-3 rounded-lg border px-3 py-3 text-sm",
-          member.isYou && "border-primary/50",
+          member.isYou && "border-primary-tertiary",
         )}
       >
         <Avatar className="size-9 shrink-0">
