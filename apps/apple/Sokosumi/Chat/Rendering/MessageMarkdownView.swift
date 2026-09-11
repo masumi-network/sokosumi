@@ -35,7 +35,7 @@ struct MessageMarkdownView: View {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else {
-        ExpandableMessageBody(source: source) {
+        ExpandableMessageBody(source: source, clampHeight: document.map { !$0.containsAttachments } ?? true) {
           if let document {
             MarkdownBlocksView(blocks: document.blocks)
           } else {
@@ -143,11 +143,15 @@ private struct MarkdownBlockView: View {
   }
 
   private func attachmentContent(_ text: AttributedString) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      ForEach(MessageAttachmentSegment.split(text)) { segment in
+    let segments = MessageAttachmentSegment.split(text).filter { segment in
+      segment.attachment != nil
+        || !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    return VStack(alignment: .leading, spacing: 8) {
+      ForEach(segments) { segment in
         if let attachment = segment.attachment {
-          MessageAttachmentView(attachment: attachment).id(attachment.url)
-        } else if !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+          MessageAttachmentView(attachment: attachment)
+        } else {
           Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         }
       }

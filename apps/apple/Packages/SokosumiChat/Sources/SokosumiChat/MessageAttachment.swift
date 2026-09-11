@@ -20,14 +20,15 @@ public struct MessageAttachment: Equatable, Sendable {
     self.url = url
     filename = label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? url.lastPathComponent : label
     let hint = ext.isEmpty ? (filename as NSString).pathExtension.lowercased() : ext
-    if let kindHint {
-      kind = kindHint
-    } else if ["png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "heic", "heif"].contains(hint) {
+    // Filename/extension beat an img/video tag so `![clip](file.mp4)` matches web.
+    if ["png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "heic", "heif"].contains(hint) {
       kind = .image
     } else if ["mp3", "wav", "m4a", "ogg", "aac", "flac"].contains(hint) {
       kind = .audio
     } else if ["mp4", "mov", "webm", "m4v"].contains(hint) {
       kind = .video
+    } else if let kindHint {
+      kind = kindHint
     } else {
       kind = .file
     }
@@ -57,5 +58,15 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
       offset += part.characters.count
     }
     return result
+  }
+}
+
+public extension MessageMarkdown {
+  var containsAttachments: Bool {
+    func walk(_ block: MessageMarkdownBlock) -> Bool {
+      MessageAttachmentSegment.split(block.text).contains { $0.attachment != nil }
+        || block.children.contains(where: walk)
+    }
+    return blocks.contains(where: walk)
   }
 }

@@ -51,3 +51,19 @@ import Testing
     #expect(segments.first?.attachment?.kind == kind)
   }
 }
+
+@Test func markdownImageWithVideoExtensionPlaysAsVideo() {
+  let document = MessageMarkdown("![clip](https://example.com/clip.mp4)")
+  #expect(MessageAttachmentSegment.split(document.blocks[0].text).first?.attachment?.kind == .video)
+}
+
+@Test func htmlImageWithVideoExtensionPlaysAsVideo() {
+  let document = MessageMarkdown("<img src=\"https://example.com/clip.mp4\">")
+  let segments = document.blocks.flatMap { MessageAttachmentSegment.split($0.text) }
+  #expect(segments.first?.attachment?.kind == .video)
+}
+
+@Test func documentReportsAttachments() {
+  #expect(MessageMarkdown("hello ![A](https://example.com/a.png)").containsAttachments)
+  #expect(!MessageMarkdown("hello [site](https://example.com)").containsAttachments)
+}

@@ -26,6 +26,7 @@ struct MessageAttachmentView: View {
       if attachment.kind != .image {
         HStack(spacing: 8) {
           Image(systemName: attachment.kind == .audio ? "waveform" : "doc")
+            .accessibilityHidden(true)
           VStack(alignment: .leading, spacing: 2) {
             Text(attachment.filename).lineLimit(2)
             Text(attachment.url.host ?? "").font(.caption).foregroundStyle(.secondary)
@@ -44,11 +45,13 @@ struct MessageAttachmentView: View {
             Label("Close", systemImage: "xmark")
           }
           .keyboardShortcut(.cancelAction)
+          .help("Close")
           Text(attachment.filename).lineLimit(1)
           Spacer()
           Link(destination: attachment.url) {
             Label("Open in Browser", systemImage: "arrow.up.right.square")
           }
+          .help("Open in Browser")
           AttachmentSaveButton(attachment: attachment)
         }
         .labelStyle(.iconOnly)
@@ -77,8 +80,17 @@ private struct AttachmentSaveButton: View {
   let attachment: MessageAttachment
   @State private var downloading = false
   @State private var exportPresented = false
-  @State private var downloaded: URL?
+  @State private var exportDocument: DownloadedAttachment?
   @State private var errorMessage: String?
+
+  private var exportFilename: String {
+    let name = attachment.filename.trimmingCharacters(in: .whitespacesAndNewlines)
+    let ext = attachment.url.pathExtension
+    if (name as NSString).pathExtension.isEmpty, !ext.isEmpty {
+      return "\(name.isEmpty ? "file" : name).\(ext)"
+    }
+    return name.isEmpty ? (attachment.url.lastPathComponent.isEmpty ? "file" : attachment.url.lastPathComponent) : name
+  }
 
   var body: some View {
     Button { downloading = true } label: {
@@ -101,14 +113,12 @@ private struct AttachmentSaveButton: View {
     }
     .task(id: downloading) {
       guard downloading else { return }
-      removeDownload()
+      defer { downloading = false }
       do {
         let file = try await AttachmentDownload.fetch(attachment.url)
-        guard !Task.isCancelled else {
-          try? FileManager.default.removeItem(at: file)
-          return
-        }
-        downloaded = file
+        defer { try? FileManager.default.removeItem(at: file) }
+        guard !Task.isCancelled else { return }
+        exportDocument = try DownloadedAttachment(url: file)
         errorMessage = nil
         exportPresented = true
       } catch {
@@ -116,22 +126,13 @@ private struct AttachmentSaveButton: View {
           errorMessage = error.localizedDescription
         }
       }
-      downloading = false
     }
-    .fileExporter(isPresented: $exportPresented, document: downloaded.map(DownloadedAttachment.init), contentType: UTType(filenameExtension: attachment.url.pathExtension) ?? .data, defaultFilename: attachment.filename) { result in
-      if case let .failure(error) = result {
+    .fileExporter(isPresented: $exportPresented, document: exportDocument, contentType: .data, defaultFilename: exportFilename) { result in
+      if case let .failure(error) = result, (error as? CocoaError)?.code != .userCancelled {
         errorMessage = error.localizedDescription
       }
-      removeDownload()
+      exportDocument = nil
     }
-    .onDisappear { Task { @MainActor in removeDownload() } }
-  }
-
-  private func removeDownload() {
-    if let downloaded {
-      try? FileManager.default.removeItem(at: downloaded)
-    }
-    downloaded = nil
   }
 }
 
@@ -141,20 +142,36 @@ private struct AttachmentMediaView: View {
   @State private var player: AVPlayer?
 
   var body: some View {
-    VideoPlayer(player: player)
-      .frame(maxWidth: 480)
-      .frame(height: audioOnly ? 80 : 270)
-      .task(id: url) { player = AVPlayer(url: url) }
-      .onDisappear { player?.pause() }
+    Group {
+      if let player {
+        VideoPlayer(player: player)
+      } else {
+        Button {
+          let created = AVPlayer(url: url)
+          player = created
+          created.play()
+        } label: {
+          ZStack {
+            RoundedRectangle(cornerRadius: 8).fill(.secondary.opacity(0.15))
+            Image(systemName: "play.circle.fill").font(.largeTitle)
+          }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(audioOnly ? "Play audio" : "Play video")
+      }
+    }
+    .frame(maxWidth: 480)
+    .frame(height: audioOnly ? 80 : 270)
+    .onDisappear { player?.pause() }
   }
 }
 
 private struct DownloadedAttachment: FileDocument {
   static let readableContentTypes: [UTType] = [.data]
-  let url: URL
+  let wrapper: FileWrapper
 
-  init(_ url: URL) {
-    self.url = url
+  init(url: URL) throws {
+    wrapper = try FileWrapper(url: url, options: .immediate)
   }
 
   init(configuration _: ReadConfiguration) throws {
@@ -162,6 +179,6 @@ private struct DownloadedAttachment: FileDocument {
   }
 
   func fileWrapper(configuration _: WriteConfiguration) throws -> FileWrapper {
-    try FileWrapper(url: url)
+    wrapper
   }
 }
