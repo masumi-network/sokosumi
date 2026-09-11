@@ -174,30 +174,32 @@ describe("formatRoomMarkdownMentions", () => {
     expect(formatted.match(/text-primary/g)).toHaveLength(1);
   });
 
-  it("renders @all:all as an @all chip without member lookup", () => {
+  it("renders @all:all as a localized chip without member lookup", () => {
     const formatted = formatRoomMarkdownMentions({
       content: `${ROOM_MENTION_ALL_TOKEN} please look`,
       coworkersById: new Map(),
       coworkersBySlug: new Map(),
       usersById: new Map(),
       usersBySlug: new Map(),
+      mentionAllLabel: "Everyone",
     });
 
-    expect(formatted).toContain(">@all</span>");
+    expect(formatted).toContain(">@Everyone</span>");
     expect(formatted).not.toContain("@all:all");
     expect(formatted).not.toContain("data-direct-kind");
   });
 
-  it("renders bare @all as an @all chip", () => {
+  it("renders bare @all as a localized chip", () => {
     const formatted = formatRoomMarkdownMentions({
       content: "@all please look",
       coworkersById: new Map(),
       coworkersBySlug: new Map(),
       usersById: new Map(),
       usersBySlug: new Map(),
+      mentionAllLabel: "Everyone",
     });
 
-    expect(formatted).toContain(">@all</span>");
+    expect(formatted).toContain(">@Everyone</span>");
   });
 });
 
