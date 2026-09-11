@@ -111,17 +111,6 @@
   --color-status-done: var(--status-done);
   --color-status-done-quaternary: var(--status-done-quaternary);
   --color-status-done-tertiary: var(--status-done-tertiary);
-  --color-status-ready: var(--status-ready);
-  --color-status-ready-quaternary: var(--status-ready-quaternary);
-  --color-status-running: var(--status-running);
-  --color-status-running-tertiary: var(--status-running-tertiary);
-  --color-status-running-quaternary: var(--status-running-quaternary);
-  --color-status-awaiting: var(--status-awaiting);
-  --color-status-awaiting-quaternary: var(--status-awaiting-quaternary);
-  --color-status-topped-up: var(--status-topped-up);
-  --color-status-topped-up-quaternary: var(--status-topped-up-quaternary);
-  --color-status-auth: var(--status-auth);
-  --color-status-auth-quaternary: var(--status-auth-quaternary);
 
   --color-semantic-info: var(--semantic-info);
   --color-semantic-info-tertiary: var(--semantic-info-tertiary);
@@ -409,17 +398,6 @@
   --status-working-label: hsla(205, 95.0%, 35.4%, 1);
   --status-external-label: hsla(240, 95.0%, 58.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 90.1%, 1);
-  --status-ready: hsla(217, 91.0%, 47.0%, 1);
-  --status-ready-quaternary: hsla(217, 80.7%, 94.8%, 1);
-  --status-running: hsla(192, 91.0%, 36.0%, 1);
-  --status-running-tertiary: hsla(192, 51.2%, 87.2%, 1);
-  --status-running-quaternary: hsla(192, 51.2%, 93.6%, 1);
-  --status-awaiting: hsla(199, 89.0%, 39.0%, 1);
-  --status-awaiting-quaternary: hsla(199, 56.9%, 94.0%, 1);
-  --status-topped-up: hsla(174, 84.0%, 32.0%, 1);
-  --status-topped-up-quaternary: hsla(174, 39.5%, 93.2%, 1);
-  --status-auth: hsla(263, 70.0%, 50.0%, 1);
-  --status-auth-quaternary: hsla(263, 70.0%, 95.0%, 1);
 }
 
 .dark {
@@ -514,6 +492,7 @@
   --semantic-info-tertiary: hsla(189, 82.5%, 19.6%, 1);
   --semantic-info-quaternary: hsla(189, 74.3%, 14.1%, 1);
   --semantic-info-quinary: hsla(189, 59.8%, 9.5%, 1);
+  --semantic-info-foreground: hsla(0, 0%, 4%, 1);
 
   /* Status roles, dark. Same vocabulary as light: colour says what the reader
      must do, the glyph says which status it is. The -label steps are badge
@@ -529,18 +508,6 @@
   --status-working-label: hsla(205, 95.0%, 70.0%, 1);
   --status-external-label: hsla(240, 95.0%, 74.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 19.6%, 1);
-  --status-ready: hsla(213, 94.0%, 68.0%, 1);
-  --status-ready-quaternary: hsla(213, 35.8%, 16.8%, 1);
-  --status-running: hsla(187, 85.0%, 53.0%, 1);
-  --status-running-tertiary: hsla(187, 64.1%, 18.7%, 1);
-  --status-running-quaternary: hsla(187, 57.9%, 13.8%, 1);
-  --status-awaiting: hsla(198, 93.0%, 60.0%, 1);
-  --status-awaiting-quaternary: hsla(198, 48.9%, 15.2%, 1);
-  --status-topped-up: hsla(172, 66.0%, 50.0%, 1);
-  --status-topped-up-quaternary: hsla(172, 50.0%, 13.2%, 1);
-  --status-auth: hsla(258, 90.0%, 66.0%, 1);
-  --status-auth-quaternary: hsla(258, 37.3%, 16.4%, 1);
-  --semantic-info-foreground: hsla(0, 0%, 4%, 1);
 
   /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
      only extra value, solid with a near-black label at 7.88:1. Same in both
