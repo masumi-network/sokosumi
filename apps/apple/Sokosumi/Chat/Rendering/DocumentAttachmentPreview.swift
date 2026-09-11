@@ -4,6 +4,7 @@ import SwiftUI
 
 struct DocumentAttachmentPreview: View {
   let attachment: MessageAttachment
+  @State private var officeFile: AttachmentPreviewFile?
   @State private var document: PDFDocument?
   @State private var textDocument: MessageMarkdown?
   @State private var loading = true
@@ -11,7 +12,9 @@ struct DocumentAttachmentPreview: View {
 
   var body: some View {
     Group {
-      if let document {
+      if let officeFile {
+        NativeOfficePreview(file: officeFile)
+      } else if let document {
         NativePDFPreview(document: document)
       } else if let textDocument {
         ScrollView {
@@ -27,7 +30,9 @@ struct DocumentAttachmentPreview: View {
         ContentUnavailableView(errorMessage ?? "Preview unavailable", systemImage: "doc", description: Text("Open or save this file using the toolbar."))
       }
     }
+    .onDisappear { officeFile = nil }
     .task(id: attachment) {
+      officeFile = nil
       document = nil
       textDocument = nil
       errorMessage = nil
@@ -39,6 +44,12 @@ struct DocumentAttachmentPreview: View {
       }
       guard let kind = attachment.documentPreviewKind else { return }
       do {
+        if kind == .office {
+          let file = try await AttachmentPreviewFile.load(attachment)
+          try Task.checkCancellation()
+          officeFile = file
+          return
+        }
         if kind == .text {
           let source = try await AttachmentDownload.text(attachment.url)
           let parsed = await Task.detached(priority: .userInitiated) { MessageMarkdown(source) }.value

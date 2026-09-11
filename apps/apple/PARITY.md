@@ -2,7 +2,8 @@
 
 ## Resume checkpoint
 
-- Active slice: text-file viewing (15), draft [#4470](https://github.com/masumi-network/sokosumi/pull/4470), branch `codex/apple-text-file-preview`, based on main `c97c47c1a`. Reuses attachment download and native Markdown rendering for `.txt`, `.md`, and `.markdown`; PDF viewing remains unchanged. No API or dependency change.
+- Active slice: native Office-file viewing (15), draft [#4473](https://github.com/masumi-network/sokosumi/pull/4473), branch `codex/apple-office-file-preview`, based on main `56a5243f3f`, updated with main `46bc456d6` (#4471) in `49c6d9127`. Uses an isolated Quick Look bridge and shared temporary-file ownership; no external dependency or API change.
+- Text-file viewing [#4470](https://github.com/masumi-network/sokosumi/pull/4470) merged as `56a5243f3f`. Full Apple CI passed at final head `9ae4f875d` (run `34647058920`), including Xcode build/app tests, all packages and lint/format. Live text acceptance remains unconfirmed.
 - PDF viewing [#4469](https://github.com/masumi-network/sokosumi/pull/4469) merged as `c97c47c1a`. Full Apple CI passed at final head `0ae491821` (run `34640292097`), including Xcode build/app tests, all package suites and lint/format. Review follow-up prevents double spacing before text; only a trailing file receives extra bottom padding.
 - Files attachment picker [#4440](https://github.com/masumi-network/sokosumi/pull/4440) merged as `b7366d9b3`. Includes web menu names/icons and Sendable export data. Final local Xcode app tests and lint passed; final PR CI was canceled at merge after the Xcode build passed. File selection is not independently confirmed.
 - Delivery-status placement [#4427](https://github.com/masumi-network/sokosumi/pull/4427) merged as `3eded00034`; compact marks are beside the sender or in the continuation gutter.
@@ -584,3 +585,14 @@ The web text preview accepts `.txt`, `.md`, and `.markdown` and renders their UT
 Office files and MIME-only classification remain separate gaps. No web or Core changes, external packages, or custom text renderer were introduced. Local validation: 318 Chat tests, Xcode app tests, shared Chat iOS 17 compilation, and pinned lint/format pass. Live text-viewer acceptance remains pending.
 
 Review follow-up: previewed file links stay inline without attachment segmentation, preserving sentence spacing and attributes. Download and transport/read errors use file-specific copy. Recognized URL document types take precedence over filename hints, including unsupported Office URLs. Regression tests cover inline links, conflicting extensions, and `.markdown`/`.MARKDOWN` parsing. All 321 Chat tests, Xcode app tests, and pinned lint/format pass. `.markdown` tiles intentionally expose the web viewer's supported format even though web's chat-file allowlist omits that suffix.
+
+
+## Native Office-file viewing follow-up
+
+Office attachments (`doc`, `docx`, `ppt`, `pptx`, `xls`, `xlsx`) now download into a temporary file with the recognized extension and open in the existing document sheet through native Quick Look. Web uses an external Microsoft viewer for these formats (`apps/web/src/components/ui/document-viewer.tsx`, `apps/web/src/lib/utils/file-preview.ts`); Apple uses its system renderer without an external service or package. Open/Save remain in the existing toolbar. PDF/text rendering is unchanged.
+
+The UI-free `AttachmentPreviewFile` retains the downloaded file until the native preview releases it, then removes it. The Mac adapter closes its Quick Look view on dismantle. The isolated iOS adapter uses QLPreviewController; the shared package stays iOS 17-compatible. URL precedence and filename fallback use the existing document classification. Failed downloads show file-specific errors; unsupported/corrupt/password-protected Office content follows the system renderer's fallback with Open/Save still available.
+
+Validation: 323 Chat tests cover formats, precedence, download errors, extension retention and cleanup on release. Xcode app tests and pinned lint/format pass. A generated DOCX sample rendered correctly through macOS Quick Look thumbnail generation; this is system-renderer evidence, not a live in-chat test. Live Office viewer acceptance (Word/Excel/PowerPoint, scrolling, resizing, close/reopen, and Save) remains pending.
+
+- Office review follow-up (#4473): standardized the Quick Look initialization fallback with ContentUnavailableView and corrected the checkpoint after the main merge. No Critical/Important findings or reviewer-pushed fixes. Native Office hosting/resize coverage and live Word/Excel/PowerPoint acceptance remain pending; the iOS Quick Look adapter is not compiled by the macOS app target (shared-package iOS compilation does not cover it).

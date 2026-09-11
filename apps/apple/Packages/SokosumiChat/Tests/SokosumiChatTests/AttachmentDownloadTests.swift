@@ -58,3 +58,27 @@ private class AttachmentDownloadProtocol: URLProtocol, @unchecked Sendable {
     try await AttachmentDownload.text(#require(URL(string: "https://example.com/missing")), session: session)
   }
 }
+
+@Test func officePreviewFileKeepsExtensionAndCleansUpOnRelease() async throws {
+  let config = URLSessionConfiguration.ephemeral
+  config.protocolClasses = [AttachmentDownloadProtocol.self]
+  let session = URLSession(configuration: config)
+  defer { session.invalidateAndCancel() }
+  let url = try #require(URL(string: "https://example.com/deliverables/id"))
+  let attachment = try #require(MessageAttachment(url: url, label: "report.docx"))
+  var file: AttachmentPreviewFile? = try await AttachmentPreviewFile.load(attachment, session: session)
+  let localURL = try #require(file?.url)
+  #expect(localURL.pathExtension == "docx")
+  #expect(try String(contentsOf: localURL, encoding: .utf8) == "file contents")
+  file = nil
+  #expect(!FileManager.default.fileExists(atPath: localURL.path))
+  let unsupported = try #require(MessageAttachment(url: url, label: "archive.zip"))
+  await #expect(throws: AttachmentDownload.Failure.self) {
+    try await AttachmentPreviewFile.load(unsupported, session: session)
+  }
+  let missingURL = try #require(URL(string: "https://example.com/missing"))
+  let missing = try #require(MessageAttachment(url: missingURL, label: "report.docx", kindHint: .file))
+  await #expect(throws: AttachmentDownload.Failure.self) {
+    try await AttachmentPreviewFile.load(missing, session: session)
+  }
+}
