@@ -167,11 +167,8 @@ function isAgentAssigneeFields(fields: {
   return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
 }
 
-function canSelectQueued(options: {
-  isAgent: boolean;
-  hasSchedule: boolean;
-}): boolean {
-  return options.hasSchedule && options.isAgent;
+function canSelectQueued(options: { hasSchedule: boolean }): boolean {
+  return options.hasSchedule;
 }
 
 function resolveStatusForAssigneeAndSchedule(options: {
@@ -490,7 +487,7 @@ export function TaskForm({
         !statusTouchedRef.current ||
         assigneeKindChanged ||
         (status === TaskStatus.QUEUED &&
-          !canSelectQueued({ isAgent, hasSchedule: nextHasSchedule }));
+          !canSelectQueued({ hasSchedule: nextHasSchedule }));
       if (shouldResolveStatus) {
         setStatus(
           resolveStatusForAssigneeAndSchedule({
@@ -892,7 +889,6 @@ export function TaskForm({
     selectedAssigneeFields.assigneeId !== null ||
     selectedAssigneeFields.assigneeSokoBotId !== null;
   const isQueuedSelectable = canSelectQueued({
-    isAgent: isAgentAssignee,
     hasSchedule,
   });
   const isSchedulableAssignee =
