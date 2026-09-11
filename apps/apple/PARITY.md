@@ -2,6 +2,8 @@
 
 ## Resume checkpoint
 
+- Review follow-up: classic-send retry now asserts `mentionedUserIds` on both attempts. The Workspace test transport is explicitly main-actor isolated, removing unchecked shared pause/resume state that intermittently hung the room-switch test. All 55 Workspace tests passed in 20 consecutive runs; pinned SwiftFormat and SwiftLint passed. The proposed ID-only mention-token format is not implemented and requires separate contract approval.
+
 - Rich-composer [PR #4388](https://github.com/masumi-network/sokosumi/pull/4388) merged as `ef6f2e886` on 2026-09-10. All Apple CI checks passed on final head `af4cbdb32`. Slice 13 (mentions) is implemented on `codex/apple-chat-mentions`, rebased onto main `5f2476074`, with draft [PR #4392](https://github.com/masumi-network/sokosumi/pull/4392) open. Wait for merge before the next slice.
 
 - [PR #4384](https://github.com/masumi-network/sokosumi/pull/4384) merged as `01c087259` on 2026-09-10. Rich rendering is available on main. The user confirmed selection/copy and resizing on 2026-09-10. Light appearance and live incremental rendering remain unconfirmed; row 10 stays Partial until that evidence is recorded.

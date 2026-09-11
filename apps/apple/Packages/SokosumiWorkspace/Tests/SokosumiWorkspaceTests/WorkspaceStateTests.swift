@@ -21,7 +21,8 @@ private struct MemoryTokenStore: TokenStore {
   }
 }
 
-private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
+@MainActor
+private final class ScriptedTransport: ClientTransport {
   private(set) var operationIDs: [String] = []
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
@@ -863,26 +864,27 @@ struct WorkspaceStateTests {
   @Test func failedSendRetryReusesTurnAndRemoveDropsShell() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440502"
+    let roster = roomsBody(names: ["general"]).replacingOccurrences(of: "\"userMembers\":[]", with: #""userMembers":[{"id":"peer","name":"Peer","email":"peer@example.com","presence":"online"}]"#)
     let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
       (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
-      (200, roomsBody(names: ["general"])),
+      (200, roster),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"POST"}}
       """),
-      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello"))
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "@peer:peer"))
     ])
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
-    state.sendMessage("hello", auth: auth)
+    state.sendMessage("@peer:peer", auth: auth)
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.count == 1)
     #expect(state.outboundShells[0].status == .failed)
-    #expect(state.displayedTranscript.map(\.content) == ["hello"])
+    #expect(state.displayedTranscript.map(\.content) == ["@peer:peer"])
     let turnId = try #require(state.outboundShells.first?.clientTurnId)
     state.retryOutbound(clientTurnId: turnId)
     await waitForOutboundIdle(state)
@@ -893,10 +895,12 @@ struct WorkspaceStateTests {
       return (try? JSONSerialization.jsonObject(with: body) as? [String: Any]) ?? [:]
     }
     #expect(posts.count == 2)
+    #expect(posts[0]["mentionedUserIds"] as? [String] == ["peer"])
+    #expect(posts[1]["mentionedUserIds"] as? [String] == ["peer"])
     #expect(posts[0]["clientMessageId"] as? String == turnId)
     #expect(posts[1]["clientMessageId"] as? String == turnId)
-    #expect(posts[0]["content"] as? String == "hello")
-    #expect(posts[1]["content"] as? String == "hello")
+    #expect(posts[0]["content"] as? String == "@peer:peer")
+    #expect(posts[1]["content"] as? String == "@peer:peer")
   }
 
   @Test func failedSendRemoveDropsLocalShellOnly() async throws {
