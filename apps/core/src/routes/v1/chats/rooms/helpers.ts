@@ -1676,7 +1676,8 @@ export function resolveMentionedUserIds(params: {
     }
   }
 
-  const idTokenRegex = /@([^\s:]+):([^\s]+)/g;
+  // Slug is optional: new human tokens are `@userId`; `@userId:slug` still matches.
+  const idTokenRegex = /@([^\s:,.!?;()[\]{}]+)(?::([^\s]+))?/g;
   for (const match of params.content.matchAll(idTokenRegex)) {
     const id = match[1];
     if (id && id !== ROOM_MENTION_ALL_ID && roomUserIds.has(id)) {

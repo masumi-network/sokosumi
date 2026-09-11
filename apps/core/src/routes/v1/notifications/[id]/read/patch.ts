@@ -74,7 +74,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    // Check ownership
     const notification = await prisma.notification.findUnique({
       where: { id },
     });

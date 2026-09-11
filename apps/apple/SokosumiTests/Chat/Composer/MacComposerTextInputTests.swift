@@ -62,7 +62,8 @@
       #expect(input.string == "@an")
       #expect(commands.handleSuggestionKey(36))
       #expect(input.string == "\u{FFFC} ")
-      #expect(input.captureDraft().contains("@user-1:anna"))
+      #expect(input.captureDraft().contains("@user-1"))
+      #expect(!input.captureDraft().contains("@user-1:"))
     }
 
     @Test func mentionAcceptMatchesIdentityAfterRosterRefresh() {
@@ -74,7 +75,8 @@
       input.mentions = [.init(id: "user-1", name: "Annabelle", slug: "annabelle", kind: .human, image: "new")]
       input.acceptMention(stale)
       #expect(input.string == "\u{FFFC} ")
-      #expect(input.captureDraft().contains("@user-1:annabelle"))
+      #expect(input.captureDraft().contains("@user-1"))
+      #expect(!input.captureDraft().contains("@user-1:"))
       input.string = "@an"
       input.setSelectedRange(NSRange(location: 3, length: 0))
       input.acceptMention(.init(id: "other", name: "Annabelle", slug: "annabelle", kind: .human))

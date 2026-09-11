@@ -84,7 +84,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const targetFolderPath = normalizeDriveFolderPath(body.targetFolderPath);
 
     if (body.itemType === "file") {
-      // Move file
       const { scope, ownerId } = parseDriveFilePathname(
         body.sourcePathname,
         userContext.userId,
@@ -92,7 +91,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       await requireDriveFileAccess(authContext, scope, ownerId);
 
-      // Get source metadata
       let sourceMetadata;
       try {
         sourceMetadata = await head(body.sourcePathname, { token });
@@ -103,31 +101,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw error;
       }
 
-      // Extract filename from source
       const sourceSegments = body.sourcePathname.split("/");
       const filename = sourceSegments[sourceSegments.length - 1] || "unnamed";
 
-      // Reject moving the reserved marker file
       if (isDriveFolderMarkerName(filename)) {
         throw badRequest(
           "Cannot move the reserved folder marker file (__drive_folder__)",
         );
       }
 
-      // Build target pathname
       const targetPrefix =
         scope === "user"
           ? buildUserDriveFolderPrefix(ownerId, targetFolderPath)
           : buildOrganizationDriveFolderPrefix(ownerId, targetFolderPath);
       const targetPathname = `${targetPrefix}${filename}`;
 
-      // Check if target exists (file or folder)
       try {
         await head(targetPathname, { token });
         throw conflict("Target file already exists");
       } catch (error) {
         if (error instanceof BlobNotFoundError) {
-          // Target file doesn't exist, proceed
         } else if (
           error &&
           typeof error === "object" &&
@@ -140,7 +133,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      // Check if a folder with the same name exists
       const folderPrefix = `${targetPathname}/`;
       const folderCheck = await list({
         prefix: folderPrefix,
@@ -151,7 +143,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("A folder with that name already exists");
       }
 
-      // Rename file
       const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
       await rename(body.sourcePathname, targetPathname, {
         token,
@@ -165,7 +156,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (body.itemType === "folder") {
-      // Move folder - requires explicit scope + organizationId
       if (!body.scope) {
         throw unprocessableEntity("scope is required for folder moves");
       }
@@ -216,7 +206,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Invalid scope. Must be 'me' or 'org'.");
       }
 
-      // Check if source folder exists
       const sourceCheck = await list({
         prefix: oldPrefix,
         token,
@@ -232,7 +221,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? buildUserDriveFolderPrefix(ownerId, newFolderPath)
           : buildOrganizationDriveFolderPrefix(ownerId, newFolderPath);
 
-      // Reject moving a folder into its own descendant
       if (
         newPrefix === oldPrefix ||
         newPrefix.startsWith(`${oldPrefix}`) // oldPrefix already ends with /
@@ -240,7 +228,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Cannot move a folder into its own descendant");
       }
 
-      // Check if target exists
       const targetCheck = await list({
         prefix: newPrefix,
         token,
@@ -259,7 +246,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!(error instanceof BlobNotFoundError)) {
           throw error;
         }
-        // File doesn't exist, proceed
       }
 
       // Collect all pathnames under source prefix (capped at MAX+1 for detection)
@@ -306,17 +292,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           try {
             const targetCheck = await head(newPathname, { token });
             if (targetCheck) {
-              // Already exists at target, skip
               return;
             }
           } catch (error) {
             if (!(error instanceof BlobNotFoundError)) {
               throw error;
             }
-            // Target doesn't exist, proceed with rename
           }
 
-          // Get source metadata
           let sourceMetadata;
           try {
             sourceMetadata = await head(sourcePathname, { token });
@@ -328,7 +311,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             throw error;
           }
 
-          // Rename
           const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
           try {
             await rename(sourcePathname, newPathname, {

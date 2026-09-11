@@ -15,12 +15,12 @@ public struct MessageMentions: Hashable, Sendable {
   public init(room: Components.Schemas.ChatRoom) {
     entries = room.coworkerMembers.map { Entry(id: $0.id, slug: $0.slug, name: $0.name, kind: "coworker") }
       + room.sokoBotMembers.map { Entry(id: $0.id, slug: ComposerMention.slug(for: $0.name), name: $0.name, kind: "sokoBot") }
-      + room.userMembers.map { Entry(id: $0.id, slug: ComposerMention.slug(for: $0.name), name: $0.name, kind: "human") }
+      + room.userMembers.map { Entry(id: $0.id, slug: ComposerMention.slug(for: $0.name), name: $0.name.isEmpty ? $0.email : $0.name, kind: "human") }
   }
 
   public func applying(to text: AttributedString) -> AttributedString {
     let source = String(text.characters)
-    guard let expression = try? NSRegularExpression(pattern: "@([^\\s:]+)(?::([^\\s]+))?") else { return text }
+    guard let expression = try? NSRegularExpression(pattern: "@([^\\s:,.!?;()\\[\\]{}]+)(?::([^\\s]+))?") else { return text }
     var output = text
     for match in expression.matches(in: source, range: NSRange(source.startIndex..., in: source)).reversed() {
       guard let range = Range(match.range, in: source), let attributedRange = Range(range, in: output) else { continue }
