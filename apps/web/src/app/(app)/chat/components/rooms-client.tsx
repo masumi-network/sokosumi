@@ -2739,6 +2739,11 @@ export function RoomsClient({
                   setPinnedOpen(false);
                 }}
                 onJump={(messageId) => {
+                  // Closed first, as the search panel closes on its click. On
+                  // a phone the panel covers the transcript, so a jump behind
+                  // it lands unseen and its mark is gone before the reader
+                  // closes the panel by hand.
+                  setPinnedOpen(false);
                   void handleJumpToMessage(messageId);
                 }}
                 onUnpin={async (messageId) => {

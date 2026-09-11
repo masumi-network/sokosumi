@@ -24,6 +24,8 @@ vi.mock("remark-emoji", () => ({
   default: () => null,
 }));
 
+const reactMarkdownRenders = vi.hoisted(() => vi.fn());
+
 vi.mock("react-markdown", () => ({
   __esModule: true,
   default: ({
@@ -33,6 +35,7 @@ vi.mock("react-markdown", () => ({
     components?: { code?: (props: Record<string, unknown>) => React.ReactNode };
     children?: string;
   }) => {
+    reactMarkdownRenders();
     if (!components?.code) return <>{children}</>;
 
     if (children?.includes("BLOCK_ONLY")) {
@@ -82,6 +85,18 @@ describe("Markdown", () => {
     expect(code).toBeInTheDocument();
     expect(code).toHaveClass("language-js");
     expect(code).not.toHaveClass("bg-muted");
+  });
+
+  it("parses once while the source holds, and again when it changes", () => {
+    reactMarkdownRenders.mockClear();
+    const { rerender } = render(<Markdown>{"INLINE_ONLY"}</Markdown>);
+    expect(reactMarkdownRenders).toHaveBeenCalledTimes(1);
+
+    rerender(<Markdown>{"INLINE_ONLY"}</Markdown>);
+    expect(reactMarkdownRenders).toHaveBeenCalledTimes(1);
+
+    rerender(<Markdown>{"INLINE_ONLY changed"}</Markdown>);
+    expect(reactMarkdownRenders).toHaveBeenCalledTimes(2);
   });
 
   it("renders highlighted block code tokens", () => {
