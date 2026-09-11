@@ -26,9 +26,9 @@ export const TIME = {
    * How long a session stays "fresh" after sign-in (15 minutes).
    *
    * Better Auth measures freshness from `Session.createdAt` and gates passkey
-   * registration, password changes and account deletion on it. A short window
-   * keeps a stolen session or a leaked credential from turning into a new
-   * login factor. Becoming fresh again means signing in again.
+   * registration, account unlinking and password-less account deletion on it.
+   * A short window keeps a stolen session or a leaked credential from turning
+   * into a new login factor. Becoming fresh again means signing in again.
    */
   SESSION_FRESH_AGE: 15 * 60,
 } as const;

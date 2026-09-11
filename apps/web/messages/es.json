@@ -22,14 +22,16 @@
       }
     },
     "ReauthDialog": {
-      "title": "Confirma que eres tú",
-      "description": "Tu sesión es demasiado antigua para este cambio. Inicia sesión de nuevo para continuar.",
-      "passwordLabel": "Contraseña actual",
       "confirm": "Confirmar",
-      "passwordError": "No hemos podido verificar esa contraseña.",
+      "continueWithGoogle": "Continuar con Google",
+      "continueWithMicrosoft": "Continuar con Microsoft",
+      "description": "Tu sesión es demasiado antigua para este cambio. Inicia sesión de nuevo para continuar.",
+      "noMethod": "Esta cuenta no tiene un método de acceso que podamos confirmar aquí. Cierra sesión y vuelve a entrar.",
       "orSocial": "O continúa con una cuenta conectada.",
-      "continueWith": "Continuar con {provider}",
-      "socialError": "No hemos podido iniciar ese acceso."
+      "passwordError": "No hemos podido verificar esa contraseña.",
+      "passwordLabel": "Contraseña actual",
+      "socialError": "No hemos podido iniciar ese acceso.",
+      "title": "Confirma que eres tú"
     },
     "ShareButton": {
       "share": "Compartir",

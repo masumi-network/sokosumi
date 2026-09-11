@@ -22,14 +22,16 @@
       }
     },
     "ReauthDialog": {
-      "title": "Bestätige, dass du es bist",
-      "description": "Deine Sitzung ist für diese Änderung zu alt. Melde dich erneut an, um fortzufahren.",
-      "passwordLabel": "Aktuelles Passwort",
       "confirm": "Bestätigen",
-      "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
+      "continueWithGoogle": "Mit Google fortfahren",
+      "continueWithMicrosoft": "Mit Microsoft fortfahren",
+      "description": "Deine Sitzung ist für diese Änderung zu alt. Melde dich erneut an, um fortzufahren.",
+      "noMethod": "Für dieses Konto gibt es hier keine Anmeldemethode, die wir prüfen können. Melde dich ab und wieder an.",
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
-      "continueWith": "Mit {provider} fortfahren",
-      "socialError": "Wir konnten diese Anmeldung nicht starten."
+      "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
+      "passwordLabel": "Aktuelles Passwort",
+      "socialError": "Wir konnten diese Anmeldung nicht starten.",
+      "title": "Bestätige, dass du es bist"
     },
     "ShareButton": {
       "share": "Teilen",

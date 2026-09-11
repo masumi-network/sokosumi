@@ -21,14 +21,40 @@ import { authClient, useSession } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import { AccountProvider } from "@/lib/auth/types";
 
-const SOCIAL_PROVIDER_ICONS: Partial<Record<AccountProvider, ReactNode>> = {
+type SocialProvider = AccountProvider.GOOGLE | AccountProvider.MICROSOFT;
+
+const SOCIAL_PROVIDER_ICONS: Record<SocialProvider, ReactNode> = {
   [AccountProvider.GOOGLE]: <GoogleIcon />,
   [AccountProvider.MICROSOFT]: <MicrosoftIcon />,
 };
 
+/** Provider ids are wire values, so each button label needs its own key. */
+const SOCIAL_PROVIDER_LABEL_KEYS: Record<SocialProvider, string> = {
+  [AccountProvider.GOOGLE]: "continueWithGoogle",
+  [AccountProvider.MICROSOFT]: "continueWithMicrosoft",
+};
+
+function isSocialProvider(providerId: string): providerId is SocialProvider {
+  return (
+    providerId === AccountProvider.GOOGLE ||
+    providerId === AccountProvider.MICROSOFT
+  );
+}
+
+/** True when the dialog can offer this viewer at least one method. */
+export function canReauthenticateWith(accounts: Account[]): boolean {
+  return accounts.some(
+    (account) =>
+      account.providerId === AccountProvider.CREDENTIAL ||
+      isSocialProvider(account.providerId),
+  );
+}
+
 interface ReauthDialogProps {
   /** The viewer's linked accounts, used to offer only the methods they own. */
   accounts: Account[];
+  /** Runs just before the social path leaves the page, to record the intent. */
+  onBeforeRedirect: () => void;
   onOpenChange: (open: boolean) => void;
   /** Runs after a new session exists, so the caller can retry its action. */
   onReauthenticated: () => void;
@@ -45,6 +71,7 @@ interface ReauthDialogProps {
  */
 export function ReauthDialog({
   accounts,
+  onBeforeRedirect,
   onOpenChange,
   onReauthenticated,
   open,
@@ -62,11 +89,7 @@ export function ReauthDialog({
   );
   const socialProviders = accounts
     .map((account) => account.providerId)
-    .filter(
-      (providerId): providerId is AccountProvider =>
-        providerId === AccountProvider.GOOGLE ||
-        providerId === AccountProvider.MICROSOFT,
-    );
+    .filter(isSocialProvider);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (isSubmitting) {
@@ -104,11 +127,14 @@ export function ReauthDialog({
     }
   };
 
-  const handleSocialSubmit = async (provider: AccountProvider) => {
+  const handleSocialSubmit = async (provider: SocialProvider) => {
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
+      // Recorded before the call, because a successful start navigates away.
+      onBeforeRedirect();
+
       const result = await authClient.signIn.social({
         provider,
         callbackURL: getAbsoluteAuthRedirectUrl(pathname),
@@ -174,11 +200,15 @@ export function ReauthDialog({
                 variant="outline"
               >
                 {SOCIAL_PROVIDER_ICONS[provider]}
-                {t("continueWith", { provider })}
+                {t(SOCIAL_PROVIDER_LABEL_KEYS[provider])}
               </Button>
             ))}
           </div>
         ) : null}
+
+        {hasPasswordAccount || socialProviders.length > 0 ? null : (
+          <p className="text-sm">{t("noMethod")}</p>
+        )}
 
         {errorMessage ? (
           <p className="text-destructive text-sm">{errorMessage}</p>

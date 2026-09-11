@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ReauthDialog } from "@/components/auth/reauth-dialog";
+import {
+  canReauthenticateWith,
+  ReauthDialog,
+} from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { isSessionNotFreshError } from "@/lib/actions/errors/better-auth";
+import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { authClient } from "@/lib/auth/auth.client";
 import { unlinkSocialAccountInput } from "@/lib/auth/unlink-social-account";
 
@@ -38,9 +41,19 @@ export default function DisconnectModal({
   const t = useTranslations("App.Account.SocialAccounts.DisconnectModal");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [isReauthOpen, setIsReauthOpen] = useState(false);
 
   const { providerId } = account;
+
+  const reauthGate = useReauthGate({
+    actionKey: `connections:unlink:${account.id}`,
+    canReauthenticate: canReauthenticateWith(accounts),
+    onReauthenticated: () => {
+      void handleDisconnect();
+    },
+    onUnavailable: () => {
+      toast.error(t("error", { provider: providerId }));
+    },
+  });
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -49,7 +62,7 @@ export default function DisconnectModal({
     setOpen(open);
   };
 
-  const handleDisconnect = async () => {
+  async function handleDisconnect() {
     setLoading(true);
     const result = await authClient.unlinkAccount(
       unlinkSocialAccountInput(account),
@@ -57,11 +70,12 @@ export default function DisconnectModal({
     if (result.error) {
       // Core gates unlinking on a fresh session. Ask the person to
       // authenticate again, then run this handler a second time.
-      if (isSessionNotFreshError(result.error)) {
+      // Core gates unlinking on a fresh session. The gate opens the dialog
+      // and runs this handler again once the session is new.
+      if (reauthGate.handleError(result.error)) {
         setLoading(false);
-        // Close this dialog first so the two never stack.
+        // Close this dialog so the two never stack.
         setOpen(false);
-        setIsReauthOpen(true);
         return;
       }
 
@@ -75,7 +89,7 @@ export default function DisconnectModal({
       setOpen(false);
       router.refresh();
     }
-  };
+  }
 
   return (
     <>
@@ -108,11 +122,10 @@ export default function DisconnectModal({
       </Dialog>
       <ReauthDialog
         accounts={accounts}
-        onOpenChange={setIsReauthOpen}
-        onReauthenticated={() => {
-          void handleDisconnect();
-        }}
-        open={isReauthOpen}
+        onBeforeRedirect={reauthGate.rememberPendingAction}
+        onOpenChange={reauthGate.setIsOpen}
+        onReauthenticated={reauthGate.retry}
+        open={reauthGate.isOpen}
       />
     </>
   );

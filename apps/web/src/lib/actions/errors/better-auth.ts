@@ -35,20 +35,6 @@ export const TASK_X402_PAYMENT_AUTHORIZATION_LIVE_ERROR_CODE =
 export const TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH_ERROR_CODE =
   "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH";
 
-/**
- * Better Auth rejects a sensitive route when the session is older than the
- * configured `freshAge`. Signing in again is what clears it.
- */
-export const SESSION_NOT_FRESH_ERROR_CODE = "SESSION_NOT_FRESH";
-
-export function isSessionNotFreshError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("code" in error)) {
-    return false;
-  }
-
-  return error.code === SESSION_NOT_FRESH_ERROR_CODE;
-}
-
 export const betterAuthApiErrorSchema = z.object({
   status: z.string(),
   statusCode: z.number(),

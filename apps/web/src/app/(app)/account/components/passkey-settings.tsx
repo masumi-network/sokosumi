@@ -12,7 +12,10 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { ReauthDialog } from "@/components/auth/reauth-dialog";
+import {
+  canReauthenticateWith,
+  ReauthDialog,
+} from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,7 +26,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { isSessionNotFreshError } from "@/lib/actions/errors/better-auth";
+import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { authClient } from "@/lib/auth/auth.client";
 
 function formatPasskeyDate(date: Date | string, locale: string): string {
@@ -69,9 +72,19 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
     null,
   );
   const [savingPasskeyId, setSavingPasskeyId] = useState<string | null>(null);
-  const [isReauthOpen, setIsReauthOpen] = useState(false);
   const isMutatingPasskeys =
     isAddingPasskey || removingPasskeyId !== null || savingPasskeyId !== null;
+
+  const reauthGate = useReauthGate({
+    actionKey: "account:add-passkey",
+    canReauthenticate: canReauthenticateWith(accounts),
+    onReauthenticated: () => {
+      void handleAddPasskey();
+    },
+    onUnavailable: () => {
+      toast.error(t("addError"));
+    },
+  });
 
   const fetchPasskeys = useCallback(async (): Promise<
     null | PasskeyRecord[]
@@ -154,17 +167,16 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
     );
   }, [passkeys]);
 
-  const handleAddPasskey = async () => {
+  async function handleAddPasskey() {
     setIsAddingPasskey(true);
 
     try {
       const result = await authClient.passkey.addPasskey();
 
       if (result.error) {
-        // Core gates passkey registration on a fresh session. Ask the person
-        // to authenticate again, then run this handler a second time.
-        if (isSessionNotFreshError(result.error)) {
-          setIsReauthOpen(true);
+        // Core gates passkey registration on a fresh session. The gate opens
+        // the dialog and runs this handler again once the session is new.
+        if (reauthGate.handleError(result.error)) {
           return;
         }
 
@@ -184,7 +196,7 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
     } finally {
       setIsAddingPasskey(false);
     }
-  };
+  }
 
   const handleDeletePasskey = async (id: string) => {
     setRemovingPasskeyId(id);
@@ -425,11 +437,10 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
       </CardFooter>
       <ReauthDialog
         accounts={accounts}
-        onOpenChange={setIsReauthOpen}
-        onReauthenticated={() => {
-          void handleAddPasskey();
-        }}
-        open={isReauthOpen}
+        onBeforeRedirect={reauthGate.rememberPendingAction}
+        onOpenChange={reauthGate.setIsOpen}
+        onReauthenticated={reauthGate.retry}
+        open={reauthGate.isOpen}
       />
     </Card>
   );

@@ -22,14 +22,16 @@
       }
     },
     "ReauthDialog": {
-      "title": "Confirm it is you",
-      "description": "Your session is too old for this change. Sign in again to continue.",
-      "passwordLabel": "Current password",
       "confirm": "Confirm",
-      "passwordError": "We could not verify that password.",
+      "continueWithGoogle": "Continue with Google",
+      "continueWithMicrosoft": "Continue with Microsoft",
+      "description": "Your session is too old for this change. Sign in again to continue.",
+      "noMethod": "This account has no sign-in method we can confirm here. Sign out and sign in again.",
       "orSocial": "Or continue with a connected account.",
-      "continueWith": "Continue with {provider}",
-      "socialError": "We could not start that sign-in."
+      "passwordError": "We could not verify that password.",
+      "passwordLabel": "Current password",
+      "socialError": "We could not start that sign-in.",
+      "title": "Confirm it is you"
     },
     "ShareButton": {
       "share": "Share",

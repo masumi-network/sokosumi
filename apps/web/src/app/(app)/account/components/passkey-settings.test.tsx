@@ -157,6 +157,7 @@ describe("PasskeySettings", () => {
     mockSignInSocial.mockResolvedValue({ data: {}, error: null });
     mockToastError.mockReset();
     mockToastSuccess.mockReset();
+    window.sessionStorage.clear();
   });
 
   it("renders the user passkeys", async () => {
@@ -726,7 +727,7 @@ describe("PasskeySettings", () => {
     await user.click(screen.getByRole("button", { name: "add" }));
 
     const continueButton = await screen.findByRole("button", {
-      name: "continueWith",
+      name: "continueWithGoogle",
     });
     expect(
       screen.queryByTestId("reauth-field-currentPassword"),
@@ -740,6 +741,61 @@ describe("PasskeySettings", () => {
         provider: "google",
       });
     });
+
+    // The redirect leaves the page, so the intent has to survive it.
+    expect(window.sessionStorage.getItem("sokosumi.reauth.pendingAction")).toBe(
+      "account:add-passkey",
+    );
+  });
+
+  it("resumes the pending action after returning from the provider", async () => {
+    window.sessionStorage.setItem(
+      "sokosumi.reauth.pendingAction",
+      "account:add-passkey",
+    );
+
+    render(<PasskeySettings accounts={[googleAccount]} />);
+
+    await waitFor(() => {
+      expect(mockAddPasskey).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      window.sessionStorage.getItem("sokosumi.reauth.pendingAction"),
+    ).toBeNull();
+  });
+
+  it("stops after one retry instead of reopening the dialog forever", async () => {
+    mockAddPasskey.mockReset();
+    mockAddPasskey.mockResolvedValue({
+      data: null,
+      error: { code: "SESSION_NOT_FRESH", message: "Session is not fresh" },
+    });
+
+    render(<PasskeySettings accounts={[passwordAccount]} />);
+
+    const user = userEvent.setup();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+    await user.type(
+      await screen.findByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    await waitFor(() => {
+      expect(mockAddPasskey).toHaveBeenCalledTimes(2);
+    });
+
+    // The second rejection reports instead of reopening.
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("addError");
+    });
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
   });
 
   it("reports a normal add failure instead of asking to sign in again", async () => {
