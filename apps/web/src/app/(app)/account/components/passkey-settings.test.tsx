@@ -9,6 +9,7 @@ const mockDeletePasskey = vi.fn();
 const mockListUserPasskeys = vi.fn();
 const mockRefresh = vi.fn();
 const mockToastError = vi.fn();
+const mockToastInfo = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockUpdatePasskey = vi.fn();
 const mockSignInEmail = vi.fn();
@@ -72,6 +73,7 @@ vi.mock("next-intl", () => ({
 vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => mockToastError(...args),
+    info: (...args: unknown[]) => mockToastInfo(...args),
     success: (...args: unknown[]) => mockToastSuccess(...args),
   },
 }));
@@ -90,9 +92,15 @@ vi.mock("@/lib/auth/auth.client", () => ({
     },
   },
   useSession: () => ({
-    data: { user: { email: "passkey-owner@example.com" } },
+    data: {
+      session: { createdAt: sessionCreatedAt },
+      user: { email: "passkey-owner@example.com" },
+    },
   }),
 }));
+
+/** The session's `createdAt`, so a test can pose as a fresh sign-in. */
+let sessionCreatedAt = "2026-01-01T00:00:00.000Z";
 
 const passwordAccount = {
   accountId: "account-credential",
@@ -156,6 +164,8 @@ describe("PasskeySettings", () => {
     mockSignInSocial.mockReset();
     mockSignInSocial.mockResolvedValue({ data: {}, error: null });
     mockToastError.mockReset();
+    mockToastInfo.mockReset();
+    sessionCreatedAt = "2026-01-01T00:00:00.000Z";
     mockToastSuccess.mockReset();
     window.sessionStorage.clear();
   });
@@ -743,25 +753,47 @@ describe("PasskeySettings", () => {
     });
 
     // The redirect leaves the page, so the intent has to survive it.
-    expect(window.sessionStorage.getItem("sokosumi.reauth.pendingAction")).toBe(
-      "account:add-passkey",
+    const pending: unknown = JSON.parse(
+      window.sessionStorage.getItem("sokosumi.reauth.pendingAction") ?? "null",
     );
+    expect(pending).toMatchObject({ actionKey: "account:add-passkey" });
   });
 
-  it("resumes the pending action after returning from the provider", async () => {
+  it("asks the viewer to start again after returning from the provider", async () => {
     window.sessionStorage.setItem(
       "sokosumi.reauth.pendingAction",
-      "account:add-passkey",
+      JSON.stringify({ actionKey: "account:add-passkey", startedAt: 1 }),
     );
+    sessionCreatedAt = new Date(5_000).toISOString();
+
+    render(<PasskeySettings accounts={[googleAccount]} />);
+
+    // WebAuthn needs a user gesture, so a mount effect must not call it.
+    await waitFor(() => {
+      expect(mockToastInfo).toHaveBeenCalledWith("resumePrompt");
+    });
+    expect(mockAddPasskey).not.toHaveBeenCalled();
+    expect(
+      window.sessionStorage.getItem("sokosumi.reauth.pendingAction"),
+    ).toBeNull();
+  });
+
+  it("ignores a return that did not produce a newer session", async () => {
+    window.sessionStorage.setItem(
+      "sokosumi.reauth.pendingAction",
+      JSON.stringify({ actionKey: "account:add-passkey", startedAt: 9_000 }),
+    );
+    sessionCreatedAt = new Date(5_000).toISOString();
 
     render(<PasskeySettings accounts={[googleAccount]} />);
 
     await waitFor(() => {
-      expect(mockAddPasskey).toHaveBeenCalledTimes(1);
+      expect(
+        window.sessionStorage.getItem("sokosumi.reauth.pendingAction"),
+      ).toBeNull();
     });
-    expect(
-      window.sessionStorage.getItem("sokosumi.reauth.pendingAction"),
-    ).toBeNull();
+    expect(mockToastInfo).not.toHaveBeenCalled();
+    expect(mockAddPasskey).not.toHaveBeenCalled();
   });
 
   it("stops after one retry instead of reopening the dialog forever", async () => {
@@ -791,7 +823,9 @@ describe("PasskeySettings", () => {
 
     // The second rejection reports instead of reopening.
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith("addError");
+      expect(mockToastError).toHaveBeenCalledWith(
+        "addError: Session is not fresh",
+      );
     });
     expect(
       screen.queryByTestId("reauth-field-currentPassword"),

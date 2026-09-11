@@ -50,9 +50,6 @@ export default function DisconnectModal({
     onReauthenticated: () => {
       void handleDisconnect();
     },
-    onUnavailable: () => {
-      toast.error(t("error", { provider: providerId }));
-    },
   });
 
   const handleOnOpenChange = (open: boolean) => {
@@ -68,8 +65,6 @@ export default function DisconnectModal({
       unlinkSocialAccountInput(account),
     );
     if (result.error) {
-      // Core gates unlinking on a fresh session. Ask the person to
-      // authenticate again, then run this handler a second time.
       // Core gates unlinking on a fresh session. The gate opens the dialog
       // and runs this handler again once the session is new.
       if (reauthGate.handleError(result.error)) {

@@ -81,9 +81,8 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
     onReauthenticated: () => {
       void handleAddPasskey();
     },
-    onUnavailable: () => {
-      toast.error(t("addError"));
-    },
+    // WebAuthn needs a user gesture, so the social path cannot resume alone.
+    resumeNeedsUserGesture: true,
   });
 
   const fetchPasskeys = useCallback(async (): Promise<

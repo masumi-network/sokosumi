@@ -30,6 +30,7 @@
       "orSocial": "O continúa con una cuenta conectada.",
       "passwordError": "No hemos podido verificar esa contraseña.",
       "passwordLabel": "Contraseña actual",
+      "resumePrompt": "Has iniciado sesión de nuevo. Añade ahora tu clave de acceso.",
       "socialError": "No hemos podido iniciar ese acceso.",
       "title": "Confirma que eres tú"
     },

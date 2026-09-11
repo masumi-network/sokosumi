@@ -30,6 +30,7 @@
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
       "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
       "passwordLabel": "Aktuelles Passwort",
+      "resumePrompt": "Du bist wieder angemeldet. Füge jetzt deinen Passkey hinzu.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
       "title": "Bestätige, dass du es bist"
     },

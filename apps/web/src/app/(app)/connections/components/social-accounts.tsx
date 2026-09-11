@@ -5,10 +5,13 @@ import { Plug, Unplug } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { GoogleIcon, MicrosoftIcon } from "@/components/social-icons";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
+import {
+  SOCIAL_PROVIDER_ICONS,
+  SOCIAL_PROVIDERS,
+} from "@/lib/auth/social-providers";
 import { AccountProvider } from "@/lib/auth/types";
 
 import DisconnectModal from "./disconnect-modal";
@@ -17,17 +20,6 @@ interface SocialAccountsProps {
   /** Every linked account, including the credential one. */
   accounts: Account[];
 }
-
-const socialIconMaps: Record<AccountProvider, React.ReactNode> = {
-  [AccountProvider.GOOGLE]: <GoogleIcon />,
-  [AccountProvider.MICROSOFT]: <MicrosoftIcon />,
-  [AccountProvider.CREDENTIAL]: null,
-};
-
-const supportedSocialProviders = [
-  AccountProvider.GOOGLE,
-  AccountProvider.MICROSOFT,
-];
 
 export function SocialAccounts({ accounts }: SocialAccountsProps) {
   const socialAccounts = accounts.filter(
@@ -58,14 +50,14 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
 
   return (
     <div className="flex flex-col divide-y rounded-xl border p-2">
-      {supportedSocialProviders.map((provider) => {
+      {SOCIAL_PROVIDERS.map((provider) => {
         const account = socialAccounts.find(
           (account) => account.providerId === provider,
         );
 
         return (
           <div key={provider} className="flex items-center gap-2 px-2 py-4">
-            {socialIconMaps[provider]}
+            {SOCIAL_PROVIDER_ICONS[provider]}
             <p className="flex-1">
               {account ? t("connected") : t("notConnected")}
             </p>

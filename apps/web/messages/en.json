@@ -30,6 +30,7 @@
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
+      "resumePrompt": "You are signed in again. Add your passkey now.",
       "socialError": "We could not start that sign-in.",
       "title": "Confirm it is you"
     },

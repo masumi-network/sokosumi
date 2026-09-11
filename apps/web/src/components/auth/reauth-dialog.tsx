@@ -4,9 +4,8 @@ import type { Account } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, useState } from "react";
 
-import { GoogleIcon, MicrosoftIcon } from "@/components/social-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,27 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
+import {
+  isSocialProvider,
+  SOCIAL_PROVIDER_ICONS,
+  type SocialProvider,
+} from "@/lib/auth/social-providers";
 import { AccountProvider } from "@/lib/auth/types";
-
-type SocialProvider = AccountProvider.GOOGLE | AccountProvider.MICROSOFT;
-
-const SOCIAL_PROVIDER_ICONS: Record<SocialProvider, ReactNode> = {
-  [AccountProvider.GOOGLE]: <GoogleIcon />,
-  [AccountProvider.MICROSOFT]: <MicrosoftIcon />,
-};
-
-/** Provider ids are wire values, so each button label needs its own key. */
-const SOCIAL_PROVIDER_LABEL_KEYS: Record<SocialProvider, string> = {
-  [AccountProvider.GOOGLE]: "continueWithGoogle",
-  [AccountProvider.MICROSOFT]: "continueWithMicrosoft",
-};
-
-function isSocialProvider(providerId: string): providerId is SocialProvider {
-  return (
-    providerId === AccountProvider.GOOGLE ||
-    providerId === AccountProvider.MICROSOFT
-  );
-}
 
 /** True when the dialog can offer this viewer at least one method. */
 export function canReauthenticateWith(accounts: Account[]): boolean {
@@ -200,7 +184,9 @@ export function ReauthDialog({
                 variant="outline"
               >
                 {SOCIAL_PROVIDER_ICONS[provider]}
-                {t(SOCIAL_PROVIDER_LABEL_KEYS[provider])}
+                {provider === AccountProvider.GOOGLE
+                  ? t("continueWithGoogle")
+                  : t("continueWithMicrosoft")}
               </Button>
             ))}
           </div>
