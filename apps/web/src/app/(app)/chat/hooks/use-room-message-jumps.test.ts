@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { listRoomMessagesAction } from "@/app/chat/actions";
+import { scrollRoomTranscriptToMessage } from "@/app/chat/chat-message-list";
 import { highlightRoomMessageElement } from "@/app/chat/components/room-helpers";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
@@ -14,6 +15,9 @@ vi.mock("@/app/chat/actions", () => ({
 }));
 vi.mock("@/app/chat/components/room-helpers", () => ({
   highlightRoomMessageElement: vi.fn(() => false),
+}));
+vi.mock("@/app/chat/chat-message-list", () => ({
+  scrollRoomTranscriptToMessage: vi.fn(() => true),
 }));
 
 type Params = Parameters<typeof useRoomMessageJumps>[0];
@@ -120,5 +124,8 @@ describe("useRoomMessageJumps", () => {
     expect(highlightRoomMessageElement).toHaveBeenCalledWith(reply.id);
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
     expect(options.setThreadMessages).not.toHaveBeenCalled();
+    // The transcript follows the thread: without this the reader lands on a
+    // reply with the room still sitting on the newest message.
+    expect(scrollRoomTranscriptToMessage).toHaveBeenCalledWith(parent.id);
   });
 });
