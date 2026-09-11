@@ -132,7 +132,9 @@ function RoomMentionSuggestion({
           ) : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
-          @{mention.slug}
+          {mention.data?.kind === "human"
+            ? mention.data.email
+            : `@${mention.slug}`}
         </div>
       </div>
     </>

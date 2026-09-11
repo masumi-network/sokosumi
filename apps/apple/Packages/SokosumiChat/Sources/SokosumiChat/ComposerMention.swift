@@ -12,20 +12,22 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
   public let slug: String
   public let kind: Kind
   public let image: String?
+  public let email: String?
 
-  public init(id: String, name: String, slug: String, kind: Kind, image: String? = nil) {
+  public init(id: String, name: String, slug: String, kind: Kind, image: String? = nil, email: String? = nil) {
     self.id = id
     self.name = name
     self.slug = slug
     self.kind = kind
     self.image = image
+    self.email = email
   }
 
   public static func catalog(room: Components.Schemas.ChatRoom, currentUserId: String) -> [Self] {
     let bots = room.sokoBotMembers ?? []
     guard room.kind != .direct || room.userMembers.count + room.coworkerMembers.count + bots.count > 2 else { return [] }
     let humans = room.userMembers.filter { $0.id != currentUserId }.map {
-      Self(id: $0.id, name: $0.name, slug: slug(for: $0.name), kind: .human, image: $0.image)
+      Self(id: $0.id, name: $0.name.isEmpty ? $0.email : $0.name, slug: slug(for: $0.name), kind: .human, image: $0.image, email: $0.email)
     }
     let coworkers = room.coworkerMembers.map {
       Self(id: $0.id, name: $0.name, slug: $0.slug, kind: .coworker, image: $0.image)
@@ -38,12 +40,12 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
     return everyone + humans + coworkers + assistants
   }
 
-  /// Resolve both ID:slug tokens and legacy @name text as the web composer does.
+  /// Resolve ID-only tokens, existing ID:slug tokens, and legacy @name text.
   public static func selected(in text: String, catalog: [Self]) -> [Self] {
-    guard let expression = try? NSRegularExpression(pattern: "@([^\\s:]+)(?::([^\\s]+))?") else { return [] }
+    guard let expression = try? NSRegularExpression(pattern: "@([^\\s:,.!?;()\\[\\]{}]+)(?::([^\\s]+))?") else { return [] }
     let source = text as NSString
     var bySlug: [String: Self] = [:]
-    for entry in catalog {
+    for entry in catalog where !entry.slug.isEmpty {
       bySlug[entry.slug] = entry
     }
     var seen: Set<String> = []
@@ -58,7 +60,11 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
   }
 
   public var token: String {
-    "@\(id):\(slug)"
+    kind == .human ? "@\(id)" : "@\(id):\(slug)"
+  }
+
+  public var subtitle: String {
+    kind == .human ? email ?? "" : "@" + slug
   }
 
   public static func slug(for name: String) -> String {
@@ -71,10 +77,10 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
   /// Prefix matches precede substring matches; both preserve roster order, including @all.
   public static func matching(_ entries: [Self], query: String) -> [Self] {
     let query = query.lowercased()
-    let prefix = entries.filter { $0.name.lowercased().hasPrefix(query) || $0.slug.lowercased().hasPrefix(query) }
+    let prefix = entries.filter { $0.name.lowercased().hasPrefix(query) || ($0.email ?? $0.slug).lowercased().hasPrefix(query) }
     let other = entries.filter {
-      !$0.name.lowercased().hasPrefix(query) && !$0.slug.lowercased().hasPrefix(query)
-        && ($0.name.lowercased().contains(query) || $0.slug.lowercased().contains(query))
+      !$0.name.lowercased().hasPrefix(query) && !($0.email ?? $0.slug).lowercased().hasPrefix(query)
+        && ($0.name.lowercased().contains(query) || ($0.email ?? $0.slug).lowercased().contains(query))
     }
     return prefix + other
   }

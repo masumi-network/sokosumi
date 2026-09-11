@@ -1186,7 +1186,7 @@ export function RoomsClient({
   const roomMentionNames = useMemo(() => {
     return new Map<string, string>([
       ...(selectedRoom?.userMembers ?? []).map(
-        (user) => [user.id, user.name] as const,
+        (user) => [user.id, user.name || user.email] as const,
       ),
       ...(selectedRoom?.coworkerMembers ?? []).map(
         (coworker) => [coworker.id, coworker.name] as const,
@@ -1198,7 +1198,10 @@ export function RoomsClient({
   }, [selectedRoom]);
   const usersById = useMemo(() => {
     return new Map(
-      (selectedRoom?.userMembers ?? []).map((user) => [user.id, user]),
+      (selectedRoom?.userMembers ?? []).map((user) => [
+        user.id,
+        { ...user, name: user.name || user.email },
+      ]),
     );
   }, [selectedRoom]);
   const usersBySlug = useMemo(() => {
@@ -1218,14 +1221,16 @@ export function RoomsClient({
         const participant: RoomMentionParticipant = {
           kind: "human",
           id: user.id,
-          name: user.name,
-          slug: slugifyMentionValue(user.name),
+          name: user.name || user.email,
+          email: user.email,
+          slug: "",
           image: user.image,
         };
         return [
           user.id,
           {
-            value: user.name,
+            value: user.name || user.email,
+            searchText: user.email,
             slug: participant.slug,
             data: participant,
           },
