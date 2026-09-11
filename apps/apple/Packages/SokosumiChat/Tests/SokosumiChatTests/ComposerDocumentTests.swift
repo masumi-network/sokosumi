@@ -40,6 +40,13 @@ struct ComposerDocumentTests {
     #expect(try ComposerDocument(markdown: document.markdown) == document)
   }
 
+  @Test func restoresLinkedInlineCode() throws {
+    let source = "[`site`](https://example.com)\n"
+    let document = try ComposerDocument(markdown: source)
+    #expect(document.blocks == [.paragraph([.link([.code("site")], destination: "https://example.com")])])
+    #expect(document.markdown == source)
+  }
+
   @Test func restoresBlockDrafts() throws {
     for source in [
       "1. one\n2. two\n", "- one\n- two\n", "> first\n> second\n",
