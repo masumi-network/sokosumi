@@ -420,6 +420,98 @@ describe("fanOutChatNotifications", () => {
   });
 
   /**
+   * The names are decorative: they turn an id in a token into the name a
+   * reader recognises. Losing them must cost the banner, not cost every
+   * recipient the notification.
+   *
+   * This is the shape that took chat notifications down (#4411): one read
+   * above the loop, speaking for every recipient. The key that threw is
+   * filtered now, and a pool error or a statement timeout still lands here.
+   */
+  it("reports a failed mention-name read and still notifies everyone", async () => {
+    const failure = new Error("mention names unavailable");
+    loadChatMentionNamesMock.mockRejectedValueOnce(failure);
+
+    await fanOutChatNotifications(
+      params({ recipientUserIds: [ALICE_ID, BOB_ID] }),
+    );
+
+    expect(createNotificationMock).toHaveBeenCalledTimes(2);
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      extra: {
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+        notificationType: "chat-mention-name",
+      },
+    });
+  });
+
+  /**
+   * Without the names, the preview takes every mention token out of the
+   * sentence and leaves a grammatical one that says something else. The
+   * reader gets the author-and-room line instead, as a deleted message
+   * already gives them.
+   */
+  it("writes no preview when the mention-name read fails", async () => {
+    loadChatMentionNamesMock.mockRejectedValueOnce(new Error("unavailable"));
+
+    const content =
+      "ping @019fc7e4-e4bd-7005-900c-66e44d33f5e4 not @019fc7e4-e4bd-7005-900c-66e44d33f5e5";
+    messageSays(content);
+
+    await fanOutChatNotifications(params({ content }));
+
+    const input = createNotificationMock.mock.calls[0]?.[0] as {
+      messageParams: Record<string, unknown>;
+    };
+    expect(input.messageParams).not.toHaveProperty("messagePreview");
+  });
+
+  /**
+   * Nothing has to go wrong for the preview to say something else. A member
+   * who has left the room, or one whose display name is empty, comes back
+   * missing from a read that worked perfectly well, and the sentence loses
+   * their name exactly as it would have lost it to an outage.
+   */
+  it("writes no preview when the names come back without a member", async () => {
+    loadChatMentionNamesMock.mockResolvedValueOnce(
+      new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Bob"]]),
+    );
+
+    const content =
+      "ping @019fc7e4-e4bd-7005-900c-66e44d33f5e4 not @019fc7e4-e4bd-7005-900c-66e44d33f5e5";
+    messageSays(content);
+
+    await fanOutChatNotifications(params({ content }));
+
+    const input = createNotificationMock.mock.calls[0]?.[0] as {
+      messageParams: Record<string, unknown>;
+    };
+    expect(input.messageParams).not.toHaveProperty("messagePreview");
+  });
+
+  /**
+   * A mention that carries a slug says who without the lookup, so the body
+   * survives the failed read intact and the reader keeps the preview.
+   */
+  it("keeps the preview when every mention carries a slug", async () => {
+    loadChatMentionNamesMock.mockRejectedValueOnce(new Error("unavailable"));
+
+    const content = "ping @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada now";
+    messageSays(content);
+
+    await fanOutChatNotifications(params({ content }));
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({
+          messagePreview: "ping @ada now",
+        }),
+      }),
+    );
+  });
+
+  /**
    * One reader's failed write must not cost the others theirs, so the loop
    * reports and continues.
    */
@@ -1418,3 +1510,197 @@ describe("preview rewrite transaction bounds", () => {
     expect(notificationUpdateManyMock).not.toHaveBeenCalled();
   });
 });
+
+describe("a row nobody can read", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationFindManyMock.mockResolvedValue([]);
+    notificationFindFirstMock.mockResolvedValue(null);
+    notificationUpdateManyMock.mockResolvedValue({ count: 1 });
+    createNotificationMock.mockResolvedValue({ created: true });
+  });
+
+  /**
+   * Both columns are written by `JSON.stringify` on every path that writes
+   * them, so a row that will not parse is a row something else wrote, or one
+   * that was damaged after it was written. Every reader of it carries on with
+   * an answer that is safe rather than right, and the row stays that way for
+   * as long as it exists. Nothing else would ever say so.
+   */
+  it("reports params it cannot parse rather than counting from one", async () => {
+    notificationFindFirstMock.mockResolvedValue({
+      id: "decode_throwing_params",
+      messageParams: "{oh no",
+      metadata: null,
+    });
+
+    await fanOutChatNotifications(
+      params({ content: "meet at six", countPerRoom: true }),
+    );
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "A notification row will not read: SyntaxError",
+      }),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          rowId: "decode_throwing_params",
+          field: "messageParams",
+          notificationType: "notification_row_decode",
+        }),
+      }),
+    );
+  });
+
+  it("reports metadata it cannot parse", async () => {
+    notificationFindFirstMock.mockResolvedValue({
+      id: "decode_throwing_metadata",
+      messageParams: JSON.stringify({ authorName: "Ada" }),
+      metadata: "{oh no",
+    });
+
+    await fanOutChatNotifications(
+      params({ content: "meet at six", countPerRoom: true }),
+    );
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "A notification row will not read: SyntaxError",
+      }),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          rowId: "decode_throwing_metadata",
+          field: "metadata",
+          notificationType: "notification_row_decode",
+        }),
+      }),
+    );
+  });
+
+  /**
+   * A parse error carries the opening characters of what it could not read,
+   * and those characters are the message preview, the author's name, the
+   * room's name. Sentry is told to keep the request headers on top of that, so
+   * what goes to it says why the row would not read and nothing of what it
+   * held.
+   */
+  it("reports why a row would not read without quoting the row", async () => {
+    notificationFindFirstMock.mockResolvedValue({
+      id: "decode_pii",
+      messageParams: "door code 4417, written raw into the column",
+      metadata: null,
+    });
+
+    await fanOutChatNotifications(
+      params({ content: "meet at six", countPerRoom: true }),
+    );
+
+    const reported = captureExceptionMock.mock.calls[0]?.[0] as Error;
+    expect(reported.message).toBe(
+      "A notification row will not read: SyntaxError",
+    );
+    // The line above pins the message; this one covers everything else a
+    // report carries. Serialising the call alone would cover neither: both
+    // `message` and `stack` are non-enumerable and `JSON.stringify` drops
+    // them, so that assertion passes whatever the Error was built from.
+    expect(everythingSaidToSentry()).not.toContain("door code");
+  });
+
+  it("reports a count column that parses into something with no count", async () => {
+    notificationFindFirstMock.mockResolvedValue({
+      id: "decode_bare_number",
+      messageParams: "12",
+      metadata: null,
+    });
+
+    await fanOutChatNotifications(
+      params({ content: "meet at six", countPerRoom: true }),
+    );
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "A notification row will not read: it is not an object",
+      }),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          rowId: "decode_bare_number",
+          field: "messageParams",
+        }),
+      }),
+    );
+  });
+
+  /**
+   * `null` and a bare number both parse, and both leave a rewrite with no
+   * params to put back. That is the same silence as a throw, so it is said
+   * the same way.
+   */
+  it("reports params that parse into something no row can be written from", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      {
+        id: "decode_non_object",
+        messageParams: "null",
+        metadata: JSON.stringify({ messageId: MESSAGE_ID }),
+      },
+    ]);
+
+    messageSays("meet at six");
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "A notification row will not read: it is not an object",
+      }),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          rowId: "decode_non_object",
+          field: "messageParams",
+        }),
+      }),
+    );
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A damaged row is not healed by being read, and the paths that read it run
+   * again on every message. Said per read, one bad backfill in a busy room is
+   * rows times messages times recipients of the same row saying the same
+   * thing. Said per row, it is one event and then silence.
+   */
+  it("names a row that will not read once, however often it is read", async () => {
+    notificationFindFirstMock.mockResolvedValue({
+      id: "decode_repeat",
+      messageParams: "{oh no",
+      metadata: null,
+    });
+
+    await fanOutChatNotifications(
+      params({ content: "meet at six", countPerRoom: true }),
+    );
+    await fanOutChatNotifications(
+      params({ content: "or at seven", countPerRoom: true }),
+    );
+
+    const named = captureExceptionMock.mock.calls.filter(
+      (call) =>
+        (call[1] as { extra?: { rowId?: string } })?.extra?.rowId ===
+        "decode_repeat",
+    );
+    expect(named).toHaveLength(1);
+  });
+});
+
+/** Everything a report could have carried, the Error's own strings included. */
+function everythingSaidToSentry(): string {
+  return captureExceptionMock.mock.calls
+    .flat()
+    .map((argument) =>
+      argument instanceof Error
+        ? `${argument.message} ${argument.stack}`
+        : JSON.stringify(argument),
+    )
+    .join(" ");
+}

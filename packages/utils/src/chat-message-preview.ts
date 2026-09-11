@@ -89,8 +89,8 @@ function whatNamesSomeone(text: string): string {
  * without repeats.
  *
  * A caller that wants the preview to print names has to look them up, and this
- * says whose. It reads the token by the same rule the preview does, so the two
- * cannot come to disagree about what a mention is.
+ * says whose. It reads the same text the preview reads, by the same rule, so
+ * the two cannot come to disagree about what a mention is.
  *
  * The room-wide `all` is a key like any other here. It names no member, so a
  * lookup finds nothing for it and the preview keeps the slug it was written
@@ -104,7 +104,9 @@ function whatNamesSomeone(text: string): string {
 export function readChatMentionKeys(content: string): string[] {
   const keys = new Set<string>();
 
-  for (const match of content.matchAll(MENTION_TOKEN_REGEX)) {
+  for (const match of readableChatMessageText(content).matchAll(
+    MENTION_TOKEN_REGEX,
+  )) {
     const key = match[1];
     if (key) {
       keys.add(key.includes("-") ? key.toLowerCase() : key);
@@ -112,6 +114,38 @@ export function readChatMentionKeys(content: string): string[] {
   }
 
   return [...keys];
+}
+
+/**
+ * The preview, or nothing at all when a mention in it cannot be named.
+ *
+ * A mention the preview cannot name is taken out of the sentence, and what is
+ * left reads as a whole sentence saying something else: `ping @Bob not @Carl`
+ * becomes `ping not`. A caller that would rather say nothing than say that
+ * asks for the preview this way.
+ *
+ * Read against the names the caller actually holds, rather than against
+ * whether the lookup worked. A read that failed outright and a read that came
+ * back without this member cost the reader the same sentence, and the second
+ * needs nothing to go wrong: a member who has left the room, or one whose
+ * display name is empty, is named no better than one nobody could look up.
+ *
+ * The check and the preview read the one cleaned body between them, so they
+ * cannot disagree about what a mention is, and a body pays for the clean once.
+ */
+export function buildNamedChatMessagePreview(
+  content: string,
+  mentionNames?: ReadonlyMap<string, string>,
+): string {
+  const readable = readableChatMessageText(content);
+
+  for (const token of readable.matchAll(MENTION_TOKEN_REGEX)) {
+    if (whoAMentionNames(token[1] ?? "", token[2] ?? "", mentionNames) === "") {
+      return "";
+    }
+  }
+
+  return previewOfReadable(readable, mentionNames);
 }
 
 /**
@@ -397,6 +431,51 @@ function capPreview(preview: string): string {
 }
 
 /**
+ * A message body with everything a banner cannot show taken out of it: the
+ * invisible characters, the fenced code, the markup, and the markdown marks.
+ *
+ * The one text every rule here reads. A token is written in characters the
+ * clean leaves alone, so it survives this whole pass, but the characters
+ * around it do not: `_@<uuid>_` carries a trailing `_` the clean deletes, and
+ * the token rule ends a key on what follows it. Read the raw body instead and
+ * that token is no mention, while this text says it is. Whoever asks first,
+ * they now ask the same question of the same string.
+ *
+ * The clean deletes characters as well as marks, so it can spell a key the
+ * sender did not write: `@<uuid-with-an-_-in-it>` cleans into a mention. Every
+ * rule here reads that same token, so they still agree about it, and a key
+ * that names nobody is a lookup that finds nothing. It costs a caller that
+ * asks for a named preview the whole line, which is the price of never
+ * printing a sentence the sender did not write.
+ *
+ * A fence goes first, by the room's own rule. The room lifts one out before it
+ * sanitizes, so an unclosed `<script>` or `<!--` written inside a fence is
+ * text there, not markup. Reading it as markup here would swallow the rest of
+ * the message: the strip runs to the end of the body when it finds no close
+ * tag.
+ *
+ * A code span is different. `sanitizeMarkdown` runs over the raw body, so the
+ * room renders "use `` not ``" for "use `<Button>` not `<button>`", and a
+ * preview that kept the tag names would read back words the room removed.
+ *
+ * The markdown clean runs over the whole body, with the tokens still in it. A
+ * token comes out as it went in, and the clean gets to see a link or a code
+ * span whole rather than in the halves a mention inside one would leave.
+ */
+function readableChatMessageText(content: string): string {
+  const withoutCode = content
+    .replace(CONTROL_CHARACTER_REGEX, "")
+    .replace(ASCII_INVISIBLE_REGEX, "")
+    .replace(MARKDOWN_FENCED_BLOCK_REGEX, " ")
+    .replace(FENCE_DELIMITER_LINE_REGEX, "");
+  const withoutMarkup = stripTags(withoutCode)
+    .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
+    .replace(BACKTICK_RUN_REGEX, "`");
+
+  return cleanChatMessageText(withoutMarkup);
+}
+
+/**
  * One line of plain text standing for a room message body.
  *
  * Used where a message is named rather than read: an OS banner, a thread-list
@@ -420,29 +499,14 @@ export function buildChatMessagePreview(
   content: string,
   mentionNames?: ReadonlyMap<string, string>,
 ): string {
-  // A fence goes first, by the room's own rule. The room lifts one out before
-  // it sanitizes, so an unclosed `<script>` or `<!--` written inside a fence
-  // is text there, not markup. Reading it as markup here would swallow the
-  // rest of the message: the strip runs to the end of the body when it finds
-  // no close tag.
-  //
-  // A code span is different. `sanitizeMarkdown` runs over the raw body, so
-  // the room renders "use `` not ``" for "use `<Button>` not `<button>`", and
-  // a preview that kept the tag names would read back words the room removed.
-  const withoutCode = content
-    .replace(CONTROL_CHARACTER_REGEX, "")
-    .replace(ASCII_INVISIBLE_REGEX, "")
-    .replace(MARKDOWN_FENCED_BLOCK_REGEX, " ")
-    .replace(FENCE_DELIMITER_LINE_REGEX, "");
-  // The markdown clean runs over the whole body, with the tokens still in it.
-  // A token is written in the characters the clean leaves alone, so it comes
-  // out as it went in, and the clean gets to see a link or a code span whole
-  // rather than in the halves a mention inside one would leave.
-  const withoutMarkup = stripTags(withoutCode)
-    .replace(MARKDOWN_IMAGE_BANG_REGEX, "")
-    .replace(BACKTICK_RUN_REGEX, "`");
-  const readable = cleanChatMessageText(withoutMarkup);
+  return previewOfReadable(readableChatMessageText(content), mentionNames);
+}
 
+/** The preview of a body already read for what a banner cannot show. */
+function previewOfReadable(
+  readable: string,
+  mentionNames?: ReadonlyMap<string, string>,
+): string {
   // The names go in after that clean. A name is a person's to spell and the
   // clean takes `* _ ~ > #` out of whatever it is handed, which is what would
   // make `R_D` read as `RD` on a banner.
