@@ -97,7 +97,7 @@ export function OrganizationLogoUploadField({
               type="button"
               disabled={disabled}
               aria-label={logoValue ? labels.replace : labels.upload}
-              className="group bg-muted focus-visible:ring-ring/60 relative size-full cursor-pointer overflow-hidden rounded-lg border transition-opacity outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="group bg-muted focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring relative size-full cursor-pointer overflow-hidden rounded-lg border transition-opacity outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Avatar className="size-full rounded-none">
                 <AvatarImage
