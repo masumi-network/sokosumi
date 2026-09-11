@@ -56,16 +56,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { pathname } = body;
 
-    // Parse pathname to determine scope and owner
     const { scope, ownerId } = parseDriveFilePathname(
       pathname,
       userContext.userId,
     );
 
-    // Verify access
     await requireDriveFileAccess(authContext, scope, ownerId);
 
-    // Check if file exists
     try {
       await head(pathname, { token });
     } catch (error) {
@@ -75,7 +72,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
-    // Delete the blob
     await del(pathname, { token });
 
     return c.body(null, 204);
