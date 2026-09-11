@@ -33,7 +33,7 @@ public struct MessageMentions: Hashable, Sendable {
       // Formatting and existing destinations belong to the Markdown parser.
       let original = AttributedString(output[attributedRange])
       guard !original.runs.contains(where: { $0.link != nil || $0.inlinePresentationIntent?.contains(.code) == true }) else { continue }
-      var replacement = AttributedString("@" + (id == "all" ? "all" : entry?.name ?? "all"))
+      var replacement = AttributedString("@" + (id == "all" ? ComposerMention.allDisplayName : entry?.name ?? "all"))
       if let attributes = original.runs.first?.attributes {
         replacement.mergeAttributes(attributes)
       }

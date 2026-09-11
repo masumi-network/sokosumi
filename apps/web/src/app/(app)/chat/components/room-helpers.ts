@@ -161,19 +161,16 @@ export interface RoomMentionParticipant {
 
 /**
  * Synthetic catalog row for the @all picker entry.
- * `value` is the chip text so the composer shows `@all`, matching the sent
- * message; `label` (e.g. "Everyone") stays searchable and is the row title.
+ * `label` is the localized display/search value (e.g. "Everyone"); key/slug stay `all`.
  */
 export function buildRoomAllMentionRecord(label: string): {
   value: string;
   slug: string;
-  searchText: string;
   data: RoomMentionParticipant;
 } {
   return {
-    value: ROOM_MENTION_ALL_SLUG,
+    value: label,
     slug: ROOM_MENTION_ALL_SLUG,
-    searchText: label,
     data: {
       kind: "all",
       id: ROOM_MENTION_ALL_ID,
@@ -918,6 +915,7 @@ export function formatRoomMarkdownMentions({
   sokoBotsBySlug,
   usersById,
   usersBySlug,
+  mentionAllLabel = ROOM_MENTION_ALL_ID,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -926,6 +924,8 @@ export function formatRoomMarkdownMentions({
   sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
+  /** Localized word for the room-wide mention (e.g. "Everyone"); the token stays `@all:all`. */
+  mentionAllLabel?: string;
 }): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
@@ -944,7 +944,7 @@ export function formatRoomMarkdownMentions({
       sokoBotsById?.get(match.id) ?? sokoBotsBySlug?.get(match.slug);
     const user = usersById?.get(match.id) ?? usersBySlug?.get(match.slug);
     const displayName = isRoomMentionAllId(match.id)
-      ? ROOM_MENTION_ALL_ID
+      ? mentionAllLabel
       : (coworker?.name ?? sokoBot?.name ?? user?.name);
     if (displayName) {
       formatted += mentionChipHtml(
@@ -1046,6 +1046,7 @@ export function formatRoomMarkdownContent({
   usersById,
   usersBySlug,
   channelLinks = [],
+  mentionAllLabel,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -1055,6 +1056,7 @@ export function formatRoomMarkdownContent({
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
+  mentionAllLabel?: string;
 }): string {
   return linkifyChannelLinksInMarkdown(
     formatRoomMarkdownMentions({
@@ -1065,6 +1067,7 @@ export function formatRoomMarkdownContent({
       sokoBotsBySlug,
       usersById,
       usersBySlug,
+      mentionAllLabel,
     }),
     channelLinks,
   );

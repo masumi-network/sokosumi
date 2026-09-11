@@ -364,11 +364,23 @@ describe("mergeMembershipVisibleRooms", () => {
   });
 });
 
+describe("formatRoomMarkdownMentions mentionAllLabel", () => {
+  it("renders the room-wide token with the localized label", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: "Hi @all:all",
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      mentionAllLabel: "Everyone",
+    });
+    expect(formatted).toContain(">@Everyone</span>");
+    expect(formatted).not.toContain("@all");
+  });
+});
+
 describe("buildRoomAllMentionRecord", () => {
   it("builds a synthetic catalog entry keyed as all with localized label", () => {
     const record = buildRoomAllMentionRecord("Everyone");
-    expect(record.value).toBe(ROOM_MENTION_ALL_SLUG);
-    expect(record.searchText).toBe("Everyone");
+    expect(record.value).toBe("Everyone");
     expect(record.slug).toBe(ROOM_MENTION_ALL_SLUG);
     expect(record.data).toEqual({
       kind: "all",

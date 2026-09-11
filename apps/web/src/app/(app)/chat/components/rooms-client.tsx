@@ -1185,6 +1185,7 @@ export function RoomsClient({
    */
   const roomMentionNames = useMemo(() => {
     return new Map<string, string>([
+      [ROOM_MENTION_ALL_ID, t("MentionAll.label")],
       ...(selectedRoom?.userMembers ?? []).map(
         (user) => [user.id, user.name || user.email] as const,
       ),
@@ -1195,7 +1196,7 @@ export function RoomsClient({
         (sokoBot) => [sokoBot.id, sokoBot.name] as const,
       ),
     ]);
-  }, [selectedRoom]);
+  }, [selectedRoom, t]);
   const usersById = useMemo(() => {
     return new Map(
       (selectedRoom?.userMembers ?? []).map((user) => [

@@ -6,8 +6,7 @@ public enum ComposerReferenceText {
   public static let name = NSAttributedString.Key("com.sokosumi.composer.referenceName")
 
   public static func chip(_ mention: ComposerMention, attributes: [NSAttributedString.Key: Any] = [:]) -> NSAttributedString {
-    // Room-wide mention reads `@all` in the chip, matching the sent message.
-    chip(token: mention.token, name: "@" + (mention.kind == .all ? mention.slug : mention.name), attributes: attributes)
+    chip(token: mention.token, name: "@" + mention.name, attributes: attributes)
   }
 
   public static func chip(token value: String, name label: String, attributes: [NSAttributedString.Key: Any] = [:]) -> NSAttributedString {
