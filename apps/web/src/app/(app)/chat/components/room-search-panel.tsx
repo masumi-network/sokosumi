@@ -265,9 +265,19 @@ export function RoomSearchPanel({
     }
   }
 
-  const showIdle = !debouncedQuery && !isLoading && !error;
+  // Typing runs ahead of the debounce, so the idle hint and the empty state
+  // follow the live query; the gap in between reads as loading.
+  const liveQuery = query.trim();
+  const isPending = liveQuery !== debouncedQuery;
+  const showLoading =
+    results.length === 0 && (isLoading || (isPending && liveQuery !== ""));
+  const showIdle = !liveQuery && !isLoading && !error;
   const showEmpty =
-    Boolean(debouncedQuery) && !isLoading && !error && results.length === 0;
+    Boolean(debouncedQuery) &&
+    !isPending &&
+    !isLoading &&
+    !error &&
+    results.length === 0;
   const activeOptionId =
     open && results[activeIndex]
       ? `${optionIdPrefix}-${results[activeIndex].id}`
@@ -413,7 +423,7 @@ export function RoomSearchPanel({
           aria-label={labels.open}
           className="max-h-80 overflow-y-auto p-1"
         >
-          {isLoading && results.length === 0 ? (
+          {showLoading ? (
             <div className="text-muted-foreground flex items-center justify-center gap-2 px-2 py-6 text-sm">
               <Loader2 className="size-4 animate-spin" />
               {labels.loading}

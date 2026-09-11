@@ -190,6 +190,16 @@ describe("RoomSearchPanel", () => {
     });
   });
 
+  it("shows loading, not the idle hint, while the debounce is pending", () => {
+    renderPanel();
+
+    openSearch();
+    typeQuery("b");
+
+    expect(screen.queryByText(labels.idle)).not.toBeInTheDocument();
+    expect(screen.getByText(labels.loading)).toBeInTheDocument();
+  });
+
   it("shows results after a debounced query", async () => {
     renderPanel();
 
