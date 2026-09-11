@@ -67,7 +67,11 @@ import SwiftUI
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
-    @FocusState private var replyFocused: Bool
+    @FocusState private var focusedAction: MessageAction?
+
+    private enum MessageAction: Hashable {
+      case quote, reply
+    }
 
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
@@ -149,17 +153,17 @@ import SwiftUI
         if message.deletedAt == nil, onReply != nil || onQuote != nil {
           HStack(spacing: 0) {
             if let onQuote {
-              messageAction("Quote", symbol: "quote.opening", action: onQuote)
+              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
             }
             if let onReply {
-              messageAction("Reply", symbol: "text.bubble", action: onReply)
+              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
             }
           }
           .background(.regularMaterial, in: .rect(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
           .onHover { isReplyHovered = $0 }
-          .opacity(isHovered || isReplyHovered || replyFocused ? 1 : 0)
-          .allowsHitTesting(isHovered || isReplyHovered || replyFocused)
+          .opacity(isHovered || isReplyHovered || focusedAction != nil ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil)
           .padding(.trailing, horizontalInset)
           .offset(y: -replyActionHeight / 2)
         }
@@ -196,7 +200,7 @@ import SwiftUI
       .padding(.top, isContinuation ? 0 : 8)
     }
 
-    private func messageAction(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+    private func messageAction(_ title: String, symbol: String, focus: MessageAction, action: @escaping () -> Void) -> some View {
       Button(action: action) {
         Label(title, systemImage: symbol)
           .font(.caption)
@@ -205,7 +209,7 @@ import SwiftUI
           .contentShape(.rect)
       }
       .buttonStyle(.borderless)
-      .focused($replyFocused)
+      .focused($focusedAction, equals: focus)
       .help(title == "Reply" ? "Reply in thread" : "Quote message")
     }
 

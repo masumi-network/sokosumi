@@ -77,7 +77,8 @@ import SwiftUI
         }
       }
       .onChange(of: focusRequest) { _, request in
-        if request != nil {
+        guard request != nil else { return }
+        Task { @MainActor in
           commands.focus()
         }
       }
