@@ -22,6 +22,7 @@
   --color-scrim-soft: var(--scrim-soft);
   --color-scrim-strong: var(--scrim-strong);
   --color-on-media: var(--on-media);
+  --color-media-ground: var(--media-ground);
   --color-on-media-muted: var(--on-media-muted);
   --color-on-media-tertiary: var(--on-media-tertiary);
   --color-on-media-quaternary: var(--on-media-quaternary);
@@ -283,6 +284,7 @@
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --media-ground: hsla(0, 0%, 0%, 1);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -432,6 +434,7 @@
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --media-ground: hsla(0, 0%, 0%, 1);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
