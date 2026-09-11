@@ -38,7 +38,7 @@ export default async function AuthAside() {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-on-media-muted ring-inset"
+        className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-on-media-tertiary ring-inset"
       />
 
       <div
@@ -54,11 +54,11 @@ export default async function AuthAside() {
             <span className="block">{t("titleLine2")}</span>
           </h2>
 
-          <ul className="mt-10 border-on-media-muted border-t">
+          <ul className="mt-10 border-on-media-tertiary border-t">
             {BULLET_KEYS.map((key) => (
               <li
                 key={key}
-                className="border-on-media-muted border-b py-3.5 text-base text-on-media-muted leading-snug"
+                className="border-on-media-tertiary border-b py-3.5 text-base text-on-media-muted leading-snug"
               >
                 {t(key)}
               </li>
@@ -124,7 +124,7 @@ export default async function AuthAside() {
             alt=""
             width={48}
             height={48}
-            className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-on-media-muted"
+            className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-on-media-tertiary"
           />
           <div className="text-left">
             <div className="whitespace-nowrap text-white">
@@ -132,7 +132,7 @@ export default async function AuthAside() {
             </div>
             <div className="whitespace-nowrap text-white">{t("quoteRole")}</div>
           </div>
-          <div className="border-on-media-muted border-l pl-4">
+          <div className="border-on-media-tertiary border-l pl-4">
             <Image
               src={AUTH_SERVICEPLAN_LOGO.src}
               alt=""

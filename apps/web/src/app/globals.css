@@ -23,6 +23,9 @@
   --color-scrim-strong: var(--scrim-strong);
   --color-on-media: var(--on-media);
   --color-on-media-muted: var(--on-media-muted);
+  --color-on-media-tertiary: var(--on-media-tertiary);
+  --color-on-media-quaternary: var(--on-media-quaternary);
+  --color-background-muted: var(--background-muted);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -256,10 +259,20 @@
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
   --card-background: hsla(0, 0%, 98%, 1);
-  /* Translucency with a role. These five keep their alpha on purpose: each
-     one must show what sits behind it, which is the one job a frozen step
-     cannot do. The scrims sit over user media, not over the page, so they
-     hold the same value in both themes. */
+  /* Translucency with a role. These keep their alpha on purpose: each one
+     must show what sits behind it, which is the one job a frozen step
+     cannot do. The scrims and the on-media steps sit over user media, not
+     over the page, so they hold the same value in both themes.
+
+     --on-media is a label, --on-media-muted a quieter label. The two steps
+     below it are not labels at all: -tertiary is the hairline, ring or
+     border drawn on media, and -quaternary is the hover wash under a
+     control. Reading "muted" as "faint" and using it as a wash paints an
+     85% white pill, which swallows the white icon on top of it.
+
+     --background-muted is the page-side twin of --muted-foreground, for a
+     quieter label on an inverted surface (one painted bg-foreground). It
+     follows the theme; the on-media steps do not. */
   --overlay: hsla(0, 0%, 100%, 0.5);
   --surface-glass: hsla(0, 0%, 100%, 0.8);
   --surface-sticky: hsla(0, 0%, 100%, 0.95);
@@ -268,7 +281,10 @@
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
+  --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
+  --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
   --card-background-hover: hsla(0, 0%, 98%, 0.5);
+  --background-muted: hsla(0, 0%, 100%, 0.55);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(263.5, 100%, 50%, 1); /* Sokosumi · Wisteria Purple #6400FF */
@@ -414,7 +430,10 @@
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
+  --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
+  --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
   --card-background-hover: hsla(0, 0%, 9%, 0.5);
+  --background-muted: hsla(0, 0%, 4%, 0.55);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
