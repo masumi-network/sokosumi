@@ -168,10 +168,10 @@ private struct AttachmentMediaView: View {
 
 private struct DownloadedAttachment: FileDocument {
   static let readableContentTypes: [UTType] = [.data]
-  let wrapper: FileWrapper
+  let data: Data
 
   init(url: URL) throws {
-    wrapper = try FileWrapper(url: url, options: .immediate)
+    data = try Data(contentsOf: url)
   }
 
   init(configuration _: ReadConfiguration) throws {
@@ -179,6 +179,6 @@ private struct DownloadedAttachment: FileDocument {
   }
 
   func fileWrapper(configuration _: WriteConfiguration) throws -> FileWrapper {
-    wrapper
+    FileWrapper(regularFileWithContents: data)
   }
 }

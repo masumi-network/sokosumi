@@ -16,6 +16,12 @@ public final class ComposeUploads: ObservableObject {
     attachments = savedDraft.loadAttachments()
   }
 
+  public func add(_ attachment: ComposeAttachment) {
+    guard !attachments.contains(where: { $0.url == attachment.url }) else { return }
+    attachments.append(attachment)
+    savedDraft.saveAttachments(attachments)
+  }
+
   public func remove(_ attachment: ComposeAttachment) {
     attachments.removeAll { $0.id == attachment.id }
     savedDraft.saveAttachments(attachments)
@@ -79,8 +85,7 @@ public final class ComposeUploads: ObservableObject {
           let attachment = try await upload(file)
           try Task.checkCancellation()
           guard current == generation else { return }
-          attachments.append(attachment)
-          savedDraft.saveAttachments(attachments)
+          add(attachment)
         }
         completed?()
       } catch {

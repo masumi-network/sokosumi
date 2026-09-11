@@ -70,6 +70,7 @@ globalThis.MESSAGES = {
     "Notifications.Chat.roomMessageTitle": "{authorName} in channel {roomName}",
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} in group {roomName}",
+    "Notifications.Chat.mentionAll": "Everyone",
     "notifications.vendorGrant.pending":
       "{vendorName} requested vendor access to your workspace",
     "notifications.coworkerAccess.pending":
@@ -120,6 +121,7 @@ globalThis.MESSAGES = {
     "Notifications.Chat.roomMessageTitle": "{authorName} im Kanal {roomName}",
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} in der Gruppe {roomName}",
+    "Notifications.Chat.mentionAll": "Alle",
     "notifications.vendorGrant.pending":
       "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
     "notifications.coworkerAccess.pending":
@@ -166,6 +168,7 @@ globalThis.MESSAGES = {
       "{authorName} en el canal {roomName}",
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} en el grupo {roomName}",
+    "Notifications.Chat.mentionAll": "Todos",
     "notifications.vendorGrant.pending":
       "{vendorName} solicitó acceso de proveedor al workspace de la organización",
     "notifications.coworkerAccess.pending":
