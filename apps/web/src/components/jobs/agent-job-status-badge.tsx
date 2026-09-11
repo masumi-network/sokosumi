@@ -63,7 +63,7 @@ export function getAgentStatusDotColorClass(status: AgentJobStatus) {
       return "bg-semantic-warning";
     case AgentJobStatus.RUNNING:
     case AgentJobStatus.INITIATED:
-      return "bg-status-running";
+      return "bg-status-active";
     default:
       return "bg-status-done";
   }
@@ -81,7 +81,7 @@ export function getAgentStatusBorderColorClass(status: AgentJobStatus) {
       return "border-semantic-warning-tertiary";
     case AgentJobStatus.RUNNING:
     case AgentJobStatus.INITIATED:
-      return "border-status-running-tertiary";
+      return "border-status-active-tertiary";
     default:
       return "border-status-done-tertiary";
   }

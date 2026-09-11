@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 
 import {
@@ -16,12 +16,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  MARKER_ICONS,
+  STATUS_ROLE_STYLES,
+  StatusMarker,
+} from "@/components/ui/status-marker";
 import type { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 
-import { getTaskStatusIcon, getTaskStatusPillTone } from "./task-status-badge";
+import { getTaskStatusMarker } from "./task-status-badge";
 
 export interface TaskStatusPickerLabels {
   statusLabels: Record<TaskStatus, string>;
@@ -112,8 +117,8 @@ export function TaskStatusPicker({
     handleSelect(row.status);
   }
 
-  const tone = getTaskStatusPillTone(value);
-  const Icon = getTaskStatusIcon(value);
+  const marker = getTaskStatusMarker(value);
+  const role = STATUS_ROLE_STYLES[marker.role];
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -129,17 +134,21 @@ export function TaskStatusPicker({
           <span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
-              tone.bg,
-              tone.text,
+              role.bg,
+              role.text,
             )}
           >
-            {isPending ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              // 12px turns a circled glyph into sub-pixel strokes; 14px keeps
-              // the inner mark crisp next to text-xs.
-              <Icon className="size-3.5" aria-hidden />
-            )}
+            <StatusMarker
+              spec={
+                isPending
+                  ? {
+                      role: marker.role,
+                      icon: MARKER_ICONS.running,
+                      spin: true,
+                    }
+                  : marker
+              }
+            />
             <span>{labels.statusLabels[value]}</span>
             <ChevronDown className="size-3 opacity-70" aria-hidden />
           </span>
@@ -168,7 +177,7 @@ export function TaskStatusPicker({
           <CommandList className="p-1">
             <CommandEmpty>{labels.noResults}</CommandEmpty>
             {rows.map(({ status, isDisabled, digit }) => {
-              const RowIcon = getTaskStatusIcon(status);
+              const rowMarker = getTaskStatusMarker(status);
               const isCurrent = status === value;
               return (
                 <CommandItem
@@ -179,10 +188,7 @@ export function TaskStatusPicker({
                   data-current={isCurrent || undefined}
                   onSelect={() => handleSelect(status)}
                 >
-                  <RowIcon
-                    className={cn("size-4", getTaskStatusPillTone(status).text)}
-                    aria-hidden
-                  />
+                  <StatusMarker spec={rowMarker} />
                   <span className="flex-1 truncate">
                     {labels.statusLabels[status]}
                   </span>
