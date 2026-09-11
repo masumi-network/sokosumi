@@ -53,18 +53,18 @@ export default function DataTableColumnHeader<TData extends RowData, TValue>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-          <ArrowUp className="text-muted-foreground/70 size-4" />
+          <ArrowUp className="text-muted-foreground size-4" />
           {t("ascending")}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-          <ArrowDown className="text-muted-foreground/70 size-4" />
+          <ArrowDown className="text-muted-foreground size-4" />
           {t("descending")}
         </DropdownMenuItem>
         {column.getCanHide() && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-              <EyeOff className="text-muted-foreground/70 size-4" />
+              <EyeOff className="text-muted-foreground size-4" />
               {t("hide")}
             </DropdownMenuItem>
           </>

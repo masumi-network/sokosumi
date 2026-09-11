@@ -90,7 +90,7 @@ function DocumentTextBody({
   if (state.status === "error" || state.content === undefined) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-10 text-center">
-        <FileText aria-hidden className="text-muted-foreground/50 size-9" />
+        <FileText aria-hidden className="text-muted-foreground size-9" />
         <p className="text-muted-foreground text-sm">{t("fetchError")}</p>
       </div>
     );

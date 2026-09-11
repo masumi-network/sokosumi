@@ -100,12 +100,12 @@ function HistoryListItemContent({
         <span className="text-foreground line-clamp-1 text-sm font-medium">
           {item.title}
         </span>
-        <p className="text-muted-foreground/70 mt-1 line-clamp-1 text-xs break-all">
+        <p className="text-muted-foreground mt-1 line-clamp-1 text-xs break-all">
           {description}
         </p>
       </div>
 
-      <div className="text-muted-foreground/70 col-span-2 flex flex-wrap items-center gap-3 text-xs sm:contents justify-between sm:justify-start">
+      <div className="text-muted-foreground col-span-2 flex flex-wrap items-center gap-3 text-xs sm:contents justify-between sm:justify-start">
         {showOwner && (
           <div className="flex items-center sm:col-start-3 sm:row-start-1">
             <HistoryOwnerAvatar owner={item.owner} />
