@@ -79,15 +79,16 @@ export function AccountSettings({
             <NewPasswordForm />
           )}
         </div>
-        {/* Registering a passkey can hit Core's freshness gate, and the gate
-            offers only the methods these accounts name. Showing the card with
-            an unknown account list would let a viewer reach a dialog that
-            cannot help them, so the retry above covers both cards. */}
-        {credentialAccountsLoadError ? null : (
-          <div className="md:col-span-2">
-            <PasskeySettings accounts={accounts} />
-          </div>
-        )}
+        <div className="md:col-span-2">
+          {/* Only adding needs the linked accounts, because only adding can
+              hit Core's freshness gate and the gate offers the methods those
+              accounts name. Removing a passkey must keep working when that
+              read fails: a stolen device is exactly when it matters. */}
+          <PasskeySettings
+            accounts={accounts}
+            canAddPasskey={!credentialAccountsLoadError}
+          />
+        </div>
       </div>
 
       <div className="border-t pt-8">

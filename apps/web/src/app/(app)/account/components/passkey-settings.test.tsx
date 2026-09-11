@@ -160,7 +160,7 @@ describe("PasskeySettings", () => {
   });
 
   it("renders the user passkeys", async () => {
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     expect(mockListUserPasskeys).toHaveBeenCalled();
 
@@ -178,7 +178,7 @@ describe("PasskeySettings", () => {
       () => pendingListPasskeys.promise,
     );
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
     expect(screen.getByText("loading")).toBeInTheDocument();
@@ -197,7 +197,7 @@ describe("PasskeySettings", () => {
   it("adds a passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -224,7 +224,7 @@ describe("PasskeySettings", () => {
 
     mockAddPasskey.mockImplementationOnce(() => pendingAdd.promise);
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(screen.getByRole("button", { name: "add" }));
@@ -252,7 +252,7 @@ describe("PasskeySettings", () => {
   it("deletes a passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "delete-MacBook Touch ID" });
 
@@ -285,7 +285,7 @@ describe("PasskeySettings", () => {
 
     mockDeletePasskey.mockImplementationOnce(() => pendingDelete.promise);
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "delete-MacBook Touch ID" });
     await user.click(
@@ -316,7 +316,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -331,7 +331,7 @@ describe("PasskeySettings", () => {
     const user = userEvent.setup();
     mockAddPasskey.mockRejectedValueOnce(new Error("network down"));
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -356,7 +356,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByText("MacBook Touch ID");
     await user.click(screen.getByRole("button", { name: "add" }));
@@ -378,7 +378,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "delete-MacBook Touch ID" });
 
@@ -394,7 +394,7 @@ describe("PasskeySettings", () => {
   it("enters edit mode with the current passkey name", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -409,7 +409,7 @@ describe("PasskeySettings", () => {
   it("saves a renamed passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -440,7 +440,7 @@ describe("PasskeySettings", () => {
   it("saves a renamed passkey when the user presses Enter", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -487,7 +487,7 @@ describe("PasskeySettings", () => {
       },
     );
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -513,7 +513,7 @@ describe("PasskeySettings", () => {
   it("cancels passkey rename without saving", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -531,7 +531,7 @@ describe("PasskeySettings", () => {
   it("cancels passkey rename when the user presses Escape", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -558,7 +558,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -574,7 +574,7 @@ describe("PasskeySettings", () => {
   it("shows an inline retry state when loading passkeys throws", async () => {
     mockListUserPasskeys.mockRejectedValueOnce(new Error("network down"));
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await waitFor(() => {
       expect(screen.getByText("loadError")).toBeInTheDocument();
@@ -594,7 +594,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -614,7 +614,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await waitFor(() => {
       expect(screen.getByText("loadError")).toBeInTheDocument();
@@ -646,7 +646,7 @@ describe("PasskeySettings", () => {
     });
     mockListUserPasskeys.mockImplementationOnce(() => pendingRetry.promise);
 
-    render(<PasskeySettings accounts={[]} />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await waitFor(() => {
       expect(screen.getByText("loadError")).toBeInTheDocument();
@@ -670,6 +670,20 @@ describe("PasskeySettings", () => {
     });
   });
 
+  it("keeps an existing passkey removable when the account read failed", async () => {
+    // A stolen device is exactly when removing has to work, and removing
+    // never touches Core's freshness gate.
+    render(<PasskeySettings accounts={[]} canAddPasskey={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+    });
+    expect(screen.getByText("addUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /^delete-/ }).length,
+    ).toBeGreaterThan(0);
+  });
+
   it("asks for the password again when the session is not fresh", async () => {
     mockAddPasskey.mockReset();
     mockAddPasskey
@@ -679,7 +693,7 @@ describe("PasskeySettings", () => {
       })
       .mockResolvedValue({ data: { id: "passkey-2" }, error: null });
 
-    render(<PasskeySettings accounts={[passwordAccount]} />);
+    render(<PasskeySettings accounts={[passwordAccount]} canAddPasskey />);
 
     const user = userEvent.setup();
     await waitFor(() => {
@@ -729,7 +743,7 @@ describe("PasskeySettings", () => {
       error: { code: "SESSION_NOT_FRESH", message: "Session is not fresh" },
     });
 
-    render(<PasskeySettings accounts={[googleAccount]} />);
+    render(<PasskeySettings accounts={[googleAccount]} canAddPasskey />);
 
     const user = userEvent.setup();
     await waitFor(() => {
@@ -765,7 +779,7 @@ describe("PasskeySettings", () => {
       error: { code: "PASSKEY_ALREADY_EXISTS", message: "nope" },
     });
 
-    render(<PasskeySettings accounts={[passwordAccount]} />);
+    render(<PasskeySettings accounts={[passwordAccount]} canAddPasskey />);
 
     const user = userEvent.setup();
     await waitFor(() => {

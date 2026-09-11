@@ -53,9 +53,18 @@ interface PasskeyRecord {
 interface PasskeySettingsProps {
   /** Linked accounts, so the re-authentication dialog offers the right method. */
   accounts: Account[];
+  /**
+   * False when the linked accounts failed to load. Only adding needs them,
+   * because only adding can hit Core's freshness gate, so the rest of the
+   * card keeps working: an existing passkey stays removable.
+   */
+  canAddPasskey: boolean;
 }
 
-export function PasskeySettings({ accounts }: PasskeySettingsProps) {
+export function PasskeySettings({
+  accounts,
+  canAddPasskey,
+}: PasskeySettingsProps) {
   const t = useTranslations("App.Account.Passkeys");
   const locale = useLocale();
   const router = useRouter();
@@ -410,11 +419,14 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex-col items-stretch gap-2">
+        {canAddPasskey ? null : (
+          <p className="text-muted-foreground text-sm">{t("addUnavailable")}</p>
+        )}
         <Button
           type="button"
           className="w-full"
-          disabled={isLoadingPasskeys || isMutatingPasskeys}
+          disabled={!canAddPasskey || isLoadingPasskeys || isMutatingPasskeys}
           onClick={() => {
             void handleAddPasskey();
           }}

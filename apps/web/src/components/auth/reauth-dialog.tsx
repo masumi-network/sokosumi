@@ -178,11 +178,9 @@ export function ReauthDialog({
       });
 
       if (result.error) {
-        setErrorMessage(
-          result.error.code === AuthErrorCode.TERMS_NOT_ACCEPTED
-            ? t("termsNotAccepted")
-            : (result.error.message ?? t("socialError")),
-        );
+        // No terms branch here: Core's after-hook needs a new session, and
+        // `/sign-in/social` mints none. The block surfaces on `/callback`.
+        setErrorMessage(result.error.message ?? t("socialError"));
       }
     } catch {
       setErrorMessage(t("socialError"));
