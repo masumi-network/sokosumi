@@ -9,6 +9,29 @@ type MentionNameClient = Pick<
 >;
 
 /**
+ * What the `uuid` column accepts, which is what may be compared against it.
+ *
+ * `sokoBotId` is `uuid`, and a human mention key can be a legacy 32-character
+ * auth id. Postgres rejects that comparison outright rather than matching
+ * nothing, and the throw reaches the notification fan-out before it has
+ * written anybody a row, so one such key costs every recipient of the message
+ * their notification.
+ *
+ * Deliberately wider than a schema validator: hyphens are optional and the
+ * version and variant nibbles are any hex, so every shape `readChatMentionKeys`
+ * emits that the column would have matched still reaches it. A key that is hex
+ * in this shape and names no bot simply comes back empty, which is the answer
+ * it had before.
+ *
+ * Not every spelling Postgres itself parses. It also takes a hyphen after any
+ * group of four digits, and a brace-wrapped uuid, neither of which the mention
+ * token regex can produce. Widen this alongside that regex rather than ahead
+ * of it: a shape nothing writes is a shape nothing here can be tested against.
+ */
+const UUID_TEXT_REGEX =
+  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+/**
  * The display names the room shows for the members a message mentions.
  *
  * Human mentions use `@<member id>`. Existing human mentions and current
@@ -63,10 +86,14 @@ export async function loadChatMentionNames(params: {
     }
   }
 
-  const sokoBotMembers = await client.chatRoomSokoBotMember.findMany({
-    where: { roomId: params.roomId, sokoBotId: { in: keys } },
-    select: { sokoBot: { select: { id: true, name: true } } },
-  });
+  const sokoBotKeys = keys.filter((key) => UUID_TEXT_REGEX.test(key));
+  const sokoBotMembers =
+    sokoBotKeys.length === 0
+      ? []
+      : await client.chatRoomSokoBotMember.findMany({
+          where: { roomId: params.roomId, sokoBotId: { in: sokoBotKeys } },
+          select: { sokoBot: { select: { id: true, name: true } } },
+        });
   for (const member of sokoBotMembers) {
     if (member.sokoBot.name) {
       names.set(member.sokoBot.id, member.sokoBot.name);
