@@ -63,7 +63,11 @@ export function getNotificationIndicatorClassName(
   tone: NotificationIndicatorTone,
 ): string {
   if (tone === "destructive") {
-    return "bg-semantic-destructive text-semantic-destructive-foreground";
+    // The solid, not the text red. --semantic-destructive is the value that
+    // reads as text on the page; in dark mode a near-white count on it
+    // measures 3.43:1. --semantic-destructive-solid is the fill half of the
+    // same split and measures 4.91:1.
+    return "bg-semantic-destructive-solid text-semantic-destructive-foreground";
   }
 
   if (tone === "warning") {
