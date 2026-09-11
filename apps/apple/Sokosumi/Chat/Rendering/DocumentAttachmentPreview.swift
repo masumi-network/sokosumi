@@ -5,31 +5,47 @@ import SwiftUI
 struct DocumentAttachmentPreview: View {
   let attachment: MessageAttachment
   @State private var document: PDFDocument?
+  @State private var textDocument: MessageMarkdown?
   @State private var loading = true
   @State private var errorMessage: String?
-
-  private var isPDF: Bool {
-    attachment.url.pathExtension.lowercased() == "pdf"
-      || (attachment.filename as NSString).pathExtension.lowercased() == "pdf"
-  }
 
   var body: some View {
     Group {
       if let document {
         NativePDFPreview(document: document)
+      } else if let textDocument {
+        ScrollView {
+          MarkdownBlocksView(blocks: textDocument.blocks, presentsFileAttachments: false)
+            .textSelection(.enabled)
+            .frame(maxWidth: 680, alignment: .leading)
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
       } else if loading {
         ProgressView("Loading preview…")
       } else {
         ContentUnavailableView(errorMessage ?? "Preview unavailable", systemImage: "doc", description: Text("Open or save this file using the toolbar."))
       }
     }
-    .task(id: attachment.url) {
+    .task(id: attachment) {
       document = nil
+      textDocument = nil
       errorMessage = nil
       loading = true
-      defer { loading = false }
-      guard isPDF else { return }
+      defer {
+        if !Task.isCancelled {
+          loading = false
+        }
+      }
+      guard let kind = attachment.documentPreviewKind else { return }
       do {
+        if kind == .text {
+          let source = try await AttachmentDownload.text(attachment.url)
+          let parsed = await Task.detached(priority: .userInitiated) { MessageMarkdown(source) }.value
+          try Task.checkCancellation()
+          textDocument = parsed
+          return
+        }
         let file = try await AttachmentDownload.fetch(attachment.url)
         defer { try? FileManager.default.removeItem(at: file) }
         let data = try Data(contentsOf: file)
@@ -37,7 +53,7 @@ struct DocumentAttachmentPreview: View {
         document = PDFDocument(data: data)
       } catch {
         if !Task.isCancelled {
-          errorMessage = friendlyMessage(for: error)
+          errorMessage = (error as? AttachmentDownload.Failure)?.errorDescription ?? "The file preview could not be loaded. Try again or open the original link."
         }
       }
     }
