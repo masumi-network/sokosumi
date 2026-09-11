@@ -272,7 +272,11 @@
 
      --background-muted is the page-side twin of --muted-foreground, for a
      quieter label on an inverted surface (one painted bg-foreground). It
-     follows the theme; the on-media steps do not. */
+     follows the theme; the on-media steps do not. The alpha is .58, not the
+     .55 the call sites used to write by hand: .55 measures 4.34:1 on the dark
+     inverted surface, under the 4.5 floor, and the label it carries is 16 to
+     18px regular, which is not large text. .58 measures 4.82 dark and 6.87
+     light. */
   --overlay: hsla(0, 0%, 100%, 0.5);
   --surface-glass: hsla(0, 0%, 100%, 0.8);
   --surface-sticky: hsla(0, 0%, 100%, 0.95);
@@ -284,7 +288,7 @@
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
   --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
   --card-background-hover: hsla(0, 0%, 98%, 0.5);
-  --background-muted: hsla(0, 0%, 100%, 0.55);
+  --background-muted: hsla(0, 0%, 100%, 0.58);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(263.5, 100%, 50%, 1); /* Sokosumi · Wisteria Purple #6400FF */
@@ -433,7 +437,7 @@
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
   --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
   --card-background-hover: hsla(0, 0%, 9%, 0.5);
-  --background-muted: hsla(0, 0%, 4%, 0.55);
+  --background-muted: hsla(0, 0%, 4%, 0.58);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
