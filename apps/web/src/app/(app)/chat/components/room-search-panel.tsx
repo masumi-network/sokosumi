@@ -128,19 +128,21 @@ export function RoomSearchPanel({
     });
   }
 
-  /** Returns false when the press belongs to find-in-page instead. */
-  const openFromHotkey = useEffectEvent(() => {
-    // A press while the field already has focus falls through to
-    // find-in-page, so the browser shortcut stays reachable.
+  /** The hotkey toggles: a press on a focused field puts it away again. */
+  const toggleFromHotkey = useEffectEvent(() => {
     if (document.activeElement === inputRef.current) {
-      return false;
+      // The close would otherwise hand focus straight back to the field.
+      interactedOutsideRef.current = open;
+      clearQuery();
+      closeSearch();
+      inputRef.current?.blur();
+      return;
     }
 
     focusField();
     if (query) {
       setOpen(true);
     }
-    return true;
   });
 
   useEffect(() => {
@@ -158,9 +160,8 @@ export function RoomSearchPanel({
         return;
       }
 
-      if (openFromHotkey()) {
-        event.preventDefault();
-      }
+      event.preventDefault();
+      toggleFromHotkey();
     };
 
     window.addEventListener("keydown", handleKeyDown);

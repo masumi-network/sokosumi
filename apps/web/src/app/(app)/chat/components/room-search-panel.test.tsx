@@ -314,13 +314,16 @@ describe("RoomSearchPanel", () => {
       });
     });
 
-    it("leaves find-in-page alone on a second press inside the field", async () => {
+    it("puts the search away on a second press, without find-in-page", async () => {
       renderPanel();
+      const input = screen.getByTestId("room-search-input");
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-input")).toHaveFocus();
+        expect(input).toHaveFocus();
       });
+      typeQuery("budget");
+      await screen.findByTestId("room-search-result");
 
       const secondPress = new KeyboardEvent("keydown", {
         key: "f",
@@ -330,7 +333,17 @@ describe("RoomSearchPanel", () => {
       });
       window.dispatchEvent(secondPress);
 
-      expect(secondPress.defaultPrevented).toBe(false);
+      expect(secondPress.defaultPrevented).toBe(true);
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      expect(input).not.toHaveFocus();
+      expect(input).toHaveValue("");
+      expect(
+        screen.getByTestId("room-search-field").getAttribute("data-state"),
+      ).toBe("collapsed");
     });
 
     it("moves through results and jumps with Enter", async () => {
