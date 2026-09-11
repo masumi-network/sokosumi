@@ -257,7 +257,10 @@ export async function persistAvatarImage(
 /** Draw `count` new unique avatars into the pool. Returns how many were added. */
 type AvatarDraw = Awaited<ReturnType<typeof nextAvatarDraws>>[number];
 
-async function drawAvatar(draw: AvatarDraw): Promise<void> {
+async function drawAvatar(
+  draw: AvatarDraw,
+  requestedByUserId: string | null,
+): Promise<void> {
   const sourceUrl = await generateImage(buildAvatarPrompt(draw), draw.seed);
   const key = `${draw.subject.subject.replaceAll(" ", "-")}-${draw.seed}`;
   const imageUrl = await persistAvatarImage(sourceUrl, key);
@@ -269,11 +272,21 @@ async function drawAvatar(draw: AvatarDraw): Promise<void> {
       model: AVATAR_MODEL,
       imageUrl,
       sourceUrl,
+      requestedByUserId,
     },
   });
 }
 
-export async function generateAvatars(count: number): Promise<number> {
+/**
+ * @param requestedByUserId The user whose top-up caused this run, or null when
+ * the pool cron ran it and no user asked for anything. The per-user generation
+ * cap counts these rows, so a user-triggered run that leaves this null is spend
+ * charged to nobody.
+ */
+export async function generateAvatars(
+  count: number,
+  requestedByUserId: string | null = null,
+): Promise<number> {
   const draws = await nextAvatarDraws(Math.min(count, MAX_TOP_UP_PER_CALL));
   if (draws.length === 0) return 0;
 
@@ -283,7 +296,7 @@ export async function generateAvatars(count: number): Promise<number> {
   // nothing louder than a warning is written.
   const [probe, ...rest] = draws;
   try {
-    await drawAvatar(probe);
+    await drawAvatar(probe, requestedByUserId);
   } catch (error) {
     console.error("Soko Bot avatar generation failed; skipping this run", {
       attempted: draws.length,
@@ -294,7 +307,7 @@ export async function generateAvatars(count: number): Promise<number> {
   if (rest.length === 0) return 1;
 
   const results = await Promise.allSettled(
-    rest.map((draw) => drawAvatar(draw)),
+    rest.map((draw) => drawAvatar(draw, requestedByUserId)),
   );
   const failed = results.filter((result) => result.status === "rejected");
   for (const failure of failed) {
@@ -375,7 +388,7 @@ export async function listAvailableAvatars(
  */
 export async function topUpAvailableAvatars(
   take: number,
-  options: { excludeIds?: string[] } = {},
+  options: { excludeIds?: string[]; requestedByUserId?: string } = {},
 ): Promise<AvailableAvatar[]> {
   if (getEnv().FAL_KEY) {
     // Count the real pool, not the caller's filtered view of it. Counting
@@ -385,7 +398,12 @@ export async function topUpAvailableAvatars(
     const available = await prisma.sokoBotAvatar.count({
       where: unclaimedAvatarFilter(),
     });
-    if (available < take) await generateAvatars(take - available);
+    if (available < take) {
+      await generateAvatars(
+        take - available,
+        options.requestedByUserId ?? null,
+      );
+    }
   }
   return await listAvailableAvatars(take, options);
 }

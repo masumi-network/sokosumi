@@ -56,13 +56,15 @@ type TestVariables = RequestIdVariables & {
   };
 };
 
+const STUB_USER_ID = "11111111-1111-4111-8111-111111111111";
+
 function createApp() {
   const parent = new Hono<{ Variables: TestVariables }>();
   parent.use("*", async (c, next) => {
     c.set("requestId", "req_avatar_top_up");
     c.set("authContext", {
       actor: "user",
-      userId: "11111111-1111-4111-8111-111111111111",
+      userId: STUB_USER_ID,
       organizationId: null,
       role: "user",
     });
@@ -115,6 +117,9 @@ describe("Soko Bot avatar top-up", () => {
     expect(response.status).toBe(200);
     expect(topUpAvailableAvatarsMock).toHaveBeenCalledWith(6, {
       excludeIds: [],
+      // The session user, not the body. Generation is billed to whoever asked,
+      // so the caller must not be able to name someone else.
+      requestedByUserId: STUB_USER_ID,
     });
   });
 
@@ -132,6 +137,9 @@ describe("Soko Bot avatar top-up", () => {
     expect(response.status).toBe(200);
     expect(topUpAvailableAvatarsMock).toHaveBeenCalledWith(6, {
       excludeIds: [],
+      // The session user, not the body. Generation is billed to whoever asked,
+      // so the caller must not be able to name someone else.
+      requestedByUserId: STUB_USER_ID,
     });
   });
 

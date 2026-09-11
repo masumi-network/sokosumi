@@ -2,14 +2,19 @@ import { createHash } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { avatarCountMock, avatarFindManyMock, getEnvMock, putMock } = vi.hoisted(
-  () => ({
-    avatarCountMock: vi.fn(),
-    avatarFindManyMock: vi.fn(),
-    getEnvMock: vi.fn(),
-    putMock: vi.fn(),
-  }),
-);
+const {
+  avatarCountMock,
+  avatarCreateMock,
+  avatarFindManyMock,
+  getEnvMock,
+  putMock,
+} = vi.hoisted(() => ({
+  avatarCountMock: vi.fn(),
+  avatarCreateMock: vi.fn(),
+  avatarFindManyMock: vi.fn(),
+  getEnvMock: vi.fn(),
+  putMock: vi.fn(),
+}));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
@@ -25,7 +30,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotAvatar: {
       count: avatarCountMock,
       findMany: avatarFindManyMock,
-      create: vi.fn(),
+      create: avatarCreateMock,
     },
   },
 }));
@@ -158,6 +163,44 @@ describe("Soko Bot avatar pool", () => {
     expect(avatarCountMock).toHaveBeenCalledWith({
       where: { claimedBySokoBotId: null },
     });
+  });
+
+  it("stamps generated rows with the user who asked for them", async () => {
+    // The per-user cap counts these rows. A user-triggered run that writes a
+    // null here is FAL spend charged to nobody, so the cap never sees it.
+    avatarCountMock.mockResolvedValue(0);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [{ url: "https://fal.test/a.png" }] }),
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await topUpAvailableAvatars(1, { requestedByUserId: "user-1" });
+
+    expect(avatarCreateMock).toHaveBeenCalled();
+    for (const call of avatarCreateMock.mock.calls) {
+      expect(call[0].data.requestedByUserId).toBe("user-1");
+    }
+  });
+
+  it("leaves the pool cron's rows unattributed", async () => {
+    // Nobody asked for these, so counting them against a user would spend that
+    // user's allowance on work they never triggered.
+    avatarCountMock.mockResolvedValue(0);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [{ url: "https://fal.test/a.png" }] }),
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await stockAvatarPool();
+
+    expect(avatarCreateMock).toHaveBeenCalled();
+    for (const call of avatarCreateMock.mock.calls) {
+      expect(call[0].data.requestedByUserId).toBeNull();
+    }
   });
 
   it("never counts or generates on a plain read", async () => {
