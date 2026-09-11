@@ -1,9 +1,12 @@
 "use client";
 
-import { CircleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
-import { getJobStatusPillStyle } from "@/components/jobs/job-status-styles";
+import { getJobStatusMarker } from "@/components/jobs/job-status-styles";
+import {
+  STATUS_ROLE_STYLES,
+  StatusMarker,
+} from "@/components/ui/status-marker";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +16,6 @@ interface JobStatusBadgeProps {
   variant?: "badge" | "dot";
 }
 
-function shouldShowWarningIcon(status: SokosumiJobStatus): boolean {
-  return status === SokosumiJobStatus.INPUT_REQUIRED;
-}
-
 export function JobStatusBadge({
   status,
   className,
@@ -24,23 +23,15 @@ export function JobStatusBadge({
 }: JobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.StatusBadge");
   const label = t(getJobStatusBadgeLabelKey(status));
-  const styles = getJobStatusPillStyle(status);
-  const showIcon = shouldShowWarningIcon(status);
-  // The icon stands in for the dot, so it takes the dot's colour. `bg-`
-  // becomes `text-` because the same token paints a fill there and a stroke
-  // here. The label stays in the foreground colour.
-  const iconColor = styles.dot.replace("bg-", "text-");
+  const marker = getJobStatusMarker(status);
 
+  // The compact variant drops the label, not the glyph: a bare colour dot was
+  // the whole problem, since two statuses could share a hue.
   if (variant === "dot") {
     return (
-      <span
-        aria-label={label}
-        className={cn(
-          "inline-flex size-1.5 shrink-0 rounded-full",
-          styles.dot,
-          className,
-        )}
-      />
+      <span aria-label={label} className={cn("inline-flex", className)}>
+        <StatusMarker spec={marker} />
+      </span>
     );
   }
 
@@ -48,14 +39,12 @@ export function JobStatusBadge({
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
-        styles.bg,
-        styles.text,
+        STATUS_ROLE_STYLES[marker.role].bg,
+        STATUS_ROLE_STYLES[marker.role].text,
         className,
       )}
     >
-      {showIcon ? (
-        <CircleAlert className={cn("size-3 shrink-0", iconColor)} aria-hidden />
-      ) : null}
+      <StatusMarker spec={marker} />
       <span>{label}</span>
     </span>
   );
