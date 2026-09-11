@@ -54,16 +54,32 @@ describe("glyph identity", () => {
     }
   });
 
-  it("gives every job status in a role its own glyph", () => {
-    const seen = new Map<string, string>();
+  /**
+   * One pair shares a glyph on purpose. PAYMENT_PENDING and STARTED are one
+   * stage seen twice, and to the reader it is one stage, so the badge is meant
+   * to look the same in both. Their labels are what tell them apart, and
+   * job-status-label.test.ts pins those as distinct.
+   *
+   * The assertion is an equality, not an allowlist membership, so it fails in
+   * both directions: a new collision fails, and separating this pair fails
+   * too. Splitting them is a design decision, not a refactor, and it should
+   * have to come here and say so.
+   */
+  it("gives every job status its own glyph, bar one deliberate pair", () => {
+    const byGlyph = new Map<string, SokosumiJobStatus[]>();
     for (const status of Object.values(SokosumiJobStatus)) {
       const { role, icon } = getJobStatusMarker(status);
       const key = `${role}:${icon.displayName ?? icon.name}`;
-      expect(seen.has(key), `${status} shares ${key} with ${seen.get(key)}`).toBe(
-        false,
-      );
-      seen.set(key, status);
+      byGlyph.set(key, [...(byGlyph.get(key) ?? []), status]);
     }
+
+    const shared = [...byGlyph.values()]
+      .filter((group) => group.length > 1)
+      .map((group) => [...group].sort());
+
+    expect(shared).toEqual([
+      [SokosumiJobStatus.PAYMENT_PENDING, SokosumiJobStatus.STARTED].sort(),
+    ]);
   });
 });
 

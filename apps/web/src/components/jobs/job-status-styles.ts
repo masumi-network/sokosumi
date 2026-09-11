@@ -17,16 +17,16 @@ const JOB_STATUS_MARKERS: Record<SokosumiJobStatus, StatusMarkerSpec> = {
   // Placed by what the reader must do and whether anything is wrong, the same
   // two questions the task badge answers.
 
-  // Two steps of getting the job underway: the payment settles, then the
-  // coworker takes it on. The reader is not blocked in either, so neither is
-  // amber and both sit in the same role. They take different glyphs because
-  // colour carries urgency and the glyph carries identity, and these are two
-  // different moments.
+  // The payment is settling and then the coworker holds the job. The reader is
+  // not blocked in either, so neither is amber. They are one stage seen twice,
+  // and to the reader it is one stage, so they share a role and a glyph on
+  // purpose. The labels are what tell them apart. This is the one deliberate
+  // exception to glyph-per-status, and status-marker.test.tsx names it.
   [SokosumiJobStatus.PAYMENT_PENDING]: {
     role: "queued",
     icon: MARKER_ICONS.hiring,
   },
-  [SokosumiJobStatus.STARTED]: { role: "queued", icon: MARKER_ICONS.ready },
+  [SokosumiJobStatus.STARTED]: { role: "queued", icon: MARKER_ICONS.hiring },
 
   // The only state where work is happening.
   [SokosumiJobStatus.PROCESSING]: {
