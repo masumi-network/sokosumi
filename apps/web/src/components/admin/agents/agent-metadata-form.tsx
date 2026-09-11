@@ -243,7 +243,7 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
             {detail.registry.description ? (
               <ExpandableMarkdown
                 content={detail.registry.description}
-                className="text-foreground/80"
+                className="text-foreground"
                 expandLabel={tExpand("expand")}
                 collapseLabel={tExpand("collapse")}
                 fadeClassName="to-background"
@@ -337,7 +337,7 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
             {resolved.description ? (
               <ExpandableMarkdown
                 content={resolved.description}
-                className="text-foreground/80"
+                className="text-foreground"
                 expandLabel={tExpand("expand")}
                 collapseLabel={tExpand("collapse")}
                 fadeClassName="to-background"
