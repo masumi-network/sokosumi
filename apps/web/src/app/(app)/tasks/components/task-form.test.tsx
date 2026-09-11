@@ -488,12 +488,17 @@ describe("TaskForm", () => {
     );
 
     expect(screen.queryByText("Pick status")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("label", { name: "Status" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryAllByText("Status", { selector: "label" })).toHaveLength(
+      0,
+    );
 
     const statusControl = screen.getByRole("combobox", { name: "Status" });
     expect(statusControl).toHaveTextContent("Draft");
+    expect(
+      screen.getByTestId("markdown-editor").compareDocumentPosition(
+        statusControl,
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       statusControl.compareDocumentPosition(
         screen.getByRole("button", { name: "Set schedule" }),
@@ -530,6 +535,23 @@ describe("TaskForm", () => {
       statusControl.compareDocumentPosition(scheduleLabel) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("hides status on the assignee wizard step", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Status" }),
+    ).not.toBeInTheDocument();
   });
 
   it("defaults status to Ready when selecting a coworker", async () => {
