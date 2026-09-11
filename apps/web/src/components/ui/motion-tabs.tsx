@@ -292,7 +292,7 @@ function TabsTrigger({
         disabled={disabled}
         data-state={isActive ? "active" : "inactive"}
         className={cn(
-          "ring-offset-background focus-visible:ring-ring z-1 inline-flex size-full cursor-pointer items-center justify-center rounded-sm px-2 py-1 text-sm font-medium whitespace-nowrap transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-white",
+          "ring-offset-background focus-visible:ring-ring z-1 inline-flex size-full cursor-pointer items-center justify-center rounded-sm px-2 py-1 text-sm font-medium whitespace-nowrap transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-primary-foreground",
           className,
         )}
         {...props}
