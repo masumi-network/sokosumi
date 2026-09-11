@@ -97,7 +97,7 @@ describe("RoomSearchPanel", () => {
     getChatRoomMessagesMock.mockResolvedValue({ data: [message()] });
   });
 
-  it("shows the search field in the header before the results open", () => {
+  it("opens the results only once there is a query", async () => {
     renderPanel();
 
     expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
@@ -105,8 +105,12 @@ describe("RoomSearchPanel", () => {
 
     openSearch();
 
+    expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
+
+    typeQuery("budget");
+
     expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
-    expect(screen.getByText(labels.idle)).toBeInTheDocument();
+    expect(await screen.findByTestId("room-search-result")).toBeInTheDocument();
   });
 
   describe("collapsed icon", () => {
@@ -162,7 +166,7 @@ describe("RoomSearchPanel", () => {
       });
     });
 
-    it("collapses on Escape once the field is empty and closed", async () => {
+    it("collapses on Escape when the field is empty", async () => {
       renderPanel();
       const input = screen.getByTestId("room-search-input");
 
@@ -170,14 +174,19 @@ describe("RoomSearchPanel", () => {
       await waitFor(() => {
         expect(input).toHaveFocus();
       });
-      fireEvent.keyDown(input, { key: "Escape" });
-      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
-      expect(input).toHaveFocus();
 
       fireEvent.keyDown(input, { key: "Escape" });
 
       expect(input).not.toHaveFocus();
       expect(fieldState()).toBe("collapsed");
+    });
+
+    it("does not show the idle hint on focus", () => {
+      renderPanel();
+
+      fireEvent.focus(screen.getByTestId("room-search-input"));
+
+      expect(screen.queryByText(labels.idle)).not.toBeInTheDocument();
     });
   });
 
@@ -275,7 +284,7 @@ describe("RoomSearchPanel", () => {
       );
     });
 
-    it("focuses the field from the host shortcut", async () => {
+    it("focuses the field from the host shortcut without opening results", async () => {
       renderPanel();
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
@@ -283,7 +292,7 @@ describe("RoomSearchPanel", () => {
       await waitFor(() => {
         expect(screen.getByTestId("room-search-input")).toHaveFocus();
       });
-      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
     });
 
     it("ignores the foreign modifier for the platform", () => {
@@ -301,7 +310,7 @@ describe("RoomSearchPanel", () => {
       fireEvent.keyDown(window, { key: "f", ctrlKey: true });
 
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+        expect(screen.getByTestId("room-search-input")).toHaveFocus();
       });
     });
 
@@ -352,8 +361,10 @@ describe("RoomSearchPanel", () => {
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+        expect(screen.getByTestId("room-search-input")).toHaveFocus();
       });
+      typeQuery("budget");
+      await screen.findByTestId("room-search-result");
 
       fireEvent.keyDown(screen.getByTestId("room-search-input"), {
         key: "Escape",
@@ -363,19 +374,18 @@ describe("RoomSearchPanel", () => {
       expect(screen.getByTestId("room-search-input")).toHaveFocus();
     });
 
-    it("reopens from the shortcut after Escape, with the field still focused", async () => {
+    it("reopens the results from the shortcut when a query survived", async () => {
       renderPanel();
 
-      fireEvent.keyDown(window, { key: "f", metaKey: true });
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-input")).toHaveFocus();
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
       });
-
-      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
-        key: "Escape",
-      });
-      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
-      expect(screen.getByTestId("room-search-input")).toHaveFocus();
+      screen.getByTestId("room-search-input").blur();
 
       const reopen = new KeyboardEvent("keydown", {
         key: "f",

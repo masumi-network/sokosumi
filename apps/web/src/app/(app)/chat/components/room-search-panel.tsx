@@ -130,16 +130,16 @@ export function RoomSearchPanel({
 
   /** Returns false when the press belongs to find-in-page instead. */
   const openFromHotkey = useEffectEvent(() => {
-    // A press while the surface is already open and focused falls through to
-    // find-in-page, so the browser shortcut stays reachable. Once the surface
-    // is closed the shortcut belongs to search again, even though the field
-    // below it kept focus.
-    if (open && document.activeElement === inputRef.current) {
+    // A press while the field already has focus falls through to
+    // find-in-page, so the browser shortcut stays reachable.
+    if (document.activeElement === inputRef.current) {
       return false;
     }
 
-    setOpen(true);
     focusField();
+    if (query) {
+      setOpen(true);
+    }
     return true;
   });
 
@@ -232,7 +232,7 @@ export function RoomSearchPanel({
         clearOrCollapse();
         return;
       }
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if ((event.key === "ArrowDown" || event.key === "ArrowUp") && query) {
         event.preventDefault();
         setOpen(true);
       }
@@ -284,17 +284,25 @@ export function RoomSearchPanel({
     >
       <Search
         aria-hidden
-        className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2"
-        strokeWidth={1.5}
+        className={cn(
+          "pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 transition-colors",
+          isExpanded ? "text-muted-foreground" : "text-foreground",
+        )}
       />
       <Input
         ref={inputRef}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
-          setOpen(true);
+          // The results surface only shows for a query; an empty field just
+          // sits expanded in the header.
+          setOpen(event.target.value.trim() !== "");
         }}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          if (query) {
+            setOpen(true);
+          }
+        }}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         onKeyDown={handleInputKeyDown}
@@ -349,7 +357,7 @@ export function RoomSearchPanel({
               focusField();
             }}
           >
-            <Search className="size-4" strokeWidth={1.5} />
+            <Search className="size-4" />
           </Button>
         ) : (
           searchField
