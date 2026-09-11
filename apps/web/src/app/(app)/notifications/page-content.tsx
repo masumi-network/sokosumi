@@ -293,7 +293,7 @@ function NotificationRow({
           // the 3:1 floor, which is the worse trade.
           notification.isRead
             ? "bg-quinary text-muted-foreground"
-            : "bg-primary/15 text-primary",
+            : "bg-primary-quaternary text-primary",
         )}
         aria-hidden
       >
