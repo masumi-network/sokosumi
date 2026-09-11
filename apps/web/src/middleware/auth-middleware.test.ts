@@ -1,16 +1,20 @@
+import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 export {};
 
-import { getSession } from "@/lib/auth/auth.server";
-import { UnAuthenticatedError } from "@/lib/auth/errors";
+import { getSessionResult } from "@/lib/auth/auth.server";
+import {
+  CoreAuthUnavailableError,
+  UnAuthenticatedError,
+} from "@/lib/auth/errors";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: vi.fn(),
+  getSessionResult: vi.fn(),
 }));
 
 interface TestParams extends AuthenticatedRequest {
@@ -27,7 +31,7 @@ describe("withSession", () => {
       user: { id: "user_server" },
       session: { activeOrganizationId: null },
     };
-    vi.mocked(getSession).mockResolvedValue(serverSession as never);
+    vi.mocked(getSessionResult).mockResolvedValue(ok(serverSession) as never);
 
     const wrapped = withSession<TestParams, string>(async (params) => {
       return `${params.value}:${params.session.user.id}`;
@@ -45,7 +49,7 @@ describe("withSession", () => {
     });
 
     expect(result).toBe("input:user_server");
-    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(getSessionResult).toHaveBeenCalledTimes(1);
   });
 
   it("derives session when not provided", async () => {
@@ -53,7 +57,7 @@ describe("withSession", () => {
       user: { id: "user_2" },
       session: { activeOrganizationId: "org_2" },
     };
-    vi.mocked(getSession).mockResolvedValue(session as never);
+    vi.mocked(getSessionResult).mockResolvedValue(ok(session) as never);
 
     const wrapped = withSession<TestParams, string>(async (params) => {
       return `${params.value}:${params.session.session.activeOrganizationId}`;
@@ -62,11 +66,11 @@ describe("withSession", () => {
     const result = await wrapped({ value: "input" });
 
     expect(result).toBe("input:org_2");
-    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(getSessionResult).toHaveBeenCalledTimes(1);
   });
 
   it("throws UnAuthenticatedError when session is missing", async () => {
-    vi.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(getSessionResult).mockResolvedValue(ok(null) as never);
 
     const wrapped = withSession<TestParams, string>(async () => {
       return "unreachable";
@@ -75,6 +79,29 @@ describe("withSession", () => {
     await expect(wrapped({ value: "input" })).rejects.toBeInstanceOf(
       UnAuthenticatedError,
     );
-    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(getSessionResult).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * UnAuthenticatedError sends the error boundary to /signin. Throwing it for
+   * a Core stall signs out a user whose session is fine and throws away the
+   * action they were running.
+   */
+  it("throws a distinct error when the session could not be read", async () => {
+    vi.mocked(getSessionResult).mockResolvedValue(
+      err({ path: "/auth/get-session", reason: "timeout" }) as never,
+    );
+
+    const handler = vi.fn(async () => "unreachable");
+    const wrapped = withSession<TestParams, string>(handler);
+
+    const rejection = wrapped({ value: "input" });
+    await expect(rejection).rejects.toBeInstanceOf(CoreAuthUnavailableError);
+    // The reason is what tells a stall from a parse fault in the logs.
+    await expect(rejection).rejects.toMatchObject({
+      name: "CoreAuthUnavailableError",
+      reason: "timeout",
+    });
+    expect(handler).not.toHaveBeenCalled();
   });
 });

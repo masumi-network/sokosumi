@@ -2202,6 +2202,8 @@
     "Error": {
       "title": "Algo salió mal",
       "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
+      "unavailableTitle": "No disponible temporalmente",
+      "unavailableDescription": "No pudimos conectar con el servicio. Suele ser breve, así que inténtalo de nuevo en un momento.",
       "errorId": "ID de error: {errorId}",
       "tryAgain": "Intentar de nuevo",
       "goApp": "Ir a la app"

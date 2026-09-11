@@ -77,6 +77,7 @@ import {
   resolveComposerEnterAction,
   tryApplyComposerInputRuleAtCaret,
 } from "@/lib/utils/composer-wysiwyg-input-rules";
+import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import {
   type EmojiShortcodeMatch,
   matchExactEmojiShortcodeClosed,
@@ -129,7 +130,10 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   onBlur?: () => void;
   disabled?: boolean;
   ariaLabel?: string;
-  /** When true, Ctrl/Cmd+Enter submits instead of inserting a newline. */
+  /**
+   * Inline edit mode: Ctrl/Cmd+Enter submits instead of inserting a newline,
+   * and plain Enter submits even on touch devices (no Save button exists).
+   */
   modifierEnterSubmits?: boolean;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
@@ -1213,6 +1217,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
           metaKey: modifierEnterSubmits ? false : event.metaKey,
           ctrlKey: modifierEnterSubmits ? false : event.ctrlKey,
           isSuggestionKeyboardActive: isDropdownVisible,
+          // Inline edit has no Save button, so Enter must still commit there.
+          isTouchDevice: modifierEnterSubmits ? false : !devicePrefersHover(),
         });
 
         if (action === "ignore") return;
@@ -1398,7 +1404,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning
-        enterKeyHint="send"
+        enterKeyHint={modifierEnterSubmits ? "send" : undefined}
         aria-label={ariaLabel}
         aria-disabled={disabled || undefined}
         onInput={handleInput}

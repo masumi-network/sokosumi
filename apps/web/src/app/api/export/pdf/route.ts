@@ -4,7 +4,10 @@ import type { Page } from "puppeteer-core";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { getSession } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableJson,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
 import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
@@ -155,8 +158,11 @@ function wrapHtmlDocument(html: string, origin: string): string {
 export async function POST(request: NextRequest) {
   let browser;
   try {
-    const session = await getSession();
-    if (!session) {
+    const sessionRead = await readRouteSession();
+    if (sessionRead.status === "unavailable") {
+      return coreSessionUnavailableJson("Export unavailable", sessionRead);
+    }
+    if (sessionRead.status === "signedOut") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

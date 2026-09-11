@@ -30,6 +30,9 @@ export const AUTH_MESSAGE_PATHS = [
   "App.Account",
   // Create-organization wizard brand step on /setup.
   "App.DesignMd",
+  // `(flows)/error.tsx` and the Core-unavailable notice on /setup both render
+  // these; without them the card shows `App.Error.title` and friends.
+  "App.Error",
 ] as const;
 
 /**

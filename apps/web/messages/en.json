@@ -2202,6 +2202,8 @@
     "Error": {
       "title": "Something went wrong",
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
+      "unavailableTitle": "Temporarily unavailable",
+      "unavailableDescription": "We could not reach the service. This is usually brief, so please try again in a moment.",
       "errorId": "Error ID: {errorId}",
       "tryAgain": "Try Again",
       "goApp": "Go to App"

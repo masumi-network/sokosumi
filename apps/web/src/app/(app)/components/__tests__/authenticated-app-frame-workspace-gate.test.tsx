@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getSessionOrRedirectMock = vi.fn();
+const readRouteSessionMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const hasAssignedOrganizationSeatMock = vi.fn();
 const hasCurrentUserCalendarBetaAccessMock = vi.fn();
@@ -15,8 +15,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSessionOrRedirect: (...args: unknown[]) =>
-    getSessionOrRedirectMock(...args),
+  signInRedirectPath: async () => "/signin?returnUrl=%2F",
+}));
+
+vi.mock("@/lib/auth/route-session", () => ({
+  readRouteSession: (...args: unknown[]) => readRouteSessionMock(...args),
 }));
 
 vi.mock("@/lib/auth/has-admin-role", () => ({
@@ -110,9 +113,12 @@ vi.mock("@/components/emergency-dialog", () => ({
 describe("AuthenticatedAppFrame workspace gate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionOrRedirectMock.mockResolvedValue({
-      user: { id: "user-1", role: "user" },
-      session: { id: "session-1", activeOrganizationId: null },
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session: {
+        user: { id: "user-1", role: "user" },
+        session: { id: "session-1", activeOrganizationId: null },
+      },
     });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
     hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
