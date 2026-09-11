@@ -285,6 +285,9 @@ export const auth = betterAuth({
       maxAge: env.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
     storeSessionInDatabase: true,
+    // Better Auth defaults this to 24 hours, which lets a day-old session
+    // register a passkey and so mint a new permanent login factor.
+    freshAge: TIME.SESSION_FRESH_AGE,
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -651,7 +654,13 @@ export const auth = betterAuth({
         maxRequests: LIMITS.API_KEY_MAX_REQUESTS_PER_MINUTE,
       },
       enableMetadata: true,
-      enableSessionForAPIKeys: true,
+      // A key must authenticate a request, never become a session. The plugin
+      // mints a synthetic session that looks freshly created, which is enough
+      // for the passkey plugin to register a new passkey. A leaked key would
+      // then buy permanent interactive access that revoking the key cannot
+      // take back. Core reads keys through `verifyApiKey` in the bearer
+      // middleware, so no first-party caller needs the session.
+      enableSessionForAPIKeys: false,
     }),
     jwt({ disableSettingJwtHeader: true }),
     organization({

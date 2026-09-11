@@ -1,5 +1,6 @@
 "use client";
 
+import type { Account } from "@sokosumi/utils";
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -11,7 +12,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
+import { ReauthDialog } from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { authClient } from "@/lib/auth/auth.client";
 
 function formatPasskeyDate(date: Date | string, locale: string): string {
@@ -48,7 +50,21 @@ interface PasskeyRecord {
   name?: string | null;
 }
 
-export function PasskeySettings() {
+interface PasskeySettingsProps {
+  /** Linked accounts, so the re-authentication dialog offers the right method. */
+  accounts: Account[];
+  /**
+   * False when the linked accounts failed to load. Only adding needs them,
+   * because only adding can hit Core's freshness gate, so the rest of the
+   * card keeps working: an existing passkey stays removable.
+   */
+  canAddPasskey: boolean;
+}
+
+export function PasskeySettings({
+  accounts,
+  canAddPasskey,
+}: PasskeySettingsProps) {
   const t = useTranslations("App.Account.Passkeys");
   const locale = useLocale();
   const router = useRouter();
@@ -64,6 +80,8 @@ export function PasskeySettings() {
   const [savingPasskeyId, setSavingPasskeyId] = useState<string | null>(null);
   const isMutatingPasskeys =
     isAddingPasskey || removingPasskeyId !== null || savingPasskeyId !== null;
+
+  const reauthGate = useReauthGate({ accounts });
 
   const fetchPasskeys = useCallback(async (): Promise<
     null | PasskeyRecord[]
@@ -146,13 +164,19 @@ export function PasskeySettings() {
     );
   }, [passkeys]);
 
-  const handleAddPasskey = async () => {
+  async function handleAddPasskey() {
     setIsAddingPasskey(true);
 
     try {
       const result = await authClient.passkey.addPasskey();
 
       if (result.error) {
+        // Core gates passkey registration on a fresh session. The gate asks
+        // the viewer to authenticate again, then they add the passkey again.
+        if (reauthGate.handleError(result.error)) {
+          return;
+        }
+
         toast.error(getPasskeyErrorMessage(t("addError"), result.error));
         return;
       }
@@ -169,7 +193,7 @@ export function PasskeySettings() {
     } finally {
       setIsAddingPasskey(false);
     }
-  };
+  }
 
   const handleDeletePasskey = async (id: string) => {
     setRemovingPasskeyId(id);
@@ -395,11 +419,14 @@ export function PasskeySettings() {
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex-col items-stretch gap-2">
+        {canAddPasskey ? null : (
+          <p className="text-muted-foreground text-sm">{t("addUnavailable")}</p>
+        )}
         <Button
           type="button"
           className="w-full"
-          disabled={isLoadingPasskeys || isMutatingPasskeys}
+          disabled={!canAddPasskey || isLoadingPasskeys || isMutatingPasskeys}
           onClick={() => {
             void handleAddPasskey();
           }}
@@ -408,6 +435,7 @@ export function PasskeySettings() {
           {t("add")}
         </Button>
       </CardFooter>
+      <ReauthDialog {...reauthGate.dialogProps} />
     </Card>
   );
 }

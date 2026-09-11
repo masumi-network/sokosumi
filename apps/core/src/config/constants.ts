@@ -21,6 +21,16 @@ export const TIME = {
 
   /** Agent execution metrics lookback period (90 days) */
   AGENT_EXECUTION_METRICS_DAYS: 90,
+
+  /**
+   * How long a session stays "fresh" after sign-in (15 minutes).
+   *
+   * Better Auth measures freshness from `Session.createdAt` and gates passkey
+   * registration, account unlinking and password-less account deletion on it.
+   * A short window keeps a stolen session or a leaked credential from turning
+   * into a new login factor. Becoming fresh again means signing in again.
+   */
+  SESSION_FRESH_AGE: 15 * 60,
 } as const;
 
 /**

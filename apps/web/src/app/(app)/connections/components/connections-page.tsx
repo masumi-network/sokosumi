@@ -2,7 +2,6 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
-import { AccountProvider } from "@/lib/auth/types";
 
 import { OAuthAuthorizedClients } from "./authorized-clients";
 import { ConnectionsTabs } from "./connections-tabs";
@@ -26,11 +25,7 @@ export async function ConnectionsPage() {
       title={t("loadErrorTitle")}
     />
   ) : (
-    <SocialAccounts
-      socialAccounts={accountsResult.value.filter(
-        (account) => account.providerId !== AccountProvider.CREDENTIAL,
-      )}
-    />
+    <SocialAccounts accounts={accountsResult.value} />
   );
 
   return (

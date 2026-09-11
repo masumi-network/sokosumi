@@ -11,6 +11,8 @@ const mockRefresh = vi.fn();
 const mockToastError = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockUpdatePasskey = vi.fn();
+const mockSignInEmail = vi.fn();
+const mockSignInSocial = vi.fn();
 let currentPasskeys: Array<{
   createdAt: string;
   id: string;
@@ -34,6 +36,7 @@ function createDeferred<T>() {
 }
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/account",
   useRouter: () => ({
     refresh: mockRefresh,
   }),
@@ -81,8 +84,33 @@ vi.mock("@/lib/auth/auth.client", () => ({
       listUserPasskeys: (...args: unknown[]) => mockListUserPasskeys(...args),
       updatePasskey: (...args: unknown[]) => mockUpdatePasskey(...args),
     },
+    signIn: {
+      email: (...args: unknown[]) => mockSignInEmail(...args),
+      social: (...args: unknown[]) => mockSignInSocial(...args),
+    },
   },
+  useSession: () => ({
+    data: { user: { email: "passkey-owner@example.com" } },
+  }),
 }));
+
+const passwordAccount = {
+  accountId: "account-credential",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  id: "account-credential",
+  providerId: "credential",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  userId: "user-1",
+};
+
+const googleAccount = {
+  accountId: "account-google",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  id: "account-google",
+  providerId: "google",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  userId: "user-1",
+};
 
 describe("PasskeySettings", () => {
   beforeEach(() => {
@@ -123,12 +151,16 @@ describe("PasskeySettings", () => {
       error: null,
     }));
     mockRefresh.mockReset();
+    mockSignInEmail.mockReset();
+    mockSignInEmail.mockResolvedValue({ data: {}, error: null });
+    mockSignInSocial.mockReset();
+    mockSignInSocial.mockResolvedValue({ data: {}, error: null });
     mockToastError.mockReset();
     mockToastSuccess.mockReset();
   });
 
   it("renders the user passkeys", async () => {
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     expect(mockListUserPasskeys).toHaveBeenCalled();
 
@@ -146,7 +178,7 @@ describe("PasskeySettings", () => {
       () => pendingListPasskeys.promise,
     );
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
     expect(screen.getByText("loading")).toBeInTheDocument();
@@ -165,7 +197,7 @@ describe("PasskeySettings", () => {
   it("adds a passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -192,7 +224,7 @@ describe("PasskeySettings", () => {
 
     mockAddPasskey.mockImplementationOnce(() => pendingAdd.promise);
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(screen.getByRole("button", { name: "add" }));
@@ -220,7 +252,7 @@ describe("PasskeySettings", () => {
   it("deletes a passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "delete-MacBook Touch ID" });
 
@@ -253,7 +285,7 @@ describe("PasskeySettings", () => {
 
     mockDeletePasskey.mockImplementationOnce(() => pendingDelete.promise);
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "delete-MacBook Touch ID" });
     await user.click(
@@ -284,7 +316,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -299,7 +331,7 @@ describe("PasskeySettings", () => {
     const user = userEvent.setup();
     mockAddPasskey.mockRejectedValueOnce(new Error("network down"));
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -324,7 +356,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByText("MacBook Touch ID");
     await user.click(screen.getByRole("button", { name: "add" }));
@@ -346,7 +378,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "delete-MacBook Touch ID" });
 
@@ -362,7 +394,7 @@ describe("PasskeySettings", () => {
   it("enters edit mode with the current passkey name", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -377,7 +409,7 @@ describe("PasskeySettings", () => {
   it("saves a renamed passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -408,7 +440,7 @@ describe("PasskeySettings", () => {
   it("saves a renamed passkey when the user presses Enter", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -455,7 +487,7 @@ describe("PasskeySettings", () => {
       },
     );
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -481,7 +513,7 @@ describe("PasskeySettings", () => {
   it("cancels passkey rename without saving", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -499,7 +531,7 @@ describe("PasskeySettings", () => {
   it("cancels passkey rename when the user presses Escape", async () => {
     const user = userEvent.setup();
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -526,7 +558,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(
@@ -542,7 +574,7 @@ describe("PasskeySettings", () => {
   it("shows an inline retry state when loading passkeys throws", async () => {
     mockListUserPasskeys.mockRejectedValueOnce(new Error("network down"));
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await waitFor(() => {
       expect(screen.getByText("loadError")).toBeInTheDocument();
@@ -562,7 +594,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await user.click(screen.getByRole("button", { name: "add" }));
 
@@ -582,7 +614,7 @@ describe("PasskeySettings", () => {
       },
     });
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await waitFor(() => {
       expect(screen.getByText("loadError")).toBeInTheDocument();
@@ -614,7 +646,7 @@ describe("PasskeySettings", () => {
     });
     mockListUserPasskeys.mockImplementationOnce(() => pendingRetry.promise);
 
-    render(<PasskeySettings />);
+    render(<PasskeySettings accounts={[]} canAddPasskey />);
 
     await waitFor(() => {
       expect(screen.getByText("loadError")).toBeInTheDocument();
@@ -636,5 +668,142 @@ describe("PasskeySettings", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
     });
+  });
+
+  it("keeps an existing passkey removable when the account read failed", async () => {
+    // A stolen device is exactly when removing has to work, and removing
+    // never touches Core's freshness gate.
+    render(<PasskeySettings accounts={[]} canAddPasskey={false} />);
+
+    // Wait for the list, because Add is disabled while it loads either way.
+    // Asserting before this would pass with `canAddPasskey` ignored entirely.
+    expect(
+      (await screen.findAllByRole("button", { name: /^delete-/ })).length,
+    ).toBeGreaterThan(0);
+
+    expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+    expect(screen.getByText("addUnavailable")).toBeInTheDocument();
+  });
+
+  it("allows adding once the account read succeeded", async () => {
+    // The control for the test above: same wait, opposite outcome.
+    render(<PasskeySettings accounts={[passwordAccount]} canAddPasskey />);
+
+    await screen.findAllByRole("button", { name: /^delete-/ });
+
+    expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    expect(screen.queryByText("addUnavailable")).not.toBeInTheDocument();
+  });
+
+  it("asks for the password again when the session is not fresh", async () => {
+    mockAddPasskey.mockReset();
+    mockAddPasskey
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "SESSION_NOT_FRESH", message: "Session is not fresh" },
+      })
+      .mockResolvedValue({ data: { id: "passkey-2" }, error: null });
+
+    render(<PasskeySettings accounts={[passwordAccount]} canAddPasskey />);
+
+    const user = userEvent.setup();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    const passwordField = await screen.findByTestId(
+      "reauth-field-currentPassword",
+    );
+    expect(mockToastError).not.toHaveBeenCalled();
+
+    await user.type(passwordField, "correct horse");
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    await waitFor(() => {
+      expect(mockSignInEmail).toHaveBeenCalledWith({
+        email: "passkey-owner@example.com",
+        password: "correct horse",
+        rememberMe: true,
+      });
+    });
+
+    // The gate re-authenticates and stops. WebAuthn needs the user gesture a
+    // resumed call no longer carries, so the viewer clicks Add again.
+    await waitFor(() => {
+      expect(mockToastSuccess).toHaveBeenCalledWith("retryPrompt");
+    });
+    expect(mockAddPasskey).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    await waitFor(() => {
+      expect(mockAddPasskey).toHaveBeenCalledTimes(2);
+    });
+    expect(mockToastSuccess).toHaveBeenCalledWith("addSuccess");
+  });
+
+  it("offers the linked provider when the account has no password", async () => {
+    mockAddPasskey.mockReset();
+    mockAddPasskey.mockResolvedValue({
+      data: null,
+      error: { code: "SESSION_NOT_FRESH", message: "Session is not fresh" },
+    });
+
+    render(<PasskeySettings accounts={[googleAccount]} canAddPasskey />);
+
+    const user = userEvent.setup();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    const continueButton = await screen.findByRole("button", {
+      name: "continueWithGoogle",
+    });
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+
+    await user.click(continueButton);
+
+    await waitFor(() => {
+      expect(mockSignInSocial).toHaveBeenCalledWith({
+        callbackURL: expect.stringContaining("/account"),
+        provider: "google",
+      });
+    });
+
+    // The gate re-authenticates only; adding the passkey stays a fresh click.
+    expect(mockAddPasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a normal add failure instead of asking to sign in again", async () => {
+    mockAddPasskey.mockReset();
+    mockAddPasskey.mockResolvedValue({
+      data: null,
+      error: { code: "PASSKEY_ALREADY_EXISTS", message: "nope" },
+    });
+
+    render(<PasskeySettings accounts={[passwordAccount]} canAddPasskey />);
+
+    const user = userEvent.setup();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("addError: nope");
+    });
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
   });
 });

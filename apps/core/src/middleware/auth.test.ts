@@ -830,8 +830,8 @@ describe("authMiddleware", () => {
   });
 
   it("returns 401 when the session belongs to a banned user", async () => {
-    // `enableSessionForAPIKeys` means an `x-api-key` header produces a session
-    // the admin plugin's ban hook never inspected.
+    // A ban lands after the session row exists, so the session itself stays
+    // valid and only the user state rejects the request.
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org_session" },
       user: {
