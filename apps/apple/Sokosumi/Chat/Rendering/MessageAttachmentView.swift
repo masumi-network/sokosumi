@@ -22,14 +22,11 @@ struct MessageAttachmentView: View {
         AttachmentMediaView(url: attachment.url, audioOnly: attachment.kind == .audio)
       case .file:
         Button { previewPresented = true } label: {
-          VStack(spacing: 2) {
-            Image(systemName: "doc.fill").font(.largeTitle)
-            Text(fileExtension.uppercased()).font(.caption2.bold())
-          }
-          .frame(width: 80, height: 80)
-          .background(.secondary.opacity(0.08), in: .rect(cornerRadius: 16))
-          .overlay(RoundedRectangle(cornerRadius: 16).stroke(.secondary.opacity(0.25)))
-          .contentShape(.rect(cornerRadius: 16))
+          AttachmentFileIcon(filename: attachment.filename, url: attachment.url)
+            .frame(width: 64, height: 64)
+            .background(.secondary.opacity(0.08), in: .rect(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.secondary.opacity(0.25)))
+            .contentShape(.rect(cornerRadius: 16))
         }
         .buttonStyle(.plain)
         .help(attachment.filename)
@@ -50,6 +47,7 @@ struct MessageAttachmentView: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.bottom, attachment.kind == .file ? 8 : 0)
     .sheet(isPresented: $previewPresented) {
       VStack(spacing: 16) {
         HStack {
@@ -82,11 +80,6 @@ struct MessageAttachmentView: View {
         .frame(minWidth: 640, minHeight: 480)
       #endif
     }
-  }
-
-  private var fileExtension: String {
-    let ext = (attachment.filename as NSString).pathExtension
-    return ext.isEmpty ? (attachment.url.pathExtension.isEmpty ? "file" : attachment.url.pathExtension) : ext
   }
 
   private var attachmentImage: some View {
