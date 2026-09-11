@@ -267,6 +267,14 @@ function renderContinuation(message: ChatRoomMessage = userMessage()) {
   renderRow({ message, isContinuation: true });
 }
 
+function hoverPill() {
+  return document.querySelector('[data-message-actions="hover"]');
+}
+
+function hoverCardTriggers() {
+  return document.querySelectorAll('[data-slot="hover-card-trigger"]');
+}
+
 describe("ChatMessageRow", () => {
   it("skips re-rendering for an identical prop set", () => {
     const message = userMessage();
@@ -2880,9 +2888,7 @@ describe("ChatMessageRow hover chrome", () => {
     const user = userEvent.setup();
     renderRow({ onQuote: vi.fn() });
 
-    expect(
-      document.querySelector('[data-message-actions="hover"]'),
-    ).not.toBeInTheDocument();
+    expect(hoverPill()).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Reactions.add" }),
     ).not.toBeInTheDocument();
@@ -2892,7 +2898,7 @@ describe("ChatMessageRow hover chrome", () => {
 
     await user.hover(screen.getByRole("article"));
 
-    const pill = document.querySelector('[data-message-actions="hover"]');
+    const pill = hoverPill();
     expect(pill).toBeInTheDocument();
     expect(
       within(pill as HTMLElement).getByRole("button", {
@@ -2901,9 +2907,7 @@ describe("ChatMessageRow hover chrome", () => {
     ).toBeInTheDocument();
 
     await user.unhover(screen.getByRole("article"));
-    expect(
-      document.querySelector('[data-message-actions="hover"]'),
-    ).toBeInTheDocument();
+    expect(hoverPill()).toBeInTheDocument();
   });
 
   it("mounts the participant hover cards on the first hover", async () => {
@@ -2913,14 +2917,10 @@ describe("ChatMessageRow hover chrome", () => {
     // Avatar and name keep their trigger semantics before any interaction,
     // so the tab order through the row does not change.
     expect(screen.getAllByRole("button", { name: "Ada" })).toHaveLength(2);
-    expect(
-      document.querySelector('[data-slot="hover-card-trigger"]'),
-    ).not.toBeInTheDocument();
+    expect(hoverCardTriggers()).toHaveLength(0);
 
     await user.hover(screen.getByRole("article"));
-    expect(
-      document.querySelectorAll('[data-slot="hover-card-trigger"]'),
-    ).toHaveLength(2);
+    expect(hoverCardTriggers()).toHaveLength(2);
 
     const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
     await user.hover(avatarTrigger);
@@ -2935,9 +2935,7 @@ describe("ChatMessageRow hover chrome", () => {
 
     const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
     expect(avatarTrigger).toHaveFocus();
-    expect(
-      document.querySelector('[data-message-actions="hover"]'),
-    ).toBeInTheDocument();
+    expect(hoverPill()).toBeInTheDocument();
     expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
   });
 
@@ -2959,12 +2957,8 @@ describe("ChatMessageRow hover chrome", () => {
     rerender(row("after merge"));
 
     expect(screen.getByText("after merge")).toBeInTheDocument();
-    expect(
-      document.querySelector('[data-message-actions="hover"]'),
-    ).toBeInTheDocument();
-    expect(
-      document.querySelectorAll('[data-slot="hover-card-trigger"]'),
-    ).toHaveLength(2);
+    expect(hoverPill()).toBeInTheDocument();
+    expect(hoverCardTriggers()).toHaveLength(2);
   });
 
   it("mounts only the action pill on a continuation row", async () => {
@@ -2977,12 +2971,8 @@ describe("ChatMessageRow hover chrome", () => {
 
     await user.hover(screen.getByRole("article"));
 
-    expect(
-      document.querySelector('[data-message-actions="hover"]'),
-    ).toBeInTheDocument();
-    expect(
-      document.querySelector('[data-slot="hover-card-trigger"]'),
-    ).not.toBeInTheDocument();
+    expect(hoverPill()).toBeInTheDocument();
+    expect(hoverCardTriggers()).toHaveLength(0);
   });
 
   it("mounts the chrome when focus lands on the more actions button", async () => {
@@ -2993,9 +2983,7 @@ describe("ChatMessageRow hover chrome", () => {
     });
 
     expect(screen.getByRole("button", { name: "Actions.more" })).toHaveFocus();
-    expect(
-      document.querySelector('[data-message-actions="hover"]'),
-    ).toBeInTheDocument();
+    expect(hoverPill()).toBeInTheDocument();
   });
 
   it("renders no pill for a pending outbound row even after hover", async () => {
@@ -3013,9 +3001,7 @@ describe("ChatMessageRow hover chrome", () => {
 
     await user.hover(screen.getByRole("article"));
 
-    expect(
-      document.querySelector('[data-message-actions="hover"]'),
-    ).not.toBeInTheDocument();
+    expect(hoverPill()).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Actions.more" }),
     ).not.toBeInTheDocument();
