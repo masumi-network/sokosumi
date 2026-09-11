@@ -94,7 +94,7 @@ private struct MarkdownBlockView: View {
   var body: some View {
     switch block.kind {
     case let .header(level):
-      Text(styled(block.text))
+      attachmentContent(block.text)
         .fixedSize(horizontal: false, vertical: true)
         .font(headingFont(level))
         .fontWeight(.semibold)
@@ -121,7 +121,7 @@ private struct MarkdownBlockView: View {
             GridRow {
               ForEach(columns.indices, id: \.self) { index in
                 let cell = row.children.first { $0.kind == .tableCell(columnIndex: index) }
-                Text(styled(cell?.text ?? AttributedString()))
+                attachmentContent(cell?.text ?? AttributedString())
                   .fontWeight(row.kind == .tableHeaderRow ? .semibold : .regular)
                   .gridColumnAlignment(tableAlignment(columns[index].alignment))
               }
@@ -135,10 +135,21 @@ private struct MarkdownBlockView: View {
       }
     default:
       if block.children.isEmpty {
-        Text(styled(block.text))
-          .fixedSize(horizontal: false, vertical: true)
+        attachmentContent(block.text)
       } else {
         MarkdownBlocksView(blocks: block.children)
+      }
+    }
+  }
+
+  private func attachmentContent(_ text: AttributedString) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      ForEach(MessageAttachmentSegment.split(text)) { segment in
+        if let attachment = segment.attachment {
+          MessageAttachmentView(attachment: attachment).id(attachment.url)
+        } else if !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+          Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
+        }
       }
     }
   }

@@ -1,0 +1,61 @@
+import Foundation
+
+public enum MessageAttachmentKindAttribute: AttributedStringKey {
+  public typealias Value = MessageAttachment.Kind
+  public static let name = "sokosumi.message.attachment-kind"
+}
+
+/// File metadata available in message Markdown; size is not carried on the wire.
+public struct MessageAttachment: Equatable, Sendable {
+  public enum Kind: Hashable, Sendable { case image, audio, video, file }
+  public let url: URL
+  public let filename: String
+  public let kind: Kind
+
+  public init?(url: URL, label: String, kindHint: Kind? = nil) {
+    guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil else { return nil }
+    let ext = url.pathExtension.lowercased()
+    let extensions: Set = ["png", "jpg", "jpeg", "webp", "svg", "gif", "pdf", "txt", "md", "rtf", "csv", "json", "xml", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "tar", "gz", "mp3", "mp4", "wav", "mov"]
+    guard kindHint != nil || (url.fragment == nil && (extensions.contains(ext) || url.path.contains("/deliverables/"))) else { return nil }
+    self.url = url
+    filename = label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? url.lastPathComponent : label
+    let hint = ext.isEmpty ? (filename as NSString).pathExtension.lowercased() : ext
+    if let kindHint {
+      kind = kindHint
+    } else if ["png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "heic", "heif"].contains(hint) {
+      kind = .image
+    } else if ["mp3", "wav", "m4a", "ogg", "aac", "flac"].contains(hint) {
+      kind = .audio
+    } else if ["mp4", "mov", "webm", "m4v"].contains(hint) {
+      kind = .video
+    } else {
+      kind = .file
+    }
+  }
+}
+
+public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
+  public let id: Int
+  public var text: AttributedString
+  public var attachment: MessageAttachment?
+
+  /// Reuses parsed Markdown links, preserving text attributes and occurrence order.
+  public static func split(_ text: AttributedString) -> [Self] {
+    var result: [Self] = []
+    var offset = 0
+    for run in text.runs {
+      let part = AttributedString(text[run.range])
+      let attachment = run.link.flatMap { MessageAttachment(url: $0, label: String(part.characters), kindHint: run[MessageAttachmentKindAttribute.self]) }
+      if let attachment, let last = result.indices.last, result[last].attachment?.url == attachment.url {
+        result[last].text.append(part)
+        result[last].attachment = MessageAttachment(url: attachment.url, label: String(result[last].text.characters), kindHint: attachment.kind)
+      } else if attachment == nil, let last = result.indices.last, result[last].attachment == nil {
+        result[last].text.append(part)
+      } else {
+        result.append(Self(id: offset, text: part, attachment: attachment))
+      }
+      offset += part.characters.count
+    }
+    return result
+  }
+}
