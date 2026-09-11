@@ -24,17 +24,6 @@ export function buildVendorLogoPathname(
 }
 
 /**
- * Content-hash pathname for server-side scrape puts (no random suffix).
- * Example: `vendors/{vendorId}/logos/{sha256Hex}`
- */
-export function buildVendorLogoContentHashPathname(
-  vendorId: string,
-  sha256Hex: string,
-): string {
-  return `${buildVendorLogoPrefix(vendorId)}${sha256Hex}`;
-}
-
-/**
  * True when `url` is a public Vercel Blob URL under this vendor's
  * logos prefix (`/vendors/{vendorId}/logos/…`). Requires HTTPS and a
  * Vercel public blob host so foreign hosts cannot spoof ownership.

@@ -30,7 +30,6 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/lib/ably/create-token-request", () => ({
   createAblyClientTokenRequest: (...args: unknown[]) =>
     createAblyClientTokenRequestMock(...args),
-  createAblySubscribeTokenRequest: vi.fn(),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {

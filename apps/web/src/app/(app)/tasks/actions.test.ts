@@ -10,6 +10,8 @@ const getTasksListPageMock = vi.fn();
 const listJobsMock = vi.fn();
 const mapJobsToTasksViewDataMock = vi.fn();
 const getSessionMock = vi.fn();
+const listTaskAssigneeOptionsMock = vi.fn();
+const getProjectFilterOptionsMock = vi.fn();
 
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
@@ -64,12 +66,23 @@ vi.mock("next-intl/server", () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
 }));
 
+vi.mock("./utils/task-assignee-options", () => ({
+  listTaskAssigneeOptions: (...args: unknown[]) =>
+    listTaskAssigneeOptionsMock(...args),
+}));
+
+vi.mock("@/lib/helpers/project-filter-options", () => ({
+  getProjectFilterOptions: (...args: unknown[]) =>
+    getProjectFilterOptionsMock(...args),
+}));
+
 import {
   loadCreateTaskModalData,
   loadJobsTabData,
   loadMoreJobs,
   loadMoreTasksColumn,
   loadMoreTasksList,
+  loadNewTaskWizardOptions,
 } from "./actions";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
@@ -645,5 +658,56 @@ describe("loadCreateTaskModalData", () => {
 
     expect(resolveEffectiveDesignMdMock).not.toHaveBeenCalled();
     expect(result.designMdAttachment).toBeNull();
+  });
+});
+
+describe("loadNewTaskWizardOptions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+    listTaskAssigneeOptionsMock.mockResolvedValue([
+      { id: "coworker-1", kind: "coworker" },
+    ]);
+    getProjectFilterOptionsMock.mockResolvedValue([
+      { id: "project-1", name: "Project One" },
+    ]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([
+      { id: "agent-1", name: "Agent One" },
+    ]);
+    resolveEffectiveDesignMdMock.mockResolvedValue({
+      label: "Design",
+      url: "https://example.com/design.md",
+      owner: { type: "organization", name: "Acme Inc", logo: null },
+    });
+  });
+
+  it("loads the workspace's assignees, projects, and create data in one call", async () => {
+    const result = await loadNewTaskWizardOptions();
+
+    expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org-1");
+    expect(result).toEqual({
+      coworkerOptions: [{ id: "coworker-1", kind: "coworker" }],
+      projectOptions: [{ id: "project-1", name: "Project One" }],
+      agentNameById: { "agent-1": "Agent One" },
+      designMdAttachment: {
+        label: "Design",
+        url: "https://example.com/design.md",
+        owner: { type: "organization", name: "Acme Inc", logo: null },
+      },
+    });
+  });
+
+  it("treats a personal workspace as no organization", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: null },
+    });
+
+    await loadNewTaskWizardOptions();
+
+    expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith(null);
   });
 });

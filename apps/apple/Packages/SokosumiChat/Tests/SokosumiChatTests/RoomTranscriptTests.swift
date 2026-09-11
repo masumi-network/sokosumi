@@ -104,6 +104,12 @@ struct RoomTranscriptTests {
       roomId: roomId,
       content: "hello",
       clientMessageId: turnId,
+      mentions: [
+        .init(id: "user-1", name: "Ada", slug: "ada", kind: .human),
+        .init(id: "cow-1", name: "Helper", slug: "helper", kind: .coworker),
+        .init(id: messageId, name: "Soko", slug: "soko", kind: .sokoBot),
+        .init(id: "all", name: "Everyone", slug: "all", kind: .all)
+      ],
       organizationSlug: "acme"
     )
     #expect(message.content == "hello")
@@ -113,6 +119,9 @@ struct RoomTranscriptTests {
     let body = testRequestJSON(transport.bodies[0])
     #expect(body["content"] as? String == "hello")
     #expect(body["clientMessageId"] as? String == turnId)
+    #expect(body["mentionedUserIds"] as? [String] == ["user-1"])
+    #expect(body["mentionedCoworkerIds"] as? [String] == ["cow-1"])
+    #expect(body["mentionedSokoBotIds"] as? [String] == [messageId])
   }
 
   @Test func createMessageFailureIsUnprocessable() async throws {

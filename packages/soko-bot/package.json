@@ -30,7 +30,7 @@
     "test:ci": "vitest run"
   },
   "dependencies": {
-    "zod": "4.6.1"
+    "zod": "4.6.2"
   },
   "devDependencies": {
     "@types/node": "24.13.4",

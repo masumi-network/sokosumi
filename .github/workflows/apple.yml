@@ -93,6 +93,8 @@ jobs:
             package: SokosumiAuth
           - name: Swift tests (CoreAPI)
             package: CoreAPI
+          - name: Swift tests (SokosumiWorkspace)
+            package: SokosumiWorkspace
           - name: Swift tests (SokosumiRealtime)
             package: SokosumiRealtime
     steps:

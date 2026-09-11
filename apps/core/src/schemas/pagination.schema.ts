@@ -58,6 +58,3 @@ export const cursorPaginationMetaSchema = z
   .openapi("PaginationMetadata");
 
 export type CursorPaginationMeta = z.infer<typeof cursorPaginationMetaSchema>;
-
-/** Alias for backward compatibility */
-export type PaginationMeta = CursorPaginationMeta;

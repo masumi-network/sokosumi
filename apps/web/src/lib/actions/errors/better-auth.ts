@@ -44,10 +44,6 @@ export const betterAuthApiErrorSchema = z.object({
   }),
 });
 
-export type BetterAuthApiErrorSchemaType = z.infer<
-  typeof betterAuthApiErrorSchema
->;
-
 export type BetterAuthClientError = {
   code?: string | undefined;
   message?: string | undefined;
