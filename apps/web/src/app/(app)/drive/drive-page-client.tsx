@@ -1673,7 +1673,7 @@ function DrivePageWorkspace({
       ) : emptyState ? (
         <div
           className={cn(
-            "bg-muted/30 border-border -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            "bg-card-background border-border -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
             PROJECTS_LIST_CARD_MIN_H_CLASS,
           )}
         >
@@ -2322,7 +2322,7 @@ function DrivePageWorkspace({
                   type="button"
                   onClick={() => setSelectedDestination(dest.path)}
                   className={cn(
-                    "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedDestination === dest.path &&
                       "bg-muted border-primary",
                   )}

@@ -254,7 +254,7 @@ function MessageQuoteAttachmentThumb({
   attachment: RoomQuoteAttachment;
 }) {
   const thumbClassName =
-    "bg-accent/30 mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
+    "bg-card-background mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
 
   switch (attachment.mediaKind) {
     case "image":
@@ -348,10 +348,10 @@ function MessageQuoteBlock({
   const attachment = quote.attachment ?? null;
 
   return (
-    <div className="border-border bg-muted/40 mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
+    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
       <button
         type="button"
-        className="hover:bg-muted/70 focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
+        className="hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
           onJumpToQuotedMessage?.(quote.messageId);
@@ -469,7 +469,7 @@ function MessageUnfurlCard({
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-card-background hover:bg-card-background focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
@@ -1425,7 +1425,7 @@ function TouchMessageActionsSheet({
             className="flex w-full cursor-grab justify-center py-3 active:cursor-grabbing"
           >
             <div
-              className="bg-muted-foreground/40 h-1.5 w-12 shrink-0 rounded-full"
+              className="bg-tertiary h-1.5 w-12 shrink-0 rounded-full"
               aria-hidden
             />
           </div>
@@ -1681,7 +1681,7 @@ function MessageEditComposer({
     <div className="pt-0.5">
       <div
         className={cn(
-          "border-input focus-within:border-ring focus-within:ring-ring-halo dark:bg-input/30 rounded-md border bg-transparent focus-within:ring-[3px]",
+          "border-input focus-within:border-ring focus-within:ring-ring-halo dark:bg-quinary rounded-md border bg-transparent focus-within:ring-[3px]",
           isSaving && "pointer-events-none opacity-50",
         )}
       >
@@ -2347,7 +2347,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // the content (`isolate` scopes their z-index -1 to the row). Nothing
         // paints outside the row, so the scroller cannot clip it. The styling
         // itself lives in globals.css, keyed on data-search-landed.
-        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
+        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-card-background",
         // Sized to the widest pill: eight buttons, or the chain badge plus seven.
         reserveHoverActionGutter &&
           (hasSokoBotChainBadge(message.metadata)

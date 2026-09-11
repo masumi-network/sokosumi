@@ -28,7 +28,7 @@ export function KanbanColumn({
     <section
       className={cn(
         "flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]",
-        "bg-muted/30 border border-transparent",
+        "bg-card-background border border-transparent",
         isEmpty && "border-muted-foreground/20 border-dashed bg-transparent",
       )}
     >

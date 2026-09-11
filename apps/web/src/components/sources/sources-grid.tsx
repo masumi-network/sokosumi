@@ -50,7 +50,7 @@ export function SourcesGrid(props: SourcesGridProps) {
             rel="noreferrer noopener"
             className="hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none"
           >
-            <div className="bg-accent/50 relative size-4 shrink-0 items-center justify-center overflow-hidden rounded">
+            <div className="bg-card-background relative size-4 shrink-0 items-center justify-center overflow-hidden rounded">
               <Favicon
                 sources={buildFaviconCandidates(link.url)}
                 alt={link.title ?? link.url}

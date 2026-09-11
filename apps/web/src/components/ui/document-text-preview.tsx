@@ -17,7 +17,7 @@ export function DocumentTextPreview({
   content: string;
 }) {
   return (
-    <div className="bg-muted/40 h-full w-full overflow-y-auto p-4 md:p-6">
+    <div className="bg-card-background h-full w-full overflow-y-auto p-4 md:p-6">
       <article className="bg-background border-border mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
         {/* Document letterhead */}
         <div className="border-border flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">

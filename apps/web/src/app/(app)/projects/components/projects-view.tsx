@@ -155,7 +155,7 @@ function ProjectsEmptyState({
   return (
     <div
       className={cn(
-        "bg-muted/30 border-border flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
+        "bg-card-background border-border flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
         PROJECTS_LIST_CARD_MIN_H_CLASS,
       )}
     >

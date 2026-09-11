@@ -56,7 +56,7 @@ export function NotificationItem({
           // Translucent, so the circle survives the row's hover tint, which
           // is the same colour as the muted surface.
           notification.isRead
-            ? "bg-foreground/10 text-muted-foreground"
+            ? "bg-quinary text-muted-foreground"
             : "bg-primary/15 text-primary",
         )}
         aria-hidden
@@ -67,7 +67,7 @@ export function NotificationItem({
         {showPendingAccessActions ? (
           <button
             type="button"
-            className="hover:bg-accent/50 -mx-1 cursor-pointer rounded-md px-1 text-left"
+            className="hover:bg-card-background -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={onClick}
           >
             <p className={cn("text-sm", !notification.isRead && "font-medium")}>
