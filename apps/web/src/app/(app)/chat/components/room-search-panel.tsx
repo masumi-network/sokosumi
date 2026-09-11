@@ -7,14 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
-  PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -54,18 +49,27 @@ export function RoomSearchPanel({
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const requestIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const interactedOutsideRef = useRef(false);
   const listboxId = useId();
   const optionIdPrefix = useId();
   const { formatTimeAgo } = useLocalizedDateTime();
 
-  // Below the mobile breakpoint there is no physical keyboard, so the hotkey
-  // stays unbound and the hint stays out of the tooltip.
+  // Below the mobile breakpoint there is no physical keyboard, so the field
+  // collapses into the header icon and the hotkey stays unbound.
   const isMobile = useIsMobile();
   const isApplePlatform = useIsApplePlatform();
   const shortcutLabel = isApplePlatform ? "⌘F" : "Ctrl+F";
   const shortcutKeys = isApplePlatform ? "Meta+F" : "Control+F";
+
+  // On desktop the field rests as an icon and grows into a field while it
+  // has focus, results, or a query. Mobile always shows the full field
+  // because it only mounts inside the popover.
+  const isExpanded = isMobile || isFocused || open || query !== "";
 
   const searchMessages = useEffectEvent(async (searchQuery: string) => {
     const requestId = ++requestIdRef.current;
@@ -116,14 +120,26 @@ export function RoomSearchPanel({
     void searchMessages(debouncedQuery);
   }, [debouncedQuery, open, roomId]);
 
+  function focusField() {
+    // On mobile the field only mounts with the popover, so wait a frame.
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+  }
+
   /** Returns false when the press belongs to find-in-page instead. */
   const openFromHotkey = useEffectEvent(() => {
-    // A second press while the field already has focus falls through to
-    // find-in-page, so the browser shortcut stays reachable.
+    // A press while the surface is already open and focused falls through to
+    // find-in-page, so the browser shortcut stays reachable. Once the surface
+    // is closed the shortcut belongs to search again, even though the field
+    // below it kept focus.
     if (open && document.activeElement === inputRef.current) {
       return false;
     }
+
     setOpen(true);
+    focusField();
     return true;
   });
 
@@ -151,9 +167,18 @@ export function RoomSearchPanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isApplePlatform, isMobile]);
 
+  function isEventInsideField(target: EventTarget | null) {
+    return (
+      target instanceof Node && fieldRef.current?.contains(target) === true
+    );
+  }
+
   function closeSearch() {
-    // Hits never outlive the surface that showed them. The query survives so
-    // reopening re-runs the search from where the user left off.
+    // Hits never outlive the surface that showed them. Keeping them would
+    // leave Enter and the arrow keys acting on a list nobody can see. The
+    // query itself does survive, because the field stays on screen and
+    // emptying it under the user would look like data loss; reopening
+    // re-runs the search from that query.
     setResults([]);
     setActiveIndex(0);
     setError(null);
@@ -167,6 +192,9 @@ export function RoomSearchPanel({
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
+      // The exit animation can cancel an unmount before onCloseAutoFocus
+      // consumes this, which would leave the next close without its restore.
+      interactedOutsideRef.current = false;
       setOpen(true);
       return;
     }
@@ -184,7 +212,33 @@ export function RoomSearchPanel({
     setDebouncedQuery("");
   }
 
+  /** A second Escape on an already-empty field gives it back to the icon. */
+  function clearOrCollapse() {
+    if (query) {
+      clearQuery();
+      return;
+    }
+    inputRef.current?.blur();
+  }
+
   function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    // While the surface is open, Escape belongs to the dismissable layer, so
+    // the key means the same thing wherever focus sits. Once it is closed
+    // that layer is gone, and the field is still holding the query Escape is
+    // meant to clear.
+    if (!open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        clearOrCollapse();
+        return;
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+
     if (results.length === 0) {
       return;
     }
@@ -213,65 +267,137 @@ export function RoomSearchPanel({
   const showIdle = !debouncedQuery && !isLoading && !error;
   const showEmpty =
     Boolean(debouncedQuery) && !isLoading && !error && results.length === 0;
-  const activeOptionId = results[activeIndex]
-    ? `${optionIdPrefix}-${results[activeIndex].id}`
-    : undefined;
+  const activeOptionId =
+    open && results[activeIndex]
+      ? `${optionIdPrefix}-${results[activeIndex].id}`
+      : undefined;
+
+  const searchField = (
+    <div
+      ref={fieldRef}
+      data-testid="room-search-field"
+      data-state={isExpanded ? "expanded" : "collapsed"}
+      className={cn(
+        "relative transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)]",
+        isMobile ? "w-full" : isExpanded ? "w-56 xl:w-64" : "w-8",
+      )}
+    >
+      <Search
+        aria-hidden
+        className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2"
+        strokeWidth={1.5}
+      />
+      <Input
+        ref={inputRef}
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setOpen(true);
+        }}
+        onClick={() => setOpen(true)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        onKeyDown={handleInputKeyDown}
+        placeholder={labels.placeholder}
+        aria-label={labels.open}
+        aria-keyshortcuts={isMobile ? undefined : shortcutKeys}
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-autocomplete="list"
+        aria-activedescendant={activeOptionId}
+        data-testid="room-search-input"
+        className={cn(
+          "peer h-8 pl-8 placeholder:transition-opacity placeholder:duration-200",
+          // The gutter has to clear the hint without clipping the placeholder,
+          // and "Ctrl+F" is far wider than "⌘F".
+          isMobile ? "pr-3" : isApplePlatform ? "pr-12" : "pr-16",
+          // Collapsed, the field passes for the ghost icon button next to it.
+          !isExpanded &&
+            "hover:bg-accent hover:text-accent-foreground cursor-pointer border-transparent dark:bg-transparent placeholder:opacity-0",
+        )}
+      />
+      {isMobile ? null : (
+        <kbd
+          aria-hidden
+          className={cn(
+            "text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 font-sans text-xs tracking-widest whitespace-nowrap",
+            "transition-[opacity] duration-150 ease-[cubic-bezier(0.2,0,0,1)] peer-focus:opacity-0",
+            (query || !isExpanded) && "opacity-0",
+          )}
+        >
+          {shortcutLabel}
+        </kbd>
+      )}
+    </div>
+  );
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={labels.open}
-              aria-keyshortcuts={isMobile ? undefined : shortcutKeys}
-              data-testid="room-search-trigger"
-              className="size-8"
-            >
-              <Search className="size-4" strokeWidth={1.5} />
-            </Button>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>
-          {labels.open}
-          {isMobile ? null : (
-            <kbd className="ml-2 font-sans tracking-widest opacity-70">
-              {shortcutLabel}
-            </kbd>
-          )}
-        </TooltipContent>
-      </Tooltip>
+      <PopoverAnchor asChild>
+        {isMobile ? (
+          <Button
+            ref={triggerRef}
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={labels.open}
+            data-testid="room-search-trigger"
+            className="size-8"
+            onClick={() => {
+              setOpen(true);
+              focusField();
+            }}
+          >
+            <Search className="size-4" strokeWidth={1.5} />
+          </Button>
+        ) : (
+          searchField
+        )}
+      </PopoverAnchor>
       <PopoverContent
         align="end"
         className="w-[min(100vw-2rem,24rem)] p-0"
         data-testid="room-search-panel"
+        // The header field is the anchor, not part of the content, so Radix
+        // reads focusing or clicking it as an outside interaction and would
+        // close the surface the hotkey just opened.
+        onFocusOutside={(event) => {
+          if (isEventInsideField(event.detail.originalEvent.target)) {
+            event.preventDefault();
+            return;
+          }
+          interactedOutsideRef.current = true;
+        }}
+        onPointerDownOutside={(event) => {
+          if (isEventInsideField(event.detail.originalEvent.target)) {
+            event.preventDefault();
+            return;
+          }
+          interactedOutsideRef.current = true;
+        }}
         onEscapeKeyDown={clearQuery}
+        // There is no PopoverTrigger any more, so Radix has no element to
+        // return focus to and would drop it on the body. It also no longer
+        // withholds that restore after an outside interaction, so match what
+        // a trigger would have done and leave the user where they clicked.
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (interactedOutsideRef.current) {
+            interactedOutsideRef.current = false;
+            return;
+          }
+          (isMobile ? triggerRef : inputRef).current?.focus();
+        }}
+        onOpenAutoFocus={(event) => {
+          // Desktop keeps focus in the header field; mobile focuses the field
+          // that mounts inside this popover.
+          if (!isMobile) {
+            event.preventDefault();
+          }
+        }}
       >
-        <div className="relative border-b p-2">
-          <Search
-            aria-hidden
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-4.5 size-4 -translate-y-1/2"
-            strokeWidth={1.5}
-          />
-          <Input
-            ref={inputRef}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={handleInputKeyDown}
-            placeholder={labels.placeholder}
-            aria-label={labels.open}
-            role="combobox"
-            aria-expanded
-            aria-controls={listboxId}
-            aria-autocomplete="list"
-            aria-activedescendant={activeOptionId}
-            data-testid="room-search-input"
-            className="h-8 pl-8"
-          />
-        </div>
+        {isMobile ? <div className="border-b p-2">{searchField}</div> : null}
         <div
           id={listboxId}
           role="listbox"

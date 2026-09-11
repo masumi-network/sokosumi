@@ -74,8 +74,13 @@ function renderPanel(onJumpToMessage = vi.fn()) {
   return onJumpToMessage;
 }
 
+/** Opens the results surface the way the current viewport exposes it. */
 function openSearch() {
-  fireEvent.click(screen.getByTestId("room-search-trigger"));
+  if (platform.isMobile) {
+    fireEvent.click(screen.getByTestId("room-search-trigger"));
+    return;
+  }
+  fireEvent.click(screen.getByTestId("room-search-input"));
 }
 
 function typeQuery(value: string) {
@@ -92,18 +97,88 @@ describe("RoomSearchPanel", () => {
     getChatRoomMessagesMock.mockResolvedValue({ data: [message()] });
   });
 
-  it("shows only the icon until it is opened", () => {
+  it("shows the search field in the header before the results open", () => {
     renderPanel();
 
-    expect(screen.getByTestId("room-search-trigger")).toBeInTheDocument();
-    expect(screen.queryByTestId("room-search-input")).not.toBeInTheDocument();
+    expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
     expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
 
     openSearch();
 
     expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
     expect(screen.getByText(labels.idle)).toBeInTheDocument();
+  });
+
+  describe("collapsed icon", () => {
+    function fieldState() {
+      return screen.getByTestId("room-search-field").getAttribute("data-state");
+    }
+
+    it("rests as an icon and grows on focus", () => {
+      renderPanel();
+
+      expect(fieldState()).toBe("collapsed");
+
+      fireEvent.focus(screen.getByTestId("room-search-input"));
+
+      expect(fieldState()).toBe("expanded");
+    });
+
+    it("shrinks back on blur when there is no query", () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      fireEvent.focus(input);
+      fireEvent.blur(input);
+
+      expect(fieldState()).toBe("collapsed");
+    });
+
+    it("stays open while a query is present", async () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      fireEvent.blur(input);
+
+      expect(input).toHaveValue("budget");
+      expect(fieldState()).toBe("expanded");
+    });
+
+    it("grows from the host shortcut", async () => {
+      renderPanel();
+
+      fireEvent.keyDown(window, { key: "f", metaKey: true });
+
+      await waitFor(() => {
+        expect(fieldState()).toBe("expanded");
+      });
+    });
+
+    it("collapses on Escape once the field is empty and closed", async () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      fireEvent.keyDown(window, { key: "f", metaKey: true });
+      await waitFor(() => {
+        expect(input).toHaveFocus();
+      });
+      fireEvent.keyDown(input, { key: "Escape" });
+      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
+      expect(input).toHaveFocus();
+
+      fireEvent.keyDown(input, { key: "Escape" });
+
+      expect(input).not.toHaveFocus();
+      expect(fieldState()).toBe("collapsed");
+    });
   });
 
   it("shows results after a debounced query", async () => {
@@ -183,7 +258,8 @@ describe("RoomSearchPanel", () => {
         />,
       );
 
-      expect(screen.getByTestId("room-search-trigger")).toHaveAttribute(
+      expect(screen.getByText("⌘F")).toBeInTheDocument();
+      expect(screen.getByTestId("room-search-input")).toHaveAttribute(
         "aria-keyshortcuts",
         "Meta+F",
       );
@@ -192,7 +268,8 @@ describe("RoomSearchPanel", () => {
       platform.isApple = false;
       renderPanel();
 
-      expect(screen.getByTestId("room-search-trigger")).toHaveAttribute(
+      expect(screen.getByText("Ctrl+F")).toBeInTheDocument();
+      expect(screen.getByTestId("room-search-input")).toHaveAttribute(
         "aria-keyshortcuts",
         "Control+F",
       );
@@ -270,7 +347,7 @@ describe("RoomSearchPanel", () => {
       expect(onJumpToMessage).toHaveBeenCalledWith(older);
     });
 
-    it("closes on Escape and returns focus to the trigger", async () => {
+    it("closes on Escape and keeps focus on the field", async () => {
       renderPanel();
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
@@ -283,12 +360,10 @@ describe("RoomSearchPanel", () => {
       });
 
       expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
-      await waitFor(() => {
-        expect(screen.getByTestId("room-search-trigger")).toHaveFocus();
-      });
+      expect(screen.getByTestId("room-search-input")).toHaveFocus();
     });
 
-    it("reopens from the shortcut after Escape", async () => {
+    it("reopens from the shortcut after Escape, with the field still focused", async () => {
       renderPanel();
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
@@ -300,6 +375,7 @@ describe("RoomSearchPanel", () => {
         key: "Escape",
       });
       expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
+      expect(screen.getByTestId("room-search-input")).toHaveFocus();
 
       const reopen = new KeyboardEvent("keydown", {
         key: "f",
@@ -338,13 +414,26 @@ describe("RoomSearchPanel", () => {
           screen.queryByTestId("room-search-panel"),
         ).not.toBeInTheDocument();
       });
-
-      openSearch();
-
       expect(screen.getByTestId("room-search-input")).toHaveValue("");
     });
 
-    it("keeps the query but not the hits when a result closes it", async () => {
+    it("keeps the query but drops the hits when a result closes it", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      expect(screen.getByTestId("room-search-input")).toHaveValue("budget");
+      expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
+    });
+
+    it("does not paint the previous hits when it reopens", async () => {
       renderPanel();
 
       openSearch();
@@ -358,9 +447,33 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
 
-      expect(screen.getByTestId("room-search-input")).toHaveValue("budget");
+      // Assert the surface is actually back, or the "no results" check below
+      // would pass simply because the whole subtree is unmounted.
+      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
       expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
       expect(screen.queryByTestId("room-search-empty")).not.toBeInTheDocument();
+    });
+
+    it("clears the query with Escape after the surface has closed", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      expect(screen.getByTestId("room-search-input")).toHaveValue("budget");
+
+      // The dismissable layer is gone with the surface, so the field has to
+      // answer Escape itself.
+      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
+        key: "Escape",
+      });
+
+      expect(screen.getByTestId("room-search-input")).toHaveValue("");
     });
 
     it("leaves focus where the user clicked after an outside dismissal", async () => {
@@ -384,7 +497,41 @@ describe("RoomSearchPanel", () => {
       elsewhere.remove();
     });
 
-    it("returns focus to the trigger after a hit is selected", async () => {
+    it("does not jump from Enter while the surface is closed", async () => {
+      const onJumpToMessage = renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
+      onJumpToMessage.mockClear();
+
+      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
+        key: "Enter",
+      });
+
+      expect(onJumpToMessage).not.toHaveBeenCalled();
+    });
+
+    it("reopens with ArrowDown after a close", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+
+      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
+        key: "ArrowDown",
+      });
+
+      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+    });
+
+    it("returns focus to the field after a hit is selected", async () => {
       getChatRoomMessagesMock.mockResolvedValue({ data: [message()] });
       renderPanel();
 
@@ -393,7 +540,7 @@ describe("RoomSearchPanel", () => {
       fireEvent.click(await screen.findByTestId("room-search-result"));
 
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-trigger")).toHaveFocus();
+        expect(screen.getByTestId("room-search-input")).toHaveFocus();
       });
     });
   });
@@ -403,12 +550,12 @@ describe("RoomSearchPanel", () => {
       platform.isMobile = true;
     });
 
-    it("does not advertise the shortcut", () => {
+    it("collapses to the icon trigger and hides the shortcut", () => {
       renderPanel();
 
-      expect(screen.getByTestId("room-search-trigger")).not.toHaveAttribute(
-        "aria-keyshortcuts",
-      );
+      expect(screen.getByTestId("room-search-trigger")).toBeInTheDocument();
+      expect(screen.queryByTestId("room-search-input")).not.toBeInTheDocument();
+      expect(screen.queryByText("⌘F")).not.toBeInTheDocument();
     });
 
     it("does not bind the host shortcut", () => {
