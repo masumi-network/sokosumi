@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   type NotificationCategory,
@@ -74,16 +75,42 @@ export interface ChatRoomMessageCreatedEffectsParams {
 export async function emitChatRoomMessageCreatedEffects(
   params: ChatRoomMessageCreatedEffectsParams,
 ): Promise<void> {
-  const memberUserIds = await getMemberUserIds(params);
+  let memberUserIds: readonly string[];
+  try {
+    // Read before the settled pair below, so a failure here reaches neither
+    // of them and has nothing left to report it. Both are scheduled after the
+    // reader has been answered, so a rejection arrives as an unhandled one.
+    memberUserIds = await getMemberUserIds(params);
+  } catch (error) {
+    report(error, params);
+    return;
+  }
+
   const results = await Promise.allSettled([
     invalidateChatRoomMessageReaders({ roomId: params.roomId, memberUserIds }),
     emitChatRoomMessageNotifications(params, memberUserIds),
   ]);
   for (const result of results) {
     if (result.status === "rejected") {
-      console.error("Failed to emit chat room message effects", result.reason);
+      report(result.reason, params);
     }
   }
+}
+
+/**
+ * Reported as well as logged. This runs after the reader has been answered,
+ * so the console line is the only trace a failure leaves, and nobody reads it
+ * until someone already suspects the failure.
+ */
+function report(
+  error: unknown,
+  params: ChatRoomMessageCreatedEffectsParams,
+): void {
+  console.error("Failed to emit chat room message effects", error);
+  Sentry.captureException(error, {
+    tags: { context: "chat_room_message_effects" },
+    extra: { roomId: params.roomId, messageId: params.messageId },
+  });
 }
 
 interface ChatRoomMessageReaders {

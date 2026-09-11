@@ -231,4 +231,37 @@ describe("emitChatDirectMessageNotifications", () => {
     expect(captureExceptionMock).toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledTimes(2);
   });
+
+  /**
+   * A throw above the per-recipient loop leaves the loop's own reporting
+   * behind. Every caller schedules this after the reader has been answered,
+   * so such a throw arrives as an unhandled rejection that names nothing.
+   */
+  it("reports a failed fan-out instead of rejecting", async () => {
+    const failure = new Error("fan-out failed");
+    membershipFindManyMock.mockRejectedValueOnce(failure);
+
+    await expect(
+      emitChatDirectMessageNotifications({
+        roomId: ROOM_ID,
+        roomName: "Alice",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        content: "ship it",
+        authorUserId: AUTHOR_ID,
+        authorName: "Patrick",
+        recipientUserIds: [PEER_ID, OTHER_ID],
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      tags: { context: "chat_direct_message_notifications" },
+      extra: {
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+        recipientCount: 2,
+      },
+    });
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
 });
