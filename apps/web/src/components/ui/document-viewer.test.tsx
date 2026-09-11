@@ -52,7 +52,9 @@ describe("DocumentViewer", () => {
     );
 
     const panel = screen.getByRole("dialog");
-    expect(panel).not.toHaveClass("bg-black");
+    // The image viewer paints its own opaque media ground. The document
+    // viewer must not, so it keeps the dialog surface.
+    expect(panel).not.toHaveClass("bg-media-ground");
     expect(panel).not.toHaveClass("h-screen");
   });
 
