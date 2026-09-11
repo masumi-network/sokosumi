@@ -173,4 +173,21 @@ describe("loadChatMentionNames", () => {
     expect(txUserFindMany).toHaveBeenCalledTimes(1);
     expect(userMemberFindManyMock).not.toHaveBeenCalled();
   });
+  /**
+   * Postgres parses a uuid written without its hyphens, and the preview names
+   * such a key like any other, so the lookup has to reach the column.
+   */
+  it("keeps a hyphenless uuid key in the soko bot lookup", async () => {
+    const hyphenless = "019FC7E4E4BD7005900C66E44D33F5E4";
+
+    await loadChatMentionNames({
+      roomId: ROOM_ID,
+      content: `@${hyphenless} please`,
+    });
+
+    expect(sokoBotMemberFindManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, sokoBotId: { in: [hyphenless] } },
+      select: { sokoBot: { select: { id: true, name: true } } },
+    });
+  });
 });
