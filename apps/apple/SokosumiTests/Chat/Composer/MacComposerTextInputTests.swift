@@ -1,6 +1,7 @@
 #if os(macOS)
   import AppKit
   @testable import Sokosumi
+  import SokosumiChat
   import SwiftUI
   import Testing
 
@@ -62,6 +63,38 @@
       #expect(commands.handleSuggestionKey(36))
       #expect(input.string == "\u{FFFC} ")
       #expect(input.captureDraft().contains("@user-1:anna"))
+    }
+
+    @Test func mentionAcceptMatchesIdentityAfterRosterRefresh() {
+      let input = MacComposerTextInput.InputView()
+      let stale = ComposerMention(id: "user-1", name: "Anna", slug: "anna", kind: .human, image: "old")
+      input.mentions = [stale]
+      input.string = "@an"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.mentions = [.init(id: "user-1", name: "Annabelle", slug: "annabelle", kind: .human, image: "new")]
+      input.acceptMention(stale)
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("@user-1:annabelle"))
+      input.string = "@an"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.acceptMention(.init(id: "other", name: "Annabelle", slug: "annabelle", kind: .human))
+      #expect(input.string == "@an")
+    }
+
+    @Test func channelAcceptMatchesIdentityAfterRosterRefresh() {
+      let input = MacComposerTextInput.InputView()
+      let stale = ComposerChannel(id: "room", name: "Launch Room", slug: "launch-room")
+      input.channels = [stale]
+      input.string = "#la"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.channels = [.init(id: "room", name: "Launch", slug: "launch-room", organizationName: "Acme")]
+      input.acceptChannel(stale)
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("#Launch"))
+      input.string = "#la"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.acceptChannel(.init(id: "other", name: "Launch", slug: "launch-room"))
+      #expect(input.string == "#la")
     }
 
     @Test func mentionPanelGroupsNavigatesAndDismissesWithoutInsertion() {

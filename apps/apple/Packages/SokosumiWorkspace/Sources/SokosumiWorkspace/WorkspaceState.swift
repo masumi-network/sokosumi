@@ -255,8 +255,9 @@ public final class WorkspaceState: ObservableObject {
     return recipient.canOpen(from: room, currentUserId: currentUserId, hasActiveOrganization: selection?.workspace.organizationId != nil)
   }
 
-  public func openParticipantDirect(_ recipient: DirectRecipient, auth: AuthState) async throws {
-    guard openingDirect == nil, canOpenDirect(recipient), let client = resolveClient(auth: auth) else { return }
+  @discardableResult
+  public func openParticipantDirect(_ recipient: DirectRecipient, auth: AuthState) async throws -> Bool {
+    guard openingDirect == nil, canOpenDirect(recipient), let client = resolveClient(auth: auth) else { return false }
     let generation = workspaceGeneration
     let selectionID = selectionId
     let sourceRoom = transcriptRoomId
@@ -268,7 +269,7 @@ public final class WorkspaceState: ObservableObject {
     }
     do {
       let room = try await ChatService().openDirect(client: client, recipient: recipient, organizationSlug: selection?.workspace.organizationSlug)
-      guard !Task.isCancelled, generation == workspaceGeneration, selectionID == selectionId, phase == .ready else { return }
+      guard !Task.isCancelled, generation == workspaceGeneration, selectionID == selectionId, phase == .ready else { return false }
       if let index = rooms.firstIndex(where: { $0.id == room.id }) {
         rooms[index] = room
       } else {
@@ -279,8 +280,9 @@ public final class WorkspaceState: ObservableObject {
       if transcriptRoomId == sourceRoom {
         selectRoom(room.id, auth: auth)
       }
+      return true
     } catch {
-      guard generation == workspaceGeneration, selectionID == selectionId else { return }
+      guard generation == workspaceGeneration, selectionID == selectionId else { return false }
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }

@@ -315,14 +315,15 @@
       }
 
       func acceptMention(_ mention: ComposerMention) {
-        guard let trigger = referenceTrigger, trigger.kind == .mention, mentions.contains(mention) else { return }
-        insertReference(token: mention.token, label: "@" + mention.name, range: trigger.range)
+        guard let trigger = referenceTrigger, trigger.kind == .mention,
+              let current = mentions.first(where: { $0.id == mention.id && $0.kind == mention.kind }) else { return }
+        insertReference(token: current.token, label: "@" + current.name, range: trigger.range)
       }
 
       func acceptChannel(_ channel: ComposerChannel) {
         guard let trigger = referenceTrigger, trigger.kind == .channel,
-              ComposerChannel.matching(channels, query: trigger.query).contains(channel) else { return }
-        insertReference(token: channel.token(in: channels), label: "#" + channel.name, range: trigger.range)
+              let current = ComposerChannel.matching(channels, query: trigger.query).first(where: { $0.id == channel.id }) else { return }
+        insertReference(token: current.token(in: channels), label: "#" + current.name, range: trigger.range)
       }
 
       private func insertReference(token: String, label: String, range: NSRange) {

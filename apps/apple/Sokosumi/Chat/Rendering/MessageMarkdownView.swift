@@ -49,7 +49,9 @@ struct MessageMarkdownView: View {
     .environment(\.openURL, OpenURLAction { url in
       if url.scheme == "sokosumi-channel" {
         if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
-          workspaces.selectRoom(id, auth: auth)
+          Task { @MainActor in
+            workspaces.selectRoom(id, auth: auth)
+          }
         }
         return .handled
       }

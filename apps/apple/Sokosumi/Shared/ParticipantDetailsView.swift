@@ -31,8 +31,9 @@ struct ParticipantDetailsView: View {
           errorMessage = nil
           Task { @MainActor in
             do {
-              try await workspaces.openParticipantDirect(profile.recipient, auth: auth)
-              dismiss()
+              if try await workspaces.openParticipantDirect(profile.recipient, auth: auth) {
+                dismiss()
+              }
             } catch { errorMessage = friendlyMessage(for: error) }
           }
         }

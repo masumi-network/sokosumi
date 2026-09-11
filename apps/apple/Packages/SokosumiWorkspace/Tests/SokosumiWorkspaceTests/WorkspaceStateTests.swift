@@ -187,6 +187,7 @@ struct WorkspaceStateTests {
     ], visible: false)
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
+    #expect(try await state.openParticipantDirect(.coworker("peer"), auth: auth) == false)
     state.rooms[0].coworkerMembers = [.init(id: "peer", name: "Peer", slug: "peer", caption: nil, image: nil, presence: .online)]
     transport.pauseDirect = true
     let request = Task { try await state.openParticipantDirect(.coworker("peer"), auth: auth) }
@@ -195,14 +196,14 @@ struct WorkspaceStateTests {
     }
     #expect(state.openingDirect == .coworker("peer"))
     // A second click while opening must not create another request.
-    try await state.openParticipantDirect(.coworker("peer"), auth: auth)
+    #expect(try await state.openParticipantDirect(.coworker("peer"), auth: auth) == false)
     if action == "reset" {
       state.reset()
     } else if action == "leave" {
       state.clearTranscript()
     }
     transport.releasePOST()
-    try await request.value
+    #expect(try await request.value == (action != "reset"))
     #expect(state.openingDirect == nil)
     await waitForTranscriptIdle(state)
     #expect(state.transcriptRoomId == (action == "stay" ? target : nil))

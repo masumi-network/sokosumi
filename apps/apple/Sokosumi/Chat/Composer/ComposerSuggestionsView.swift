@@ -54,9 +54,9 @@ struct ComposerSuggestionsView: View {
         .background(selectedID == channel.id ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 6))
       }
       .buttonStyle(.plain)
-      .onHover {
-        if $0 {
-          selectedID = channel.id
+      .onHover { hovering in
+        if hovering {
+          highlight(channel.id)
         }
       }
       .accessibilityAddTraits(selectedID == channel.id ? .isSelected : [])
@@ -78,9 +78,9 @@ struct ComposerSuggestionsView: View {
         .background(selectedID == shortcode ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 6))
       }
       .buttonStyle(.plain)
-      .onHover {
-        if $0 {
-          selectedID = shortcode
+      .onHover { hovering in
+        if hovering {
+          highlight(shortcode)
         }
       }
       .accessibilityLabel(ComposerEmoji.completionPreview(for: shortcode))
@@ -91,6 +91,12 @@ struct ComposerSuggestionsView: View {
 
   private var panelHeight: CGFloat {
     min(CGFloat((mentions.count + emojis.count + channels.count) * 40 + sectionCount * 28 + 12), 300)
+  }
+
+  private func highlight(_ id: String) {
+    Task { @MainActor in
+      selectedID = id
+    }
   }
 
   private var sectionCount: Int {
@@ -125,9 +131,9 @@ struct ComposerSuggestionsView: View {
           .background(selectedID == mention.id ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
-        .onHover {
-          if $0 {
-            selectedID = mention.id
+        .onHover { hovering in
+          if hovering {
+            highlight(mention.id)
           }
         }
         .accessibilityLabel("\(mention.name), @\(mention.slug)")
