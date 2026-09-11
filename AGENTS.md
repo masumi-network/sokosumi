@@ -22,7 +22,8 @@
   (`bg-emerald-500`, `text-gray-400`, `bg-black`), never a hex/rgb/hsl literal, and never an
   opacity modifier on a color utility (`bg-primary/55`, `border-border/40`, `bg-primary/[0.04]`).
   Use the alpha-baked ramp step instead (`-tertiary` border, `-quaternary` hover, `-quinary`
-  fill); if no step fits, add one to both theme blocks. See
+  fill); if no step fits, add one to both theme blocks **and** bridge it in `@theme inline`,
+  or the utility silently emits nothing. See
   [Color tokens](.cursor/rules/color-tokens.mdc).
 - **Sizing**: Use `size-4` instead of `h-4 w-4`
 - **Themes**: Ensure compatibility with both dark and light modes

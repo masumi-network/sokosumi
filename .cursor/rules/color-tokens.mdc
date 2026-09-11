@@ -53,7 +53,18 @@ the token, not at the call site:
 | `--surface-sticky` | header that sits on the page |
 | `--scrim`, `--scrim-soft`, `--scrim-strong` | over user media, same in both themes |
 | `--on-media`, `--on-media-muted` | label riding on a scrim |
+| `--on-media-tertiary` | hairline, ring or border drawn on media |
+| `--on-media-quaternary` | hover wash under a control on media |
 | `--media-ground` | the opaque ground behind media, and ink on light media |
+| `--hero-wash` | the gradient laid over the landing photograph |
+| `--background-muted` | quieter label on an inverted (`bg-foreground`) surface |
+| `--card-background-hover` | row hover on a card, which must not hide the row under it |
+| `--ring-halo`, `--destructive-halo` | the soft glow outside a focus ring |
+
+The `on-media` family is the one place a name has tripped people up. `-muted`
+is a *label*, at 85% white. The hairline and the wash are `-tertiary` and
+`-quaternary`, at 15% and 10%. Reading "muted" as "faint" paints an 85% white
+pill and swallows the white icon on top of it.
 
 ```tsx
 // Do not
@@ -113,27 +124,39 @@ pickers are data, not UI color. Those keep their literals.
    142 all meant "good" before this rule existed.
 2. Declare it in **both** `:root` and `.dark`. A token declared in `@theme`
    cannot be themed.
-3. Bridge it in the `@theme inline` block so Tailwind emits the utility.
+3. Bridge it in the `@theme inline` block so Tailwind emits the utility. Both
+   halves fail silently on their own: a token with no bridge emits no utility
+   at all, and a bridge with no token emits `var(--missing)`, which falls back
+   to `currentColor` and paints the loudest edge on the page. Neither shows up
+   in a type check. The guard checks both.
 4. Measure the pair it renders on: 4.5:1 for text, 3:1 for a border, icon,
    status dot, or focus ring.
 
 ### Guard
 
 `apps/web/src/lib/utils/__tests__/color-tokens.test.ts` fails the build on
-three things: raw palette classes, color literals in a component, and an
-opacity modifier on a `semantic-*`, `status-*`, `risk-*` or `ring` token. Each
-rule is its own test case, and a failure prints the file, the line number, and
-the offending line.
+five things. Each is its own test case, and a call-site failure prints the
+file, the line number, and the offending line:
+
+1. A raw Tailwind palette class on any colour utility, `ring-offset` included.
+2. An opacity modifier on any colour utility. The rule is absolute; the only
+   exemption is a line height after a font size, and it is scoped to `text-`,
+   because `shadow` takes the same size words and a real alpha.
+3. A colour literal in a component.
+4. A bridged token that nothing defines.
+5. A token defined in one theme block but not the other.
 
 A hex counts only when it is quote-delimited or sits inside an arbitrary
 Tailwind value, so an issue number in a comment is not a color. The allowlist
 is the set of places that cannot read a custom property: third-party brand
-marks, the color picker's own swatches, a canvas fallback that reads
-`--primary` first, the error page that renders when the stylesheet failed, an
-iframe `srcdoc`, and the two surfaces the OS reads rather than CSS.
+marks, the color picker's own swatches, two canvas painters and a canvas
+fallback that reads `--primary` first, the error page that renders when the
+stylesheet failed, an iframe `srcdoc`, and the two surfaces the OS reads
+rather than CSS. It is named file by file, and it exempts literals only. No
+file is exempt from the palette rule.
 
-Opacity modifiers on the neutral and accent tokens are pre-existing debt at 752
-call sites, the largest families being `muted` (172), `muted-foreground` (142),
-`primary` (133) and `border` (100). The guard does not cover them yet. Do not
-add more; widen the guard's token pattern as each of those ramps gains solid
-steps.
+The debt this rule was written against is gone. `apps/web/src` carried 820
+opacity modifiers across 242 files and 192 raw palette classes across 40 files
+when the sweep started; both are zero. The 55 literal lines that remain all sit
+in the nine allowlisted files. Nothing here is aspirational any more, so a new
+modifier is not debt to be tolerated, it is a build failure.
