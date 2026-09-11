@@ -1,6 +1,7 @@
+import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getSessionMock = vi.fn();
+const getSessionResultMock = vi.fn();
 const headersMock = vi.fn();
 const captureExceptionMock = vi.fn();
 const fetchMock = vi.fn();
@@ -14,8 +15,23 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: () => getSessionMock(),
+  getSessionResult: () => getSessionResultMock(),
 }));
+
+/**
+ * The route reads the session through the real `route-session` gate, so the
+ * mock speaks its Result contract: `ok(null)` is a signed-out browser and an
+ * `err` is Core being unreachable. Those two must not share a status.
+ */
+function mockSession(session: unknown): void {
+  getSessionResultMock.mockResolvedValue(ok(session));
+}
+
+function mockSessionOutage(reason = "timeout"): void {
+  getSessionResultMock.mockResolvedValue(
+    err({ path: "/auth/get-session", reason }),
+  );
+}
 
 vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getCoreApiBaseUrl: () => "https://core.example.com/v1",
@@ -48,7 +64,7 @@ describe("chat route", () => {
 
   describe("GET", () => {
     it("returns 401 when the request is unauthenticated", async () => {
-      getSessionMock.mockResolvedValue(null);
+      mockSession(null);
 
       const response = await GET(
         new Request(
@@ -60,8 +76,23 @@ describe("chat route", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it("returns 503, not 401, when the Core session read fails", async () => {
+      mockSessionOutage();
+
+      const response = await GET(
+        new Request(
+          "https://app.sokosumi.com/api/chat?roomId=550e8400-e29b-41d4-a716-446655440000",
+        ) as never,
+      );
+
+      // 401 here tells the chat client its session is gone while it is fine.
+      expect(response.status).toBe(503);
+      expect(response.headers.get("Retry-After")).toBe("1");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("returns 400 when roomId is missing", async () => {
-      getSessionMock.mockResolvedValue({
+      mockSession({
         session: { activeOrganizationId: null },
         user: { id: "user-1" },
       });
@@ -75,7 +106,7 @@ describe("chat route", () => {
     });
 
     it("forwards to Core GET /v1/chats/rooms/{roomId}/stream/messages", async () => {
-      getSessionMock.mockResolvedValue({
+      mockSession({
         session: { activeOrganizationId: null },
         user: { id: "user-1" },
       });
@@ -131,7 +162,7 @@ describe("chat route", () => {
 
   describe("POST", () => {
     it("returns 401 when the request is unauthenticated", async () => {
-      getSessionMock.mockResolvedValue(null);
+      mockSession(null);
 
       const response = await POST(
         new Request("https://app.sokosumi.com/api/chat", {
@@ -144,8 +175,24 @@ describe("chat route", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it("returns 503, not 401, when the Core session read fails", async () => {
+      mockSessionOutage("network");
+
+      const response = await POST(
+        new Request("https://app.sokosumi.com/api/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            roomId: "550e8400-e29b-41d4-a716-446655440000",
+          }),
+        }) as never,
+      );
+
+      expect(response.status).toBe(503);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("returns 400 when roomId is missing", async () => {
-      getSessionMock.mockResolvedValue({
+      mockSession({
         session: { activeOrganizationId: null },
         user: { id: "user-1" },
       });
@@ -162,7 +209,7 @@ describe("chat route", () => {
     });
 
     it("clones readonly request headers before forwarding the request", async () => {
-      getSessionMock.mockResolvedValue({
+      mockSession({
         session: { activeOrganizationId: null },
         user: { id: "user-1" },
       });

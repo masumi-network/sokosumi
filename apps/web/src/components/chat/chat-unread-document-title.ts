@@ -5,25 +5,19 @@ interface ChatRoomUnreadAttention {
   mutedAt?: string | Date | null;
 }
 
-interface CountChatRoomsWithUnreadAttentionOptions {
-  activeRoomId?: string | null;
-}
-
 /**
  * Count rooms that would show sidebar attention (bold), for the tab title.
- * One per room — not a sum of unread messages. Skips active and muted rooms.
+ * One per room, not a sum of unread messages. Skips muted rooms only: the room
+ * the reader has open is counted like any other, because `resolveRoomAttention`
+ * bolds it like any other. Opening a room does not read it, and the tab title
+ * has to agree with the row it summarises.
  */
 export function countChatRoomsWithUnreadAttention(
   rooms: readonly ChatRoomUnreadAttention[],
-  options: CountChatRoomsWithUnreadAttentionOptions = {},
 ): number {
   let total = 0;
 
   for (const room of rooms) {
-    if (options.activeRoomId != null && room.id === options.activeRoomId) {
-      continue;
-    }
-
     if (room.mutedAt != null) {
       continue;
     }

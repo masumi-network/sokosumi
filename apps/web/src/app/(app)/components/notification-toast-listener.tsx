@@ -1,6 +1,5 @@
 "use client";
 
-import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffectEvent } from "react";
 import { toast } from "sonner";
@@ -17,6 +16,7 @@ import {
 } from "@/lib/utils/browser-notification";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
 import { buildNotificationBannerContent } from "@/lib/utils/notification-banner";
+import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
 import {
@@ -204,6 +204,7 @@ export function NotificationToastListener({
         notification.messageKey,
         notification.messageParams ?? {},
       );
+      const Icon = getNotificationIcon(notification);
 
       toast(
         () => (
@@ -223,7 +224,7 @@ export function NotificationToastListener({
           toasterId: NOTIFICATION_TOASTER_ID,
           duration: 10_000,
           dismissible: true,
-          icon: <Bell className="text-primary size-5 shrink-0" />,
+          icon: <Icon className="text-primary size-5 shrink-0" />,
         },
       );
     },

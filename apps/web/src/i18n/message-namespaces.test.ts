@@ -15,6 +15,12 @@ describe("message namespaces", () => {
     expect(AUTH_MESSAGE_PATHS).toContain("WorkspaceGate");
   });
 
+  it("carries App.Error so the flows boundary is not raw keys", () => {
+    // `(flows)/error.tsx` and the Core-unavailable notice on /setup both read
+    // `App.Error`. Without it in this bag the card renders `App.Error.title`.
+    expect(AUTH_MESSAGE_PATHS).toContain("App.Error");
+  });
+
   it("excludes SokoBot and Admin from the default APP bag", () => {
     expect(APP_MESSAGE_PATHS).not.toContain("App.SokoBot");
     expect(APP_MESSAGE_PATHS).not.toContain("App.Admin");

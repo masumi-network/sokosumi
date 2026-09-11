@@ -748,7 +748,8 @@
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
       "emptyState": "Noch keine Benachrichtigungen",
-      "seeMore": "Mehr anzeigen",
+      "viewAll": "Alle Benachrichtigungen anzeigen",
+      "justNow": "Gerade eben",
       "loading": "Lädt...",
       "loadMore": "Mehr laden",
       "markAllRead": "Alle als gelesen markieren",
@@ -1663,7 +1664,6 @@
           "confirmArchive": "Diesen Task archivieren?",
           "confirmArchiveDescription": "Der Task wird in deiner Liste ausgeblendet, inklusive verknüpfter geplanter Läufe. Laufende Läufe müssen zuerst enden oder abgebrochen werden. Er wird nicht dauerhaft aus der Datenbank gelöscht.",
           "archiveError": "Task konnte nicht archiviert werden",
-          "markAsReady": "Als bereit markieren",
           "reopenToReady": "Als Bereit wiedereröffnen",
           "reopenToReadyTitle": "Aufgabe wiedereröffnen",
           "reopenToReadyDescription": "Füge einen Kommentar hinzu, damit dein Coworker weiß, was als Nächstes zu tun ist. Die Aufgabe wird wieder auf Bereit gesetzt.",
@@ -1671,7 +1671,6 @@
           "reopenToReadyCommentPlaceholder": "Beschreibe, was noch zu erledigen ist…",
           "reopenToReadyCommentRequired": "Zum Wiedereröffnen ist ein Kommentar erforderlich",
           "reopenToReadyConfirm": "Als Bereit wiedereröffnen",
-          "revertToDraft": "In Entwurf zurücksetzen",
           "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
@@ -1817,8 +1816,6 @@
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Anhang entfernen",
-        "saveDraft": "Speichern",
-        "saveAsDraft": "Als Entwurf speichern",
         "createTask": "Task erstellen",
         "scheduleTask": "Task planen",
         "openSchedule": "Zeitplan festlegen",
@@ -2201,6 +2198,8 @@
     "Error": {
       "title": "Etwas ist schiefgelaufen",
       "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "unavailableTitle": "Vorübergehend nicht verfügbar",
+      "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Das dauert meist nur kurz. Bitte versuche es gleich noch einmal.",
       "errorId": "Fehler-ID: {errorId}",
       "tryAgain": "Erneut versuchen",
       "goApp": "Zur App"
@@ -5373,7 +5372,9 @@
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "loadOlder": "Ältere Threads laden",
         "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
+        "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
@@ -6302,7 +6303,8 @@
         "roomMessageGroup": "{authorName} hat in der Gruppe {roomName} geschrieben",
         "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}",
         "roomMessageTitle": "{authorName} im Kanal {roomName}",
-        "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}"
+        "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}",
+        "mentionAll": "Alle"
       }
     }
   },

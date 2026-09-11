@@ -29,6 +29,16 @@ function content(
 }
 
 describe("buildNotificationBannerContent", () => {
+  it("shows the room-wide mention in the reader's language", () => {
+    expect(
+      content(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "please add @all tagging",
+      }).body,
+    ).toBe("please add @rendered:Notifications.Chat.mentionAll tagging");
+  });
+
   it.each([
     CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
     CHAT_MENTION_MESSAGE_KEY,

@@ -14,6 +14,9 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
   public let image: String?
   public let email: String?
 
+  /// Display name for the room-wide mention; the wire token stays `@all:all`.
+  public static let allDisplayName = "Everyone"
+
   public init(id: String, name: String, slug: String, kind: Kind, image: String? = nil, email: String? = nil) {
     self.id = id
     self.name = name
@@ -36,7 +39,7 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
       let normalized = slug(for: $0.name)
       return Self(id: $0.id, name: $0.name, slug: normalized.isEmpty ? $0.id : normalized, kind: .sokoBot, image: $0.image)
     }
-    let everyone = humans.isEmpty ? [] : [Self(id: "all", name: "Everyone", slug: "all", kind: .all)]
+    let everyone = humans.isEmpty ? [] : [Self(id: "all", name: allDisplayName, slug: "all", kind: .all)]
     return everyone + humans + coworkers + assistants
   }
 
@@ -63,8 +66,13 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
     kind == .human ? "@\(id)" : "@\(id):\(slug)"
   }
 
+  /// The handle a row shows. Room-wide reads as its display name; `@all` stays a typing shortcut.
   public var subtitle: String {
-    kind == .human ? email ?? "" : "@" + slug
+    switch kind {
+    case .human: email ?? ""
+    case .all: "@" + name
+    case .coworker, .sokoBot: "@" + slug
+    }
   }
 
   public static func slug(for name: String) -> String {
