@@ -253,7 +253,7 @@ export default function SocialButtons({
             {isLastUsed && (
               <span
                 aria-hidden="true"
-                className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
               >
                 {t("lastUsed")}
               </span>
@@ -277,7 +277,7 @@ export default function SocialButtons({
           {lastUsedMethod === "passkey" && (
             <span
               aria-hidden="true"
-              className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
             >
               {t("lastUsed")}
             </span>
@@ -310,7 +310,7 @@ export default function SocialButtons({
           {lastUsedMethod === "magic-link" && (
             <span
               aria-hidden="true"
-              className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
             >
               {t("lastUsed")}
             </span>

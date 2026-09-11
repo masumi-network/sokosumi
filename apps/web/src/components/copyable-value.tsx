@@ -73,7 +73,7 @@ export function CopyableValue({
     ) : (
       <code
         className={cn(
-          "font-mono text-xs text-foreground/90 sm:text-sm",
+          "font-mono text-xs text-foreground sm:text-sm",
           truncateInline &&
             "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap",
           codeClassName,

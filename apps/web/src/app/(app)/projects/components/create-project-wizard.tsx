@@ -175,7 +175,7 @@ export function CreateProjectWizard({
               </span>
             ))}
           </div>
-          <span className="text-muted-foreground/60 text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
+          <span className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
             {t("Wizard.stepLabel", {
               current: String(isBrandStep ? SETUP_STEPS : step + 1).padStart(
                 2,
@@ -236,7 +236,7 @@ export function CreateProjectWizard({
                       disabled={isSubmitting}
                       aria-invalid={!isWebsiteValid}
                     />
-                    <p className="text-muted-foreground/70 text-xs leading-relaxed">
+                    <p className="text-muted-foreground text-xs leading-relaxed">
                       {t("Wizard.name.websiteHint")}
                     </p>
                   </div>
@@ -273,13 +273,13 @@ export function CreateProjectWizard({
 
                 <dl className="mt-8 space-y-5 text-left">
                   <div className="space-y-1.5">
-                    <dt className="text-muted-foreground/70 text-xs font-medium tracking-wide uppercase">
+                    <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                       {t("Wizard.review.nameLabel")}
                     </dt>
                     <dd className="text-sm font-medium">{trimmedName}</dd>
                   </div>
                   <div className="space-y-1.5">
-                    <dt className="text-muted-foreground/70 text-xs font-medium tracking-wide uppercase">
+                    <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                       {t("Wizard.review.websiteLabel")}
                     </dt>
                     <dd className="text-muted-foreground text-sm">
@@ -287,7 +287,7 @@ export function CreateProjectWizard({
                     </dd>
                   </div>
                   <div className="space-y-1.5">
-                    <dt className="text-muted-foreground/70 text-xs font-medium tracking-wide uppercase">
+                    <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                       {t("Wizard.review.briefingLabel")}
                     </dt>
                     <dd>
@@ -296,7 +296,7 @@ export function CreateProjectWizard({
                           {briefing.trim()}
                         </p>
                       ) : (
-                        <p className="text-muted-foreground/60 text-sm">
+                        <p className="text-muted-foreground text-sm">
                           {t("Wizard.review.emptyBriefing")}
                         </p>
                       )}

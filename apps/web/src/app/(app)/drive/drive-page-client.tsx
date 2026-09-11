@@ -1943,7 +1943,7 @@ function DrivePageWorkspace({
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           {nameEl}
                           {searchContext && layoutMode !== "grid" ? (
-                            <p className="text-muted-foreground/70 line-clamp-1 text-xs">
+                            <p className="text-muted-foreground line-clamp-1 text-xs">
                               {searchContext}
                             </p>
                           ) : null}

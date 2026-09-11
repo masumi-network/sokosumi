@@ -54,7 +54,7 @@ const CELL_OFF =
  * outlined one is off, and this one carries no box at all. A border here would
  * make the one cell that cannot be pressed the most drawn of the row.
  */
-const CELL_DEAD = "text-muted-foreground/45 cursor-default border-transparent";
+const CELL_DEAD = "text-muted-foreground cursor-default border-transparent";
 /**
  * The column a cell stands in, holding one width for the cell and its name.
  *

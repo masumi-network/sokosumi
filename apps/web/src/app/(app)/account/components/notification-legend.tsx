@@ -42,7 +42,7 @@ import {
  */
 const NAME = cn(
   CELL_TRACK,
-  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring decoration-muted-foreground/60 cursor-help items-center rounded-sm text-center leading-tight underline decoration-dotted underline-offset-4 outline-none focus-visible:ring-[3px]",
+  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring decoration-muted-foreground cursor-help items-center rounded-sm text-center leading-tight underline decoration-dotted underline-offset-4 outline-none focus-visible:ring-[3px]",
 );
 
 /**
