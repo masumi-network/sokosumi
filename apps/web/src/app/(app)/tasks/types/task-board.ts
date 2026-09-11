@@ -68,8 +68,8 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
  */
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
   backlog: "bg-status-done",
-  todo: "bg-status-ready",
-  "in-progress": "bg-status-running",
-  "input-required": "bg-semantic-destructive",
+  todo: "bg-status-queued",
+  "in-progress": "bg-status-active",
+  "input-required": "bg-semantic-warning",
   done: "bg-semantic-success",
 };

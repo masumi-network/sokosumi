@@ -1,4 +1,9 @@
-import { CircleAlert } from "lucide-react";
+import {
+  MARKER_ICONS,
+  STATUS_ROLE_STYLES,
+  StatusMarker,
+  type StatusMarkerSpec,
+} from "@/components/ui/status-marker";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
@@ -21,95 +26,58 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
 };
 
 /**
- * Pattern: tinted fill, a vivid dot, and the label in the foreground colour.
- * A coloured label needs 4.5:1, which forces every hue dark enough to go
- * muddy; the dot needs only 3:1 (WCAG 2.2 SC 1.4.11), so the colour stays
- * vivid where it is small.
- *
- * Statuses that mean the same thing share a ramp. Statuses with different
- * purposes keep different hues: running is not succeeded, and collapsing them
- * would throw away what the colour is there to say. Every value is a token —
- * the raw Tailwind palette this used to reach for was a second colour system,
- * and it painted "succeeded" emerald here while the job badge painted it
- * green.
+ * One role per status for colour, one glyph per status for identity. The role
+ * table and the glyph vocabulary live in `status-marker.tsx`, so the job,
+ * file and risk badges say the same thing the same way.
  */
-const STATUS_PILL_STYLES: Partial<
-  Record<TaskStatus, { bg: string; text: string; dot: string }>
-> = {
-  [TaskStatus.DRAFT]: {
-    bg: "bg-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-done",
-  },
-  [TaskStatus.QUEUED]: {
-    bg: "bg-primary-quaternary",
-    text: "text-foreground",
-    dot: "bg-primary",
-  },
-  [TaskStatus.READY]: {
-    bg: "bg-status-ready-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-ready",
-  },
-  [TaskStatus.INPUT_REQUIRED]: {
-    bg: "bg-semantic-destructive-quaternary",
-    text: "text-foreground",
-    dot: "bg-semantic-destructive",
-  },
+const TASK_STATUS_MARKERS: Record<TaskStatus, StatusMarkerSpec> = {
+  [TaskStatus.DRAFT]: { role: "idle", icon: MARKER_ICONS.draft },
+  [TaskStatus.QUEUED]: { role: "queued", icon: MARKER_ICONS.queued },
+  [TaskStatus.READY]: { role: "queued", icon: MARKER_ICONS.ready },
+  [TaskStatus.GRANT_PENDING]: { role: "waiting", icon: MARKER_ICONS.grant },
+  [TaskStatus.INPUT_REQUIRED]: { role: "action", icon: MARKER_ICONS.input },
   [TaskStatus.APPROVAL_REQUIRED]: {
-    bg: "bg-semantic-warning-quaternary",
-    text: "text-foreground",
-    dot: "bg-semantic-warning",
-  },
-  [TaskStatus.GRANT_PENDING]: {
-    bg: "bg-semantic-warning-quaternary",
-    text: "text-foreground",
-    dot: "bg-semantic-warning",
+    role: "action",
+    icon: MARKER_ICONS.approval,
   },
   [TaskStatus.AUTHENTICATION_REQUIRED]: {
-    bg: "bg-status-auth-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-auth",
+    role: "action",
+    icon: MARKER_ICONS.auth,
   },
   [TaskStatus.OUT_OF_CREDITS]: {
-    bg: "bg-semantic-destructive-quaternary",
-    text: "text-foreground",
-    dot: "bg-semantic-destructive",
+    role: "action",
+    icon: MARKER_ICONS.credits,
   },
   [TaskStatus.CREDITS_TOPPED_UP]: {
-    bg: "bg-status-topped-up-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-topped-up",
+    role: "success",
+    icon: MARKER_ICONS.toppedUp,
   },
   [TaskStatus.RUNNING]: {
-    bg: "bg-status-running-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-running",
+    role: "active",
+    icon: MARKER_ICONS.running,
+    spin: true,
   },
   [TaskStatus.AWAITING_EXTERNAL]: {
-    bg: "bg-status-awaiting-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-awaiting",
+    role: "waiting",
+    icon: MARKER_ICONS.awaiting,
   },
-  [TaskStatus.COMPLETED]: {
-    bg: "bg-semantic-success-quaternary",
-    text: "text-foreground",
-    dot: "bg-semantic-success",
-  },
-  [TaskStatus.FAILED]: {
-    bg: "bg-semantic-destructive-quaternary",
-    text: "text-foreground",
-    dot: "bg-semantic-destructive",
-  },
-  [TaskStatus.CANCELED]: {
-    bg: "bg-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-done",
-  },
+  [TaskStatus.COMPLETED]: { role: "success", icon: MARKER_ICONS.completed },
+  [TaskStatus.FAILED]: { role: "failure", icon: MARKER_ICONS.failed },
+  [TaskStatus.CANCELED]: { role: "closed", icon: MARKER_ICONS.canceled },
 };
 
+const DEFAULT_MARKER: StatusMarkerSpec = {
+  role: "idle",
+  icon: MARKER_ICONS.queued,
+};
+
+export function getTaskStatusMarker(status: TaskStatus): StatusMarkerSpec {
+  return TASK_STATUS_MARKERS[status] ?? DEFAULT_MARKER;
+}
+
+/** Kept for callers that paint a bare dot outside a badge. */
 export function getTaskStatusDotColorClass(status: TaskStatus): string {
-  return STATUS_PILL_STYLES[status]?.dot ?? "bg-muted-foreground";
+  return STATUS_ROLE_STYLES[getTaskStatusMarker(status).role].dot;
 }
 
 export function getTaskStatusBorderColorClass(status: TaskStatus): string {
@@ -124,27 +92,12 @@ function getTaskStatusLabel(status: TaskStatus): string {
   return STATUS_LABELS[status] ?? "Unknown";
 }
 
-function shouldShowWarningIcon(status: TaskStatus): boolean {
-  return (
-    status === TaskStatus.INPUT_REQUIRED ||
-    status === TaskStatus.APPROVAL_REQUIRED ||
-    status === TaskStatus.OUT_OF_CREDITS
-  );
-}
-
-function shouldShowStatusDot(showDot: boolean | undefined): boolean {
-  return showDot === true;
-}
-
-function getBadgeShapeClasses(): string {
-  return "rounded-sm py-1";
-}
-
 interface TaskStatusBadgeProps {
   status: TaskStatus;
   /** When set, overrides the default English label (e.g. from next-intl). */
   label?: string;
   className?: string;
+  /** Ignored. The marker glyph is always drawn; this keeps old call sites. */
   showDot?: boolean;
   showLabel?: boolean;
 }
@@ -153,42 +106,20 @@ export function TaskStatusBadge({
   status,
   label,
   className,
-  showDot,
   showLabel = true,
 }: TaskStatusBadgeProps) {
-  const pill = STATUS_PILL_STYLES[status] ?? {
-    bg: "bg-quaternary",
-    text: "text-foreground",
-    dot: "bg-status-done",
-  };
-  // The icon stands in for the dot, so it takes the dot's colour. `bg-` becomes
-  // `text-` because the same token paints a fill there and a stroke here.
-  const styles = { ...pill, icon: pill.dot.replace("bg-", "text-") };
-  const showIcon = shouldShowWarningIcon(status);
-  const showStatusDot = shouldShowStatusDot(showDot);
+  const marker = getTaskStatusMarker(status);
 
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium",
-        getBadgeShapeClasses(),
-        styles.bg,
-        styles.text,
+        "inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
+        STATUS_ROLE_STYLES[marker.role].bg,
+        STATUS_ROLE_STYLES[marker.role].text,
         className,
       )}
     >
-      {showStatusDot && !showIcon ? (
-        <span
-          className={cn("size-1.5 shrink-0 rounded-full", styles.dot)}
-          aria-hidden
-        />
-      ) : null}
-      {showIcon ? (
-        <CircleAlert
-          className={cn("size-3 shrink-0", styles.icon)}
-          aria-hidden
-        />
-      ) : null}
+      <StatusMarker spec={marker} />
       {showLabel && <span>{label ?? getTaskStatusLabel(status)}</span>}
     </span>
   );
