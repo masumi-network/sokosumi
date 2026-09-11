@@ -56,14 +56,13 @@ New stable error kinds (shared `@sokosumi/utils` map): `schedule_occurrence_not_
 
 ### Scheduler integration
 
-For v2/epoch-backed series (Calendar beta), release scheduling is ledger-driven:
+For v2/epoch-backed series (Calendar beta), release scheduling is ledger-driven, and `Task.nextRunAt` stops being the rule anchor:
 
-- `Task.nextRunAt` is the earliest **releaseable** effective time in the active epoch: `state = PLANNED` and `effectiveScheduledAt >= now`, excluding `SKIPPED`, `CANCELED`, and `RELEASED`. A moved occurrence therefore pulls `nextRunAt` to its new time; a skipped one is invisible to release.
-- When `nextRunAt <= now`, the release loop releases each due `PLANNED` row at the row's own `effectiveScheduledAt` (not the rule's projected time), marks it `RELEASED` with its cloned Task, then advances `nextRunAt` to the next releaseable row. `SKIPPED`/`CANCELED` rows are never released.
-- `refreshTaskSchedulePlannedOccurrences` must stop clobbering durable exceptions: for v2 it deletes only ordinary projections (unmoved `PLANNED`, `original == effective`) and upserts the projected horizon, preserving moved and skipped rows. Rule edits/removal (SOK-884) already retire the old epoch's future half before reprojecting.
-- Legacy v1 schedules keep the existing `nextRunAt` + rule-walk release path unchanged.
-
-This makes the ledger authoritative for when v2 series release, which is the structural change SOK-879/880 anticipated.
+- **Wake time.** `Task.nextRunAt` is the earliest **releaseable** effective time in the active epoch: a `PLANNED` row's `effectiveScheduledAt` at/after now, ignoring `SKIPPED`, `CANCELED`, and `RELEASED`. Moving an occurrence pulls the wake time to its new time; skipping one drops it.
+- **Rule anchor.** Projection and release advance from the last consumed rule occurrence, `metadata.lastProcessedSourceAt` (falling back to `ruleEffectiveFrom`), not from `nextRunAt`. This is required because a moved occurrence's effective time is not a rule time, so `nextRunAt` can no longer anchor `iterateTaskScheduleOccurrences`.
+- **Release.** When the template is due, release each due `PLANNED` row at the row's own `effectiveScheduledAt`, recording both `originalScheduledAt` and `effectiveScheduledAt` on the RELEASED row; advance `lastProcessedSourceAt` to the row's `originalScheduledAt` and increment `epochReleaseCount`; then set `nextRunAt` to the next releaseable effective time (or clear the schedule).
+- **Re-projection** starts from `lastProcessedSourceAt` and preserves moved/skipped rows, so a refresh cannot wipe a human decision.
+- Legacy v1 keeps `nextRunAt` as its rule anchor and the existing rule-walk release path. V2 `once` schedules keep the one-shot promotion path; reschedule targets recurring series only.
 
 ## Web experience (layer C)
 

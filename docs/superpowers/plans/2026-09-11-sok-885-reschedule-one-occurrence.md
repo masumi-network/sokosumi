@@ -35,18 +35,24 @@
 - [ ] Implement the smallest change to `refreshTaskSchedulePlannedOccurrences` / `replaceTaskSchedulePlannedOccurrences` to preserve durable exceptions.
 - [ ] Commit: `feat(calendar): schedule release from the occurrence ledger`
 
-## Task 2: Release the v2 series from the ledger
+## Task 2: Separate the v2 wake time from the rule anchor, and release from the ledger
 
 **Files:**
 
+- Modify: `apps/core/src/helpers/task-schedule.ts`
+- Modify: `apps/core/src/helpers/task-schedule.test.ts`
+- Modify: `apps/core/src/helpers/task-schedule-occurrence-index.ts`
+- Modify: `apps/core/src/helpers/task-schedule-occurrence-index.test.ts`
 - Modify: `apps/core/src/services/task-schedules-sync.ts`
 - Modify: `apps/core/src/services/task-schedules-sync.test.ts`
 
 ### Steps
 
-- [ ] Add failing tests: a moved `PLANNED` row releases at its `effectiveScheduledAt`; a `SKIPPED`/`CANCELED` row never releases; `nextRunAt` advances to the next releaseable row; legacy v1 still walks the rule.
-- [ ] Implement the v2 branch: claim due releaseable rows, clone at each row's effective time, mark each `RELEASED`, and recompute `nextRunAt` from the ledger. Keep the v1 rule-walk untouched.
-- [ ] Run `pnpm --filter @sokosumi/core test src/services/task-schedules-sync.test.ts src/helpers/task-schedule-occurrence-index.test.ts`.
+- [ ] Add a helper resolving the v2 rule anchor (`lastProcessedSourceAt ?? ruleEffectiveFrom`) and its next rule occurrence; failing tests cover unset, advanced, and ended anchors.
+- [ ] Change the v2 projection to iterate from the rule anchor instead of `nextRunAt`, while `nextRunAt` becomes the earliest releaseable effective time; failing tests prove a moved row does not skip the rule occurrences between its original and moved times.
+- [ ] Add failing sync tests: a moved `PLANNED` row releases at its `effectiveScheduledAt`; a `SKIPPED`/`CANCELED` row never releases; `lastProcessedSourceAt` advances to the released row's `originalScheduledAt`; `nextRunAt` becomes the next releaseable effective time; legacy v1 still walks the rule.
+- [ ] Implement the v2 branch: claim due `PLANNED` rows, clone at each row's effective time (recording original + effective on the RELEASED row), advance the anchor and `epochReleaseCount`, and set `nextRunAt` from the ledger. Keep the v1 rule-walk untouched.
+- [ ] Run `pnpm --filter @sokosumi/core test src/helpers/task-schedule.test.ts src/helpers/task-schedule-occurrence-index.test.ts src/services/task-schedules-sync.test.ts`.
 - [ ] Run `pnpm --filter @sokosumi/core typecheck`.
 - [ ] Commit: `feat(calendar): release v2 occurrences from the ledger`
 
