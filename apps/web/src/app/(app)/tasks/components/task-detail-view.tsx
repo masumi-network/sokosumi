@@ -70,9 +70,6 @@ type OwnerBotResult = Awaited<ReturnType<typeof sokoBotService.getMine>>;
 type MembersResult = Awaited<
   ReturnType<typeof userService.getMyMembersWithOrganizations>
 >;
-type ProjectResult = Awaited<
-  ReturnType<typeof projectService.getProjectById>
-> | null;
 
 interface TaskDetailViewProps {
   task: Task;
