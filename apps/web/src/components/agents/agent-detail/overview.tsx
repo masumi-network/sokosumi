@@ -15,7 +15,7 @@ function AgentDetailOverview({ agent }: { agent: CoreAgentDto }) {
     <div className="flex flex-col gap-8">
       {agentDescription && (
         <section className="space-y-2">
-          <h2 className="text-muted-foreground/60 text-xs font-medium">
+          <h2 className="text-muted-foreground text-xs font-medium">
             {t("description")}
           </h2>
           <ExpandableMarkdown
@@ -28,13 +28,13 @@ function AgentDetailOverview({ agent }: { agent: CoreAgentDto }) {
         </section>
       )}
       <section className="space-y-2">
-        <h2 className="text-muted-foreground/60 text-xs font-medium">
+        <h2 className="text-muted-foreground text-xs font-medium">
           {t("tags")}
         </h2>
         {tags.length > 0 ? (
           <AgentBadgeCloud tags={tags} />
         ) : (
-          <p className="text-muted-foreground/40 text-sm">—</p>
+          <p className="text-muted-foreground text-sm">—</p>
         )}
       </section>
     </div>

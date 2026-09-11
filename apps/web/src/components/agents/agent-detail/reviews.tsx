@@ -34,7 +34,7 @@ export async function AgentDetailReviews({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {t("customerReviews")}
       </h2>
       {hasRatings ? (

@@ -48,7 +48,7 @@ export function ProjectNeedsAttentionSection({
   return (
     <section className="space-y-4" data-testid="project-needs-attention">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-muted-foreground/60 text-xs font-medium">
+        <h2 className="text-muted-foreground text-xs font-medium">
           {labels.needsAttention}
         </h2>
         <div className="flex flex-wrap items-center gap-3">
@@ -76,7 +76,7 @@ export function ProjectNeedsAttentionSection({
 
       <div className={PROJECTS_BROWSE_LAYOUT_CLASS}>
         {items.length === 0 ? (
-          <div className="text-muted-foreground/50 flex items-center justify-center py-16 text-sm">
+          <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
             {labels.empty}
           </div>
         ) : (

@@ -166,7 +166,7 @@ function Raw({ label, value }: { label: string; value: unknown }) {
           className={cn("size-3 transition-transform", open && "rotate-90")}
         />
         {label}
-        <span className="text-muted-foreground/60 tabular-nums">· {size}</span>
+        <span className="text-muted-foreground tabular-nums">· {size}</span>
       </button>
       {open ? (
         <pre className="bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
@@ -423,7 +423,7 @@ export function TurnExplain({
         <ListTree aria-hidden className="size-3" />
         {open ? t("hide") : t("toggle")}
         {!open && stepCount > 0 ? (
-          <span className="text-muted-foreground/70 tabular-nums">
+          <span className="text-muted-foreground tabular-nums">
             · {stepCount}
           </span>
         ) : null}

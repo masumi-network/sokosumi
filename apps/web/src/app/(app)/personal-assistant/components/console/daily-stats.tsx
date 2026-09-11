@@ -48,7 +48,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
             <dt
               className={cn(
                 "truncate text-xs",
-                index === 0 ? "text-primary/80" : "text-muted-foreground",
+                index === 0 ? "text-primary" : "text-muted-foreground",
               )}
             >
               {t(total.key)}
