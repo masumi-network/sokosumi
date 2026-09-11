@@ -8,20 +8,11 @@ import {
   isSokoBotAuthContext,
   isUserAuthContext,
   requireUserContext,
-  type UserAuthenticationContext,
   type UserContext,
 } from "@/middleware/auth";
 
 /** Path segment meaning "the authenticated effective user" (session or context). */
 export const USERS_PATH_ME = "me" as const;
-
-/**
- * Session-only user context (admin or self). Prefer {@link UserContext} for
- * callers that also accept an agent owner context.
- */
-export type SessionUserContext = {
-  source: "session";
-} & UserAuthenticationContext;
 
 /** OpenAPI path param: `me` or a concrete user id (see {@link resolveUsersPathUserId}). */
 export const usersRoutePathUserIdSchema = z.string().openapi({

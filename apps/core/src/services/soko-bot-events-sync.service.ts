@@ -1,5 +1,5 @@
 import { getEnv } from "@/config/env";
-import { betaBotRelationFilter } from "@/helpers/soko-bot-beta";
+import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import {
   SokoBotBusyError,
@@ -108,7 +108,7 @@ export class SokoBotEventsSyncService {
         // Unattended work the bot starts itself honours the owner's pause,
         // not just the administrator's.
         turn: {
-          sokoBot: betaBotRelationFilter({
+          sokoBot: withBetaBotOwner({
             archivedAt: null,
             adminPausedAt: null,
             proactivePaused: false,
