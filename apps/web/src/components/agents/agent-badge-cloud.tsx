@@ -1,6 +1,5 @@
 import { TagIcon } from "@/components/agents/tag-icon";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface AgentBadgeCloudProps {
   tags: string[];
@@ -27,14 +26,4 @@ function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
   );
 }
 
-function AgentBadgeCloudSkeleton() {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {[1, 2, 3].map((_, index) => (
-        <Skeleton key={index} className="h-[22px] w-6 rounded-lg" />
-      ))}
-    </div>
-  );
-}
-
-export { AgentBadgeCloud, AgentBadgeCloudSkeleton };
+export { AgentBadgeCloud };
