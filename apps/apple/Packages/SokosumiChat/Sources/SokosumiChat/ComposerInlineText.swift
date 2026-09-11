@@ -81,7 +81,8 @@ public enum ComposerInlineText {
 
   private static func decode(_ text: NSAttributedString, range: NSRange, level: Int) -> [ComposerDocument.Inline] {
     guard range.length > 0 else { return [] }
-    let keys = [code, link, bold, italic, underline, strikethrough]
+    // Link wraps other inlines. Code is a leaf, so it must be decoded inside the link.
+    let keys = [link, code, bold, italic, underline, strikethrough]
     guard level < keys.count else { return [.text((text.string as NSString).substring(with: range))] }
     let key = keys[level]
     var output: [ComposerDocument.Inline] = []
