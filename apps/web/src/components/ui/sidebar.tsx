@@ -508,8 +508,12 @@ const sidebarMenuButtonVariants = cva(
     variants: {
       variant: {
         default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        // A `0 0 0 1px` shadow is `ring-1`. This variant used to wrap the
+        // token in `hsl()`, which upstream shadcn needs because its tokens are
+        // bare HSL triplets; ours are full `hsla()` colors, so `hsl(hsla(...))`
+        // was invalid and the outline never drew at all.
         outline:
-          "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
+          "bg-background ring-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:ring-sidebar-accent ring-1",
       },
       size: {
         default: "h-8 text-base md:text-sm",
