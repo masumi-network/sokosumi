@@ -1,23 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ChatRoom } from "@/lib/clients/generated/core";
-
-const { openDirectMock, pushMock } = vi.hoisted(() => ({
-  openDirectMock: vi.fn(),
-  pushMock: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
-}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
-      coworkerBadge: "AI coworker",
-      openDirectMessage: "Message",
       "Presence.online": "Online",
       "Presence.afk": "Away",
       "Presence.offline": "Offline",
@@ -26,37 +13,6 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
-vi.mock("@/components/ui/hover-card", () => ({
-  HoverCard: ({ children }: { children: ReactNode }) => <>{children}</>,
-  HoverCardTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  HoverCardContent: ({
-    children,
-    ...props
-  }: {
-    children: ReactNode;
-    "data-testid"?: string;
-  }) => <div {...props}>{children}</div>,
-}));
-
-vi.mock(
-  "@/app/chat/components/open-direct-with-participant",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("@/app/chat/components/open-direct-with-participant")
-      >();
-    return {
-      ...actual,
-      openDirectWithParticipant: (...args: unknown[]) =>
-        openDirectMock(...args),
-    };
-  },
-);
-
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 
 function makeUser(id: string, name?: string) {
@@ -64,17 +20,6 @@ function makeUser(id: string, name?: string) {
     id,
     name: name ?? `User ${id}`,
     email: `${id}@example.com`,
-    image: null as string | null,
-    presence: "online" as const,
-  };
-}
-
-function makeCoworker(id: string, name: string, slug: string) {
-  return {
-    id,
-    name,
-    slug,
-    caption: `${name} caption`,
     image: null as string | null,
     presence: "online" as const,
   };
@@ -119,19 +64,9 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
 }
 
 describe("DirectRoomAvatarStack", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    openDirectMock.mockResolvedValue({ ok: true, roomId: "dm-2" });
-  });
-
   it("states availability on a 1:1 row and stays silent on a group row", () => {
     const { unmount } = render(
-      <DirectRoomAvatarStack
-        room={makeDirectRoom()}
-        currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
-      />,
+      <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
     );
 
     // A two-person direct gets no roster panel, so this row is the only place
@@ -153,8 +88,6 @@ describe("DirectRoomAvatarStack", () => {
           ],
         })}
         currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
       />,
     );
 
@@ -165,6 +98,24 @@ describe("DirectRoomAvatarStack", () => {
         "Online",
       ),
     ).toBeNull();
+    expect(screen.getByTestId("dm-sidebar-avatar-bob")).toBeInTheDocument();
+  });
+
+  it("renders faces as plain marks with no hover card or button semantics", () => {
+    render(
+      <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
+    );
+
+    // The row link is the direct itself, so a face must not carry its own
+    // activation or open a card over the room it already points at.
+    const avatar = screen.getByTestId("dm-sidebar-avatar-patrick");
+    expect(avatar).not.toHaveAttribute("role");
+    expect(avatar).not.toHaveAttribute("tabindex");
+    expect(avatar).not.toHaveAttribute("aria-label");
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chat-participant-hover-card"),
+    ).not.toBeInTheDocument();
   });
 
   it("reports a soko bot as online whatever its own presence says", () => {
@@ -175,19 +126,15 @@ describe("DirectRoomAvatarStack", () => {
           sokoBotMembers: [makeSokoBot("bot-1", "Zero")],
         })}
         currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
       />,
     );
 
     // Soko bots are AI and report always-online (ADR-0003), same as coworkers.
-    // Miss that arm and this mark says "Offline" while the mark on the same
-    // avatar's hover card says "Online". The mark is aria-hidden, so its
-    // tooltip is where that state is observable.
-    const trigger = screen.getByTestId("dm-sidebar-avatar-bot-1");
-    expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
-      "Online",
-    );
+    // Miss that arm and this mark says "Offline" while the roster panel says
+    // "Online" for the same member. The mark is aria-hidden, so its tooltip is
+    // where that state is observable.
+    const face = screen.getByTestId("dm-sidebar-avatar-bot-1");
+    expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
   });
 
   it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {
@@ -195,8 +142,6 @@ describe("DirectRoomAvatarStack", () => {
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
         currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
       />,
     );
 
@@ -206,12 +151,7 @@ describe("DirectRoomAvatarStack", () => {
     unmount();
 
     const { container } = render(
-      <DirectRoomAvatarStack
-        room={makeDirectRoom()}
-        currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
-      />,
+      <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
     );
 
     // min-w-5 / h-5 matches channel icon column; multi stacks may grow wider.
@@ -222,110 +162,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(stackRoot?.className).toContain("items-center");
   });
 
-  it("shows participant hover card for a 1:1 human DM avatar", async () => {
-    const user = userEvent.setup();
-    render(
-      <DirectRoomAvatarStack
-        room={makeDirectRoom()}
-        currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
-      />,
-    );
-
-    const avatar = screen.getByTestId("dm-sidebar-avatar-patrick");
-    expect(avatar).not.toHaveAttribute("role", "button");
-    expect(avatar).not.toHaveAttribute("aria-label");
-    await user.hover(avatar);
-
-    const card = screen.getByTestId("chat-participant-hover-card");
-    expect(card).toHaveTextContent("Patrick Tobler");
-    expect(card).toHaveTextContent("patrick@example.com");
-  });
-
-  it("shows a hover card per stacked participant in a group DM", () => {
-    render(
-      <DirectRoomAvatarStack
-        room={makeDirectRoom({
-          userMembers: [
-            makeUser("me", "Me"),
-            makeUser("alice", "Alice"),
-            makeUser("bob", "Bob"),
-          ],
-        })}
-        currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
-      />,
-    );
-
-    // HoverCard is mocked open so each stacked avatar mounts its card.
-    const cards = screen.getAllByTestId("chat-participant-hover-card");
-    expect(cards).toHaveLength(2);
-    expect(cards.map((card) => card.textContent).join(" ")).toContain("Alice");
-    expect(cards.map((card) => card.textContent).join(" ")).toContain("Bob");
-    expect(screen.getByTestId("dm-sidebar-avatar-alice")).toBeInTheDocument();
-    expect(screen.getByTestId("dm-sidebar-avatar-bob")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Alice" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Bob" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("shows coworker hover card with caption and Message action", async () => {
-    const user = userEvent.setup();
-    render(
-      <DirectRoomAvatarStack
-        room={makeDirectRoom({
-          userMembers: [makeUser("me", "Me")],
-          coworkerMembers: [makeCoworker("cw-1", "Matt", "matt")],
-        })}
-        currentUserId="me"
-        canOpenHumanDirect={false}
-        selectedRoomId={null}
-      />,
-    );
-
-    await user.hover(screen.getByTestId("dm-sidebar-avatar-cw-1"));
-
-    const card = screen.getByTestId("chat-participant-hover-card");
-    expect(card).toHaveTextContent("Matt");
-    expect(within(card).getByLabelText("AI coworker")).toBeInTheDocument();
-    expect(card).toHaveTextContent("Matt caption");
-    expect(
-      screen.getByRole("button", { name: /Message/i }),
-    ).toBeInTheDocument();
-  });
-
-  it("opens a direct when Message is clicked from the hover card", async () => {
-    const user = userEvent.setup();
-    render(
-      <DirectRoomAvatarStack
-        room={makeDirectRoom()}
-        currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId="dm-1"
-      />,
-    );
-
-    await user.hover(screen.getByTestId("dm-sidebar-avatar-patrick"));
-    await user.click(screen.getByRole("button", { name: /Message/i }));
-
-    expect(openDirectMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        profile: expect.objectContaining({
-          kind: "human",
-          id: "patrick",
-          name: "Patrick Tobler",
-        }),
-        selectedRoomId: "dm-1",
-      }),
-    );
-  });
-
-  it("renders a non-interactive fallback when the DM has no other participants", () => {
+  it("renders a fallback mark when the DM has no other participants", () => {
     render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({
@@ -333,14 +170,9 @@ describe("DirectRoomAvatarStack", () => {
           coworkerMembers: [],
         })}
         currentUserId="me"
-        canOpenHumanDirect
-        selectedRoomId={null}
       />,
     );
 
-    expect(
-      screen.queryByTestId("chat-participant-hover-card"),
-    ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("dm-sidebar-avatar-me"),
     ).not.toBeInTheDocument();
