@@ -361,6 +361,7 @@
   --status-waiting: hsla(238, 60.0%, 40.0%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
+  --status-active-tertiary: hsla(186, 41.2%, 81.5%, 1);
   --status-queued-quaternary: hsla(212, 30.9%, 88.5%, 1);
   --status-active-quaternary: hsla(186, 41.2%, 88.1%, 1);
   --status-waiting-quaternary: hsla(238, 40.0%, 89.2%, 1);
@@ -422,7 +423,7 @@
   --input: hsla(0, 0.0%, 36.5%, 1);
   --ring: hsla(270, 64%, 63%, 1);
   --ring-halo: hsla(270, 64%, 63%, 0.26);
-  --primary-hover: hsla(270, 49.7%, 57.1%, 1);
+  --primary-hover: hsla(270, 64.0%, 68.0%, 1);
   --secondary-hover: hsla(0, 0.0%, 86.1%, 1);
   --destructive-hover: hsla(0, 72%, 40%, 1);
   --destructive-halo: hsla(0, 84.0%, 60.0%, 0.26);
@@ -474,6 +475,7 @@
   --status-waiting: hsla(238, 95.0%, 70.0%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
+  --status-active-tertiary: hsla(186, 37.5%, 30.4%, 1);
   --status-queued-quaternary: hsla(212, 35.0%, 21.2%, 1);
   --status-active-quaternary: hsla(186, 35.0%, 21.2%, 1);
   --status-waiting-quaternary: hsla(238, 35.0%, 21.2%, 1);
