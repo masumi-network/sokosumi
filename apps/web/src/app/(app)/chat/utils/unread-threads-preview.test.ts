@@ -28,10 +28,19 @@ describe("formatUnreadThreadsPreview", () => {
     ).toBe("@Noodle Chef Hello");
   });
 
-  it("renders @all:all as @all", () => {
+  it("renders @all:all as @all when the room roster is not given", () => {
     expect(formatUnreadThreadsPreview("ping @all:all please")).toBe(
       "ping @all please",
     );
+  });
+
+  it("names the room-wide mention when the room's roster is given", () => {
+    expect(
+      formatUnreadThreadsPreview(
+        "ping @all:all please",
+        new Map([["all", "Everyone"]]),
+      ),
+    ).toBe("ping @Everyone please");
   });
 
   it("returns empty string when content is only markup", () => {

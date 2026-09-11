@@ -8,11 +8,6 @@ vi.mock("rehype-raw", () => ({
   default: () => null,
 }));
 
-vi.mock("rehype-highlight", () => ({
-  __esModule: true,
-  default: () => null,
-}));
-
 describe("Markdown emoticon rendering", () => {
   it("converts wink emoticons to 😉", () => {
     const { container: winkFull } = render(<Markdown>{";-)"}</Markdown>);
