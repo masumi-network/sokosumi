@@ -204,11 +204,12 @@ export function useRoomMessageJumps({
   /**
    * Put a message on screen and highlight it, loading the window around it
    * when it is not already there. Reached from the pinned list and from a
-   * notification that named the message on the room's URL.
+   * notification that named the message on the room's URL. True once the
+   * message is on screen.
    */
-  async function handleJumpToMessage(messageId: string) {
+  async function handleJumpToMessage(messageId: string): Promise<boolean> {
     if (!roomId) {
-      return;
+      return false;
     }
     const { isNewestJump, holdOffBottom, releaseHoldOffBottom } = startRoomJump(
       jumpStateRef.current,
@@ -224,7 +225,7 @@ export function useRoomMessageJumps({
         },
       },
     );
-    await performRoomMessageJump(messageId, {
+    return performRoomMessageJump(messageId, {
       // Guarded because this runs twice: once on entry, where this jump is
       // always the newest, and once after the window loads, where it may not
       // be. Scrolling then would drag the reader off the message a later

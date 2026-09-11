@@ -2738,14 +2738,7 @@ export function RoomsClient({
                 onClose={() => {
                   setPinnedOpen(false);
                 }}
-                onJump={(messageId) => {
-                  // Closed first, as the search panel closes on its click. On
-                  // a phone the panel covers the transcript, so a jump behind
-                  // it lands unseen and its mark is gone before the reader
-                  // closes the panel by hand.
-                  setPinnedOpen(false);
-                  void handleJumpToMessage(messageId);
-                }}
+                onJump={handleJumpToMessage}
                 onUnpin={async (messageId) => {
                   const result = await unpinRoomMessageAction(
                     selectedRoom.id,
@@ -2767,6 +2760,7 @@ export function RoomsClient({
                   couldNotLoad: t("PinnedMessages.couldNotLoad"),
                   unpin: t("PinnedMessages.unpin"),
                   loadOlder: t("loadOlder"),
+                  jumping: t("PinnedMessages.jumping"),
                 }}
               />
             ) : showRoomRosterControl && rosterOpen ? (
