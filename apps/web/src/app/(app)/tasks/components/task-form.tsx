@@ -80,6 +80,7 @@ import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskScheduleModal } from "./task-schedule-modal";
+import { TaskStatusPillSelectTrigger } from "./task-status-pill-select-trigger";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -1193,40 +1194,6 @@ export function TaskForm({
                 </div>
               ) : null}
 
-              <div className="space-y-2">
-                <Label htmlFor="task-status">{labels.status}</Label>
-                <Select
-                  value={status}
-                  onValueChange={(value) =>
-                    handleStatusSelect(value as TaskStatus)
-                  }
-                >
-                  <SelectTrigger id="task-status" className="w-full">
-                    <SelectValue>
-                      {getTaskFormStatusLabel(status, labels)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((option) => (
-                      <SelectItem
-                        key={option}
-                        value={option}
-                        disabled={
-                          option === TaskStatus.QUEUED && !isQueuedSelectable
-                        }
-                      >
-                        {getTaskFormStatusLabel(option, labels)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {labels.statusDescription ? (
-                  <p className="text-muted-foreground text-xs">
-                    {labels.statusDescription}
-                  </p>
-                ) : null}
-              </div>
-
               {shouldShowProjectSelect ? (
                 <div className="space-y-2">
                   <Label>{labels.projectLabel}</Label>
@@ -1362,12 +1329,39 @@ export function TaskForm({
 
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-            {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
-              <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
-                <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
-                <span className="truncate">{scheduleLabel}</span>
-              </div>
-            ) : null}
+            <div className="flex min-w-0 items-center gap-2">
+              <Select
+                value={status}
+                onValueChange={(value) =>
+                  handleStatusSelect(value as TaskStatus)
+                }
+              >
+                <TaskStatusPillSelectTrigger
+                  status={status}
+                  label={getTaskFormStatusLabel(status, labels)}
+                  ariaLabel={labels.status}
+                />
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem
+                      key={option}
+                      value={option}
+                      disabled={
+                        option === TaskStatus.QUEUED && !isQueuedSelectable
+                      }
+                    >
+                      {getTaskFormStatusLabel(option, labels)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
+                <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+                  <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
+                  <span className="truncate">{scheduleLabel}</span>
+                </div>
+              ) : null}
+            </div>
             <div className="flex items-center gap-3 sm:ml-auto">
               <Button
                 type="button"

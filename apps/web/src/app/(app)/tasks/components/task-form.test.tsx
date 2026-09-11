@@ -475,7 +475,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 
-  it("shows the status dropdown defaulting to Draft on create", () => {
+  it("shows the footer status pill defaulting to Draft on create", () => {
     render(
       <TaskForm
         mode="create"
@@ -487,15 +487,49 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
-      "Draft",
-    );
+    expect(screen.queryByText("Pick status")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("label", { name: "Status" }),
+    ).not.toBeInTheDocument();
+
+    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    expect(statusControl).toHaveTextContent("Draft");
+    expect(
+      statusControl.compareDocumentPosition(
+        screen.getByRole("button", { name: "Set schedule" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Save as Draft" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Mark as Ready" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("places the status pill before the schedule label in the footer", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    const scheduleLabel = screen.getByText("footer.oneTimeAt");
+    expect(
+      statusControl.compareDocumentPosition(scheduleLabel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("defaults status to Ready when selecting a coworker", async () => {

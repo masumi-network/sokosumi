@@ -1,26 +1,18 @@
 "use client";
 
 import { userTaskStatusTransitionRequiresComment } from "@sokosumi/utils";
-import { ChevronDown, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
-import { cn } from "@/lib/utils";
 import { getManualTaskStatusSelectOptions } from "@/lib/utils/task-status-order";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
-import { getTaskStatusPillTone } from "./task-status-badge";
+import { TaskStatusPillSelectTrigger } from "./task-status-pill-select-trigger";
 
 export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
@@ -122,7 +114,6 @@ export function TaskMetadataStatusField({
   const displayStatus =
     isPending && pendingStatus ? pendingStatus : currentStatus;
   const displayLabel = labels.statusLabels[displayStatus];
-  const pillTone = getTaskStatusPillTone(displayStatus);
 
   return (
     <>
@@ -131,31 +122,12 @@ export function TaskMetadataStatusField({
         onValueChange={(value) => handleStatusSelect(value as TaskStatus)}
         disabled={isPending}
       >
-        <SelectTrigger
-          aria-label={displayLabel}
-          className={cn(
-            "h-auto w-auto gap-0 rounded-sm border-0 bg-transparent p-0 shadow-none",
-            "dark:bg-transparent dark:hover:bg-transparent",
-            "data-[size=default]:h-auto",
-            "[&>svg]:hidden",
-          )}
-        >
-          <SelectValue>
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
-                pillTone.bg,
-                pillTone.text,
-              )}
-            >
-              {isPending ? (
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-              ) : null}
-              <span>{displayLabel}</span>
-              <ChevronDown className="size-3 opacity-70" aria-hidden />
-            </span>
-          </SelectValue>
-        </SelectTrigger>
+        <TaskStatusPillSelectTrigger
+          status={displayStatus}
+          label={displayLabel}
+          ariaLabel={displayLabel}
+          isPending={isPending}
+        />
         <SelectContent align="end">
           {getManualTaskStatusSelectOptions(displayStatus).map((option) => (
             <SelectItem
