@@ -47,7 +47,7 @@ const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.25;
 
 const toolbarButtonClassName =
-  "size-9 shrink-0 rounded-full text-white hover:bg-white/10 hover:text-white";
+  "size-9 shrink-0 rounded-full text-white hover:bg-on-media-muted hover:text-white";
 
 function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
@@ -169,7 +169,7 @@ function ImageViewerChrome({
       <DialogTitle className="sr-only">{t("title")}</DialogTitle>
       <DialogDescription className="sr-only">{alt}</DialogDescription>
       <div
-        className="flex items-center justify-between gap-3 bg-black/80 px-3 py-2 text-white"
+        className="flex items-center justify-between gap-3 bg-scrim-strong px-3 py-2 text-white"
         data-testid="image-viewer-toolbar"
         onClick={(event) => {
           event.stopPropagation();
@@ -251,7 +251,7 @@ function ImageViewerChrome({
           }}
         />
         <div
-          className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/80 px-2 py-1 text-white"
+          className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-scrim-strong px-2 py-1 text-white"
           data-testid="image-viewer-zoom"
           onClick={(event) => {
             event.stopPropagation();

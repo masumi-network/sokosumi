@@ -69,7 +69,7 @@ function FileChipVideoFrame({
   return (
     <div
       data-testid="file-chip-video-frame"
-      className="relative min-w-0 max-w-full overflow-hidden rounded-lg bg-black/20"
+      className="relative min-w-0 max-w-full overflow-hidden rounded-lg bg-scrim-soft"
       style={{
         aspectRatio: resolvedAspectRatio,
         width: `${frameWidthRem}rem`,

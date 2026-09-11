@@ -726,7 +726,7 @@ export const MarkdownEditor = forwardRef<
           "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
           "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
           "[&_a]:text-primary [&_a]:underline",
-          "[&_blockquote]:border-muted-foreground/40 [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
+          "[&_blockquote]:border-input [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
           "[&_h1]:mt-2 [&_h1]:mb-1 [&_h1]:text-xl [&_h1]:font-bold",
           "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
           "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",

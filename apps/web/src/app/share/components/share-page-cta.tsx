@@ -26,7 +26,7 @@ export default function SharePageCTA({ className }: SharePageCTAProps) {
           decoding="async"
           priority={false}
         />
-        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-scrim-soft" />
       </div>
 
       <div className="relative flex flex-col items-start justify-between px-6 py-12 text-black md:flex-row md:items-end md:px-12 md:py-16">
@@ -37,7 +37,7 @@ export default function SharePageCTA({ className }: SharePageCTAProps) {
         <Button
           asChild
           size="lg"
-          className="shrink-0 gap-8 bg-black px-8 text-white hover:bg-black/90"
+          className="shrink-0 gap-8 bg-black px-8 text-white hover:bg-scrim-strong"
         >
           <Link href="https://www.sokosumi.com/agents">
             {t("buttonText")}

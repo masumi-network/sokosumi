@@ -1,5 +1,5 @@
 export const MOBILE_CHROME_APPLE_SURFACE_CLASS =
-  "bg-background/45 backdrop-blur-2xl backdrop-saturate-150 dark:bg-background/35";
+  "bg-overlay backdrop-blur-2xl backdrop-saturate-150 dark:bg-overlay";
 
 export const MOBILE_CHROME_SOLID_SURFACE_CLASS = "bg-background";
 

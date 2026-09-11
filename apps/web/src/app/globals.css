@@ -15,6 +15,14 @@
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-card-background: var(--card-background);
+  --color-overlay: var(--overlay);
+  --color-surface-glass: var(--surface-glass);
+  --color-surface-sticky: var(--surface-sticky);
+  --color-scrim: var(--scrim);
+  --color-scrim-soft: var(--scrim-soft);
+  --color-scrim-strong: var(--scrim-strong);
+  --color-on-media: var(--on-media);
+  --color-on-media-muted: var(--on-media-muted);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -248,6 +256,18 @@
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
   --card-background: hsla(0, 0%, 98%, 1);
+  /* Translucency with a role. These five keep their alpha on purpose: each
+     one must show what sits behind it, which is the one job a frozen step
+     cannot do. The scrims sit over user media, not over the page, so they
+     hold the same value in both themes. */
+  --overlay: hsla(0, 0%, 100%, 0.5);
+  --surface-glass: hsla(0, 0%, 100%, 0.8);
+  --surface-sticky: hsla(0, 0%, 100%, 0.95);
+  --scrim-soft: hsla(0, 0%, 0%, 0.25);
+  --scrim: hsla(0, 0%, 0%, 0.5);
+  --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --on-media: hsla(0, 0%, 100%, 1);
+  --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --card-background-hover: hsla(0, 0%, 98%, 0.5);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
@@ -385,6 +405,15 @@
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
   --card-background: hsla(0, 0%, 9%, 1);
+  /* See the light block. The scrims do not change: they sit over media. */
+  --overlay: hsla(0, 0%, 4%, 0.5);
+  --surface-glass: hsla(0, 0%, 4%, 0.8);
+  --surface-sticky: hsla(0, 0%, 4%, 0.95);
+  --scrim-soft: hsla(0, 0%, 0%, 0.25);
+  --scrim: hsla(0, 0%, 0%, 0.5);
+  --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --on-media: hsla(0, 0%, 100%, 1);
+  --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --card-background-hover: hsla(0, 0%, 9%, 0.5);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
