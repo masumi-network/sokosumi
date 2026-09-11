@@ -1,6 +1,6 @@
 "use client";
 
-import FullCalendar from "@fullcalendar/react";
+import FullCalendar, { type EventDropInfo } from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
 import listPlugin from "@fullcalendar/react/list";
@@ -46,12 +46,14 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { MoveOccurrenceDialog } from "@/components/schedules/move-occurrence-dialog";
 import { TaskScheduleSection } from "@/components/task-schedule-section";
 import {
   AlertDialog,
@@ -81,6 +83,7 @@ import {
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
+  rescheduleTaskOccurrence,
   saveCalendarTaskSchedule,
 } from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -246,15 +249,25 @@ function SourceMarker({
   );
 }
 
+/**
+ * Only an unreleased occurrence the caller owns can be moved. A released row
+ * is history, and a row the caller cannot edit must not be draggable either.
+ */
+function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
+  return item.canEditSchedule && item.state !== "RELEASED";
+}
+
 function CalendarEvent({
   item,
   onEditSchedule,
+  onMoveOccurrence,
   onOpenTask,
   showDetails,
   source,
 }: {
   item: WorkspaceCalendarItem;
   onEditSchedule: (taskId: string) => void;
+  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
@@ -304,6 +317,11 @@ function CalendarEvent({
             {t("event.editSchedule")}
           </DropdownMenuItem>
         ) : null}
+        {isMovableCalendarItem(item) ? (
+          <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
+            {t("event.moveOccurrence")}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
           {t("event.openTask")}
         </DropdownMenuItem>
@@ -318,6 +336,7 @@ function CalendarView({
   items,
   onDateClick,
   onEventEdit,
+  onMoveOccurrence,
   onOpenTask,
   sources,
   timeZone,
@@ -328,17 +347,77 @@ function CalendarView({
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
   onEventEdit: (taskId: string) => void;
+  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
 }) {
+  const router = useRouter();
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
+  const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
   const slotHighlightRef = useRef<HTMLDivElement>(null);
+  // Optimistic overlay for an in-flight drop: the event renders at the time it
+  // was dropped at until Core confirms it or the rollback removes it.
+  const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
   const pluginView = {
     month: "dayGridMonth",
     week: "timeGridWeek",
     agenda: "listMonth",
   }[view];
+
+  function clearPendingMove(occurrenceId: string) {
+    setPendingMoves((moves) => {
+      const { [occurrenceId]: _dropped, ...rest } = moves;
+      return rest;
+    });
+  }
+
+  async function handleEventDrop(info: EventDropInfo) {
+    const item = items.find(({ id }) => id === info.event.id);
+    const scheduledAt = info.event.start;
+    if (!item || !scheduledAt || !isMovableCalendarItem(item)) {
+      info.revert();
+      return;
+    }
+
+    const occurrenceId = item.id;
+    setPendingMoves((moves) => ({ ...moves, [occurrenceId]: scheduledAt }));
+
+    try {
+      // Every drop is its own attempt; a retry is a new drag, not a replay.
+      const result = await rescheduleTaskOccurrence({
+        taskId: item.taskId,
+        occurrenceId,
+        operationId: crypto.randomUUID(),
+        scheduledAt: scheduledAt.toISOString(),
+      });
+
+      if (!result.ok) {
+        clearPendingMove(occurrenceId);
+        info.revert();
+        // The series moved on under us, so the rendered events are stale too.
+        if (
+          result.error.kind ===
+            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
+          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
+        ) {
+          router.refresh();
+        }
+        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
+        toast.error(feedbackKey ? tSeries(feedbackKey) : tMove("error"), {
+          duration: Infinity,
+        });
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      clearPendingMove(occurrenceId);
+      info.revert();
+      toast.error(tMove("error"), { duration: Infinity });
+    }
+  }
 
   function hideSlotHighlight() {
     if (slotHighlightRef.current) {
@@ -410,7 +489,10 @@ function CalendarView({
         events={items.map((item) => ({
           id: item.id,
           title: item.taskName,
-          start: item.scheduledAt.toISOString(),
+          start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
+          // Per-event: a released or unowned row is visible but not draggable.
+          startEditable: isMovableCalendarItem(item),
+          durationEditable: false,
         }))}
         timeZone={timeZone}
         allDaySlot={false}
@@ -418,12 +500,21 @@ function CalendarView({
         headerToolbar={false}
         height="auto"
         editable={false}
+        eventDurationEditable={false}
+        eventAllow={(_span, movingEvent) => {
+          const item = movingEvent
+            ? items.find(({ id }) => id === movingEvent.id)
+            : undefined;
+          return Boolean(item && isMovableCalendarItem(item));
+        }}
+        eventDrop={(info) => void handleEventDrop(info)}
         eventContent={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
           return item ? (
             <CalendarEvent
               item={item}
               onEditSchedule={onEventEdit}
+              onMoveOccurrence={onMoveOccurrence}
               onOpenTask={onOpenTask}
               showDetails={view === "agenda"}
               source={sources.find(
@@ -740,6 +831,7 @@ export function WorkspaceCalendar({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
+  const [moveItem, setMoveItem] = useState<WorkspaceCalendarItem | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const eventRequestId = useRef(0);
@@ -956,6 +1048,10 @@ export function WorkspaceCalendar({
 
   function handleOpenTask(taskId: string) {
     router.push(`/tasks/${taskId}`);
+  }
+
+  function handleMoveOccurrence(item: WorkspaceCalendarItem) {
+    setMoveItem(item);
   }
 
   async function handleLoadMore() {
@@ -1202,6 +1298,7 @@ export function WorkspaceCalendar({
           items={visibleItems}
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onMoveOccurrence={handleMoveOccurrence}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1216,6 +1313,7 @@ export function WorkspaceCalendar({
           items={visibleItems}
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onMoveOccurrence={handleMoveOccurrence}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1257,6 +1355,16 @@ export function WorkspaceCalendar({
           task={editState.task}
           scheduleRevision={editState.scheduleRevision}
           futureExceptionCount={editState.futureExceptionCount}
+        />
+      ) : null}
+      {moveItem ? (
+        <MoveOccurrenceDialog
+          key={`${moveItem.id}:${moveItem.scheduledAt.toISOString()}`}
+          occurrenceId={moveItem.id}
+          scheduledAt={moveItem.scheduledAt}
+          taskId={moveItem.taskId}
+          timeZone={timeZone}
+          onClose={() => setMoveItem(null)}
         />
       ) : null}
     </div>

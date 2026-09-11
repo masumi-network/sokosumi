@@ -19,6 +19,22 @@ describe("taskScheduleSeriesFeedbackKey", () => {
     expect(
       taskScheduleSeriesFeedbackKey(CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE),
     ).toBe("activeSeries");
+    expect(
+      taskScheduleSeriesFeedbackKey(
+        CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE,
+      ),
+    ).toBe("occurrenceLocked");
+    expect(
+      taskScheduleSeriesFeedbackKey(
+        CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID,
+      ),
+    ).toBe("occurrenceTargetInvalid");
+  });
+
+  it("treats a stale cursor like a revision conflict", () => {
+    expect(
+      taskScheduleSeriesFeedbackKey(CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE),
+    ).toBe("revisionConflict");
   });
 
   it("leaves a stale client to the existing reload modal", () => {
