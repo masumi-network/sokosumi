@@ -1,16 +1,15 @@
 /**
- * User-initiated task status transitions. Mirrors Core
- * `getAllowedTransitions` (`apps/core/src/helpers/task.ts`).
+ * Task status helpers shared by Core and web.
+ *
+ * Free status transitions (SOK-1028): any status may move to any other when
+ * the actor is authorized. Access, assignee, reopen-comment, parked, and seat
+ * gates live in Core — not a transition matrix here.
  *
  * Implemented as string literals so this package does not mirror Prisma
  * `TaskStatus` enums — OpenAPI/codegen owns web runtime types.
- *
- * Coworker- and sokoBot-assigned Tasks keep the original user table
- * (queue, cancel, reopen). Human-assigned and unset Tasks use a simpler
- * in-progress path.
  */
 
-/** Task statuses referenced by the user transition table. */
+/** Task statuses referenced by status helpers. */
 export type UserTransitionTaskStatus =
   | "DRAFT"
   | "QUEUED"
@@ -27,7 +26,7 @@ export type UserTransitionTaskStatus =
   | "FAILED"
   | "CANCELED";
 
-/** Who the Task is handed to. Agent-assigned work keeps today's user table. */
+/** Who the Task is handed to. */
 export type TaskAssigneeKind = "coworker" | "sokoBot" | "human" | "unset";
 
 /**
@@ -47,65 +46,6 @@ export const AGENT_ONLY_TASK_STATUSES = [
 
 export function isAgentOnlyTaskStatus(status: string): boolean {
   return (AGENT_ONLY_TASK_STATUSES as readonly string[]).includes(status);
-}
-
-const USER_TASK_STATUS_TRANSITIONS: Record<
-  UserTransitionTaskStatus,
-  readonly UserTransitionTaskStatus[]
-> = {
-  DRAFT: ["READY", "CANCELED", "QUEUED"],
-  QUEUED: ["DRAFT", "READY", "CANCELED"],
-  READY: ["DRAFT", "CANCELED", "QUEUED"],
-  GRANT_PENDING: [],
-  INPUT_REQUIRED: ["CANCELED"],
-  APPROVAL_REQUIRED: ["CANCELED"],
-  AUTHENTICATION_REQUIRED: ["CANCELED"],
-  OUT_OF_CREDITS: ["CREDITS_TOPPED_UP", "CANCELED"],
-  CREDITS_TOPPED_UP: ["CANCELED"],
-  RUNNING: ["CANCELED"],
-  AWAITING_EXTERNAL: ["CANCELED"],
-  // Users may reopen COMPLETED → READY with a required comment (SOK-631).
-  COMPLETED: ["READY"],
-  FAILED: [],
-  // Users may reopen CANCELED → READY with a required comment (SOK-631).
-  CANCELED: ["READY"],
-};
-
-const HUMAN_TASK_STATUS_TRANSITIONS: Record<
-  UserTransitionTaskStatus,
-  readonly UserTransitionTaskStatus[]
-> = {
-  DRAFT: ["READY", "CANCELED"],
-  QUEUED: [],
-  READY: ["DRAFT", "CANCELED", "RUNNING"],
-  GRANT_PENDING: [],
-  INPUT_REQUIRED: ["CANCELED"],
-  APPROVAL_REQUIRED: ["CANCELED"],
-  AUTHENTICATION_REQUIRED: ["CANCELED"],
-  OUT_OF_CREDITS: ["CANCELED"],
-  CREDITS_TOPPED_UP: ["CANCELED"],
-  RUNNING: ["READY", "AWAITING_EXTERNAL", "COMPLETED", "CANCELED"],
-  AWAITING_EXTERNAL: ["RUNNING", "READY", "COMPLETED", "CANCELED"],
-  COMPLETED: ["READY"],
-  FAILED: [],
-  CANCELED: ["READY"],
-};
-
-export function canUserTransitionTaskStatus(
-  from: UserTransitionTaskStatus,
-  to: UserTransitionTaskStatus,
-  assigneeKind: TaskAssigneeKind = "coworker",
-): boolean {
-  if (from === to) {
-    return false;
-  }
-
-  const table =
-    assigneeKind === "human" || assigneeKind === "unset"
-      ? HUMAN_TASK_STATUS_TRANSITIONS
-      : USER_TASK_STATUS_TRANSITIONS;
-
-  return table[from].includes(to);
 }
 
 /**

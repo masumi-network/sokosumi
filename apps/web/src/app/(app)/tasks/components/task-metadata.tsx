@@ -1,4 +1,4 @@
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { hasActiveTaskSchedule, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
@@ -10,6 +10,10 @@ import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
+import {
+  TaskMetadataStatusField,
+  type TaskMetadataStatusFieldLabels,
+} from "./task-metadata-status-field";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
@@ -159,18 +163,24 @@ function resolveTaskAssigneeDisplay(
 
 interface TaskMetadataProps {
   title: string;
+  taskId: string;
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
   labels: TaskMetadataLabels;
+  statusFieldLabels: TaskMetadataStatusFieldLabels;
+  editable: boolean;
   createdAtLabel: string;
   updatedAtLabel: string;
 }
 
 export function TaskMetadata({
   title,
+  taskId,
   task,
   project,
   labels,
+  statusFieldLabels,
+  editable,
   createdAtLabel,
   updatedAtLabel,
 }: TaskMetadataProps) {
@@ -182,17 +192,31 @@ export function TaskMetadata({
     labels.personalAssistantFallback,
   );
   const creator = resolveTaskCreatorDisplay(task, labels);
+  const hasSchedule = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
+  const isAgentAssignee =
+    task.assignee?.type === "coworker" || task.assignee?.type === "sokoBot";
 
   return (
     <section className="space-y-3">
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.status}</span>
-        <TaskStatusBadge
-          status={task.status}
-          label={labels.statusLabels[task.status]}
-          showLabel
-        />
+        {editable ? (
+          <TaskMetadataStatusField
+            key={`${taskId}-${task.status}`}
+            taskId={taskId}
+            status={task.status}
+            hasSchedule={hasSchedule}
+            isAgentAssignee={isAgentAssignee}
+            labels={statusFieldLabels}
+          />
+        ) : (
+          <TaskStatusBadge
+            status={task.status}
+            label={labels.statusLabels[task.status]}
+            showLabel
+          />
+        )}
       </div>
 
       <MetadataAvatarValue

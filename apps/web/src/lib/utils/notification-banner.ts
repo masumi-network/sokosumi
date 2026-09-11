@@ -1,9 +1,11 @@
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_ALL_LABEL_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
+  localizeChatMentionAllPreview,
 } from "@sokosumi/utils";
 
 /** What an OS banner shows: a bold first line, and text under it. */
@@ -110,7 +112,16 @@ export function buildNotificationBannerContent({
 
   const title = chatTitle(messageKey, messageParams, translate);
   if (title !== null) {
-    return { title, body: typeof preview === "string" ? preview : "" };
+    return {
+      title,
+      body:
+        typeof preview === "string"
+          ? localizeChatMentionAllPreview(
+              preview,
+              translate(CHAT_MENTION_ALL_LABEL_MESSAGE_KEY),
+            )
+          : "",
+    };
   }
 
   return { title: appTitle, body: translate(messageKey) };

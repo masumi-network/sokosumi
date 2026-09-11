@@ -85,6 +85,23 @@ function whatNamesSomeone(text: string): string {
 }
 
 /**
+ * The stored preview keeps the room-wide mention as the neutral `@all` so one
+ * copy serves every reader. Swap it for the reader's own word at render time.
+ * Word-bounded, so `@allison` and `@all:other` stay as they are; the ellipsis
+ * `capPreview` appends counts as a boundary. No label leaves the preview as
+ * stored rather than writing a bare `@`.
+ */
+export function localizeChatMentionAllPreview(
+  preview: string,
+  label: string,
+): string {
+  if (!label) {
+    return preview;
+  }
+  return preview.replace(/(^|\s)@all(?=$|[\s.,!?;\u2026])/g, `$1@${label}`);
+}
+
+/**
  * The keys of the mention tokens in a message body, in the order written and
  * without repeats.
  *
