@@ -1907,7 +1907,7 @@
           "discardCancel": "Mantener la programación actual",
           "discardConfirm": "Guardar y descartar",
           "removeTitle": "¿Eliminar esta programación?",
-          "removeDescription": "Esta tarea dejará de ejecutarse según una programación. Las ejecuciones ya realizadas se conservan y las próximas se cancelan.",
+          "removeDescription": "Esta tarea dejará de ejecutarse según una programación. Las ejecuciones ya realizadas se conservan y las próximas se cancelan. Volverá a Borrador.",
           "removeCancel": "Mantener la programación",
           "removeConfirm": "Eliminar programación",
           "revisionConflict": "Esta programación cambió en otro lugar. Recarga la tarea, vuelve a abrir la programación y aplica tu cambio de nuevo.",
@@ -6106,7 +6106,7 @@
         "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
         "clearPending": "Eliminando programación…",
         "clearTitle": "¿Eliminar programación?",
-        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
+        "clearDescription": "Esta tarea dejará de ejecutarse según una programación. Volverá a Borrador.",
         "clearCancel": "Cancelar",
         "clearConfirm": "Eliminar programación"
       },

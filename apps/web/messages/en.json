@@ -1907,7 +1907,7 @@
           "discardCancel": "Keep current schedule",
           "discardConfirm": "Save and discard",
           "removeTitle": "Remove this schedule?",
-          "removeDescription": "This task will stop running on a schedule. Runs that already happened are kept, and upcoming runs are canceled.",
+          "removeDescription": "This task will stop running on a schedule. Runs that already happened are kept, and upcoming runs are canceled. It will return to Draft.",
           "removeCancel": "Keep the schedule",
           "removeConfirm": "Remove schedule",
           "revisionConflict": "This schedule changed somewhere else. Reload the task, reopen the schedule, and apply your change again.",
@@ -6106,7 +6106,7 @@
         "clearError": "Unable to remove this schedule. Please try again.",
         "clearPending": "Removing schedule…",
         "clearTitle": "Remove schedule?",
-        "clearDescription": "This task will no longer run on a schedule.",
+        "clearDescription": "This task will no longer run on a schedule. It will return to Draft.",
         "clearCancel": "Cancel",
         "clearConfirm": "Remove schedule"
       },

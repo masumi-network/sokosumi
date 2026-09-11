@@ -1907,7 +1907,7 @@
           "discardCancel": "Aktuellen Zeitplan behalten",
           "discardConfirm": "Speichern und verwerfen",
           "removeTitle": "Diesen Zeitplan entfernen?",
-          "removeDescription": "Diese Aufgabe läuft dann nicht mehr nach einem Zeitplan. Bereits erfolgte Läufe bleiben erhalten, bevorstehende Läufe werden abgebrochen.",
+          "removeDescription": "Diese Aufgabe läuft dann nicht mehr nach einem Zeitplan. Bereits erfolgte Läufe bleiben erhalten, bevorstehende Läufe werden abgebrochen. Sie wird auf Entwurf zurückgesetzt.",
           "removeCancel": "Zeitplan behalten",
           "removeConfirm": "Zeitplan entfernen",
           "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
@@ -6106,7 +6106,7 @@
         "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
         "clearPending": "Zeitplan wird entfernt…",
         "clearTitle": "Zeitplan entfernen?",
-        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
+        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt. Er wird auf Entwurf zurückgesetzt.",
         "clearCancel": "Abbrechen",
         "clearConfirm": "Zeitplan entfernen"
       },
