@@ -130,7 +130,10 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   onBlur?: () => void;
   disabled?: boolean;
   ariaLabel?: string;
-  /** When true, Ctrl/Cmd+Enter submits instead of inserting a newline. */
+  /**
+   * Inline edit mode: Ctrl/Cmd+Enter submits instead of inserting a newline,
+   * and plain Enter submits even on touch devices (no Save button exists).
+   */
   modifierEnterSubmits?: boolean;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;

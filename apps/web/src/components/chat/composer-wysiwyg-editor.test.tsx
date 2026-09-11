@@ -496,7 +496,7 @@ describe("ComposerWysiwygEditor", () => {
   describe("on touch devices (hover: none)", () => {
     beforeEach(() => {
       vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
-        matches: query !== "(hover: hover)",
+        matches: false,
         media: query,
         onchange: null,
         addListener: vi.fn(),
@@ -657,7 +657,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(insideQuote).toBe(true);
   });
 
-  it("submits on plain Enter when the viewport is narrow", () => {
+  it("submits on plain Enter in a narrow window that can still hover", () => {
     const onSubmitShortcut = vi.fn();
     vi.stubGlobal("innerWidth", 390);
 
