@@ -163,7 +163,7 @@ export function CompletedSteps({ steps }: { steps: ProgressChip[] }) {
         />
       </button>
       {open ? (
-        <div className="border-border/60 mt-1.5 flex flex-col gap-1.5 border-l pl-3">
+        <div className="border-border mt-1.5 flex flex-col gap-1.5 border-l pl-3">
           {steps.map((step) => (
             <div
               key={step.id}

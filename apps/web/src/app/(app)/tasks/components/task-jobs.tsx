@@ -79,7 +79,7 @@ export function TaskJobs({
           <li key={job.id}>
             <Link
               href={href}
-              className="bg-muted/40 border-border/50 hover:bg-muted/60 block rounded-lg border p-3 transition-colors"
+              className="bg-muted/40 border-border hover:bg-muted/60 block rounded-lg border p-3 transition-colors"
             >
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px_120px_96px] sm:items-center sm:gap-4">
                 <p className="truncate text-sm">{name}</p>
