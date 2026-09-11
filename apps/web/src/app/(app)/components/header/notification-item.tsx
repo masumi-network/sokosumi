@@ -2,7 +2,6 @@
 
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationMenuItem } from "@/components/notifications/delete-notification-menu-item";
-import { UnreadDot } from "@/components/notifications/unread-dot";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import {
   DropdownMenuGroup,
@@ -40,7 +39,7 @@ export function NotificationItem({
 
   // The row is the highlight unit: it spans the panel edge to edge and tints
   // as one surface whenever the body or the delete control is highlighted.
-  // Unread is the dot and the weight, so the tint is free to mean "here".
+  // Unread is the icon's colour and the weight, so the tint is free to mean "here".
   const rowClassName =
     "group/row has-data-highlighted:bg-accent flex w-full items-start";
 
@@ -99,7 +98,6 @@ export function NotificationItem({
           />
         ) : null}
       </div>
-      <UnreadDot isRead={notification.isRead} />
     </div>
   );
 

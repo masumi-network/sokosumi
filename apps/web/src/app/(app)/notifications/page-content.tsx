@@ -11,7 +11,6 @@ import { NotificationsListSkeleton } from "@/app/notifications/components/notifi
 import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationButton } from "@/components/notifications/delete-notification-button";
-import { UnreadDot } from "@/components/notifications/unread-dot";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -332,7 +331,6 @@ function NotificationRow({
           />
         ) : null}
       </div>
-      <UnreadDot isRead={notification.isRead} />
     </div>
   );
 
