@@ -191,7 +191,7 @@ export default function JobShareModal({
             <div className="divide-y rounded-md border">
               <div
                 className={cn(
-                  "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
+                  "hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -211,7 +211,7 @@ export default function JobShareModal({
               </div>
               <div
                 className={cn(
-                  "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
+                  "hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },

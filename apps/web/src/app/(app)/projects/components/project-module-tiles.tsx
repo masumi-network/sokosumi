@@ -67,7 +67,7 @@ export function ProjectModuleTiles({
       {calendarHref ? (
         <Link
           aria-label={labels.calendar.title}
-          className="border-border hover:border-primary/50 hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
+          className="border-border hover:border-primary/50 hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
           href={calendarHref}
         >
           <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
@@ -85,9 +85,9 @@ export function ProjectModuleTiles({
       {PROJECT_MODULES.map(({ icon: Icon, key, href }) => {
         const module = labels[key];
         const className = cn(
-          "bg-muted/30 border-border min-w-0 rounded-xl border p-4",
+          "bg-card-background border-border min-w-0 rounded-xl border p-4",
           href
-            ? "hover:bg-muted/50 transition-colors"
+            ? "hover:bg-card-background transition-colors"
             : "cursor-default opacity-70",
         );
 

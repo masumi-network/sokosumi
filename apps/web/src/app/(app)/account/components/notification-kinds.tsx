@@ -112,7 +112,7 @@ function FoldRow({
             it is the grid that arrives. `animation-duration-200` rather than
             `duration-200`, which would also set a transition duration this
             element never asked for. */}
-        <div className="bg-muted/20 motion-safe:group-data-[state=closed]/fold:animate-out motion-safe:group-data-[state=closed]/fold:fade-out motion-safe:group-data-[state=open]/fold:animate-in motion-safe:group-data-[state=open]/fold:fade-in animation-duration-200 border-t px-4 pb-1 ease-out">
+        <div className="bg-card-background motion-safe:group-data-[state=closed]/fold:animate-out motion-safe:group-data-[state=closed]/fold:fade-out motion-safe:group-data-[state=open]/fold:animate-in motion-safe:group-data-[state=open]/fold:fade-in animation-duration-200 border-t px-4 pb-1 ease-out">
           {children}
         </div>
       </CollapsibleContent>

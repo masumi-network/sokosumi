@@ -65,7 +65,7 @@ describe("ProjectListItem", () => {
     expect(link.className).toContain("flex-row");
     expect(link.className).toContain("items-center");
     expect(link.className).toContain("gap-4");
-    expect(link.className).toContain("hover:bg-muted/50");
+    expect(link.className).toContain("hover:bg-card-background");
     expect(link.className).toContain("rounded-none");
     expect(link.className).toContain("md:rounded-lg");
     expect(link.className).not.toContain("border-border");

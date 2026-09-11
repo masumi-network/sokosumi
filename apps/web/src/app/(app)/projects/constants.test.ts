@@ -25,7 +25,7 @@ describe("projects list CLS layout constants", () => {
       "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     );
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toBe(
-      "bg-muted/30 border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+      "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
     );
     expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border divide-y px-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");
@@ -34,7 +34,7 @@ describe("projects list CLS layout constants", () => {
   });
 
   it("browse list chrome bleeds edge-to-edge on mobile (shared by needs-attention)", () => {
-    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("bg-muted/30");
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("bg-card-background");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("-mx-4");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:mx-0");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");

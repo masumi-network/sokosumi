@@ -111,7 +111,7 @@ function ProjectNeedsAttentionRow({
         className={cn(
           "flex items-center gap-3",
           "-mx-2 rounded-lg px-4 py-3 transition-colors",
-          "hover:bg-muted/50 active:scale-[0.995]",
+          "hover:bg-card-background active:scale-[0.995]",
         )}
       >
         <HistoryTypeColumn item={item} labels={{ kind: labels.kind }} />

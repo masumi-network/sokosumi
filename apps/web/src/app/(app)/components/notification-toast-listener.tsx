@@ -49,7 +49,7 @@ function NotificationToastBody({
     <button
       type="button"
       onClick={onOpen}
-      className="hover:bg-accent/50 -my-1 flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md py-1 text-left transition-colors"
+      className="hover:bg-card-background -my-1 flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md py-1 text-left transition-colors"
     >
       <span className="min-w-0 flex-1 text-sm font-medium leading-snug">
         {message}

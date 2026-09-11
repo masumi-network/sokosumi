@@ -56,7 +56,7 @@ export function OfferPicker({
           onClick={onStartFromScratch}
           className={cn(CARD_SHELL, FOCUS_RING)}
         >
-          <div className="bg-muted/40 relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b">
+          <div className="bg-card-background relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b">
             <span className="bg-background/90 text-muted-foreground group-hover:text-primary flex size-10 items-center justify-center rounded-full shadow-sm transition-colors">
               <PenLine className="size-5" />
             </span>

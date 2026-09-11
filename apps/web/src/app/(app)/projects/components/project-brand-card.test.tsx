@@ -132,7 +132,7 @@ describe("ProjectBrandCard", () => {
     renderBrandDashboard();
 
     const card = screen.getByTestId("project-brand-card");
-    expect(card.className).not.toContain("bg-muted/30");
+    expect(card.className).not.toContain("bg-card-background");
     expect(card.className).not.toMatch(/\bborder\b/);
     const brandHeading = screen.getByRole("heading", { name: "Brand" });
     expect(brandHeading).toBeInTheDocument();

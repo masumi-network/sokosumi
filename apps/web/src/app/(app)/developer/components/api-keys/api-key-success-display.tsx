@@ -41,7 +41,7 @@ export function ApiKeySuccessDisplay({
         <div className="rounded-md py-4">
           <button
             onClick={handleCopy}
-            className="bg-muted hover:bg-muted/80 group relative block w-full cursor-pointer rounded px-[1rem] py-[1rem] text-left transition-colors"
+            className="bg-muted hover:bg-senary group relative block w-full cursor-pointer rounded px-[1rem] py-[1rem] text-left transition-colors"
           >
             <div className="flex items-center justify-between">
               <code className="pr-2 font-mono text-sm break-all">{apiKey}</code>

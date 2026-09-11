@@ -235,7 +235,7 @@ export function ThreadListPanel({
               type="button"
               className={cn(
                 "hover:bg-accent flex w-full flex-col gap-0.5 rounded-md px-2 py-2 text-left text-sm",
-                isUnread && "bg-accent/40",
+                isUnread && "bg-card-background",
               )}
               onClick={() => {
                 void onOpenThread(item.parentMessage);

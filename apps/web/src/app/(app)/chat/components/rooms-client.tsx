@@ -2360,14 +2360,14 @@ export function RoomsClient({
         {showListSkeleton ? (
           <RoomMessageListSkeleton />
         ) : effectiveMessageLoadFailed ? (
-          <div className="border-border bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
+          <div className="border-border bg-card-background rounded-md border border-dashed px-5 py-10 text-center">
             <p className="font-medium">{t("Empty.messagesLoadFailedTitle")}</p>
             <p className="text-muted-foreground mt-1 text-sm">
               {t("Empty.messagesLoadFailedDescription")}
             </p>
           </div>
         ) : displayMessages.length === 0 ? (
-          <div className="border-border bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
+          <div className="border-border bg-card-background rounded-md border border-dashed px-5 py-10 text-center">
             <p className="font-medium">{t("Empty.noMessagesTitle")}</p>
             <p className="text-muted-foreground mt-1 text-sm">
               {t("Empty.noMessagesDescription")}
@@ -2770,7 +2770,7 @@ export function RoomsClient({
       <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex flex-1 items-center justify-center p-6">
-            <div className="border-border bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
+            <div className="border-border bg-card-background max-w-md rounded-md border border-dashed px-6 py-10 text-center">
               <Hash className="text-muted-foreground mx-auto size-8" />
               <h2 className="mt-4 text-lg font-semibold">
                 {t("Empty.noChannelTitle")}

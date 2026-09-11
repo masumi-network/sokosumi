@@ -53,7 +53,7 @@ export default function MembersTable({
             rowClassName={() =>
               "text-foreground active:bg-muted hover:bg-muted"
             }
-            containerClassName={cn("w-full rounded-xl bg-muted/50 p-2")}
+            containerClassName={cn("w-full rounded-xl bg-card-background p-2")}
             showPagination={members.length > 10}
             showRowsPerPage={false}
             enableRowSelection={false}
