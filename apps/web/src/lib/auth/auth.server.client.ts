@@ -8,9 +8,9 @@ import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 
 import { getAuthClientPlugins } from "./auth-client.plugins";
+import { CORE_AUTH_REQUEST_TIMEOUT_MS } from "./core-auth-timeout";
 
 const CORE_AUTH_BASE_PATH = "/auth";
-const CORE_AUTH_REQUEST_TIMEOUT_MS = 5000;
 
 export function getCoreAuthBaseUrl(): string {
   return joinCoreApiPath(getServerCoreAppBaseUrl(), CORE_AUTH_BASE_PATH);

@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
+import { CoreUnavailableNotice } from "@/app/components/core-unavailable-notice.client";
 import {
   Card,
   CardContent,
@@ -8,7 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import { signInRedirectPath } from "@/lib/auth/auth.server";
+import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
 import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
 import { organizationService, userService } from "@/lib/services";
@@ -28,7 +30,17 @@ import { WorkspaceGateRetry } from "./components/workspace-gate-retry.client";
 import { WorkspaceGateSignOut } from "./components/workspace-gate-sign-out.client";
 
 export default async function WorkspaceGatePage() {
-  const session = await getSessionOrRedirect();
+  // Same shape as the app shell. `getSessionOrRedirect` throws on a Core
+  // outage, and `(flows)` has no `error.tsx`, so that throw would land on the
+  // bare "Application error" page instead of a themed notice.
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return <CoreUnavailableNotice />;
+  }
+  if (sessionRead.status === "signedOut") {
+    redirect(await signInRedirectPath());
+  }
+  const session = sessionRead.session;
 
   let gate: string | null = null;
   let workspaceAccessLoadFailed = false;

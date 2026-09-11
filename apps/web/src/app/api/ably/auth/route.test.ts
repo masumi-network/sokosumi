@@ -82,11 +82,41 @@ describe("POST /api/ably/auth", () => {
     },
   );
 
+  /**
+   * The 7s Core budget expiring says Core was slow, not that it refused us.
+   * 502 hid that; 401 would be a lie the browser acts on by ending its
+   * realtime client.
+   */
+  it("answers 503 when the Core token request runs out of time", async () => {
+    const timeout = new Error("The operation was aborted due to timeout");
+    timeout.name = "TimeoutError";
+    fetchMock.mockRejectedValue(timeout);
+
+    const response = await POST(createRequest());
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    expect(await response.json()).toEqual({
+      error: "Ably token unavailable",
+      reason: "timeout",
+    });
+  });
+
+  /**
+   * A reset connection or a DNS blip never reached Core, so there is no status
+   * to report and nothing for anyone to fix. 502 said the opposite and left
+   * out the retry hint, which is what the browser needs to come back.
+   */
   it("keeps transport failure retryable instead of reporting session loss", async () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
 
     const response = await POST(createRequest());
 
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    expect(await response.json()).toEqual({
+      error: "Ably token unavailable",
+      reason: "transport",
+    });
   });
 });

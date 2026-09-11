@@ -2202,6 +2202,8 @@
     "Error": {
       "title": "Etwas ist schiefgelaufen",
       "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "unavailableTitle": "Vorübergehend nicht verfügbar",
+      "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Das dauert meist nur kurz. Bitte versuche es gleich noch einmal.",
       "errorId": "Fehler-ID: {errorId}",
       "tryAgain": "Erneut versuchen",
       "goApp": "Zur App"

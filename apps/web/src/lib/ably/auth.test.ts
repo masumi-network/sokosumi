@@ -27,6 +27,25 @@ describe("createAuthTokenRequest", () => {
     headersMock.mockResolvedValue(new Headers({ cookie: "session=abc" }));
   });
 
+  /**
+   * The three hops must nest strictly: 7s here < 9s browser fetch
+   * (`auth.client.ts`) < 10s ably-js `realtimeRequestTimeout`. Overrun the
+   * browser hop and ably-js reports its own opaque timeout instead of the
+   * status this route classifies.
+   */
+  it("gives Core less time than the browser fetch allows", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { keyName: "app.key", mac: "m1" } }),
+    });
+
+    await createAuthTokenRequest();
+
+    expect(timeoutSpy).toHaveBeenCalledWith(7000);
+    timeoutSpy.mockRestore();
+  });
+
   it("unwraps Core { data } so Ably receives a raw TokenRequest", async () => {
     const tokenRequest = {
       keyName: "app.key",
