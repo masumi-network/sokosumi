@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReauthDialog } from "./reauth-dialog";
 
 const mockSignInEmail = vi.fn();
+const mockSignInMagicLink = vi.fn();
 const mockSignInSocial = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => mockSignInEmail(...args),
+      magicLink: (...args: unknown[]) => mockSignInMagicLink(...args),
       social: (...args: unknown[]) => mockSignInSocial(...args),
     },
   },
@@ -63,6 +65,8 @@ describe("ReauthDialog", () => {
   beforeEach(() => {
     mockSignInEmail.mockReset();
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
+    mockSignInMagicLink.mockReset();
+    mockSignInMagicLink.mockResolvedValue({ data: {}, error: null });
     mockSignInSocial.mockReset();
     mockSignInSocial.mockResolvedValue({ data: {}, error: null });
   });
@@ -125,9 +129,13 @@ describe("ReauthDialog", () => {
     );
     await user.click(screen.getByRole("button", { name: "confirm" }));
 
-    await waitFor(() => {
-      expect(screen.getByText("Invalid password")).toBeInTheDocument();
-    });
+    // Submitting leaves focus on the button, so the error has to be announced
+    // and tied to the field a screen reader would return to.
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Invalid password");
+    expect(
+      screen.getByTestId("reauth-field-currentPassword"),
+    ).toHaveAccessibleDescription("Invalid password");
     expect(onReauthenticated).not.toHaveBeenCalled();
   });
 
@@ -148,6 +156,31 @@ describe("ReauthDialog", () => {
         provider: "google",
       });
     });
+  });
+
+  it("offers a magic link to a viewer who owns nothing else", async () => {
+    // Better Auth's magic-link sign-up writes no `account` row, so such a
+    // viewer has neither a password nor a provider. Email is all they have.
+    renderDialog([]);
+
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("orEmail")).not.toBeInTheDocument();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    await waitFor(() => {
+      expect(mockSignInMagicLink).toHaveBeenCalledWith({
+        callbackURL: expect.stringContaining("/account"),
+        email: "owner@example.com",
+      });
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "magicLinkSent",
+    );
   });
 
   it("names each provider rather than echoing its wire id", () => {

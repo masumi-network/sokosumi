@@ -1,7 +1,7 @@
 "use client";
 
 import type { Account } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -44,8 +44,11 @@ interface ReauthDialogProps {
  * Better Auth measures freshness from `Session.createdAt` and has no endpoint
  * that refreshes it, so a new sign-in is the only way to clear the gate. The
  * password path signs in behind the dialog and keeps the viewer on the page.
- * The social path leaves for the provider and returns to the same route. Both
- * end with a fresh session; repeating the gated action is up to the caller.
+ * The social path leaves for the provider and returns to the same route. The
+ * email path sends a magic link, which is the only credential a viewer who
+ * signed up that way owns: Better Auth's magic-link sign-up creates no
+ * `account` row, so such a viewer has neither a password nor a provider. All
+ * three end with a fresh session; repeating the gated action is the caller's.
  */
 export function ReauthDialog({
   accounts,
@@ -61,6 +64,7 @@ export function ReauthDialog({
   // so without the same choice the dialog would quietly turn a viewer's
   // "do not keep me signed in" into a persistent cookie.
   const [rememberMe, setRememberMe] = useState(true);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -81,6 +85,7 @@ export function ReauthDialog({
     if (!nextOpen) {
       setPassword("");
       setErrorMessage(null);
+      setMagicLinkSent(false);
     }
 
     onOpenChange(nextOpen);
@@ -108,6 +113,29 @@ export function ReauthDialog({
       onReauthenticated();
     } catch {
       setErrorMessage(t("passwordError"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMagicLinkSubmit = async () => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const result = await authClient.signIn.magicLink({
+        email,
+        callbackURL: getAbsoluteAuthRedirectUrl(pathname),
+      });
+
+      if (result.error) {
+        setErrorMessage(result.error.message ?? t("magicLinkError"));
+        return;
+      }
+
+      setMagicLinkSent(true);
+    } catch {
+      setErrorMessage(t("magicLinkError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -148,6 +176,8 @@ export function ReauthDialog({
             <fieldset className="space-y-2" disabled={isSubmitting}>
               <Label htmlFor="reauth-password">{t("passwordLabel")}</Label>
               <Input
+                aria-describedby={errorMessage ? "reauth-error" : undefined}
+                aria-invalid={errorMessage ? true : undefined}
                 autoComplete="current-password"
                 data-testid="reauth-field-currentPassword"
                 id="reauth-password"
@@ -205,8 +235,37 @@ export function ReauthDialog({
           </div>
         ) : null}
 
+        <div className="space-y-2">
+          {hasPasswordAccount || socialProviders.length > 0 ? (
+            <p className="text-muted-foreground text-sm">{t("orEmail")}</p>
+          ) : null}
+          {magicLinkSent ? (
+            <p className="text-sm" role="status">
+              {t("magicLinkSent", { email })}
+            </p>
+          ) : (
+            <Button
+              className="w-full"
+              disabled={isSubmitting || email.length === 0}
+              onClick={handleMagicLinkSubmit}
+              type="button"
+              variant="outline"
+            >
+              <Mail />
+              {t("continueWithEmail")}
+            </Button>
+          )}
+        </div>
+
         {errorMessage ? (
-          <p className="text-destructive text-sm">{errorMessage}</p>
+          // Announced, because submitting leaves focus on the button.
+          <p
+            className="text-destructive text-sm"
+            id="reauth-error"
+            role="alert"
+          >
+            {errorMessage}
+          </p>
         ) : null}
       </DialogContent>
     </Dialog>

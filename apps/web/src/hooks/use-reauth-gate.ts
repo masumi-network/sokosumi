@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { isSessionNotFreshError } from "@/lib/auth/session-freshness";
-import { canReauthenticateWith } from "@/lib/auth/social-providers";
 
 interface UseReauthGateOptions {
   /** The viewer's linked accounts, which decide what the dialog can offer. */
@@ -40,22 +39,14 @@ export function useReauthGate({ accounts }: UseReauthGateOptions): ReauthGate {
   const t = useTranslations("Components.ReauthDialog");
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleError = useCallback(
-    (error: unknown) => {
-      if (!isSessionNotFreshError(error)) {
-        return false;
-      }
+  const handleError = useCallback((error: unknown) => {
+    if (!isSessionNotFreshError(error)) {
+      return false;
+    }
 
-      if (!canReauthenticateWith(accounts)) {
-        toast.error(t("noMethod"));
-        return true;
-      }
-
-      setIsOpen(true);
-      return true;
-    },
-    [accounts, t],
-  );
+    setIsOpen(true);
+    return true;
+  }, []);
 
   const handleReauthenticated = useCallback(() => {
     toast.success(t("retryPrompt"));
