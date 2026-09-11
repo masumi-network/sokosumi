@@ -124,7 +124,7 @@ export function TaskStatusPicker({
           aria-expanded={open}
           aria-label={labels.ariaLabel}
           disabled={disabled || isPending}
-          className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+          className="focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed"
         >
           <span
             className={cn(
