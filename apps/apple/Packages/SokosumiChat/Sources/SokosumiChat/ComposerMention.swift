@@ -66,8 +66,13 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
     kind == .human ? "@\(id)" : "@\(id):\(slug)"
   }
 
+  /// The handle a row shows. Room-wide reads as its display name; `@all` stays a typing shortcut.
   public var subtitle: String {
-    kind == .human ? email ?? "" : "@" + slug
+    switch kind {
+    case .human: email ?? ""
+    case .all: "@" + name
+    case .coworker, .sokoBot: "@" + slug
+    }
   }
 
   public static func slug(for name: String) -> String {
