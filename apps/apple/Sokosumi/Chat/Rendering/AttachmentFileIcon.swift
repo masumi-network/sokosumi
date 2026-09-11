@@ -1,7 +1,7 @@
 import SwiftUI
-import UniformTypeIdentifiers
 #if os(macOS)
   import AppKit
+  import UniformTypeIdentifiers
 #endif
 
 struct AttachmentFileIcon: View {

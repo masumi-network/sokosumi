@@ -47,7 +47,6 @@ struct MessageAttachmentView: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.bottom, attachment.kind == .file ? 8 : 0)
     .sheet(isPresented: $previewPresented) {
       VStack(spacing: 16) {
         HStack {
