@@ -40,6 +40,7 @@
       input.delegate = context.coordinator
       commands?.input = input
       input.openLinkEditor = { [weak commands] in commands?.beginLink() }
+      input.mentionKeyHandler = { [weak commands] key in commands?.handleMentionKey(key) ?? false }
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
       input.placeholder = placeholder
@@ -127,6 +128,10 @@
         parent.commands?.refresh()
       }
 
+      func textDidEndEditing(_: Notification) {
+        Task { @MainActor [weak commands = parent.commands] in commands?.dismissMentions() }
+      }
+
       func textViewDidChangeSelection(_ notification: Notification) {
         (notification.object as? InputView)?.clearReferenceTypingAttributes()
         parent.commands?.refresh()
@@ -143,7 +148,7 @@
       var channels: [ComposerChannel] = []
       var mentions: [ComposerMention] = []
       private var channelCompletions: [String: ComposerChannel] = [:]
-      private var mentionCompletions: [String: ComposerMention] = [:]
+      var mentionKeyHandler: ((UInt16) -> Bool)?
       var placeholder = "Message" {
         didSet { needsDisplay = true }
       }
@@ -296,7 +301,7 @@
       override var rangeForUserCompletion: NSRange {
         guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return NSRange(location: NSNotFound, length: 0) }
         if let trigger = ComposerReferenceTrigger.match(in: string, caret: selectedRange().location),
-           (trigger.kind == .mention && !mentions.isEmpty) || (trigger.kind == .channel && !channels.isEmpty) {
+           trigger.kind == .channel, !channels.isEmpty {
           return trigger.range
         }
         return ComposerEmoji.completionRange(in: string, caret: selectedRange().location) ?? NSRange(location: NSNotFound, length: 0)
@@ -304,21 +309,8 @@
 
       override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
         guard charRange.location != NSNotFound, NSMaxRange(charRange) <= string.utf16.count else { return nil }
-        mentionCompletions = [:]
         channelCompletions = [:]
         let partial = (string as NSString).substring(with: charRange)
-        if partial.hasPrefix("@") {
-          let matches = ComposerMention.matching(mentions, query: String(partial.dropFirst()))
-          let labels = matches.map { entry in
-            let base = "\(entry.name)  @\(entry.slug)"
-            let label = mentionCompletions[base] == nil ? base : "\(base) (\(entry.id))"
-            mentionCompletions[label] = entry
-            return label
-          }
-          showingCompletions = !labels.isEmpty
-          index.pointee = 0
-          return labels
-        }
         if partial.hasPrefix("#") {
           let labels = ComposerChannel.matching(channels, query: String(partial.dropFirst())).map { entry in
             let organization = entry.organizationName.map { " · " + $0 } ?? ""
@@ -348,12 +340,6 @@
         let explicitSelection = movement == NSReturnTextMovement || movement == NSTabTextMovement || mouseSelection
         // AppKit also finalizes when typing dismisses the list. That is not acceptance.
         guard explicitSelection, NSMaxRange(charRange) <= string.utf16.count else { return }
-        if let mention = mentionCompletions[word] {
-          guard mentions.contains(mention) else { return }
-          insertReference(token: mention.token, label: "@" + mention.name, range: charRange)
-          mentionCompletions = [:]
-          return
-        }
         if let channel = channelCompletions[word] {
           guard channels.contains(channel) else { return }
           insertReference(token: channel.token(in: channels), label: "#" + channel.name, range: charRange)
@@ -369,6 +355,18 @@
         breakUndoCoalescing()
         super.insertText(edit.replacement, replacementRange: charRange)
         breakUndoCoalescing()
+      }
+
+      var mentionTrigger: ComposerReferenceTrigger? {
+        guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode,
+              let trigger = ComposerReferenceTrigger.match(in: string, caret: selectedRange().location),
+              trigger.kind == .mention else { return nil }
+        return trigger
+      }
+
+      func acceptMention(_ mention: ComposerMention) {
+        guard let trigger = mentionTrigger, mentions.contains(mention) else { return }
+        insertReference(token: mention.token, label: "@" + mention.name, range: trigger.range)
       }
 
       private func insertReference(token: String, label: String, range: NSRange) {
@@ -433,6 +431,10 @@
         // Capture this before AppKit commits marked text. Checking inside
         // a submit/delegate callback is too late for the committing Return.
         let isReturn = event.keyCode == 36 || event.keyCode == 76
+        if !hasMarkedText(), event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift]),
+           mentionKeyHandler?(event.keyCode) == true {
+          return
+        }
         if showingCompletions {
           super.keyDown(with: event)
           return

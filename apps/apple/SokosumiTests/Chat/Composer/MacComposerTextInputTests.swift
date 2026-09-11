@@ -53,15 +53,33 @@
       input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]
       input.string = "@an"
       input.setSelectedRange(NSRange(location: 3, length: 0))
-      let range = input.rangeForUserCompletion
-      var selected = 0
-      let options = input.completions(forPartialWordRange: range, indexOfSelectedItem: &selected)
-      #expect(options == ["Anna  @anna"])
-      input.insertCompletion("Anna  @anna", forPartialWordRange: range, movement: NSRightTextMovement, isFinal: true)
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshMentions()
+      #expect(commands.mentionOptions.map(\.name) == ["Anna"])
+      #expect(!commands.handleMentionKey(124))
       #expect(input.string == "@an")
-      input.insertCompletion("Anna  @anna", forPartialWordRange: range, movement: NSReturnTextMovement, isFinal: true)
+      #expect(commands.handleMentionKey(36))
       #expect(input.string == "\u{FFFC} ")
       #expect(input.captureDraft().contains("@user-1:anna"))
+    }
+
+    @Test func mentionPanelGroupsNavigatesAndDismissesWithoutInsertion() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "agent", name: "Agent", slug: "agent", kind: .coworker),
+                        .init(id: "person", name: "Person", slug: "person", kind: .human)]
+      input.string = "@"
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshMentions()
+      #expect(commands.mentionOptions.map(\.id) == ["person", "agent"])
+      #expect(commands.handleMentionKey(125))
+      #expect(commands.selectedMentionID == "agent")
+      #expect(commands.handleMentionKey(53))
+      commands.refreshMentions()
+      #expect(commands.mentionOptions.isEmpty)
+      #expect(input.string == "@")
     }
 
     @Test func channelCompletionRequiresAcceptanceAndSerializesName() {

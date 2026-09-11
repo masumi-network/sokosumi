@@ -11,6 +11,63 @@
     @Published private(set) var activeBlocks: Set<ComposerBlockFormat> = []
     @Published var linkEditor: LinkEditor?
 
+    @Published private(set) var mentionOptions: [ComposerMention] = []
+    @Published var selectedMentionID: String?
+    private var mentionTrigger: ComposerReferenceTrigger?
+    private var dismissedMentionTrigger: ComposerReferenceTrigger?
+
+    func refreshMentions() {
+      let trigger = input?.mentionTrigger
+      if trigger != mentionTrigger {
+        mentionTrigger = trigger
+        dismissedMentionTrigger = nil
+        selectedMentionID = nil
+      }
+      let matches = trigger.flatMap { trigger in
+        input.map { ComposerMention.matching($0.mentions, query: trigger.query) }
+      } ?? []
+      let options = trigger != nil && trigger != dismissedMentionTrigger ? matches : []
+      // Keep section order identical for mouse and keyboard navigation.
+      let grouped = options.filter { $0.kind == .human || $0.kind == .all }
+        + options.filter { $0.kind == .coworker || $0.kind == .sokoBot }
+      if mentionOptions != grouped {
+        mentionOptions = grouped
+      }
+      if !grouped.contains(where: { $0.id == selectedMentionID }) {
+        selectedMentionID = grouped.first?.id
+      }
+    }
+
+    func dismissMentions() {
+      dismissedMentionTrigger = mentionTrigger
+      mentionOptions = []
+    }
+
+    func acceptMention(_ mention: ComposerMention) {
+      input?.window?.makeFirstResponder(input)
+      input?.acceptMention(mention)
+      mentionOptions = []
+      refresh()
+    }
+
+    func handleMentionKey(_ key: UInt16) -> Bool {
+      refreshMentions()
+      guard !mentionOptions.isEmpty else { return false }
+      switch key {
+      case 53:
+        dismissMentions()
+      case 125, 126:
+        let index = mentionOptions.firstIndex { $0.id == selectedMentionID } ?? 0
+        selectedMentionID = mentionOptions[(index + (key == 125 ? 1 : mentionOptions.count - 1)) % mentionOptions.count].id
+      case 36, 76, 48:
+        if let mention = mentionOptions.first(where: { $0.id == selectedMentionID }) {
+          acceptMention(mention)
+        }
+      default: return false
+      }
+      return true
+    }
+
     struct LinkEditor: Identifiable {
       let id = UUID()
       let range: NSRange
@@ -80,6 +137,7 @@
       // Selection callbacks can arrive during SwiftUI's representable update.
       Task { @MainActor [weak self] in
         guard let self, let input else { return }
+        refreshMentions()
         let range = input.selectedRange()
         let sample = range.length == 0
           ? NSAttributedString(string: " ", attributes: input.typingAttributes)

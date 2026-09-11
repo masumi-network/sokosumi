@@ -52,6 +52,11 @@ import SwiftUI
           .disabled(!canSend)
           .help("Send message")
       }
+      .overlay(alignment: .topLeading) {
+        if !commands.mentionOptions.isEmpty {
+          MentionSuggestionsView(mentions: commands.mentionOptions, selectedID: $commands.selectedMentionID, accept: commands.acceptMention)
+        }
+      }
       .sheet(item: $commands.linkEditor) { editor in
         ComposerLinkEditor(text: editor.text, url: editor.url) { text, url in
           commands.saveLink(editor, text: text, url: url)
