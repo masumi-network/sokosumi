@@ -176,13 +176,19 @@ export function RoomSearchPanel({
     setResults([]);
     setActiveIndex(0);
     setError(null);
-    setIsLoading(false);
+    // A surviving query means the next open starts a fetch, so hand the
+    // reopen a loading state. Without it the first frame reads "no matches"
+    // for a query that has hits.
+    setIsLoading(Boolean(debouncedQuery));
     requestIdRef.current += 1;
     setOpen(false);
   }
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
+      // The exit animation can cancel an unmount before onCloseAutoFocus
+      // consumes this, which would leave the next close without its restore.
+      interactedOutsideRef.current = false;
       setOpen(true);
       return;
     }
@@ -201,10 +207,17 @@ export function RoomSearchPanel({
   }
 
   function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    // Escape is handled once, by the dismissable layer, so that the key means
-    // the same thing whether or not focus sits in the field.
+    // While the surface is open, Escape belongs to the dismissable layer, so
+    // the key means the same thing wherever focus sits. Once it is closed
+    // that layer is gone, and the field is still holding the query Escape is
+    // meant to clear.
     if (!open) {
-      if (event.key === "ArrowDown") {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        clearQuery();
+        return;
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         setOpen(true);
       }

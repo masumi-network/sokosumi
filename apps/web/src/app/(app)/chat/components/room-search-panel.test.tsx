@@ -375,9 +375,54 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
 
-      // Synchronous on purpose: the refetch has not landed yet, and the stale
-      // list must not flash in the gap.
+      // Assert the surface is actually back, or the "no results" check below
+      // would pass simply because the whole subtree is unmounted.
+      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
       expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
+      expect(screen.queryByTestId("room-search-empty")).not.toBeInTheDocument();
+    });
+
+    it("clears the query with Escape after the surface has closed", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      expect(screen.getByTestId("room-search-input")).toHaveValue("budget");
+
+      // The dismissable layer is gone with the surface, so the field has to
+      // answer Escape itself.
+      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
+        key: "Escape",
+      });
+
+      expect(screen.getByTestId("room-search-input")).toHaveValue("");
+    });
+
+    it("leaves focus where the user clicked after an outside dismissal", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      await screen.findByTestId("room-search-result");
+
+      const elsewhere = document.createElement("input");
+      document.body.append(elsewhere);
+      elsewhere.focus();
+      fireEvent.focusIn(elsewhere);
+
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      expect(elsewhere).toHaveFocus();
+      elsewhere.remove();
     });
 
     it("does not jump from Enter while the surface is closed", async () => {
