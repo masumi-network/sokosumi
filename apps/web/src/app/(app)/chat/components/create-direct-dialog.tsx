@@ -240,7 +240,7 @@ export function CreateDirectDialog() {
               </span>
               <button
                 type="button"
-                className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
+                className="hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeTarget(target.key);
