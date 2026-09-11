@@ -882,9 +882,16 @@ describe("TaskDetailActions", () => {
       error: { kind: "schedule_active" },
     });
 
-    renderActions({ status: TaskStatus.DRAFT, organizations: undefined });
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+      organizations: undefined,
+    });
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.startWorking }),
+    );
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("activeSeries", {
@@ -902,9 +909,16 @@ describe("TaskDetailActions", () => {
       error: { kind: "schedule_quarantined" },
     });
 
-    renderActions({ status: TaskStatus.DRAFT, organizations: undefined });
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+      organizations: undefined,
+    });
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.startWorking }),
+    );
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("quarantined", {
