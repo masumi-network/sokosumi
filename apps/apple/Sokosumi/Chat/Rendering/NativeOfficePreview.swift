@@ -13,7 +13,7 @@ import SwiftUI
 
     func makeNSView(context _: Context) -> NSView {
       guard let view = QLPreviewView(frame: .zero, style: .normal) else {
-        return NSHostingView(rootView: Text("Preview unavailable"))
+        return NSHostingView(rootView: ContentUnavailableView("Preview unavailable", systemImage: "doc", description: Text("Open or save this file using the toolbar.")))
       }
       view.shouldCloseWithWindow = false
       view.previewItem = file.url as NSURL
