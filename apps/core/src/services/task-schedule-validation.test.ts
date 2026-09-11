@@ -10,12 +10,14 @@ const lockCalendarScopeMock = vi.hoisted(() => vi.fn());
 const lockTaskRowsMock = vi.hoisted(() => vi.fn());
 const taskScheduleOccurrenceCreateManyMock = vi.hoisted(() => vi.fn());
 const taskScheduleOccurrenceDeleteManyMock = vi.hoisted(() => vi.fn());
+const taskScheduleOccurrenceFindManyMock = vi.hoisted(() => vi.fn());
 
 const tx = {
   task: { findUnique: taskFindUniqueMock },
   taskScheduleOccurrence: {
     createMany: taskScheduleOccurrenceCreateManyMock,
     deleteMany: taskScheduleOccurrenceDeleteManyMock,
+    findMany: taskScheduleOccurrenceFindManyMock,
   },
   taskScheduleQuarantine: { upsert: quarantineUpsertMock },
 };
@@ -49,6 +51,7 @@ describe("taskScheduleValidationService", () => {
     quarantineUpsertMock.mockResolvedValue({ id: "quarantine-1" });
     taskScheduleOccurrenceCreateManyMock.mockResolvedValue({ count: 1 });
     taskScheduleOccurrenceDeleteManyMock.mockResolvedValue({ count: 1 });
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
   });
 
   it("quarantines active schedule rows with invalid status or next-run state", async () => {
