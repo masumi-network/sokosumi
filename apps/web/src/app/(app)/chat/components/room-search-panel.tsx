@@ -271,6 +271,8 @@ export function RoomSearchPanel({
   const isPending = liveQuery !== debouncedQuery;
   const showLoading =
     results.length === 0 && (isLoading || (isPending && liveQuery !== ""));
+  // A stale error yields to the loading state once the next fetch is due.
+  const showError = Boolean(error) && !isLoading && !isPending;
   const showIdle = !liveQuery && !isLoading && !error;
   const showEmpty =
     Boolean(debouncedQuery) &&
@@ -289,7 +291,7 @@ export function RoomSearchPanel({
       data-testid="room-search-field"
       data-state={isExpanded ? "expanded" : "collapsed"}
       className={cn(
-        "relative transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)]",
+        "relative transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
         isMobile ? "w-full" : isExpanded ? "w-56 xl:w-64" : "w-8",
       )}
     >
@@ -443,7 +445,7 @@ export function RoomSearchPanel({
               {labels.loading}
             </div>
           ) : null}
-          {!isLoading && error ? (
+          {showError ? (
             <p className="text-muted-foreground px-2 py-6 text-center text-sm">
               {error}
             </p>

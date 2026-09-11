@@ -220,6 +220,20 @@ describe("RoomSearchPanel", () => {
     expect(screen.getByText(labels.loading)).toBeInTheDocument();
   });
 
+  it("replaces a stale error with loading while the next query is pending", async () => {
+    getChatRoomMessagesMock.mockRejectedValueOnce(new Error("boom"));
+    renderPanel();
+
+    openSearch();
+    typeQuery("budget");
+    await screen.findByText(labels.error);
+
+    typeQuery("budgets");
+
+    expect(screen.queryByText(labels.error)).not.toBeInTheDocument();
+    expect(screen.getByText(labels.loading)).toBeInTheDocument();
+  });
+
   it("shows results after a debounced query", async () => {
     renderPanel();
 
