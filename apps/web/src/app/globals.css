@@ -390,7 +390,7 @@
   --semantic-info-ring: hsla(186, 94%, 82%, 1);
 
   /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
-     only extra value, solid with a near-black label at 9.22:1. Same in both
+     only extra value, solid with a near-black label at 7.88:1. Same in both
      themes: a solid fill is its own ground. */
   --risk-high: hsla(32, 92%, 50%, 1);
   --risk-high-foreground: hsla(0, 0%, 4%, 1);
@@ -540,7 +540,7 @@
   --semantic-info-ring: hsla(197, 79%, 15%, 1);
 
   /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
-     only extra value, solid with a near-black label at 9.22:1. Same in both
+     only extra value, solid with a near-black label at 7.88:1. Same in both
      themes: a solid fill is its own ground. */
   --risk-high: hsla(32, 92%, 50%, 1);
   --risk-high-foreground: hsla(0, 0%, 4%, 1);
