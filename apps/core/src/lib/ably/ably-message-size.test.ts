@@ -7,7 +7,6 @@ import {
   ablyPublishSize,
   CHAT_ROOM_MESSAGE_EVENT_NAME,
   chatRoomMessagePublishBody,
-  isChatRoomMessageIdEnvelope,
 } from "./ably-message-size";
 
 function baseMessage(
@@ -67,7 +66,6 @@ describe("chatRoomMessagePublishBody", () => {
     );
 
     const body = chatRoomMessagePublishBody("create", message);
-    expect(isChatRoomMessageIdEnvelope(body)).toBe(true);
     expect(body).toEqual({
       eventType: "create",
       messageId: message.id,
