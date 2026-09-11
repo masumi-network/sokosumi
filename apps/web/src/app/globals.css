@@ -28,6 +28,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-tertiary: var(--tertiary);
   --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-quaternary: var(--quaternary);
   --color-quinary: var(--quinary);
   --color-senary: var(--senary);
   --color-muted: var(--muted);
@@ -81,16 +82,16 @@
   --color-risk-high: var(--risk-high);
   --color-risk-high-foreground: var(--risk-high-foreground);
   --color-status-ready: var(--status-ready);
-  --color-status-ready-quinary: var(--status-ready-quinary);
+  --color-status-ready-quaternary: var(--status-ready-quaternary);
   --color-status-running: var(--status-running);
   --color-status-running-tertiary: var(--status-running-tertiary);
-  --color-status-running-quinary: var(--status-running-quinary);
+  --color-status-running-quaternary: var(--status-running-quaternary);
   --color-status-awaiting: var(--status-awaiting);
-  --color-status-awaiting-quinary: var(--status-awaiting-quinary);
+  --color-status-awaiting-quaternary: var(--status-awaiting-quaternary);
   --color-status-topped-up: var(--status-topped-up);
-  --color-status-topped-up-quinary: var(--status-topped-up-quinary);
+  --color-status-topped-up-quaternary: var(--status-topped-up-quaternary);
   --color-status-auth: var(--status-auth);
-  --color-status-auth-quinary: var(--status-auth-quinary);
+  --color-status-auth-quaternary: var(--status-auth-quaternary);
   --color-status-done: var(--status-done);
   --color-status-done-tertiary: var(--status-done-tertiary);
 
@@ -253,6 +254,10 @@
   --secondary-foreground: hsla(0, 0%, 98%, 1);
   --tertiary: hsla(0, 0.0%, 80.8%, 1);
   --tertiary-foreground: hsla(0, 0.0%, 23.2%, 1);
+  /* The neutral pill fill. --muted is a surface token at 1.09:1 against the
+     page, which is below the edge a badge needs; this step matches the weight
+     of the tinted ramps' -quaternary. */
+  --quaternary: hsla(0, 0.0%, 90.4%, 1);
   --quinary: hsla(0, 0.0%, 95.2%, 1);
   --senary: hsla(0, 0.0%, 97.1%, 1);
   --muted: hsla(300, 0%, 96%, 1);
@@ -321,18 +326,22 @@
   --risk-high-foreground: hsla(0, 0%, 4%, 1);
 
   /* Categorical statuses. Distinct purposes, so distinct hues rather than
-     four shades of one. Carried by the dot, which needs 3:1 not 4.5:1. */
+     four shades of one. Carried by the dot, which needs 3:1 not 4.5:1.
+
+     The tint step is -quaternary, not -quinary. A quinary pill measured
+     1.06-1.17:1 against the page it sits on, so the badge had no visible edge
+     at all; -quaternary doubles the alpha and reaches 1.12-1.46:1. */
   --status-ready: hsla(217, 91.0%, 47.0%, 1);
-  --status-ready-quinary: hsla(217, 80.7%, 97.4%, 1);
+  --status-ready-quaternary: hsla(217, 80.7%, 94.8%, 1);
   --status-running: hsla(192, 91.0%, 36.0%, 1);
   --status-running-tertiary: hsla(192, 51.2%, 87.2%, 1);
-  --status-running-quinary: hsla(192, 51.2%, 96.8%, 1);
+  --status-running-quaternary: hsla(192, 51.2%, 93.6%, 1);
   --status-awaiting: hsla(199, 89.0%, 39.0%, 1);
-  --status-awaiting-quinary: hsla(199, 56.9%, 97.0%, 1);
+  --status-awaiting-quaternary: hsla(199, 56.9%, 94.0%, 1);
   --status-topped-up: hsla(174, 84.0%, 32.0%, 1);
-  --status-topped-up-quinary: hsla(174, 39.5%, 96.6%, 1);
+  --status-topped-up-quaternary: hsla(174, 39.5%, 93.2%, 1);
   --status-auth: hsla(263, 70.0%, 50.0%, 1);
-  --status-auth-quinary: hsla(263, 70.0%, 97.5%, 1);
+  --status-auth-quaternary: hsla(263, 70.0%, 95.0%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 89.0%, 1);
 
@@ -361,6 +370,7 @@
   --secondary-foreground: hsla(0, 0%, 4%, 1);
   --tertiary: hsla(0, 0.0%, 32.8%, 1);
   --tertiary-foreground: hsla(0, 0.0%, 80.8%, 1);
+  --quaternary: hsla(0, 0.0%, 23.2%, 1);
   --quinary: hsla(0, 0.0%, 13.6%, 1);
   --senary: hsla(0, 0.0%, 8.8%, 1);
   --muted: hsla(0, 0%, 15%, 1);
@@ -422,16 +432,16 @@
   /* Categorical statuses. Distinct purposes, so distinct hues rather than
      four shades of one. Carried by the dot, which needs 3:1 not 4.5:1. */
   --status-ready: hsla(213, 94.0%, 68.0%, 1);
-  --status-ready-quinary: hsla(213, 28.9%, 10.4%, 1);
+  --status-ready-quaternary: hsla(213, 35.8%, 16.8%, 1);
   --status-running: hsla(187, 85.0%, 53.0%, 1);
   --status-running-tertiary: hsla(187, 64.1%, 18.7%, 1);
-  --status-running-quinary: hsla(187, 44.9%, 8.9%, 1);
+  --status-running-quaternary: hsla(187, 57.9%, 13.8%, 1);
   --status-awaiting: hsla(198, 93.0%, 60.0%, 1);
-  --status-awaiting-quinary: hsla(198, 38.8%, 9.6%, 1);
+  --status-awaiting-quaternary: hsla(198, 48.9%, 15.2%, 1);
   --status-topped-up: hsla(172, 66.0%, 50.0%, 1);
-  --status-topped-up-quinary: hsla(172, 38.4%, 8.6%, 1);
+  --status-topped-up-quaternary: hsla(172, 50.0%, 13.2%, 1);
   --status-auth: hsla(258, 90.0%, 66.0%, 1);
-  --status-auth-quinary: hsla(258, 30.0%, 10.2%, 1);
+  --status-auth-quaternary: hsla(258, 37.3%, 16.4%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 22.0%, 1);
 }

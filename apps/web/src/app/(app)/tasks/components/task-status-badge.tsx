@@ -37,72 +37,72 @@ const STATUS_PILL_STYLES: Partial<
   Record<TaskStatus, { bg: string; text: string; dot: string }>
 > = {
   [TaskStatus.DRAFT]: {
-    bg: "bg-muted",
+    bg: "bg-quaternary",
     text: "text-foreground",
     dot: "bg-status-done",
   },
   [TaskStatus.QUEUED]: {
-    bg: "bg-primary-quinary",
+    bg: "bg-primary-quaternary",
     text: "text-foreground",
     dot: "bg-primary",
   },
   [TaskStatus.READY]: {
-    bg: "bg-status-ready-quinary",
+    bg: "bg-status-ready-quaternary",
     text: "text-foreground",
     dot: "bg-status-ready",
   },
   [TaskStatus.INPUT_REQUIRED]: {
-    bg: "bg-semantic-destructive-quinary",
+    bg: "bg-semantic-destructive-quaternary",
     text: "text-foreground",
     dot: "bg-semantic-destructive",
   },
   [TaskStatus.APPROVAL_REQUIRED]: {
-    bg: "bg-semantic-warning-quinary",
+    bg: "bg-semantic-warning-quaternary",
     text: "text-foreground",
     dot: "bg-semantic-warning",
   },
   [TaskStatus.GRANT_PENDING]: {
-    bg: "bg-semantic-warning-quinary",
+    bg: "bg-semantic-warning-quaternary",
     text: "text-foreground",
     dot: "bg-semantic-warning",
   },
   [TaskStatus.AUTHENTICATION_REQUIRED]: {
-    bg: "bg-status-auth-quinary",
+    bg: "bg-status-auth-quaternary",
     text: "text-foreground",
     dot: "bg-status-auth",
   },
   [TaskStatus.OUT_OF_CREDITS]: {
-    bg: "bg-semantic-destructive-quinary",
+    bg: "bg-semantic-destructive-quaternary",
     text: "text-foreground",
     dot: "bg-semantic-destructive",
   },
   [TaskStatus.CREDITS_TOPPED_UP]: {
-    bg: "bg-status-topped-up-quinary",
+    bg: "bg-status-topped-up-quaternary",
     text: "text-foreground",
     dot: "bg-status-topped-up",
   },
   [TaskStatus.RUNNING]: {
-    bg: "bg-status-running-quinary",
+    bg: "bg-status-running-quaternary",
     text: "text-foreground",
     dot: "bg-status-running",
   },
   [TaskStatus.AWAITING_EXTERNAL]: {
-    bg: "bg-status-awaiting-quinary",
+    bg: "bg-status-awaiting-quaternary",
     text: "text-foreground",
     dot: "bg-status-awaiting",
   },
   [TaskStatus.COMPLETED]: {
-    bg: "bg-semantic-success-quinary",
+    bg: "bg-semantic-success-quaternary",
     text: "text-foreground",
     dot: "bg-semantic-success",
   },
   [TaskStatus.FAILED]: {
-    bg: "bg-semantic-destructive-quinary",
+    bg: "bg-semantic-destructive-quaternary",
     text: "text-foreground",
     dot: "bg-semantic-destructive",
   },
   [TaskStatus.CANCELED]: {
-    bg: "bg-muted",
+    bg: "bg-quaternary",
     text: "text-foreground",
     dot: "bg-status-done",
   },
@@ -157,7 +157,7 @@ export function TaskStatusBadge({
   showLabel = true,
 }: TaskStatusBadgeProps) {
   const pill = STATUS_PILL_STYLES[status] ?? {
-    bg: "bg-muted",
+    bg: "bg-quaternary",
     text: "text-foreground",
     dot: "bg-status-done",
   };
