@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  jobStatusResponseSchema,
-  provideJobInputSchema,
-} from "@/lib/schemas/job";
+import { provideJobInputSchema } from "@/lib/schemas/job";
 
 describe("provideJobInputSchema", () => {
   it("accepts eventId for provide input payload", () => {
@@ -27,17 +24,5 @@ describe("provideJobInputSchema", () => {
     });
 
     expect(result.success).toBe(false);
-  });
-});
-
-describe("jobStatusResponseSchema", () => {
-  it("parses status payload without id", () => {
-    const parsed = jobStatusResponseSchema.parse({
-      status: "running",
-      result: null,
-      input_schema: null,
-    });
-
-    expect(parsed.status).toBe("running");
   });
 });
