@@ -32,8 +32,28 @@ same shade on a card as on the page:
 | `-quinary` | resting fill, badge background |
 
 The four semantic ramps carry all three plus a `-foreground` for a label on the
-solid fill. The `status-*` ramps carry the base and `-quinary` only, which is
-what a badge needs: a vivid dot and a tinted pill.
+solid fill. The `status-*` ramps carry the base and `-quaternary`, which is what
+a badge needs: a vivid glyph and a tinted pill.
+
+`--semantic-destructive` splits in two. `--semantic-destructive-solid` is the
+fill that carries a near-white label, and `--semantic-destructive` is the red
+that reads as text on the page. In dark mode those pull opposite ways, so one
+token cannot do both: white on the text red measures 3.43, under the 4.5 floor.
+
+The rule is absolute. A modifier on any colour utility is a bug, including on
+the neutrals, and `color-tokens.test.ts` fails on it.
+
+Where a surface genuinely has to show what sits behind it, the alpha lives in
+the token, not at the call site:
+
+| Token | Role |
+| --- | --- |
+| `--overlay` | modal and dialog scrim |
+| `--surface-glass` | floating chip or control over content |
+| `--surface-sticky` | header that sits on the page |
+| `--scrim`, `--scrim-soft`, `--scrim-strong` | over user media, same in both themes |
+| `--on-media`, `--on-media-muted` | label riding on a scrim |
+| `--media-ground` | the opaque ground behind media, and ink on light media |
 
 ```tsx
 // Do not
@@ -62,6 +82,14 @@ reached for `emerald` and another for `green`.
 Map the meaning to a semantic ramp: `--semantic-success`,
 `--semantic-warning`, `--semantic-destructive`, `--semantic-info`. Map neutrals
 to `--foreground`, `--muted-foreground`, `--border`, `--background`, `--card`.
+
+`bg-black` and `text-white` count as raw palette too. A literal cannot follow
+the theme, and for media UI, where the ground really is theme-independent, the
+`--media-ground` and `--on-media` tokens say so by name.
+
+`--border` and `--input` are two roles, not one value. `--border` is the quiet
+divider at 1.61 against the page. `--input` is the control boundary at 3.0,
+which is what WCAG 2.2 SC 1.4.11 asks of a non-text control.
 
 ### 3. No hex, rgb, hsl or oklch literals in components
 
