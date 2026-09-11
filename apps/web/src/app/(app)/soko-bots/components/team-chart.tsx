@@ -63,14 +63,14 @@ async function BotNode({ member }: { member: Member }) {
         <img
           src={bot.avatarImageUrl}
           alt=""
-          className="ring-border/40 size-9 shrink-0 rounded-full object-cover ring-1"
+          className="ring-border size-9 shrink-0 rounded-full object-cover ring-1"
         />
       ) : (
         <AuroraOrb
           seed={bot.avatarSeed ?? defaultOrbSeed(member.userId)}
           size={72}
           alt=""
-          className="ring-border/40 size-9 shrink-0 ring-1"
+          className="ring-border size-9 shrink-0 ring-1"
         />
       )}
       <span className="min-w-0 flex-1">
@@ -174,7 +174,7 @@ export async function TeamChart({ team }: { team: SokoBotTeam }) {
           <img
             src={team.workspace.logo}
             alt=""
-            className="ring-border/40 size-9 shrink-0 rounded-full object-cover ring-1"
+            className="ring-border size-9 shrink-0 rounded-full object-cover ring-1"
             referrerPolicy="no-referrer"
           />
         ) : (

@@ -18,9 +18,9 @@ export function DocumentTextPreview({
 }) {
   return (
     <div className="bg-muted/40 h-full w-full overflow-y-auto p-4 md:p-6">
-      <article className="bg-background border-border/70 mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
+      <article className="bg-background border-border mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
         {/* Document letterhead */}
-        <div className="border-border/60 flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
+        <div className="border-border flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
           <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
             <FileText className="size-4" aria-hidden />
           </span>

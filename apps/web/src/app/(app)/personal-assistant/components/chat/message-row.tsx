@@ -118,7 +118,7 @@ export function AssistantMarkdownRow({
 
 function KindChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="border-border/60 text-muted-foreground bg-muted/40 inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wider">
+    <span className="border-border text-muted-foreground bg-muted/40 inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wider">
       {children}
     </span>
   );
@@ -168,7 +168,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="text-muted-foreground hover:text-foreground hover:bg-muted/60 border-border/70 focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+      className="text-muted-foreground hover:text-foreground hover:bg-muted/60 border-border focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
     >
       {copied ? (
         <>

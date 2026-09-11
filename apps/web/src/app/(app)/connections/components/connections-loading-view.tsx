@@ -33,9 +33,9 @@ export function ConnectionsPageSkeleton(): React.ReactElement {
 
             <div
               data-testid="connections-loading-content"
-              className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border"
+              className="bg-muted/30 border-border overflow-hidden rounded-xl border"
             >
-              <div className="divide-border/50 divide-y">
+              <div className="divide-border divide-y">
                 {Array.from({ length: 4 }, (_, index) => (
                   <div key={index} className="flex items-center gap-3 p-4">
                     <Skeleton className="size-8 shrink-0 rounded-md" />
