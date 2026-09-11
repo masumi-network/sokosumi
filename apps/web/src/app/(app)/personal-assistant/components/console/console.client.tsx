@@ -201,7 +201,7 @@ export function SokoBotConsole({
                       {version.model.replace(/^[a-z]+\//, "")}
                     </span>
                     {version.inferenceRegion ? (
-                      <span className="bg-primary/10 text-primary rounded px-1 uppercase">
+                      <span className="bg-primary-quinary text-primary rounded px-1 uppercase">
                         {version.inferenceRegion}
                       </span>
                     ) : null}

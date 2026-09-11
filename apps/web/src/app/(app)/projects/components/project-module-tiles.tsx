@@ -67,7 +67,7 @@ export function ProjectModuleTiles({
       {calendarHref ? (
         <Link
           aria-label={labels.calendar.title}
-          className="border-border hover:border-primary/50 hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
+          className="border-border hover:border-primary-tertiary hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
           href={calendarHref}
         >
           <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">

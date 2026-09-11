@@ -299,7 +299,7 @@ export function JobRow({
       onClick={() => onClick(job)}
       className={cn(
         "hover:bg-muted bg-card-background w-full rounded-md px-2 py-2 text-left transition-colors",
-        selected && "bg-primary text-primary-foreground hover:bg-primary/90",
+        selected && "bg-primary text-primary-foreground hover:bg-primary-hover",
       )}
     >
       <div className="flex items-center gap-2">
