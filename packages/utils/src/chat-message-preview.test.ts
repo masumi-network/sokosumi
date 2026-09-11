@@ -1414,3 +1414,57 @@ describe("buildNamedChatMessagePreview", () => {
     ).toBe("");
   });
 });
+
+describe("buildChatMessagePreview with a hyphenless mention key", () => {
+  const stored = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+  const names = new Map([[stored, "Soko"]]);
+
+  /** Postgres stores one spelling; a member can write either. */
+  it("names a member mentioned without the hyphens", () => {
+    expect(
+      buildChatMessagePreview("@019fc7e4e4bd7005900c66e44d33f5e4 hi", names),
+    ).toBe("@Soko hi");
+  });
+
+  it("names one written in upper case too", () => {
+    expect(
+      buildChatMessagePreview("@019FC7E4E4BD7005900C66E44D33F5E4 hi", names),
+    ).toBe("@Soko hi");
+  });
+
+  it("still names one written the canonical way", () => {
+    expect(buildChatMessagePreview(`@${stored} hi`, names)).toBe("@Soko hi");
+  });
+
+  /**
+   * A legacy auth id is hyphenless as well, so the key as written is read
+   * first. The test below carries the ordering contract.
+   */
+  it("names a member carrying a hex legacy auth id", () => {
+    const authId = "0123456789abcdef0123456789abcdef";
+
+    expect(
+      buildChatMessagePreview(`@${authId} hi`, new Map([[authId, "Ada"]])),
+    ).toBe("@Ada hi");
+  });
+
+  /**
+   * The two spellings can both name somebody, and then they name different
+   * members. The composer writes a legacy auth id exactly as it is stored, so
+   * the key as written is the one the author meant.
+   */
+  it("prefers the key as written over its uuid spelling", () => {
+    const authId = "0123456789abcdef0123456789abcdef";
+    const sokoBotId = "01234567-89ab-cdef-0123-456789abcdef";
+
+    expect(
+      buildChatMessagePreview(
+        `@${authId} hi`,
+        new Map([
+          [authId, "Ada"],
+          [sokoBotId, "Soko"],
+        ]),
+      ),
+    ).toBe("@Ada hi");
+  });
+});

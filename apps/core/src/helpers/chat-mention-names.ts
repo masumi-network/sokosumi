@@ -8,8 +8,11 @@ type MentionNameClient = Pick<
   "chatRoomUserMember" | "chatRoomCoworkerMember" | "chatRoomSokoBotMember"
 >;
 
+// Hyphens optional, because Postgres parses a uuid written without them and
+// the preview names such a key like any other. A key the column would have
+// matched must not be dropped before it gets there.
 const POSTGRES_UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
 /**
  * The display names the room shows for the members a message mentions.
@@ -18,7 +21,7 @@ const POSTGRES_UUID =
  * agent mentions may include `:<slug>`. Resolve display names from room
  * members by ID so previews reflect the current name. User and coworker
  * ids are text, including 32-character auth ids. SokoBot ids are Postgres
- * uuid, so only hyphenated uuid keys go into that read.
+ * uuid, so only keys that column can parse go into that read.
  *
  * Only the mentioned members are read, not the room's roster: a channel can
  * hold hundreds of people and a message names a handful of them.

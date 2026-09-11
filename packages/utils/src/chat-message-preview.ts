@@ -583,6 +583,29 @@ function sameSpelling(one: string, other: string): boolean {
   );
 }
 
+/**
+ * The canonical spelling of a uuid written without its hyphens, or null when
+ * the key is not one.
+ *
+ * A mention key keeps the spelling it was written in, and a lookup map is
+ * keyed by the id the database stores, which is always hyphenated. So
+ * `@019fc7e4e4bd7005900c66e44d33f5e4` names the same member as
+ * `@019fc7e4-e4bd-7005-900c-66e44d33f5e4` and used to find nobody.
+ *
+ * Only ever a fallback, because a legacy 32-character auth id is hyphenless
+ * too. An all-hex one rewrites into a uuid that may name a different member,
+ * and the composer writes an auth id verbatim, so the key as written wins.
+ */
+function canonicalUuidSpelling(key: string): string | null {
+  if (!/^[0-9a-f]{32}$/i.test(key)) {
+    return null;
+  }
+
+  const lower = key.toLowerCase();
+
+  return `${lower.slice(0, 8)}-${lower.slice(8, 12)}-${lower.slice(12, 16)}-${lower.slice(16, 20)}-${lower.slice(20)}`;
+}
+
 function whoAMentionNames(
   key: string,
   slug: string,
@@ -605,7 +628,11 @@ function whoAMentionNames(
   // read for control characters never sees it.
   const name = whatNamesSomeone(
     withoutNameAddresses(
-      (mentionNames?.get(lookupKey) ?? "")
+      (
+        mentionNames?.get(lookupKey) ??
+        mentionNames?.get(canonicalUuidSpelling(lookupKey) ?? "") ??
+        ""
+      )
         .replace(CONTROL_CHARACTER_REGEX, "")
         .replace(ASCII_INVISIBLE_REGEX, ""),
     ).trim(),
