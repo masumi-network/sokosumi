@@ -1,7 +1,7 @@
 "use client";
 
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
-import { Hash, Loader2 } from "lucide-react";
+import { Hash } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -35,6 +35,10 @@ import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-ta
 import DaySeparator from "@/app/chat/components/day-separator";
 import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
 import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
+import {
+  TranscriptBoundaryRow,
+  type TranscriptBoundaryStatus,
+} from "@/app/chat/components/transcript-boundary-row";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
@@ -92,8 +96,24 @@ import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
+import {
+  buildRoomTranscriptRows,
+  emptyRoomTranscript,
+  mergeRoomHeadPage,
+  mergeRoomJumpWindow,
+  mergeRoomOlderPage,
+  ROOM_HISTORY_WINDOW_LIMIT,
+  type RoomTranscript,
+  type RoomTranscriptPage,
+  updateRoomTranscriptMessages,
+} from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
+import {
+  captureTranscriptScrollAnchor,
+  restoreTranscriptScrollAnchor,
+  type TranscriptScrollAnchor,
+} from "@/app/chat/utils/transcript-scroll-anchor";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
@@ -104,7 +124,6 @@ import {
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
-import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
@@ -336,11 +355,30 @@ export function RoomsClient({
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
     null,
   );
-  const [messagesState, setMessagesState] =
-    useState<ChatRoomMessage[]>(messages);
-  const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
-    messagesNextCursor,
+  // Every loaded top-level message plus the ranges they fall in. Rows are
+  // read and updated in place through `messagesState` / `setMessagesState`;
+  // what the transcript knows about missing history changes only when a page
+  // arrives, through the range merges below.
+  const [transcript, setTranscript] = useState<RoomTranscript>(() =>
+    mergeRoomHeadPage(emptyRoomTranscript(), {
+      messages,
+      nextCursor: messagesNextCursor,
+    }),
   );
+  const messagesState = transcript.messages;
+  const setMessagesState = useCallback(
+    (update: SetStateAction<ChatRoomMessage[]>) => {
+      setTranscript((current) =>
+        updateRoomTranscriptMessages(current, (rows) =>
+          typeof update === "function" ? update(rows) : update,
+        ),
+      );
+    },
+    [],
+  );
+  const [boundaryStatus, setBoundaryStatus] = useState<
+    Record<string, TranscriptBoundaryStatus>
+  >({});
   const [deferredHistoryPending, setDeferredHistoryPending] = useState(
     () => messagesPromise != null,
   );
@@ -354,7 +392,6 @@ export function RoomsClient({
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
-  const historicalTimelineRef = useRef(false);
   const historicalThreadRef = useRef(false);
   const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
@@ -362,15 +399,14 @@ export function RoomsClient({
   // cannot merge room A into room B (or show A under B's header).
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
-    historicalTimelineRef.current = false;
     historicalThreadRef.current = false;
+    setBoundaryStatus({});
     // The dialog belongs to the room it was opened for, and must not be
     // handed to the next one.
     setEditChannelOpen(false);
     setSearchHoldOffBottom(false);
     if (messagesPromise != null) {
-      setMessagesState([]);
-      setOlderNextCursor(null);
+      setTranscript(emptyRoomTranscript());
       setMessageLoadFailedState(false);
       setDeferredHistoryPending(true);
     }
@@ -416,13 +452,12 @@ export function RoomsClient({
     : messageLoadFailedState;
 
   const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
-    if (historicalTimelineRef.current) {
-      setDeferredHistoryPending(false);
-      setMessageLoadFailedState(false);
-      return;
-    }
-    setMessagesState((current) => mergeRoomMessages(current, page.messages));
-    setOlderNextCursor(page.nextCursor);
+    setTranscript((current) =>
+      mergeRoomHeadPage(current, {
+        messages: page.messages,
+        nextCursor: page.nextCursor,
+      }),
+    );
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
   }, []);
@@ -525,9 +560,6 @@ export function RoomsClient({
     if (!wasPending || messagesPending) {
       return;
     }
-    if (historicalTimelineRef.current) {
-      return;
-    }
     scrollToBottom();
   }, [messagesPending, scrollToBottom]);
   const syncedRoomIdRef = useRef<string | null>(null);
@@ -541,7 +573,6 @@ export function RoomsClient({
   const [_isReacting, startReactionTransition] = useTransition();
   const [_isRetryingMention, startMentionRetryTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
-  const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
@@ -775,11 +806,7 @@ export function RoomsClient({
       if (!isStillSelectedRoom(roomId)) {
         return false;
       }
-      if (!historicalTimelineRef.current) {
-        setMessagesState((current) =>
-          mergeRoomMessages(current, roomResult.value.messages),
-        );
-      }
+      setTranscript((current) => mergeRoomHeadPage(current, roomResult.value));
       if (threadResult?.ok && threadParentId && !historicalThreadRef.current) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
@@ -992,12 +1019,6 @@ export function RoomsClient({
 
       if (route.mergeIntoRoomTimeline) {
         applyMessagesFlashingOutboundConfirms(setMessagesState, (current) => {
-          if (
-            historicalTimelineRef.current &&
-            !current.some((row) => row.id === message.id)
-          ) {
-            return current;
-          }
           return filterTopLevelChatRoomMessages(
             applyFullChatRoomMessageEvent(current, {
               eventType: event.eventType,
@@ -1066,6 +1087,23 @@ export function RoomsClient({
       topLevelStreamOverlayMessages,
     );
   }, [topLevelRoomMessages, topLevelStreamOverlayMessages]);
+  // Message rows with a boundary row wherever history is missing. Each
+  // message row carries the message before it so day separators and
+  // continuation chrome read across a boundary the same as anywhere else.
+  const transcriptRows = useMemo(() => {
+    let previousMessage: ChatRoomMessage | undefined;
+    return buildRoomTranscriptRows(
+      displayMessages,
+      messagesPending ? emptyRoomTranscript() : transcript,
+    ).map((row) => {
+      if (row.kind === "boundary") {
+        return row;
+      }
+      const withPrevious = { ...row, previousMessage };
+      previousMessage = row.message;
+      return withPrevious;
+    });
+  }, [displayMessages, messagesPending, transcript]);
 
   const threadStreamOverlayMessages = useMemo(() => {
     if (!threadParentMessage) {
@@ -1352,17 +1390,13 @@ export function RoomsClient({
 
     // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
     // merge so client-loaded older pages are not wiped by the latest page.
+    const page = { messages, nextCursor: messagesNextCursor };
     if (isChannelSwitch) {
-      historicalTimelineRef.current = false;
-      setMessagesState(messages);
-      setOlderNextCursor(messagesNextCursor);
-      setMessageLoadFailedState(messageLoadFailed);
-    } else if (!historicalTimelineRef.current) {
-      setMessagesState((current) => mergeRoomMessages(current, messages));
-      setMessageLoadFailedState(messageLoadFailed);
+      setTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
     } else {
-      setMessageLoadFailedState(messageLoadFailed);
+      setTranscript((current) => mergeRoomHeadPage(current, page));
     }
+    setMessageLoadFailedState(messageLoadFailed);
     setThreadParentMessage((current) =>
       current
         ? (messages.find((message) => message.id === current.id) ?? current)
@@ -1416,11 +1450,7 @@ export function RoomsClient({
         return;
       }
       if (result) {
-        if (!historicalTimelineRef.current) {
-          setMessagesState((current) =>
-            mergeRoomMessages(current, result.messages),
-          );
-        }
+        setTranscript((current) => mergeRoomHeadPage(current, result));
         setThreadParentMessage((current) =>
           current
             ? (result.messages.find((message) => message.id === current.id) ??
@@ -1629,6 +1659,10 @@ export function RoomsClient({
     applyPinnedMutation(message.id, !alreadyPinned);
   }
 
+  const applyRoomJumpWindow = useCallback((page: RoomTranscriptPage) => {
+    setTranscript((current) => mergeRoomJumpWindow(current, page));
+  }, []);
+
   const { handleSearchJump, handleJumpToMessage, invalidateJump } =
     useRoomMessageJumps({
       roomId: selectedRoom?.id ?? null,
@@ -1638,9 +1672,7 @@ export function RoomsClient({
       suppressStickToBottom,
       releaseStickToBottomSuppress,
       setSearchHoldOffBottom,
-      setMessagesState,
-      setOlderNextCursor,
-      historicalTimelineRef,
+      mergeRoomJumpWindow: applyRoomJumpWindow,
       historicalThreadRef,
       setThreadMessages,
       setThreadOlderNextCursor,
@@ -1725,28 +1757,80 @@ export function RoomsClient({
     }
   }
 
-  function handleLoadOlderMessages() {
-    if (!selectedRoom || !olderNextCursor || isLoadingOlder) {
+  /**
+   * Load the page directly older than the range that starts at
+   * `cursorMessageId`: the top of the transcript and every gap row alike.
+   * The failure stays on the row, which keeps its retry, rather than in a
+   * toast the reader has to connect back to it.
+   */
+  // Rows inserted above the viewport would shove the reader's row down by
+  // their height. The anchor taken before the merge puts it back once the
+  // new rows have laid out.
+  const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
+  // Held in a ref as well as in state: the row's tap and its visibility
+  // observer can fire in the same tick, before the loading state renders.
+  const loadingBoundariesRef = useRef<Set<string>>(new Set());
+  function handleLoadBoundary(cursorMessageId: string) {
+    if (!selectedRoom || loadingBoundariesRef.current.has(cursorMessageId)) {
       return;
     }
-
     const roomId = selectedRoom.id;
-    const cursor = olderNextCursor;
-    startLoadingOlderTransition(async () => {
-      const result = await listRoomMessagesAction(roomId, { cursor });
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
+    loadingBoundariesRef.current.add(cursorMessageId);
+    setBoundaryStatus((current) => ({
+      ...current,
+      [cursorMessageId]: "loading",
+    }));
+    void (async () => {
+      try {
+        const result = await listRoomMessagesAction(roomId, {
+          cursor: cursorMessageId,
+          limit: ROOM_HISTORY_WINDOW_LIMIT,
+        });
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        if (!result.ok) {
+          setBoundaryStatus((current) => ({
+            ...current,
+            [cursorMessageId]: "failed",
+          }));
+          return;
+        }
+        const scroller = scrollerRef.current;
+        pendingScrollAnchorRef.current = scroller
+          ? captureTranscriptScrollAnchor(scroller, cursorMessageId)
+          : null;
+        setTranscript((current) =>
+          mergeRoomOlderPage(current, cursorMessageId, result.value),
+        );
+        setBoundaryStatus((current) => {
+          const { [cursorMessageId]: _done, ...rest } = current;
+          return rest;
+        });
+      } catch {
+        // A dropped connection rejects the action itself. The row keeps its
+        // retry rather than spinning until the next reload.
+        if (isStillSelectedRoom(roomId)) {
+          setBoundaryStatus((current) => ({
+            ...current,
+            [cursorMessageId]: "failed",
+          }));
+        }
+      } finally {
+        loadingBoundariesRef.current.delete(cursorMessageId);
       }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      setMessagesState((current) =>
-        mergeRoomMessages(current, result.value.messages),
-      );
-      setOlderNextCursor(result.value.nextCursor);
-    });
+    })();
   }
+
+  useLayoutEffect(() => {
+    const anchor = pendingScrollAnchorRef.current;
+    const scroller = scrollerRef.current;
+    if (!anchor || !scroller) {
+      return;
+    }
+    pendingScrollAnchorRef.current = null;
+    restoreTranscriptScrollAnchor(scroller, anchor);
+  }, [transcript]);
 
   function handleLoadOlderThreadMessages() {
     if (
@@ -2187,18 +2271,6 @@ export function RoomsClient({
       if (!selectedRoom) return { ok: false };
       const roomId = selectedRoom.id;
 
-      if (historicalTimelineRef.current) {
-        const live = await listRoomMessagesAction(roomId);
-        if (!live.ok) {
-          toast.error(live.error.message);
-        } else if (isStillSelectedRoom(roomId)) {
-          historicalTimelineRef.current = false;
-          setSearchHoldOffBottom(false);
-          setMessagesState(live.value.messages);
-          setOlderNextCursor(live.value.nextCursor);
-        }
-      }
-
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
@@ -2454,30 +2526,21 @@ export function RoomsClient({
             </p>
           </div>
         ) : null}
-        {messagesPending || !olderNextCursor ? null : (
-          <div className="mb-4 flex justify-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={isLoadingOlder}
-              onClick={handleLoadOlderMessages}
-            >
-              {isLoadingOlder ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  {t("loadingOlder")}
-                </>
-              ) : (
-                t("loadOlder")
-              )}
-            </Button>
-          </div>
-        )}
         {showListSkeleton
           ? null
-          : displayMessages.map((message, index) => {
-              const previousMessage = displayMessages[index - 1];
+          : transcriptRows.map((row) => {
+              if (row.kind === "boundary") {
+                return (
+                  <TranscriptBoundaryRow
+                    key={`boundary:${row.cursorMessageId}`}
+                    cursorMessageId={row.cursorMessageId}
+                    isGap={row.isGap}
+                    status={boundaryStatus[row.cursorMessageId] ?? "idle"}
+                    onLoad={handleLoadBoundary}
+                  />
+                );
+              }
+              const { message, previousMessage } = row;
               const showDaySeparator =
                 localCalendarReady &&
                 (!previousMessage ||
