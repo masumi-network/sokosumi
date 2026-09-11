@@ -1,14 +1,15 @@
 import { linkifyBareDomainsInMarkdown } from "@sokosumi/utils";
 import Link from "next/link";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import remarkBreaks from "remark-breaks";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
 
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
+import { markdownHighlightThemeCss } from "@/components/markdown-highlight-theme";
+import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
 import { cn } from "@/lib/utils";
 import { normalizeLooseInlineMarkdown } from "@/lib/utils/composer-markdown-dom";
 import {
@@ -36,6 +37,38 @@ function isSokosumiLink(href: string | undefined): boolean {
   } catch {
     return false;
   }
+}
+
+function markdownCodeText(children: ReactNode): string {
+  if (typeof children === "string" || typeof children === "number") {
+    return String(children);
+  }
+  if (Array.isArray(children)) {
+    return children.map(markdownCodeText).join("");
+  }
+  return "";
+}
+
+function markdownCodeHasElements(children: ReactNode): boolean {
+  if (Array.isArray(children)) {
+    return children.some(
+      (child) => typeof child === "object" && child !== null,
+    );
+  }
+  return typeof children === "object" && children !== null;
+}
+
+function isMarkdownInlineCode(
+  className: string | undefined,
+  children: ReactNode,
+): boolean {
+  if (className?.includes("language-")) {
+    return false;
+  }
+  if (markdownCodeHasElements(children)) {
+    return false;
+  }
+  return !markdownCodeText(children).includes("\n");
 }
 
 interface MarkdownProps {
@@ -169,11 +202,7 @@ export default function Markdown({
         </div>
       ),
       code: ({ className, children, ...props }) => {
-        const codeText = String(children ?? "");
-        const isInline =
-          !className?.includes("language-") && !codeText.includes("\n");
-
-        if (isInline) {
+        if (isMarkdownInlineCode(className, children)) {
           return (
             <code
               {...props}
@@ -211,13 +240,16 @@ export default function Markdown({
 
   return (
     <div className={cn(baseTypographyClassName, className)}>
+      <style href="sokosumi-markdown-highlight" precedence="default">
+        {markdownHighlightThemeCss}
+      </style>
       <ReactMarkdown
         remarkPlugins={[
           remarkBreaks,
           remarkGfm,
           [remarkEmoji, { emoticon: true }],
         ]}
-        rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
+        rehypePlugins={[rehypeRaw, rehypeMarkdownCodeHighlight]}
         components={components}
       >
         {linkifiedChildren}
