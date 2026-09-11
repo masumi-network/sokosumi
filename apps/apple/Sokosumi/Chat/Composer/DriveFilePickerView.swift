@@ -54,6 +54,7 @@ struct DriveFilePickerView: View {
           })
         }
         .buttonStyle(.plain)
+        .disabled(picker.loading)
       }
     }
     .padding()
