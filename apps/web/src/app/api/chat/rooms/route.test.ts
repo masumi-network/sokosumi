@@ -112,6 +112,17 @@ describe("GET /api/chat/rooms", () => {
     expect(await result.json()).toEqual({ error: "Chat rooms unavailable" });
   });
 
+  it("returns 503, not 502, when the Core read never reached Core", async () => {
+    // No status means the request itself failed: a timeout or a dropped
+    // connection. The browser retries a 503; it gives up on a 502.
+    listRoomsMock.mockRejectedValue(
+      new CoreApiRequestError("The operation was aborted due to timeout"),
+    );
+    const result = await GET(request("active"));
+    expect(result.status).toBe(503);
+    expect(await result.json()).toEqual({ error: "Chat rooms unavailable" });
+  });
+
   it("preserves Core failure status without exposing error details", async () => {
     listRoomsMock.mockRejectedValue(
       new CoreApiRequestError("private backend details", { status: 503 }),

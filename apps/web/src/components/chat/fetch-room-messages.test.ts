@@ -88,8 +88,18 @@ describe("fetchRoomMessages", () => {
     ["a failed status", () => new Response("{}", { status: 502 })],
     ["a network error", () => Promise.reject(new Error("offline"))],
   ])("returns null on %s", async (_label, make) => {
-    vi.stubGlobal("fetch", fetchMock);
-    fetchMock.mockImplementation(() => make());
-    expect(await fetchRoomMessages("room-1")).toBeNull();
+    // A request that never completes is a stall, so it retries at 1s and 3s,
+    // each jittered by up to a quarter. Fake timers keep that off the suite's
+    // wall clock; 5s covers the widest spread.
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal("fetch", fetchMock);
+      fetchMock.mockImplementation(() => make());
+      const pending = fetchRoomMessages("room-1");
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(await pending).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

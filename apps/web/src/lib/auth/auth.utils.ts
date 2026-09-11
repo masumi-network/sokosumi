@@ -69,6 +69,33 @@ export function createAuthSessionGetter<TSession>(
   };
 }
 
+/**
+ * Every sign-in path - password, passkey, sign-up, the social callback - waits
+ * for the session here and then navigates with `router.replace`, so the
+ * document survives the sign-in. A client the Ably singleton retired for a lost
+ * session is kept in `globalThis` on purpose and would survive with it, leaving
+ * the newly signed-in user with dead realtime until a manual reload.
+ *
+ * Dynamic, and deliberately not awaited: this module is imported by server
+ * routes and server pages too, and the Ably SDK must stay out of every bundle
+ * that does not use realtime. A failure here costs the tab its realtime until
+ * the next reload, which is what already happened, so it must not break a
+ * sign-in.
+ */
+function discardRetiredAblyRealtimeClientAfterSignIn(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  void import("@/lib/ably/realtime-singleton.client")
+    .then((module) => {
+      module.discardRetiredAblyRealtimeClient();
+    })
+    .catch((error: unknown) => {
+      console.error("Could not discard the retired Ably client", error);
+    });
+}
+
 export async function waitForAuthSession<TSession = unknown>({
   context,
   getSession,
@@ -78,6 +105,8 @@ export async function waitForAuthSession<TSession = unknown>({
   sessionTimeoutMs = AUTH_SESSION_GET_TIMEOUT_MS,
   waitForMs: waitForMsFn = waitForMs,
 }: WaitForAuthSessionOptions<TSession>): Promise<TSession | null> {
+  discardRetiredAblyRealtimeClientAfterSignIn();
+
   await waitForMsFn(initialDelayMs);
 
   const session = await getSessionOrNull(getSession, sessionTimeoutMs);

@@ -24,7 +24,10 @@ import remarkMath from "remark-math";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 
-import { getSession } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableJson,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 import {
   MAX_MARKDOWN_BYTES,
   withDocxExportFetchGuard,
@@ -132,8 +135,11 @@ function createHeaderElements(
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return coreSessionUnavailableJson("Export unavailable", sessionRead);
+  }
+  if (sessionRead.status === "signedOut") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

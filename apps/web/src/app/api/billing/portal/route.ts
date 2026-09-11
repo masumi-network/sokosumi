@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { CommonErrorCode } from "@/lib/actions/errors";
-import { getSession } from "@/lib/auth/auth.server";
 import { sanitizeAuthRedirectPathForOrigin } from "@/lib/auth/auth.utils";
+import { readRouteSession } from "@/lib/auth/route-session";
 import {
   openOrganizationBillingPortalServer,
   openPersonalBillingPortalServer,
@@ -73,8 +73,14 @@ export async function GET(request: NextRequest) {
     return redirectToReturnPathWithError(request, safeReturnPath);
   }
 
-  const session = await getSession();
-  if (!session) {
+  const sessionRead = await readRouteSession();
+  // A Core stall is not a logout. Bouncing a signed-in user to /signin here
+  // loses the return path they were mid-way through; the general billing
+  // error keeps them where they are and lets them retry.
+  if (sessionRead.status === "unavailable") {
+    return redirectToReturnPathWithError(request, safeReturnPath);
+  }
+  if (sessionRead.status === "signedOut") {
     return redirectToSignIn(request, safeReturnPath, organizationId);
   }
 

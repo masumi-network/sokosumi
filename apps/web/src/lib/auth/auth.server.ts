@@ -17,6 +17,8 @@ import type {
   CoreAuthReadError,
   CoreAuthReadErrorReason,
 } from "./core-auth-read-error";
+import { CORE_AUTH_REQUEST_TIMEOUT_MS } from "./core-auth-timeout";
+import { CoreAuthUnavailableError } from "./errors";
 
 export type { Session };
 
@@ -32,12 +34,35 @@ export interface OAuthClientPublic {
 const CORE_GET_SESSION_PATH = "/auth/get-session";
 const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
 const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
-// 8s, not 5s. Production Core answers `/auth/get-session` in tens of
-// milliseconds; this budget is only spent on a stall (cold start, connection
-// storm, a saturated web function). Five seconds turned those stalls into
-// "no session". Callers in front of it allow far more: background chat reads
-// give the browser 20-30s.
-const CORE_AUTH_REQUEST_TIMEOUT_MS = 8000;
+/**
+ * The one Core auth status that means "this browser has no session". 403 and
+ * 404 are deliberately absent: on `/auth/get-session` a 403 is Better Auth's
+ * trusted-origin check or a WAF rule on the web-to-Core hop, and a 404 means
+ * the route is gone. Reading either as "signed out" would log every user out
+ * silently and hide the misconfiguration behind a sign-in page.
+ */
+const CORE_SIGNED_OUT_STATUSES = [401];
+
+/**
+ * Classifies a thrown Core auth read failure.
+ *
+ * `AbortSignal.timeout` covers the body stream as well as the headers, so a
+ * stall part-way through the body surfaces here as a `TimeoutError` from
+ * `response.json()`. Keep this the only place that names a reason, or a body
+ * read gets filed as a parse fault and the 503 reason lies about the outage.
+ */
+function classifyCoreAuthReadFailure(error: unknown): CoreAuthReadErrorReason {
+  if (!(error instanceof Error)) {
+    return "network";
+  }
+  if (error.name === "TimeoutError") {
+    return "timeout";
+  }
+  if (error instanceof SyntaxError) {
+    return "invalid_json";
+  }
+  return "network";
+}
 
 async function fetchCoreAuth<T>(
   path: string,
@@ -91,21 +116,7 @@ async function fetchCoreAuth<T>(
       return err(authReadError);
     }
 
-    try {
-      return ok((await response.json()) as T);
-    } catch (error) {
-      const failureLogMessage =
-        options?.failureLogMessage ?? "Failed to parse Core auth response";
-      const authReadError: CoreAuthReadError = {
-        path,
-        reason: "invalid_json",
-      };
-
-      console.error(failureLogMessage, { path, error });
-      reportCoreAuthReadOutage(authReadError, failureLogMessage);
-
-      return err(authReadError);
-    }
+    return ok((await response.json()) as T);
   } catch (error) {
     // PPR soft-abort during shell probe — not an auth failure. Rethrow so React
     // / Cache Components can finish the boundary instead of treating this as a
@@ -119,10 +130,7 @@ async function fetchCoreAuth<T>(
       throw error;
     }
 
-    const reason: CoreAuthReadErrorReason =
-      error instanceof Error && error.name === "TimeoutError"
-        ? "timeout"
-        : "network";
+    const reason = classifyCoreAuthReadFailure(error);
     const failureLogMessage =
       options?.failureLogMessage ?? "Failed to fetch from Core auth";
     const authReadError: CoreAuthReadError = {
@@ -216,14 +224,31 @@ async function fetchSessionResult(
       searchParams: {
         disableCookieCache: options?.refresh ? "true" : undefined,
       },
-      // Core answers 200 with a null body for a signed-out browser, so these
-      // statuses are not expected. Keep them out of Sentry anyway: an auth
-      // status is about this request, not about Core being down.
-      sentryIgnoreHttpStatuses: [401, 403, 404],
+      // Core answers 200 with a null body for a signed-out browser, so a 401
+      // here is not expected and still says nothing about Core's health. 403
+      // and 404 are not on this list: they read as an outage now, and the
+      // misconfiguration behind them (a trusted-origin check, a WAF rule on
+      // the web-to-Core hop, a route that is gone) is exactly what should
+      // reach Sentry.
+      sentryIgnoreHttpStatuses: CORE_SIGNED_OUT_STATUSES,
     },
   );
 
-  return result.map((body) => (body?.session && body.user ? body : null));
+  return (
+    result
+      .map((body) => (body?.session && body.user ? body : null))
+      // An auth status from Core is this browser's own credentials failing, not
+      // Core being unreachable. Reporting it as an outage would answer 503 with
+      // `Retry-After` for a condition that never clears, so read it as the
+      // signed-out answer it is.
+      .orElse((error) =>
+        error.reason === "http" &&
+        error.status !== undefined &&
+        CORE_SIGNED_OUT_STATUSES.includes(error.status)
+          ? ok(null)
+          : err(error),
+      )
+  );
 }
 
 const getCachedSessionResult = cache(
@@ -335,18 +360,30 @@ export async function getOAuthClientPublic(
  * @returns Promise resolving to the user's session if authenticated
  * @throws {NextError} Redirects to login page with return URL when not authenticated
  */
-export async function getSessionOrRedirect(): Promise<Session> {
-  const session = await getSession();
-  if (session) {
-    return session;
-  }
-  // Get the current URL from headers for server-side redirect
+/**
+ * `/signin` carrying the page the user was on. Shared with the app-shell gates,
+ * which redirect for a signed-out browser but must not for a Core outage.
+ */
+export async function signInRedirectPath(): Promise<string> {
   const headersList = await getRequestHeaders();
   const pathname = headersList.get("x-pathname") ?? "";
   const searchParams = headersList.get("x-search-params") ?? "";
-  const currentUrl = pathname + searchParams;
-  const returnUrl = encodeURIComponent(currentUrl);
-  redirect(`/signin?returnUrl=${returnUrl}`);
+  return `/signin?returnUrl=${encodeURIComponent(pathname + searchParams)}`;
+}
+
+export async function getSessionOrRedirect(): Promise<Session> {
+  const result = await getSessionResult();
+  // Redirect only for an answered read that carried no session. A Core stall
+  // must not send a signed-in user to /signin: it reads as a logout and the
+  // error boundary is the honest, retryable answer.
+  if (result.isErr()) {
+    throw new CoreAuthUnavailableError(result.error.reason);
+  }
+  const session = result.value;
+  if (session) {
+    return session;
+  }
+  redirect(await signInRedirectPath());
 }
 
 /**
