@@ -1,0 +1,111 @@
+---
+description: "Color tokens in apps/web: no raw palette, no hex literals, no opacity modifiers"
+alwaysApply: true
+---
+
+## Color tokens
+
+Every color in `apps/web` product UI comes from a token in
+`apps/web/src/app/globals.css`. Components name a role. They never name a
+value.
+
+Three things are banned. Each has one replacement.
+
+### 1. No opacity modifiers on color utilities
+
+Do not write `bg-primary/55`, `text-muted-foreground/70`, `border-border/40`,
+or `bg-primary/[0.04]`.
+
+An opacity modifier invents a new color at the call site. Two components that
+want the same tint pick different numbers, so one tint becomes six. The
+opacity is also applied to whatever sits behind the element, which means the
+same class produces a different rendered color on a card than on the page.
+
+Use the step token instead. Each step is the base color composited once
+against the page ground and then frozen as an opaque value, so it renders the
+same shade on a card as on the page:
+
+| Step | Role |
+| --- | --- |
+| `-tertiary` | border or divider tint |
+| `-quaternary` | hover or pressed fill |
+| `-quinary` | resting fill, badge background |
+
+The four semantic ramps carry all three plus a `-foreground` for a label on the
+solid fill. The `status-*` ramps carry the base and `-quinary` only, which is
+what a badge needs: a vivid dot and a tinted pill.
+
+```tsx
+// Do not
+<div className="border-semantic-success/20 bg-semantic-success/5" />
+
+// Do
+<div className="border-semantic-success-tertiary bg-semantic-success-quinary" />
+```
+
+If no step fits the role, add one to `globals.css` in **both** theme blocks and
+name it for the role it serves. Do not reach for a modifier because adding a
+token feels heavier. One token beats twenty call sites that disagree.
+
+Opacity modifiers stay legal on non-color utilities and on genuinely
+continuous animation values driven at runtime.
+
+### 2. No raw Tailwind palette colors
+
+Do not write `bg-emerald-500`, `text-amber-600`, `border-red-300`,
+`text-gray-400`, `bg-black`, `text-white`.
+
+The palette is a second color system running beside the tokens. It produced
+two different greens for "succeeded" on adjacent screens, because one badge
+reached for `emerald` and another for `green`.
+
+Map the meaning to a semantic ramp: `--semantic-success`,
+`--semantic-warning`, `--semantic-destructive`, `--semantic-info`. Map neutrals
+to `--foreground`, `--muted-foreground`, `--border`, `--background`, `--card`.
+
+### 3. No hex, rgb, hsl or oklch literals in components
+
+Do not write `#6400FF`, `style={{ color: "#00a4fa" }}`, or
+`shadow-[0_1px_2px_rgba(0,0,0,0.05)]`.
+
+A literal cannot follow the theme, so it is wrong in one of light or dark by
+construction. It also silently forks the brand: `#6400FF` is `--primary`, and
+a palette change now needs an edit in two places.
+
+Read the token. Where a canvas or WebGL painter genuinely needs a numeric
+value, resolve it from the CSS variable, or leave a comment naming the token
+the literal mirrors so the two stay in step.
+
+Third-party brand marks (`components/social-icons.tsx`) and user-facing color
+pickers are data, not UI color. Those keep their literals.
+
+### Adding a token
+
+1. Check an existing ramp does not already serve the role. Nine greens at hue
+   142 all meant "good" before this rule existed.
+2. Declare it in **both** `:root` and `.dark`. A token declared in `@theme`
+   cannot be themed.
+3. Bridge it in the `@theme inline` block so Tailwind emits the utility.
+4. Measure the pair it renders on: 4.5:1 for text, 3:1 for a border, icon,
+   status dot, or focus ring.
+
+### Guard
+
+`apps/web/src/lib/utils/__tests__/color-tokens.test.ts` fails the build on
+three things: raw palette classes, color literals in a component, and an
+opacity modifier on a `semantic-*`, `status-*`, `risk-*` or `ring` token. Each
+rule is its own test case, and a failure prints the file, the line number, and
+the offending line.
+
+A hex counts only when it is quote-delimited or sits inside an arbitrary
+Tailwind value, so an issue number in a comment is not a color. The allowlist
+is the set of places that cannot read a custom property: third-party brand
+marks, the color picker's own swatches, a canvas fallback that reads
+`--primary` first, the error page that renders when the stylesheet failed, an
+iframe `srcdoc`, and the two surfaces the OS reads rather than CSS.
+
+Opacity modifiers on the neutral and accent tokens are pre-existing debt at 752
+call sites, the largest families being `muted` (172), `muted-foreground` (142),
+`primary` (133) and `border` (100). The guard does not cover them yet. Do not
+add more; widen the guard's token pattern as each of those ramps gains solid
+steps.
