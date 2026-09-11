@@ -29,11 +29,11 @@
 
 ### Steps
 
-- [ ] Add `schedule_occurrence_not_reschedulable` and `schedule_occurrence_target_invalid` to the shared Core/Web error-kind map.
-- [ ] Add a helper `findNextReleaseableOccurrence(tx, seriesTaskId, now)` returning the earliest `PLANNED` row with `effectiveScheduledAt >= now` (excluding `SKIPPED`/`CANCELED`/`RELEASED`), with failing tests for moved, skipped, and exhausted ledgers.
-- [ ] Add failing tests proving a projection refresh preserves moved/skipped rows and only replaces ordinary unmoved `PLANNED` projections for v2.
-- [ ] Implement the smallest change to `refreshTaskSchedulePlannedOccurrences` / `replaceTaskSchedulePlannedOccurrences` to preserve durable exceptions.
-- [ ] Commit: `feat(calendar): schedule release from the occurrence ledger`
+- [x] Add `schedule_occurrence_not_reschedulable` and `schedule_occurrence_target_invalid` to the shared Core/Web error-kind map.
+- [x] Add a helper `findNextReleaseableOccurrence(tx, seriesTaskId, now)` returning the earliest `PLANNED` row with `effectiveScheduledAt >= now` (excluding `SKIPPED`/`CANCELED`/`RELEASED`), with failing tests for moved, skipped, and exhausted ledgers.
+- [x] Add failing tests proving a projection refresh preserves moved/skipped rows and only replaces ordinary unmoved `PLANNED` projections for v2.
+- [x] Implement the smallest change to `refreshTaskSchedulePlannedOccurrences` / `replaceTaskSchedulePlannedOccurrences` to preserve durable exceptions.
+- [x] Commit: `feat(calendar): schedule release from the occurrence ledger`
 
 ## Task 2: Separate the v2 wake time from the rule anchor, and release from the ledger
 
@@ -48,13 +48,13 @@
 
 ### Steps
 
-- [ ] Add a helper resolving the v2 rule anchor (`lastProcessedSourceAt ?? ruleEffectiveFrom`) and its next rule occurrence; failing tests cover unset, advanced, and ended anchors.
-- [ ] Change the v2 projection to iterate from the rule anchor instead of `nextRunAt`, while `nextRunAt` becomes the earliest releaseable effective time; failing tests prove a moved row does not skip the rule occurrences between its original and moved times.
-- [ ] Add failing sync tests: a moved `PLANNED` row releases at its `effectiveScheduledAt`; a `SKIPPED`/`CANCELED` row never releases; `lastProcessedSourceAt` advances to the released row's `originalScheduledAt`; `nextRunAt` becomes the next releaseable effective time; legacy v1 still walks the rule.
-- [ ] Implement the v2 branch: claim due `PLANNED` rows, clone at each row's effective time (recording original + effective on the RELEASED row), advance the anchor and `epochReleaseCount`, and set `nextRunAt` from the ledger. Keep the v1 rule-walk untouched.
-- [ ] Run `pnpm --filter @sokosumi/core test src/helpers/task-schedule.test.ts src/helpers/task-schedule-occurrence-index.test.ts src/services/task-schedules-sync.test.ts`.
-- [ ] Run `pnpm --filter @sokosumi/core typecheck`.
-- [ ] Commit: `feat(calendar): release v2 occurrences from the ledger`
+- [x] Add a helper resolving the v2 rule anchor (`lastProcessedSourceAt ?? ruleEffectiveFrom`) and its next rule occurrence; failing tests cover unset, advanced, and ended anchors.
+- [x] Change the v2 projection to iterate from the rule anchor instead of `nextRunAt`, while `nextRunAt` becomes the earliest releaseable effective time; failing tests prove a moved row does not skip the rule occurrences between its original and moved times.
+- [x] Add failing sync tests: a moved `PLANNED` row releases at its `effectiveScheduledAt`; a `SKIPPED`/`CANCELED` row never releases; `lastProcessedSourceAt` advances to the released row's `originalScheduledAt`; `nextRunAt` becomes the next releaseable effective time; legacy v1 still walks the rule.
+- [x] Implement the v2 branch: claim due `PLANNED` rows, clone at each row's effective time (recording original + effective on the RELEASED row), advance the anchor and `epochReleaseCount`, and set `nextRunAt` from the ledger. Keep the v1 rule-walk untouched.
+- [x] Run `pnpm --filter @sokosumi/core test src/helpers/task-schedule.test.ts src/helpers/task-schedule-occurrence-index.test.ts src/services/task-schedules-sync.test.ts`.
+- [x] Run `pnpm --filter @sokosumi/core typecheck`.
+- [x] Commit: `feat(calendar): release v2 occurrences from the ledger`
 
 ## Task 3: Reschedule-one-occurrence contract
 
@@ -68,13 +68,13 @@
 
 ### Steps
 
-- [ ] Define the OpenAPI request (`operationId`, `expectedScheduleRevision`, `scheduledAt`) and response (`scheduleRevision`, `occurrence`).
-- [ ] Add failing route tests for: interactive human + collaboration + beta gate, ownership/missing occurrence, non-`PLANNED`/due/released rejection (`409 schedule_occurrence_not_reschedulable`), target not strictly future or outside the horizon (`422`), same-time no-op, revision conflict (`409 schedule_revision_conflict`), exact idempotent replay, conflicting identity reuse (`409 idempotency_conflict`), one revision bump, `effectiveScheduledAt` changed while `originalScheduledAt`/epoch identity stay, audit TaskEvent `OCCURRENCE_RESCHEDULED`, and recomputed `nextRunAt`.
-- [ ] Implement under `lockCalendarScope` → `lockTaskRows`, reusing `createTaskScheduleRequestFingerprint` and `isTaskScheduleOperationReplay`.
-- [ ] Mount the route beside the occurrence GET in `apps/core/src/routes/v1/tasks/index.ts`.
-- [ ] Run `pnpm --filter @sokosumi/core test src/schemas/task-schedule-occurrence-reschedule.schema.test.ts 'src/routes/v1/tasks/[id]/schedule/occurrences/patch.test.ts'`.
-- [ ] Run `pnpm --filter @sokosumi/core typecheck`.
-- [ ] Commit: `feat(calendar): reschedule one occurrence`
+- [x] Define the OpenAPI request (`operationId`, `expectedScheduleRevision`, `scheduledAt`) and response (`scheduleRevision`, `occurrence`).
+- [x] Add failing route tests for: interactive human + collaboration + beta gate, ownership/missing occurrence, non-`PLANNED`/due/released rejection (`409 schedule_occurrence_not_reschedulable`), target not strictly future or outside the horizon (`422`), same-time no-op, revision conflict (`409 schedule_revision_conflict`), exact idempotent replay, conflicting identity reuse (`409 idempotency_conflict`), one revision bump, `effectiveScheduledAt` changed while `originalScheduledAt`/epoch identity stay, audit TaskEvent `OCCURRENCE_RESCHEDULED`, and recomputed `nextRunAt`.
+- [x] Implement under `lockCalendarScope` → `lockTaskRows`, reusing `createTaskScheduleRequestFingerprint` and `isTaskScheduleOperationReplay`.
+- [x] Mount the route beside the occurrence GET in `apps/core/src/routes/v1/tasks/index.ts`.
+- [x] Run `pnpm --filter @sokosumi/core test src/schemas/task-schedule-occurrence-reschedule.schema.test.ts 'src/routes/v1/tasks/[id]/schedule/occurrences/patch.test.ts'`.
+- [x] Run `pnpm --filter @sokosumi/core typecheck`.
+- [x] Commit: `feat(calendar): reschedule one occurrence`
 
 ## Task 4: Regenerate the Web Core client
 
@@ -87,10 +87,10 @@
 
 ### Steps
 
-- [ ] Run `pnpm --filter web generate:core:snapshot`.
-- [ ] Add a service method `rescheduleOccurrence(taskId, occurrenceId, precondition, scheduledAt)` and focused tests, including stable-kind propagation.
-- [ ] Run `pnpm --filter web typecheck`.
-- [ ] Commit: `feat(calendar): wire occurrence reschedule to web`
+- [x] Run `pnpm --filter web generate:core:snapshot`.
+- [x] Add a service method `rescheduleOccurrence(taskId, occurrenceId, precondition, scheduledAt)` and focused tests, including stable-kind propagation.
+- [x] Run `pnpm --filter web typecheck`.
+- [x] Commit: `feat(calendar): wire occurrence reschedule to web`
 
 ## Task 5 (layer C): Calendar drag and explicit move UI
 
