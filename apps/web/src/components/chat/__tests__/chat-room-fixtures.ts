@@ -1,10 +1,6 @@
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-/**
- * A sidebar room, built field by field so the DTO shape stays honest. Shared by
- * the row's two test files: one mocks next-intl, the other renders through the
- * real English catalog, and both need the same room.
- */
+/** A room member, as the row's roster and Leave rules see one. */
 export function makeUser(id: string, access: "member" | "guest" = "member") {
   return {
     id,
@@ -16,6 +12,11 @@ export function makeUser(id: string, access: "member" | "guest" = "member") {
   };
 }
 
+/**
+ * A sidebar room, built field by field so the DTO shape stays honest. Shared by
+ * the row's two test files: one mocks next-intl, the other renders through the
+ * real English catalog, and both need the same room.
+ */
 export function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "room-1",
