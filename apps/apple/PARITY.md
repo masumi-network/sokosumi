@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active follow-up: delivery-status placement, branch `codex/apple-chat-delivery-status`, based on main `727925b12`. Reuse MessageRowView for rooms and threads; show compact sending/sent marks beside the sender or in the continuation gutter. Preserve send timing and failure/retry behavior.
+- Active follow-up: delivery-status placement, draft PR [#4427](https://github.com/masumi-network/sokosumi/pull/4427), branch `codex/apple-chat-delivery-status`, based on main `727925b12`. Reuse MessageRowView for rooms and threads; show compact sending/sent marks beside the sender or in the continuation gutter. Preserve send timing and failure/retry behavior.
 - Attachment rendering (15), [#4425](https://github.com/masumi-network/sokosumi/pull/4425), merged as `727925b12`. Local 308 Chat tests, app tests and lint passed after review. Final-head CI and remaining manual media/export acceptance are not recorded as complete. Drive selection (16) follows separately.
 - Room attachments (14), [PR #4417](https://github.com/masumi-network/sokosumi/pull/4417), merged on 2026-09-11. All Apple CI jobs passed at `bb66ba9cf`; malformed upload response feedback is included. Live upload/send checks were listed in the PR but no user confirmation is recorded here.
 - Human mention identity [#4406](https://github.com/masumi-network/sokosumi/pull/4406) merged as `99cf39f3c` on 2026-09-11. Both clients write human ID-only tokens and show email subtitles; existing tokens remain readable. Notification recipient parsing and display-name resolution are covered. The final cleanup is included in the merge; a subsequent check passed 153 Core and 34 web tests.
@@ -554,3 +554,5 @@ Verification: 305 Chat tests passed, including seven new parsing/download tests;
 Image presentation refinement: inline images have no metadata/action bar. Clicking opens a larger native viewer with filename, Close, Open in Browser, and Save controls. Export state belongs to the Save control so the native save dialog is presented from the viewer.
 
 Review follow-up: pulled `6e58e97af` (attachment expansion, extension-first media classification, on-demand playback, owned export data). Restored URL-based attachment view identity: editing a message to point at a different URL must discard the old player and export state. All 308 Chat tests and pinned Swift lint/format pass.
+
+Delivery-status placement (#4427): Xcode app tests, pinned Swift lint/format and repository check/typecheck pass. Room and thread rows use the same status component. Live send/slow-connection placement remains manual.
