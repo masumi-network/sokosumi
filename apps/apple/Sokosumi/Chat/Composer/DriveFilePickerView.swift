@@ -14,12 +14,12 @@ struct DriveFilePickerView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        Text("Attach from Drive").font(.headline)
+        Text("Attach from Files").font(.headline)
         Spacer()
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
       }
       HStack {
-        Button("Drive", systemImage: "house") { folders = []
+        Button("Files", systemImage: "externaldrive") { folders = []
           query = ""
         }
         ForEach(folders.indices, id: \.self) { index in

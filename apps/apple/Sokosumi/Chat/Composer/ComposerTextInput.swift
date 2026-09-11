@@ -30,9 +30,9 @@ import SwiftUI
       } actions: {
         if let attach {
           Menu {
-            Button("Upload files…", systemImage: "arrow.up.doc", action: attach)
+            Button("Upload from device", systemImage: "square.and.arrow.up", action: attach)
             if let attachFromDrive {
-              Button("From Drive…", systemImage: "folder", action: attachFromDrive)
+              Button("From Files", systemImage: "externaldrive", action: attachFromDrive)
             }
           } label: {
             Image(systemName: "paperclip")
