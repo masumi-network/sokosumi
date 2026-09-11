@@ -100,8 +100,6 @@
   --color-semantic-info-quinary: var(--semantic-info-quinary);
   --color-semantic-info-foreground: var(--semantic-info-foreground);
 
-  --color-material-regular: var(--material-regular);
-
   /* Custom Colors */
   /* Duplicated the success ramp verbatim and, declared here, could not follow
      the theme: 3.90:1 in dark. Alias the themed tokens instead. */
@@ -340,7 +338,6 @@
 
   /* The last of the material family. The glass surfaces below read it with a
      fallback; the other nine steps had no reader at all. */
-  --material-regular: hsla(0, 0%, 100%, 0.85);
 }
 
 .dark {
@@ -437,8 +434,6 @@
   --status-auth-quinary: hsla(258, 30.0%, 10.2%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 22.0%, 1);
-
-  --material-regular: hsla(0, 0%, 15%, 0.8);
 }
 
 @layer base {
@@ -560,18 +555,6 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 @utility agent-card-image-shadow {
   box-shadow: 0px 0px 8px 2px
     color-mix(in oklab, var(--muted-foreground) 30%, transparent);
-}
-
-@utility agent-modal-card {
-  background: var(--material-regular, rgba(255, 255, 255, 0.85));
-  border-radius: var(--border-radius-xl, 12px);
-  border: 1px solid var(--base-senary, rgba(10, 10, 10, 0.03));
-
-  @variant dark {
-    background: var(--material-regular, rgba(38, 38, 38, 0.8));
-    border-radius: var(--border-radius-xl, 12px);
-    border: 1px solid var(--base-senary, rgba(255, 255, 255, 0.05));
-  }
 }
 
 @utility job-table-width {
