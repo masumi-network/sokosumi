@@ -128,6 +128,19 @@ describe("RoomSearchPanel", () => {
       expect(fieldState()).toBe("expanded");
     });
 
+    it("drops its padding while collapsed so it stays inside the icon box", () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      expect(input).toHaveClass("px-0");
+      expect(input).not.toHaveClass("pl-8");
+
+      fireEvent.focus(input);
+
+      expect(input).toHaveClass("pl-8");
+      expect(input).not.toHaveClass("px-0");
+    });
+
     it("shrinks back on blur when there is no query", () => {
       renderPanel();
       const input = screen.getByTestId("room-search-input");
