@@ -139,7 +139,6 @@
     }
 
     final class InputView: NSTextView {
-      private var showingCompletions = false
       private var preservesRawDraft = false
       private(set) var serializedDraft = ""
       var submit: () -> Bool = { false }
@@ -147,7 +146,6 @@
       var formattingDidChange: (() -> Void)?
       var channels: [ComposerChannel] = []
       var mentions: [ComposerMention] = []
-      private var channelCompletions: [String: ComposerChannel] = [:]
       var suggestionKeyHandler: ((UInt16) -> Bool)?
       var placeholder = "Message" {
         didSet { needsDisplay = true }
@@ -263,9 +261,6 @@
           breakUndoCoalescing()
           super.insertText(edit.replacement, replacementRange: edit.range)
           breakUndoCoalescing()
-        } else if window != nil, !showingCompletions, rangeForUserCompletion.location != NSNotFound {
-          showingCompletions = true
-          complete(nil)
         }
       }
 
@@ -298,50 +293,6 @@
         insertText(text, replacementRange: selectedRange())
       }
 
-      override var rangeForUserCompletion: NSRange {
-        guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return NSRange(location: NSNotFound, length: 0) }
-        if let trigger = ComposerReferenceTrigger.match(in: string, caret: selectedRange().location),
-           trigger.kind == .channel, !channels.isEmpty {
-          return trigger.range
-        }
-        return NSRange(location: NSNotFound, length: 0)
-      }
-
-      override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
-        guard charRange.location != NSNotFound, NSMaxRange(charRange) <= string.utf16.count else { return nil }
-        channelCompletions = [:]
-        let partial = (string as NSString).substring(with: charRange)
-        if partial.hasPrefix("#") {
-          let labels = ComposerChannel.matching(channels, query: String(partial.dropFirst())).map { entry in
-            let organization = entry.organizationName.map { " · " + $0 } ?? ""
-            let base = "#\(entry.name)\(organization)"
-            let label = channelCompletions[base] == nil ? base : "\(base) (#\(entry.slug))"
-            channelCompletions[label] = entry
-            return label
-          }
-          showingCompletions = !labels.isEmpty
-          index.pointee = 0
-          return labels
-        }
-        return nil
-      }
-
-      override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal: Bool) {
-        guard isFinal else { return }
-        showingCompletions = false
-        let mouseSelection = movement == NSOtherTextMovement
-          && (NSApp.currentEvent?.type == .leftMouseDown || NSApp.currentEvent?.type == .leftMouseUp)
-        let explicitSelection = movement == NSReturnTextMovement || movement == NSTabTextMovement || mouseSelection
-        // AppKit also finalizes when typing dismisses the list. That is not acceptance.
-        guard explicitSelection, NSMaxRange(charRange) <= string.utf16.count else { return }
-        if let channel = channelCompletions[word] {
-          guard channels.contains(channel) else { return }
-          insertReference(token: channel.token(in: channels), label: "#" + channel.name, range: charRange)
-          channelCompletions = [:]
-          return
-        }
-      }
-
       var emojiCompletionRange: NSRange? {
         guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return nil }
         return ComposerEmoji.completionRange(in: string, caret: selectedRange().location)
@@ -357,16 +308,21 @@
         breakUndoCoalescing()
       }
 
-      var mentionTrigger: ComposerReferenceTrigger? {
+      var referenceTrigger: ComposerReferenceTrigger? {
         guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode,
-              let trigger = ComposerReferenceTrigger.match(in: string, caret: selectedRange().location),
-              trigger.kind == .mention else { return nil }
+              let trigger = ComposerReferenceTrigger.match(in: string, caret: selectedRange().location) else { return nil }
         return trigger
       }
 
       func acceptMention(_ mention: ComposerMention) {
-        guard let trigger = mentionTrigger, mentions.contains(mention) else { return }
+        guard let trigger = referenceTrigger, trigger.kind == .mention, mentions.contains(mention) else { return }
         insertReference(token: mention.token, label: "@" + mention.name, range: trigger.range)
+      }
+
+      func acceptChannel(_ channel: ComposerChannel) {
+        guard let trigger = referenceTrigger, trigger.kind == .channel,
+              ComposerChannel.matching(channels, query: trigger.query).contains(channel) else { return }
+        insertReference(token: channel.token(in: channels), label: "#" + channel.name, range: trigger.range)
       }
 
       private func insertReference(token: String, label: String, range: NSRange) {
@@ -433,10 +389,6 @@
         let isReturn = event.keyCode == 36 || event.keyCode == 76
         if !hasMarkedText(), event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift]),
            suggestionKeyHandler?(event.keyCode) == true {
-          return
-        }
-        if showingCompletions {
-          super.keyDown(with: event)
           return
         }
         guard isReturn, !hasMarkedText() else {

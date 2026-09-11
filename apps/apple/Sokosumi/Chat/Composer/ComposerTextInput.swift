@@ -53,8 +53,8 @@ import SwiftUI
           .help("Send message")
       }
       .overlay(alignment: .topLeading) {
-        if !commands.mentionOptions.isEmpty || !commands.emojiOptions.isEmpty {
-          ComposerSuggestionsView(mentions: commands.mentionOptions, emojis: commands.emojiOptions, acceptEmoji: commands.acceptEmoji, selectedID: $commands.selectedSuggestionID, accept: commands.acceptMention)
+        if !commands.mentionOptions.isEmpty || !commands.emojiOptions.isEmpty || !commands.channelOptions.isEmpty {
+          ComposerSuggestionsView(channels: commands.channelOptions, acceptChannel: commands.acceptChannel, mentions: commands.mentionOptions, emojis: commands.emojiOptions, acceptEmoji: commands.acceptEmoji, selectedID: $commands.selectedSuggestionID, accept: commands.acceptMention)
         }
       }
       .sheet(item: $commands.linkEditor) { editor in

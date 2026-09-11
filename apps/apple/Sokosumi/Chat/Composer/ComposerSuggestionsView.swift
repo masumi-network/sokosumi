@@ -3,6 +3,8 @@ import SwiftUI
 
 /// Portable presentation; the text adapter owns insertion and keyboard events.
 struct ComposerSuggestionsView: View {
+  let channels: [ComposerChannel]
+  let acceptChannel: (ComposerChannel) -> Void
   let mentions: [ComposerMention]
   let emojis: [String]
   let acceptEmoji: (String) -> Void
@@ -13,6 +15,7 @@ struct ComposerSuggestionsView: View {
     ScrollViewReader { proxy in
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 2) {
+          channelRows
           emojiRows
           section("People", entries: mentions.filter { $0.kind == .human || $0.kind == .all })
           section("Agents", entries: mentions.filter { $0.kind == .coworker || $0.kind == .sokoBot })
@@ -30,8 +33,35 @@ struct ComposerSuggestionsView: View {
     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(.separator, lineWidth: 1) }
     .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
-    .accessibilityLabel(emojis.isEmpty ? "Mention suggestions" : "Emoji suggestions")
+    .accessibilityLabel(!channels.isEmpty ? "Channel suggestions" : emojis.isEmpty ? "Mention suggestions" : "Emoji suggestions")
     .offset(y: -panelHeight - 8)
+  }
+
+  private var channelRows: some View {
+    ForEach(channels) { channel in
+      Button { acceptChannel(channel) } label: {
+        HStack(spacing: 10) {
+          Image(systemName: "number").frame(width: 26, height: 26)
+          VStack(alignment: .leading, spacing: 2) {
+            Text(channel.name).font(.body)
+            Text(channel.organizationName.map { "#\(channel.slug) · \($0)" } ?? "#\(channel.slug)")
+              .font(.caption).foregroundStyle(.secondary)
+          }.lineLimit(1)
+          Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10).frame(height: 38)
+        .contentShape(Rectangle())
+        .background(selectedID == channel.id ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 6))
+      }
+      .buttonStyle(.plain)
+      .onHover {
+        if $0 {
+          selectedID = channel.id
+        }
+      }
+      .accessibilityAddTraits(selectedID == channel.id ? .isSelected : [])
+      .id(channel.id)
+    }
   }
 
   private var emojiRows: some View {
@@ -39,11 +69,11 @@ struct ComposerSuggestionsView: View {
       Button { acceptEmoji(shortcode) } label: {
         HStack(spacing: 10) {
           Text(String(ComposerEmoji.completionPreview(for: shortcode).split(separator: " ").first ?? ""))
-            .font(.title2).frame(width: 32, height: 32)
+            .font(.title2).frame(width: 26, height: 26)
           Text(shortcode).font(.body).lineLimit(1)
           Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10).frame(height: 50)
+        .padding(.horizontal, 10).frame(height: 38)
         .contentShape(Rectangle())
         .background(selectedID == shortcode ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 6))
       }
@@ -60,7 +90,7 @@ struct ComposerSuggestionsView: View {
   }
 
   private var panelHeight: CGFloat {
-    min(CGFloat((mentions.count + emojis.count) * 52 + sectionCount * 28 + 12), 300)
+    min(CGFloat((mentions.count + emojis.count + channels.count) * 40 + sectionCount * 28 + 12), 300)
   }
 
   private var sectionCount: Int {
@@ -77,10 +107,10 @@ struct ComposerSuggestionsView: View {
           HStack(spacing: 10) {
             if mention.kind == .all {
               Image(systemName: "person.2")
-                .frame(width: 32, height: 32)
+                .frame(width: 26, height: 26)
                 .background(.quaternary, in: Circle())
             } else {
-              ParticipantAvatar(imageURL: mention.image, name: mention.name, size: 32)
+              ParticipantAvatar(imageURL: mention.image, name: mention.name, size: 26)
             }
             VStack(alignment: .leading, spacing: 2) {
               Text(mention.name).font(.body).foregroundStyle(.primary)
@@ -90,7 +120,7 @@ struct ComposerSuggestionsView: View {
             Spacer(minLength: 0)
           }
           .padding(.horizontal, 10)
-          .frame(height: 50)
+          .frame(height: 38)
           .contentShape(Rectangle())
           .background(selectedID == mention.id ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 6))
         }

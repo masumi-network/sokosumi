@@ -13,28 +13,35 @@
 
     @Published private(set) var mentionOptions: [ComposerMention] = []
     @Published var selectedSuggestionID: String?
+    @Published private(set) var channelOptions: [ComposerChannel] = []
     @Published private(set) var emojiOptions: [String] = []
     private var emojiTrigger: String?
     private var dismissedEmojiTrigger: String?
-    private var mentionTrigger: ComposerReferenceTrigger?
-    private var dismissedMentionTrigger: ComposerReferenceTrigger?
+    private var referenceTrigger: ComposerReferenceTrigger?
+    private var dismissedReferenceTrigger: ComposerReferenceTrigger?
 
     func refreshSuggestions() {
-      let trigger = input?.mentionTrigger
-      if trigger != mentionTrigger {
-        mentionTrigger = trigger
-        dismissedMentionTrigger = nil
+      let trigger = input?.referenceTrigger
+      if trigger != referenceTrigger {
+        referenceTrigger = trigger
+        dismissedReferenceTrigger = nil
         selectedSuggestionID = nil
       }
       let matches = trigger.flatMap { trigger in
-        input.map { ComposerMention.matching($0.mentions, query: trigger.query) }
+        input.map { trigger.kind == .mention ? ComposerMention.matching($0.mentions, query: trigger.query) : [] }
       } ?? []
-      let options = trigger != nil && trigger != dismissedMentionTrigger ? matches : []
+      let options = trigger != nil && trigger != dismissedReferenceTrigger ? matches : []
       // Keep section order identical for mouse and keyboard navigation.
       let grouped = options.filter { $0.kind == .human || $0.kind == .all }
         + options.filter { $0.kind == .coworker || $0.kind == .sokoBot }
       if mentionOptions != grouped {
         mentionOptions = grouped
+      }
+      let channels = trigger.flatMap { trigger in
+        input.map { trigger.kind == .channel && trigger != dismissedReferenceTrigger ? ComposerChannel.matching($0.channels, query: trigger.query) : [] }
+      } ?? []
+      if channelOptions != channels {
+        channelOptions = channels
       }
       let emoji = input.flatMap { input in
         input.emojiCompletionRange.map { range in
@@ -60,8 +67,9 @@
     }
 
     func dismissSuggestions() {
-      dismissedMentionTrigger = mentionTrigger
+      dismissedReferenceTrigger = referenceTrigger
       mentionOptions = []
+      channelOptions = []
       dismissedEmojiTrigger = emojiTrigger
       emojiOptions = []
     }
@@ -74,7 +82,14 @@
     }
 
     private var suggestionIDs: [String] {
-      mentionOptions.map(\.id) + emojiOptions
+      mentionOptions.map(\.id) + channelOptions.map(\.id) + emojiOptions
+    }
+
+    func acceptChannel(_ channel: ComposerChannel) {
+      input?.window?.makeFirstResponder(input)
+      input?.acceptChannel(channel)
+      channelOptions = []
+      refresh()
     }
 
     func acceptEmoji(_ shortcode: String) {
@@ -96,6 +111,8 @@
       case 36, 76, 48:
         if let mention = mentionOptions.first(where: { $0.id == selectedSuggestionID }) {
           acceptMention(mention)
+        } else if let channel = channelOptions.first(where: { $0.id == selectedSuggestionID }) {
+          acceptChannel(channel)
         } else if let shortcode = selectedSuggestionID, emojiOptions.contains(shortcode) {
           acceptEmoji(shortcode)
         }

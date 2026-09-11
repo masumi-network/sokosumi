@@ -87,12 +87,13 @@
       input.channels = [.init(id: "room", name: "Launch Room", slug: "launch-room")]
       input.string = "#la"
       input.setSelectedRange(NSRange(location: 3, length: 0))
-      let range = input.rangeForUserCompletion
-      var selected = 0
-      #expect(input.completions(forPartialWordRange: range, indexOfSelectedItem: &selected) == ["#Launch Room"])
-      input.insertCompletion("#Launch Room", forPartialWordRange: range, movement: NSRightTextMovement, isFinal: true)
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshSuggestions()
+      #expect(commands.channelOptions.map(\.name) == ["Launch Room"])
+      #expect(!commands.handleSuggestionKey(124))
       #expect(input.string == "#la")
-      input.insertCompletion("#Launch Room", forPartialWordRange: range, movement: NSTabTextMovement, isFinal: true)
+      #expect(commands.handleSuggestionKey(48))
       #expect(input.string == "\u{FFFC} ")
       #expect(input.captureDraft().contains("#Launch Room"))
       input.restoreDraft("Hi #Launch Room!\n")
@@ -266,7 +267,7 @@
       input.typingAttributes = input.attributedString().attributes(at: 0, effectiveRange: nil)
       input.insertText(" ", replacementRange: input.selectedRange())
       #expect(input.string == ":D \n")
-      #expect(input.rangeForUserCompletion.location == NSNotFound)
+      #expect(input.emojiCompletionRange == nil)
     }
 
     @Test func acceptsCompletionWithoutReplacingSurroundingText() {
@@ -302,7 +303,6 @@
       #expect(input.string == ":smi")
       #expect(commands.emojiOptions.contains(":smile:"))
       #expect(!commands.emojiOptions.contains(":small_airplane:"))
-      #expect(input.rangeForUserCompletion.location == NSNotFound)
     }
 
     @Test func emojiConversionSupportsUndoAndRedo() {
