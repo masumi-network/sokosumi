@@ -5,13 +5,13 @@ import UniformTypeIdentifiers
 
 struct MessageAttachmentView: View {
   let attachment: MessageAttachment
-  @State private var imagePresented = false
+  @State private var previewPresented = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       switch attachment.kind {
       case .image:
-        Button { imagePresented = true } label: {
+        Button { previewPresented = true } label: {
           attachmentImage
             .frame(maxWidth: 640, maxHeight: 360)
             .clipShape(.rect(cornerRadius: 8))
@@ -21,9 +21,18 @@ struct MessageAttachmentView: View {
       case .audio, .video:
         AttachmentMediaView(url: attachment.url, audioOnly: attachment.kind == .audio)
       case .file:
-        EmptyView()
+        Button { previewPresented = true } label: {
+          AttachmentFileIcon(filename: attachment.filename, url: attachment.url)
+            .frame(width: 64, height: 64)
+            .background(.secondary.opacity(0.08), in: .rect(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.secondary.opacity(0.25)))
+            .contentShape(.rect(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .help(attachment.filename)
+        .accessibilityLabel("Preview \(attachment.filename)")
       }
-      if attachment.kind != .image {
+      if attachment.kind == .audio || attachment.kind == .video {
         HStack(spacing: 8) {
           Image(systemName: attachment.kind == .audio ? "waveform" : "doc")
             .accessibilityHidden(true)
@@ -38,10 +47,10 @@ struct MessageAttachmentView: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .sheet(isPresented: $imagePresented) {
+    .sheet(isPresented: $previewPresented) {
       VStack(spacing: 16) {
         HStack {
-          Button { imagePresented = false } label: {
+          Button { previewPresented = false } label: {
             Label("Close", systemImage: "xmark")
           }
           .keyboardShortcut(.cancelAction)
@@ -56,7 +65,14 @@ struct MessageAttachmentView: View {
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
-        attachmentImage.frame(minWidth: 300, idealWidth: 800, maxWidth: .infinity, minHeight: 200, idealHeight: 560, maxHeight: .infinity)
+        Group {
+          if attachment.kind == .file {
+            DocumentAttachmentPreview(attachment: attachment)
+          } else {
+            attachmentImage
+          }
+        }
+        .frame(minWidth: 300, idealWidth: 800, maxWidth: .infinity, minHeight: 200, idealHeight: 560, maxHeight: .infinity)
       }
       .padding()
       #if os(macOS)
