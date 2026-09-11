@@ -48,9 +48,6 @@ vi.mock("@/app/chat/actions", () => ({
   ) => acceptInvitationMock(...args),
   declineChatRoomInvitationAction: vi.fn(),
   deleteRoomAction: vi.fn(),
-  listPendingChatRoomInvitationsAction: (
-    ...args: Parameters<typeof listPendingMock>
-  ) => listPendingMock(...args),
   restoreRoomAction: vi.fn(),
 }));
 
