@@ -764,7 +764,8 @@
       "title": "Notifications",
       "pageTitle": "Notifications",
       "emptyState": "No notifications yet",
-      "seeMore": "See more",
+      "viewAll": "View all notifications",
+      "justNow": "Just now",
       "loading": "Loading...",
       "loadMore": "Load more",
       "markAllRead": "Mark all as read",
@@ -6296,6 +6297,7 @@
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
+        "mentionedDirect": "{authorName} mentioned you in a direct message",
         "directMessage": "{authorName} sent you a message",
         "directMessages": "{count} messages from {authorName}",
         "roomMessage": "{authorName} wrote in channel {roomName}",

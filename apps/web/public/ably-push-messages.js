@@ -56,6 +56,8 @@ globalThis.MESSAGES = {
     "Notifications.Task.scheduleRemovedByOperator":
       "The schedule for {taskName} was removed after review",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
+    "Notifications.Chat.mentionedDirect":
+      "{authorName} mentioned you in a direct message",
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
     "Notifications.Chat.directMessages": "{count} messages from {authorName}",
     "Notifications.Chat.roomMessage":
@@ -102,6 +104,8 @@ globalThis.MESSAGES = {
       "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
     "Notifications.Chat.mentioned":
       "{authorName} hat dich in {roomName} erwähnt",
+    "Notifications.Chat.mentionedDirect":
+      "{authorName} hat dich in einer Direktnachricht erwähnt",
     "Notifications.Chat.directMessage":
       "{authorName} hat dir eine Nachricht gesendet",
     "Notifications.Chat.directMessages": "{count} Nachrichten von {authorName}",
@@ -146,6 +150,8 @@ globalThis.MESSAGES = {
     "Notifications.Task.scheduleRemovedByOperator":
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
+    "Notifications.Chat.mentionedDirect":
+      "{authorName} te mencionó en un mensaje directo",
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
     "Notifications.Chat.directMessages": "{count} mensajes de {authorName}",
     "Notifications.Chat.roomMessage":

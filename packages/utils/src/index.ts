@@ -52,6 +52,7 @@ export {
 export {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY,
@@ -136,7 +137,6 @@ export {
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
-export { buildDirectRoomName } from "./direct-room-name.js";
 export {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
@@ -213,6 +213,7 @@ export {
 export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
+  CHAT_FEED_MESSAGE_KEYS,
   isBrowserOnlyNotification,
 } from "./notification-feed-kinds.js";
 export {
@@ -266,6 +267,10 @@ export {
   type OrganizationMetadata,
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
+export {
+  compareByDisplayNameThenId,
+  formatParticipantNameList,
+} from "./participant-name-list.js";
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,

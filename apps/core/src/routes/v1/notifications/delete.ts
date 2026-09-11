@@ -24,7 +24,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "delete",
     path: "/",
     description:
-      "Delete every in-app notification-center item for the interactive session user. Scoped by the same feed rule as mark-all-read, so a browser-only kind such as a mention or a direct message is left alone. There is no undo.",
+      "Delete every in-app notification-center item for the interactive session user. Scoped by the same feed rule as mark-all-read, so it reaches a mention and a room message but leaves a direct message alone. A deleted mention also stops counting toward the room's sidebar badge, which counts the same rows. There is no undo.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(responseSchema, "Notification center cleared", {

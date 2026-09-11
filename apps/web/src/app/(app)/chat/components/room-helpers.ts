@@ -5,6 +5,8 @@ import {
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
   type ChannelLinkTarget,
   type ChatRoomQuoteAttachment,
+  compareByDisplayNameThenId,
+  formatParticipantNameList,
   linkifyChannelLinksInMarkdown,
 } from "@sokosumi/utils";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
@@ -528,17 +530,6 @@ export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
   );
 }
 
-function compareByDisplayNameThenId(
-  a: { name: string; id: string },
-  b: { name: string; id: string },
-): number {
-  const byName = a.name.localeCompare(b.name);
-  if (byName !== 0) {
-    return byName;
-  }
-  return a.id.localeCompare(b.id);
-}
-
 export function getDirectRoomParticipants(
   room: ChatRoom,
   currentUserId: string,
@@ -676,12 +667,9 @@ export function formatDirectParticipantNames(
     return fallback;
   }
 
-  const names = participants.map((participant) => participant.name);
-  if (names.length <= 3) {
-    return names.join(", ");
-  }
-
-  return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+  return formatParticipantNameList(
+    participants.map((participant) => participant.name),
+  );
 }
 
 export function getRoomDisplayName(

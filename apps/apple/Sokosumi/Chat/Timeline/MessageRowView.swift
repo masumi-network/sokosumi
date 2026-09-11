@@ -12,22 +12,25 @@ import SwiftUI
     return formatter
   }()
 
-  /// Transient delivery status shown below a message.
+  /// Delivery mark in the header or continuation gutter; retains the header clock until needed.
   private struct DeliveryFeedback: View {
     let pendingSince: Date?
     let sentAt: Date?
+    var timestamp: Date?
     @State private var showSending = false
 
     var body: some View {
       HStack(spacing: 4) {
         if pendingSince != nil, showSending {
-          HStack(spacing: 4) {
-            ProgressView().controlSize(.mini)
-            Text("Sending…")
-          }
-          .accessibilityElement(children: .combine)
+          ProgressView().controlSize(.mini)
+            .accessibilityLabel("Sending")
+            .help("Sending…")
         } else if sentAt != nil {
-          Label("Sent", systemImage: "checkmark")
+          Image(systemName: "checkmark")
+            .accessibilityLabel("Sent")
+            .help("Sent")
+        } else if let timestamp {
+          Text(messageTimeFormatter.string(from: timestamp))
         }
       }
       .font(.caption)
@@ -67,8 +70,9 @@ import SwiftUI
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
         if isContinuation {
-          Color.clear
-            .frame(width: Self.avatarDiameter, height: 0)
+          DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt)
+            .frame(width: Self.avatarDiameter)
+            .frame(minHeight: 16)
         } else {
           ParticipantProfileButton(sender: message.sender) { avatarView }
         }
@@ -83,9 +87,8 @@ import SwiftUI
                   .foregroundStyle(.primary)
                   .lineLimit(1)
               }
-              Text(messageTimeFormatter.string(from: message.createdAt))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+              DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt,
+                               timestamp: message.createdAt)
               if message.editedAt != nil {
                 Text("Edited")
                   .font(.caption)
@@ -106,10 +109,6 @@ import SwiftUI
             if isContinuation, message.editedAt != nil {
               Text("Edited").font(.caption).foregroundStyle(.secondary)
             }
-          }
-          if outbound?.status == .pending || sentAt != nil {
-            DeliveryFeedback(pendingSince: outbound?.status == .pending ? outbound?.createdAt : nil,
-                             sentAt: sentAt)
           }
           if let onReply, message.threadReplyCount > 0 {
             Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
@@ -202,6 +201,10 @@ import SwiftUI
       }
       // Sender-group separation is outside the consistently padded hover row.
       .padding(.top, isContinuation ? 0 : 8)
+    }
+
+    private var pendingSince: Date? {
+      outbound?.status == .pending ? outbound?.createdAt : nil
     }
 
     private var avatarView: some View {

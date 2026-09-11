@@ -16,11 +16,6 @@ import prisma from "@/lib/db/prisma";
 export interface FanOutChatNotificationsParams {
   roomId: string;
   roomName: string;
-  /**
-   * Decides whether the room is named per reader. A direct room's stored name
-   * belongs to nobody, so each reader is told the name their own screen uses.
-   */
-  roomKind?: string;
   organizationId: string | null;
   messageId: string;
   /** The room message body, which the reader is shown a preview of. */
@@ -44,6 +39,18 @@ export interface FanOutChatNotificationsParams {
    * names does not read as somewhere a message was written.
    */
   isGroup?: boolean;
+  /**
+   * The room holds the reader and whoever wrote, and nobody else. Its name is
+   * the other person's, which a mention would say twice, so the reader is told
+   * the kind of room instead of its name.
+   */
+  isDirectPair?: boolean;
+  /**
+   * Name the room per reader. A room named after who is in it has a name that
+   * belongs to nobody: the stored one lists whoever the creator added, so each
+   * reader is told the name their own screen uses instead.
+   */
+  nameRoomPerReader?: boolean;
 }
 
 /** How many messages a row is already standing for. */
@@ -292,7 +299,7 @@ export async function fanOutChatNotifications(
   // stored name is wrong for a group direct room, and wrong still says which
   // room and who wrote; nothing at all says neither.
   let roomNamesByReader: ReadonlyMap<string, string> | null = null;
-  if (params.roomKind === "direct") {
+  if (params.nameRoomPerReader) {
     try {
       roomNamesByReader = await loadDirectRoomNamesByReader({
         roomId: params.roomId,
@@ -320,6 +327,7 @@ export async function fanOutChatNotifications(
         authorName: params.authorName,
         roomName: roomNamesByReader?.get(userId) ?? params.roomName,
         ...(params.isGroup ? { isGroup: true } : {}),
+        ...(params.isDirectPair ? { isDirect: true } : {}),
         // Omitted rather than empty when the body cleans to nothing. A reader
         // is then shown the line that names the author and the room, which is
         // what a banner said before there was a preview at all.

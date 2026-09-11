@@ -1,6 +1,7 @@
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
@@ -156,5 +157,36 @@ describe("getNotificationMessageTranslationKey", () => {
         count: 23,
       }),
     ).toBe("Library.Notifications.Job.completed");
+  });
+  /**
+   * A direct room of two is named after the other person, who in a mention is
+   * whoever wrote it. "Ada mentioned you in Ada" says one name twice and no
+   * place at all, so the line names the kind of room instead.
+   */
+  it("reads a mention in a room of two as a direct message", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_MENTION_MESSAGE_KEY, {
+        authorName: "Ada",
+        isDirect: true,
+      }),
+    ).toBe(`Library.${CHAT_MENTION_DIRECT_MESSAGE_KEY}`);
+  });
+
+  it("counts mentions in a room of two the way its messages are counted", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_MENTION_MESSAGE_KEY, {
+        authorName: "Ada",
+        isDirect: true,
+        count: 3,
+      }),
+    ).toBe(`Library.${CHAT_DIRECT_MESSAGES_MESSAGE_KEY}`);
+  });
+
+  it("leaves a mention in a named room naming that room", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_MENTION_MESSAGE_KEY, {
+        roomName: "Design",
+      }),
+    ).toBe(`Library.${CHAT_MENTION_MESSAGE_KEY}`);
   });
 });

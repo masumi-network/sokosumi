@@ -10,10 +10,7 @@
  * route module to ask it. That import pulls the whole route graph, Better Auth
  * and the Stripe client included, into anything that reaches a notification.
  */
-export function sokoBotDisplayName(bot: {
-  name: string | null;
-  user: { name: string } | null;
-}): string {
+export function sokoBotDisplayName(bot: { name: string | null }): string {
   const named = bot.name?.trim();
   if (named) return named;
   return "Soko Bot";

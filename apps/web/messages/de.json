@@ -748,7 +748,8 @@
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
       "emptyState": "Noch keine Benachrichtigungen",
-      "seeMore": "Mehr anzeigen",
+      "viewAll": "Alle Benachrichtigungen anzeigen",
+      "justNow": "Gerade eben",
       "loading": "Lädt...",
       "loadMore": "Mehr laden",
       "markAllRead": "Alle als gelesen markieren",
@@ -6296,6 +6297,7 @@
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
+        "mentionedDirect": "{authorName} hat dich in einer Direktnachricht erwähnt",
         "directMessage": "{authorName} hat dir eine Nachricht gesendet",
         "directMessages": "{count} Nachrichten von {authorName}",
         "roomMessage": "{authorName} hat im Kanal {roomName} geschrieben",
