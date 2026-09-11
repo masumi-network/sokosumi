@@ -76,7 +76,7 @@ struct MessageMarkdownView: View {
   }
 }
 
-private struct MarkdownBlocksView: View {
+struct MarkdownBlocksView: View {
   let blocks: [MessageMarkdownBlock]
 
   var body: some View {

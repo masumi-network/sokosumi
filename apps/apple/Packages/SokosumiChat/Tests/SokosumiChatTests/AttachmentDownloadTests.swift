@@ -17,7 +17,13 @@ private class AttachmentDownloadProtocol: URLProtocol, @unchecked Sendable {
     guard let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil) else { return }
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     let body = request.value(forHTTPHeaderField: "Authorization") == nil ? "file contents" : "unexpected credentials"
-    client?.urlProtocol(self, didLoad: Data(body.utf8))
+    let bytes = switch url.path {
+    case "/unicode": Data("\u{FEFF}# Grüezi 😀\n\n**Bold**".utf8)
+    case "/empty": Data()
+    case "/invalid": Data([0x61, 0xFF, 0x62])
+    default: Data(body.utf8)
+    }
+    client?.urlProtocol(self, didLoad: bytes)
     client?.urlProtocolDidFinishLoading(self)
   }
 
@@ -36,5 +42,19 @@ private class AttachmentDownloadProtocol: URLProtocol, @unchecked Sendable {
     await #expect(throws: AttachmentDownload.Failure.self) {
       try await AttachmentDownload.fetch(#require(URL(string: remote)), session: session)
     }
+  }
+}
+
+@Test func attachmentTextDownloadMatchesWebDecodingAndErrors() async throws {
+  let config = URLSessionConfiguration.ephemeral
+  config.protocolClasses = [AttachmentDownloadProtocol.self]
+  let session = URLSession(configuration: config)
+  defer { session.invalidateAndCancel() }
+  for (path, expected) in [("unicode", "# Grüezi 😀\n\n**Bold**"), ("empty", ""), ("invalid", "a�b"), ("file", "file contents")] {
+    let text = try await AttachmentDownload.text(#require(URL(string: "https://example.com/\(path)")), session: session)
+    #expect(text == expected)
+  }
+  await #expect(throws: AttachmentDownload.Failure.self) {
+    try await AttachmentDownload.text(#require(URL(string: "https://example.com/missing")), session: session)
   }
 }

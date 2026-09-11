@@ -6,16 +6,29 @@ public enum MessageAttachmentKindAttribute: AttributedStringKey {
 }
 
 /// File metadata available in message Markdown; size is not carried on the wire.
-public struct MessageAttachment: Equatable, Sendable {
+public struct MessageAttachment: Hashable, Sendable {
   public enum Kind: Hashable, Sendable { case image, audio, video, file }
+  public enum DocumentPreviewKind: Sendable { case pdf, text }
   public let url: URL
   public let filename: String
   public let kind: Kind
 
+  public var documentPreviewKind: DocumentPreviewKind? {
+    guard kind == .file else { return nil }
+    let extensions = [url.pathExtension.lowercased(), (filename as NSString).pathExtension.lowercased()]
+    if extensions.contains("pdf") {
+      return .pdf
+    }
+    if extensions.contains(where: { ["txt", "md", "markdown"].contains($0) }) {
+      return .text
+    }
+    return nil
+  }
+
   public init?(url: URL, label: String, kindHint: Kind? = nil) {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil else { return nil }
     let ext = url.pathExtension.lowercased()
-    let extensions: Set = ["png", "jpg", "jpeg", "webp", "svg", "gif", "pdf", "txt", "md", "rtf", "csv", "json", "xml", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "tar", "gz", "mp3", "mp4", "wav", "mov"]
+    let extensions: Set = ["png", "jpg", "jpeg", "webp", "svg", "gif", "pdf", "txt", "md", "markdown", "rtf", "csv", "json", "xml", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "tar", "gz", "mp3", "mp4", "wav", "mov"]
     guard kindHint != nil || (url.fragment == nil && (extensions.contains(ext) || url.path.contains("/deliverables/"))) else { return nil }
     self.url = url
     filename = label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? url.lastPathComponent : label

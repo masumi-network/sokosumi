@@ -79,3 +79,22 @@ import Testing
   #expect(segments[1].attachment?.kind == .file)
   #expect(String(segments[2].text.characters) == "Following text")
 }
+
+@Test func documentPreviewKindsMatchSupportedFiles() throws {
+  for ext in ["txt", "md", "markdown", "TXT", "MD"] {
+    let url = try #require(URL(string: "https://example.com/report.\(ext)?download=1"))
+    let attachment = try #require(MessageAttachment(url: url, label: "Report"))
+    #expect(attachment.documentPreviewKind == .text)
+  }
+  let namedURL = try #require(URL(string: "https://example.com/deliverables/id"))
+  let named = try #require(MessageAttachment(url: namedURL, label: "report.markdown"))
+  #expect(named.documentPreviewKind == .text)
+  let pdfURL = try #require(URL(string: "https://example.com/report.pdf"))
+  let pdf = try #require(MessageAttachment(url: pdfURL, label: "Report"))
+  #expect(pdf.documentPreviewKind == .pdf)
+  for ext in ["zip", "docx", "json", "csv"] {
+    let url = try #require(URL(string: "https://example.com/report.\(ext)"))
+    let attachment = try #require(MessageAttachment(url: url, label: "Report"))
+    #expect(attachment.documentPreviewKind == nil)
+  }
+}
