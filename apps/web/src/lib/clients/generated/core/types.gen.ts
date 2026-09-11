@@ -33577,7 +33577,7 @@ export type ListSokoBotAvatarsResponses = {
 export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
 
 export type TopUpSokoBotAvatarsData = {
-    body?: {
+    body: {
         take?: number;
         excludeIds?: Array<string>;
     };

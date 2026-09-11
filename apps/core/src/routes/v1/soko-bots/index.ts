@@ -801,6 +801,10 @@ const topUpAvatarsRoute = createRoute({
   tags: ["Soko Bots"],
   request: {
     body: {
+      // Without `required`, @hono/zod-openapi skips body validation entirely
+      // when the request carries no JSON content-type, so `take` would arrive
+      // undefined and Prisma would read the whole pool instead of a page.
+      required: true,
       content: {
         "application/json": { schema: topUpSokoBotAvatarsRequestSchema },
       },
