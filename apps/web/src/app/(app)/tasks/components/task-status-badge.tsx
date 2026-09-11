@@ -77,10 +77,7 @@ export function getTaskStatusMarker(status: TaskStatus): StatusMarkerSpec {
 
 /** Kept for callers that paint a bare dot outside a badge. */
 export function getTaskStatusDotColorClass(status: TaskStatus): string {
-  return STATUS_ROLE_STYLES[getTaskStatusMarker(status).role].marker.replace(
-    "text-",
-    "bg-",
-  );
+  return STATUS_ROLE_STYLES[getTaskStatusMarker(status).role].dot;
 }
 
 export function getTaskStatusBorderColorClass(status: TaskStatus): string {
