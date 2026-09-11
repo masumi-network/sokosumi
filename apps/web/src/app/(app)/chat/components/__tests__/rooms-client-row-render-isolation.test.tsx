@@ -25,8 +25,9 @@ import type {
  * prop with a new identity or value.
  */
 
-const { rowRenders } = vi.hoisted(() => ({
+const { rowRenders, fetchRoomMessagesMock } = vi.hoisted(() => ({
   rowRenders: new Map<string, number>(),
+  fetchRoomMessagesMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -139,8 +140,9 @@ vi.mock("@/app/chat/actions", () => ({
   unpinRoomMessageAction: vi.fn(),
 }));
 
+// Scheduled room recovery reads go over GET; the poll is the refresh merge.
 vi.mock("@/components/chat/fetch-room-messages", () => ({
-  fetchRoomMessages: vi.fn(async () => ({ messages: [], nextCursor: null })),
+  fetchRoomMessages: fetchRoomMessagesMock,
 }));
 
 vi.mock("@/components/chat/organization-chat-list.actions", () => ({
@@ -375,12 +377,52 @@ describe("RoomsClient transcript row render isolation", () => {
     clearMembershipVisibleRoomsSnapshot();
     rowRenders.clear();
     vi.clearAllMocks();
+    fetchRoomMessagesMock
+      .mockReset()
+      .mockResolvedValue({ messages: [], nextCursor: null });
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
   });
 
   afterEach(() => {
     clearMembershipVisibleRoomsSnapshot();
     vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("renders no row when a refresh merge re-sends the same messages", async () => {
+    vi.useFakeTimers();
+    fetchRoomMessagesMock.mockImplementation(async () => ({
+      messages: [message("m1", 1), message("m2", 2), message("m3", 3)],
+      nextCursor: null,
+    }));
+    const before = await mountRoom();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000);
+    });
+
+    expect(fetchRoomMessagesMock).toHaveBeenCalled();
+    expect(rendersSince(before)).toEqual({ m1: 0, m2: 0, m3: 0 });
+  });
+
+  it("renders only the changed row when a refresh merge differs", async () => {
+    vi.useFakeTimers();
+    fetchRoomMessagesMock.mockImplementation(async () => ({
+      messages: [
+        message("m1", 1),
+        { ...message("m2", 2), content: "edited elsewhere" },
+        message("m3", 3),
+      ],
+      nextCursor: null,
+    }));
+    const before = await mountRoom();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000);
+    });
+
+    expect(screen.getByText("edited elsewhere")).toBeTruthy();
+    expect(rendersSince(before)).toEqual({ m1: 0, m2: 1, m3: 0 });
   });
 
   it("renders only the new row when a realtime message arrives", async () => {
