@@ -2077,32 +2077,29 @@ export function RoomsClient({
     });
   }
 
-  const handleRetryOutbound = useCallback(
-    (message: ChatRoomMessage) => {
-      const clientTurnId = readClientTurnId(message);
-      if (!clientTurnId || !selectedRoom) {
-        return;
-      }
-      const isThread = message.parentMessageId != null;
-      const jobsRef = isThread ? classicThreadJobsRef : classicChannelJobsRef;
-      const job = jobsRef.current.get(clientTurnId);
-      if (!job) {
-        return;
-      }
-      if (isThread) {
-        setThreadMessages((current) =>
-          markOutboundMessagePending(current, clientTurnId),
-        );
-        enqueueClassicThreadJob(job);
-        return;
-      }
-      setMessagesState((current) =>
+  function handleRetryOutbound(message: ChatRoomMessage) {
+    const clientTurnId = readClientTurnId(message);
+    if (!clientTurnId || !selectedRoom) {
+      return;
+    }
+    const isThread = message.parentMessageId != null;
+    const jobsRef = isThread ? classicThreadJobsRef : classicChannelJobsRef;
+    const job = jobsRef.current.get(clientTurnId);
+    if (!job) {
+      return;
+    }
+    if (isThread) {
+      setThreadMessages((current) =>
         markOutboundMessagePending(current, clientTurnId),
       );
-      enqueueClassicChannelJob(job);
-    },
-    [selectedRoom],
-  );
+      enqueueClassicThreadJob(job);
+      return;
+    }
+    setMessagesState((current) =>
+      markOutboundMessagePending(current, clientTurnId),
+    );
+    enqueueClassicChannelJob(job);
+  }
 
   const handleRemoveOutbound = useCallback((message: ChatRoomMessage) => {
     const clientTurnId = readClientTurnId(message);
@@ -2126,6 +2123,57 @@ export function RoomsClient({
     );
     setMessagesState((current) => removeOutboundMessage(current, clientTurnId));
   }, []);
+
+  // Transcript rows are memoized. Hand them callbacks whose identity never
+  // changes; each call reads the handler from the latest render, so nothing
+  // here closes over stale room state.
+  const latestMessageHandlers = {
+    handleOpenDirectMessage,
+    handleToggleReaction,
+    handleOpenThreadFromMessage,
+    handleQuoteMessage,
+    handlePinMessage,
+    handleStartEdit,
+    handleDeleteMessage,
+    handleRemoveUnfurl,
+    handleRetryMention,
+    handleRetryOutbound,
+    handleEditDraftChange,
+    handleCancelEdit,
+    handleSaveEdit,
+  };
+  const latestMessageHandlersRef = useRef(latestMessageHandlers);
+  latestMessageHandlersRef.current = latestMessageHandlers;
+  const stableMessageHandlers = useMemo(
+    () => ({
+      onOpenDirectMessage: (profile: ChatParticipantHoverProfile) =>
+        latestMessageHandlersRef.current.handleOpenDirectMessage(profile),
+      onToggleReaction: (message: ChatRoomMessage, emoji: string) =>
+        latestMessageHandlersRef.current.handleToggleReaction(message, emoji),
+      onOpenThread: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleOpenThreadFromMessage(message),
+      onQuote: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleQuoteMessage(message),
+      onPin: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handlePinMessage(message),
+      onStartEdit: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleStartEdit(message),
+      onDelete: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleDeleteMessage(message),
+      onRemoveUnfurl: (message: ChatRoomMessage, url: string) =>
+        latestMessageHandlersRef.current.handleRemoveUnfurl(message, url),
+      onRetryMention: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleRetryMention(message),
+      onRetryOutbound: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleRetryOutbound(message),
+      onEditDraftChange: (draft: string) =>
+        latestMessageHandlersRef.current.handleEditDraftChange(draft),
+      onCancelEdit: () => latestMessageHandlersRef.current.handleCancelEdit(),
+      onSaveEdit: (contentOverride?: string) =>
+        latestMessageHandlersRef.current.handleSaveEdit(contentOverride),
+    }),
+    [],
+  );
 
   const handleChannelBeforeSend = useCallback(
     (_clientMessageId: string) => {
@@ -2469,9 +2517,11 @@ export function RoomsClient({
                       channelLinks={channelLinks}
                       currentUserId={currentUserId}
                       canOpenHumanDirect={canOpenHumanDirect}
-                      onOpenDirectMessage={handleOpenDirectMessage}
+                      onOpenDirectMessage={
+                        stableMessageHandlers.onOpenDirectMessage
+                      }
                       openingDirectParticipantKey={openingDirectKey}
-                      onToggleReaction={handleToggleReaction}
+                      onToggleReaction={stableMessageHandlers.onToggleReaction}
                       onOpenThread={
                         !isOutboundLocal &&
                         shouldShowChatRoomThreadButton({
@@ -2479,34 +2529,44 @@ export function RoomsClient({
                           isStreamOverlay,
                           isThinkingShell,
                         })
-                          ? handleOpenThreadFromMessage
+                          ? stableMessageHandlers.onOpenThread
                           : undefined
                       }
-                      onQuote={isOutboundLocal ? undefined : handleQuoteMessage}
+                      onQuote={
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onQuote
+                      }
                       onPin={
                         !isDirectRoom && !isOutboundLocal
-                          ? handlePinMessage
+                          ? stableMessageHandlers.onPin
                           : undefined
                       }
                       showPinButton={!isDirectRoom && !isOutboundLocal}
                       isPinned={pinnedMessageIds.has(message.id)}
                       onStartEdit={
-                        isOutboundLocal ? undefined : handleStartEdit
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onStartEdit
                       }
                       onDelete={
-                        isOutboundLocal ? undefined : handleDeleteMessage
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onDelete
                       }
                       onRemoveUnfurl={
-                        isOutboundLocal ? undefined : handleRemoveUnfurl
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onRemoveUnfurl
                       }
-                      onRetryOutbound={handleRetryOutbound}
+                      onRetryOutbound={stableMessageHandlers.onRetryOutbound}
                       onRetryMention={
                         isCurrentUserMentionerOfFailedShell({
                           shell: message,
                           currentUserId,
                           sourceMessages: mentionRetrySourceMessages,
                         })
-                          ? handleRetryMention
+                          ? stableMessageHandlers.onRetryMention
                           : undefined
                       }
                       onRemoveOutbound={handleRemoveOutbound}
@@ -2517,9 +2577,11 @@ export function RoomsClient({
                           ? editSession.draft
                           : ""
                       }
-                      onEditDraftChange={handleEditDraftChange}
-                      onCancelEdit={handleCancelEdit}
-                      onSaveEdit={handleSaveEdit}
+                      onEditDraftChange={
+                        stableMessageHandlers.onEditDraftChange
+                      }
+                      onCancelEdit={stableMessageHandlers.onCancelEdit}
+                      onSaveEdit={stableMessageHandlers.onSaveEdit}
                       isSavingEdit={
                         isSavingEdit && editSession?.messageId === message.id
                       }
@@ -2631,7 +2693,7 @@ export function RoomsClient({
               onSend={handleChannelSend}
               currentUserId={currentUserId}
               canOpenHumanDirect={canOpenHumanDirect}
-              onOpenDirectMessage={handleOpenDirectMessage}
+              onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
               openingDirectParticipantKey={openingDirectKey}
             />
           }
@@ -2663,25 +2725,25 @@ export function RoomsClient({
                 isSendingReply={
                   isCoworkerStreaming && threadStreamOverlayMessages.length > 0
                 }
-                onRetryOutbound={handleRetryOutbound}
-                onRetryMention={handleRetryMention}
+                onRetryOutbound={stableMessageHandlers.onRetryOutbound}
+                onRetryMention={stableMessageHandlers.onRetryMention}
                 onRemoveOutbound={handleRemoveOutbound}
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadSidePanel}
-                onToggleReaction={handleToggleReaction}
+                onToggleReaction={stableMessageHandlers.onToggleReaction}
                 onQuote={handleQuoteThreadMessage}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={handleOpenDirectMessage}
+                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
-                onStartEdit={handleStartEdit}
-                onDelete={handleDeleteMessage}
-                onRemoveUnfurl={handleRemoveUnfurl}
+                onStartEdit={stableMessageHandlers.onStartEdit}
+                onDelete={stableMessageHandlers.onDelete}
+                onRemoveUnfurl={stableMessageHandlers.onRemoveUnfurl}
                 editSession={editSession}
-                onEditDraftChange={handleEditDraftChange}
-                onCancelEdit={handleCancelEdit}
-                onSaveEdit={handleSaveEdit}
+                onEditDraftChange={stableMessageHandlers.onEditDraftChange}
+                onCancelEdit={stableMessageHandlers.onCancelEdit}
+                onSaveEdit={stableMessageHandlers.onSaveEdit}
                 isSavingEdit={isSavingEdit}
                 pendingQuote={pendingThreadQuote}
                 onClearPendingQuote={() => setPendingThreadQuote(null)}
@@ -2732,7 +2794,7 @@ export function RoomsClient({
                 channelLinks={channelLinks}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={handleOpenDirectMessage}
+                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
                 onIdsLoaded={handlePinnedIdsLoaded}
                 onClose={() => {
@@ -2768,7 +2830,7 @@ export function RoomsClient({
                 participants={getRoomParticipantPreviews(selectedRoom)}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirect={handleOpenDirectMessage}
+                onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
                 onClose={() => {
                   setRosterOpen(false);
