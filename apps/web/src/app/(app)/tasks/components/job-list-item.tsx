@@ -96,7 +96,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
   return (
     <Link
       href={href}
-      className="hover:bg-muted/50 -mx-2 flex flex-col gap-2 rounded-lg px-4 py-3 transition-colors active:scale-[0.995] sm:grid sm:grid-cols-[minmax(0,1fr)_120px_160px_160px_120px] sm:items-center sm:gap-4"
+      className="hover:bg-card-background -mx-2 flex flex-col gap-2 rounded-lg px-4 py-3 transition-colors active:scale-[0.995] sm:grid sm:grid-cols-[minmax(0,1fr)_120px_160px_160px_120px] sm:items-center sm:gap-4"
     >
       <div className="min-w-0">
         <span className="text-foreground line-clamp-1 text-sm font-medium">

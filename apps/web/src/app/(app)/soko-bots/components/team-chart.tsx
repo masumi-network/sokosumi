@@ -93,7 +93,7 @@ async function BotNode({ member }: { member: Member }) {
       {member.isYou ? (
         <Link
           href={SOKO_BOT_ROUTE}
-          className="hover:bg-muted/40 group flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors"
+          className="hover:bg-card-background group flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors"
         >
           {body}
           <ChevronRight

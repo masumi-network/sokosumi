@@ -394,13 +394,13 @@ export function TaskActivitySection({
             multiple
           >
             <FileUploadDropzone
-              className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+              className="data-dragging:bg-card-background w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
               onClick={(event) => event.preventDefault()}
             >
               <MarkdownEditor
                 ref={markdownEditorRef}
                 placeholder={placeholder}
-                className="border-border bg-muted-foreground/5 w-full rounded-lg border"
+                className="border-border bg-senary w-full rounded-lg border"
                 value={comment}
                 onChange={setComment}
                 onSubmitShortcut={() => formRef.current?.requestSubmit()}
@@ -601,7 +601,7 @@ export function TaskActivitySection({
                 key={event.id}
                 className={cn(
                   "rounded-lg pr-3 pl-3",
-                  isCardEvent && "bg-muted/20 border-border border",
+                  isCardEvent && "bg-card-background border-border border",
                   shouldHighlightDoneBorder &&
                     getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                 )}

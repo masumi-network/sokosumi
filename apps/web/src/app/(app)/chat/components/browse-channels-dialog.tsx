@@ -142,7 +142,7 @@ export function BrowseChannelsDialog({
                 return (
                   <li
                     key={room.id}
-                    className="hover:bg-muted/50 flex items-start gap-3 rounded-md px-3 py-2.5"
+                    className="hover:bg-card-background flex items-start gap-3 rounded-md px-3 py-2.5"
                   >
                     <ChannelDiscoverabilityIcon
                       discoverability={room.discoverability}

@@ -38,7 +38,7 @@ export default async function AdminTaskDetailPage({
           user-facing view) and the owning workspace, plus a way back to the
           list. The task itself renders read-only below. */}
       <div className={TASK_DETAIL_CONTEXT_STRIP_CLASS}>
-        <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
+        <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="text-sm">
             <span className="font-medium">{owner.name}</span>
             <span className="text-muted-foreground"> · {owner.email}</span>

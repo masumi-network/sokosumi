@@ -60,7 +60,7 @@ describe("ProjectMemoryRow", () => {
     expect(empty).toHaveTextContent(
       "MemoryBuilds as tasks completeMistral Medium · hosted in the EU 🇪🇺",
     );
-    expect(empty.className).not.toContain("bg-muted/30");
+    expect(empty.className).not.toContain("bg-card-background");
     expect(empty.className).not.toMatch(/\bborder\b/);
     expect(screen.queryByTestId("project-memory-row")).not.toBeInTheDocument();
   });

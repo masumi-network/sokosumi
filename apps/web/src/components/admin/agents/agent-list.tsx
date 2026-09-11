@@ -230,7 +230,7 @@ export function AgentList({ initialPage }: AgentListProps) {
             columns={columns}
             data={agents}
             containerClassName="space-y-0"
-            tableHeaderClassName="bg-muted/50"
+            tableHeaderClassName="bg-card-background"
             showPagination={false}
             enableRowSelection={false}
             disableHover

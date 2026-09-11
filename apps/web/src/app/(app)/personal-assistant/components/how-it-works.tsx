@@ -26,7 +26,7 @@ export function HowItWorks({ schedules }: { schedules: ChatSchedule[] }) {
             return (
               <li
                 key={rhythm.key}
-                className="bg-muted/40 flex flex-col gap-1 rounded-lg px-3 py-2.5 text-sm"
+                className="bg-card-background flex flex-col gap-1 rounded-lg px-3 py-2.5 text-sm"
               >
                 <span className="flex items-center justify-between gap-2">
                   <span className="truncate font-medium">{rhythm.name}</span>

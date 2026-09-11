@@ -42,7 +42,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
               "min-w-0 rounded-lg px-3 py-2.5",
               index === 0
                 ? "bg-primary/10 text-primary"
-                : "bg-muted/50 text-foreground",
+                : "bg-card-background text-foreground",
             )}
           >
             <dt

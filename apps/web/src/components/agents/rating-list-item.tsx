@@ -33,7 +33,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
       : rating.comment;
 
   return (
-    <div className="bg-muted/20 border-border rounded-lg border px-3 py-3">
+    <div className="bg-card-background border-border rounded-lg border px-3 py-3">
       <div className="flex items-start gap-4">
         <Avatar className="size-6 shrink-0 self-start">
           <AvatarImage src={rating.user.image ?? undefined} />

@@ -81,7 +81,7 @@ export function MembersRosterLoadFailed({
   return (
     <div
       className={cn(
-        "border-border bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center",
+        "border-border bg-card-background rounded-md border border-dashed px-5 py-10 text-center",
         className,
       )}
       role="status"
@@ -208,7 +208,7 @@ export function DirectDraftTargetRow({
         "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors",
         disabled
           ? "text-muted-foreground cursor-not-allowed opacity-50"
-          : "hover:bg-muted/70",
+          : "hover:bg-senary",
       )}
       onMouseDown={(event) => {
         event.preventDefault();

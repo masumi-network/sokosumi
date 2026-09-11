@@ -217,8 +217,9 @@ export function IdentityOnboardingForm({
                   <Label
                     htmlFor="workspace-choice-personal"
                     className={cn(
-                      "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                      choice === "personal" && "border-primary bg-accent/30",
+                      "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                      choice === "personal" &&
+                        "border-primary bg-card-background",
                     )}
                   >
                     <RadioGroupItem
@@ -238,9 +239,9 @@ export function IdentityOnboardingForm({
                   <Label
                     htmlFor="workspace-choice-organization"
                     className={cn(
-                      "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                      "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "organization" &&
-                        "border-primary bg-accent/30",
+                        "border-primary bg-card-background",
                     )}
                   >
                     <RadioGroupItem

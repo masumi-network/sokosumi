@@ -667,7 +667,7 @@ export function CreateOrganizationWizard({
                         control={form.control}
                         name="name"
                         render={({ field }) => (
-                          <FormItem className="focus-within:bg-accent/40 grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
+                          <FormItem className="focus-within:bg-card-background grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
                             <FormLabel className="text-muted-foreground text-[0.8125rem] font-normal">
                               {t("Details.nameLabel")}
                             </FormLabel>
@@ -692,7 +692,7 @@ export function CreateOrganizationWizard({
                         control={form.control}
                         name="url"
                         render={({ field }) => (
-                          <FormItem className="focus-within:bg-accent/40 grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
+                          <FormItem className="focus-within:bg-card-background grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
                             <FormLabel className="text-muted-foreground text-[0.8125rem] font-normal">
                               {t("Details.urlLabel")}
                             </FormLabel>
@@ -872,7 +872,7 @@ export function CreateOrganizationWizard({
 
                 {brand.status === "completed" && (
                   <div className="mt-10">
-                    <div className="bg-muted/60 text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
+                    <div className="bg-card-background text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
                       <FileText className="size-4" />
                       <span className="font-mono text-[0.8125rem]">
                         DESIGN.md
@@ -928,7 +928,7 @@ export function CreateOrganizationWizard({
                 </p>
 
                 <div className="mx-auto mt-5 w-full max-w-md">
-                  <div className="bg-muted/60 has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
+                  <div className="bg-card-background has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
                     <Link2 className="text-muted-foreground size-4 shrink-0" />
                     {isCreatingLink ? (
                       <Skeleton className="h-4 w-56 rounded-sm" />
@@ -988,7 +988,7 @@ export function CreateOrganizationWizard({
                     value={emails}
                     onChange={(event) => setEmails(event.target.value)}
                     placeholder={t("Invite.emailsPlaceholder")}
-                    className="bg-muted/60 dark:bg-muted/60 min-h-14 resize-none rounded-xl border px-4 py-3 text-[0.9375rem] shadow-none"
+                    className="bg-card-background dark:bg-card-background min-h-14 resize-none rounded-xl border px-4 py-3 text-[0.9375rem] shadow-none"
                   />
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <p className="text-muted-foreground/70 text-left text-[0.8125rem]">

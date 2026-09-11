@@ -191,7 +191,7 @@ function DocumentPdfBody({
     <iframe
       src={pdfEmbedUrl(state.embedUrl)}
       title={fileName}
-      className="bg-muted/40 h-full w-full"
+      className="bg-card-background h-full w-full"
     />
   );
 }
@@ -214,7 +214,7 @@ function DocumentViewerBody({
       <iframe
         src={officeViewerUrl(url, extensionHint)}
         title={fileName}
-        className="bg-muted/40 h-full w-full"
+        className="bg-card-background h-full w-full"
       />
     );
   }

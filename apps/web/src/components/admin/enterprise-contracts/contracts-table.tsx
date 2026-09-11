@@ -298,7 +298,7 @@ export function ContractsTable({
         data={contracts}
         containerClassName="rounded-none border-0 space-y-0 pb-4"
         tableClassName="[&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4"
-        tableHeaderClassName="bg-muted/50"
+        tableHeaderClassName="bg-card-background"
         showPagination={contracts.length > 10}
         showRowsPerPage={false}
         enableRowSelection={false}

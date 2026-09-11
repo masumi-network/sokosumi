@@ -27,7 +27,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
         href={`/projects/${project.id}`}
         className={cn(
           "flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 transition-colors",
-          "hover:bg-muted/50 active:scale-[0.995] md:rounded-lg",
+          "hover:bg-card-background active:scale-[0.995] md:rounded-lg",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">

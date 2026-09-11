@@ -122,7 +122,7 @@ export function TasksProjectSwitcher({
             className={cn(
               "max-w-72 justify-start gap-2 font-medium",
               isProjectScoped
-                ? "border-transparent bg-accent text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground"
+                ? "border-transparent bg-accent text-accent-foreground hover:bg-senary hover:text-accent-foreground"
                 : "text-foreground",
             )}
           >
