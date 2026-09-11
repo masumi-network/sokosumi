@@ -90,6 +90,7 @@ import {
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
@@ -143,7 +144,6 @@ import {
   type ChatParticipantHoverProfile,
   getRoomDisplayName,
   getRoomParticipantPreviews,
-  highlightRoomMessageElement,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -1641,7 +1641,10 @@ export function RoomsClient({
     pathname,
     searchParams,
     replace: router.replace,
-    highlight: highlightRoomMessageElement,
+    // Scoped to the transcript. A reply rendered in the open thread panel must
+    // not answer this: it would end the jump before the room is put on the
+    // message that thread hangs off.
+    highlight: highlightRoomTranscriptMessage,
     isStillSelectedRoom,
     jumpInRoom: handleJumpToMessage,
     jumpInThread: (hit) =>
