@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 
+import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import {
@@ -38,6 +39,18 @@ export interface FanOutChatNotificationsParams {
    * names does not read as somewhere a message was written.
    */
   isGroup?: boolean;
+  /**
+   * The room holds the reader and whoever wrote, and nobody else. Its name is
+   * the other person's, which a mention would say twice, so the reader is told
+   * the kind of room instead of its name.
+   */
+  isDirectPair?: boolean;
+  /**
+   * Name the room per reader. A room named after who is in it has a name that
+   * belongs to nobody: the stored one lists whoever the creator added, so each
+   * reader is told the name their own screen uses instead.
+   */
+  nameRoomPerReader?: boolean;
 }
 
 /** How many messages a row is already standing for. */
@@ -279,6 +292,30 @@ export async function fanOutChatNotifications(
           }),
         );
 
+  // A direct room is named after who is in it, so its name differs by reader
+  // and the stored one is right for nobody. Read once for the whole fan-out.
+  //
+  // A failed read costs the readers a correct name, not the notification. The
+  // stored name is wrong for a group direct room, and wrong still says which
+  // room and who wrote; nothing at all says neither.
+  let roomNamesByReader: ReadonlyMap<string, string> | null = null;
+  if (params.nameRoomPerReader) {
+    try {
+      roomNamesByReader = await loadDirectRoomNamesByReader({
+        roomId: params.roomId,
+        readerUserIds: notifyUserIds,
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        extra: {
+          roomId: params.roomId,
+          messageId: params.messageId,
+          notificationType: "chat-direct-room-name",
+        },
+      });
+    }
+  }
+
   for (const userId of notifyUserIds) {
     const input: CreateNotificationInput = {
       userId,
@@ -288,8 +325,9 @@ export async function fanOutChatNotifications(
       messageKey: params.messageKey,
       messageParams: {
         authorName: params.authorName,
-        roomName: params.roomName,
+        roomName: roomNamesByReader?.get(userId) ?? params.roomName,
         ...(params.isGroup ? { isGroup: true } : {}),
+        ...(params.isDirectPair ? { isDirect: true } : {}),
         // Omitted rather than empty when the body cleans to nothing. A reader
         // is then shown the line that names the author and the room, which is
         // what a banner said before there was a preview at all.

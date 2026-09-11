@@ -1,9 +1,23 @@
+import CoreAPI
+import SokosumiAuth
 import SokosumiChat
+import SokosumiWorkspace
 import SwiftUI
 
 /// Shared by room and reply-thread rows, including their streamed overlays.
 struct MessageMarkdownView: View {
   let source: String
+  var room: Components.Schemas.ChatRoom?
+  var channels: [ComposerChannel] = []
+  @EnvironmentObject private var workspaces: WorkspaceState
+  @EnvironmentObject private var auth: AuthState
+  @State private var selectedProfile: ChatParticipantProfile?
+  private struct RenderInput: Hashable {
+    let source: String
+    let mentions: MessageMentions?
+    let channels: [ComposerChannel]
+  }
+
   @State private var document: MessageMarkdown?
   @ScaledMetric(relativeTo: .body) private var emojiBaseSize = 16.0
 
@@ -21,7 +35,7 @@ struct MessageMarkdownView: View {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else {
-        ExpandableMessageBody(source: source) {
+        ExpandableMessageBody(source: source, clampHeight: document.map { !$0.containsAttachments } ?? true) {
           if let document {
             MarkdownBlocksView(blocks: document.blocks)
           } else {
@@ -32,11 +46,29 @@ struct MessageMarkdownView: View {
     }
     .textSelection(.enabled)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .task(id: source) {
+    .environment(\.openURL, OpenURLAction { url in
+      if url.scheme == "sokosumi-channel" {
+        if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
+          Task { @MainActor in
+            workspaces.selectRoom(id, auth: auth)
+          }
+        }
+        return .handled
+      }
+      guard url.scheme == "sokosumi-participant" else { return .systemAction }
+      if let room {
+        selectedProfile = ChatParticipantProfile.resolving(url, in: room)
+      }
+      return .handled
+    })
+    .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
+    .task(id: RenderInput(source: source, mentions: room.map(MessageMentions.init), channels: channels)) {
       let source = source
+      let channels = channels
+      let mentions = room.map(MessageMentions.init)
       let baseURL = CoreSettings.webBaseURL
       let parsed = await Task.detached(priority: .userInitiated) {
-        MessageMarkdown(source, baseURL: baseURL)
+        MessageMarkdown(source, baseURL: baseURL, mentions: mentions, channels: channels)
       }.value
       guard !Task.isCancelled else { return }
       document = parsed
@@ -62,7 +94,7 @@ private struct MarkdownBlockView: View {
   var body: some View {
     switch block.kind {
     case let .header(level):
-      Text(styled(block.text))
+      attachmentContent(block.text)
         .fixedSize(horizontal: false, vertical: true)
         .font(headingFont(level))
         .fontWeight(.semibold)
@@ -89,7 +121,7 @@ private struct MarkdownBlockView: View {
             GridRow {
               ForEach(columns.indices, id: \.self) { index in
                 let cell = row.children.first { $0.kind == .tableCell(columnIndex: index) }
-                Text(styled(cell?.text ?? AttributedString()))
+                attachmentContent(cell?.text ?? AttributedString())
                   .fontWeight(row.kind == .tableHeaderRow ? .semibold : .regular)
                   .gridColumnAlignment(tableAlignment(columns[index].alignment))
               }
@@ -103,18 +135,38 @@ private struct MarkdownBlockView: View {
       }
     default:
       if block.children.isEmpty {
-        Text(styled(block.text))
-          .fixedSize(horizontal: false, vertical: true)
+        attachmentContent(block.text)
       } else {
         MarkdownBlocksView(blocks: block.children)
       }
     }
   }
 
+  private func attachmentContent(_ text: AttributedString) -> some View {
+    let segments = MessageAttachmentSegment.split(text).filter { segment in
+      segment.attachment != nil
+        || !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    return VStack(alignment: .leading, spacing: 8) {
+      ForEach(segments) { segment in
+        if let attachment = segment.attachment {
+          MessageAttachmentView(attachment: attachment).id(attachment.url)
+        } else {
+          Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
+  }
+
   private func styled(_ text: AttributedString) -> AttributedString {
     var result = text
-    for run in text.runs where run[MessageUnderlineAttribute.self] == true {
-      result[run.range].underlineStyle = .single
+    for run in text.runs {
+      if run[MessageUnderlineAttribute.self] == true {
+        result[run.range].underlineStyle = .single
+      }
+      if run[MessageMentionAttribute.self] == true {
+        result[run.range].foregroundColor = .accentColor
+      }
     }
     return result
   }

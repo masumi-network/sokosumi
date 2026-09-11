@@ -549,8 +549,6 @@ export function OrganizationChatList({
                     <DirectRoomAvatarStack
                       room={room}
                       currentUserId={currentUserId}
-                      canOpenHumanDirect={hasOrganization}
-                      selectedRoomId={activeRoomId}
                     />
                   }
                   onRoomUpdated={replaceRoom}

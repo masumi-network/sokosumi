@@ -3,7 +3,10 @@ import {
   NotificationKind,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
+import {
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -40,12 +43,14 @@ const FEED_OR = [
   { kind: { notIn: [NotificationKind.CHAT] } },
   {
     kind: { in: [NotificationKind.CHAT] },
-    messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+    messageKey: {
+      in: [CHAT_MENTION_MESSAGE_KEY, CHAT_ROOM_MESSAGE_MESSAGE_KEY],
+    },
   },
 ];
 
 describe("notificationFeedWhere", () => {
-  it("keeps a mention out of the default in-app feed and lets a room message in", () => {
+  it("lets a mention and a room message into the default in-app feed", () => {
     expect(notificationFeedWhere()).toEqual({
       inApp: true,
       OR: FEED_OR,
@@ -54,8 +59,8 @@ describe("notificationFeedWhere", () => {
 
   /**
    * The rule is not replaced by the request. A reader asking for CHAT is asking
-   * for the chat rows the feed has, which is the room messages, and a mention
-   * named explicitly is still a mention.
+   * for the chat rows the feed has, which is the mentions and the room
+   * messages, and a direct message named explicitly is still a direct message.
    */
   it("narrows a requested kind on top of the rule", () => {
     expect(

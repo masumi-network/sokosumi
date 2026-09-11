@@ -114,14 +114,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Check if a file with the same name exists (without the trailing slash)
-    const filePathname = prefix.slice(0, -1); // Remove trailing slash
+    const filePathname = prefix.slice(0, -1);
     try {
       await head(filePathname, { token });
-      // If head succeeds, a file with the folder's name exists
       throw conflict("A file with that name already exists");
     } catch (error) {
       if (error instanceof BlobNotFoundError) {
-        // File doesn't exist, proceed
       } else if (
         error &&
         typeof error === "object" &&

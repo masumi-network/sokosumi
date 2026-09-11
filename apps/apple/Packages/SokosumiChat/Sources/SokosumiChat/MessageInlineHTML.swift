@@ -52,7 +52,7 @@ enum MessageInlineHTML {
       result = AttributedString(label.isEmpty ? ((try? element.attr("src")) ?? "") : label)
     }
     if element.tagName() == "video" || element.tagName() == "audio" {
-      // Previews are attachment work; meanwhile preserve the source as text like `img`.
+      // Keep the source label alongside the media marker for native previews.
       let source = mediaSource(element)
       if !source.isEmpty {
         result = AttributedString(source)
@@ -69,8 +69,18 @@ enum MessageInlineHTML {
     }
     if let url = linkURL(element, baseURL: baseURL) {
       result.link = url
+      markAttachment(&result, tag: element.tagName())
     }
     return result
+  }
+
+  private static func markAttachment(_ text: inout AttributedString, tag: String) {
+    switch tag {
+    case "img": text[MessageAttachmentKindAttribute.self] = .image
+    case "audio": text[MessageAttachmentKindAttribute.self] = .audio
+    case "video": text[MessageAttachmentKindAttribute.self] = .video
+    default: break
+    }
   }
 
   private static func inlineIntent(_ tag: String) -> InlinePresentationIntent {

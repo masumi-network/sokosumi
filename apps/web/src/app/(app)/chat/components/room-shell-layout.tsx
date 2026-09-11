@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode, Ref } from "react";
 
+import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
 import { ROOM_MESSAGE_LIST_CONTENT_CLASSNAME } from "@/app/chat/components/room-message-list-skeleton";
@@ -94,8 +95,10 @@ export function RoomShellLayout({
       <div ref={listScrollerRef} className={ROOM_SHELL_SCROLLER_CLASSNAME}>
         <div
           ref={listContentRef}
-          // Scopes the jump-highlight spotlight in globals.css to this list.
-          data-chat-message-list
+          // Scopes the jump-highlight spotlight in globals.css to this list,
+          // and names it so a lookup can tell it from the thread's copy of the
+          // same message ids.
+          data-chat-message-list={CHAT_MESSAGE_LIST_ROOM}
           className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}
           style={listContentStyle}
         >

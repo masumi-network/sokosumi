@@ -14,13 +14,10 @@ export {
   betterAuthUserAdditionalFields,
 } from "./better-auth-client-schema.js";
 export {
-  type ResolveBetterAuthCookiePrefixParams,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "./better-auth-cookie-prefix.js";
 export {
-  type ResolveBetterAuthProductionUrlParams,
-  type ResolveBetterAuthPublicBaseUrlParams,
   resolveBetterAuthProductionUrl,
   resolveBetterAuthPublicBaseUrl,
 } from "./better-auth-public-url.js";
@@ -55,6 +52,7 @@ export {
 export {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY,
@@ -64,8 +62,6 @@ export {
   CHAT_ROOM_MESSAGES_MESSAGE_KEY,
 } from "./chat-notification-message-keys.js";
 export {
-  ABLY_CLIENT_INSTANCE_ID_PATTERN,
-  ABLY_PRESENCE_CLIENT_ID_SEPARATOR,
   aggregateChatPresenceByUserId,
   buildAblyPresenceClientId,
   type ChatPresenceMemberData,
@@ -97,7 +93,6 @@ export {
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
-  type ChatRoomQuoteSnippetParts,
 } from "./chat-room-quote-snippet.js";
 export {
   CHAT_ROOM_COLLECTIONS,
@@ -113,7 +108,6 @@ export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
   COWORKER_IMAGE_MAX_SIZE_BYTES,
-  extensionForCoworkerImageMime,
   isCoworkerImageAllowedContentType,
   isOwnedCoworkerImageUrl,
 } from "./coworker-image-upload.js";
@@ -124,11 +118,8 @@ export {
   type CreditTopUpTier,
   getCreditTopUpLookupKeyByCredits,
   getCreditTopUpTotalMinorUnits,
-  HIGH_CREDIT_TOPUP_LOOKUP_KEY,
   isPositiveIntegerCredits,
-  MID_CREDIT_TOPUP_LOOKUP_KEY,
   STANDARD_CREDIT_TOPUP_TIERS,
-  type StandardCreditTopUpLookupKey,
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
@@ -145,10 +136,7 @@ export {
   buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
-export {
-  DESIGN_MD_BLOB_PATH_PREFIX,
-  isDesignMdBlobUrl,
-} from "./design-md-url.js";
+export { isDesignMdBlobUrl } from "./design-md-url.js";
 export {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
@@ -161,8 +149,6 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
-  DRIVE_FILE_MAX_NAME_LENGTH,
-  DRIVE_FOLDER_MARKER_BASENAME,
   isDriveFolderMarker,
   isDriveFolderMarkerName,
   normalizeDriveFolderPath,
@@ -181,7 +167,6 @@ export {
 } from "./file-url.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
-  IPFS_GATEWAY_PREFIX,
   normalizeOrganizationLogo,
   resolveIpfsOrHttpUrl,
   sanitizeOrganizationLogoForApi,
@@ -190,7 +175,6 @@ export { buildJobBlobPathname } from "./job-blob-path.js";
 export { linkifyBareDomainsInMarkdown } from "./linkify-bare-domains.js";
 export {
   type ChannelLinkIdentity,
-  type ChannelLinkMatch,
   type ChannelLinkTarget,
   channelLinkInsertText,
   collectChannelLinksInMarkdown,
@@ -210,7 +194,6 @@ export { MARKDOWN_FENCED_BLOCK_REGEX } from "./markdown-fenced-block.js";
 export {
   escapeMarkdownLinkUrl,
   findMarkdownLinks,
-  type MarkdownLinkMatch,
   replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "./markdown-links.js";
@@ -226,12 +209,11 @@ export {
 export {
   type MetadataRecord,
   serializeMetadataRecord,
-  stringifyMetadataRecord,
 } from "./metadata-record.js";
 export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
-  type BrowserOnlyNotificationKind,
+  CHAT_FEED_MESSAGE_KEYS,
   isBrowserOnlyNotification,
 } from "./notification-feed-kinds.js";
 export {
@@ -242,16 +224,12 @@ export {
   notificationDefault,
 } from "./notification-preferences.js";
 export {
-  type BuildOAuthClientScopeParamOptions,
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
   OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
-  OAUTH_SCOPE_CORE_API,
-  OAUTH_SCOPE_OFFLINE_ACCESS,
-  OAUTH_SCOPE_OPENID,
   type OAuthClientGrantType,
 } from "./oauth-scopes.js";
 export {
@@ -271,7 +249,6 @@ export {
   evaluateInviteLinkStatus,
   type InviteLinkPresentStatus,
   type InviteLinkStatus,
-  type InviteLinkStatusFields,
 } from "./organization-invite-link.js";
 export {
   buildOrganizationLogoContentHashPathname,
@@ -291,6 +268,10 @@ export {
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
 export {
+  compareByDisplayNameThenId,
+  formatParticipantNameList,
+} from "./participant-name-list.js";
+export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
   buildProjectFilesRootPrefix,
@@ -301,10 +282,7 @@ export {
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
-export {
-  hasStripeBillingAddressWithCountry,
-  type StripeBillingAddressLike,
-} from "./stripe-billing-address.js";
+export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
@@ -334,7 +312,6 @@ export {
   FILE_UPLOAD_MAX_SIZE_BYTES,
   isOwnedTaskFileUrl,
   resolveTaskFileContentType,
-  TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
 export {
@@ -355,7 +332,6 @@ export {
 export { isValidTimezone } from "./timezone.js";
 export {
   selectUnfurlCandidateUrls,
-  type UnfurlPreviewContent,
   unfurlCardHasPreviewContent,
 } from "./unfurl-urls.js";
 export {
@@ -370,10 +346,7 @@ export {
   resolveAccountDisplayName,
 } from "./user-name.js";
 export {
-  isUserUploadAllowedContentType,
-  normalizeUserUploadContentType,
   resolveUserUploadContentType,
-  USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET,
   USER_UPLOAD_ALLOWED_CONTENT_TYPES,
 } from "./user-upload-content-type.js";
 export {
@@ -381,16 +354,12 @@ export {
   buildUserUploadPrefix,
 } from "./user-upload-path.js";
 export {
-  buildVendorLogoContentHashPathname,
   buildVendorLogoPathname,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
 export {
   buildWebhookFailureContext,
   DEFAULT_WEBHOOK_TIMEOUT_MS,
-  MAX_REPORTED_WEBHOOK_BODY_LENGTH,
-  type PostWebhookOptions,
-  type PostWebhookResult,
   postWebhook,
 } from "./webhook.js";
 export {

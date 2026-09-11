@@ -14,11 +14,11 @@ public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
 public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
 
-  public init(_ source: String, baseURL: URL? = nil) {
+  public init(_ source: String, baseURL: URL? = nil, mentions: MessageMentions? = nil, channels: [ComposerChannel] = []) {
     let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
     let document = Markdown.Document(parsing: MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified())
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
-    blocks = document.children.flatMap { builder.blocks(for: $0) }
+    blocks = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
   }
 }
 
@@ -171,6 +171,9 @@ private struct MarkdownBlockBuilder {
        let url = URL(string: destination, relativeTo: baseURL)?.absoluteURL,
        url.scheme == nil || MessageHTML.linkSchemes.contains(url.scheme?.lowercased() ?? "") {
       result.link = url
+      if node is Markdown.Image {
+        result[MessageAttachmentKindAttribute.self] = .image
+      }
     }
     return result
   }
@@ -182,5 +185,17 @@ private struct MarkdownBlockBuilder {
     case is Strikethrough: .strikethrough
     default: []
     }
+  }
+}
+
+private extension MessageMarkdownBlock {
+  func resolving(mentions: MessageMentions?, channels: [ComposerChannel]) -> Self {
+    if case .codeBlock = kind {
+      return self
+    }
+    var result = self
+    result.text = MessageChannels.applying(to: mentions?.applying(to: text) ?? text, channels: channels)
+    result.children = children.map { $0.resolving(mentions: mentions, channels: channels) }
+    return result
   }
 }

@@ -42,5 +42,3 @@ function AgentIconComponent({ agent, className, isMuted }: AgentIconProps) {
 }
 
 export const AgentIcon = memo(AgentIconComponent);
-
-export default AgentIcon;

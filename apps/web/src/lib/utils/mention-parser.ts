@@ -1,4 +1,4 @@
-export const MENTION_MATCH_REGEX = /@([^\s:]+)(?::([^\s]+))?/g;
+export const MENTION_MATCH_REGEX = /@([^\s:,.!?;()[\]{}]+)(?::([^\s]+))?/g;
 
 export interface MentionMatch {
   id: string;

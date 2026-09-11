@@ -138,20 +138,6 @@ export function hasLeadingTldrHeading(content: string): boolean {
   return false;
 }
 
-export function validateLatestUpdateMd(content: string): {
-  valid: boolean;
-  reason?: "empty" | "missing_tldr";
-} {
-  const capped = capLatestUpdateMd(content);
-  if (!capped) {
-    return { valid: false, reason: "empty" };
-  }
-  if (!hasLeadingTldrHeading(capped)) {
-    return { valid: false, reason: "missing_tldr" };
-  }
-  return { valid: true };
-}
-
 export interface RefreshProjectLatestUpdateInput {
   projectId: string;
   projectName: string;

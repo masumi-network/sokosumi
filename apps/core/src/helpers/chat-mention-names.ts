@@ -8,21 +8,25 @@ type MentionNameClient = Pick<
   "chatRoomUserMember" | "chatRoomCoworkerMember" | "chatRoomSokoBotMember"
 >;
 
+const POSTGRES_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * The display names the room shows for the members a message mentions.
  *
- * A mention is written as `@<member id>:<slug>`, where the slug is the name
- * rewritten to lowercase ascii words. Read back on its own it is a second
- * spelling of a name (`@ada-lovelace` for `Ada Lovelace`) and, for a name the
- * rewrite keeps nothing of, no spelling at all. So the name is read from the
- * member rather than from the token.
+ * Human mentions use `@<member id>`. Existing human mentions and current
+ * agent mentions may include `:<slug>`. Resolve display names from room
+ * members by ID so previews reflect the current name. User and coworker
+ * ids are text, including 32-character auth ids. SokoBot ids are Postgres
+ * uuid, so only hyphenated uuid keys go into that read.
  *
  * Only the mentioned members are read, not the room's roster: a channel can
  * hold hundreds of people and a message names a handful of them.
  *
  * A key that names nobody in the room is simply absent from the map. That
  * covers the room-wide `@all`, a member who has since left, and a token
- * carrying an id from another room, and the caller keeps the slug for each.
+ * carrying an id from another room. The preview uses a readable legacy slug
+ * when available, otherwise its unnamed-mention fallback.
  *
  * The three reads run one after another rather than together, because this
  * also runs inside an interactive transaction, where Prisma allows one query
@@ -64,13 +68,16 @@ export async function loadChatMentionNames(params: {
     }
   }
 
-  const sokoBotMembers = await client.chatRoomSokoBotMember.findMany({
-    where: { roomId: params.roomId, sokoBotId: { in: keys } },
-    select: { sokoBot: { select: { id: true, name: true } } },
-  });
-  for (const member of sokoBotMembers) {
-    if (member.sokoBot.name) {
-      names.set(member.sokoBot.id, member.sokoBot.name);
+  const sokoBotIds = keys.filter((key) => POSTGRES_UUID.test(key));
+  if (sokoBotIds.length > 0) {
+    const sokoBotMembers = await client.chatRoomSokoBotMember.findMany({
+      where: { roomId: params.roomId, sokoBotId: { in: sokoBotIds } },
+      select: { sokoBot: { select: { id: true, name: true } } },
+    });
+    for (const member of sokoBotMembers) {
+      if (member.sokoBot.name) {
+        names.set(member.sokoBot.id, member.sokoBot.name);
+      }
     }
   }
 

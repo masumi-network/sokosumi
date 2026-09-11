@@ -495,18 +495,6 @@ export async function listDiscoverableChannelsAction(options?: {
   }
 }
 
-/** Pending room invitations for the signed-in invitee (External sidebar). */
-export async function listPendingChatRoomInvitationsAction(): Promise<
-  RoomActionResult<ChatRoomInvitation[]>
-> {
-  try {
-    const invitations = await chatRoomService.listPendingInvitations();
-    return roomOk(invitations);
-  } catch (error) {
-    return roomCatch(error, "Could not load invitations.");
-  }
-}
-
 export async function acceptChatRoomInvitationAction(
   invitationId: string,
 ): Promise<RoomActionResult<ChatRoomInvitation>> {
@@ -838,17 +826,6 @@ export async function listThreadsAction(
     return roomOk(page);
   } catch (error) {
     return roomCatch(error, "Could not load threads.");
-  }
-}
-
-export async function countUnreadThreadsAction(
-  roomId: string,
-): Promise<RoomActionResult<number>> {
-  try {
-    const count = await chatRoomService.countUnreadThreads(roomId);
-    return roomOk(count);
-  } catch (error) {
-    return roomCatch(error, "Could not load unread thread count.");
   }
 }
 

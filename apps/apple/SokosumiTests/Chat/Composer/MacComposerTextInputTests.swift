@@ -1,11 +1,141 @@
 #if os(macOS)
   import AppKit
   @testable import Sokosumi
+  import SokosumiChat
   import SwiftUI
   import Testing
 
   @MainActor
   struct MacComposerTextInputTests {
+    @Test func mentionShortcutStartsQueryAtSelection() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "peer", name: "Anna", slug: "anna", kind: .human)]
+      input.restoreDraft("Hello")
+      input.setSelectedRange(NSRange(location: 5, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.beginMention()
+      #expect(input.string == "Hello @\n")
+      #expect(input.selectedRange().location == 7)
+    }
+
+    @Test func mentionChipRestoresAndDeletesAsOneCharacter() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]
+      input.restoreDraft("@user-1:anna")
+      #expect(input.string == "\u{FFFC}\n")
+      let attachment = input.attributedString().attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment
+      #expect(attachment?.image != nil)
+      #expect((attachment?.bounds.width ?? 0) > 0)
+      #expect(attachment?.image?.accessibilityDescription == "@Anna")
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      input.setSelectedRange(NSRange(location: 0, length: 1))
+      #expect(input.writeSelection(to: pasteboard, type: .string))
+      #expect(pasteboard.string(forType: .string) == "@user-1:anna")
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      input.insertText("!", replacementRange: input.selectedRange())
+      #expect(input.captureDraft() == "@user-1:anna!\n")
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      input.deleteBackward(nil)
+      #expect(input.captureDraft() == "!\n")
+    }
+
+    @Test func replacingReferenceWithLinkLabelDoesNotRetainToken() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "peer", name: "Anna", slug: "anna", kind: .human)]
+      input.restoreDraft("@peer:anna\n")
+      input.insertLink(label: "Profile", destination: "https://example.com", range: NSRange(location: 0, length: 1))
+      #expect(input.captureDraft() == "[Profile](https://example.com/)\n")
+    }
+
+    @Test func mentionCompletionRequiresExplicitAcceptance() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]
+      input.string = "@an"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshSuggestions()
+      #expect(commands.mentionOptions.map(\.name) == ["Anna"])
+      #expect(!commands.handleSuggestionKey(124))
+      #expect(input.string == "@an")
+      #expect(commands.handleSuggestionKey(36))
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("@user-1"))
+      #expect(!input.captureDraft().contains("@user-1:"))
+    }
+
+    @Test func mentionAcceptMatchesIdentityAfterRosterRefresh() {
+      let input = MacComposerTextInput.InputView()
+      let stale = ComposerMention(id: "user-1", name: "Anna", slug: "anna", kind: .human, image: "old")
+      input.mentions = [stale]
+      input.string = "@an"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.mentions = [.init(id: "user-1", name: "Annabelle", slug: "annabelle", kind: .human, image: "new")]
+      input.acceptMention(stale)
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("@user-1"))
+      #expect(!input.captureDraft().contains("@user-1:"))
+      input.string = "@an"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.acceptMention(.init(id: "other", name: "Annabelle", slug: "annabelle", kind: .human))
+      #expect(input.string == "@an")
+    }
+
+    @Test func channelAcceptMatchesIdentityAfterRosterRefresh() {
+      let input = MacComposerTextInput.InputView()
+      let stale = ComposerChannel(id: "room", name: "Launch Room", slug: "launch-room")
+      input.channels = [stale]
+      input.string = "#la"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.channels = [.init(id: "room", name: "Launch", slug: "launch-room", organizationName: "Acme")]
+      input.acceptChannel(stale)
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("#Launch"))
+      input.string = "#la"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.acceptChannel(.init(id: "other", name: "Launch", slug: "launch-room"))
+      #expect(input.string == "#la")
+    }
+
+    @Test func mentionPanelGroupsNavigatesAndDismissesWithoutInsertion() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "agent", name: "Agent", slug: "agent", kind: .coworker),
+                        .init(id: "person", name: "Person", slug: "person", kind: .human)]
+      input.string = "@"
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshSuggestions()
+      #expect(commands.mentionOptions.map(\.id) == ["person", "agent"])
+      #expect(commands.handleSuggestionKey(125))
+      #expect(commands.selectedSuggestionID == "agent")
+      #expect(commands.handleSuggestionKey(53))
+      commands.refreshSuggestions()
+      #expect(commands.mentionOptions.isEmpty)
+      #expect(input.string == "@")
+    }
+
+    @Test func channelCompletionRequiresAcceptanceAndSerializesName() {
+      let input = MacComposerTextInput.InputView()
+      input.channels = [.init(id: "room", name: "Launch Room", slug: "launch-room")]
+      input.string = "#la"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshSuggestions()
+      #expect(commands.channelOptions.map(\.name) == ["Launch Room"])
+      #expect(!commands.handleSuggestionKey(124))
+      #expect(input.string == "#la")
+      #expect(commands.handleSuggestionKey(48))
+      #expect(input.string == "\u{FFFC} ")
+      #expect(input.captureDraft().contains("#Launch Room"))
+      input.restoreDraft("Hi #Launch Room!\n")
+      #expect(input.string == "Hi \u{FFFC}!\n")
+      #expect(input.captureDraft() == "Hi #Launch Room!\n")
+    }
+
     @Test func modifiedReturnExitsQuoteAndSupportsUndo() throws {
       let input = MacComposerTextInput.InputView()
       let delegate = UndoDelegate()
@@ -172,42 +302,42 @@
       input.typingAttributes = input.attributedString().attributes(at: 0, effectiveRange: nil)
       input.insertText(" ", replacementRange: input.selectedRange())
       #expect(input.string == ":D \n")
-      #expect(input.rangeForUserCompletion.location == NSNotFound)
+      #expect(input.emojiCompletionRange == nil)
     }
 
     @Test func acceptsCompletionWithoutReplacingSurroundingText() {
       let input = MacComposerTextInput.InputView()
       input.string = "😀 :sm tail"
       input.setSelectedRange(NSRange(location: 6, length: 0))
-      #expect(input.rangeForUserCompletion == NSRange(location: 3, length: 3))
-      var selectedIndex = 0
-      let completions = input.completions(forPartialWordRange: input.rangeForUserCompletion, indexOfSelectedItem: &selectedIndex)
-      #expect(completions?.contains("😄  :smile:") == true)
-      input.insertCompletion("😄  :smile:", forPartialWordRange: input.rangeForUserCompletion, movement: NSReturnTextMovement, isFinal: true)
+      #expect(input.emojiCompletionRange == NSRange(location: 3, length: 3))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshSuggestions()
+      #expect(commands.emojiOptions.contains(":smile:"))
+      commands.selectedSuggestionID = ":smile:"
+      #expect(commands.handleSuggestionKey(48))
       #expect(input.string == "😀 😄 tail")
       #expect(input.selectedRange().location == 5)
     }
 
-    @Test(arguments: [NSOtherTextMovement, NSRightTextMovement, NSLeftTextMovement, NSCancelTextMovement])
-    func finalizingCompletionWithoutAcceptancePreservesTyping(_ movement: Int) {
+    @Test func emojiSuggestionsRequireAcceptanceAndRespectDismissal() {
       let input = MacComposerTextInput.InputView()
+      let commands = MacComposerCommands()
+      commands.input = input
       input.string = ":sm"
       input.setSelectedRange(NSRange(location: 3, length: 0))
-      input.insertCompletion("🛩️  :small_airplane:", forPartialWordRange: input.rangeForUserCompletion, movement: movement, isFinal: true)
+      commands.refreshSuggestions()
+      #expect(!commands.emojiOptions.isEmpty)
+      #expect(commands.handleSuggestionKey(125))
+      #expect(input.string == ":sm")
+      #expect(commands.handleSuggestionKey(53))
+      commands.refreshSuggestions()
+      #expect(commands.emojiOptions.isEmpty)
       input.insertText("i", replacementRange: input.selectedRange())
+      commands.refreshSuggestions()
       #expect(input.string == ":smi")
-      #expect(input.selectedRange().location == 4)
-    }
-
-    @Test func completionPreviewAndCancelPreserveDraft() {
-      let input = MacComposerTextInput.InputView()
-      input.string = ":sm"
-      input.setSelectedRange(NSRange(location: 3, length: 0))
-      let range = input.rangeForUserCompletion
-      input.insertCompletion(":smile:", forPartialWordRange: range, movement: NSDownTextMovement, isFinal: false)
-      #expect(input.string == ":sm")
-      input.insertCompletion(":sm", forPartialWordRange: range, movement: NSCancelTextMovement, isFinal: true)
-      #expect(input.string == ":sm")
+      #expect(commands.emojiOptions.contains(":smile:"))
+      #expect(!commands.emojiOptions.contains(":small_airplane:"))
     }
 
     @Test func emojiConversionSupportsUndoAndRedo() {

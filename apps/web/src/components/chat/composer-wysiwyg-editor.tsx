@@ -254,14 +254,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     for (const [key, mention] of entries) {
       if (!mention.value) continue;
-      const slug = mention.slug
-        ? mention.slug
-        : slugifyMentionValue(mention.value);
-      if (!slug) continue;
+      const slug = mention.slug ?? slugifyMentionValue(mention.value);
       normalized.push({
         key,
         value: mention.value,
         slug,
+        searchText: mention.searchText,
         data: mention.data,
       });
     }
@@ -280,7 +278,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const slugToValue = useMemo(() => {
     const map = new Map<string, string>();
     for (const mention of normalizedMentions) {
-      map.set(mention.slug, mention.value);
+      if (mention.slug) map.set(mention.slug, mention.value);
     }
     return map;
   }, [normalizedMentions]);
@@ -288,7 +286,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const slugToKey = useMemo(() => {
     const map = new Map<string, string>();
     for (const mention of normalizedMentions) {
-      map.set(mention.slug, mention.key);
+      if (mention.slug) map.set(mention.slug, mention.key);
     }
     return map;
   }, [normalizedMentions]);

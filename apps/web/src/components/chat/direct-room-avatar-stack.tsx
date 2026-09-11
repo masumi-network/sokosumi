@@ -1,15 +1,5 @@
-"use client";
-
 import { MessageCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
 
-import { ChatParticipantHoverCard } from "@/app/chat/components/chat-participant-hover-card";
-import {
-  openDirectWithParticipant,
-  participantDirectKey,
-} from "@/app/chat/components/open-direct-with-participant";
 import {
   type ChatParticipantHoverProfile,
   getRoomParticipantPreviews,
@@ -26,12 +16,10 @@ import { getInitials } from "@/lib/utils/text";
 interface DirectRoomAvatarStackProps {
   room: ChatRoom;
   currentUserId: string;
-  canOpenHumanDirect: boolean;
-  selectedRoomId: string | null;
 }
 
-/** Other humans + all coworkers in a direct room (excludes current user). */
-function getDirectHoverProfiles(
+/** Humans, coworkers, and soko bots in a direct room, excluding the current user. */
+function getDirectParticipants(
   room: ChatRoom,
   currentUserId: string,
 ): ChatParticipantHoverProfile[] {
@@ -44,9 +32,8 @@ function getDirectHoverProfiles(
 }
 
 /**
- * Avatar stack for sidebar DM rows. Each face opens the shared participant
- * hover card (profile + Message). Trigger stays non-button because the row
- * link already owns keyboard/click navigation.
+ * Avatar stack for sidebar DM rows. Purely presentational: the row link owns
+ * navigation and the row is the direct itself, so no per-face hover card.
  *
  * A 1:1 row states availability as hidden text, because it is the only surface
  * that can: `shouldShowRoomRosterControl` gives a two-person direct no roster
@@ -57,32 +44,13 @@ function getDirectHoverProfiles(
  * A group row states nothing. Its label already lists these same people in this
  * same order, so a state per face would have to repeat the name to attach to
  * anything and the link would speak every name twice. There the mark stays a
- * pointer affordance and the room's roster panel reports per person.
+ * visual cue and the room's roster panel reports per person.
  */
 export function DirectRoomAvatarStack({
   room,
   currentUserId,
-  canOpenHumanDirect,
-  selectedRoomId,
 }: DirectRoomAvatarStackProps) {
-  const router = useRouter();
-  const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
-  const participants = getDirectHoverProfiles(room, currentUserId);
-
-  async function handleOpenDirect(profile: ChatParticipantHoverProfile) {
-    if (openingDirectKey) return;
-    setOpeningDirectKey(participantDirectKey(profile));
-    try {
-      await openDirectWithParticipant({
-        profile,
-        selectedRoomId,
-        router,
-        onError: toast.error,
-      });
-    } finally {
-      setOpeningDirectKey(null);
-    }
-  }
+  const participants = getDirectParticipants(room, currentUserId);
 
   if (participants.length === 0) {
     return (
@@ -97,54 +65,39 @@ export function DirectRoomAvatarStack({
       {participants.map((participant, index) => {
         // Soko bots are AI too, so they report always-online like coworkers
         // (ADR-0003). Miss the second arm and the row says "Offline" while the
-        // hover card on the same avatar says "Online".
+        // roster panel says "Online" for the same member.
         const isAi =
           participant.kind === "coworker" || participant.kind === "sokoBot";
 
         return (
-          <ChatParticipantHoverCard
+          <span
             key={`${participant.kind}-${participant.id}`}
-            profile={participant}
-            side="right"
-            align="start"
-            className={cn("relative block", index > 0 && "-ml-2")}
+            className={cn("relative inline-flex", index > 0 && "-ml-2")}
             style={{ zIndex: participants.length - index }}
-            currentUserId={currentUserId}
-            canOpenHumanDirect={canOpenHumanDirect}
-            onOpenDirect={handleOpenDirect}
-            isOpeningDirect={
-              openingDirectKey === participantDirectKey(participant)
-            }
-            isDirectActionBusy={openingDirectKey != null}
-            interactive={false}
+            data-testid={`dm-sidebar-avatar-${participant.id}`}
           >
-            <span
-              className="relative inline-flex"
-              data-testid={`dm-sidebar-avatar-${participant.id}`}
-            >
-              <Avatar className="border-sidebar size-5 border">
-                <AvatarImage alt="" src={participant.image ?? undefined} />
-                <AvatarFallback className="text-[0.5625rem] font-medium">
-                  {getInitials(participant.name)}
-                </AvatarFallback>
-              </Avatar>
-              <LiveMemberPresenceDot
-                className="-right-0.5 -bottom-0.5 absolute size-2 border"
+            <Avatar className="border-sidebar size-5 border">
+              <AvatarImage alt="" src={participant.image ?? undefined} />
+              <AvatarFallback className="text-[0.5625rem] font-medium">
+                {getInitials(participant.name)}
+              </AvatarFallback>
+            </Avatar>
+            <LiveMemberPresenceDot
+              className="-right-0.5 -bottom-0.5 absolute size-2 border"
+              fallback={participant.presence}
+              ground="sidebar"
+              isCoworker={isAi}
+              userId={participant.id}
+            />
+            {participants.length === 1 ? (
+              <LiveMemberPresenceText
+                className="sr-only"
                 fallback={participant.presence}
-                ground="sidebar"
                 isCoworker={isAi}
                 userId={participant.id}
               />
-              {participants.length === 1 ? (
-                <LiveMemberPresenceText
-                  className="sr-only"
-                  fallback={participant.presence}
-                  isCoworker={isAi}
-                  userId={participant.id}
-                />
-              ) : null}
-            </span>
-          </ChatParticipantHoverCard>
+            ) : null}
+          </span>
         );
       })}
     </span>

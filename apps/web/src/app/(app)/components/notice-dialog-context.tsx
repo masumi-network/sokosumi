@@ -71,7 +71,7 @@ export function NoticeDialogProvider({
   async function handleNoticeAcknowledged() {
     const result = await getPendingNoticesAction();
     if (result.ok) {
-      const pendingNotices = result.data;
+      const pendingNotices = result.value;
       setLegalNotices(
         pendingNotices.filter(
           (notice) => notice.kind === NoticeKind.LEGAL_TERMS,

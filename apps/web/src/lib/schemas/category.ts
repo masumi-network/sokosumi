@@ -33,5 +33,3 @@ export const categoryStylesSchema = z.object({
   light: categoryStyleThemeSchema.optional(),
   dark: categoryStyleThemeSchema.optional(),
 });
-
-export type CategoryStylesSchemaType = z.infer<typeof categoryStylesSchema>;

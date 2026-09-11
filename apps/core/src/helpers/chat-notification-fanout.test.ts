@@ -16,6 +16,7 @@ const {
   transactionMock,
   queryRawMock,
   loadChatMentionNamesMock,
+  loadDirectRoomNamesByReaderMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
@@ -31,6 +32,7 @@ const {
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
   loadChatMentionNamesMock: vi.fn(),
+  loadDirectRoomNamesByReaderMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -59,6 +61,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: notificationFindUniqueMock,
     },
   },
+}));
+
+vi.mock("@/helpers/chat-direct-room-names", () => ({
+  loadDirectRoomNamesByReader: (...args: unknown[]) =>
+    loadDirectRoomNamesByReaderMock(...args),
 }));
 
 vi.mock("@/helpers/chat-mention-names", () => ({
@@ -131,6 +138,7 @@ beforeEach(() => {
   notificationFindUniqueMock.mockResolvedValue({ id: "notification_1" });
   resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: false });
   loadChatMentionNamesMock.mockResolvedValue(new Map());
+  loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
 });
 
 /** A row the reader already has for this room, unread and shown in the app. */
@@ -152,6 +160,64 @@ function unreadRow(
 }
 
 describe("fanOutChatNotifications", () => {
+  it("names a direct room the way each reader's own screen names it", async () => {
+    loadDirectRoomNamesByReaderMock.mockResolvedValue(
+      new Map([
+        [ALICE_ID, "Bob, Patrick"],
+        [BOB_ID, "Alice, Patrick"],
+      ]),
+    );
+
+    await fanOutChatNotifications(
+      params({
+        nameRoomPerReader: true,
+        roomName: "Alice, Bob",
+        recipientUserIds: [ALICE_ID, BOB_ID],
+        messageKey: "Notifications.Chat.mentioned",
+      }),
+    );
+
+    expect(loadDirectRoomNamesByReaderMock).toHaveBeenCalledTimes(1);
+    expect(loadDirectRoomNamesByReaderMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      readerUserIds: [ALICE_ID, BOB_ID],
+    });
+    const roomNames = createNotificationMock.mock.calls.map(
+      ([input]) => [input.userId, input.messageParams.roomName] as const,
+    );
+    expect(roomNames).toEqual([
+      [ALICE_ID, "Bob, Patrick"],
+      [BOB_ID, "Alice, Patrick"],
+    ]);
+  });
+
+  it("keeps the stored name for a room nobody asked to name per reader", async () => {
+    await fanOutChatNotifications(params({ nameRoomPerReader: false }));
+
+    expect(loadDirectRoomNamesByReaderMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({ roomName: "general" }),
+      }),
+    );
+  });
+
+  /**
+   * A reader the roster no longer names still gets the notification. The
+   * stored name is wrong for them, and wrong reads better than absent.
+   */
+  it("falls back to the stored name when the reader has none", async () => {
+    loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
+
+    await fanOutChatNotifications(params({ nameRoomPerReader: true }));
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({ roomName: "general" }),
+      }),
+    );
+  });
+
   it("writes one notification per recipient under the given message key", async () => {
     await fanOutChatNotifications(
       params({ recipientUserIds: [ALICE_ID, BOB_ID] }),

@@ -5,6 +5,8 @@ import {
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
   type ChannelLinkTarget,
   type ChatRoomQuoteAttachment,
+  compareByDisplayNameThenId,
+  formatParticipantNameList,
   linkifyChannelLinksInMarkdown,
 } from "@sokosumi/utils";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
@@ -149,6 +151,7 @@ export function composerMentionDisplayNames({
 
 /** Shared mention-picker payload for humans, coworkers, PAs, and synthetic @all. */
 export interface RoomMentionParticipant {
+  email?: string;
   kind: "human" | "coworker" | "sokoBot" | "all";
   id: string;
   name: string;
@@ -399,49 +402,6 @@ export function scrollToRoomMessageElement(
   return true;
 }
 
-/** Keep in sync with --chat-jump-hold in globals.css. */
-const ROOM_MESSAGE_HIGHLIGHT_MS = 2500;
-
-/**
- * One mark at a time. Two jumps inside the hold would otherwise leave the first
- * row marked for good, and the second row's timer would clear it early.
- */
-let activeHighlight: { element: HTMLElement; timer: number } | null = null;
-
-function clearActiveHighlight() {
-  if (activeHighlight == null) {
-    return;
-  }
-  window.clearTimeout(activeHighlight.timer);
-  delete activeHighlight.element.dataset.searchLanded;
-  activeHighlight = null;
-}
-
-/**
- * Scroll into view and mark the row as landed for a moment when the node
- * exists. The mark is styled from `data-search-landed` in globals.css, so a
- * React re-render inside that moment cannot wipe it, as it would a class
- * added here.
- */
-export function highlightRoomMessageElement(messageId: string): boolean {
-  if (!scrollToRoomMessageElement(messageId, { behavior: "auto" })) {
-    return false;
-  }
-  const target = document.querySelector<HTMLElement>(
-    `[data-message-id="${CSS.escape(messageId)}"]`,
-  );
-  if (!target) {
-    return false;
-  }
-  clearActiveHighlight();
-  target.dataset.searchLanded = "true";
-  activeHighlight = {
-    element: target,
-    timer: window.setTimeout(clearActiveHighlight, ROOM_MESSAGE_HIGHLIGHT_MS),
-  };
-  return true;
-}
-
 export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
   if (message.sender.type === "user") {
     const user = message.sender.user;
@@ -568,17 +528,6 @@ export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
     room.userMembers[0] ??
     null
   );
-}
-
-function compareByDisplayNameThenId(
-  a: { name: string; id: string },
-  b: { name: string; id: string },
-): number {
-  const byName = a.name.localeCompare(b.name);
-  if (byName !== 0) {
-    return byName;
-  }
-  return a.id.localeCompare(b.id);
 }
 
 export function getDirectRoomParticipants(
@@ -718,12 +667,9 @@ export function formatDirectParticipantNames(
     return fallback;
   }
 
-  const names = participants.map((participant) => participant.name);
-  if (names.length <= 3) {
-    return names.join(", ");
-  }
-
-  return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+  return formatParticipantNameList(
+    participants.map((participant) => participant.name),
+  );
 }
 
 export function getRoomDisplayName(

@@ -2043,6 +2043,390 @@
             }
           }
         }
+      },
+      "post": {
+        "description": "Create a chat room. `kind: \"channel\"` requires an active organization and a user session. `kind: \"direct\"` creates or returns a direct room (1:1 or multi-human group). Human 1:1 is an Org Direct when both people are Members of the active organization; otherwise a Personal Direct when they share an External channel roster. Multi-human groups still require an active organization. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: \"direct\", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatRoomRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Direct chat room found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRoomSuccessResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Chat room created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRoomSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/chats/rooms/{id}/messages": {
@@ -5752,6 +6136,423 @@
           }
         }
       }
+    },
+    "/chats/rooms/{id}/files": {
+      "post": {
+        "description": "Mint a direct upload session for a room chat attachment.\nCaller must be an active (non-archived) room member, either a user session or a coworker API key.\nBytes go client to Vercel Blob (not through this API).\nPut the public Blob URL into message markdown. No ChatFile row.\n\nPaths:\n- User: `users/{userId}/chats/{roomId}/…`\n- Coworker: `coworkers/{coworkerId}/chats/{roomId}/…`\n\nFlow:\n1. POST this endpoint with `filename`, `contentType`, and `size`.\n2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.\n3. Insert the public URL into `POST …/messages` content.\n\nMax size: 104857600 bytes. MIME allowlist matches user uploads.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatRoomFileUploadSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Room chat file upload session created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatRoomFileUploadSession"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6980,6 +7781,277 @@
         "required": [
           "parentMessageId",
           "lastReadAt"
+        ]
+      },
+      "CreateChatRoomRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "channel"
+                ],
+                "description": "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only)."
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug (`team-soko` → `Team Soko`).",
+                "example": "Launch Room"
+              },
+              "slug": {
+                "type": "string",
+                "description": "Required Channel slug (max 80 after sanitize). Core sanitizes with kebab rules and rejects missing, empty-after-sanitize, or over-long values. Unique among Channels in the organization.",
+                "example": "launch-room"
+              },
+              "topic": {
+                "type": "string",
+                "maxLength": 200,
+                "example": "Launch planning with design and AI research partners"
+              },
+              "discoverability": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private",
+                  "external"
+                ],
+                "default": "public",
+                "description": "Channel discoverability. Defaults to `\"public\"` (org-discoverable / joinable by any member). `\"private\"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join. `\"external\"` is org-discoverable for host members; guests join only via room invitation (owner/admin create only).",
+                "example": "public"
+              },
+              "memberUserIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxItems": 500,
+                "description": "Organization member user IDs to add to the room.",
+                "example": [
+                  "user_123",
+                  "user_456"
+                ]
+              },
+              "coworkerIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxItems": 50,
+                "description": "Marketplace AI coworker IDs to add to the room.",
+                "example": [
+                  "cow_123"
+                ]
+              },
+              "sokoBotIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "maxItems": 50,
+                "description": "Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.",
+                "example": [
+                  "01960001-0001-7001-8001-000000000099"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "direct"
+                ],
+                "description": "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs."
+              },
+              "memberUserIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxItems": 500,
+                "description": "Organization member user IDs to add to the room.",
+                "example": [
+                  "user_123",
+                  "user_456"
+                ]
+              },
+              "coworkerIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxItems": 50,
+                "description": "Marketplace AI coworker IDs to add to the room.",
+                "example": [
+                  "cow_123"
+                ]
+              },
+              "sokoBotIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "maxItems": 50,
+                "description": "Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.",
+                "example": [
+                  "01960001-0001-7001-8001-000000000099"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ChatRoomSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChatRoom"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "requestId": {
+                "type": "string",
+                "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/PaginationMetadata"
+              }
+            },
+            "required": [
+              "timestamp",
+              "requestId"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "CreateChatRoomFileUploadSessionRequest": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "example": "report.pdf",
+            "description": "Original file name supplied by the client"
+          },
+          "contentType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "example": "application/pdf",
+            "description": "Declared MIME type. May be inferred from the filename when generic."
+          },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "example": 2048000,
+            "description": "File size in bytes"
+          }
+        },
+        "required": [
+          "filename",
+          "contentType",
+          "size"
+        ]
+      },
+      "ChatRoomFileUploadSession": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://store.public.blob.vercel-storage.com/users/user_123/report.pdf?vercel-blob-delegation=…",
+            "description": "Presigned Blob PUT URL (time-scoped, path-scoped)"
+          },
+          "pathname": {
+            "type": "string",
+            "example": "users/user_123/report.pdf",
+            "description": "Server-generated upload pathname (before random suffix)"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "public"
+            ],
+            "example": "public",
+            "description": "Blob access level for the upload"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "PUT"
+            ],
+            "example": "PUT",
+            "description": "HTTP method for the client upload request"
+          },
+          "headers": {
+            "type": "object",
+            "properties": {
+              "Content-Type": {
+                "type": "string",
+                "example": "application/pdf"
+              }
+            },
+            "required": [
+              "Content-Type"
+            ],
+            "description": "Headers the client must send on the PUT"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-30T12:15:00.000Z",
+            "description": "When the presigned upload URL expires (ISO-8601)"
+          },
+          "maxSizeBytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "example": 104857600,
+            "description": "Maximum supported file size for this upload policy"
+          },
+          "addRandomSuffix": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether Blob appends a random suffix to the final pathname"
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "pathname",
+          "access",
+          "method",
+          "headers",
+          "expiresAt",
+          "maxSizeBytes",
+          "addRandomSuffix"
         ]
       }
     }
