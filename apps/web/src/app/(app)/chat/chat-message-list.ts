@@ -1,5 +1,5 @@
 /**
- * Which message list a node belongs to, and how to reach into one of them.
+ * Which message list a node belongs to.
  *
  * Its own module rather than an addition to `components/room-helpers.ts`, which
  * is already past the repo's file ceiling, and because the room's loading shell
@@ -21,25 +21,3 @@
 export const CHAT_MESSAGE_LIST_ATTRIBUTE = "data-chat-message-list";
 export const CHAT_MESSAGE_LIST_ROOM = "room";
 export const CHAT_MESSAGE_LIST_THREAD = "thread";
-
-/**
- * Scroll the room transcript to a message, leaving it unmarked. False when the
- * message is not in the loaded page.
- *
- * Scoped to the transcript rather than the document, because a thread reply's
- * parent is rendered inside the open thread panel as well, and an unscoped
- * lookup finds whichever copy comes first in the document.
- */
-export function scrollRoomTranscriptToMessage(messageId: string): boolean {
-  if (typeof document === "undefined") {
-    return false;
-  }
-  const target = document.querySelector<HTMLElement>(
-    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(messageId)}"]`,
-  );
-  if (!target) {
-    return false;
-  }
-  target.scrollIntoView({ behavior: "auto", block: "center" });
-  return true;
-}

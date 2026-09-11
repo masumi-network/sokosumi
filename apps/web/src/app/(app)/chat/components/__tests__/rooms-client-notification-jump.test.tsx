@@ -21,7 +21,10 @@ const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
   mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
 }));
 
-const { mockReplace, mockSearch } = vi.hoisted(() => ({
+const { mockReplace, mockSearch, mockThreadPanelRows } = vi.hoisted(() => ({
+  // Off by default: rendering reply rows puts a second copy of those ids in
+  // the document, which changes what every highlight in this file can find.
+  mockThreadPanelRows: { current: false },
   mockReplace: vi.fn(),
   mockSearch: { current: "" },
 }));
@@ -232,7 +235,17 @@ vi.mock("../thread-panel", () => ({
       data-testid="thread-panel"
       data-parent-id={parentMessage?.id ?? ""}
       data-reply-ids={replies.map((reply) => reply.id).join(",")}
-    />
+    >
+      {mockThreadPanelRows.current ? (
+        <div data-chat-message-list="thread">
+          {[parentMessage, ...replies]
+            .filter((message) => message != null)
+            .map((message) => (
+              <div key={message.id} data-message-id={message.id} />
+            ))}
+        </div>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -387,6 +400,7 @@ function settledMessages(messages: ChatRoomMessage[] = []) {
 describe("RoomsClient notification deep link", () => {
   beforeEach(() => {
     mockSearch.current = "";
+    mockThreadPanelRows.current = false;
     mockReplace.mockReset();
     mockSearchHit.current = null;
     mockSuppressStickToBottom.mockReset();
@@ -610,6 +624,141 @@ describe("RoomsClient notification deep link", () => {
     // Scrolling the room to a reply cannot work: it is not on that timeline.
     expect(listRoomMessagesAction).not.toHaveBeenCalledWith("room-channel", {
       around: "msg-reply",
+    });
+  });
+
+  /**
+   * The thread hangs off a message in the transcript, and a reader who lands
+   * in the panel alone sees a reply with no sight of what it answers. So the
+   * room behind the panel is put on the parent and marked there, alongside the
+   * reply's own mark in the panel.
+   */
+  it("marks the transcript parent behind the thread a notification opened", async () => {
+    mockSearch.current = "message=msg-reply";
+    const parent = sampleMessage("parent body", "msg-parent");
+    const reply: ChatRoomMessage = {
+      ...sampleMessage("reply body", "msg-reply"),
+      parentMessageId: "msg-parent",
+    };
+
+    vi.mocked(getRoomMessageAction).mockResolvedValue({
+      ok: true as const,
+      value: reply,
+    });
+    vi.mocked(markThreadReadAction).mockResolvedValue({
+      ok: true as const,
+      value: {
+        parentMessageId: "msg-parent",
+        lastReadAt: new Date("2026-07-01T12:02:00.000Z"),
+      },
+    });
+    vi.mocked(listThreadMessagesAction).mockResolvedValue({
+      ok: true as const,
+      value: { messages: [reply], nextCursor: null },
+    });
+
+    // The parent is in the loaded page, so the thread never has to be fetched
+    // for it and the transcript has a row to land on.
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={settledMessages([parent])}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+        "data-parent-id",
+        "msg-parent",
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        document.querySelector(
+          '[data-chat-message-list="room"] [data-message-id="msg-parent"]',
+        ),
+      ).toHaveAttribute("data-search-landed", "true");
+    });
+    expect(getRoomThreadAction).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A reader clearing a list of notifications clicks a second reply in a
+   * thread the first click already opened. That reply is on screen in the
+   * panel, and the jump used to stop right there, leaving the transcript on
+   * the newest message with nothing marked. Only the transcript can answer
+   * "already landed" for this jump.
+   */
+  it("puts the room on the parent again for a reply the open thread shows", async () => {
+    mockThreadPanelRows.current = true;
+    mockSearch.current = "message=msg-reply";
+    const parent = sampleMessage("parent body", "msg-parent");
+    const reply: ChatRoomMessage = {
+      ...sampleMessage("reply body", "msg-reply"),
+      parentMessageId: "msg-parent",
+    };
+    const secondReply: ChatRoomMessage = {
+      ...sampleMessage("second reply body", "msg-reply-2"),
+      parentMessageId: "msg-parent",
+    };
+
+    vi.mocked(getRoomMessageAction).mockImplementation(async (_room, id) => ({
+      ok: true as const,
+      value: id === "msg-reply-2" ? secondReply : reply,
+    }));
+    vi.mocked(markThreadReadAction).mockResolvedValue({
+      ok: true as const,
+      value: {
+        parentMessageId: "msg-parent",
+        lastReadAt: new Date("2026-07-01T12:02:00.000Z"),
+      },
+    });
+    vi.mocked(listThreadMessagesAction).mockResolvedValue({
+      ok: true as const,
+      value: { messages: [reply, secondReply], nextCursor: null },
+    });
+
+    const view = render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={settledMessages([parent])}
+      />,
+    );
+
+    const transcriptParent = () =>
+      document.querySelector<HTMLElement>(
+        '[data-chat-message-list="room"] [data-message-id="msg-parent"]',
+      );
+    await waitFor(() => {
+      expect(transcriptParent()).toHaveAttribute("data-search-landed", "true");
+    });
+
+    // Drop the first jump's mark, the way the hold does after 2.5s, so the
+    // assertion below can only pass on a mark the second jump made.
+    const marked = transcriptParent();
+    if (marked) {
+      delete marked.dataset.searchLanded;
+    }
+
+    mockSearch.current = "message=msg-reply-2";
+    view.rerender(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={settledMessages([parent])}
+      />,
+    );
+
+    // The second reply is rendered in the panel already. It must not be taken
+    // for a landing: the room behind the panel still has to move.
+    await waitFor(() => {
+      expect(getRoomMessageAction).toHaveBeenCalledWith(
+        "room-channel",
+        "msg-reply-2",
+      );
+    });
+    await waitFor(() => {
+      expect(transcriptParent()).toHaveAttribute("data-search-landed", "true");
     });
   });
   it("drops a thread whose parent arrives after the reader changed rooms", async () => {
