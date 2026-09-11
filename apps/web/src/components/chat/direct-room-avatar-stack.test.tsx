@@ -13,6 +13,14 @@ vi.mock("next-intl", () => ({
   },
 }));
 
+// Radix mounts hover-card content only once open, so an unmocked wrapper
+// would leave no trace in a static render. Mock it to always leave one.
+vi.mock("@/app/chat/components/chat-participant-hover-card", () => ({
+  ChatParticipantHoverCard: () => (
+    <div data-testid="chat-participant-hover-card" />
+  ),
+}));
+
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 
 function makeUser(id: string, name?: string) {
@@ -107,7 +115,9 @@ describe("DirectRoomAvatarStack", () => {
     );
 
     // The row link is the direct itself, so a face must not carry its own
-    // activation or open a card over the room it already points at.
+    // activation or open a card over the room it already points at. The
+    // mocked wrapper always renders its test id, so absence means the stack
+    // no longer imports it at all.
     const avatar = screen.getByTestId("dm-sidebar-avatar-patrick");
     expect(avatar).not.toHaveAttribute("role");
     expect(avatar).not.toHaveAttribute("tabindex");

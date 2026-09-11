@@ -18,7 +18,7 @@ interface DirectRoomAvatarStackProps {
   currentUserId: string;
 }
 
-/** Other humans + all coworkers in a direct room (excludes current user). */
+/** Humans, coworkers, and soko bots in a direct room, excluding the current user. */
 function getDirectParticipants(
   room: ChatRoom,
   currentUserId: string,
