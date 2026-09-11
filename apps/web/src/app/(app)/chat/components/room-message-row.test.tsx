@@ -39,6 +39,9 @@ vi.mock("next-intl", () => ({
       if (key === "jump" && values) {
         return `Jump to message from ${values.author}`;
       }
+      if (key === "MentionAll.label") {
+        return "Everyone";
+      }
       if (key === "showMore") {
         return namespace === "App.Channels.Message" ? "Show more" : "More";
       }
@@ -1082,8 +1085,8 @@ describe("ChatMessageRow", () => {
     // Markdown mock renders children as text, so the mention HTML string is visible.
     const formatted = quoteButton.textContent ?? "";
     expect(formatted).toContain("text-primary");
-    expect(formatted).toContain(">@all</span>");
-    expect(formatted).not.toContain("@all:all");
+    expect(formatted).toContain(">@Everyone</span>");
+    expect(formatted).not.toContain("@all");
   });
 
   it("preserves newlines in multi-line quote snippets", () => {

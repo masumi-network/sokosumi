@@ -11,7 +11,7 @@ struct MessageMentionsTests {
                                            userMembers: [user], coworkerMembers: [], sokoBotMembers: [])
     let document = MessageMarkdown("😀 @peer:old @anna-smith @all:all @missing:ghost `@peer:old`", mentions: MessageMentions(room: room))
     let text = try #require(document.blocks.first?.text)
-    #expect(String(text.characters) == "😀 @Anna Smith @Anna Smith @all @missing:ghost @peer:old")
+    #expect(String(text.characters) == "😀 @Anna Smith @Anna Smith @Everyone @missing:ghost @peer:old")
     let links = text.runs.compactMap(\.link)
     #expect(links.count == 2)
     let target = try #require(links.first)

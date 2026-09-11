@@ -1665,7 +1665,6 @@
           "confirmArchive": "Archive this task?",
           "confirmArchiveDescription": "This hides the task from your list, including any scheduled runs linked to it. In-progress runs must finish or be canceled first. It is not permanently removed from the database.",
           "archiveError": "Failed to archive task",
-          "markAsReady": "Mark as Ready",
           "reopenToReady": "Reopen to Ready",
           "reopenToReadyTitle": "Reopen task",
           "reopenToReadyDescription": "Add a comment so your coworker knows what to do next. The task will move back to Ready.",
@@ -1673,7 +1672,6 @@
           "reopenToReadyCommentPlaceholder": "Describe what still needs to be done…",
           "reopenToReadyCommentRequired": "A comment is required to reopen this task",
           "reopenToReadyConfirm": "Reopen to Ready",
-          "revertToDraft": "Revert to Draft",
           "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
@@ -1829,8 +1827,6 @@
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
-        "saveDraft": "Save",
-        "saveAsDraft": "Save as Draft",
         "createTask": "Create Task",
         "scheduleTask": "Schedule Task",
         "openSchedule": "Set schedule",
@@ -6307,7 +6303,8 @@
         "roomMessageGroup": "{authorName} wrote in group {roomName}",
         "roomMessagesGroup": "{count} messages in group {roomName}",
         "roomMessageTitle": "{authorName} in channel {roomName}",
-        "roomMessageGroupTitle": "{authorName} in group {roomName}"
+        "roomMessageGroupTitle": "{authorName} in group {roomName}",
+        "mentionAll": "Everyone"
       }
     }
   },
