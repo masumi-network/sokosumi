@@ -333,7 +333,7 @@ function OfferMock({
             {SHEET_CELLS.map((cell) => (
               <div
                 key={cell}
-                className="border-border/60 h-3.5 border-r border-b last:border-r-0"
+                className="border-border h-3.5 border-r border-b last:border-r-0"
               />
             ))}
           </div>
@@ -415,7 +415,7 @@ export function OfferCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group bg-card border-border/60 flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]",
+        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]",
         FOCUS_RING,
       )}
     >
@@ -648,7 +648,7 @@ function OfferDetailBody({
                   {offer.category}
                 </span>
               ) : null}
-              <span className="border-border/60 text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium">
+              <span className="border-border text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium">
                 <OutputTypeIcon type={active.type} className="size-3" />
                 {active.label ?? typeLabel(active.type)}
               </span>
@@ -662,7 +662,7 @@ function OfferDetailBody({
           </div>
 
           {offer.deliverable ? (
-            <div className="border-border/60 rounded-xl border p-4">
+            <div className="border-border rounded-xl border p-4">
               <p className="text-muted-foreground mb-1 text-xs font-medium">
                 {labels.deliverable ?? "Deliverable"}
               </p>

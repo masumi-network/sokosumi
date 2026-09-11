@@ -437,7 +437,7 @@ function JobDetailsContent({
     <div
       className={cn(
         "rounded-lg pr-3 pl-3",
-        isCardEvent && "bg-muted/20 border-border/50 border",
+        isCardEvent && "bg-muted/20 border-border border",
         isCardEvent &&
           shouldHighlightBorder &&
           getAgentStatusBorderColorClass(event.status),

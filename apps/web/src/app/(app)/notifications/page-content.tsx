@@ -182,7 +182,7 @@ export function NotificationsPageContent({
       {isLoading && notifications.length === 0 ? (
         <NotificationsListSkeleton />
       ) : hasFetchError && notifications.length === 0 ? (
-        <div className="bg-muted/30 border-border/50 flex flex-col items-center justify-center gap-3 rounded-xl border p-8">
+        <div className="bg-muted/30 border-border flex flex-col items-center justify-center gap-3 rounded-xl border p-8">
           <p className="text-muted-foreground text-center">
             {tCenter("fetchError")}
           </p>
@@ -196,15 +196,15 @@ export function NotificationsPageContent({
           </Button>
         </div>
       ) : notifications.length === 0 && notice === null ? (
-        <div className="bg-muted/30 border-border/50 flex flex-col items-center justify-center rounded-xl border p-8">
+        <div className="bg-muted/30 border-border flex flex-col items-center justify-center rounded-xl border p-8">
           <p className="text-muted-foreground text-center">
             {tCenter("emptyState")}
           </p>
         </div>
       ) : notifications.length > 0 ? (
         <>
-          <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
-            <div className="divide-border/50 divide-y">
+          <div className="bg-muted/30 border-border overflow-hidden rounded-xl border">
+            <div className="divide-border divide-y">
               {notifications.map((notification) => (
                 <NotificationRow
                   key={notification.id}

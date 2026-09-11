@@ -76,7 +76,7 @@ describe("ProjectsLoadingView", () => {
       expect(row?.className).toContain("gap-4");
       expect(row?.className).toContain("rounded-none");
       expect(row?.className).not.toContain("-mx-2");
-      expect(row?.className).not.toContain("border-border/50");
+      expect(row?.className).not.toContain("border-border");
       expect(row?.className).not.toContain("bg-background/60");
       expect(row?.className.split(/\s+/)).not.toContain("border");
       // Avatar + name + briefing + two count pills; no overflow actions column.

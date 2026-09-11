@@ -2265,7 +2265,7 @@ export function ChatMessageRow({
                 seed={sender.avatarSeed}
                 size={64}
                 alt=""
-                className="ring-border/40 size-8 ring-1"
+                className="ring-border size-8 ring-1"
               />
             ) : (
               <Avatar className="size-8">

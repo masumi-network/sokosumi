@@ -294,7 +294,7 @@ export function TaskMetadata({
         </div>
       ) : null}
 
-      <div className="border-border/50 my-3 border-t" />
+      <div className="border-border my-3 border-t" />
 
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.created}</span>

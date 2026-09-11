@@ -245,7 +245,7 @@ function DocumentViewerContent({
 
   return (
     <>
-      <div className="border-border/60 flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:gap-3 sm:py-4 sm:pr-6 sm:pl-6">
+      <div className="border-border flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:gap-3 sm:py-4 sm:pr-6 sm:pl-6">
         <div className="flex min-w-0 items-center gap-2">
           <FileText
             className="text-muted-foreground size-4 shrink-0"

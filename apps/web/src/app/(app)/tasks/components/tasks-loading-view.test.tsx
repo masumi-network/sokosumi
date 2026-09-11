@@ -41,9 +41,7 @@ describe("TasksLoadingView", () => {
       />,
     );
 
-    const listShell = container.querySelector(
-      ".bg-muted\\/30.border-border\\/50",
-    );
+    const listShell = container.querySelector(".bg-muted\\/30.border-border");
     expect(listShell).toBeTruthy();
     expect(listShell?.className).toContain("-mx-6");
     expect(listShell?.className).toContain("rounded-none");
