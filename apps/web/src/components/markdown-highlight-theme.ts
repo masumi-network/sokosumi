@@ -1,47 +1,30 @@
-import {
-  createThemeCss,
-  type HighlightTheme,
-  themeTokenClasses,
-} from "@tanstack/highlight/theme";
-
-const sokosumiHighlightTheme = {
-  name: "sokosumi",
-  type: "light",
-  background: "transparent",
-  foreground: "var(--foreground)",
-  tokens: {
-    token: "var(--foreground)",
-    attr: "var(--tertiary-foreground)",
-    "code-inline": "var(--foreground)",
-    command: "var(--primary-iris)",
-    comment: "var(--muted-foreground)",
-    deleted: "var(--semantic-destructive)",
-    function: "var(--primary-iris)",
-    heading: "var(--primary-variant)",
-    inserted: "var(--primary)",
-    keyword: "var(--primary)",
-    link: "var(--primary)",
-    literal: "var(--tertiary-foreground)",
-    meta: "var(--muted-foreground)",
-    number: "var(--tertiary-foreground)",
-    operator: "var(--primary-iris)",
-    property: "var(--foreground)",
-    selector: "var(--primary-variant)",
-    string: "var(--primary-variant)",
-    tag: "var(--primary-variant)",
-    type: "var(--primary-iris)",
-    variable: "var(--foreground)",
-  },
-} satisfies HighlightTheme;
+import { createThemeCss, themeTokenClasses } from "@tanstack/highlight/theme";
+import { githubDarkTheme } from "@tanstack/highlight/themes/github-dark";
+import { githubLightTheme } from "@tanstack/highlight/themes/github-light";
 
 const tokenColorRules = themeTokenClasses
-  .map((token) => `.th-${token} { color: var(--th-${token}); }`)
+  .map((token) => `pre.th-code .th-${token} { color: var(--th-${token}); }`)
   .join("\n");
 
+/**
+ * GitHub token colors via createThemeCss. Surface fill stays on the Markdown
+ * `prose-pre:bg-muted/40` chrome — `--th-background` is transparent so the
+ * shipped #fff / #0d1117 fills do not paint a foreign island.
+ */
 export const markdownHighlightThemeCss = `${createThemeCss({
-  light: sokosumiHighlightTheme,
+  light: githubLightTheme,
+  dark: githubDarkTheme,
+  lightSelector: "pre.th-code",
+  darkSelector: ".dark pre.th-code",
   includeBaseStyles: false,
 })}
 
+pre.th-code,
+.dark pre.th-code {
+  --th-background: transparent;
+  color: var(--th-token);
+}
+
 ${tokenColorRules}
-.th-comment { font-style: italic; }`;
+pre.th-code .th-comment { font-style: italic; }
+`;
