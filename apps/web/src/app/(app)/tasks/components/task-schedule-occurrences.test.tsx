@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +14,7 @@ import type { TaskScheduleOccurrence } from "@/lib/clients/generated/core/types.
 
 const refreshMock = vi.fn();
 const loadMoreMock = vi.fn();
+const rescheduleTaskOccurrenceMock = vi.fn();
 const toastErrorMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -21,6 +28,11 @@ vi.mock("sonner", () => ({
 vi.mock("@/app/tasks/actions", () => ({
   loadMoreTaskScheduleOccurrences: (...args: unknown[]) =>
     loadMoreMock(...args),
+}));
+
+vi.mock("@/lib/actions/task/action", () => ({
+  rescheduleTaskOccurrence: (...args: unknown[]) =>
+    rescheduleTaskOccurrenceMock(...args),
 }));
 
 import { TaskScheduleOccurrences } from "@/app/tasks/components/task-schedule-occurrences";
@@ -66,6 +78,10 @@ function renderOccurrences(
 describe("TaskScheduleOccurrences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    rescheduleTaskOccurrenceMock.mockResolvedValue({
+      ok: true,
+      value: { taskId: "task_1", scheduleRevision: 5 },
+    });
   });
 
   it("offers Upcoming and History as accessible tabs, with Upcoming open first", () => {
@@ -478,5 +494,96 @@ describe("TaskScheduleOccurrences", () => {
     expect(consoleError).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
     consoleError.mockRestore();
+  });
+
+  it("moves a planned run through the dialog with its zone's wall time", async () => {
+    const user = userEvent.setup();
+    renderOccurrences({
+      upcoming: {
+        occurrences: [occurrence({ id: "occ_1" })],
+        nextCursor: null,
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Move" }));
+    const dialog = await screen.findByRole("dialog");
+    const input = within(dialog).getByLabelText("New time");
+    expect(input).toHaveValue("2026-09-10T09:00");
+
+    fireEvent.change(input, { target: { value: "2026-09-11T10:30" } });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Move occurrence" }),
+    );
+
+    await waitFor(() =>
+      expect(rescheduleTaskOccurrenceMock).toHaveBeenCalledWith({
+        taskId: "task_1",
+        occurrenceId: "occ_1",
+        operationId: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        ),
+        scheduledAt: "2026-09-11T08:30:00.000Z",
+      }),
+    );
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps the dialog open with the mapped copy when the move is refused", async () => {
+    const user = userEvent.setup();
+    rescheduleTaskOccurrenceMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "schedule_occurrence_not_reschedulable" },
+    });
+    renderOccurrences({
+      upcoming: {
+        occurrences: [occurrence({ id: "occ_1" })],
+        nextCursor: null,
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Move" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Move occurrence" }),
+    );
+
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent(
+        "This occurrence can no longer be moved.",
+      ),
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("offers Move only on future planned rows", async () => {
+    const user = userEvent.setup();
+    renderOccurrences({
+      upcoming: {
+        occurrences: [occurrence({ id: "occ_missed", isMissed: true })],
+        nextCursor: null,
+      },
+      history: {
+        occurrences: [
+          occurrence({
+            id: "occ_released",
+            state: "RELEASED",
+            releasedTask: {
+              id: "task_run",
+              name: "Morning digest",
+              status: "COMPLETED",
+              archivedAt: null,
+            },
+          }),
+        ],
+        nextCursor: null,
+      },
+    });
+
+    expect(screen.queryByRole("button", { name: "Move" })).toBeNull();
+
+    await user.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.queryByRole("button", { name: "Move" })).toBeNull();
   });
 });

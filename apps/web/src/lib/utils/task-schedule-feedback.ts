@@ -12,6 +12,9 @@ export const TASK_MUTATION_ERROR_KINDS = [
   CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED,
   CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE,
   CORE_API_ERROR_KINDS.IDEMPOTENCY_CONFLICT,
+  CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE,
+  CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID,
+  CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE,
 ] as const;
 
 export type TaskMutationErrorKind = (typeof TASK_MUTATION_ERROR_KINDS)[number];
@@ -20,7 +23,9 @@ export type TaskScheduleSeriesFeedbackKey =
   | "revisionConflict"
   | "quarantined"
   | "operationConflict"
-  | "activeSeries";
+  | "activeSeries"
+  | "occurrenceLocked"
+  | "occurrenceTargetInvalid";
 
 /**
  * Message keys under `App.Tasks.Schedule.series`, one per stable Core kind a
@@ -40,6 +45,11 @@ const SERIES_FEEDBACK_KEY: Record<
   schedule_quarantined: "quarantined",
   idempotency_conflict: "operationConflict",
   schedule_active: "activeSeries",
+  schedule_occurrence_not_reschedulable: "occurrenceLocked",
+  schedule_occurrence_target_invalid: "occurrenceTargetInvalid",
+  // A cursor minted at an older revision describes a series that has moved on,
+  // exactly like a revision conflict: the recovery is to reload and retry.
+  schedule_cursor_stale: "revisionConflict",
 };
 
 export function taskScheduleSeriesFeedbackKey(

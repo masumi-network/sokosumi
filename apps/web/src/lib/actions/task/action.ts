@@ -111,6 +111,14 @@ interface ClearTaskScheduleParameters
   taskId: string;
 }
 
+interface RescheduleTaskOccurrenceParameters extends AuthenticatedRequest {
+  taskId: string;
+  occurrenceId: string;
+  /** Absolute UTC instant the occurrence moves to, as an ISO string. */
+  scheduledAt: string;
+  operationId: string;
+}
+
 export interface TaskMutationError {
   kind: TaskMutationErrorKind;
 }
@@ -132,6 +140,10 @@ export type SaveTaskScheduleResult = TaskMutationActionResult<{
 }>;
 export type ClearTaskScheduleResult = TaskMutationActionResult<{
   taskId: string;
+}>;
+export type RescheduleTaskOccurrenceResult = TaskMutationActionResult<{
+  taskId: string;
+  scheduleRevision: number;
 }>;
 export type CreateTaskAndLinkResult = TaskMutationActionResult<{
   taskId: string;
@@ -835,6 +847,55 @@ export const clearTaskSchedule = withSession<
       error,
       "Failed to clear task schedule",
       "Failed to clear task schedule",
+    );
+  }
+});
+
+export const rescheduleTaskOccurrence = withSession<
+  RescheduleTaskOccurrenceParameters,
+  RescheduleTaskOccurrenceResult
+>(async ({ taskId, occurrenceId, scheduledAt, operationId }) => {
+  const normalizedTaskId = taskId.trim();
+  const normalizedOccurrenceId = occurrenceId.trim();
+  if (!normalizedTaskId) {
+    throw new Error("Task required");
+  }
+  if (!normalizedOccurrenceId) {
+    throw new Error("Occurrence required");
+  }
+  requireOperationId(operationId);
+
+  try {
+    const task = await taskService.getTaskById(normalizedTaskId);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    const result = await taskScheduleService.rescheduleOccurrence(
+      normalizedTaskId,
+      normalizedOccurrenceId,
+      {
+        operationId,
+        expectedScheduleRevision: requireScheduleRevision(
+          task.scheduleRevision,
+        ),
+      },
+      new Date(scheduledAt),
+    );
+    revalidateCalendarTaskMutationRoutes(task);
+    return taskMutationSuccess({
+      taskId: normalizedTaskId,
+      scheduleRevision: result.scheduleRevision,
+    });
+  } catch (error) {
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to move task occurrence",
+      "Failed to move task occurrence",
     );
   }
 });

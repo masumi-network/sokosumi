@@ -1797,7 +1797,8 @@
           "stateCanceled": "Cancelada",
           "stateReleased": "Lanzada",
           "stateMissed": "Perdida",
-          "archivedRun": "Archivada"
+          "archivedRun": "Archivada",
+          "move": "Mover"
         },
         "files": "Archivos",
         "assignee": "Responsable"
@@ -1914,7 +1915,18 @@
           "quarantined": "Esta programación está en pausa para reparación y no se puede cambiar. Contacta con soporte para restaurarla.",
           "operationConflict": "Este guardado ya se envió con otros datos. Vuelve a abrir la programación e inténtalo de nuevo.",
           "activeSeries": "Esta tarea se ejecuta según una programación. Cambia o elimina primero su programación.",
-          "unknownCount": "No pudimos comprobar qué próximas ejecuciones cancelaría una nueva regla. Recarga la página, vuelve a abrir la programación e inténtalo de nuevo."
+          "unknownCount": "No pudimos comprobar qué próximas ejecuciones cancelaría una nueva regla. Recarga la página, vuelve a abrir la programación e inténtalo de nuevo.",
+          "occurrenceLocked": "Esta repetición ya no se puede mover.",
+          "occurrenceTargetInvalid": "Esa hora no es un destino válido."
+        },
+        "occurrenceMove": {
+          "title": "Mover repetición",
+          "description": "Elige una nueva hora para esta ejecución.",
+          "label": "Nueva hora",
+          "confirm": "Mover repetición",
+          "cancel": "Cancelar",
+          "invalid": "Elige una fecha y una hora válidas.",
+          "error": "No se pudo mover esta repetición. Inténtalo de nuevo."
         },
         "option": {
           "oneTime": "One-time",
@@ -6093,6 +6105,7 @@
       "event": {
         "accessibleName": "{task}, {source}",
         "editSchedule": "Editar programación",
+        "moveOccurrence": "Mover repetición",
         "openTask": "Abrir tarea"
       },
       "create": {

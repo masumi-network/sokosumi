@@ -40,6 +40,7 @@ const taskScheduleServiceMock = {
   removeCalendarSeries: vi.fn(),
   editCalendarSeries: vi.fn(),
   setSchedule: vi.fn(),
+  rescheduleOccurrence: vi.fn(),
 };
 const OPERATION_ID = "123e4567-e89b-42d3-a456-426614174000";
 const toCoreApiActionErrorMock = vi.fn();
@@ -1708,5 +1709,108 @@ describe("Calendar schedule actions", () => {
     ).rejects.toThrow("Invalid schedule");
     expect(taskServiceMock.createScheduledTask).not.toHaveBeenCalled();
     expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
+  });
+});
+
+describe("rescheduleTaskOccurrence", () => {
+  const operationId = "123e4567-e89b-42d3-a456-426614174000";
+  const scheduledAt = "2030-01-02T10:30:00.000Z";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.getTaskById.mockReset();
+    taskScheduleServiceMock.rescheduleOccurrence.mockReset();
+  });
+
+  it("reads the observed revision and returns the advanced one", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue({
+      id: "task-1",
+      projectId: "project-1",
+      scheduleRevision: 3,
+    });
+    taskScheduleServiceMock.rescheduleOccurrence.mockResolvedValue({
+      scheduleRevision: 4,
+      occurrence: { id: "occurrence-1" },
+    });
+    const { rescheduleTaskOccurrence } = await import("./action");
+
+    const result = await rescheduleTaskOccurrence({
+      taskId: "task-1",
+      occurrenceId: "occurrence-1",
+      operationId,
+      scheduledAt,
+    });
+
+    expect(taskServiceMock.getTaskById).toHaveBeenCalledWith("task-1");
+    expect(taskScheduleServiceMock.rescheduleOccurrence).toHaveBeenCalledWith(
+      "task-1",
+      "occurrence-1",
+      { operationId, expectedScheduleRevision: 3 },
+      new Date(scheduledAt),
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: { taskId: "task-1", scheduleRevision: 4 },
+    });
+    const { revalidatePath } = await import("next/cache");
+    expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
+  });
+
+  it("maps a non-reschedulable occurrence to its stable result kind", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue({
+      id: "task-1",
+      scheduleRevision: 3,
+    });
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskScheduleServiceMock.rescheduleOccurrence.mockRejectedValue(
+      new CoreApiRequestError("Only a future unreleased occurrence can move", {
+        status: 409,
+        kind: "schedule_occurrence_not_reschedulable",
+      }),
+    );
+    const { rescheduleTaskOccurrence } = await import("./action");
+
+    await expect(
+      rescheduleTaskOccurrence({
+        taskId: "task-1",
+        occurrenceId: "occurrence-1",
+        operationId,
+        scheduledAt,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { kind: "schedule_occurrence_not_reschedulable" },
+    });
+  });
+
+  it("refuses to invent a revision when Core reports none", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue({ id: "task-1" });
+    const { rescheduleTaskOccurrence } = await import("./action");
+
+    await expect(
+      rescheduleTaskOccurrence({
+        taskId: "task-1",
+        occurrenceId: "occurrence-1",
+        operationId,
+        scheduledAt,
+      }),
+    ).rejects.toThrow("Core returned no scheduleRevision for an active series");
+    expect(taskScheduleServiceMock.rescheduleOccurrence).not.toHaveBeenCalled();
+  });
+
+  it("requires a UUID operation identity before reading the task", async () => {
+    const { rescheduleTaskOccurrence } = await import("./action");
+
+    await expect(
+      rescheduleTaskOccurrence({
+        taskId: "task-1",
+        occurrenceId: "occurrence-1",
+        operationId: "not-a-uuid",
+        scheduledAt,
+      }),
+    ).rejects.toThrow("Operation ID must be a UUID");
+    expect(taskServiceMock.getTaskById).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.rescheduleOccurrence).not.toHaveBeenCalled();
   });
 });
