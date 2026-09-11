@@ -8,7 +8,10 @@ import {
 } from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/utils";
 
-import { iterateTaskScheduleOccurrences } from "@/helpers/task-schedule";
+import {
+  computeNextRuleOccurrence,
+  iterateTaskScheduleOccurrences,
+} from "@/helpers/task-schedule";
 import { quarantineTaskSchedule } from "@/helpers/task-schedule-quarantine";
 import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
 
@@ -113,11 +116,17 @@ function projectPlannedOccurrenceRows(
   now: Date,
 ) {
   const horizonEnd = new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS);
+  // For v2 the wake time (`nextRunAt`) is not a rule time once an occurrence is
+  // moved, so the projection walks the rule from its stored anchor instead.
+  const projectionStart =
+    task.schedule.mode === "recurring" && task.schedule.version === 2
+      ? (computeNextRuleOccurrence(task.schedule) ?? task.nextRunAt)
+      : task.nextRunAt;
   const occurrences = Array.from(
     iterateTaskScheduleOccurrences(
       task.id,
       task.schedule,
-      task.nextRunAt,
+      projectionStart,
       now,
       horizonEnd,
       MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES + 1,

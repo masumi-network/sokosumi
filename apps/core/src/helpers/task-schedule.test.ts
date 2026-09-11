@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   buildTaskScheduleMetadataV2,
   computeIntervalNextRun,
+  computeNextRuleOccurrence,
   computeScheduleNextRun,
   inferLegacyIntervalDaysFromCron,
   isDueRunPastScheduleEnd,
   iterateTaskScheduleOccurrences,
+  resolveTaskScheduleRuleAnchor,
 } from "@/helpers/task-schedule";
 
 describe("task-schedule helpers", () => {
@@ -383,5 +385,41 @@ describe("task-schedule helpers", () => {
       new Date("2026-06-05T09:00:00.000Z"),
       new Date("2026-06-07T09:00:00.000Z"),
     ]);
+  });
+});
+
+describe("resolveTaskScheduleRuleAnchor", () => {
+  const base = {
+    version: 2 as const,
+    epochId: "123e4567-e89b-42d3-a456-426614174003",
+    mode: "recurring" as const,
+    createdAt: "2026-06-01T08:00:00.000Z",
+    ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+    timezone: "UTC",
+    expr: "0 9 * * *",
+    endsMode: "never" as const,
+    epochReleaseCount: 0,
+    anchorAt: "2026-06-01T09:00:00.000Z",
+  };
+
+  it("uses lastProcessedSourceAt when set, otherwise ruleEffectiveFrom", () => {
+    expect(resolveTaskScheduleRuleAnchor(base)).toEqual(
+      new Date("2026-06-01T08:00:00.000Z"),
+    );
+    expect(
+      resolveTaskScheduleRuleAnchor({
+        ...base,
+        lastProcessedSourceAt: "2026-06-10T09:00:00.000Z",
+      }),
+    ).toEqual(new Date("2026-06-10T09:00:00.000Z"));
+  });
+
+  it("returns the next rule occurrence after the anchor", () => {
+    expect(
+      computeNextRuleOccurrence({
+        ...base,
+        lastProcessedSourceAt: "2026-06-10T09:00:00.000Z",
+      }),
+    ).toEqual(new Date("2026-06-11T09:00:00.000Z"));
   });
 });
