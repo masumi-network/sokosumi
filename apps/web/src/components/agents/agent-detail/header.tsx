@@ -10,7 +10,7 @@ import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
 } from "@/components/agents/agent-action-buttons";
-import AgentIcon from "@/components/agents/agent-icon";
+import { AgentIcon } from "@/components/agents/agent-icon";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import useIsClient from "@/hooks/use-is-client";
