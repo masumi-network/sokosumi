@@ -24,6 +24,10 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   }),
 }));
 
+vi.mock("@/components/task-schedule-display", () => ({
+  TaskScheduleDisplay: () => <span>Daily (1:47 PM)</span>,
+}));
+
 vi.mock("@/components/aurora-orb", () => ({
   AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
     <div data-testid="assistant-orb" data-seed={seed ?? ""} aria-label={alt} />
@@ -450,6 +454,103 @@ describe("TaskMetadata", () => {
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "Draft" }));
+    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("enables Queued when an agent task has an active schedule", async () => {
+    const user = userEvent.setup();
+    const statusLabels = Object.fromEntries(
+      TASK_STATUS_DISPLAY_ORDER.map((status) => [
+        status,
+        status === TaskStatus.DRAFT
+          ? "Draft"
+          : status === TaskStatus.QUEUED
+            ? "Queued"
+            : status === TaskStatus.READY
+              ? "Ready"
+              : status,
+      ]),
+    ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
+
+    renderTaskMetadata({
+      task: {
+        ...createTask({
+          status: TaskStatus.READY,
+          assignee: {
+            type: "coworker",
+            id: "coworker-1",
+            coworker: {
+              id: "coworker-1",
+              name: "Elena",
+              image: null,
+              slug: "elena",
+            },
+          },
+        }),
+        metadata: JSON.stringify({
+          version: 1,
+          mode: "recurring",
+          expr: "47 13 * * *",
+          timezone: "UTC",
+          endsMode: "never",
+        }),
+      },
+      editable: true,
+      labels: { ...baseLabels, statusLabels },
+      statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "Ready" }));
+    expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("disables Queued for a human task even with an active schedule", async () => {
+    const user = userEvent.setup();
+    const statusLabels = Object.fromEntries(
+      TASK_STATUS_DISPLAY_ORDER.map((status) => [
+        status,
+        status === TaskStatus.DRAFT
+          ? "Draft"
+          : status === TaskStatus.QUEUED
+            ? "Queued"
+            : status === TaskStatus.READY
+              ? "Ready"
+              : status,
+      ]),
+    ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
+
+    renderTaskMetadata({
+      task: {
+        ...createTask({
+          status: TaskStatus.READY,
+          assignee: {
+            type: "user",
+            id: "user-1",
+            user: {
+              id: "user-1",
+              name: "Bob",
+              image: null,
+            },
+          },
+        }),
+        metadata: JSON.stringify({
+          version: 1,
+          mode: "recurring",
+          expr: "47 13 * * *",
+          timezone: "UTC",
+          endsMode: "never",
+        }),
+      },
+      editable: true,
+      labels: { ...baseLabels, statusLabels },
+      statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "Ready" }));
     expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
       "data-disabled",
     );
