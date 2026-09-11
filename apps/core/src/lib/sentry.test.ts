@@ -36,6 +36,18 @@ describe("initSentry", () => {
     vi.clearAllMocks();
   });
 
+  /**
+   * Traces and profiles are sampled at 0.005, so an unset error rate reads as
+   * sampled to anyone scanning the three together. It is not, and a defect
+   * that reports once per damaged row has nothing to spare.
+   */
+  it("sends every error, whatever the traces and profiles are sampled at", () => {
+    initSentry();
+
+    const options = initMock.mock.calls[0]?.[0];
+    expect(options.sampleRate).toBe(1);
+  });
+
   it("stops the RequestData integration attaching the raw url, headers and cookies", () => {
     initSentry();
 
