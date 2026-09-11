@@ -1072,7 +1072,9 @@ describe("core auth config", () => {
         configId: "default",
         references: "user",
         enableMetadata: true,
-        enableSessionForAPIKeys: true,
+        // A key authenticates a request. It must never mint a session, because
+        // that session is fresh enough to register a passkey.
+        enableSessionForAPIKeys: false,
       }),
     );
     expect(jwtPluginMock).toHaveBeenCalledWith({
