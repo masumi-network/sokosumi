@@ -23,6 +23,13 @@ import { loadChatMentionNames } from "./chat-mention-names";
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const ADA_ID = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
 const BEN_ID = "019fc7e4-e4bd-7005-900c-66e44d33f5e5";
+const AUTH_USER_ID = "AbCdEfGhIjKlMnOpQrStUvWxYz012345";
+
+function isPostgresUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -63,6 +70,30 @@ describe("loadChatMentionNames", () => {
     });
 
     expect(names.get(ADA_ID)).toBe("Research Coworker");
+    expect(names.get(BEN_ID)).toBe("Soko");
+  });
+
+  it("names a soko bot when the same message also mentions a non-uuid user", async () => {
+    userMemberFindManyMock.mockResolvedValue([
+      { user: { id: AUTH_USER_ID, name: "Ada Lovelace" } },
+    ]);
+    sokoBotMemberFindManyMock.mockImplementation(
+      async (args: { where: { sokoBotId: { in: string[] } } }) => {
+        for (const id of args.where.sokoBotId.in) {
+          if (!isPostgresUuid(id)) {
+            throw new Error(`invalid input syntax for type uuid: "${id}"`);
+          }
+        }
+        return [{ sokoBot: { id: BEN_ID, name: "Soko" } }];
+      },
+    );
+
+    const names = await loadChatMentionNames({
+      roomId: ROOM_ID,
+      content: `@${AUTH_USER_ID} @${BEN_ID}:soko please`,
+    });
+
+    expect(names.get(AUTH_USER_ID)).toBe("Ada Lovelace");
     expect(names.get(BEN_ID)).toBe("Soko");
   });
 
