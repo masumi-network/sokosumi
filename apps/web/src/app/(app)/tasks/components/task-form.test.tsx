@@ -795,7 +795,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("enables Queued whenever a schedule is set, including for human assignees", async () => {
+  it("disables Queued for human assignees even when a schedule is set (SOK-1033)", async () => {
     const user = userEvent.setup();
 
     render(
@@ -820,13 +820,53 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
 
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("enables Queued on edit for an agent Ready task with an active schedule", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Daily sync",
+          description: "Run the sync",
+          assigneeId: "coworker-2",
+          status: TaskStatus.READY,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-26T09:00:00.000Z",
+            runAt: "2026-06-26T09:00:00.000Z",
+          }),
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+
     await user.click(screen.getByRole("combobox", { name: "Status" }));
     expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
       "data-disabled",
     );
   });
 
-  it("enables Queued on edit when Ready with an active schedule", async () => {
+  it("disables Queued on edit for a human Ready task with an active schedule", async () => {
     const user = userEvent.setup();
 
     render(
@@ -860,12 +900,8 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
-      "Ready",
-    );
-
     await user.click(screen.getByRole("combobox", { name: "Status" }));
-    expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
+    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
       "data-disabled",
     );
   });
