@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildVendorLogoContentHashPathname,
   buildVendorLogoPathname,
   buildVendorLogoPrefix,
   isOwnedVendorLogoUrl,
@@ -27,16 +26,6 @@ describe("buildVendorLogoPathname", () => {
   it("falls back when the filename is empty after sanitizing", () => {
     expect(buildVendorLogoPathname(VENDOR_ID, "@@@")).toBe(
       `vendors/${VENDOR_ID}/logos/file`,
-    );
-  });
-});
-
-describe("buildVendorLogoContentHashPathname", () => {
-  it("appends the sha256 hex under the vendor logos prefix", () => {
-    const hash =
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    expect(buildVendorLogoContentHashPathname(VENDOR_ID, hash)).toBe(
-      `vendors/${VENDOR_ID}/logos/${hash}`,
     );
   });
 });
