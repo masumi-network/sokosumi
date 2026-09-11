@@ -343,13 +343,17 @@ export function RoomSearchPanel({
         aria-activedescendant={activeOptionId}
         data-testid="room-search-input"
         className={cn(
-          "peer h-8 pl-8 placeholder:transition-opacity placeholder:duration-200",
+          "peer h-8 placeholder:transition-opacity placeholder:duration-200",
           // The gutter has to clear the hint without clipping the placeholder,
           // and "Ctrl+F" is far wider than "⌘F".
-          isMobile ? "pr-3" : isApplePlatform ? "pr-12" : "pr-16",
+          isExpanded && "pl-8",
+          isExpanded &&
+            (isMobile ? "pr-3" : isApplePlatform ? "pr-12" : "pr-16"),
           // Collapsed, the field passes for the ghost icon button next to it.
+          // It must drop its padding too: border-box cannot shrink below the
+          // padding, so the 32px box would otherwise grow over the next button.
           !isExpanded &&
-            "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 cursor-pointer border-transparent dark:bg-transparent placeholder:opacity-0",
+            "px-0 hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 cursor-pointer border-transparent dark:bg-transparent placeholder:opacity-0",
         )}
       />
       {isMobile ? null : (
