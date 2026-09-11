@@ -243,7 +243,7 @@ export function GuestInviteSection({
       </div>
 
       {/* Email invite — direct, known recipient */}
-      <div className="bg-muted/20 min-w-0 space-y-3 overflow-hidden rounded-lg border p-3">
+      <div className="bg-card-background min-w-0 space-y-3 overflow-hidden rounded-lg border p-3">
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-medium">{t("emailTitle")}</p>
           <p className="text-muted-foreground text-xs">
@@ -308,7 +308,7 @@ export function GuestInviteSection({
               {invitations.map((invitation) => (
                 <li
                   key={invitation.id}
-                  className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
+                  className="bg-card-background flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
                 >
                   <span className="min-w-0 truncate">{invitation.email}</span>
                   <Button
@@ -335,7 +335,7 @@ export function GuestInviteSection({
       </div>
 
       {/* Shareable link — multi-use, no email required */}
-      <div className="bg-muted/20 min-w-0 space-y-3 overflow-hidden rounded-lg border p-3">
+      <div className="bg-card-background min-w-0 space-y-3 overflow-hidden rounded-lg border p-3">
         <div className="min-w-0 space-y-1">
           <p className="flex items-center gap-2 text-sm font-medium">
             <Link2 className="size-4 shrink-0" aria-hidden />
@@ -421,7 +421,7 @@ export function GuestInviteSection({
             {inviteLinks.map((link) => (
               <li
                 key={link.token}
-                className="bg-muted/40 min-w-0 space-y-1 overflow-hidden rounded-md px-3 py-2 text-sm"
+                className="bg-card-background min-w-0 space-y-1 overflow-hidden rounded-md px-3 py-2 text-sm"
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <span
@@ -495,7 +495,7 @@ export function GuestInviteSection({
               return (
                 <li
                   key={guest.id}
-                  className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
+                  className="bg-card-background flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
                 >
                   <span className="min-w-0 truncate">
                     {label}

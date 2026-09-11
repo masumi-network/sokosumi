@@ -1264,7 +1264,7 @@ export function TasksView({
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
+          <TabsList className="bg-card-background flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="tasks"
               className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"

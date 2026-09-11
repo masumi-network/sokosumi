@@ -28,7 +28,7 @@ export async function AdminSokoBotHeader({
 
   return (
     <>
-      <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+      <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
         <div className="min-w-0">
           <span className="font-medium">{bot.owner.name ?? "—"}</span>
           <span className="text-muted-foreground"> · {bot.owner.email}</span>

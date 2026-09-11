@@ -53,10 +53,15 @@ export function NotificationItem({
       <span
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full",
-          // Translucent, so the circle survives the row's hover tint, which
-          // is the same colour as the muted surface.
+          // Opaque, so the disc no longer tracks the row's hover tint the way
+          // the old alpha did: on a hovered row it measures 1.16:1 light and
+          // 1.28:1 dark against --card-background, so its edge reads as faint.
+          // The glyph inside is what carries the state, and it keeps 4.07:1
+          // light and 3.52:1 dark on --quinary. The next step up, --quaternary,
+          // would sharpen the disc and drop that glyph to 2.28:1 in dark, under
+          // the 3:1 floor, which is the worse trade.
           notification.isRead
-            ? "bg-foreground/10 text-muted-foreground"
+            ? "bg-quinary text-muted-foreground"
             : "bg-primary/15 text-primary",
         )}
         aria-hidden
@@ -67,7 +72,7 @@ export function NotificationItem({
         {showPendingAccessActions ? (
           <button
             type="button"
-            className="hover:bg-accent/50 -mx-1 cursor-pointer rounded-md px-1 text-left"
+            className="hover:bg-card-background -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={onClick}
           >
             <p className={cn("text-sm", !notification.isRead && "font-medium")}>

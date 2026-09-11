@@ -107,7 +107,7 @@ export async function SokoBotVersionDetail({
             </p>
           </div>
           <dl className="grid grid-cols-3 gap-3">
-            <div className="bg-muted/40 rounded-md border p-3">
+            <div className="bg-card-background rounded-md border p-3">
               <dt className="text-muted-foreground text-xs">
                 {t("Detail.turns")}
               </dt>
@@ -115,7 +115,7 @@ export async function SokoBotVersionDetail({
                 {quality.overall.turns}
               </dd>
             </div>
-            <div className="bg-muted/40 rounded-md border p-3">
+            <div className="bg-card-background rounded-md border p-3">
               <dt className="text-muted-foreground text-xs">
                 {t("Detail.judged")}
               </dt>
@@ -123,7 +123,7 @@ export async function SokoBotVersionDetail({
                 {quality.overall.judged}
               </dd>
             </div>
-            <div className="bg-muted/40 rounded-md border p-3">
+            <div className="bg-card-background rounded-md border p-3">
               <dt className="text-muted-foreground text-xs">
                 {t("Detail.avgScore")}
               </dt>
@@ -189,7 +189,7 @@ export async function SokoBotVersionDetail({
             {t("Detail.promptHint")}
           </p>
         </div>
-        <pre className="bg-muted/30 max-h-[48rem] overflow-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">
+        <pre className="bg-card-background max-h-[48rem] overflow-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">
           {version.systemPrompt}
         </pre>
       </section>

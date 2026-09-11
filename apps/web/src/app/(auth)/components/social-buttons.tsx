@@ -333,7 +333,7 @@ export default function SocialButtons({
       )}
       {showMagicLink && isMagicLinkVisible && (
         <form
-          className="bg-muted/30 flex flex-col gap-2 rounded-md border p-4"
+          className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
           onSubmit={handleMagicLinkSubmit}
         >
           {hasMagicLinkSuccess && (

@@ -507,7 +507,7 @@ export function ScenarioLab({
         ))}
       </div>
       {current ? (
-        <div className="bg-muted/30 rounded-lg border px-4 py-3 text-xs">
+        <div className="bg-card-background rounded-lg border px-4 py-3 text-xs">
           <p className="text-foreground text-sm font-medium">
             {current.name}
             <span className="text-muted-foreground ml-2 font-normal tabular-nums">

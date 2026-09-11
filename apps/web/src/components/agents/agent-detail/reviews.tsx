@@ -41,7 +41,7 @@ export async function AgentDetailReviews({
         <>
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
             <div className="space-y-4">
-              <div className="bg-muted/20 border-border space-y-3 rounded-lg border p-3">
+              <div className="bg-card-background border-border space-y-3 rounded-lg border p-3">
                 <StarRating
                   averageRating={ratingStats.average ?? 0}
                   totalRatings={ratingStats.total}

@@ -310,7 +310,8 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                       data-testid={`activity-row-${event.id}`}
                       className={cn(
                         "rounded-lg pr-3 pl-3",
-                        isCommentEvent && "bg-muted/20 border-border border",
+                        isCommentEvent &&
+                          "bg-card-background border-border border",
                         shouldHighlightDoneBorder &&
                           getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                       )}

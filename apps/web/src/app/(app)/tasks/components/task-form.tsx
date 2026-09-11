@@ -844,7 +844,7 @@ export function TaskForm({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <section className="flex min-h-0 flex-1 flex-col">
-        <div className="[&::-webkit-scrollbar-thumb]:bg-border/80 flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+        <div className="[&::-webkit-scrollbar-thumb]:bg-tertiary flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
           {useWizard && step === 1 ? (
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
               <AgentSpotlight
@@ -1076,7 +1076,7 @@ export function TaskForm({
                 >
                   <FileUploadDropzone
                     className={cn(
-                      "data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent",
+                      "data-dragging:bg-card-background w-full items-stretch justify-start border-0 p-0 hover:bg-transparent",
                       useModalFieldFill && "min-h-0 flex-1",
                     )}
                     onClick={(event) => event.preventDefault()}

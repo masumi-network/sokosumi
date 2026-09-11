@@ -149,7 +149,7 @@ function MetaTags({
       {shownModels.map((model) => (
         <span
           key={model}
-          className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+          className="bg-senary text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
         >
           <TagIcon name={model} size={12} />
           {model}
@@ -161,7 +161,7 @@ function MetaTags({
         </span>
       ) : null}
       {hosting ? (
-        <span className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
+        <span className="bg-senary text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
           <span aria-hidden>{regionFlag(hosting)}</span>
           {hosting}
         </span>
@@ -289,7 +289,7 @@ function VendorDashboard({
                 className={cn(
                   "flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors md:w-full",
                   FOCUS_RING,
-                  isActive ? "bg-muted" : "hover:bg-muted/50",
+                  isActive ? "bg-muted" : "hover:bg-card-background",
                 )}
               >
                 <CoworkerAvatar
@@ -672,7 +672,7 @@ function CoworkerGallerySectionInner({
                 type="button"
                 onClick={() => setShowAllCompanies((value) => !value)}
                 className={cn(
-                  "border-border bg-card text-foreground hover:bg-muted/60 inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                  "border-border bg-card text-foreground hover:bg-card-background inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
                   FOCUS_RING,
                 )}
               >

@@ -52,7 +52,7 @@ export function HistoryListItem({
       : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
     isArchivedHistoryItem(item)
       ? "cursor-default"
-      : "hover:bg-muted/50 active:scale-[0.995]",
+      : "hover:bg-card-background active:scale-[0.995]",
   );
   const content = (
     <HistoryListItemContent

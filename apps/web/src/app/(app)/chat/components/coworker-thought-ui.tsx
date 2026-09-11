@@ -146,7 +146,7 @@ export function CoworkerThoughtTrace({
           "-mx-1 flex min-h-6 w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left",
           "transition-colors duration-100",
           hasBody &&
-            "hover:bg-muted/60 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+            "hover:bg-card-background focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
           !hasBody && "cursor-default",
         )}
       >

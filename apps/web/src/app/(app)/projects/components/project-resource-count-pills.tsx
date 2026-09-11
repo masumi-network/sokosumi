@@ -43,7 +43,7 @@ function ResourceCountPill({
 }) {
   return (
     <span
-      className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+      className="bg-senary text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
       aria-label={`${ariaLabel}: ${total}`}
     >
       <Icon className="size-3.5 shrink-0" aria-hidden />

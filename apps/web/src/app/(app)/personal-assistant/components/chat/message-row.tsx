@@ -60,7 +60,7 @@ export function UserRow({
       <div className="flex max-w-[75%] flex-col items-end gap-0.5">
         <div
           className={cn(
-            "bg-muted-foreground/10 text-foreground min-h-6 rounded-lg px-3 py-3 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
+            "bg-senary text-foreground min-h-6 rounded-lg px-3 py-3 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
             muted && "opacity-70",
           )}
         >
@@ -118,7 +118,7 @@ export function AssistantMarkdownRow({
 
 function KindChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="border-border text-muted-foreground bg-muted/40 inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wider">
+    <span className="border-border text-muted-foreground bg-card-background inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wider">
       {children}
     </span>
   );
@@ -168,7 +168,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="text-muted-foreground hover:text-foreground hover:bg-muted/60 border-border focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+      className="text-muted-foreground hover:text-foreground hover:bg-card-background border-border focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
     >
       {copied ? (
         <>
@@ -229,7 +229,7 @@ function DelegationChips({ delegations }: { delegations: ChatDelegation[] }) {
           </>
         );
         const className =
-          "border-border bg-card hover:border-foreground/30 hover:bg-muted/40 inline-flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
+          "border-border bg-card hover:border-foreground/30 hover:bg-card-background inline-flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
         return href ? (
           <Link key={delegation.id} href={href} className={className}>
             {body}

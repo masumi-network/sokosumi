@@ -602,7 +602,7 @@ export const MarkdownEditor = forwardRef<
   return (
     <div className={cn("rounded-md border", className)} style={style}>
       {/* Toolbar */}
-      <div className="bg-muted/30 flex items-center gap-0.5 border-b px-2 py-1.5">
+      <div className="bg-card-background flex items-center gap-0.5 border-b px-2 py-1.5">
         <Button
           type="button"
           variant="ghost"
