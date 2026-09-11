@@ -33667,7 +33667,6 @@ export type ListSokoBotAvatarsData = {
     query?: {
         take?: number;
         exclude?: string;
-        topUp?: 'true' | 'false';
     };
     url: '/soko-bots/avatars';
 };
@@ -33706,6 +33705,65 @@ export type ListSokoBotAvatarsResponses = {
 };
 
 export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
+
+export type TopUpSokoBotAvatarsData = {
+    body?: {
+        take?: number;
+        excludeIds?: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/soko-bots/avatars/top-up';
+};
+
+export type TopUpSokoBotAvatarsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSokoBotAvatarsErrors];
+
+export type TopUpSokoBotAvatarsResponses = {
+    /**
+     * Unclaimed mascot avatars, after filling a short pool
+     */
+    200: {
+        data: Array<SokoBotAvatar>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TopUpSokoBotAvatarsResponse = TopUpSokoBotAvatarsResponses[keyof TopUpSokoBotAvatarsResponses];
 
 export type ListMySokoBotIntegrationsData = {
     body?: never;

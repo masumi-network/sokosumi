@@ -394,6 +394,7 @@ import {
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
+  topUpSokoBotAvatars as coreTopUpSokoBotAvatars,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
@@ -4108,6 +4109,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function topUpSokoBotAvatars(body: {
+    take?: number;
+    excludeIds?: string[];
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreTopUpSokoBotAvatars({ client, body }),
+      "Failed to fetch Soko Bot avatars",
+    );
+  }
+
   async function claimMySokoBotAvatar(body: { avatarId: string }) {
     return executeCoreOperation(
       getClient,
@@ -5207,6 +5219,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     setAdminSokoBotAvailability,
     deleteMySokoBotPermanently,
     listSokoBotAvatars,
+    topUpSokoBotAvatars,
     claimMySokoBotAvatar,
     introduceMySokoBot,
     simulateMySokoBotTaskEvent,

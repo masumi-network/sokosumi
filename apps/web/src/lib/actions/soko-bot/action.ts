@@ -260,10 +260,9 @@ export const listSokoBotAvatarsAction = withSession<
   const parsed = avatarListSchema.safeParse(input ?? {});
   if (!parsed.success) return toActionResult(err(invalidInput()));
   try {
-    const avatars = await sokoBotService.listAvatars(
+    const avatars = await sokoBotService.topUpAvatars(
       parsed.data.take,
       parsed.data.excludeIds,
-      true,
     );
     return toActionResult(ok(avatars));
   } catch (error) {

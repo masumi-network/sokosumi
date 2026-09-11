@@ -36,6 +36,7 @@ import {
   listAvailableAvatars,
   persistAvatarImage,
   stockAvatarPool,
+  topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 
 describe("Soko Bot avatar pool", () => {
@@ -134,13 +135,23 @@ describe("Soko Bot avatar pool", () => {
     expect(pathname).not.toContain("soko-bot-avatars/");
   });
 
-  it("fills a short pool when the caller opts in", async () => {
+  it("fills a short pool when the caller asks to top up", async () => {
     // Vercel runs crons on production only, so the creation picker asks for
     // this explicitly rather than showing an empty grid on a preview.
     avatarCountMock.mockResolvedValue(0);
 
-    await listAvailableAvatars(6, { topUp: true });
+    await topUpAvailableAvatars(6);
 
     expect(avatarCountMock).toHaveBeenCalled();
+  });
+
+  it("never counts or generates on a plain read", async () => {
+    // The read is a GET. A GET that bills FAL is reachable cross-site on a
+    // top-level navigation, because the session cookie is SameSite=Lax.
+    avatarCountMock.mockResolvedValue(0);
+
+    await listAvailableAvatars(6);
+
+    expect(avatarCountMock).not.toHaveBeenCalled();
   });
 });

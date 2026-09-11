@@ -342,33 +342,47 @@ export async function stockAvatarPool(): Promise<{
   return { available: available + generated, generated };
 }
 
-/**
- * Unclaimed avatars for a picker. Reads only unless `topUp` is set: the cron
- * keeps the pool full in production, but Vercel runs crons on production
- * deployments only, so the creation picker asks to fill it explicitly rather
- * than showing an empty grid on every preview.
- */
+function unclaimedAvatarFilter(excludeIds?: string[]) {
+  return {
+    claimedBySokoBotId: null,
+    ...(excludeIds?.length ? { id: { notIn: excludeIds } } : {}),
+  };
+}
+
+/** Unclaimed avatars for a picker. Reads only; never generates. */
 export async function listAvailableAvatars(
   take: number,
-  options: { excludeIds?: string[]; topUp?: boolean } = {},
+  options: { excludeIds?: string[] } = {},
 ): Promise<AvailableAvatar[]> {
-  const where = {
-    claimedBySokoBotId: null,
-    ...(options.excludeIds?.length
-      ? { id: { notIn: options.excludeIds } }
-      : {}),
-  };
-  if (options.topUp && getEnv().FAL_KEY) {
-    const available = await prisma.sokoBotAvatar.count({ where });
-    if (available < take) await generateAvatars(take - available);
-  }
   const rows = await prisma.sokoBotAvatar.findMany({
-    where,
+    where: unclaimedAvatarFilter(options.excludeIds),
     orderBy: [{ createdAt: "desc" }],
     take,
     select: { id: true, imageUrl: true, subject: true, background: true },
   });
   return rows;
+}
+
+/**
+ * Fill a short pool, then read it back. The cron keeps the pool full in
+ * production, but Vercel runs crons on production deployments only, so the
+ * creation picker asks to fill it explicitly rather than showing an empty grid
+ * on every preview.
+ *
+ * This spends FAL budget and writes rows, so it belongs behind a POST. The
+ * caller here is waiting on purpose; decorative reads use
+ * `listAvailableAvatars` so a page render never waits on image generation.
+ */
+export async function topUpAvailableAvatars(
+  take: number,
+  options: { excludeIds?: string[] } = {},
+): Promise<AvailableAvatar[]> {
+  if (getEnv().FAL_KEY) {
+    const where = unclaimedAvatarFilter(options.excludeIds);
+    const available = await prisma.sokoBotAvatar.count({ where });
+    if (available < take) await generateAvatars(take - available);
+  }
+  return await listAvailableAvatars(take, options);
 }
 
 /**
