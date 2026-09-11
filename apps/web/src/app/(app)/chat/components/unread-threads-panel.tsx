@@ -29,10 +29,17 @@ interface UnreadThreadsPanelProps {
 /**
  * The room-header threads trigger.
  *
- * It speaks the sidebar's attention language: weight says *something is here*,
+ * It speaks the sidebar's attention language: a mark says *something is here*,
  * the number says *how much*, and the number only appears for a reader who
  * asked for numbers. An open panel suppresses both, the same way an active room
  * suppresses a sidebar row, because the reader is already looking at the list.
+ *
+ * Without a number the mark has to carry the whole statement, so it is a dot,
+ * not a heavier glyph: a stroke going from 2 to 2.5 on a 16px icon is not a
+ * difference a reader notices in a header full of icons. The dot is the same
+ * `bg-primary` dot the thread list puts beside an unread thread, so one mark
+ * means one thing across the threads surface. When the number shows, the dot
+ * stands down rather than saying the same thing twice.
  *
  * The unread statement rides the button's `aria-label`. A label on the button
  * replaces anything its children say, so `sr-only` text inside would never be
@@ -71,9 +78,18 @@ export function UnreadThreadsPanel({
       className={cn("relative size-8", showCount && "w-auto gap-1 px-2")}
       onClick={onToggle}
     >
-      <MessagesSquare
-        className={cn("size-4", hasUnread && "text-foreground stroke-[2.5]")}
-      />
+      <span className="relative flex items-center">
+        <MessagesSquare className={cn("size-4", hasUnread && "stroke-[2.5]")} />
+        {hasUnread && !showCount ? (
+          // Ringed in the header's own ground so the dot stays a dot where it
+          // overlaps the glyph.
+          <span
+            aria-hidden="true"
+            data-testid="unread-threads-dot"
+            className="bg-primary ring-background absolute -top-0.5 -right-1 size-2 rounded-full ring-2"
+          />
+        ) : null}
+      </span>
       {showCount ? (
         <span
           aria-hidden="true"

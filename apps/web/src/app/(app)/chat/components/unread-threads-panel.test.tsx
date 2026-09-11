@@ -55,13 +55,33 @@ describe("UnreadThreadsPanel", () => {
     expect(trigger).toHaveTextContent("");
   });
 
-  it("carries unread weight without a number when counts are off", () => {
+  it("marks unread with a dot when counts are off", () => {
     renderTrigger({ unreadCount: 3, showUnreadCount: false });
 
     const trigger = screen.getByTestId("unread-threads-trigger");
     expect(trigger).toHaveAttribute("data-unread", "true");
     expect(trigger).toHaveAccessibleName("Threads, 3 unread threads");
     expect(trigger).toHaveTextContent("");
+    // Without digits the dot is the whole visible statement.
+    expect(screen.getByTestId("unread-threads-dot")).toBeInTheDocument();
+  });
+
+  it("stands the dot down once the number says it", () => {
+    renderTrigger({ unreadCount: 3, showUnreadCount: true });
+
+    expect(screen.queryByTestId("unread-threads-dot")).not.toBeInTheDocument();
+  });
+
+  it("shows no dot on a room with nothing unread", () => {
+    renderTrigger({ unreadCount: 0, showUnreadCount: false });
+
+    expect(screen.queryByTestId("unread-threads-dot")).not.toBeInTheDocument();
+  });
+
+  it("drops the dot while the panel is open", () => {
+    renderTrigger({ unreadCount: 3, showUnreadCount: false, isOpen: true });
+
+    expect(screen.queryByTestId("unread-threads-dot")).not.toBeInTheDocument();
   });
 
   it("shows the number when the reader opted in to counts", () => {
