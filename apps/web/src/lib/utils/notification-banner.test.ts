@@ -217,4 +217,17 @@ describe("buildNotificationBannerContent", () => {
       }),
     ).toEqual(line);
   });
+  /**
+   * The title of a mention in a room of two is the author, the way a direct
+   * message's is. Rendering the mention line there would name them twice.
+   */
+  it("titles a mention in a room of two with the author", () => {
+    expect(
+      content(CHAT_MENTION_MESSAGE_KEY, {
+        authorName: "Ada",
+        isDirect: true,
+        messagePreview: "your call",
+      }),
+    ).toEqual({ title: "Ada", body: "your call" });
+  });
 });

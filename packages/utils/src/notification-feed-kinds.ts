@@ -32,10 +32,14 @@ function isBrowserOnlyNotificationKind(
  * about every message, and the center is the only surface that keeps what it
  * was told.
  *
+ * A direct message stays off the list. Every message in a direct room is
+ * addressed to the reader, so keeping them would make the center a second copy
+ * of the room.
+ *
  * Whether either actually arrives is still the reader's own setting: the row
  * carries the in-app answer its category resolved to, and the feed reads that.
  */
-const CHAT_FEED_MESSAGE_KEYS: readonly string[] = [
+export const CHAT_FEED_MESSAGE_KEYS: readonly string[] = [
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 ];

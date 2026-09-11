@@ -177,7 +177,6 @@ async function emitChatRoomMessageNotifications(
   await fanOutChatNotifications({
     roomId: params.roomId,
     roomName: params.roomName,
-    roomKind: params.roomKind,
     organizationId: params.organizationId,
     messageId: params.messageId,
     content: params.content,
@@ -190,7 +189,9 @@ async function emitChatRoomMessageNotifications(
     // about the room, so the reader gets one row for it and a count.
     countPerRoom: true,
     // Only a direct room with three or more people reaches this line: the
-    // one-to-one rooms returned above. Its name is the list of who is in it.
+    // one-to-one rooms returned above. Its name is the list of who is in it,
+    // so this also asks for that list to be built per reader.
     isGroup: params.roomKind === "direct",
+    nameRoomPerReader: params.roomKind === "direct",
   });
 }

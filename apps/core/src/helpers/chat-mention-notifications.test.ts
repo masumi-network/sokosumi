@@ -2,11 +2,13 @@ import { NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  loadDirectRoomNamesByReaderMock,
   createNotificationMock,
   workspaceFindUniqueMock,
   membershipFindManyMock,
   captureExceptionMock,
 } = vi.hoisted(() => ({
+  loadDirectRoomNamesByReaderMock: vi.fn(),
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -35,6 +37,12 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+// Named per reader by its own helper, which has its own tests.
+vi.mock("@/helpers/chat-direct-room-names", () => ({
+  loadDirectRoomNamesByReader: (...args: unknown[]) =>
+    loadDirectRoomNamesByReaderMock(...args),
+}));
+
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
@@ -52,6 +60,9 @@ beforeEach(() => {
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
+  loadDirectRoomNamesByReaderMock.mockResolvedValue(
+    new Map([[MENTIONED_ID, "Ada, Bob"]]),
+  );
 });
 
 describe("emitChatMentionNotifications", () => {
@@ -59,7 +70,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
-      roomKind: "channel",
+      roomShape: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -108,7 +119,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
-      roomKind: "channel",
+      roomShape: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -132,7 +143,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
-      roomKind: "channel",
+      roomShape: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -149,7 +160,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
-      roomKind: "channel",
+      roomShape: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -167,7 +178,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "dm",
-      roomKind: "channel",
+      roomShape: "channel",
       organizationId: null,
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -195,7 +206,7 @@ describe("emitChatMentionNotifications", () => {
       emitChatMentionNotifications({
         roomId: ROOM_ID,
         roomName: "general",
-        roomKind: "channel",
+        roomShape: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
         content: "ship it",
@@ -207,5 +218,75 @@ describe("emitChatMentionNotifications", () => {
 
     expect(captureExceptionMock).toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledTimes(2);
+  });
+  /**
+   * Three rooms, three ways of saying where the reader was named. A channel
+   * has its own name. A group is named after who is in it, which differs by
+   * reader. A pair is named after the author, so it is not named at all.
+   */
+  it("names a group direct room the way its reader sees it", async () => {
+    await emitChatMentionNotifications({
+      roomId: ROOM_ID,
+      roomName: "Ada, Bob, Carol",
+      roomShape: "group",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      content: "ship it",
+      authorUserId: AUTHOR_ID,
+      authorName: "Patrick",
+      mentionedUserIds: [MENTIONED_ID],
+    });
+
+    expect(loadDirectRoomNamesByReaderMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      readerUserIds: [MENTIONED_ID],
+    });
+    expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
+      messageParams: { roomName: "Ada, Bob" },
+    });
+    expect(
+      createNotificationMock.mock.calls[0]?.[0].messageParams,
+    ).not.toHaveProperty("isDirect");
+  });
+
+  it("says a direct room of two is one, and does not name it", async () => {
+    await emitChatMentionNotifications({
+      roomId: ROOM_ID,
+      roomName: "Patrick",
+      roomShape: "pair",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      content: "ship it",
+      authorUserId: AUTHOR_ID,
+      authorName: "Patrick",
+      mentionedUserIds: [MENTIONED_ID],
+    });
+
+    expect(loadDirectRoomNamesByReaderMock).not.toHaveBeenCalled();
+    expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
+      messageParams: { isDirect: true },
+    });
+  });
+
+  it("leaves a channel to its own name", async () => {
+    await emitChatMentionNotifications({
+      roomId: ROOM_ID,
+      roomName: "general",
+      roomShape: "channel",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      content: "ship it",
+      authorUserId: AUTHOR_ID,
+      authorName: "Patrick",
+      mentionedUserIds: [MENTIONED_ID],
+    });
+
+    expect(loadDirectRoomNamesByReaderMock).not.toHaveBeenCalled();
+    expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
+      messageParams: { roomName: "general" },
+    });
+    expect(
+      createNotificationMock.mock.calls[0]?.[0].messageParams,
+    ).not.toHaveProperty("isDirect");
   });
 });

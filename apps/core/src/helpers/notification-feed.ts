@@ -6,8 +6,7 @@ import {
 } from "@sokosumi/database";
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
-  CHAT_MENTION_MESSAGE_KEY,
-  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_FEED_MESSAGE_KEYS,
 } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -27,19 +26,13 @@ export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
 /**
  * The rows a browser-only kind still sends to the feed.
  *
- * Mirrors `isBrowserOnlyNotification` in `@sokosumi/utils`, which web reads the
- * same decision from. A mention is addressed to the reader by name, so it
- * belongs where they look for what is waiting on them: the sidebar badge names
- * the room but not who wrote or what they said, and it is gone once the room is
- * read. A room message is here because the reader asked to be told about every
- * message, and the feed is the only surface that keeps what it was told.
- *
- * A direct message stays out. Every message in a direct room is addressed to
- * the reader, so keeping them would make the feed a second copy of the room.
+ * `CHAT_FEED_MESSAGE_KEYS` in `@sokosumi/utils` holds the list and says why
+ * each key is on it. Web reads the same one, so the two cannot disagree about
+ * which chat rows the feed holds.
  */
 const BROWSER_ONLY_KIND_FEED_EXCEPTION: Prisma.NotificationWhereInput = {
   kind: { in: BROWSER_ONLY_KIND_FILTER },
-  messageKey: { in: [CHAT_MENTION_MESSAGE_KEY, CHAT_ROOM_MESSAGE_MESSAGE_KEY] },
+  messageKey: { in: [...CHAT_FEED_MESSAGE_KEYS] },
 };
 
 /**

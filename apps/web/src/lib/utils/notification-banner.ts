@@ -38,7 +38,12 @@ function chatTitle(
     return null;
   }
 
-  if (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY) {
+  // A room of two is named after the author, so naming them again in the title
+  // would say one name twice and where nothing.
+  if (
+    messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY ||
+    (messageKey === CHAT_MENTION_MESSAGE_KEY && messageParams.isDirect === true)
+  ) {
     return authorName;
   }
 

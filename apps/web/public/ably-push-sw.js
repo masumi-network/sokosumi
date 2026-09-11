@@ -83,6 +83,7 @@ function groupTag(target) {
 
 /** Mirrors the chat message keys in @sokosumi/utils. */
 const CHAT_MENTION_KEY = "Notifications.Chat.mentioned";
+const CHAT_MENTION_DIRECT_KEY = "Notifications.Chat.mentionedDirect";
 const CHAT_DIRECT_MESSAGE_KEY = "Notifications.Chat.directMessage";
 const CHAT_DIRECT_MESSAGES_KEY = "Notifications.Chat.directMessages";
 const CHAT_ROOM_MESSAGE_KEY = "Notifications.Chat.roomMessage";
@@ -93,14 +94,19 @@ const CHAT_ROOM_MESSAGES_GROUP_KEY = "Notifications.Chat.roomMessagesGroup";
 /** Mirrors countedMessageKey in lib/utils/notification-message. */
 function countedMessageKey(messageKey, params, count) {
   const group = params.isGroup === true;
+  const pair = messageKey === CHAT_MENTION_KEY && params.isDirect === true;
 
   if (!(Number.isInteger(count) && count > 1)) {
+    if (pair) {
+      return CHAT_MENTION_DIRECT_KEY;
+    }
+
     return messageKey === CHAT_ROOM_MESSAGE_KEY && group
       ? CHAT_ROOM_MESSAGE_GROUP_KEY
       : messageKey;
   }
 
-  if (messageKey === CHAT_DIRECT_MESSAGE_KEY) {
+  if (messageKey === CHAT_DIRECT_MESSAGE_KEY || pair) {
     return CHAT_DIRECT_MESSAGES_KEY;
   }
 
@@ -268,7 +274,10 @@ function chatTitle(messages, messageKey, params) {
     return undefined;
   }
 
-  if (messageKey === CHAT_DIRECT_MESSAGE_KEY) {
+  if (
+    messageKey === CHAT_DIRECT_MESSAGE_KEY ||
+    (messageKey === CHAT_MENTION_KEY && params.isDirect === true)
+  ) {
     return params.authorName;
   }
 
