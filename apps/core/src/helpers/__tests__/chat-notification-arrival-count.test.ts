@@ -79,6 +79,7 @@ async function emit(messageId: string, mentioned = true) {
   const message = {
     roomId: "room",
     roomName: "General",
+    roomKind: "channel",
     organizationId: null,
     messageId,
     content: "hello",

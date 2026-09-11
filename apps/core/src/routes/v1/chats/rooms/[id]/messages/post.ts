@@ -11,6 +11,7 @@ import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -40,7 +41,6 @@ import {
   resolveMentionedUserIds,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
-  sokoBotDisplayName,
 } from "../../helpers";
 import { markChatRoomThreadRead } from "../../room-unread";
 
@@ -475,6 +475,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           emitChatMentionNotifications({
             roomId: room.id,
             roomName: room.name,
+            roomKind: room.kind,
             organizationId: room.organizationId,
             messageId: message.id,
             content: message.content,

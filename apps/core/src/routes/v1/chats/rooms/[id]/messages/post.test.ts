@@ -1131,6 +1131,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         roomName: "general",
+        roomKind: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
         content: `@${COWORKER_ID}:hannah hey @user_alice:alice`,
@@ -1390,6 +1391,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         roomName: "general",
+        roomKind: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
         content: "**@all:all** please look",

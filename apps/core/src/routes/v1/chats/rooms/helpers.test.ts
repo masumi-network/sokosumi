@@ -8,7 +8,6 @@ import {
   buildDirectCoworkerRoomKey,
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
-  buildDirectRoomName,
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
@@ -424,18 +423,6 @@ describe("buildDirectRoomKey", () => {
       }),
     ).toBe(
       "direct:v2:sokoBot:01960001-0001-7001-8001-000000000099:user:user_a:user:user_b",
-    );
-  });
-});
-
-describe("buildDirectRoomName", () => {
-  it("formats short direct message names", () => {
-    expect(buildDirectRoomName(["Andreas", "Elena"])).toBe("Andreas, Elena");
-  });
-
-  it("compacts long direct message names", () => {
-    expect(buildDirectRoomName(["Andreas", "Elena", "Hannah", "Alex"])).toBe(
-      "Andreas, Elena, Hannah and 1 more",
     );
   });
 });

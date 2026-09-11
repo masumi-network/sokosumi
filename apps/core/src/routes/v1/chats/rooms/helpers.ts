@@ -1,5 +1,6 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
 import {
+  buildDirectRoomName,
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
@@ -19,6 +20,7 @@ import {
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isDirectKeyUniqueConstraintError } from "@/helpers/prisma";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
 import {
   type ChatRoom,
@@ -61,15 +63,6 @@ export function sokoBotAvatarSeedFor(bot: {
   avatarSeed: string | null;
 }): string {
   return bot.avatarSeed ?? `orb:${bot.userId}`;
-}
-
-export function sokoBotDisplayName(bot: {
-  name: string | null;
-  user: { name: string } | null;
-}): string {
-  const named = bot.name?.trim();
-  if (named) return named;
-  return "Soko Bot";
 }
 
 export function sokoBotCaption(bot: { user: { name: string } | null }): string {
@@ -863,20 +856,6 @@ export function buildDirectParticipantRoomKey(params: {
   ].sort();
 
   return `direct:v2:${participantKeys.join(":")}`;
-}
-
-export function buildDirectRoomName(names: readonly string[]): string {
-  const cleanNames = normalizeUniqueStrings(names);
-
-  if (cleanNames.length === 0) {
-    return "Direct message";
-  }
-
-  if (cleanNames.length <= 3) {
-    return cleanNames.join(", ");
-  }
-
-  return `${cleanNames.slice(0, 3).join(", ")} and ${cleanNames.length - 3} more`;
 }
 
 /**

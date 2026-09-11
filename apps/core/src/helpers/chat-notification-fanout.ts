@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 
+import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import {
@@ -15,6 +16,11 @@ import prisma from "@/lib/db/prisma";
 export interface FanOutChatNotificationsParams {
   roomId: string;
   roomName: string;
+  /**
+   * Decides whether the room is named per reader. A direct room's stored name
+   * belongs to nobody, so each reader is told the name their own screen uses.
+   */
+  roomKind?: string;
   organizationId: string | null;
   messageId: string;
   /** The room message body, which the reader is shown a preview of. */
@@ -279,6 +285,30 @@ export async function fanOutChatNotifications(
           }),
         );
 
+  // A direct room is named after who is in it, so its name differs by reader
+  // and the stored one is right for nobody. Read once for the whole fan-out.
+  //
+  // A failed read costs the readers a correct name, not the notification. The
+  // stored name is wrong for a group direct room, and wrong still says which
+  // room and who wrote; nothing at all says neither.
+  let roomNamesByReader: ReadonlyMap<string, string> | null = null;
+  if (params.roomKind === "direct") {
+    try {
+      roomNamesByReader = await loadDirectRoomNamesByReader({
+        roomId: params.roomId,
+        readerUserIds: notifyUserIds,
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        extra: {
+          roomId: params.roomId,
+          messageId: params.messageId,
+          notificationType: "chat-direct-room-name",
+        },
+      });
+    }
+  }
+
   for (const userId of notifyUserIds) {
     const input: CreateNotificationInput = {
       userId,
@@ -288,7 +318,7 @@ export async function fanOutChatNotifications(
       messageKey: params.messageKey,
       messageParams: {
         authorName: params.authorName,
-        roomName: params.roomName,
+        roomName: roomNamesByReader?.get(userId) ?? params.roomName,
         ...(params.isGroup ? { isGroup: true } : {}),
         // Omitted rather than empty when the body cleans to nothing. A reader
         // is then shown the line that names the author and the room, which is

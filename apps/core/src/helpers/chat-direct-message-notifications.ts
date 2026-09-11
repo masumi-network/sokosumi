@@ -37,6 +37,9 @@ export async function emitChatDirectMessageNotifications(
 ): Promise<void> {
   await fanOutChatNotifications({
     ...params,
+    // Only `shouldEmitChatDirectMessageNotifications` reaches this, so the
+    // room is a direct one and its name is built per reader.
+    roomKind: "direct",
     messageKey: CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
     notificationType: "chat-direct-message-notification",
   });
