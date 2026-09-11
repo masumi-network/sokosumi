@@ -229,7 +229,7 @@ function DelegationChips({ delegations }: { delegations: ChatDelegation[] }) {
           </>
         );
         const className =
-          "border-border bg-card hover:border-foreground/30 hover:bg-card-background inline-flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
+          "border-border bg-card hover:border-tertiary hover:bg-card-background inline-flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
         return href ? (
           <Link key={delegation.id} href={href} className={className}>
             {body}

@@ -130,9 +130,9 @@ interface CategoryColor {
   ring: string;
 }
 const NEUTRAL_COLOR: CategoryColor = {
-  chip: "bg-background/90",
+  chip: "bg-surface-glass",
   accent: "bg-tertiary",
-  ring: "border-muted-foreground/30",
+  ring: "border-input",
 };
 const CHART_COLOR: Record<number, CategoryColor> = {
   1: {
@@ -313,7 +313,7 @@ function OfferMock({
       <div className="flex h-full items-center justify-center">
         <div className="ring-border bg-quinary relative h-[82%] w-[34%] overflow-hidden rounded-lg shadow-sm ring-1">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-background/90 flex size-7 items-center justify-center rounded-full">
+            <div className="bg-surface-glass flex size-7 items-center justify-center rounded-full">
               <Play
                 aria-hidden
                 className="text-foreground ml-0.5 size-3 fill-current"
@@ -400,7 +400,7 @@ function OfferThumb({
       ) : (
         <OfferMock kind={mock} accent={color.accent} ring={color.ring} />
       )}
-      <div className="bg-background/90 text-foreground absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur">
+      <div className="bg-surface-glass text-foreground absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur">
         <Icon aria-hidden className="size-3" />
         {chipLabel}
       </div>
@@ -631,7 +631,7 @@ function OfferDetailBody({
       {/* Preview */}
       <div className="bg-card-background md:border-border flex flex-col md:min-h-0 md:border-r">
         {outputs.length > 1 ? (
-          <div className="border-border bg-background/70 flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
+          <div className="border-border bg-surface-glass flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
             {outputs.map((output, index) => (
               <button
                 key={output.url ?? output.label ?? output.type}

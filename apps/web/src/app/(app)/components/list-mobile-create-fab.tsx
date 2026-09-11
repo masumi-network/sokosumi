@@ -54,7 +54,7 @@ export function ListMobileCreateFab({
                 cx="28"
                 cy="28"
                 r="26"
-                className="stroke-background/40"
+                className="stroke-background-muted"
                 strokeWidth="2"
                 fill="none"
               />
