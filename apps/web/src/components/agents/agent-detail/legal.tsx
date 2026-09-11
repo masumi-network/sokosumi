@@ -17,7 +17,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.terms}
-            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("terms")}
           </a>
@@ -27,7 +27,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.privacyPolicy}
-            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("privacyPolicy")}
           </a>
@@ -37,7 +37,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.dpa}
-            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("dpa")}
           </a>
@@ -47,7 +47,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.other}
-            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("other")}
           </a>

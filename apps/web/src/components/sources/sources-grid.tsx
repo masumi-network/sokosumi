@@ -37,7 +37,7 @@ export function SourcesGrid(props: SourcesGridProps) {
 
   return (
     <div className={cn("mt-2", className)}>
-      <h3 className="text-foreground/80 mb-1 text-sm font-semibold">{title}</h3>
+      <h3 className="text-foreground mb-1 text-sm font-semibold">{title}</h3>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
         {blobs.map((blob) => (
           <FileItemChip key={blob.id} blob={blob} />
@@ -76,7 +76,7 @@ function FileItemChip({ blob }: { blob: BlobLike }) {
         <div className="inline-flex items-center justify-center">
           <FileIcon className="text-muted-foreground size-4" />
         </div>
-        <span className="text-foreground/80 w-full truncate text-sm">
+        <span className="text-foreground w-full truncate text-sm">
           {blob.name ?? getBlobUrl(blob)}
         </span>
         <div className="inline-flex justify-end">

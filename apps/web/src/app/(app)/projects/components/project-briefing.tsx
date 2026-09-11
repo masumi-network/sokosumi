@@ -42,7 +42,7 @@ export function ProjectBriefing({
             id="project-briefing-content"
             data-testid="project-briefing-content"
             className={cn(
-              "text-foreground/80",
+              "text-foreground",
               isLong && !expanded && "max-h-64 overflow-hidden",
             )}
           >
