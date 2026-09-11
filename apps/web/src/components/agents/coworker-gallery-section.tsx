@@ -585,7 +585,7 @@ function CoworkerGallerySectionInner({
             <div className="relative rounded-full">
               <Search
                 aria-hidden
-                className="text-on-media-muted pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
+                className="text-background-muted pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
               />
               <input
                 value={query}
@@ -604,7 +604,7 @@ function CoworkerGallerySectionInner({
                 >
                   <span
                     key={hintIdx}
-                    className="text-on-media-muted animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
+                    className="text-background-muted animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
                   >
                     {rotatingHints[hintIdx % rotatingHints.length]}
                   </span>
