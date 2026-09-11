@@ -65,3 +65,10 @@ export const CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY =
 /** One message, in a room whose name is the list of who is in it. */
 export const CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY =
   "Notifications.Chat.roomMessageGroupTitle";
+
+/**
+ * The localized word a preview shows for the room-wide mention (`@all`).
+ * Core stores the neutral `@all`; each reader's surface swaps in this word.
+ */
+export const CHAT_MENTION_ALL_LABEL_MESSAGE_KEY =
+  "Notifications.Chat.mentionAll";

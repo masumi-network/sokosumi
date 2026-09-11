@@ -7,6 +7,7 @@ struct ComposerMentionTests {
   @Test func emailIsHumanSubtitleAndSearchValue() {
     let entry = ComposerMention(id: "user-1", name: "Anna", slug: "anna", kind: .human, email: "anna@example.com")
     #expect(entry.subtitle == "anna@example.com")
+    #expect(ComposerMention(id: "all", name: "Everyone", slug: "all", kind: .all).subtitle == "@Everyone")
     #expect(ComposerMention.matching([entry], query: "example") == [entry])
     #expect(ComposerMention.selected(in: "Hi @user-1, @user-1:previous-name", catalog: [entry]) == [entry])
   }
