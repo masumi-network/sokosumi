@@ -21,6 +21,12 @@ describe("useNotificationTimeFormatter", () => {
     expect(result.current(new Date(NOW.getTime() - 33_000))).toBe("justNow");
   });
 
+  it("treats a timestamp ahead of the clock as just now", () => {
+    const { result } = renderHook(() => useNotificationTimeFormatter());
+
+    expect(result.current(new Date(NOW.getTime() + 5_000))).toBe("justNow");
+  });
+
   it("goes relative from a minute up to a week", () => {
     const { result } = renderHook(() => useNotificationTimeFormatter());
 

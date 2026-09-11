@@ -85,7 +85,7 @@ export function NotificationDropdownContent({
       });
   };
 
-  const handleSeeMoreClick = () => {
+  const handleViewAllClick = () => {
     router.push("/notifications");
     onClose();
   };
@@ -211,7 +211,7 @@ export function NotificationDropdownContent({
           variant="ghost"
           className="w-full"
           size="sm"
-          onClick={handleSeeMoreClick}
+          onClick={handleViewAllClick}
         >
           {t("viewAll")}
         </Button>
