@@ -905,7 +905,7 @@ export class SokoBotRuntimeService {
       organizationId: room.organizationId ?? null,
       authorName: bot
         ? sokoBotDisplayName(bot)
-        : sokoBotDisplayName({ name: null, user: null }),
+        : sokoBotDisplayName({ name: null }),
     };
   }
 
@@ -1184,7 +1184,7 @@ export class SokoBotRuntimeService {
       content: input.content,
       roomSokoBots: roomSokoBots.map(({ sokoBot }) => ({
         id: sokoBot.id,
-        name: sokoBotDisplayName({ name: sokoBot.name, user: null }),
+        name: sokoBotDisplayName({ name: sokoBot.name }),
       })),
     });
     // Written inside the transaction, dispatched after it commits — the same
@@ -1380,10 +1380,7 @@ export class SokoBotRuntimeService {
           message.senderUser?.name ??
           message.senderCoworker?.name ??
           (message.senderSokoBot
-            ? sokoBotDisplayName({
-                name: message.senderSokoBot.name,
-                user: null,
-              })
+            ? sokoBotDisplayName({ name: message.senderSokoBot.name })
             : "unknown"),
         /** True when the bot itself wrote it. */
         fromYou: message.senderSokoBot?.id === room.sokoBotId,

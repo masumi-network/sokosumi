@@ -1,9 +1,9 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
 import {
-  buildDirectRoomName,
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
+  formatParticipantNameList,
   getFirstName,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
@@ -856,6 +856,16 @@ export function buildDirectParticipantRoomKey(params: {
   ].sort();
 
   return `direct:v2:${participantKeys.join(":")}`;
+}
+
+export function buildDirectRoomName(names: readonly string[]): string {
+  const cleanNames = normalizeUniqueStrings(names);
+
+  if (cleanNames.length === 0) {
+    return "Direct message";
+  }
+
+  return formatParticipantNameList(cleanNames);
 }
 
 /**

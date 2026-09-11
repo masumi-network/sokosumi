@@ -908,10 +908,26 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 }
 
 /* Chat jump highlight — a search hit, notification deep link, or reply jump
-   landed on this message. Keep the hold in sync with ROOM_MESSAGE_HIGHLIGHT_MS
-   in apps/web/src/app/(app)/chat/components/room-helpers.ts. */
+   landed on this message. The hold sits on the list so the marked row and the
+   rows stepping back for it run off one clock. Keep it in sync with
+   ROOM_MESSAGE_HIGHLIGHT_MS in
+   apps/web/src/app/(app)/chat/utils/room-message-highlight.ts, which removes
+   the mark when it ends. */
+[data-chat-message-list] {
+  --chat-jump-hold: 4500ms;
+  --chat-jump-dim-opacity: 0.5;
+  --chat-jump-dim-blur: 1.5px;
+}
+
+/* Dark needs more of both: pulling opacity down on a dark ground takes far
+   less contrast out of the text than the same drop does on white, so the same
+   numbers read as almost no change. */
+.dark [data-chat-message-list] {
+  --chat-jump-dim-opacity: 0.36;
+  --chat-jump-dim-blur: 2.5px;
+}
+
 [data-message-id][data-search-landed="true"] {
-  --chat-jump-hold: 2500ms;
   /* Dark runs stronger: a light primary over a 4% ground lifts far less than
      the same mix of a saturated primary over white. */
   --chat-jump-wash-lead: 16%;
@@ -964,7 +980,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    runs on the same timeline as the mark, so the dim never outlives it. */
 [data-chat-message-list]:has([data-search-landed="true"])
 [data-message-id]:not([data-search-landed="true"]) {
-  animation: chat-jump-dim var(--chat-jump-hold, 2500ms) ease-out forwards;
+  animation: chat-jump-dim var(--chat-jump-hold) ease-out forwards;
 }
 
 @keyframes chat-jump-wash {
@@ -986,18 +1002,24 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   }
 }
 
+/* Blur carries the step-back where opacity alone is weak. It reads as depth
+   rather than as faded text, so the marked row stands out in either theme. */
 @keyframes chat-jump-dim {
   0% {
     opacity: 1;
+    filter: blur(0);
   }
   10% {
-    opacity: 0.75;
+    opacity: var(--chat-jump-dim-opacity);
+    filter: blur(var(--chat-jump-dim-blur));
   }
   76% {
-    opacity: 0.75;
+    opacity: var(--chat-jump-dim-opacity);
+    filter: blur(var(--chat-jump-dim-blur));
   }
   100% {
     opacity: 1;
+    filter: blur(0);
   }
 }
 
@@ -1035,5 +1057,6 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
     [data-message-id]:not([data-search-landed="true"]) {
     animation: none;
     opacity: 1;
+    filter: none;
   }
 }
