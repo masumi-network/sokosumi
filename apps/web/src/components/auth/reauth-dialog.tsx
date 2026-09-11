@@ -76,6 +76,15 @@ export function ReauthDialog({
   const socialProviders = accounts
     .map((account) => account.providerId)
     .filter(isSocialProvider);
+  // Opening a magic link while the address is unproven makes Better Auth
+  // delete every linked account and revoke every session
+  // (`revokeUnprovenAccountAccess`). Core does not require verification, so
+  // an unverified viewer is ordinary and must never be offered this.
+  // A magic-link sign-up is created verified, so the path stays open to the
+  // viewers who own nothing else.
+  const canUseMagicLink = session?.user.emailVerified === true;
+  const hasNoMethod =
+    !hasPasswordAccount && socialProviders.length === 0 && !canUseMagicLink;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (isSubmitting) {
@@ -235,15 +244,16 @@ export function ReauthDialog({
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          {hasPasswordAccount || socialProviders.length > 0 ? (
-            <p className="text-muted-foreground text-sm">{t("orEmail")}</p>
-          ) : null}
-          {magicLinkSent ? (
-            <p className="text-sm" role="status">
-              {t("magicLinkSent", { email })}
-            </p>
-          ) : (
+        {canUseMagicLink ? (
+          <div className="space-y-2">
+            {hasPasswordAccount || socialProviders.length > 0 ? (
+              <p className="text-muted-foreground text-sm">{t("orEmail")}</p>
+            ) : null}
+            {magicLinkSent ? (
+              <p className="text-sm" role="status">
+                {t("magicLinkSent", { email })}
+              </p>
+            ) : null}
             <Button
               className="w-full"
               disabled={isSubmitting || email.length === 0}
@@ -252,10 +262,12 @@ export function ReauthDialog({
               variant="outline"
             >
               <Mail />
-              {t("continueWithEmail")}
+              {magicLinkSent ? t("resendEmail") : t("continueWithEmail")}
             </Button>
-          )}
-        </div>
+          </div>
+        ) : null}
+
+        {hasNoMethod ? <p className="text-sm">{t("noMethod")}</p> : null}
 
         {errorMessage ? (
           // Announced, because submitting leaves focus on the button.

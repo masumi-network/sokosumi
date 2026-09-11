@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReauthDialog } from "./reauth-dialog";
 
+/** Flipped per test, because an unverified address changes the offer. */
+let emailVerified = true;
+
 const mockSignInEmail = vi.fn();
 const mockSignInMagicLink = vi.fn();
 const mockSignInSocial = vi.fn();
@@ -26,7 +29,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
     },
   },
   useSession: () => ({
-    data: { user: { email: "owner@example.com" } },
+    data: { user: { email: "owner@example.com", emailVerified } },
   }),
 }));
 
@@ -63,6 +66,7 @@ function renderDialog(accounts: Account[]) {
 
 describe("ReauthDialog", () => {
   beforeEach(() => {
+    emailVerified = true;
     mockSignInEmail.mockReset();
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
     mockSignInMagicLink.mockReset();
@@ -181,6 +185,49 @@ describe("ReauthDialog", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "magicLinkSent",
     );
+  });
+
+  it("never offers the link while the address is unproven", async () => {
+    // Better Auth's `revokeUnprovenAccountAccess` deletes every linked account
+    // and revokes every session when an unverified viewer opens a magic link.
+    emailVerified = false;
+    renderDialog([passwordAccount, googleAccount]);
+
+    expect(
+      screen.queryByRole("button", { name: "continueWithEmail" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("orEmail")).not.toBeInTheDocument();
+
+    // The methods that cannot destroy anything stay on offer.
+    expect(
+      screen.getByTestId("reauth-field-currentPassword"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "continueWithGoogle" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says what to do when the unproven viewer owns nothing else", () => {
+    emailVerified = false;
+    renderDialog([]);
+
+    expect(screen.getByText("noMethod")).toBeInTheDocument();
+  });
+
+  it("keeps a resend after sending, for a link opened elsewhere", async () => {
+    renderDialog([]);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    // Opening the mail on a phone leaves this device stale, so the viewer
+    // needs a second link rather than a dead end.
+    const resend = await screen.findByRole("button", { name: "resendEmail" });
+    await user.click(resend);
+
+    await waitFor(() => {
+      expect(mockSignInMagicLink).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("names each provider rather than echoing its wire id", () => {
