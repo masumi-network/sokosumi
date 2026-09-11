@@ -92,7 +92,7 @@ import Testing
   let pdfURL = try #require(URL(string: "https://example.com/report.pdf"))
   let pdf = try #require(MessageAttachment(url: pdfURL, label: "Report"))
   #expect(pdf.documentPreviewKind == .pdf)
-  for ext in ["zip", "docx", "json", "csv"] {
+  for ext in ["zip", "json", "csv"] {
     let url = try #require(URL(string: "https://example.com/report.\(ext)"))
     let attachment = try #require(MessageAttachment(url: url, label: "Report"))
     #expect(attachment.documentPreviewKind == nil)
@@ -125,5 +125,18 @@ import Testing
   let pdfURL = try #require(URL(string: "https://example.com/report.pdf"))
   #expect(MessageAttachment(url: pdfURL, label: "report.txt")?.documentPreviewKind == .pdf)
   let officeURL = try #require(URL(string: "https://example.com/report.docx"))
-  #expect(MessageAttachment(url: officeURL, label: "report.txt")?.documentPreviewKind == nil)
+  #expect(MessageAttachment(url: officeURL, label: "report.txt")?.documentPreviewKind == .office)
+}
+
+@Test func officeDocumentsUseURLThenFilenameForNativePreview() throws {
+  for ext in ["doc", "docx", "ppt", "pptx", "xls", "xlsx", "DOCX"] {
+    let url = try #require(URL(string: "https://example.com/report.\(ext)"))
+    let attachment = try #require(MessageAttachment(url: url, label: "Report"))
+    #expect(attachment.documentPreviewKind == .office)
+    #expect(attachment.documentPreviewExtension == ext.lowercased())
+  }
+  let url = try #require(URL(string: "https://example.com/deliverables/id"))
+  let attachment = try #require(MessageAttachment(url: url, label: "deck.pptx"))
+  #expect(attachment.documentPreviewKind == .office)
+  #expect(attachment.documentPreviewExtension == "pptx")
 }

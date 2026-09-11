@@ -8,23 +8,25 @@ public enum MessageAttachmentKindAttribute: AttributedStringKey {
 /// File metadata available in message Markdown; size is not carried on the wire.
 public struct MessageAttachment: Hashable, Sendable {
   public enum Kind: Hashable, Sendable { case image, audio, video, file }
-  public enum DocumentPreviewKind: Sendable { case pdf, text }
+  public enum DocumentPreviewKind: Sendable { case pdf, text, office }
   public let url: URL
   public let filename: String
   public let kind: Kind
 
-  public var documentPreviewKind: DocumentPreviewKind? {
+  public var documentPreviewExtension: String? {
     guard kind == .file else { return nil }
-    let extensions = [url.pathExtension.lowercased(), (filename as NSString).pathExtension.lowercased()]
-    for ext in extensions {
-      switch ext {
-      case "pdf": return .pdf
-      case "txt", "md", "markdown": return .text
-      case "doc", "docx", "ppt", "pptx", "xls", "xlsx": return nil
-      default: continue
-      }
+    let supported = ["pdf", "txt", "md", "markdown", "doc", "docx", "ppt", "pptx", "xls", "xlsx"]
+    return [url.pathExtension.lowercased(), (filename as NSString).pathExtension.lowercased()]
+      .first(where: { supported.contains($0) })
+  }
+
+  public var documentPreviewKind: DocumentPreviewKind? {
+    switch documentPreviewExtension {
+    case "pdf": .pdf
+    case "txt", "md", "markdown": .text
+    case "doc", "docx", "ppt", "pptx", "xls", "xlsx": .office
+    default: nil
     }
-    return nil
   }
 
   public init?(url: URL, label: String, kindHint: Kind? = nil) {
