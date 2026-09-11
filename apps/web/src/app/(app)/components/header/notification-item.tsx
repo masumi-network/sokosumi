@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell } from "lucide-react";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationMenuItem } from "@/components/notifications/delete-notification-menu-item";
+import { UnreadDot } from "@/components/notifications/unread-dot";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import {
   DropdownMenuGroup,
@@ -11,6 +11,7 @@ import {
 import type { NotificationItem as NotificationItemType } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
+import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
@@ -26,6 +27,7 @@ export function NotificationItem({
   formatTime,
 }: NotificationItemProps) {
   const formatMessage = useNotificationMessage();
+  const Icon = getNotificationIcon(notification);
   const message = formatMessage(
     notification.messageKey,
     notification.messageParams ?? {},
@@ -36,19 +38,20 @@ export function NotificationItem({
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
 
-  const rowClassName = cn(
-    "flex w-full items-start",
-    !notification.isRead && "bg-accent/50",
-  );
+  // The row is the highlight unit: it spans the panel edge to edge and tints
+  // as one surface whenever the body or the delete control is highlighted.
+  // Unread is the dot and the weight, so the tint is free to mean "here".
+  const rowClassName =
+    "group/row has-data-highlighted:bg-accent flex w-full items-start";
 
   const itemClassName = cn(
-    "flex min-w-0 flex-1 cursor-pointer flex-col items-start gap-1 py-3 pr-1 pl-4",
+    "flex min-w-0 flex-1 cursor-pointer flex-col items-start gap-1 rounded-none py-3 pr-1 pl-3 focus:bg-transparent",
     showPendingAccessActions && "cursor-default",
   );
 
   const body = (
     <div className="flex w-full items-start gap-3">
-      <Bell
+      <Icon
         className={cn(
           "mt-0.5 size-4 shrink-0",
           notification.isRead ? "text-muted-foreground" : "text-primary",
@@ -91,6 +94,7 @@ export function NotificationItem({
           />
         ) : null}
       </div>
+      <UnreadDot isRead={notification.isRead} />
     </div>
   );
 

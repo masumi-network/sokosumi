@@ -1,6 +1,5 @@
 "use client";
 
-import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -12,6 +11,7 @@ import { NotificationsListSkeleton } from "@/app/notifications/components/notifi
 import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationButton } from "@/components/notifications/delete-notification-button";
+import { UnreadDot } from "@/components/notifications/unread-dot";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -20,6 +20,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
+import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
@@ -272,16 +273,16 @@ function NotificationRow({
     isPendingCoworkerAccessNotification(notification);
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
+  const Icon = getNotificationIcon(notification);
   const rowClassName = cn(
-    "hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
-    !notification.isRead && "bg-accent/50",
+    "group/row hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     isPending && "bg-accent opacity-80",
     showPendingAccessActions ? "cursor-default" : "cursor-pointer",
   );
 
   const body = (
     <div className="flex w-full items-start gap-3">
-      <Bell
+      <Icon
         className={cn(
           "mt-0.5 size-4 shrink-0",
           notification.isRead ? "text-muted-foreground" : "text-primary",
@@ -326,6 +327,7 @@ function NotificationRow({
           />
         ) : null}
       </div>
+      <UnreadDot isRead={notification.isRead} />
     </div>
   );
 

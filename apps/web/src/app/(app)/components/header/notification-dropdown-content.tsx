@@ -159,7 +159,7 @@ export function NotificationDropdownContent({
   return (
     <>
       {accountNoticeSection}
-      <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+      <div className="flex items-center justify-between gap-2 py-1.5 pr-1 pl-2">
         <DropdownMenuLabel className="p-0">{t("title")}</DropdownMenuLabel>
         <div className="flex items-center gap-1">
           {unreadCount > 0 ? (
@@ -195,7 +195,7 @@ export function NotificationDropdownContent({
         className="mx-2 my-2"
         onNavigate={onClose}
       />
-      <div className="max-h-96 overflow-y-auto">
+      <div className="-mx-1 max-h-96 overflow-y-auto">
         {notifications.map((notification) => (
           <NotificationItem
             key={notification.id}
@@ -213,7 +213,7 @@ export function NotificationDropdownContent({
           size="sm"
           onClick={handleSeeMoreClick}
         >
-          {t("seeMore")}
+          {t("viewAll")}
         </Button>
       </div>
     </>
