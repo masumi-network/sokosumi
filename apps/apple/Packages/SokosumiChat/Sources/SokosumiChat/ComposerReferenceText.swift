@@ -19,7 +19,7 @@ public enum ComposerReferenceText {
 
   public static func presenting(_ text: NSAttributedString, catalog: [ComposerMention]) -> NSAttributedString {
     guard !catalog.isEmpty,
-          let expression = try? NSRegularExpression(pattern: "@([^\\s:]+):([^\\s]+)") else { return text }
+          let expression = try? NSRegularExpression(pattern: "@([^\\s:,.!?;()\\[\\]{}]+)(?::([^\\s]+))?") else { return text }
     let output = NSMutableAttributedString(attributedString: text)
     let source = text.string as NSString
     for match in expression.matches(in: text.string, range: NSRange(location: 0, length: text.length)).reversed() {

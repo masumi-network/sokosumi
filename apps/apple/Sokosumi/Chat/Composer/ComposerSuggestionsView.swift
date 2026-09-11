@@ -120,7 +120,7 @@ struct ComposerSuggestionsView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
               Text(mention.name).font(.body).foregroundStyle(.primary)
-              Text("@" + mention.slug).font(.caption).foregroundStyle(.secondary)
+              Text(mention.subtitle).font(.caption).foregroundStyle(.secondary)
             }
             .lineLimit(1)
             Spacer(minLength: 0)
@@ -136,7 +136,7 @@ struct ComposerSuggestionsView: View {
             highlight(mention.id)
           }
         }
-        .accessibilityLabel("\(mention.name), @\(mention.slug)")
+        .accessibilityLabel("\(mention.name), \(mention.subtitle)")
         .accessibilityAddTraits(selectedID == mention.id ? .isSelected : [])
         .id(mention.id)
       }

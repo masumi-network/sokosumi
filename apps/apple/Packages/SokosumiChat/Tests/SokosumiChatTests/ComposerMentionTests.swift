@@ -4,9 +4,16 @@ import Foundation
 import Testing
 
 struct ComposerMentionTests {
+  @Test func emailIsHumanSubtitleAndSearchValue() {
+    let entry = ComposerMention(id: "user-1", name: "Anna", slug: "anna", kind: .human, email: "anna@example.com")
+    #expect(entry.subtitle == "anna@example.com")
+    #expect(ComposerMention.matching([entry], query: "example") == [entry])
+    #expect(ComposerMention.selected(in: "Hi @user-1, @user-1:previous-name", catalog: [entry]) == [entry])
+  }
+
   @Test func mentionTokensKeepIdentityAndWebSlugRules() {
     let entry = ComposerMention(id: "user-1", name: "  René  Smith! ", slug: ComposerMention.slug(for: "  René  Smith! "), kind: .human)
-    #expect(entry.token == "@user-1:ren-smith")
+    #expect(entry.token == "@user-1")
     #expect(ComposerMention.slug(for: "A__B -- C") == "a__b-c")
   }
 

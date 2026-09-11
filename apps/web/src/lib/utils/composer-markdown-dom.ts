@@ -275,7 +275,7 @@ export function markdownToHtml(
       const token = `@@MENTIONTOKEN${mentionTokens.length}@@`;
       const mentionSpan = createMentionSpan(
         mention.id,
-        mention.slug,
+        mention.hasLegacyFormat ? mention.slug : "",
         displayName,
         isKnown,
         {

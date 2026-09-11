@@ -21,8 +21,10 @@ import { MARKDOWN_FENCED_BLOCK_REGEX } from "./markdown-fenced-block.js";
  * which leaves the address of a broken link on a lock screen where the label
  * alone belongs.
  */
+// Human IDs may also be case-sensitive 32-character auth IDs. New human
+// mentions omit the slug; existing ID:slug messages remain readable.
 const MENTION_TOKEN_REGEX =
-  /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|all):([\p{L}\p{N}_-]*)/gu;
+  /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9]{32}|all)(?::([\p{L}\p{N}_-]*))?(?![\p{L}\p{N}_-])/gu;
 
 /**
  * The key of the room-wide mention, which names a room rather than a member.
@@ -105,7 +107,7 @@ export function readChatMentionKeys(content: string): string[] {
   for (const match of content.matchAll(MENTION_TOKEN_REGEX)) {
     const key = match[1];
     if (key) {
-      keys.add(key.toLowerCase());
+      keys.add(key.includes("-") ? key.toLowerCase() : key);
     }
   }
 
@@ -522,10 +524,8 @@ function whoAMentionNames(
   slug: string,
   mentionNames?: ReadonlyMap<string, string>,
 ): string {
-  // Looked up lowercased, the case `readChatMentionKeys` hands a caller. A
-  // uuid is written in either case, and a key that missed the map for its
-  // case would put the id itself back on the banner.
-  const lookupKey = key.toLowerCase();
+  // Match readChatMentionKeys: UUID case is insignificant; auth IDs preserve case.
+  const lookupKey = key.includes("-") ? key.toLowerCase() : key;
   // A slug that repeats the key is not a name. The composer writes one for a
   // soko bot whose name has no ascii in it, so the fallback below would put
   // the id on a banner once that bot leaves the room and the lookup stops

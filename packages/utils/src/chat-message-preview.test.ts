@@ -6,6 +6,13 @@ import {
 } from "./chat-message-preview";
 
 describe("readChatMentionKeys", () => {
+  it("preserves case-sensitive user IDs without a slug", () => {
+    const id = "AbCdEfGhIjKlMnOpQrStUvWxYz012345";
+    expect(readChatMentionKeys(`Hi @${id}, and @${id}:old-name`)).toEqual([id]);
+    expect(
+      buildChatMessagePreview(`Hi @${id}!`, new Map([[id, "Renamed"]])),
+    ).toBe("Hi @Renamed!");
+  });
   it("reads the key of every mention, once each and in order", () => {
     expect(
       readChatMentionKeys(
