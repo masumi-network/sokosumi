@@ -13,8 +13,14 @@ import {
   CHAT_MESSAGE_LIST_THREAD,
 } from "@/app/chat/chat-message-list";
 
-/** Keep in sync with --chat-jump-hold in globals.css. */
-const ROOM_MESSAGE_HIGHLIGHT_MS = 2500;
+/**
+ * How long a landed row stays marked. Long enough to still be running when a
+ * reader closes the thread panel a jump opened, because the row it marks in
+ * the transcript sits behind that panel.
+ *
+ * Keep in sync with --chat-jump-hold in globals.css, which draws the mark.
+ */
+export const ROOM_MESSAGE_HIGHLIGHT_MS = 4500;
 
 /**
  * One mark per message list. A thread jump marks two rows at once: the reply

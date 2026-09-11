@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,6 +10,7 @@ import {
 import {
   highlightRoomTranscriptMessage,
   highlightThreadMessage,
+  ROOM_MESSAGE_HIGHLIGHT_MS,
 } from "@/app/chat/utils/room-message-highlight";
 
 /** One container per list, as the room renders it: two rows, one list. */
@@ -79,7 +83,10 @@ describe("room message highlight", () => {
     highlightRoomTranscriptMessage("msg-3");
     expect(article.dataset.searchLanded).toBe("true");
 
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS - 1);
+    expect(article.dataset.searchLanded).toBe("true");
+
+    vi.advanceTimersByTime(1);
     expect(article.dataset.searchLanded).toBeUndefined();
   });
 
@@ -95,11 +102,12 @@ describe("room message highlight", () => {
     expect(first.dataset.searchLanded).toBeUndefined();
     expect(second.dataset.searchLanded).toBe("true");
 
-    // The first jump's timer must not clear the second jump's mark early.
-    vi.advanceTimersByTime(1500);
+    // The first jump's mark must not take the second one with it when its own
+    // hold would have ended.
+    vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS - 1);
     expect(second.dataset.searchLanded).toBe("true");
 
-    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1);
     expect(second.dataset.searchLanded).toBeUndefined();
   });
 
@@ -167,5 +175,27 @@ describe("room message highlight", () => {
 
     expect(reply.dataset.searchLanded).toBe("true");
     expect(parent.dataset.searchLanded).toBe("true");
+  });
+
+  /**
+   * The hold is written down twice: here, as the timer that removes the
+   * attribute, and in globals.css, as the animation that draws the mark and
+   * steps the other rows back. A drift between them either wipes the mark
+   * mid-animation or leaves the row marked with nothing to see.
+   */
+  it("holds for as long as the stylesheet draws the mark", () => {
+    // Vitest runs this suite with apps/web as the working directory.
+    const css = readFileSync(
+      resolve(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+
+    // Every definition, so a second one added later cannot shadow the one the
+    // mark reads and leave this passing on a value nothing uses.
+    const declared = [...css.matchAll(/--chat-jump-hold:\s*(\S+?);/g)];
+
+    expect(declared.map((match) => match[1])).toEqual([
+      `${ROOM_MESSAGE_HIGHLIGHT_MS}ms`,
+    ]);
   });
 });
