@@ -94,7 +94,7 @@ describe("useRoomMessageJumps", () => {
     expect(highlightRoomTranscriptMessage).toHaveBeenCalledTimes(1);
     expect(highlightThreadMessage).not.toHaveBeenCalled();
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
-    expect(options.setSearchHoldOffBottom).toHaveBeenLastCalledWith(false);
+    expect(options.setSearchHoldOffBottom).not.toHaveBeenCalled();
   });
 
   it("merges a current room window without marking the timeline historical", async () => {

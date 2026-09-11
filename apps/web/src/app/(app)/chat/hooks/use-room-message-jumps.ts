@@ -211,18 +211,17 @@ export function useRoomMessageJumps({
     if (!roomId) {
       return false;
     }
+    // Held through the scroller's refs alone. The state flag exists for the
+    // thread panel, which a room jump never touches, and toggling it
+    // re-renders every row in the transcript twice, once on hold and once on
+    // release, which with a couple of hundred rows on screen was most of the
+    // wait after the window had already loaded.
     const { isNewestJump, holdOffBottom, releaseHoldOffBottom } = startRoomJump(
       jumpStateRef.current,
       {
         isStillSelectedRoom: () => isStillSelectedRoom(roomId),
-        hold: () => {
-          suppressStickToBottom();
-          setSearchHoldOffBottom(true);
-        },
-        release: () => {
-          releaseStickToBottomSuppress();
-          setSearchHoldOffBottom(false);
-        },
+        hold: suppressStickToBottom,
+        release: releaseStickToBottomSuppress,
       },
     );
     return performRoomMessageJump(messageId, {
