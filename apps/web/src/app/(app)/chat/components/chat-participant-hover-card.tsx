@@ -7,7 +7,6 @@ import {
   type CSSProperties,
   cloneElement,
   isValidElement,
-  type FocusEvent as ReactFocusEvent,
   type ReactNode,
   type Ref,
   useCallback,
@@ -63,35 +62,14 @@ interface ChatParticipantHoverCardProps {
   closeDelay?: number;
 }
 
-type FocusHandler = (event: ReactFocusEvent<HTMLElement>) => void;
-
-/** Ref and focus handlers the card attaches to whichever trigger it renders. */
-interface TriggerFocusProps {
-  ref?: Ref<HTMLElement>;
-  onFocus?: FocusHandler;
-  onBlur?: FocusHandler;
-}
-
-interface TriggerChildProps extends TriggerFocusProps {
+interface TriggerChildProps {
   className?: string;
   style?: CSSProperties;
   role?: string;
   tabIndex?: number;
   "aria-label"?: string;
   "aria-hidden"?: boolean | "true" | "false";
-}
-
-function composeFocusHandlers(
-  childHandler: FocusHandler | undefined,
-  ownHandler: FocusHandler | undefined,
-): FocusHandler | undefined {
-  if (!childHandler || !ownHandler) {
-    return childHandler ?? ownHandler;
-  }
-  return (event) => {
-    childHandler(event);
-    ownHandler(event);
-  };
+  ref?: Ref<HTMLElement>;
 }
 
 function renderHoverTrigger({
@@ -100,14 +78,14 @@ function renderHoverTrigger({
   className,
   style,
   interactive,
-  focusProps = {},
+  triggerRef,
 }: {
   profileName: string;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
   interactive: boolean;
-  focusProps?: TriggerFocusProps;
+  triggerRef: Ref<HTMLElement>;
 }) {
   const childItems = Children.toArray(children).filter((child) => {
     if (typeof child === "string" || typeof child === "number") {
@@ -144,19 +122,14 @@ function renderHoverTrigger({
         singleChild.props.className,
         className,
       ),
-      ref: focusProps.ref,
-      onFocus: composeFocusHandlers(
-        singleChild.props.onFocus,
-        focusProps.onFocus,
-      ),
-      onBlur: composeFocusHandlers(singleChild.props.onBlur, focusProps.onBlur),
+      ref: triggerRef,
     });
   }
 
   if (!interactive) {
     return (
       <span
-        {...focusProps}
+        ref={triggerRef}
         style={style}
         className={cn(
           "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none",
@@ -170,7 +143,7 @@ function renderHoverTrigger({
 
   return (
     <span
-      {...focusProps}
+      ref={triggerRef}
       role="button"
       tabIndex={0}
       aria-label={profileName}
@@ -204,13 +177,24 @@ export function ChatParticipantHoverCard({
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
   // Activation swaps the bare trigger for the Radix one, which remounts the
-  // element and drops focus. When keyboard focus was on the bare trigger at
-  // that moment, the Radix trigger takes focus as soon as it attaches, so
-  // the card opens on focus exactly as it does for an always-active card.
-  const bareTriggerFocused = useRef(false);
+  // element and drops focus. The bare trigger's ref cleanup runs before its
+  // node leaves the DOM, so it can still see whether it held focus; the
+  // Radix trigger then takes focus as soon as it attaches, and the card
+  // opens on focus exactly as it does for an always-active card. Reading
+  // activeElement at cleanup rather than tracking blur matters because some
+  // browsers fire blur when a focused node is removed.
+  const restoreFocus = useRef(false);
+  const bareTriggerRef = useCallback((node: HTMLElement | null) => {
+    if (!node) {
+      return;
+    }
+    return () => {
+      restoreFocus.current = document.activeElement === node;
+    };
+  }, []);
   const focusOnAttach = useCallback((node: HTMLElement | null) => {
-    if (node && bareTriggerFocused.current) {
-      bareTriggerFocused.current = false;
+    if (node && restoreFocus.current) {
+      restoreFocus.current = false;
       node.focus();
     }
   }, []);
@@ -226,14 +210,7 @@ export function ChatParticipantHoverCard({
       className,
       style,
       interactive,
-      focusProps: {
-        onFocus: () => {
-          bareTriggerFocused.current = true;
-        },
-        onBlur: () => {
-          bareTriggerFocused.current = false;
-        },
-      },
+      triggerRef: bareTriggerRef,
     });
   }
 
@@ -266,7 +243,7 @@ export function ChatParticipantHoverCard({
           className,
           style,
           interactive,
-          focusProps: { ref: focusOnAttach },
+          triggerRef: focusOnAttach,
         })}
       </HoverCardTrigger>
       <HoverCardContent

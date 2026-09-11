@@ -2915,15 +2915,23 @@ describe("ChatMessageRow hover chrome", () => {
     renderRow();
 
     // Avatar and name keep their trigger semantics before any interaction,
-    // so the tab order through the row does not change.
+    // so the tab order through the row does not change. The mount itself has
+    // no role-level observable, so this one assertion reads the trigger slot.
     expect(screen.getAllByRole("button", { name: "Ada" })).toHaveLength(2);
     expect(hoverCardTriggers()).toHaveLength(0);
 
     await user.hover(screen.getByRole("article"));
-    expect(hoverCardTriggers()).toHaveLength(2);
 
-    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    const [avatarTrigger, nameTrigger] = screen.getAllByRole("button", {
+      name: "Ada",
+    });
     await user.hover(avatarTrigger);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+    await user.unhover(avatarTrigger);
+    await waitFor(() => {
+      expect(screen.queryByText("ada@example.com")).not.toBeInTheDocument();
+    });
+    await user.hover(nameTrigger);
     expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
   });
 
@@ -2958,7 +2966,9 @@ describe("ChatMessageRow hover chrome", () => {
 
     expect(screen.getByText("after merge")).toBeInTheDocument();
     expect(hoverPill()).toBeInTheDocument();
-    expect(hoverCardTriggers()).toHaveLength(2);
+    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    await user.hover(avatarTrigger);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
   });
 
   it("mounts only the action pill on a continuation row", async () => {
@@ -2972,18 +2982,45 @@ describe("ChatMessageRow hover chrome", () => {
     await user.hover(screen.getByRole("article"));
 
     expect(hoverPill()).toBeInTheDocument();
-    expect(hoverCardTriggers()).toHaveLength(0);
+    expect(
+      screen.queryByRole("button", { name: "Ada" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("mounts the chrome when focus lands on the more actions button", async () => {
+  it("mounts the chrome when tabbing lands on the more actions button", async () => {
+    const user = userEvent.setup();
     renderContinuation();
+    const moreActions = screen.getByRole("button", { name: "Actions.more" });
 
-    act(() => {
-      screen.getByRole("button", { name: "Actions.more" }).focus();
+    // Tab through whatever the body exposes until the always-mounted control
+    // has focus; the row must never depend on any other stop existing.
+    for (let step = 0; step < 5 && document.activeElement !== moreActions; ) {
+      await user.tab();
+      step += 1;
+    }
+
+    expect(moreActions).toHaveFocus();
+    expect(hoverPill()).toBeInTheDocument();
+  });
+
+  it("renders no pill for a row being edited even after hover", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Hello",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
     });
 
-    expect(screen.getByRole("button", { name: "Actions.more" })).toHaveFocus();
-    expect(hoverPill()).toBeInTheDocument();
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Actions.more" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders no pill for a pending outbound row even after hover", async () => {
