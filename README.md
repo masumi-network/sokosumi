@@ -24,6 +24,7 @@ sokosumi/
 ├── scripts/         # local-env, cloud-agent-db, CI helpers
 ├── skills/          # First-party agent skill sources
 ├── biome.jsonc      # Root Biome configuration
+├── turbo.json       # Turborepo task graph
 ├── package.json     # Monorepo root config
 └── pnpm-workspace.yaml
 ```
