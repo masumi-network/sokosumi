@@ -53,8 +53,8 @@ export default function InvitationCard({
       <CardContent>
         {status === "accepted" && (
           <div className="space-y-4">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100">
-              <CheckIcon className="size-8 text-green-600" />
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-semantic-success-quinary">
+              <CheckIcon className="size-8 text-semantic-success" />
             </div>
             <h1 className="text-center text-2xl font-light">
               {t("acceptedTitle", {
@@ -77,8 +77,8 @@ export default function InvitationCard({
         )}
         {status === "rejected" && (
           <div className="space-y-4">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-red-100">
-              <XIcon className="size-8 text-red-600" />
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-semantic-destructive-quinary">
+              <XIcon className="size-8 text-semantic-destructive" />
             </div>
             <h1 className="text-center text-2xl font-light">
               {t("declinedTitle")}

@@ -11,8 +11,8 @@ const DEFAULT_CATEGORY_STYLES = {
 describe("getAgentCategoryStyles", () => {
   it("returns styles from the highest-priority category", () => {
     const styles = {
-      light: { color: "text-blue-600" },
-      dark: { color: "text-blue-400" },
+      light: { color: "text-semantic-info" },
+      dark: { color: "text-semantic-info" },
     };
     const agent = createMockCoreAgent({
       categories: [
