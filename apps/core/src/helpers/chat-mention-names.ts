@@ -8,12 +8,17 @@ type MentionNameClient = Pick<
   "chatRoomUserMember" | "chatRoomCoworkerMember" | "chatRoomSokoBotMember"
 >;
 
+const POSTGRES_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * The display names the room shows for the members a message mentions.
  *
  * Human mentions use `@<member id>`. Existing human mentions and current
  * agent mentions may include `:<slug>`. Resolve display names from room
- * members by ID so previews reflect the current name.
+ * members by ID so previews reflect the current name. User and coworker
+ * ids are text, including 32-character auth ids. SokoBot ids are Postgres
+ * uuid, so only hyphenated uuid keys go into that read.
  *
  * Only the mentioned members are read, not the room's roster: a channel can
  * hold hundreds of people and a message names a handful of them.
@@ -63,13 +68,16 @@ export async function loadChatMentionNames(params: {
     }
   }
 
-  const sokoBotMembers = await client.chatRoomSokoBotMember.findMany({
-    where: { roomId: params.roomId, sokoBotId: { in: keys } },
-    select: { sokoBot: { select: { id: true, name: true } } },
-  });
-  for (const member of sokoBotMembers) {
-    if (member.sokoBot.name) {
-      names.set(member.sokoBot.id, member.sokoBot.name);
+  const sokoBotIds = keys.filter((key) => POSTGRES_UUID.test(key));
+  if (sokoBotIds.length > 0) {
+    const sokoBotMembers = await client.chatRoomSokoBotMember.findMany({
+      where: { roomId: params.roomId, sokoBotId: { in: sokoBotIds } },
+      select: { sokoBot: { select: { id: true, name: true } } },
+    });
+    for (const member of sokoBotMembers) {
+      if (member.sokoBot.name) {
+        names.set(member.sokoBot.id, member.sokoBot.name);
+      }
     }
   }
 

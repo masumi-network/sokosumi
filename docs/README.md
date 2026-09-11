@@ -30,4 +30,4 @@ This directory contains documentation for the Sokosumi monorepo.
 
 ## Architecture decisions
 
-- [`adr/`](./adr/) — accepted architecture decision records
+- [`adr/`](./adr/) — accepted architecture decision records (`adr/superseded/` holds superseded records)
