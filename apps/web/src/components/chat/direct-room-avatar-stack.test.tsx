@@ -181,9 +181,9 @@ describe("DirectRoomAvatarStack", () => {
     );
 
     // Soko bots are AI and report always-online (ADR-0003), same as coworkers.
-    // Miss that arm and the mark says "Offline" while the hover card on the
-    // same avatar says "Online". The mark is aria-hidden, so its tooltip is
-    // where that state is observable.
+    // Miss that arm and this mark says "Offline" while the mark on the same
+    // avatar's hover card says "Online". The mark is aria-hidden, so its
+    // tooltip is where that state is observable.
     const trigger = screen.getByTestId("dm-sidebar-avatar-bot-1");
     expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
       "Online",

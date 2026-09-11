@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -51,6 +51,16 @@ const coworkerProfile: ChatParticipantHoverProfile = {
   caption: "Research assistant",
   image: null,
   presence: "afk",
+};
+
+const sokoBotProfile: ChatParticipantHoverProfile = {
+  kind: "sokoBot",
+  id: "pa-1",
+  name: "Soko",
+  caption: null,
+  image: null,
+  avatarSeed: null,
+  presence: "online",
 };
 
 describe("ChatParticipantHoverCard", () => {
@@ -143,16 +153,26 @@ describe("ChatParticipantHoverCard", () => {
   it("falls back to the kind label for a personal assistant without caption", async () => {
     const user = userEvent.setup();
     render(
+      <ChatParticipantHoverCard profile={sokoBotProfile}>
+        <span>Soko</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    await user.hover(screen.getByRole("button", { name: "Soko" }));
+
+    const card = screen.getByTestId("chat-participant-hover-card");
+    expect(
+      within(card).getByLabelText("Personal assistant"),
+    ).toBeInTheDocument();
+    expect(card).toHaveTextContent("Personal assistant");
+    expect(card).not.toHaveTextContent("Online");
+  });
+
+  it("keeps the kind off the subtitle for a personal assistant with caption", async () => {
+    const user = userEvent.setup();
+    render(
       <ChatParticipantHoverCard
-        profile={{
-          kind: "sokoBot",
-          id: "pa-1",
-          name: "Soko",
-          caption: null,
-          image: null,
-          avatarSeed: null,
-          presence: "online",
-        }}
+        profile={{ ...sokoBotProfile, caption: "Your PM" }}
       >
         <span>Soko</span>
       </ChatParticipantHoverCard>,
@@ -161,7 +181,11 @@ describe("ChatParticipantHoverCard", () => {
     await user.hover(screen.getByRole("button", { name: "Soko" }));
 
     const card = screen.getByTestId("chat-participant-hover-card");
-    expect(card).toHaveTextContent("Personal assistant");
+    expect(
+      within(card).getByLabelText("Personal assistant"),
+    ).toBeInTheDocument();
+    expect(card).toHaveTextContent("Your PM");
+    expect(card).not.toHaveTextContent("Personal assistant");
     expect(card).not.toHaveTextContent("Online");
   });
 

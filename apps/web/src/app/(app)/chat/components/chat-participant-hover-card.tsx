@@ -168,8 +168,9 @@ export function ChatParticipantHoverCard({
   const isSokoBot = profile.kind === "sokoBot";
   const isAi = isCoworker || isSokoBot;
   // One subtitle per card, best available information first. The bot icon
-  // beside the name already says "AI coworker", so the kind label is only the
-  // last resort for a personal assistant with no caption.
+  // beside the name already carries the kind ("AI coworker" or "Personal
+  // assistant"), so the kind label is only the last resort for a personal
+  // assistant with no caption.
   const detail =
     profile.kind === "human"
       ? profile.email
