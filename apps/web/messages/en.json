@@ -30,6 +30,7 @@
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
+      "rememberMe": "Keep me signed in",
       "retryPrompt": "You are signed in again. Try that again now.",
       "socialError": "We could not start that sign-in.",
       "title": "Confirm it is you"

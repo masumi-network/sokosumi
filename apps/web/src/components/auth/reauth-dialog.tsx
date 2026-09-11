@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,10 @@ export function ReauthDialog({
   const pathname = usePathname();
   const { data: session } = useSession();
   const [password, setPassword] = useState("");
+  // Better Auth defaults this to true. Signing in again mints a new session,
+  // so without the same choice the dialog would quietly turn a viewer's
+  // "do not keep me signed in" into a persistent cookie.
+  const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -87,7 +92,11 @@ export function ReauthDialog({
     setErrorMessage(null);
 
     try {
-      const result = await authClient.signIn.email({ email, password });
+      const result = await authClient.signIn.email({
+        email,
+        password,
+        rememberMe,
+      });
 
       if (result.error) {
         setErrorMessage(result.error.message ?? t("passwordError"));
@@ -147,6 +156,16 @@ export function ReauthDialog({
                 type="password"
                 value={password}
               />
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={rememberMe}
+                  id="reauth-remember-me"
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label className="font-normal" htmlFor="reauth-remember-me">
+                  {t("rememberMe")}
+                </Label>
+              </div>
             </fieldset>
             <Button
               className="w-full"

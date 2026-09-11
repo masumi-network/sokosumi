@@ -131,6 +131,7 @@ describe("DisconnectModal", () => {
       expect(mockSignInEmail).toHaveBeenCalledWith({
         email: "owner@example.com",
         password: "correct horse",
+        rememberMe: true,
       });
     });
 

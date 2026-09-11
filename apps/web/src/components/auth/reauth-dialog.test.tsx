@@ -83,8 +83,31 @@ describe("ReauthDialog", () => {
     expect(mockSignInEmail).toHaveBeenCalledWith({
       email: "owner@example.com",
       password: "correct horse",
+      rememberMe: true,
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("carries a cleared Keep me signed in through to the new session", async () => {
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    // Better Auth defaults rememberMe to true, so a new session would
+    // otherwise upgrade a deliberately non-persistent cookie.
+    await user.click(screen.getByRole("checkbox", { name: "rememberMe" }));
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    await waitFor(() => {
+      expect(mockSignInEmail).toHaveBeenCalledWith({
+        email: "owner@example.com",
+        password: "correct horse",
+        rememberMe: false,
+      });
+    });
   });
 
   it("keeps the dialog open and shows why when the password is wrong", async () => {

@@ -700,6 +700,7 @@ describe("PasskeySettings", () => {
       expect(mockSignInEmail).toHaveBeenCalledWith({
         email: "passkey-owner@example.com",
         password: "correct horse",
+        rememberMe: true,
       });
     });
 
