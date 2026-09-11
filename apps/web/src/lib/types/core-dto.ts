@@ -1,15 +1,12 @@
 import type {
   Agent,
   AgentDetail,
-  File as CoreJobFile,
   Job,
   JobEvent,
   JobSummary,
   MemberRecord,
-  Notice,
   OrganizationRecord,
   Task,
-  TaskEvent,
 } from "@/lib/clients/generated/core";
 
 /** Agent list or detail payload from Core. */
@@ -32,9 +29,6 @@ export type SokosumiJobStatus = JobSummary["status"];
 export type JobType = Job["jobType"];
 export type AgentJobStatus = JobEvent["status"];
 export type OnChainJobStatus = NonNullable<Job["onChainStatus"]>;
-export type BlobStatus = CoreJobFile["status"];
-export type NoticeKind = Notice["kind"];
-export type Channel = TaskEvent["channel"];
 export type RiskClassification = AgentDetail["riskClassification"];
 
 const UNAVAILABLE_AGENT_DATE = new Date(0);
