@@ -12,7 +12,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       coworkerBadge: "AI coworker",
-      humanBadge: "Human",
+      personalAssistantBadge: "Personal assistant",
       openDirectMessage: "Message",
       "Presence.online": "Online",
       "Presence.afk": "Away",
@@ -73,7 +73,7 @@ describe("ChatParticipantHoverCard", () => {
     );
   });
 
-  it("reports a coworker as online whatever presence says", async () => {
+  it("states no availability for a coworker, which is always online", async () => {
     const user = userEvent.setup();
     render(
       <ChatParticipantHoverCard profile={coworkerProfile}>
@@ -84,11 +84,11 @@ describe("ChatParticipantHoverCard", () => {
     await user.hover(screen.getByRole("button", { name: "Hannah" }));
 
     const card = screen.getByTestId("chat-participant-hover-card");
-    expect(card).toHaveTextContent("Online");
+    expect(card).not.toHaveTextContent("Online");
     expect(card).not.toHaveTextContent("Away");
   });
 
-  it("shows human email and human badge", async () => {
+  it("shows human email without a kind label", async () => {
     const user = userEvent.setup();
     render(
       <ChatParticipantHoverCard profile={humanProfile}>
@@ -100,12 +100,12 @@ describe("ChatParticipantHoverCard", () => {
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Ada Lovelace");
-    expect(card).toHaveTextContent("Human");
+    expect(card).not.toHaveTextContent("Human");
     expect(card).toHaveTextContent("ada@example.com");
     expect(card).not.toHaveTextContent("AI coworker");
   });
 
-  it("shows coworker caption, slug fallback, and AI badge", async () => {
+  it("shows coworker caption with the AI icon and no kind line", async () => {
     const user = userEvent.setup();
     render(
       <ChatParticipantHoverCard profile={coworkerProfile}>
@@ -117,8 +117,10 @@ describe("ChatParticipantHoverCard", () => {
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Hannah");
-    expect(card).toHaveTextContent("AI coworker");
     expect(card).toHaveTextContent("Research assistant");
+    // The icon carries the kind for assistive technology; no text repeats it.
+    expect(screen.getByLabelText("AI coworker")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("AI coworker");
     expect(card).not.toHaveTextContent("Away");
     expect(card).not.toHaveTextContent("@hannah");
   });
@@ -136,6 +138,31 @@ describe("ChatParticipantHoverCard", () => {
     expect(screen.getByTestId("chat-participant-hover-card")).toHaveTextContent(
       "@hannah",
     );
+  });
+
+  it("falls back to the kind label for a personal assistant without caption", async () => {
+    const user = userEvent.setup();
+    render(
+      <ChatParticipantHoverCard
+        profile={{
+          kind: "sokoBot",
+          id: "pa-1",
+          name: "Soko",
+          caption: null,
+          image: null,
+          avatarSeed: null,
+          presence: "online",
+        }}
+      >
+        <span>Soko</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    await user.hover(screen.getByRole("button", { name: "Soko" }));
+
+    const card = screen.getByTestId("chat-participant-hover-card");
+    expect(card).toHaveTextContent("Personal assistant");
+    expect(card).not.toHaveTextContent("Online");
   });
 
   it("shows Message for another human when human directs are available", () => {

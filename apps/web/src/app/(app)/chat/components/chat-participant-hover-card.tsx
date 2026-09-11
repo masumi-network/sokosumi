@@ -167,17 +167,15 @@ export function ChatParticipantHoverCard({
   const isCoworker = profile.kind === "coworker";
   const isSokoBot = profile.kind === "sokoBot";
   const isAi = isCoworker || isSokoBot;
-  const kindLabel = isSokoBot
-    ? t("personalAssistantBadge")
-    : isCoworker
-      ? t("coworkerBadge")
-      : t("humanBadge");
+  // One subtitle per card, best available information first. The bot icon
+  // beside the name already says "AI coworker", so the kind label is only the
+  // last resort for a personal assistant with no caption.
   const detail =
     profile.kind === "human"
       ? profile.email
       : profile.kind === "sokoBot"
-        ? profile.caption?.trim() || null
-        : profile.caption?.trim() || (profile.slug ? `@${profile.slug}` : null);
+        ? profile.caption?.trim() || t("personalAssistantBadge")
+        : profile.caption?.trim() || `@${profile.slug}`;
   const showOpenDirect = canShowOpenDirect({
     profile,
     currentUserId,
@@ -245,10 +243,9 @@ export function ChatParticipantHoverCard({
                 />
               ) : null}
             </div>
-            <p className="text-muted-foreground text-xs font-medium">
-              {kindLabel}
-            </p>
-            {/* Sighted affordance. Radix's hover card emits no ARIA and portals
+            {/* Sighted affordance, humans only: coworkers are pinned online
+                (ADR-0003), so the word would be a constant there and the dot
+                already carries it. Radix's hover card emits no ARIA and portals
                 to the end of the body with nothing pointing back at the trigger,
                 so this text is reachable by a virtual cursor while the card is
                 open but is never tied to the person who opened it. Availability
@@ -257,12 +254,13 @@ export function ChatParticipantHoverCard({
                 a 1:1 direct.
                 `block` because `space-y-1` sets margin-top on siblings, which
                 an inline box ignores. */}
-            <LiveMemberPresenceText
-              className="text-muted-foreground block text-xs"
-              fallback={profile.presence}
-              isCoworker={isAi}
-              userId={profile.id}
-            />
+            {isAi ? null : (
+              <LiveMemberPresenceText
+                className="block text-xs font-medium"
+                fallback={profile.presence}
+                userId={profile.id}
+              />
+            )}
             {detail ? (
               <p className="text-muted-foreground truncate text-xs">{detail}</p>
             ) : null}

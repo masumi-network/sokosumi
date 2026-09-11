@@ -17,7 +17,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       coworkerBadge: "AI coworker",
-      humanBadge: "Human",
       openDirectMessage: "Message",
       "Presence.online": "Online",
       "Presence.afk": "Away",
@@ -241,7 +240,6 @@ describe("DirectRoomAvatarStack", () => {
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Patrick Tobler");
-    expect(card).toHaveTextContent("Human");
     expect(card).toHaveTextContent("patrick@example.com");
   });
 
@@ -294,7 +292,7 @@ describe("DirectRoomAvatarStack", () => {
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Matt");
-    expect(card).toHaveTextContent("AI coworker");
+    expect(within(card).getByLabelText("AI coworker")).toBeInTheDocument();
     expect(card).toHaveTextContent("Matt caption");
     expect(
       screen.getByRole("button", { name: /Message/i }),
