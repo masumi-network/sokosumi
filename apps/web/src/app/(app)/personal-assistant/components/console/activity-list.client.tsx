@@ -95,7 +95,7 @@ function ActivityRow({
         </time>
       </button>
       {open ? (
-        <div className="border-border/60 border-t pt-1 pb-2">
+        <div className="border-border border-t pt-1 pb-2">
           <TurnRows
             turn={turn}
             userImageUrl={userImageUrl}

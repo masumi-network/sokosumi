@@ -72,7 +72,7 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
           </KeyValueRow>
         ) : null}
 
-        <div className="border-border/50 my-3 border-t" />
+        <div className="border-border my-3 border-t" />
 
         <KeyValueRow label={t("started")}>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
@@ -88,7 +88,7 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
           </span>
         </KeyValueRow>
 
-        <div className="border-border/50 my-3 border-t" />
+        <div className="border-border my-3 border-t" />
 
         <KeyValueRow label={t("jobId")} layout="column">
           <div className="w-full text-left text-sm">

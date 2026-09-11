@@ -10,7 +10,7 @@ const DRIVE_ITEMS_GRID_CLASS =
 
 export function driveItemsPanelClass(viewMode: FilesViewMode): string {
   return cn(
-    "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+    "bg-muted/30 border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
     PROJECTS_LIST_CARD_MIN_H_CLASS,
     viewMode === "grid" ? "p-3" : undefined,
   );
@@ -19,18 +19,18 @@ export function driveItemsPanelClass(viewMode: FilesViewMode): string {
 export function driveItemsListClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? DRIVE_ITEMS_GRID_CLASS
-    : "divide-border/50 divide-y px-2";
+    : "divide-border divide-y px-2";
 }
 
 export function driveRecentsDayItemsClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? DRIVE_ITEMS_GRID_CLASS
-    : "space-y-0 divide-y divide-border/50";
+    : "space-y-0 divide-y divide-border";
 }
 
 export function driveItemArticleClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "group relative flex items-center gap-2 rounded-lg border border-border/50 bg-background/60 p-3 hover:bg-muted/50"
+    ? "group relative flex items-center gap-2 rounded-lg border border-border bg-background/60 p-3 hover:bg-muted/50"
     : cn(
         "relative -mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
         PROJECTS_LIST_ROW_LAYOUT_CLASS,

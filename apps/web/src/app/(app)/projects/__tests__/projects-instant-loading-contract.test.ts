@@ -131,7 +131,7 @@ describe("projects list CLS layout pairing", () => {
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("rounded-none");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");
-    expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border/50 divide-y px-2");
+    expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border divide-y px-2");
   });
 
   it("page and Instant shell share PROJECTS_PAGE_SHELL_CLASS", () => {

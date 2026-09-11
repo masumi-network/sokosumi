@@ -36,12 +36,12 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
  * Shared by live `ProjectsView`, Instant skeleton, and project needs-attention list.
  */
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
-  "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
+  "bg-muted/30 border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
  */
-export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border/50 divide-y px-2";
+export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y px-2";
 
 /**
  * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
