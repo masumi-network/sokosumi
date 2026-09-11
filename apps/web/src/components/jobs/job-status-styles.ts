@@ -7,7 +7,7 @@ interface StatusPillStyle {
 }
 
 const DEFAULT_STATUS_STYLE: StatusPillStyle = {
-  bg: "bg-muted",
+  bg: "bg-quaternary",
   text: "text-foreground",
   dot: "bg-status-done",
 };
@@ -28,54 +28,54 @@ const DEFAULT_STATUS_STYLE: StatusPillStyle = {
 const STATUS_PILL_STYLES: Partial<Record<SokosumiJobStatus, StatusPillStyle>> =
   {
     [SokosumiJobStatus.COMPLETED]: {
-      bg: "bg-semantic-success-quinary",
+      bg: "bg-semantic-success-quaternary",
       text: "text-foreground",
       dot: "bg-semantic-success",
     },
     [SokosumiJobStatus.REFUND_RESOLVED]: DEFAULT_STATUS_STYLE,
     [SokosumiJobStatus.DISPUTE_RESOLVED]: DEFAULT_STATUS_STYLE,
     [SokosumiJobStatus.FAILED]: {
-      bg: "bg-semantic-destructive-quinary",
+      bg: "bg-semantic-destructive-quaternary",
       text: "text-foreground",
       dot: "bg-semantic-destructive",
     },
     [SokosumiJobStatus.PAYMENT_FAILED]: {
-      bg: "bg-semantic-destructive-quinary",
+      bg: "bg-semantic-destructive-quaternary",
       text: "text-foreground",
       dot: "bg-semantic-destructive",
     },
     [SokosumiJobStatus.INPUT_REQUIRED]: {
-      bg: "bg-semantic-destructive-quinary",
+      bg: "bg-semantic-destructive-quaternary",
       text: "text-foreground",
       dot: "bg-semantic-destructive",
     },
     [SokosumiJobStatus.RESULT_PENDING]: {
-      bg: "bg-status-awaiting-quinary",
+      bg: "bg-status-awaiting-quaternary",
       text: "text-foreground",
       dot: "bg-status-awaiting",
     },
     [SokosumiJobStatus.REFUND_PENDING]: {
-      bg: "bg-semantic-warning-quinary",
+      bg: "bg-semantic-warning-quaternary",
       text: "text-foreground",
       dot: "bg-semantic-warning",
     },
     [SokosumiJobStatus.DISPUTE_PENDING]: {
-      bg: "bg-semantic-warning-quinary",
+      bg: "bg-semantic-warning-quaternary",
       text: "text-foreground",
       dot: "bg-semantic-warning",
     },
     [SokosumiJobStatus.PAYMENT_PENDING]: {
-      bg: "bg-semantic-warning-quinary",
+      bg: "bg-semantic-warning-quaternary",
       text: "text-foreground",
       dot: "bg-semantic-warning",
     },
     [SokosumiJobStatus.STARTED]: {
-      bg: "bg-status-running-quinary",
+      bg: "bg-status-running-quaternary",
       text: "text-foreground",
       dot: "bg-status-running",
     },
     [SokosumiJobStatus.PROCESSING]: {
-      bg: "bg-status-running-quinary",
+      bg: "bg-status-running-quaternary",
       text: "text-foreground",
       dot: "bg-status-running",
     },
