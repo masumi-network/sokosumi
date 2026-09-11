@@ -56,6 +56,14 @@ interface RoleStyle {
   text: string;
   /** Glyph colour. Clears 3:1 on its own fill (WCAG 2.2 SC 1.4.11). */
   marker: string;
+  /**
+   * Bare dot, for the callers that paint one outside a badge. It is a separate
+   * field because it cannot be derived from `marker`: a solid-fill role's
+   * marker is the colour of the label ON that fill, so `failure` would yield a
+   * near-white dot. Measured on --card-background it came to 1.06:1 in light
+   * mode, which is invisible. Every dot below clears 3:1 on that surface.
+   */
+  dot: string;
 }
 
 /**
@@ -77,46 +85,55 @@ export const STATUS_ROLE_STYLES: Record<StatusRole, RoleStyle> = {
     bg: "bg-quaternary",
     text: "text-foreground",
     marker: "text-status-done",
+    dot: "bg-status-done",
   },
   queued: {
     bg: "bg-status-queued-quaternary",
     text: "text-foreground",
     marker: "text-status-queued",
+    dot: "bg-status-queued",
   },
   active: {
     bg: "bg-status-active-quaternary",
     text: "text-foreground",
     marker: "text-status-active",
+    dot: "bg-status-active",
   },
   waiting: {
     bg: "bg-status-waiting-quaternary",
     text: "text-foreground",
     marker: "text-status-waiting",
+    dot: "bg-status-waiting",
   },
   action: {
     bg: "bg-semantic-warning-quaternary",
     text: "text-foreground",
     marker: "text-semantic-warning",
+    dot: "bg-semantic-warning",
   },
   problem: {
     bg: "bg-semantic-destructive-quaternary",
     text: "text-foreground",
     marker: "text-semantic-destructive",
+    dot: "bg-semantic-destructive",
   },
   failure: {
     bg: "bg-semantic-destructive-solid",
     text: "text-semantic-destructive-foreground",
     marker: "text-semantic-destructive-foreground",
+    dot: "bg-semantic-destructive-solid",
   },
   success: {
     bg: "bg-semantic-success-quaternary",
     text: "text-foreground",
     marker: "text-semantic-success",
+    dot: "bg-semantic-success",
   },
   closed: {
     bg: "bg-quaternary",
     text: "text-foreground",
     marker: "text-status-done",
+    dot: "bg-status-done",
   },
 };
 
