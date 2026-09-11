@@ -47,7 +47,7 @@ const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.25;
 
 const toolbarButtonClassName =
-  "size-9 shrink-0 rounded-full text-white hover:bg-on-media-muted hover:text-white";
+  "size-9 shrink-0 rounded-full text-white hover:bg-on-media-quaternary hover:text-white";
 
 function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
