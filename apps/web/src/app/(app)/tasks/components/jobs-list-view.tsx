@@ -185,7 +185,7 @@ export function JobsListView({
           })}
         </div>
       ) : (
-        <div className="text-muted-foreground/50 flex items-center justify-center py-16 text-sm">
+        <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
           {labels.emptyList}
         </div>
       )}

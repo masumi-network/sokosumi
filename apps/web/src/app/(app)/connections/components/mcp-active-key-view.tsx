@@ -19,7 +19,7 @@ export function McpActiveKeyView() {
           href="https://www.masumi.network/dev/sokosumi/mcp"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary hover:text-primary/80 inline-flex items-center gap-1 underline underline-offset-4"
+          className="text-primary hover:text-primary inline-flex items-center gap-1 underline underline-offset-4"
         >
           {t("docsLink")}
           <ExternalLink className="size-3" />

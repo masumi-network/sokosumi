@@ -263,7 +263,7 @@ export function FileChipMiniPreview(props: FileChipMiniPreviewProps) {
             <div className="flex flex-col">
               <span className="truncate">{resolvedFileName}</span>
               {prettySize ? (
-                <span className="text-primary-foreground/80">{prettySize}</span>
+                <span className="text-primary-foreground">{prettySize}</span>
               ) : null}
             </div>
           </TooltipContent>

@@ -8,7 +8,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
 
   return (
     <div className="border-border flex flex-col gap-1.5 rounded-lg border px-4 py-3">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {t("title")}
       </h2>
       <div className="flex flex-wrap gap-4">
@@ -17,7 +17,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.terms}
-            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground hover:text-foreground hover:decoration-foreground text-sm underline underline-offset-2 transition-colors"
           >
             {t("terms")}
           </a>
@@ -27,7 +27,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.privacyPolicy}
-            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground hover:text-foreground hover:decoration-foreground text-sm underline underline-offset-2 transition-colors"
           >
             {t("privacyPolicy")}
           </a>
@@ -37,7 +37,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.dpa}
-            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground hover:text-foreground hover:decoration-foreground text-sm underline underline-offset-2 transition-colors"
           >
             {t("dpa")}
           </a>
@@ -47,7 +47,7 @@ function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
             target="_blank"
             rel="noreferrer noopener"
             href={legal.other}
-            className="text-foreground decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
+            className="text-foreground decoration-foreground hover:text-foreground hover:decoration-foreground text-sm underline underline-offset-2 transition-colors"
           >
             {t("other")}
           </a>

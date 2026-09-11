@@ -72,7 +72,7 @@ export async function ChatLandingMobile({
         className="flex w-full shrink-0 flex-col items-center gap-2 px-4 pt-1"
         data-testid="landing-activity-stats"
       >
-        <p className="text-muted-foreground/70 text-xs">
+        <p className="text-muted-foreground text-xs">
           {summary?.basis === "lastVisit"
             ? t("stats.sinceLastActivity", {
                 when: format.relativeTime(summary.since),

@@ -16,7 +16,7 @@ function AgentDetailExamples({
 
   return (
     <div className="border-border w-full space-y-2 rounded-lg border px-4 py-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {t("title")}
       </h2>
       <ScrollArea className="h-60 w-full">

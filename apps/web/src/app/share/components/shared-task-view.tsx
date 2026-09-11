@@ -352,13 +352,13 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               <span className="text-sm font-medium">
                                 {actorName}
                               </span>
-                              <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                                 <span>{action}</span>
                                 {!event.status ? (
                                   <>
                                     <span>{originFromLabel}</span>
                                     <ChannelIcon
-                                      className="text-muted-foreground/50 size-3.5 shrink-0"
+                                      className="text-muted-foreground size-3.5 shrink-0"
                                       role="img"
                                       aria-label={originFromLabel}
                                       data-testid={`origin-icon-${event.id}`}
@@ -375,10 +375,10 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                       isLatestStatusEvent && !isStatusOnlyEvent
                                     }
                                   />
-                                  <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                                  <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                                     <span>{originFromLabel}</span>
                                     <ChannelIcon
-                                      className="text-muted-foreground/50 size-3.5 shrink-0"
+                                      className="text-muted-foreground size-3.5 shrink-0"
                                       role="img"
                                       aria-label={originFromLabel}
                                       data-testid={`origin-icon-${event.id}`}
@@ -387,14 +387,14 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                 </>
                               ) : null}
                             </div>
-                            <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
+                            <span className="text-muted-foreground text-xs whitespace-nowrap">
                               {formatTimeAgo(event.createdAt, locale)}
                             </span>
                           </div>
                           {formattedComment ? (
                             <ExpandableMarkdown
                               content={formattedComment}
-                              className="prose-sm text-foreground/70 text-sm"
+                              className="prose-sm text-foreground text-sm"
                               expandLabel={tTaskDetail("expand")}
                               collapseLabel={tTaskDetail("collapse")}
                               fadeClassName="to-transparent"
@@ -421,7 +421,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                             </div>
                           ) : null}
                           {shouldShowSecondaryChargeLine ? (
-                            <div className="text-muted-foreground/60 text-xs">
+                            <div className="text-muted-foreground text-xs">
                               {chargedLabel}
                             </div>
                           ) : null}

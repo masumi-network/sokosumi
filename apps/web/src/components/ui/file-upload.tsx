@@ -1243,7 +1243,7 @@ function FileUploadItemProgress(props: FileUploadItemProgressProps) {
             stroke="currentColor"
           >
             <circle
-              className="text-primary/20"
+              className="text-primary-tertiary"
               strokeWidth="2"
               cx={size / 2}
               cy={size / 2}

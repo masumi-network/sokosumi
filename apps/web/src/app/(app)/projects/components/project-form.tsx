@@ -198,7 +198,7 @@ export function ProjectForm({
                   disabled={isSubmitting}
                   aria-invalid={!isWebsiteValid}
                 />
-                <p className="text-muted-foreground/70 text-xs leading-relaxed">
+                <p className="text-muted-foreground text-xs leading-relaxed">
                   {t("Wizard.name.websiteHint")}
                 </p>
               </div>
