@@ -67,16 +67,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { oldPathname, newFilename } = body;
 
-    // Parse pathname to determine scope and owner
     const { scope, ownerId } = parseDriveFilePathname(
       oldPathname,
       userContext.userId,
     );
 
-    // Verify access
     await requireDriveFileAccess(authContext, scope, ownerId);
 
-    // Extract parent folder path from old pathname
     const prefix =
       scope === "user"
         ? buildUserDriveFilePrefix(ownerId)
@@ -91,7 +88,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const folderPath =
       lastSlashIndex >= 0 ? relativePathname.slice(0, lastSlashIndex) : "";
 
-    // Build new pathname, preserving parent folder
     const sanitizedName = clampDriveFileName(newFilename);
     const newPathname =
       scope === "user"
@@ -106,7 +102,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             sanitizedName,
           );
 
-    // Get source blob metadata for preservation
     let sourceMetadata;
     try {
       sourceMetadata = await head(oldPathname, { token });
@@ -117,15 +112,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
-    // Check if target already exists (file or folder)
     try {
       await head(newPathname, { token });
-      // If head succeeds, target file exists
       throw conflict("Target pathname already exists");
     } catch (error) {
       // If it's a not-found error, target doesn't exist (expected)
       if (error instanceof BlobNotFoundError) {
-        // Target file doesn't exist, proceed
       } else if (
         error &&
         typeof error === "object" &&
@@ -135,12 +127,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Re-throw our own conflict errors
         throw error;
       } else {
-        // Unexpected error from head
         throw error;
       }
     }
 
-    // Check if a folder with the same name exists
     const folderPrefix = `${newPathname}/`;
     const folderCheck = await list({
       prefix: folderPrefix,
@@ -165,7 +155,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ),
       });
     } catch (error) {
-      // Map Blob errors to HTTP responses
       if (error instanceof BlobNotFoundError) {
         throw notFound("Source file not found");
       }
@@ -182,7 +171,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
-    // Extract filename from new pathname
     const pathSegments = newPathname.split("/");
     const name = pathSegments[pathSegments.length - 1] || "unnamed";
 
