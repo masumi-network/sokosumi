@@ -59,6 +59,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
+      roomKind: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -107,6 +108,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
+      roomKind: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -130,6 +132,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
+      roomKind: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -146,6 +149,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
+      roomKind: "channel",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -163,6 +167,7 @@ describe("emitChatMentionNotifications", () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "dm",
+      roomKind: "channel",
       organizationId: null,
       messageId: MESSAGE_ID,
       content: "ship it",
@@ -190,6 +195,7 @@ describe("emitChatMentionNotifications", () => {
       emitChatMentionNotifications({
         roomId: ROOM_ID,
         roomName: "general",
+        roomKind: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
         content: "ship it",

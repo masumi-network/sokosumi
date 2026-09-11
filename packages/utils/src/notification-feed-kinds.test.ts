@@ -11,10 +11,7 @@ import {
 } from "./notification-feed-kinds";
 
 describe("isBrowserOnlyNotification", () => {
-  it("keeps a mention and a direct message out of the feed", () => {
-    expect(isBrowserOnlyNotification("CHAT", CHAT_MENTION_MESSAGE_KEY)).toBe(
-      true,
-    );
+  it("keeps a direct message out of the feed", () => {
     expect(
       isBrowserOnlyNotification("CHAT", CHAT_DIRECT_MESSAGE_MESSAGE_KEY),
     ).toBe(true);
@@ -22,13 +19,22 @@ describe("isBrowserOnlyNotification", () => {
   });
 
   /**
-   * The one stored key. The counted and group keys are what web renders the
+   * The two stored keys. The counted and group keys are what web renders the
    * row under; Core never writes them, so a row never carries one.
    */
-  it("lets a room message into the feed", () => {
+  it("lets a mention and a room message into the feed", () => {
+    expect(isBrowserOnlyNotification("CHAT", CHAT_MENTION_MESSAGE_KEY)).toBe(
+      false,
+    );
     expect(
       isBrowserOnlyNotification("CHAT", CHAT_ROOM_MESSAGE_MESSAGE_KEY),
     ).toBe(false);
+  });
+
+  it("keeps a chat key nobody mapped out of the feed", () => {
+    expect(isBrowserOnlyNotification("CHAT", "Notifications.Chat.future")).toBe(
+      true,
+    );
   });
 
   it("keeps other kinds in the in-app feed", () => {
