@@ -381,7 +381,6 @@ export {
   buildUserUploadPrefix,
 } from "./user-upload-path.js";
 export {
-  buildVendorLogoContentHashPathname,
   buildVendorLogoPathname,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
