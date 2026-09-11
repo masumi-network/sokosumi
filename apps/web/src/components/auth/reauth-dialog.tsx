@@ -37,8 +37,6 @@ export function canReauthenticateWith(accounts: Account[]): boolean {
 interface ReauthDialogProps {
   /** The viewer's linked accounts, used to offer only the methods they own. */
   accounts: Account[];
-  /** Runs just before the social path leaves the page, to record the intent. */
-  onBeforeRedirect: () => void;
   onOpenChange: (open: boolean) => void;
   /** Runs after a new session exists, so the caller can retry its action. */
   onReauthenticated: () => void;
@@ -51,11 +49,11 @@ interface ReauthDialogProps {
  * Better Auth measures freshness from `Session.createdAt` and has no endpoint
  * that refreshes it, so a new sign-in is the only way to clear the gate. The
  * password path signs in behind the dialog and keeps the viewer on the page.
- * The social path leaves for the provider and returns to the same route.
+ * The social path leaves for the provider and returns to the same route. Both
+ * end with a fresh session; repeating the gated action is up to the caller.
  */
 export function ReauthDialog({
   accounts,
-  onBeforeRedirect,
   onOpenChange,
   onReauthenticated,
   open,
@@ -116,9 +114,6 @@ export function ReauthDialog({
     setErrorMessage(null);
 
     try {
-      // Recorded before the call, because a successful start navigates away.
-      onBeforeRedirect();
-
       const result = await authClient.signIn.social({
         provider,
         callbackURL: getAbsoluteAuthRedirectUrl(pathname),
@@ -126,10 +121,12 @@ export function ReauthDialog({
 
       if (result.error) {
         setErrorMessage(result.error.message ?? t("socialError"));
-        setIsSubmitting(false);
       }
     } catch {
       setErrorMessage(t("socialError"));
+    } finally {
+      // A successful start navigates away, so this only matters when it does
+      // not: without it the dialog stays locked and cannot be closed.
       setIsSubmitting(false);
     }
   };
@@ -191,10 +188,6 @@ export function ReauthDialog({
             ))}
           </div>
         ) : null}
-
-        {hasPasswordAccount || socialProviders.length > 0 ? null : (
-          <p className="text-sm">{t("noMethod")}</p>
-        )}
 
         {errorMessage ? (
           <p className="text-destructive text-sm">{errorMessage}</p>

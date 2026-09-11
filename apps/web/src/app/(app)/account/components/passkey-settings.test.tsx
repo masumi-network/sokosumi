@@ -681,7 +681,7 @@ describe("PasskeySettings", () => {
     });
   });
 
-  it("asks for the password again when the session is not fresh, then retries", async () => {
+  it("asks for the password again when the session is not fresh", async () => {
     mockAddPasskey.mockReset();
     mockAddPasskey
       .mockResolvedValueOnce({
@@ -713,6 +713,18 @@ describe("PasskeySettings", () => {
         password: "correct horse",
       });
     });
+
+    // The gate re-authenticates and stops. WebAuthn needs the user gesture a
+    // resumed call no longer carries, so the viewer clicks Add again.
+    await waitFor(() => {
+      expect(mockToastSuccess).toHaveBeenCalledWith("retryPrompt");
+    });
+    expect(mockAddPasskey).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "add" }));
 
     await waitFor(() => {
       expect(mockAddPasskey).toHaveBeenCalledTimes(2);
@@ -752,84 +764,8 @@ describe("PasskeySettings", () => {
       });
     });
 
-    // The redirect leaves the page, so the intent has to survive it.
-    const pending: unknown = JSON.parse(
-      window.sessionStorage.getItem("sokosumi.reauth.pendingAction") ?? "null",
-    );
-    expect(pending).toMatchObject({ actionKey: "account:add-passkey" });
-  });
-
-  it("asks the viewer to start again after returning from the provider", async () => {
-    window.sessionStorage.setItem(
-      "sokosumi.reauth.pendingAction",
-      JSON.stringify({ actionKey: "account:add-passkey", startedAt: 1 }),
-    );
-    sessionCreatedAt = new Date(5_000).toISOString();
-
-    render(<PasskeySettings accounts={[googleAccount]} />);
-
-    // WebAuthn needs a user gesture, so a mount effect must not call it.
-    await waitFor(() => {
-      expect(mockToastInfo).toHaveBeenCalledWith("resumePrompt");
-    });
-    expect(mockAddPasskey).not.toHaveBeenCalled();
-    expect(
-      window.sessionStorage.getItem("sokosumi.reauth.pendingAction"),
-    ).toBeNull();
-  });
-
-  it("ignores a return that did not produce a newer session", async () => {
-    window.sessionStorage.setItem(
-      "sokosumi.reauth.pendingAction",
-      JSON.stringify({ actionKey: "account:add-passkey", startedAt: 9_000 }),
-    );
-    sessionCreatedAt = new Date(5_000).toISOString();
-
-    render(<PasskeySettings accounts={[googleAccount]} />);
-
-    await waitFor(() => {
-      expect(
-        window.sessionStorage.getItem("sokosumi.reauth.pendingAction"),
-      ).toBeNull();
-    });
-    expect(mockToastInfo).not.toHaveBeenCalled();
-    expect(mockAddPasskey).not.toHaveBeenCalled();
-  });
-
-  it("stops after one retry instead of reopening the dialog forever", async () => {
-    mockAddPasskey.mockReset();
-    mockAddPasskey.mockResolvedValue({
-      data: null,
-      error: { code: "SESSION_NOT_FRESH", message: "Session is not fresh" },
-    });
-
-    render(<PasskeySettings accounts={[passwordAccount]} />);
-
-    const user = userEvent.setup();
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
-    });
-
-    await user.click(screen.getByRole("button", { name: "add" }));
-    await user.type(
-      await screen.findByTestId("reauth-field-currentPassword"),
-      "correct horse",
-    );
-    await user.click(screen.getByRole("button", { name: "confirm" }));
-
-    await waitFor(() => {
-      expect(mockAddPasskey).toHaveBeenCalledTimes(2);
-    });
-
-    // The second rejection reports instead of reopening.
-    await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith(
-        "addError: Session is not fresh",
-      );
-    });
-    expect(
-      screen.queryByTestId("reauth-field-currentPassword"),
-    ).not.toBeInTheDocument();
+    // The gate re-authenticates only; adding the passkey stays a fresh click.
+    expect(mockAddPasskey).toHaveBeenCalledTimes(1);
   });
 
   it("reports a normal add failure instead of asking to sign in again", async () => {

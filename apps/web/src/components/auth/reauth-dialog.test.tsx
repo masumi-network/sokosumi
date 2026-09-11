@@ -44,21 +44,19 @@ const googleAccount = account("google");
 const microsoftAccount = account("microsoft");
 
 function renderDialog(accounts: Account[]) {
-  const onBeforeRedirect = vi.fn();
   const onOpenChange = vi.fn();
   const onReauthenticated = vi.fn();
 
   render(
     <ReauthDialog
       accounts={accounts}
-      onBeforeRedirect={onBeforeRedirect}
       onOpenChange={onOpenChange}
       onReauthenticated={onReauthenticated}
       open
     />,
   );
 
-  return { onBeforeRedirect, onOpenChange, onReauthenticated };
+  return { onOpenChange, onReauthenticated };
 }
 
 describe("canReauthenticateWith", () => {
@@ -123,8 +121,8 @@ describe("ReauthDialog", () => {
     expect(onReauthenticated).not.toHaveBeenCalled();
   });
 
-  it("records the pending intent before leaving for the provider", async () => {
-    const { onBeforeRedirect } = renderDialog([googleAccount]);
+  it("leaves for the provider and returns to the same route", async () => {
+    renderDialog([googleAccount]);
 
     expect(
       screen.queryByTestId("reauth-field-currentPassword"),
@@ -134,7 +132,6 @@ describe("ReauthDialog", () => {
       .setup()
       .click(screen.getByRole("button", { name: "continueWithGoogle" }));
 
-    expect(onBeforeRedirect).toHaveBeenCalledTimes(1);
     await waitFor(() => {
       expect(mockSignInSocial).toHaveBeenCalledWith({
         callbackURL: expect.stringContaining("/account"),
@@ -155,18 +152,23 @@ describe("ReauthDialog", () => {
     expect(screen.getByText("orSocial")).toBeInTheDocument();
   });
 
-  it("says so when the viewer owns no method it can offer", () => {
-    renderDialog([]);
+  it("unlocks the dialog when the social start fails to navigate", async () => {
+    mockSignInSocial.mockResolvedValue({
+      data: null,
+      error: { message: "Provider is down" },
+    });
 
-    expect(screen.getByText("noMethod")).toBeInTheDocument();
+    renderDialog([googleAccount]);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "continueWithGoogle" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Provider is down")).toBeInTheDocument();
+    });
     expect(
-      screen.queryByTestId("reauth-field-currentPassword"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "confirm" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /^continueWith/ }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "continueWithGoogle" }),
+    ).not.toBeDisabled();
   });
 });

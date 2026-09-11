@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  canReauthenticateWith,
-  ReauthDialog,
-} from "@/components/auth/reauth-dialog";
+import { ReauthDialog } from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,13 +41,7 @@ export default function DisconnectModal({
 
   const { providerId } = account;
 
-  const reauthGate = useReauthGate({
-    actionKey: `connections:unlink:${account.id}`,
-    canReauthenticate: canReauthenticateWith(accounts),
-    onReauthenticated: () => {
-      void handleDisconnect();
-    },
-  });
+  const reauthGate = useReauthGate({ accounts });
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -65,8 +56,8 @@ export default function DisconnectModal({
       unlinkSocialAccountInput(account),
     );
     if (result.error) {
-      // Core gates unlinking on a fresh session. The gate opens the dialog
-      // and runs this handler again once the session is new.
+      // Core gates unlinking on a fresh session. The gate asks the viewer to
+      // authenticate again, then they disconnect again.
       if (reauthGate.handleError(result.error)) {
         setLoading(false);
         // Close this dialog so the two never stack.
@@ -115,13 +106,7 @@ export default function DisconnectModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <ReauthDialog
-        accounts={accounts}
-        onBeforeRedirect={reauthGate.rememberPendingAction}
-        onOpenChange={reauthGate.setIsOpen}
-        onReauthenticated={reauthGate.retry}
-        open={reauthGate.isOpen}
-      />
+      <ReauthDialog {...reauthGate.dialogProps} />
     </>
   );
 }

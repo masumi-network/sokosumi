@@ -12,10 +12,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import {
-  canReauthenticateWith,
-  ReauthDialog,
-} from "@/components/auth/reauth-dialog";
+import { ReauthDialog } from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -75,15 +72,7 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
   const isMutatingPasskeys =
     isAddingPasskey || removingPasskeyId !== null || savingPasskeyId !== null;
 
-  const reauthGate = useReauthGate({
-    actionKey: "account:add-passkey",
-    canReauthenticate: canReauthenticateWith(accounts),
-    onReauthenticated: () => {
-      void handleAddPasskey();
-    },
-    // WebAuthn needs a user gesture, so the social path cannot resume alone.
-    resumeNeedsUserGesture: true,
-  });
+  const reauthGate = useReauthGate({ accounts });
 
   const fetchPasskeys = useCallback(async (): Promise<
     null | PasskeyRecord[]
@@ -173,8 +162,8 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
       const result = await authClient.passkey.addPasskey();
 
       if (result.error) {
-        // Core gates passkey registration on a fresh session. The gate opens
-        // the dialog and runs this handler again once the session is new.
+        // Core gates passkey registration on a fresh session. The gate asks
+        // the viewer to authenticate again, then they add the passkey again.
         if (reauthGate.handleError(result.error)) {
           return;
         }
@@ -434,13 +423,7 @@ export function PasskeySettings({ accounts }: PasskeySettingsProps) {
           {t("add")}
         </Button>
       </CardFooter>
-      <ReauthDialog
-        accounts={accounts}
-        onBeforeRedirect={reauthGate.rememberPendingAction}
-        onOpenChange={reauthGate.setIsOpen}
-        onReauthenticated={reauthGate.retry}
-        open={reauthGate.isOpen}
-      />
+      <ReauthDialog {...reauthGate.dialogProps} />
     </Card>
   );
 }

@@ -96,7 +96,7 @@ describe("DisconnectModal", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("asks for the password again when the session is not fresh, then retries", async () => {
+  it("asks for the password again when the session is not fresh", async () => {
     mockUnlinkAccount
       .mockResolvedValueOnce({
         data: null,
@@ -134,10 +134,13 @@ describe("DisconnectModal", () => {
       });
     });
 
+    // The gate re-authenticates and stops. Resuming here would unlink the
+    // account without the viewer pressing Confirm a second time.
     await waitFor(() => {
-      expect(mockUnlinkAccount).toHaveBeenCalledTimes(2);
+      expect(mockToastSuccess).toHaveBeenCalledWith("retryPrompt");
     });
-    expect(mockToastSuccess).toHaveBeenCalledWith("success");
+    expect(mockUnlinkAccount).toHaveBeenCalledTimes(1);
+    expect(mockToastSuccess).not.toHaveBeenCalledWith("success");
   });
 
   it("reports a normal unlink failure instead of asking to sign in again", async () => {
