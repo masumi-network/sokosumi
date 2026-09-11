@@ -79,8 +79,9 @@ export function matchComposerInputRule(
 export type ComposerEnterAction = "submit" | "newline" | "ignore";
 
 /**
- * Room composer Enter policy (SOK-815):
- * Enter → send (desktop and mobile); Shift/Cmd/Ctrl+Enter → newline;
+ * Room composer Enter policy:
+ * desktop Enter → send; Shift/Cmd/Ctrl+Enter → newline;
+ * touch (on-screen keyboard, no Shift+Enter) Enter → newline, Send button sends;
  * suggestion keyboard still owns Enter (ignore).
  */
 export function resolveComposerEnterAction(options: {
@@ -89,9 +90,16 @@ export function resolveComposerEnterAction(options: {
   ctrlKey: boolean;
   /** True when mention or emoji suggestion keyboard owns Enter. */
   isSuggestionKeyboardActive: boolean;
+  /** True on touch devices (`hover: none`), where Enter cannot be modified. */
+  isTouchDevice: boolean;
 }): ComposerEnterAction {
   if (options.isSuggestionKeyboardActive) return "ignore";
-  if (options.shiftKey || options.metaKey || options.ctrlKey) {
+  if (
+    options.shiftKey ||
+    options.metaKey ||
+    options.ctrlKey ||
+    options.isTouchDevice
+  ) {
     return "newline";
   }
   return "submit";

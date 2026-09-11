@@ -118,6 +118,7 @@ import type {
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
@@ -780,13 +781,6 @@ const LONG_PRESS_DELAY_MS = 450;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 12;
 const TOUCH_MESSAGE_SELECT_NONE_CLASS =
   "[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]";
-
-function devicePrefersHover(): boolean {
-  if (typeof window === "undefined") {
-    return true;
-  }
-  return window.matchMedia("(hover: hover)").matches;
-}
 
 function clearDomTextSelection() {
   window.getSelection()?.removeAllRanges();
