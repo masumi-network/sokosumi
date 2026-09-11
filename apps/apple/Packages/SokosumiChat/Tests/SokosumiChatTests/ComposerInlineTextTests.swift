@@ -36,6 +36,15 @@ struct ComposerInlineTextTests {
     #expect(ComposerInlineText.content(ComposerInlineText.attributedText(content)) == content)
   }
 
+  @Test func preservesLinkWhenInlineCodeIsToggledOnTheSameRun() {
+    let nested: [ComposerDocument.Inline] = [.link([.code("site")], destination: "https://example.com")]
+    #expect(ComposerInlineText.content(ComposerInlineText.attributedText(nested)) == nested)
+    let linked = ComposerInlineText.attributedText([.link([.text("site")], destination: "https://example.com")])
+    let coded = ComposerInlineText.toggling(.code, in: linked)
+    #expect(ComposerInlineText.content(coded) == nested)
+    #expect(ComposerDocument(blocks: [.paragraph(ComposerInlineText.content(coded))]).markdown == "[`site`](https://example.com)\n")
+  }
+
   @Test func ignoresListMarkersWhenTogglingInlineStyle() {
     let text = ComposerBlockText.attributedText(
       ComposerDocument(blocks: [.unorderedList([[.paragraph([.bold([.text("item")])])]])])
