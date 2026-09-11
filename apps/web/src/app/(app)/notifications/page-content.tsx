@@ -284,9 +284,11 @@ function NotificationRow({
       <span
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full",
+          // Translucent, so the circle survives the row's hover tint, which
+          // is the same colour as the muted surface.
           notification.isRead
-            ? "bg-muted text-muted-foreground"
-            : "bg-primary/10 text-primary",
+            ? "bg-foreground/10 text-muted-foreground"
+            : "bg-primary/15 text-primary",
         )}
         aria-hidden
       >
