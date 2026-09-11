@@ -28,6 +28,20 @@ describe("Markdown fenced code highlighting", () => {
     expect(container.querySelector("pre img")).toBeNull();
   });
 
+  it("highlights a jsx fence instead of falling back to plaintext", () => {
+    const { container } = render(
+      <Markdown>{"```jsx\nconst el = <span />;\n```"}</Markdown>,
+    );
+
+    const pre = container.querySelector("pre.th-code");
+    const keyword = container.querySelector("pre code .th-keyword");
+
+    expect(pre).toHaveClass("th-code--jsx");
+    expect(pre).not.toHaveClass("th-code--plaintext");
+    expect(keyword).toBeInTheDocument();
+    expect(keyword).toHaveTextContent("const");
+  });
+
   it("does not apply inline code styles to highlighted fences", () => {
     const { container } = render(
       <Markdown>{"```js\nconst value = 1;\n```"}</Markdown>,
