@@ -101,7 +101,7 @@ function PurchaseSuccessModalContent({
       </motion.div>
 
       <motion.div
-        className="border-border/60 w-full space-y-4 border-t pt-6"
+        className="border-border w-full space-y-4 border-t pt-6"
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: reduceMotion ? 0 : 0.5, duration: 0.4 }}

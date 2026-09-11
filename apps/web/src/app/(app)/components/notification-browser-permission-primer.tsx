@@ -77,7 +77,7 @@ export function NotificationBrowserPermissionPrimer({
   }
 
   const cardClassName = cn(
-    "border-border/60 bg-muted/30 flex flex-col gap-2 rounded-md border p-3",
+    "border-border bg-muted/30 flex flex-col gap-2 rounded-md border p-3",
     variant === "page" && "sm:flex-row sm:items-center sm:justify-between",
     className,
   );

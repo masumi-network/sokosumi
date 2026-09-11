@@ -377,7 +377,7 @@ export function TaskActivitySection({
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          className="border-border/50 rounded-lg border p-3"
+          className="border-border rounded-lg border p-3"
         >
           <FileUpload
             value={pendingUploadFiles}
@@ -394,7 +394,7 @@ export function TaskActivitySection({
               <MarkdownEditor
                 ref={markdownEditorRef}
                 placeholder={placeholder}
-                className="border-border/50 bg-muted-foreground/5 w-full rounded-lg border"
+                className="border-border bg-muted-foreground/5 w-full rounded-lg border"
                 value={comment}
                 onChange={setComment}
                 onSubmitShortcut={() => formRef.current?.requestSubmit()}
@@ -593,7 +593,7 @@ export function TaskActivitySection({
                 key={event.id}
                 className={cn(
                   "rounded-lg pr-3 pl-3",
-                  isCardEvent && "bg-muted/20 border-border/50 border",
+                  isCardEvent && "bg-muted/20 border-border border",
                   shouldHighlightDoneBorder &&
                     getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                 )}

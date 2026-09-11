@@ -9,7 +9,7 @@ export function NotificationsSkeletonRows(): React.ReactElement {
   return (
     <div
       data-testid="notifications-loading-list"
-      className="divide-border/50 divide-y"
+      className="divide-border divide-y"
     >
       {Array.from({ length: 5 }, (_, index) => (
         <div key={index} className="flex flex-col gap-2 p-3">
@@ -24,7 +24,7 @@ export function NotificationsSkeletonRows(): React.ReactElement {
 /** List card bones for Instant `loading.tsx`. */
 export function NotificationsListSkeleton(): React.ReactElement {
   return (
-    <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
+    <div className="bg-muted/30 border-border overflow-hidden rounded-xl border">
       <NotificationsSkeletonRows />
     </div>
   );

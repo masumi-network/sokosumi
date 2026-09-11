@@ -30,7 +30,7 @@ const FOCUS_RING =
   "focus-visible:ring-primary/40 outline-none focus-visible:ring-2";
 // Mirrors OfferCard's outer shell so "Start from scratch" is the exact same size.
 const CARD_SHELL =
-  "group bg-card border-border/60 flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]";
+  "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]";
 
 /** Ready-to-run task cards (reusing the agents-page OfferCard) plus an
  *  equal-sized "Start from scratch" card. Each task card has a preview button to

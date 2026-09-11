@@ -23,9 +23,9 @@ export function TaskListView({
   const hasAnyTasks = tasks.length > 0;
 
   return (
-    <div className="bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-muted/30 border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       {hasAnyTasks ? (
-        <div className="divide-border/50 divide-y px-2">
+        <div className="divide-border divide-y px-2">
           {tasks.map((task) => (
             <TaskListItem
               key={task.id}

@@ -81,7 +81,7 @@ export function MembersRosterLoadFailed({
   return (
     <div
       className={cn(
-        "border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center",
+        "border-border bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center",
         className,
       )}
       role="status"

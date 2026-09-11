@@ -94,7 +94,7 @@ export function TaskCreatedCelebration({
             return (
               <div
                 key={col.id}
-                className="border-border/60 bg-muted/30 flex flex-col gap-2 rounded-xl border p-2"
+                className="border-border bg-muted/30 flex flex-col gap-2 rounded-xl border p-2"
               >
                 {/* Column header */}
                 <div className="flex items-center gap-1.5 px-0.5 pt-0.5">
@@ -179,14 +179,14 @@ export function TaskCreatedCelebration({
                     </motion.span>
                   </motion.div>
                 ) : (
-                  <div className="border-border/40 bg-muted/40 space-y-1.5 rounded-lg border p-2 opacity-50">
+                  <div className="border-border bg-muted/40 space-y-1.5 rounded-lg border p-2 opacity-50">
                     <span className="bg-muted-foreground/30 block h-1 w-6 rounded-full" />
                     <span className="bg-muted-foreground/20 block h-1 w-full rounded-full" />
                   </div>
                 )}
 
                 {/* Faint card to give each column some weight */}
-                <div className="border-border/40 bg-muted/30 space-y-1.5 rounded-lg border p-2 opacity-40">
+                <div className="border-border bg-muted/30 space-y-1.5 rounded-lg border p-2 opacity-40">
                   <span className="bg-muted-foreground/30 block h-1 w-6 rounded-full" />
                   <span className="bg-muted-foreground/20 block h-1 w-3/4 rounded-full" />
                 </div>
