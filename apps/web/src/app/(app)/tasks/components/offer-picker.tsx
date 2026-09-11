@@ -57,7 +57,7 @@ export function OfferPicker({
           className={cn(CARD_SHELL, FOCUS_RING)}
         >
           <div className="bg-card-background relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b">
-            <span className="bg-background/90 text-muted-foreground group-hover:text-primary flex size-10 items-center justify-center rounded-full shadow-sm transition-colors">
+            <span className="bg-surface-glass text-muted-foreground group-hover:text-primary flex size-10 items-center justify-center rounded-full shadow-sm transition-colors">
               <PenLine className="size-5" />
             </span>
           </div>
@@ -88,7 +88,7 @@ export function OfferPicker({
               title={labels.previewExample}
               onClick={() => onPreviewOffer(offer)}
               className={cn(
-                "bg-background/90 text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors",
+                "bg-surface-glass text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors",
                 FOCUS_RING,
               )}
             >

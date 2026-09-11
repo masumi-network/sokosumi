@@ -581,11 +581,11 @@ function CoworkerGallerySectionInner({
             {t("heroHeadline")}
           </h2>
           {/* Brand gradient ring + soft glow; intensifies on focus. */}
-          <div className="from-primary/50 to-chart-1/50 focus-within:from-primary focus-within:to-chart-1 shadow-primary/15 focus-within:shadow-primary/30 relative w-full max-w-xl rounded-full bg-gradient-to-r p-[1.5px] shadow-lg transition-all duration-300 focus-within:shadow-xl">
+          <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-tertiary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-[1.5px] shadow-lg transition-all duration-300 focus-within:shadow-xl">
             <div className="relative rounded-full">
               <Search
                 aria-hidden
-                className="text-background/60 pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
+                className="text-on-media-muted pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
               />
               <input
                 value={query}
@@ -604,7 +604,7 @@ function CoworkerGallerySectionInner({
                 >
                   <span
                     key={hintIdx}
-                    className="text-background/55 animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
+                    className="text-on-media-muted animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
                   >
                     {rotatingHints[hintIdx % rotatingHints.length]}
                   </span>
