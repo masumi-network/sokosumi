@@ -40,7 +40,7 @@
       input.delegate = context.coordinator
       commands?.input = input
       input.openLinkEditor = { [weak commands] in commands?.beginLink() }
-      input.mentionKeyHandler = { [weak commands] key in commands?.handleMentionKey(key) ?? false }
+      input.suggestionKeyHandler = { [weak commands] key in commands?.handleSuggestionKey(key) ?? false }
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
       input.placeholder = placeholder
@@ -129,7 +129,7 @@
       }
 
       func textDidEndEditing(_: Notification) {
-        Task { @MainActor [weak commands = parent.commands] in commands?.dismissMentions() }
+        Task { @MainActor [weak commands = parent.commands] in commands?.dismissSuggestions() }
       }
 
       func textViewDidChangeSelection(_ notification: Notification) {
@@ -148,7 +148,7 @@
       var channels: [ComposerChannel] = []
       var mentions: [ComposerMention] = []
       private var channelCompletions: [String: ComposerChannel] = [:]
-      var mentionKeyHandler: ((UInt16) -> Bool)?
+      var suggestionKeyHandler: ((UInt16) -> Bool)?
       var placeholder = "Message" {
         didSet { needsDisplay = true }
       }
@@ -304,7 +304,7 @@
            trigger.kind == .channel, !channels.isEmpty {
           return trigger.range
         }
-        return ComposerEmoji.completionRange(in: string, caret: selectedRange().location) ?? NSRange(location: NSNotFound, length: 0)
+        return NSRange(location: NSNotFound, length: 0)
       }
 
       override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
@@ -323,13 +323,7 @@
           index.pointee = 0
           return labels
         }
-        let query = partial.dropFirst()
-        let words = ComposerEmoji.completions(for: String(query))
-        if words.isEmpty {
-          showingCompletions = false
-        }
-        index.pointee = 0
-        return words.map { ComposerEmoji.completionPreview(for: $0) }
+        return nil
       }
 
       override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal: Bool) {
@@ -346,14 +340,20 @@
           channelCompletions = [:]
           return
         }
-        guard word.hasSuffix(":") else { return }
-        // The menu label includes a preview; only the shortcode participates in insertion.
-        let shortcode = String(word.split(separator: " ").last ?? Substring(word))
-        let suffix = (string as NSString).substring(from: NSMaxRange(charRange))
+      }
+
+      var emojiCompletionRange: NSRange? {
+        guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return nil }
+        return ComposerEmoji.completionRange(in: string, caret: selectedRange().location)
+      }
+
+      func acceptEmoji(_ shortcode: String) {
+        guard let range = emojiCompletionRange,
+              ComposerEmoji.completions(for: String((string as NSString).substring(with: range).dropFirst())).contains(shortcode) else { return }
+        let suffix = (string as NSString).substring(from: NSMaxRange(range))
         guard let edit = ComposerEmoji.match(in: shortcode + suffix, caret: shortcode.utf16.count) else { return }
-        // Native completion owns navigation/cancellation; persist only the accepted result.
         breakUndoCoalescing()
-        super.insertText(edit.replacement, replacementRange: charRange)
+        super.insertText(edit.replacement, replacementRange: range)
         breakUndoCoalescing()
       }
 
@@ -432,7 +432,7 @@
         // a submit/delegate callback is too late for the committing Return.
         let isReturn = event.keyCode == 36 || event.keyCode == 76
         if !hasMarkedText(), event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift]),
-           mentionKeyHandler?(event.keyCode) == true {
+           suggestionKeyHandler?(event.keyCode) == true {
           return
         }
         if showingCompletions {

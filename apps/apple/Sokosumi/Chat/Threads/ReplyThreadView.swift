@@ -52,7 +52,6 @@ import SwiftUI
               }
             }
           }
-          Divider()
           ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
                            roomId: parent.roomId, parentMessageId: parent.id,
                            onAccepted: { followsLatest = true })

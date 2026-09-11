@@ -12,16 +12,19 @@
     @Published var linkEditor: LinkEditor?
 
     @Published private(set) var mentionOptions: [ComposerMention] = []
-    @Published var selectedMentionID: String?
+    @Published var selectedSuggestionID: String?
+    @Published private(set) var emojiOptions: [String] = []
+    private var emojiTrigger: String?
+    private var dismissedEmojiTrigger: String?
     private var mentionTrigger: ComposerReferenceTrigger?
     private var dismissedMentionTrigger: ComposerReferenceTrigger?
 
-    func refreshMentions() {
+    func refreshSuggestions() {
       let trigger = input?.mentionTrigger
       if trigger != mentionTrigger {
         mentionTrigger = trigger
         dismissedMentionTrigger = nil
-        selectedMentionID = nil
+        selectedSuggestionID = nil
       }
       let matches = trigger.flatMap { trigger in
         input.map { ComposerMention.matching($0.mentions, query: trigger.query) }
@@ -33,14 +36,34 @@
       if mentionOptions != grouped {
         mentionOptions = grouped
       }
-      if !grouped.contains(where: { $0.id == selectedMentionID }) {
-        selectedMentionID = grouped.first?.id
+      let emoji = input.flatMap { input in
+        input.emojiCompletionRange.map { range in
+          "\(range.location):" + (input.string as NSString).substring(with: range)
+        }
+      }
+      if emoji != emojiTrigger {
+        emojiTrigger = emoji
+        dismissedEmojiTrigger = nil
+        selectedSuggestionID = nil
+      }
+      let shortcodes: [String] = if emoji != nil, emoji != dismissedEmojiTrigger, let input, let range = input.emojiCompletionRange {
+        ComposerEmoji.completions(for: String((input.string as NSString).substring(with: range).dropFirst()))
+      } else {
+        []
+      }
+      if emojiOptions != shortcodes {
+        emojiOptions = shortcodes
+      }
+      if !suggestionIDs.contains(selectedSuggestionID ?? "") {
+        selectedSuggestionID = suggestionIDs.first
       }
     }
 
-    func dismissMentions() {
+    func dismissSuggestions() {
       dismissedMentionTrigger = mentionTrigger
       mentionOptions = []
+      dismissedEmojiTrigger = emojiTrigger
+      emojiOptions = []
     }
 
     func acceptMention(_ mention: ComposerMention) {
@@ -50,18 +73,31 @@
       refresh()
     }
 
-    func handleMentionKey(_ key: UInt16) -> Bool {
-      refreshMentions()
-      guard !mentionOptions.isEmpty else { return false }
+    private var suggestionIDs: [String] {
+      mentionOptions.map(\.id) + emojiOptions
+    }
+
+    func acceptEmoji(_ shortcode: String) {
+      input?.window?.makeFirstResponder(input)
+      input?.acceptEmoji(shortcode)
+      emojiOptions = []
+      refresh()
+    }
+
+    func handleSuggestionKey(_ key: UInt16) -> Bool {
+      refreshSuggestions()
+      guard !suggestionIDs.isEmpty else { return false }
       switch key {
       case 53:
-        dismissMentions()
+        dismissSuggestions()
       case 125, 126:
-        let index = mentionOptions.firstIndex { $0.id == selectedMentionID } ?? 0
-        selectedMentionID = mentionOptions[(index + (key == 125 ? 1 : mentionOptions.count - 1)) % mentionOptions.count].id
+        let index = suggestionIDs.firstIndex { $0 == selectedSuggestionID } ?? 0
+        selectedSuggestionID = suggestionIDs[(index + (key == 125 ? 1 : suggestionIDs.count - 1)) % suggestionIDs.count]
       case 36, 76, 48:
-        if let mention = mentionOptions.first(where: { $0.id == selectedMentionID }) {
+        if let mention = mentionOptions.first(where: { $0.id == selectedSuggestionID }) {
           acceptMention(mention)
+        } else if let shortcode = selectedSuggestionID, emojiOptions.contains(shortcode) {
+          acceptEmoji(shortcode)
         }
       default: return false
       }
@@ -137,7 +173,7 @@
       // Selection callbacks can arrive during SwiftUI's representable update.
       Task { @MainActor [weak self] in
         guard let self, let input else { return }
-        refreshMentions()
+        refreshSuggestions()
         let range = input.selectedRange()
         let sample = range.length == 0
           ? NSAttributedString(string: " ", attributes: input.typingAttributes)

@@ -25,7 +25,6 @@ import SwiftUI
     var body: some View {
       VStack(spacing: 0) {
         transcriptBody
-        Divider()
         ChatComposerView(
           userId: workspaces.currentUserId,
           organizationId: workspaces.selection?.workspace.organizationId,

@@ -2,8 +2,10 @@ import SokosumiChat
 import SwiftUI
 
 /// Portable presentation; the text adapter owns insertion and keyboard events.
-struct MentionSuggestionsView: View {
+struct ComposerSuggestionsView: View {
   let mentions: [ComposerMention]
+  let emojis: [String]
+  let acceptEmoji: (String) -> Void
   @Binding var selectedID: String?
   let accept: (ComposerMention) -> Void
 
@@ -11,6 +13,7 @@ struct MentionSuggestionsView: View {
     ScrollViewReader { proxy in
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 2) {
+          emojiRows
           section("People", entries: mentions.filter { $0.kind == .human || $0.kind == .all })
           section("Agents", entries: mentions.filter { $0.kind == .coworker || $0.kind == .sokoBot })
         }
@@ -27,12 +30,37 @@ struct MentionSuggestionsView: View {
     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(.separator, lineWidth: 1) }
     .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
-    .accessibilityLabel("Mention suggestions")
+    .accessibilityLabel(emojis.isEmpty ? "Mention suggestions" : "Emoji suggestions")
     .offset(y: -panelHeight - 8)
   }
 
+  private var emojiRows: some View {
+    ForEach(emojis, id: \.self) { shortcode in
+      Button { acceptEmoji(shortcode) } label: {
+        HStack(spacing: 10) {
+          Text(String(ComposerEmoji.completionPreview(for: shortcode).split(separator: " ").first ?? ""))
+            .font(.title2).frame(width: 32, height: 32)
+          Text(shortcode).font(.body).lineLimit(1)
+          Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10).frame(height: 50)
+        .contentShape(Rectangle())
+        .background(selectedID == shortcode ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 6))
+      }
+      .buttonStyle(.plain)
+      .onHover {
+        if $0 {
+          selectedID = shortcode
+        }
+      }
+      .accessibilityLabel(ComposerEmoji.completionPreview(for: shortcode))
+      .accessibilityAddTraits(selectedID == shortcode ? .isSelected : [])
+      .id(shortcode)
+    }
+  }
+
   private var panelHeight: CGFloat {
-    min(CGFloat(mentions.count * 52 + sectionCount * 28 + 12), 300)
+    min(CGFloat((mentions.count + emojis.count) * 52 + sectionCount * 28 + 12), 300)
   }
 
   private var sectionCount: Int {

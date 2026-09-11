@@ -55,11 +55,11 @@
       input.setSelectedRange(NSRange(location: 3, length: 0))
       let commands = MacComposerCommands()
       commands.input = input
-      commands.refreshMentions()
+      commands.refreshSuggestions()
       #expect(commands.mentionOptions.map(\.name) == ["Anna"])
-      #expect(!commands.handleMentionKey(124))
+      #expect(!commands.handleSuggestionKey(124))
       #expect(input.string == "@an")
-      #expect(commands.handleMentionKey(36))
+      #expect(commands.handleSuggestionKey(36))
       #expect(input.string == "\u{FFFC} ")
       #expect(input.captureDraft().contains("@user-1:anna"))
     }
@@ -72,12 +72,12 @@
       input.setSelectedRange(NSRange(location: 1, length: 0))
       let commands = MacComposerCommands()
       commands.input = input
-      commands.refreshMentions()
+      commands.refreshSuggestions()
       #expect(commands.mentionOptions.map(\.id) == ["person", "agent"])
-      #expect(commands.handleMentionKey(125))
-      #expect(commands.selectedMentionID == "agent")
-      #expect(commands.handleMentionKey(53))
-      commands.refreshMentions()
+      #expect(commands.handleSuggestionKey(125))
+      #expect(commands.selectedSuggestionID == "agent")
+      #expect(commands.handleSuggestionKey(53))
+      commands.refreshSuggestions()
       #expect(commands.mentionOptions.isEmpty)
       #expect(input.string == "@")
     }
@@ -273,35 +273,36 @@
       let input = MacComposerTextInput.InputView()
       input.string = "😀 :sm tail"
       input.setSelectedRange(NSRange(location: 6, length: 0))
-      #expect(input.rangeForUserCompletion == NSRange(location: 3, length: 3))
-      var selectedIndex = 0
-      let completions = input.completions(forPartialWordRange: input.rangeForUserCompletion, indexOfSelectedItem: &selectedIndex)
-      #expect(completions?.contains("😄  :smile:") == true)
-      input.insertCompletion("😄  :smile:", forPartialWordRange: input.rangeForUserCompletion, movement: NSReturnTextMovement, isFinal: true)
+      #expect(input.emojiCompletionRange == NSRange(location: 3, length: 3))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.refreshSuggestions()
+      #expect(commands.emojiOptions.contains(":smile:"))
+      commands.selectedSuggestionID = ":smile:"
+      #expect(commands.handleSuggestionKey(48))
       #expect(input.string == "😀 😄 tail")
       #expect(input.selectedRange().location == 5)
     }
 
-    @Test(arguments: [NSOtherTextMovement, NSRightTextMovement, NSLeftTextMovement, NSCancelTextMovement])
-    func finalizingCompletionWithoutAcceptancePreservesTyping(_ movement: Int) {
+    @Test func emojiSuggestionsRequireAcceptanceAndRespectDismissal() {
       let input = MacComposerTextInput.InputView()
+      let commands = MacComposerCommands()
+      commands.input = input
       input.string = ":sm"
       input.setSelectedRange(NSRange(location: 3, length: 0))
-      input.insertCompletion("🛩️  :small_airplane:", forPartialWordRange: input.rangeForUserCompletion, movement: movement, isFinal: true)
+      commands.refreshSuggestions()
+      #expect(!commands.emojiOptions.isEmpty)
+      #expect(commands.handleSuggestionKey(125))
+      #expect(input.string == ":sm")
+      #expect(commands.handleSuggestionKey(53))
+      commands.refreshSuggestions()
+      #expect(commands.emojiOptions.isEmpty)
       input.insertText("i", replacementRange: input.selectedRange())
+      commands.refreshSuggestions()
       #expect(input.string == ":smi")
-      #expect(input.selectedRange().location == 4)
-    }
-
-    @Test func completionPreviewAndCancelPreserveDraft() {
-      let input = MacComposerTextInput.InputView()
-      input.string = ":sm"
-      input.setSelectedRange(NSRange(location: 3, length: 0))
-      let range = input.rangeForUserCompletion
-      input.insertCompletion(":smile:", forPartialWordRange: range, movement: NSDownTextMovement, isFinal: false)
-      #expect(input.string == ":sm")
-      input.insertCompletion(":sm", forPartialWordRange: range, movement: NSCancelTextMovement, isFinal: true)
-      #expect(input.string == ":sm")
+      #expect(commands.emojiOptions.contains(":smile:"))
+      #expect(!commands.emojiOptions.contains(":small_airplane:"))
+      #expect(input.rangeForUserCompletion.location == NSNotFound)
     }
 
     @Test func emojiConversionSupportsUndoAndRedo() {
