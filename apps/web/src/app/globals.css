@@ -22,6 +22,9 @@
   --color-scrim-soft: var(--scrim-soft);
   --color-scrim-strong: var(--scrim-strong);
   --color-on-media: var(--on-media);
+  --color-media-ground: var(--media-ground);
+  --color-hero-wash: var(--hero-wash);
+  --color-hero-ground: var(--hero-ground);
   --color-on-media-muted: var(--on-media-muted);
   --color-on-media-tertiary: var(--on-media-tertiary);
   --color-on-media-quaternary: var(--on-media-quaternary);
@@ -279,6 +282,12 @@
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --media-ground: hsla(0, 0%, 0%, 1);
+  /* The landing hero is a photograph with a wash over it. The wash hue and
+     the stop under it differ per theme, so they are tokens, not a dark
+     variant on the utility. */
+  --hero-wash: hsla(200.6, 100%, 49%, 0.39);
+  --hero-ground: hsla(0, 0%, 100%, 1);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -428,6 +437,9 @@
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --media-ground: hsla(0, 0%, 0%, 1);
+  --hero-wash: hsla(264, 100%, 38.6%, 0.62);
+  --hero-ground: hsla(0, 0%, 0%, 1);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -627,17 +639,11 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 @utility landing-hero-bg {
   background-image:
-    linear-gradient(rgba(0, 164, 250, 0.39), rgba(255, 255, 255, 1)),
+    linear-gradient(var(--hero-wash), var(--hero-ground)),
     url("/backgrounds/landing-hero.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-
-  @variant dark {
-    background-image:
-      linear-gradient(rgba(79, 0, 197, 0.62), rgba(0, 0, 0, 1)),
-      url("/backgrounds/landing-hero.jpg");
-  }
 }
 
 @utility landing-join-our-community-bg {

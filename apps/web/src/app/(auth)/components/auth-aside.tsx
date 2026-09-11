@@ -48,7 +48,7 @@ export default async function AuthAside() {
         <div className="relative z-10 max-w-md">
           <h2
             id="auth-aside-title"
-            className="font-medium text-4xl text-white leading-[1.05] tracking-tight xl:text-5xl"
+            className="font-medium text-4xl text-on-media leading-[1.05] tracking-tight xl:text-5xl"
           >
             <span className="block">{t("titleLine1")}</span>
             <span className="block">{t("titleLine2")}</span>
@@ -73,13 +73,13 @@ export default async function AuthAside() {
             <div className="flex items-baseline justify-between gap-3">
               <p
                 id="auth-customer-logos-label"
-                className="font-medium text-white text-xs uppercase tracking-[0.16em]"
+                className="font-medium text-on-media text-xs uppercase tracking-[0.16em]"
               >
                 {t("logosLabel")}
               </p>
               <button
                 type="button"
-                className="sr-only rounded-sm text-white text-xs uppercase tracking-[0.16em] focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-on-media"
+                className="sr-only rounded-sm text-on-media text-xs uppercase tracking-[0.16em] focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-on-media"
               >
                 {t("pauseLogos")}
               </button>
@@ -115,7 +115,7 @@ export default async function AuthAside() {
         data-testid="auth-aside-quote"
         className="absolute right-10 bottom-10 z-10 max-w-md text-right xl:right-12 xl:bottom-12"
       >
-        <blockquote className="text-balance text-lg text-white leading-snug">
+        <blockquote className="text-balance text-lg text-on-media leading-snug">
           {t("quote")}
         </blockquote>
         <figcaption className="mt-5 flex items-center justify-end gap-3 text-sm">
@@ -127,10 +127,12 @@ export default async function AuthAside() {
             className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-on-media-tertiary"
           />
           <div className="text-left">
-            <div className="whitespace-nowrap text-white">
+            <div className="whitespace-nowrap text-on-media">
               {t("quoteAuthor")}
             </div>
-            <div className="whitespace-nowrap text-white">{t("quoteRole")}</div>
+            <div className="whitespace-nowrap text-on-media">
+              {t("quoteRole")}
+            </div>
           </div>
           <div className="border-on-media-tertiary border-l pl-4">
             <Image
