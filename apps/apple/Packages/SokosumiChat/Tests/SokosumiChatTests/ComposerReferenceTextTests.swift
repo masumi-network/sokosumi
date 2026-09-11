@@ -5,6 +5,14 @@ import Testing
 struct ComposerReferenceTextTests {
   private let mention = ComposerMention(id: "user-1", name: "Anna", slug: "anna", kind: .human)
 
+  @Test func idOnlyHumanMentionRestoresAfterRename() {
+    let source = "Hi @user-1, and @user-1:old-name"
+    let text = ComposerReferenceText.presenting(NSAttributedString(string: source), catalog: [mention])
+    #expect(text.string == "Hi \u{FFFC}, and \u{FFFC}")
+    #expect(text.attribute(ComposerReferenceText.name, at: 3, effectiveRange: nil) as? String == "@Anna")
+    #expect(ComposerBlockText.document(text).markdown == source + "\n")
+  }
+
   @Test func chipRoundTripsStoredTokenAndCodeStaysLiteral() throws {
     let source = "Hello @user-1:old-name and `@user-1:anna`"
     let document = try ComposerDocument(markdown: source)

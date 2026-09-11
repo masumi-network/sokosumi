@@ -149,6 +149,7 @@ export function composerMentionDisplayNames({
 
 /** Shared mention-picker payload for humans, coworkers, PAs, and synthetic @all. */
 export interface RoomMentionParticipant {
+  email?: string;
   kind: "human" | "coworker" | "sokoBot" | "all";
   id: string;
   name: string;

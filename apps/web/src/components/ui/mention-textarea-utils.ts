@@ -4,7 +4,9 @@ import { parseMentions } from "@/lib/utils/mention-parser";
 
 export interface MentionRecordEntry<TData = unknown> {
   value: string;
+  /** Empty means an ID-only token; omitted derives the legacy display slug. */
   slug?: string | null;
+  searchText?: string;
   data?: TData;
 }
 
@@ -12,6 +14,7 @@ export interface NormalizedMention<TData = unknown> {
   key: string;
   value: string;
   slug: string;
+  searchText?: string;
   data?: TData;
 }
 
@@ -70,7 +73,7 @@ export function filterNormalizedMentions<TData = unknown>(
 
   for (const mention of items) {
     const value = mention.value.toLowerCase();
-    const slug = mention.slug.toLowerCase();
+    const slug = (mention.searchText ?? mention.slug).toLowerCase();
 
     if (value.startsWith(q) || slug.startsWith(q)) {
       prefixMatches.push(mention);
@@ -101,7 +104,7 @@ export function getMentionToken(
   mentionKey: string,
   mentionSlug: string,
 ): string {
-  return `@${mentionKey}:${mentionSlug}`;
+  return mentionSlug ? `@${mentionKey}:${mentionSlug}` : `@${mentionKey}`;
 }
 
 export function buildMentionToken(
@@ -115,7 +118,7 @@ export function buildMentionToken(
 
 export function isMentionSpan(node: Node): node is HTMLSpanElement {
   if (!(node instanceof HTMLSpanElement)) return false;
-  return Boolean(node.dataset.mentionKey && node.dataset.mentionSlug);
+  return Boolean(node.dataset.mentionKey && node.dataset.mentionSlug !== undefined);
 }
 
 export function getChannelLinkToken(label: string): string {
@@ -237,7 +240,7 @@ export function setEditorFromRaw(
     const { displayName, isKnown } = resolveDisplay(match.id, match.slug);
     const mentionSpan = createMentionSpan(
       match.id,
-      match.slug,
+      match.hasLegacyFormat ? match.slug : "",
       displayName,
       isKnown,
       options,
