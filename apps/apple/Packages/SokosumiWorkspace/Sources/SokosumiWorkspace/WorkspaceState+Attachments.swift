@@ -9,7 +9,9 @@ public extension WorkspaceState {
   }
 
   func driveItems(folder: String, query: String, roomId: String, auth: AuthState) async throws -> [Components.Schemas.DriveItem] {
-    guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else { throw CancellationError() }
+    guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
+      throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
+    }
     let generation = timeline.generation
     do {
       let items = try await ChatService().driveItems(client: client, organizationId: selection?.workspace.organizationId, folder: folder, query: query)

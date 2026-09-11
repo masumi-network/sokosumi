@@ -544,3 +544,24 @@ private func drivePageBody(items: [String], nextCursor: String?) -> String {
   #expect(picker.errorMessage == "Latest failure")
   #expect(!picker.loading)
 }
+
+@Test @MainActor func drivePickerShowsUnexpectedResponseAndTransportCopy() async {
+  let picker = DrivePicker()
+  await picker.load { throw ChatServiceError.unexpectedResponse("This folder has too many files. Refine your search.") }
+  #expect(picker.errorMessage == "This folder has too many files. Refine your search.")
+  await picker.load { throw URLError(.timedOut) }
+  #expect(picker.errorMessage == "The request timed out. Please try again.")
+}
+
+@Test @MainActor func drivePickerIgnoresCancellation() async throws {
+  let picker = DrivePicker()
+  let folder = try JSONDecoder().decode(
+    Components.Schemas.DriveItem.self,
+    from: Data(#"{"type":"folder","name":"Reports","path":"Reports"}"#.utf8)
+  )
+  await picker.load { [folder] }
+  await picker.load { throw CancellationError() }
+  #expect(picker.errorMessage == nil)
+  #expect(picker.items == [folder])
+  #expect(!picker.loading)
+}

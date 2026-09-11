@@ -15,7 +15,6 @@ public final class DrivePicker: ObservableObject {
     generation += 1
     let current = generation
     loading = true
-    items = []
     errorMessage = nil
     defer {
       if current == generation {
@@ -26,12 +25,16 @@ public final class DrivePicker: ObservableObject {
       let result = try await fetch()
       guard current == generation, !Task.isCancelled else { return }
       items = result
+    } catch is CancellationError {
+      return
     } catch {
       guard current == generation, !Task.isCancelled else { return }
-      if case let ChatServiceError.unprocessable(_, message) = error {
+      switch error {
+      case let ChatServiceError.unauthorized(message), let ChatServiceError.unprocessable(_, message),
+           let ChatServiceError.unexpectedResponse(message):
         errorMessage = message
-      } else {
-        errorMessage = error.localizedDescription
+      default:
+        errorMessage = friendlyMessage(for: error)
       }
     }
   }

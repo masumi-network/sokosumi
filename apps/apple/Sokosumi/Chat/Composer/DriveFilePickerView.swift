@@ -31,41 +31,27 @@ struct DriveFilePickerView: View {
       }
       .buttonStyle(.borderless)
       TextField("Search this folder", text: $query).textFieldStyle(.roundedBorder)
-      if picker.loading {
-        ProgressView("Loading files…").frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if let error = picker.errorMessage {
+      if let error = picker.errorMessage {
         VStack {
           Text(error)
           Button("Retry") { retry += 1 }
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if picker.items.isEmpty {
-        Text(query.isEmpty ? "No files in this folder" : "No matching files")
-          .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+        if picker.loading {
+          ProgressView("Loading files…").frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+          Text(query.isEmpty ? "No files in this folder" : "No matching files")
+            .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
       } else {
-        List(picker.items, id: \.self) { item in
-          switch item {
-          case let .folder(folder):
-            Button { folders.append(folder.path)
-              query = ""
-            } label: {
-              Label(folder.name, systemImage: "folder")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-          case let .file(item):
-            Button {
-              select(ComposeAttachment(url: item.value1.fileUrl, fileName: item.value1.name, mediaType: ""))
-              dismiss()
-            } label: {
-              HStack {
-                Label(item.value1.name, systemImage: "doc")
-                Spacer()
-                Text(ByteCountFormatter.string(fromByteCount: Int64(item.value1.size), countStyle: .file))
-                  .font(.caption).foregroundStyle(.secondary)
-              }
-              .contentShape(Rectangle())
-            }
-          }
+        List(picker.items, id: \.rowID) { item in
+          DriveItemRow(item: item, onFolder: { path in
+            folders.append(path)
+            query = ""
+          }, onFile: { attachment in
+            select(attachment)
+            dismiss()
+          })
         }
         .buttonStyle(.plain)
       }
@@ -75,9 +61,12 @@ struct DriveFilePickerView: View {
     .task(id: Request(folder: folders.joined(separator: "/"), query: query, retry: retry)) {
       let folder = folders.joined(separator: "/")
       let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !search.isEmpty {
+        try? await Task.sleep(for: .milliseconds(200))
+        guard !Task.isCancelled else { return }
+      }
       await picker.load {
-        try await Task.sleep(for: .milliseconds(200))
-        return try await load(folder, search)
+        try await load(folder, search)
       }
     }
   }
@@ -86,5 +75,64 @@ struct DriveFilePickerView: View {
     let folder: String
     let query: String
     let retry: Int
+  }
+}
+
+private struct DriveItemRow: View {
+  let item: Components.Schemas.DriveItem
+  let onFolder: (String) -> Void
+  let onFile: (ComposeAttachment) -> Void
+
+  var body: some View {
+    Button(action: activate) {
+      HStack {
+        Label(name, systemImage: symbol)
+        Spacer()
+        if let size {
+          Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
+            .font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .contentShape(Rectangle())
+    }
+  }
+
+  private var name: String {
+    switch item {
+    case let .folder(folder): folder.name
+    case let .file(file): file.value1.name
+    }
+  }
+
+  private var symbol: String {
+    switch item {
+    case .folder: "folder"
+    case .file: "doc"
+    }
+  }
+
+  private var size: Int64? {
+    switch item {
+    case .folder: nil
+    case let .file(file): Int64(file.value1.size)
+    }
+  }
+
+  private func activate() {
+    switch item {
+    case let .folder(folder): onFolder(folder.path)
+    case let .file(file):
+      onFile(ComposeAttachment(url: file.value1.fileUrl, fileName: file.value1.name, mediaType: ""))
+    }
+  }
+}
+
+private extension Components.Schemas.DriveItem {
+  var rowID: String {
+    switch self {
+    case let .folder(folder): "folder:\(folder.path)"
+    case let .file(file): file.value1.fileUrl
+    }
   }
 }
