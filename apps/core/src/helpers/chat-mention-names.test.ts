@@ -95,6 +95,28 @@ describe("loadChatMentionNames", () => {
 
     expect(names.get(AUTH_USER_ID)).toBe("Ada Lovelace");
     expect(names.get(BEN_ID)).toBe("Soko");
+    expect(userMemberFindManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, userId: { in: [AUTH_USER_ID, BEN_ID] } },
+      select: { user: { select: { id: true, name: true } } },
+    });
+    expect(coworkerMemberFindManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, coworkerId: { in: [AUTH_USER_ID, BEN_ID] } },
+      select: { coworker: { select: { id: true, name: true } } },
+    });
+  });
+
+  it("names an opaque user without querying soko bot members", async () => {
+    userMemberFindManyMock.mockResolvedValue([
+      { user: { id: AUTH_USER_ID, name: "Ada Lovelace" } },
+    ]);
+
+    const names = await loadChatMentionNames({
+      roomId: ROOM_ID,
+      content: `@${AUTH_USER_ID}`,
+    });
+
+    expect(names.get(AUTH_USER_ID)).toBe("Ada Lovelace");
+    expect(sokoBotMemberFindManyMock).not.toHaveBeenCalled();
   });
 
   /** A room-wide mention names a room, so there is nobody to look up. */
