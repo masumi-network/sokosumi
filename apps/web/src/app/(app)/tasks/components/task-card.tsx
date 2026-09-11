@@ -48,7 +48,7 @@ export function TaskCard({
             "hover:border-primary hover:shadow-sm",
             "active:scale-[0.99]",
             dragHandleProps?.isDragging &&
-              "border-primary/30 ring-primary/10 shadow-lg ring-2",
+              "border-primary-tertiary ring-primary/10 shadow-lg ring-2",
           )}
         >
           <div className="space-y-2.5">

@@ -322,7 +322,7 @@ function CalendarEvent({
             },
           )}
           className={cn(
-            "bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2",
+            "bg-primary-quinary text-foreground hover:bg-primary-quaternary focus-visible:bg-primary-quaternary focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2",
             timeText ? "flex-col items-start gap-0.5" : "items-center gap-1",
             item.state === "SKIPPED" && "text-muted-foreground line-through",
           )}

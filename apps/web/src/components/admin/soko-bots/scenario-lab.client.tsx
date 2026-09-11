@@ -164,7 +164,7 @@ function LiveRunPanel({ live }: { live: LiveRun }) {
           : t("phaseRunning");
 
   return (
-    <div className="border-primary/40 bg-primary/5 mt-3 rounded-md border px-3 py-2">
+    <div className="border-primary-tertiary bg-primary-quinary mt-3 rounded-md border px-3 py-2">
       <p className="flex items-center gap-2 text-xs font-medium">
         <span
           className="bg-primary size-1.5 shrink-0 animate-pulse rounded-full"
@@ -498,7 +498,7 @@ export function ScenarioLab({
             className={cn(
               "rounded-md border px-2 py-1 text-xs transition-colors",
               activeVersion === version.id
-                ? "border-primary bg-primary/5 text-foreground"
+                ? "border-primary bg-primary-quinary text-foreground"
                 : "border-border text-muted-foreground hover:text-foreground",
             )}
           >

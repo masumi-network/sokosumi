@@ -46,7 +46,7 @@ export function SokoBotKillSwitch({
     <div
       className={
         availability.disabled
-          ? "border-destructive/50 bg-destructive/5 space-y-3 rounded-lg border p-4"
+          ? "border-semantic-destructive-tertiary bg-semantic-destructive-quinary space-y-3 rounded-lg border p-4"
           : "bg-card-background space-y-3 rounded-lg border p-4"
       }
     >
