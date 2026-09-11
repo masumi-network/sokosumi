@@ -81,7 +81,7 @@
 - [ ] Add a focused occurrence-index helper and failing tests that convert future skipped/moved planned exceptions to `CANCELED`, delete only ordinary future planned projections, and preserve released/past history. Replace the destructive helper at both series edit/removal call sites rather than leaving parallel cleanup paths.
 - [ ] Add failing Calendar PUT route tests for revision mismatch, missing confirmation, exact idempotent replay, conflicting operation reuse, new epoch metadata, one revision increment, and durable-exception cancellation under existing locks.
 - [ ] Reuse the scheduled-Task-create canonical SHA-256 fingerprint pattern. Store fingerprint plus Task identity in the unique operation event, emit stable `idempotency_conflict` for semantic reuse, and re-read/map the Task on exact replay; never persist a full API response in public `schedulePayload`.
-- [ ] Add failing DELETE route tests for required UUID `Idempotency-Key`, exact `If-Match: "schedule-revision:{n}"`, revision conflict, exact retry, conflicting reuse, Draft restoration from READY as well as QUEUED, metadata clearing, one revision increment, and history preservation.
+- [ ] Add failing DELETE route tests for required UUID `Idempotency-Key`, exact `x-schedule-revision: {n}`, revision conflict, exact retry, conflicting reuse, Draft restoration from READY as well as QUEUED, metadata clearing, one revision increment, and history preservation.
 - [ ] Require interactive human + Task collaboration for PUT and DELETE; keep Calendar PUT beta-gated but preserve DELETE as the non-beta escape hatch for legacy schedules. Task 3 applies interactive human + Task collaboration + Calendar beta access to occurrence reads.
 - [ ] Implement both mutation paths in the existing routes/helpers and standard response/error envelopes.
 - [ ] Run:
@@ -171,7 +171,7 @@
 ### Steps
 
 - [ ] Add failing service/action tests proving active-series field edits send `expectedScheduleRevision`, use the returned incremented revision for a following schedule change, keep one stable UUID operation ID per user attempt, and map stable conflict kinds.
-- [ ] Add failing removal tests proving `Idempotency-Key` and exact `If-Match` headers are sent, retries reuse the same operation ID, and success refreshes Task/Calendar routes.
+- [ ] Add failing removal tests proving `Idempotency-Key` and exact `x-schedule-revision` headers are sent, retries reuse the same operation ID, and success refreshes Task/Calendar routes.
 - [ ] Add failing UI tests for conditional future-exception confirmation, schedule-removal confirmation, disabled/hidden generic status/archive/source-move controls on active series, drag-status rejection without silent unscheduling, and actionable stale-revision feedback.
 - [ ] Thread the observed revision through the existing `TaskForm` → `TaskScheduleModal` → `TaskScheduleSection` builder and Calendar editor. Reuse the existing confirmation dialog, source markers, and schedule display helpers; the new series display is separate from the existing rule builder, not a replacement editor.
 - [ ] Preserve the stable operation ID across retryable failures and generate a new ID only for a new user operation.

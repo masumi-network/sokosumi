@@ -71,7 +71,7 @@ const OPERATION_ID = "123e4567-e89b-42d3-a456-426614174777";
 function removalRequest(
   headers: Record<string, string> = {
     "Idempotency-Key": OPERATION_ID,
-    "If-Match": '"schedule-revision:4"',
+    "x-schedule-revision": "4",
   },
 ): [string, RequestInit] {
   return [
@@ -238,39 +238,34 @@ describe("DELETE /tasks/{id}/schedule", () => {
 
   it("requires a UUID Idempotency-Key", async () => {
     const missing = await createApp().request(
-      ...removalRequest({ "If-Match": '"schedule-revision:4"' }),
+      ...removalRequest({ "x-schedule-revision": "4" }),
     );
     expect(missing.status).toBe(422);
 
     const malformed = await createApp().request(
       ...removalRequest({
         "Idempotency-Key": "operation-1",
-        "If-Match": '"schedule-revision:4"',
+        "x-schedule-revision": "4",
       }),
     );
     expect(malformed.status).toBe(422);
     expect(serializableTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("requires an exact schedule-revision If-Match header", async () => {
+  it("requires a non-negative integer x-schedule-revision header", async () => {
     const missing = await createApp().request(
       ...removalRequest({ "Idempotency-Key": OPERATION_ID }),
     );
     expect(missing.status).toBe(422);
 
-    for (const value of [
-      "*",
-      "schedule-revision:4",
-      '"revision:4"',
-      '"schedule-revision:x"',
-    ]) {
+    for (const value of ["", "-1", "schedule-revision:4", "4.0", "x"]) {
       const response = await createApp().request(
         ...removalRequest({
           "Idempotency-Key": OPERATION_ID,
-          "If-Match": value,
+          "x-schedule-revision": value,
         }),
       );
-      expect(response.status, `If-Match: ${value}`).toBe(422);
+      expect(response.status, `x-schedule-revision: ${value}`).toBe(422);
     }
     expect(serializableTransactionMock).not.toHaveBeenCalled();
   });

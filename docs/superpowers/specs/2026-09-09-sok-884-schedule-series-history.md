@@ -50,7 +50,7 @@ The mutation locks the Calendar scope and Task, verifies the expected revision, 
 
 ### Series removal
 
-`DELETE /v1/tasks/{id}/schedule` requires UUID header `Idempotency-Key` and `If-Match: "schedule-revision:{n}"`. The parent-series contract deliberately uses headers because DELETE has no request body and the precondition belongs in standard request metadata; the generated client supports typed header options after regeneration. It verifies revision under the same locks, cancels durable future exceptions, removes ordinary future projections, clears schedule metadata, returns an active Draft/Ready/Queued template to Draft, increments revision, and preserves all historical/released records. An exact retry returns the re-read serialized Task.
+`DELETE /v1/tasks/{id}/schedule` requires UUID header `Idempotency-Key` and `x-schedule-revision: {n}`. The parent-series contract deliberately uses headers because DELETE has no request body. It uses a custom header rather than the standard `If-Match` precondition because Vercel's edge evaluates `If-Match` against the resource and returns `412 PRECONDITION_FAILED` before the request reaches Core. The generated client supports typed header options after regeneration. It verifies revision under the same locks, cancels durable future exceptions, removes ordinary future projections, clears schedule metadata, returns an active Draft/Ready/Queued template to Draft, increments revision, and preserves all historical/released records. An exact retry returns the re-read serialized Task.
 
 Durable future exceptions are skipped occurrences and moved planned occurrences whose effective time differs from their original time. Ordinary generated planned projections may be deleted and rebuilt.
 

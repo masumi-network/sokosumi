@@ -91,7 +91,7 @@ describe("createCoreClient revision-safe schedule mutations", () => {
     );
   });
 
-  it("sends the removal preconditions as Idempotency-Key and If-Match headers", async () => {
+  it("sends the removal preconditions as Idempotency-Key and x-schedule-revision headers", async () => {
     vi.mocked(coreDeleteTasksByIdSchedule).mockResolvedValue({
       data: taskResponse,
       response: { ok: true, status: 200 } as Response,
@@ -108,7 +108,7 @@ describe("createCoreClient revision-safe schedule mutations", () => {
         path: { id: "task-1" },
         headers: {
           "idempotency-key": "123e4567-e89b-42d3-a456-426614174000",
-          "if-match": '"schedule-revision:3"',
+          "x-schedule-revision": "3",
         },
       }),
     );

@@ -3418,8 +3418,8 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   /**
    * Series removal has no body, so its idempotency identity and observed
-   * revision travel as request metadata. Core matches the entity tag exactly,
-   * quotes included.
+   * revision travel as request metadata. The revision uses a custom header
+   * rather than `If-Match`, which Vercel's edge evaluates and rejects with 412.
    */
   async function deleteTaskSchedule(
     id: string,
@@ -3436,7 +3436,9 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
           headers: {
             "idempotency-key": precondition.operationId,
-            "if-match": `"schedule-revision:${precondition.expectedScheduleRevision}"`,
+            "x-schedule-revision": String(
+              precondition.expectedScheduleRevision,
+            ),
           },
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),

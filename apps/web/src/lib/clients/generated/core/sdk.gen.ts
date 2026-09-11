@@ -2552,7 +2552,7 @@ export const putJobsByIdWorkspace = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Delete every in-app notification-center item for the interactive session user. Scoped by the same feed rule as mark-all-read, so a browser-only kind such as a mention or a direct message is left alone. There is no undo.
+ * Delete every in-app notification-center item for the interactive session user. Scoped by the same feed rule as mark-all-read, so it reaches a mention and a room message but leaves a direct message alone. A deleted mention also stops counting toward the room's sidebar badge, which counts the same rows. There is no undo.
  */
 export const deleteNotifications = <ThrowOnError extends boolean = false>(options?: Options<DeleteNotificationsData, ThrowOnError>): RequestResult<DeleteNotificationsResponses, DeleteNotificationsErrors, ThrowOnError> => (options?.client ?? client).delete<DeleteNotificationsResponses, DeleteNotificationsErrors, ThrowOnError>({
     responseTransformer: deleteNotificationsResponseTransformer,
@@ -2588,7 +2588,7 @@ export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Mark all in-app notification-center items as read for the interactive session user. CHAT kind is excluded except for room messages, so a mention stays until its room is read.
+ * Mark all in-app notification-center items as read for the interactive session user. Scoped by the feed rule, so it reaches a mention and a room message but never a direct message. A mention read here is read everywhere, including the room's sidebar badge, which counts the same rows.
  */
 export const patchNotificationsReadAll = <ThrowOnError extends boolean = false>(options?: Options<PatchNotificationsReadAllData, ThrowOnError>): RequestResult<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError> => (options?.client ?? client).patch<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError>({
     responseTransformer: patchNotificationsReadAllResponseTransformer,
@@ -3302,7 +3302,7 @@ export const putTasksByIdCalendarSchedule = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Remove a Calendar schedule series. Idempotent per Idempotency-Key and guarded by the If-Match schedule revision.
+ * Remove a Calendar schedule series. Idempotent per Idempotency-Key and guarded by the x-schedule-revision header.
  */
 export const deleteTasksByIdSchedule = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdScheduleData, ThrowOnError>): RequestResult<DeleteTasksByIdScheduleResponses, DeleteTasksByIdScheduleErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdScheduleResponses, DeleteTasksByIdScheduleErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdScheduleResponseTransformer,
