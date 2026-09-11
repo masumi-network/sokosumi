@@ -574,6 +574,7 @@ describe("ChatMessageRow", () => {
       onPin,
       showPinButton: true,
     });
+    await user.hover(screen.getByRole("article"));
 
     const hoverActions = document.querySelector(
       '[data-message-actions="hover"]',
@@ -599,6 +600,7 @@ describe("ChatMessageRow", () => {
       message: userMessage({ content: "Hover copy body" }),
       onQuote: vi.fn(),
     });
+    await user.hover(screen.getByRole("article"));
 
     const hoverActions = document.querySelector(
       '[data-message-actions="hover"]',
@@ -621,7 +623,8 @@ describe("ChatMessageRow", () => {
     );
   });
 
-  it("hides Copy when the message is deleted", () => {
+  it("hides Copy when the message is deleted", async () => {
+    const user = userEvent.setup();
     renderRow({
       currentUserId: "user-1",
       onDelete: vi.fn(),
@@ -631,6 +634,7 @@ describe("ChatMessageRow", () => {
         deletedAt: new Date("2026-07-02T10:00:00.000Z"),
       }),
     });
+    await user.hover(screen.getByRole("article"));
 
     expect(
       screen.queryByRole("button", { name: "Copy.action" }),
@@ -640,7 +644,8 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides Copy while a coworker message is still thinking", () => {
+  it("hides Copy while a coworker message is still thinking", async () => {
+    const user = userEvent.setup();
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",
@@ -649,6 +654,7 @@ describe("ChatMessageRow", () => {
       }),
       onQuote: vi.fn(),
     });
+    await user.hover(screen.getByRole("article"));
 
     expect(
       screen.queryByRole("button", { name: "Copy.action" }),
@@ -1416,6 +1422,7 @@ describe("ChatMessageRow", () => {
         onStartEdit={onStartEdit}
       />,
     );
+    await user.hover(screen.getByRole("article"));
 
     expect(
       screen.getByRole("button", { name: "Edit.action" }),
@@ -2865,5 +2872,152 @@ describe("ChatMessageRow outbound delivery", () => {
       "aria-label",
       tooLongLabel,
     );
+  });
+});
+
+describe("ChatMessageRow hover chrome", () => {
+  it("mounts the action pill on the first hover and keeps it", async () => {
+    const user = userEvent.setup();
+    renderRow({ onQuote: vi.fn() });
+
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Reactions.add" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Actions.more" }),
+    ).toBeInTheDocument();
+
+    await user.hover(screen.getByRole("article"));
+
+    const pill = document.querySelector('[data-message-actions="hover"]');
+    expect(pill).toBeInTheDocument();
+    expect(
+      within(pill as HTMLElement).getByRole("button", {
+        name: "Reactions.add",
+      }),
+    ).toBeInTheDocument();
+
+    await user.unhover(screen.getByRole("article"));
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).toBeInTheDocument();
+  });
+
+  it("mounts the participant hover cards on the first hover", async () => {
+    const user = userEvent.setup();
+    renderRow();
+
+    // Avatar and name keep their trigger semantics before any interaction,
+    // so the tab order through the row does not change.
+    expect(screen.getAllByRole("button", { name: "Ada" })).toHaveLength(2);
+    expect(
+      document.querySelector('[data-slot="hover-card-trigger"]'),
+    ).not.toBeInTheDocument();
+
+    await user.hover(screen.getByRole("article"));
+    expect(
+      document.querySelectorAll('[data-slot="hover-card-trigger"]'),
+    ).toHaveLength(2);
+
+    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    await user.hover(avatarTrigger);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("keeps keyboard focus on the avatar while the row mounts its chrome", async () => {
+    const user = userEvent.setup();
+    renderRow({ onQuote: vi.fn() });
+
+    await user.tab();
+
+    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    expect(avatarTrigger).toHaveFocus();
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("keeps the chrome across a re-render with a fresh message object", async () => {
+    const user = userEvent.setup();
+    const row = (content: string) => (
+      <ChatMessageRow
+        message={userMessage({ content })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+        onQuote={vi.fn()}
+      />
+    );
+    const { rerender } = render(row("before merge"));
+    await user.hover(screen.getByRole("article"));
+    await user.unhover(screen.getByRole("article"));
+
+    rerender(row("after merge"));
+
+    expect(screen.getByText("after merge")).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelectorAll('[data-slot="hover-card-trigger"]'),
+    ).toHaveLength(2);
+  });
+
+  it("mounts only the action pill on a continuation row", async () => {
+    const user = userEvent.setup();
+    renderContinuation();
+
+    expect(
+      screen.queryByRole("button", { name: "Ada" }),
+    ).not.toBeInTheDocument();
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="hover-card-trigger"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mounts the chrome when focus lands on the more actions button", async () => {
+    renderContinuation();
+
+    act(() => {
+      screen.getByRole("button", { name: "Actions.more" }).focus();
+    });
+
+    expect(screen.getByRole("button", { name: "Actions.more" })).toHaveFocus();
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).toBeInTheDocument();
+  });
+
+  it("renders no pill for a pending outbound row even after hover", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      currentUserId: "user-1",
+      message: userMessage({
+        id: "pending:turn-1",
+        metadata: {
+          client_message_id: "turn-1",
+          outbound_delivery_status: "pending",
+        },
+      }),
+    });
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Actions.more" }),
+    ).not.toBeInTheDocument();
   });
 });

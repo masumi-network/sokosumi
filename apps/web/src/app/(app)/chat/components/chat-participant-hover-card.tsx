@@ -7,7 +7,11 @@ import {
   type CSSProperties,
   cloneElement,
   isValidElement,
+  type FocusEvent as ReactFocusEvent,
   type ReactNode,
+  type Ref,
+  useLayoutEffect,
+  useRef,
 } from "react";
 
 import { AuroraOrb } from "@/components/aurora-orb";
@@ -48,6 +52,13 @@ interface ChatParticipantHoverCardProps {
    * a link/row that already owns activation). Still hoverable.
    */
   interactive?: boolean;
+  /**
+   * When false, only the trigger renders (same element, same focus
+   * semantics) and no hover-card root or content is mounted. Transcript rows
+   * pass this so a row that was never hovered or focused skips two Radix
+   * roots. Defaults to true.
+   */
+  active?: boolean;
   openDelay?: number;
   closeDelay?: number;
 }
@@ -59,6 +70,9 @@ interface TriggerChildProps {
   tabIndex?: number;
   "aria-label"?: string;
   "aria-hidden"?: boolean | "true" | "false";
+  ref?: Ref<HTMLElement>;
+  onFocus?: (event: ReactFocusEvent<HTMLElement>) => void;
+  onBlur?: (event: ReactFocusEvent<HTMLElement>) => void;
 }
 
 function renderHoverTrigger({
@@ -67,12 +81,18 @@ function renderHoverTrigger({
   className,
   style,
   interactive,
+  ref,
+  onFocus,
+  onBlur,
 }: {
   profileName: string;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
   interactive: boolean;
+  ref: Ref<HTMLElement>;
+  onFocus?: (event: ReactFocusEvent<HTMLElement>) => void;
+  onBlur?: (event: ReactFocusEvent<HTMLElement>) => void;
 }) {
   const childItems = Children.toArray(children).filter((child) => {
     if (typeof child === "string" || typeof child === "number") {
@@ -109,12 +129,24 @@ function renderHoverTrigger({
         singleChild.props.className,
         className,
       ),
+      ref,
+      onFocus: (event: ReactFocusEvent<HTMLElement>) => {
+        singleChild.props.onFocus?.(event);
+        onFocus?.(event);
+      },
+      onBlur: (event: ReactFocusEvent<HTMLElement>) => {
+        singleChild.props.onBlur?.(event);
+        onBlur?.(event);
+      },
     });
   }
 
   if (!interactive) {
     return (
       <span
+        ref={ref}
+        onFocus={onFocus}
+        onBlur={onBlur}
         style={style}
         className={cn(
           "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none",
@@ -128,6 +160,9 @@ function renderHoverTrigger({
 
   return (
     <span
+      ref={ref}
+      onFocus={onFocus}
+      onBlur={onBlur}
       role="button"
       tabIndex={0}
       aria-label={profileName}
@@ -155,13 +190,45 @@ export function ChatParticipantHoverCard({
   isOpeningDirect = false,
   isDirectActionBusy = false,
   interactive = true,
+  active = true,
   openDelay = 200,
   closeDelay = 100,
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
+  const triggerRef = useRef<HTMLElement | null>(null);
+  // Activation swaps the bare trigger for the Radix one, which remounts the
+  // element. When the swap was caused by keyboard focus landing on the bare
+  // trigger, put focus back on the new one so Radix opens the card on focus
+  // as it does for an always-active card.
+  const bareTriggerFocused = useRef(false);
+  const wasActive = useRef(active);
+  useLayoutEffect(() => {
+    if (active && !wasActive.current && bareTriggerFocused.current) {
+      bareTriggerFocused.current = false;
+      triggerRef.current?.focus();
+    }
+    wasActive.current = active;
+  }, [active]);
 
   if (!profile) {
     return children;
+  }
+
+  if (!active) {
+    return renderHoverTrigger({
+      profileName: profile.name,
+      children,
+      className,
+      style,
+      interactive,
+      ref: triggerRef,
+      onFocus: () => {
+        bareTriggerFocused.current = true;
+      },
+      onBlur: () => {
+        bareTriggerFocused.current = false;
+      },
+    });
   }
 
   const isCoworker = profile.kind === "coworker";
@@ -193,6 +260,7 @@ export function ChatParticipantHoverCard({
           className,
           style,
           interactive,
+          ref: triggerRef,
         })}
       </HoverCardTrigger>
       <HoverCardContent
