@@ -666,7 +666,8 @@ export const listSokoBotAvatarsQuerySchema = z.object({
 export const topUpSokoBotAvatarsRequestSchema = z.object({
   take: z.number().int().min(1).max(12).default(6),
   /** Avatar ids already shown; ask for a fresh set. */
-  excludeIds: z.array(z.string().uuid()).max(50).default([]),
+  /** Matches the cap the web action already enforces on the picker. */
+  excludeIds: z.array(z.string().uuid()).max(60).default([]),
 });
 
 export const sokoBotVersionSchema = z

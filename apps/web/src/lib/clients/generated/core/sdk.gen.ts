@@ -2780,13 +2780,13 @@ export const listSokoBotAvatars = <ThrowOnError extends boolean = false>(options
     ...options
 });
 
-export const topUpSokoBotAvatars = <ThrowOnError extends boolean = false>(options?: Options<TopUpSokoBotAvatarsData, ThrowOnError>): RequestResult<TopUpSokoBotAvatarsResponses, TopUpSokoBotAvatarsErrors, ThrowOnError> => (options?.client ?? client).post<TopUpSokoBotAvatarsResponses, TopUpSokoBotAvatarsErrors, ThrowOnError>({
+export const topUpSokoBotAvatars = <ThrowOnError extends boolean = false>(options: Options<TopUpSokoBotAvatarsData, ThrowOnError>): RequestResult<TopUpSokoBotAvatarsResponses, TopUpSokoBotAvatarsErrors, ThrowOnError> => (options.client ?? client).post<TopUpSokoBotAvatarsResponses, TopUpSokoBotAvatarsErrors, ThrowOnError>({
     responseTransformer: topUpSokoBotAvatarsResponseTransformer,
     url: '/soko-bots/avatars/top-up',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
