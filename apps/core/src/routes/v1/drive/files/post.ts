@@ -107,14 +107,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const displayName = clampDriveFileName(body.filename || "file");
     const folderPath = normalizeDriveFolderPath(body.folder ?? "");
 
-    // Check if filename conflicts with reserved marker basename
     if (isDriveFolderMarkerName(displayName)) {
       throw badRequest(
         "File name conflicts with a reserved system name. Please choose a different name.",
       );
     }
 
-    // ACL checks and owner resolution
     let pathname: string;
 
     if (body.scope === "me") {
@@ -130,7 +128,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unprocessableEntity("organizationId is required when scope=org");
       }
       const ownerId = body.organizationId;
-      // Verifies membership
       await requireOrganizationDriveFileUploadAccess(authContext, ownerId);
       pathname = buildOrganizationDriveFilePathnameWithFolder(
         ownerId,
@@ -141,15 +138,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // Check if target pathname already exists (file or folder)
     try {
       await head(pathname, { token });
-      // If head succeeds, target file exists
       throw conflict("Target pathname already exists");
     } catch (error) {
       // If it's a not-found error, target doesn't exist (expected)
       if (error instanceof BlobNotFoundError) {
-        // Target file doesn't exist, proceed
       } else if (
         error &&
         typeof error === "object" &&
@@ -159,12 +153,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Re-throw our own conflict errors
         throw error;
       } else {
-        // Unexpected error from head
         throw error;
       }
     }
 
-    // Check if a folder with the same name exists
     const folderPrefix = `${pathname}/`;
     const folderCheck = await list({
       prefix: folderPrefix,
