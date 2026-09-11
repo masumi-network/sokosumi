@@ -179,4 +179,60 @@ describe("color tokens", () => {
 
     expect(violations, violations.join("\n")).toEqual([]);
   });
+
+  /**
+   * A fourth rule, about the stylesheet rather than the call sites. Tailwind
+   * builds a utility only for a token `@theme inline` bridges, and it inlines
+   * the bridge, so a name with no bridge emits nothing at all and a bridge
+   * with no value emits `var(--missing)`, which falls back to `currentColor`.
+   * Both fail in silence with every test green. This stack shipped one of
+   * each before anyone noticed.
+   */
+  describe("the stylesheet", () => {
+    const stylesheet = readFileSync(
+      path.join(SRC_ROOT, "app/globals.css"),
+      "utf8",
+    );
+
+    function block(selector: string): string {
+      const start = stylesheet.indexOf(`\n${selector} {`);
+      const body = stylesheet.slice(start);
+      return body.slice(0, body.indexOf("\n}\n"));
+    }
+
+    function definitions(selector: string): Set<string> {
+      return new Set(
+        [...block(selector).matchAll(/^ {2}(--[a-z0-9-]+):/gm)].map(
+          (match) => match[1],
+        ),
+      );
+    }
+
+    const light = definitions(":root");
+    const dark = definitions(".dark");
+
+    it("defines every bridged token", () => {
+      const bridges = [
+        ...block("@theme inline").matchAll(
+          /^ {2}--color-[a-z0-9-]+: var\((--[a-z0-9-]+)\);/gm,
+        ),
+      ].map((match) => match[1]);
+
+      const dangling = bridges.filter(
+        (token) => !light.has(token) && !dark.has(token),
+      );
+
+      expect(dangling, dangling.join(", ")).toEqual([]);
+    });
+
+    it("defines the same tokens in both themes", () => {
+      const lightOnly = [...light].filter((token) => !dark.has(token));
+      const darkOnly = [...dark].filter((token) => !light.has(token));
+
+      expect(
+        { lightOnly, darkOnly },
+        "a token defined in one theme only takes the other theme's value",
+      ).toEqual({ lightOnly: [], darkOnly: [] });
+    });
+  });
 });
