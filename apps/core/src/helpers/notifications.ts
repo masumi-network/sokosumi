@@ -14,6 +14,7 @@ import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@/helpers/notification-feed";
+import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -92,21 +93,21 @@ export async function resolveDelivery(
 }
 
 /** What one row stands for: the messages counted onto it, or itself. */
-function arrivalsOn(messageParams: string): number {
-  try {
-    const stored: unknown = JSON.parse(messageParams);
-    const count =
-      typeof stored === "object" && stored !== null && "count" in stored
-        ? (stored as { count: unknown }).count
-        : undefined;
+function arrivalsOn(row: { id: string; messageParams: string }): number {
+  // Params nobody can read still belong to the message that wrote them, so
+  // the banner keeps the row and undercounts it by however many were counted
+  // onto it. Read through the reporting reader: this is the second place the
+  // same damage is answered from, and it was the silent one.
+  const stored = readNotificationRowJson(
+    row.messageParams,
+    row.id,
+    "messageParams",
+  );
+  const count = stored && "count" in stored ? stored.count : undefined;
 
-    return typeof count === "number" && Number.isInteger(count) && count >= 1
-      ? count
-      : 1;
-  } catch {
-    // Params nobody can read still belong to the message that wrote them.
-    return 1;
-  }
+  return typeof count === "number" && Number.isInteger(count) && count >= 1
+    ? count
+    : 1;
 }
 
 /**
@@ -146,19 +147,23 @@ async function chatRoomArrivals(
         referenceId: notification.referenceId,
         isRead: false,
       },
-      select: { messageParams: true, inApp: true, metadata: true },
+      select: { id: true, messageParams: true, inApp: true, metadata: true },
     });
 
     let count = 0;
     for (const row of waiting) {
       if (!row.inApp) {
-        const metadata: unknown = row.metadata
-          ? JSON.parse(row.metadata)
+        // Read the same way as the count below it. Parsed here, a column
+        // that will not read threw out of the loop into the catch, which
+        // reports on every publish of every message and never says which row
+        // it was. The answer is unchanged: a hidden row that cannot say
+        // whether it was banner-only takes the count down with it either way.
+        const metadata = row.metadata
+          ? readNotificationRowJson(row.metadata, row.id, "metadata")
           : null;
         // Hidden rows can be banner-only or fully silenced. Old rows do not
         // record that choice, so their combined count cannot be recovered.
         if (
-          typeof metadata !== "object" ||
           metadata === null ||
           !("osBannerEligible" in metadata) ||
           typeof metadata.osBannerEligible !== "boolean"
@@ -169,7 +174,7 @@ async function chatRoomArrivals(
           continue;
         }
       }
-      count += arrivalsOn(row.messageParams);
+      count += arrivalsOn(row);
     }
     return count > 0 ? count : undefined;
   } catch (error) {
