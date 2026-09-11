@@ -53,7 +53,7 @@ struct DocumentAttachmentPreview: View {
         document = PDFDocument(data: data)
       } catch {
         if !Task.isCancelled {
-          errorMessage = (error as? AttachmentDownload.Failure)?.errorDescription ?? friendlyMessage(for: error)
+          errorMessage = (error as? AttachmentDownload.Failure)?.errorDescription ?? "The file preview could not be loaded. Try again or open the original link."
         }
       }
     }

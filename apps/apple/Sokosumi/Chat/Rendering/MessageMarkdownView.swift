@@ -145,13 +145,13 @@ private struct MarkdownBlockView: View {
   }
 
   private func attachmentContent(_ text: AttributedString) -> some View {
-    let segments = MessageAttachmentSegment.split(text).filter { segment in
+    let segments = MessageAttachmentSegment.split(text, includeFileAttachments: presentsFileAttachments).filter { segment in
       segment.attachment != nil
         || !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     return VStack(alignment: .leading, spacing: 8) {
       ForEach(segments) { segment in
-        if let attachment = segment.attachment, presentsFileAttachments || attachment.kind != .file {
+        if let attachment = segment.attachment {
           MessageAttachmentView(attachment: attachment).id(attachment.url)
         } else {
           Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)

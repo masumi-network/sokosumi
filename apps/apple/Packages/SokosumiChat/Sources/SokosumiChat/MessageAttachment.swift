@@ -16,11 +16,13 @@ public struct MessageAttachment: Hashable, Sendable {
   public var documentPreviewKind: DocumentPreviewKind? {
     guard kind == .file else { return nil }
     let extensions = [url.pathExtension.lowercased(), (filename as NSString).pathExtension.lowercased()]
-    if extensions.contains("pdf") {
-      return .pdf
-    }
-    if extensions.contains(where: { ["txt", "md", "markdown"].contains($0) }) {
-      return .text
+    for ext in extensions {
+      switch ext {
+      case "pdf": return .pdf
+      case "txt", "md", "markdown": return .text
+      case "doc", "docx", "ppt", "pptx", "xls", "xlsx": return nil
+      default: continue
+      }
     }
     return nil
   }
@@ -54,12 +56,15 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
   public var attachment: MessageAttachment?
 
   /// Reuses parsed Markdown links, preserving text attributes and occurrence order.
-  public static func split(_ text: AttributedString) -> [Self] {
+  public static func split(_ text: AttributedString, includeFileAttachments: Bool = true) -> [Self] {
     var result: [Self] = []
     var offset = 0
     for run in text.runs {
       let part = AttributedString(text[run.range])
-      let attachment = run.link.flatMap { MessageAttachment(url: $0, label: String(part.characters), kindHint: run[MessageAttachmentKindAttribute.self]) }
+      var attachment = run.link.flatMap { MessageAttachment(url: $0, label: String(part.characters), kindHint: run[MessageAttachmentKindAttribute.self]) }
+      if !includeFileAttachments, attachment?.kind == .file {
+        attachment = nil
+      }
       if let attachment, let last = result.indices.last, result[last].attachment?.url == attachment.url {
         result[last].text.append(part)
         result[last].attachment = MessageAttachment(url: attachment.url, label: String(result[last].text.characters), kindHint: attachment.kind)
