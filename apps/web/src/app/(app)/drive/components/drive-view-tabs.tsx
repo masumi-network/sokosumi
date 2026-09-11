@@ -30,7 +30,7 @@ export function DriveViewTabs({
       }}
       className="w-full"
     >
-      <TabsList className="bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1 md:w-auto">
+      <TabsList className="bg-card-background flex w-full items-center gap-1 self-start rounded-lg p-1 md:w-auto">
         <TabsTrigger value="recents" className={TAB_TRIGGER_CLASS_NAME}>
           {t("recentsTab")}
         </TabsTrigger>

@@ -227,7 +227,7 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
     <div className="space-y-8">
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">{t("registryTitle")}</h2>
-        <div className="bg-muted/40 grid gap-4 rounded-md border p-4 text-sm sm:grid-cols-2">
+        <div className="bg-card-background grid gap-4 rounded-md border p-4 text-sm sm:grid-cols-2">
           <div className="space-y-1">
             <p className="text-muted-foreground">{t("registryName")}</p>
             <p>{detail.registry.name}</p>

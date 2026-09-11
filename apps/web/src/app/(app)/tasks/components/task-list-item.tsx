@@ -44,9 +44,9 @@ export function TaskListItem({
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
           "-mx-2 rounded-lg px-4 py-3 transition-colors",
-          "hover:bg-muted/50",
+          "hover:bg-card-background",
           "active:scale-[0.995]",
-          (dragHandleProps?.isDragging || isOverlay) && "bg-muted/70 shadow-sm",
+          (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">

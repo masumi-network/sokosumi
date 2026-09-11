@@ -122,7 +122,7 @@ export function RoomFileDropZone({
       {isDraggingFiles ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-accent/50"
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-card-background"
         >
           <p className="bg-background text-foreground rounded-md border px-4 py-2 text-sm font-medium shadow-sm">
             {label}

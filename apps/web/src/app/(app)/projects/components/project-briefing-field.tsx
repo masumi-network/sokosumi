@@ -75,7 +75,7 @@ export function ProjectBriefingField({
             data-testid={`briefing-chip-${chipId}`}
             disabled={disabled}
             onClick={() => handleChipClick(chipId)}
-            className="border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 inline-flex items-center rounded-full border px-2.5 py-1 text-xs transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50"
+            className="border-border text-muted-foreground hover:text-foreground hover:bg-card-background inline-flex items-center rounded-full border px-2.5 py-1 text-xs transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50"
           >
             {t(`chips.${chipId}`)}
           </button>

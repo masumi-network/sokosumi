@@ -129,7 +129,7 @@ export function ProjectMemoryRow({
         data-testid="project-memory-row"
         disabled={!contextMd}
         onClick={() => void handleOpen()}
-        className="hover:bg-muted/50 -mx-2 min-w-0 w-[calc(100%+1rem)] space-y-2 self-start rounded-lg px-2 py-2 text-left transition-colors disabled:cursor-default disabled:hover:bg-transparent"
+        className="hover:bg-card-background -mx-2 min-w-0 w-[calc(100%+1rem)] space-y-2 self-start rounded-lg px-2 py-2 text-left transition-colors disabled:cursor-default disabled:hover:bg-transparent"
       >
         <h2 className="text-muted-foreground/60 text-xs font-medium">
           {t("memory.fileName")}
@@ -138,7 +138,7 @@ export function ProjectMemoryRow({
           <p className="truncate text-sm font-medium">{statusLabel}</p>
           {contextMdUpdating ? (
             <span
-              className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
+              className="bg-tertiary size-1.5 shrink-0 animate-pulse rounded-full"
               data-testid="project-memory-updating"
               aria-hidden
             />
