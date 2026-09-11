@@ -52,7 +52,7 @@ const STATUS_CARD_STYLES: Record<
     dot: COLUMN_STATUS_COLORS.backlog,
   },
   READY: {
-    badge: "bg-status-ready-quaternary text-foreground",
+    badge: "bg-status-queued-quaternary text-foreground",
     dot: COLUMN_STATUS_COLORS.todo,
   },
   QUEUED: {

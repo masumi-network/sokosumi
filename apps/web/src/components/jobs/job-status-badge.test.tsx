@@ -23,7 +23,7 @@ describe("JobStatusBadge", () => {
       "bg-semantic-success",
     );
     expect(getJobStatusDotColorClass(SokosumiJobStatus.PROCESSING)).toBe(
-      "bg-status-running",
+      "bg-status-active",
     );
   });
 
@@ -38,14 +38,14 @@ describe("JobStatusBadge", () => {
     ).toBeInTheDocument();
   });
 
-  it("applies status text color to warning icon", () => {
+  it("applies the attention ramp to the input-required icon", () => {
     const { container } = render(
       <JobStatusBadge status={SokosumiJobStatus.INPUT_REQUIRED} />,
     );
 
     expect(container.querySelector("svg")).toHaveClass(
-      "size-3",
-      "text-semantic-destructive",
+      "size-3.5",
+      "text-semantic-warning",
     );
   });
 });
