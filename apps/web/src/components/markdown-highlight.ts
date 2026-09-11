@@ -73,7 +73,7 @@ export function applyMarkdownHighlighting(
     const regex = getCachedRegex(q);
 
     const markOpen =
-      '<mark class="bg-primary/50 text-foreground rounded-sm px-0.5">';
+      '<mark class="bg-primary-tertiary text-foreground rounded-sm px-0.5">';
     const markClose = "</mark>";
     const markReplacement = `${markOpen}$1${markClose}`;
 

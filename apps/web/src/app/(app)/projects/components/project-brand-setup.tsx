@@ -121,7 +121,7 @@ export function ProjectBrandSetup({
               logo={logoUrl}
               className="size-24 rounded-lg text-2xl"
             />
-            <span className="bg-primary/10 border-primary/20 absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-md border">
+            <span className="bg-primary-quinary border-primary-tertiary absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-md border">
               <Check className="text-primary size-3.5" />
             </span>
           </div>

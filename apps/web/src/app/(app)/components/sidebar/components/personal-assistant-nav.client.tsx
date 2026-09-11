@@ -89,7 +89,7 @@ export default function PersonalAssistantNav({
                     "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:px-0",
                     isActive
                       ? "border-transparent text-primary-foreground"
-                      : "border-primary/50 hover:border-primary/70 text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      : "border-primary-tertiary hover:border-primary-tertiary text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
                   {bots.length > 0 ? (

@@ -178,7 +178,7 @@ export function X402PaymentAction({
             }}
             className={
               action === "resolve"
-                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                ? "bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                 : undefined
             }
           >

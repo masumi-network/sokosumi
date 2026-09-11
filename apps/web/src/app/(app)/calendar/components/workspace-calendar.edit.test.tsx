@@ -512,8 +512,8 @@ describe("WorkspaceCalendar editing", () => {
     );
     expect(event).toHaveClass(
       "cursor-pointer",
-      "hover:bg-primary/20",
-      "focus-visible:bg-primary/20",
+      "hover:bg-primary-quaternary",
+      "focus-visible:bg-primary-quaternary",
       "motion-safe:transition-colors",
       "motion-safe:duration-150",
       "motion-safe:ease-out",

@@ -826,7 +826,7 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
       tabIndex={context.disabled ? undefined : 0}
       {...dropzoneProps}
       className={cn(
-        "relative flex select-none flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 outline-none transition-colors hover:bg-card-background focus-visible:border-ring data-disabled:pointer-events-none data-dragging:border-primary/30 data-invalid:border-destructive data-dragging:bg-card-background data-invalid:ring-destructive/20",
+        "relative flex select-none flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 outline-none transition-colors hover:bg-card-background focus-visible:border-ring data-disabled:pointer-events-none data-dragging:border-primary-tertiary data-invalid:border-destructive data-dragging:bg-card-background data-invalid:ring-destructive-halo",
         className,
       )}
       onClick={onClick}
@@ -1279,7 +1279,7 @@ function FileUploadItemProgress(props: FileUploadItemProgressProps) {
           data-slot="file-upload-progress"
           {...progressProps}
           className={cn(
-            "absolute inset-0 bg-primary/50 transition-[clip-path] duration-300 ease-linear",
+            "absolute inset-0 bg-primary-tertiary transition-[clip-path] duration-300 ease-linear",
             className,
           )}
           style={{
@@ -1301,7 +1301,7 @@ function FileUploadItemProgress(props: FileUploadItemProgressProps) {
           data-slot="file-upload-progress"
           {...progressProps}
           className={cn(
-            "relative h-1.5 w-full overflow-hidden rounded-full bg-primary/20",
+            "relative h-1.5 w-full overflow-hidden rounded-full bg-primary-quaternary",
             className,
           )}
         >

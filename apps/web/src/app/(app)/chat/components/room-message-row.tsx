@@ -347,7 +347,7 @@ function MessageQuoteBlock({
   const attachment = quote.attachment ?? null;
 
   return (
-    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
+    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-1.5">
       <button
         type="button"
         className="hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
@@ -452,7 +452,7 @@ function MessageUnfurlCard({
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-card-background hover:bg-card-background focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-card-background hover:bg-card-background focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
@@ -1968,7 +1968,7 @@ function MessageMetaFooter({
                     className={cn(
                       "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                       reaction.reactedByCurrentUser &&
-                        "border-primary/30 bg-primary/10 text-primary",
+                        "border-primary-tertiary bg-primary-quinary text-primary",
                     )}
                     aria-label={t("Reactions.toggle", {
                       emoji: reaction.emoji,
