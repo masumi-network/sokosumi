@@ -150,7 +150,7 @@ private struct MarkdownBlockView: View {
     return VStack(alignment: .leading, spacing: 8) {
       ForEach(segments) { segment in
         if let attachment = segment.attachment {
-          MessageAttachmentView(attachment: attachment)
+          MessageAttachmentView(attachment: attachment).id(attachment.url)
         } else {
           Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         }
