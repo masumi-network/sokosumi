@@ -37,18 +37,81 @@ export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
   mainnet: "soko_mainnet_",
   preprod: "soko_preprod_",
 };
+export const WEB_API_KEY_ROUTE = "/connections";
 
 function trimUrl(value: string): string {
   return value.trim().replace(/\/+$/g, "");
 }
 
-function canonicalApiUrl(apiUrl: string): string {
+const COMPOUND_CREDENTIAL_QUERY_KEYS = [
+  "apikey",
+  "accesstoken",
+  "refreshtoken",
+  "clientsecret",
+  "accesskey",
+  "authorization",
+  "bearer",
+  "privatekey",
+  "authkey",
+  "signature",
+  "jwt",
+  "jwttoken",
+  "idtoken",
+] as const;
+
+function isCredentialQueryKey(key: string): boolean {
+  const parts = key
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .filter(Boolean);
+  const compact = parts.join("");
+  return (
+    parts.some((part) =>
+      ["key", "password", "secret", "token"].includes(part),
+    ) || COMPOUND_CREDENTIAL_QUERY_KEYS.some((name) => compact.includes(name))
+  );
+}
+
+function sanitizeMalformedApiUrl(apiUrl: string): string {
+  const withoutHash = apiUrl.split("#", 1)[0] || "";
+  const withoutUserInfo = withoutHash.replace(/\/\/[^/@\s]+@/g, "//");
+  const queryStart = withoutUserInfo.indexOf("?");
+  if (queryStart < 0) return withoutUserInfo;
+
+  const path = withoutUserInfo.slice(0, queryStart);
+  const query = withoutUserInfo.slice(queryStart + 1);
+  const keptParams = query.split("&").filter((parameter) => {
+    const equals = parameter.indexOf("=");
+    const rawKey = equals < 0 ? parameter : parameter.slice(0, equals);
+    let key = rawKey;
+    try {
+      key = decodeURIComponent(rawKey);
+    } catch {
+      // Keep malformed non-credential keys unchanged.
+    }
+    return !isCredentialQueryKey(key);
+  });
+  return keptParams.length > 0 ? `${path}?${keptParams.join("&")}` : path;
+}
+
+export function sanitizeApiUrl(apiUrl: string): string {
   const normalized = trimUrl(apiUrl);
   try {
-    return new URL(normalized).toString();
+    const url = new URL(normalized);
+    url.username = "";
+    url.password = "";
+    url.hash = "";
+    for (const key of [...url.searchParams.keys()]) {
+      if (isCredentialQueryKey(key)) url.searchParams.delete(key);
+    }
+    return url.toString().replace(/\/$/, "");
   } catch {
-    return normalized;
+    return sanitizeMalformedApiUrl(normalized);
   }
+}
+
+function canonicalApiUrl(apiUrl: string): string {
+  return sanitizeApiUrl(apiUrl);
 }
 
 export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {

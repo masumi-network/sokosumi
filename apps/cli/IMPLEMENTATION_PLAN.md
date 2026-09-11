@@ -15,9 +15,9 @@
 - Source of truth is `apps/cli`; do not add new product code to `/Volumes/Sarthi MAC/Soko/sokosumi-cli`.
 - CLI database access is forbidden. Use Core HTTP routes only.
 - External package versions in `package.json` stay exact and pinned.
-- Hosted OAuth IDs are registered and built in: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`. Core auth derives from selected API URL + `/auth`; explicit client IDs remain optional overrides. OAuth tokens, API keys, and client secrets never enter plaintext config files.
+- Hosted OAuth IDs are registered and built in: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`. Hosted clients = public native (`application_type=native`, `token_endpoint_auth_method=none`) with canonical portless redirect `http://127.0.0.1/oauth/callback`; runtime redirect = `http://127.0.0.1:<port>/oauth/callback`, default port `53682` valid under RFC 8252 §7.3. Core auth derives from selected API URL + `/auth`; explicit client IDs remain optional overrides. OAuth tokens, API keys, and client secrets never enter plaintext config files.
 - API-key values never enter process arguments or diagnostic errors.
-- Registered hosted OAuth clients (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) must exist in each hosted Core database before publishing the CLI.
+- Registered hosted OAuth clients (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) must exist in each hosted Core database with this public-native registration before publishing the CLI.
 - TUI menus use arrow keys and Enter. Back uses Esc. Quit uses q. Letter aliases do not select menu items.
 - Tests must cover observable behavior, target precedence, secret boundaries, and failure before side effects.
 - Do not hand-edit generated files.
@@ -34,17 +34,20 @@
 - VERIFIED: Packaged CLI cannot depend on local `apps/cli/.env`; hosted defaults are registered target IDs (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) and hosted auth derives from selected Core API URL + `/auth`.
 - REPORTED: User reports both mainnet and preprod CLI OAuth succeed, including successful preprod authorization-code token exchange after fixing wrong preprod `BETTER_AUTH_SECRET` that caused JWK token verification failure. Cause and fix are not independently verified in this repository; SOK-1040 tracks the reported Core issue.
 - VERIFIED: `npm view sokosumi@2.1.3 version --json` → `"2.1.3"`; `npm view sokosumi@2.1.3 dist.tarball --json` → `"https://registry.npmjs.org/sokosumi/-/sokosumi-2.1.3.tgz"`; `npm view sokosumi@2.1.3 bin --json` → `{"sokosumi":"dist/bin/sokosumi.js"}`; `npm exec --yes --package sokosumi@2.1.3 -- sokosumi --help` → exit 0, `Sokosumi CLI v2.1.3`; `npm exec --yes --package sokosumi@2.1.3 -- sokosumi auth status --json` → exit 0, `{"authenticated":false,"authMethod":null,"apiKeyAvailable":false,"target":"mainnet","apiUrl":"https://api.sokosumi.com","expiresAt":null}`.
+- REPORTED: User approved bounded npm-global auto-update behavior: eligible interactive no-argument global run only; explicit `y`/`yes` installs validated latest with fixed npm command, then stops for restart; `n` continues; headless/local/noninteractive runs never prompt.
+- VERIFIED: V47 redaction coverage in `apps/cli/src/error-redaction.ts` and `apps/cli/test/api/http-client.test.ts` recursively removes credential-shaped fields across casing, separators, nesting, and serialized Core errors.
+- VERIFIED: V63 coverage extends redaction to credential-shaped `key=value` pairs inside nested strings, including Core API errors and discover JSON; secret values are absent from rendered/serialized output.
 
 ## File Map
 
 - `apps/cli/src/config/loader.ts`: Read non-secret home preferences and local `.env` values. Merge them below explicit process environment values.
-- `apps/cli/src/config/loader.test.ts`: Prove precedence, target keys, and the exclusion of secret fields.
+- `apps/cli/test/config/loader.test.ts`: Prove precedence, target keys, and the exclusion of secret fields.
 - `apps/cli/src/auth/config.ts`: Resolve target URLs and OAuth IDs from the merged environment. Hosted targets use the first-party client by default.
 - `apps/cli/src/cli/index.ts`: Load configuration before command dispatch and retain flag-over-environment precedence, including the explicit client ID passed to the TUI.
 - `apps/cli/src/cli/auth-login.ts`: Use the resolved public client ID when calling `loginWithBrowser`.
 - `apps/cli/src/tui/select-input.ts`: Shared arrow-key and Enter selector for Ink screens.
 - `apps/cli/src/tui/status-app.ts`: Replace numeric and letter menu aliases with selectors and clear navigation help.
-- `apps/cli/src/tui/resource-view.tsx`: Read-only Dashboard, Agents, Coworkers, Tasks, Jobs, and Account views.
+- `apps/cli/src/tui/resource-view.ts`: Read-only Dashboard, Agents, Coworkers, Tasks, Jobs, and Account views.
 - `apps/cli/src/api/http-client.ts`: Typed Core HTTP transport with explicit auth precedence and redacted errors.
 - `apps/cli/src/api/models/*.ts`: Typed, tolerant Core DTO models for agents, coworkers, tasks, jobs, categories, users, and response envelopes.
 - `apps/cli/src/api/services/*.ts`: Core route adapters copied once from the sibling behavior, with typed inputs and outputs.
@@ -181,7 +184,7 @@ export function createHttpClient(options: HttpClientOptions): {
 
 **Files:** Create `apps/cli/src/cli/commands/*.ts` and tests under `apps/cli/test/cli/commands/`. Modify `apps/cli/src/cli/index.ts` and help text.
 
-**Commands:** `discover`, `agents list`, `agents hire`, `coworkers list`, `coworkers register`, `coworkers update`, `coworkers api-key`, `coworkers me`, `tasks list`, `tasks create`, `tasks get`, `tasks events`, `tasks jobs`, `tasks comment`, `jobs list`, and `jobs get`.
+**Commands:** `discover`, `agents list`, `agents hire`, `coworkers list`, `coworkers register`, `coworkers update`, `coworkers api-key`, `coworkers me`, `tasks list`, `tasks create`, `tasks get`, `tasks events`, `tasks jobs`, `tasks comment`, `jobs list`, `jobs get`, and `jobs input`.
 
 **Steps:**
 
@@ -212,22 +215,97 @@ export function createHttpClient(options: HttpClientOptions): {
 
 **Verification:** `pnpm --filter ./apps/cli test && pnpm --filter ./apps/cli typecheck && pnpm --filter ./apps/cli build`.
 
-## Final Verification
+## Task 7: Bounded npm-global CLI auto-update
 
-- [x] `pnpm --filter ./apps/cli test`
-- [x] Quote both package test globs; full CLI suite currently collects 102 tests, including all 12 nested command tests.
-- [x] `pnpm --filter ./apps/cli typecheck`
-- [x] `pnpm --filter ./apps/cli build`
-- [x] `pnpm check`
+**Files:** Modify `apps/cli/src/cli/update-check.ts` and `apps/cli/bin/sokosumi.ts`; add `apps/cli/test/cli/update-check.test.ts` and extend `apps/cli/test/cli/bin.test.ts`.
+
+**Contract:** Interactive npm-global `sokosumi` no-argument run only checks npm latest with a short timeout and fail-open behavior before the TUI. Explicit `y`/`yes` only runs `npm install --global --ignore-scripts sokosumi@<validated-version>` with a safe PATH/home/temp/prefix environment, then stops for restart; `n` continues normally. Headless, local/workspace, and noninteractive paths never check or prompt. No package version bump or publication in this task.
+
+**Steps:**
+
+- [x] Gate update check on zero CLI args, interactive stdin/stdout, and npm-global package execution.
+- [x] Fetch npm latest with a short abort timeout; accept only a validated stable version and fail open on timeout, errors, or invalid responses.
+- [x] Show the update prompt before the TUI; only explicit `y`/`yes` invokes the fixed npm install command with the validated version.
+- [x] Stop after successful install with a restart message; keep `n`, other responses, and failed updates on the normal path.
+- [x] Add focused coverage for eligibility, version validation/comparison, timeout/error fail-open behavior, Y/N semantics, exact npm argv, restart stop, and no headless/local prompt.
+
+**Pending verification:**
+
+- [x] Verify interactive no-argument TTY flow with dependency-injected npm-global detection, newer registry response, explicit `y`, exact secure install argv, restart output, and TUI stop; `apps/cli/test/cli/bin.test.ts` and updater/bin coverage report `21` tests, `21` passed, `0` failed.
+- [x] Historical pre-paste updater evidence: `4` update-prompt tests, `4` passed, `0` failed.
+- [x] Verify local/symlinked package, headless/noninteractive, non-TTY, and other command paths do not query or prompt; fixture and JSON command evidence passed in the full CLI suite.
+- [x] Current post-fix updater evidence: `6` update-prompt tests, `6` passed, `0` failed; full CLI count is `156` tests, `156` passed, `0` failed.
+- [ ] Explicit package version bump remains pending; current manifest is `2.1.3`, and no publication was run.
+- [ ] Live published-package smoke remains pending; it requires a newly published package and a real npm-global installation.
+
+
+## Task 8: Redesign Ink TUI against sokosumi-tui-v1.html
+
+**Goal:** Make the v1 design bundle the primary visual source for the sign-in flow and signed-in terminal workspace while preserving real CLI behavior.
+**Reference (REPORTED):** Primary, user-provided external bundle at `~/Desktop/I-Want-You-Desing-Tui-Sokosumi/`: `sokosumi-tui-v1.html` (primary screen), `DESIGN-HANDOFF.md` (visual contract), `DESIGN-MANIFEST.json` (v1 screen and required state coverage), and `brand-spec.md` (palette, type, and identity rules). These files are external design references, not runtime assets. Existing `~/Desktop/sokosumi-tui.html` remains a secondary flow reference.
+
+**Files:** Primarily modify `apps/cli/src/tui/status-app.ts`, `apps/cli/src/tui/select-input.ts`, and `apps/cli/src/tui/resource-view.ts`. Extend `apps/cli/test/tui/status-app.test.ts` and `apps/cli/test/tui/select-input.test.ts` as needed. Do not add HTML/CSS or a second UI implementation.
+
+**Contracts preserved:** Ink/React only; arrows + Enter; Esc back; q quit; real Core HTTP data through existing services; OAuth/API-key behavior and auth/secret boundaries unchanged; headless commands untouched; no fake/demo data or copied prototype fixtures; no browser `localStorage` behavior; no direct database access; exact pinned dependencies; preserve SPEC V13/V20 identity and keyboard rules.
+
+**V1 visual facts:**
+
+- Dark bordered terminal frame with titlebar and statusbar; a single mono type family; named dark background, surface, foreground, muted, border, accent, and low-chroma state tokens.
+- Centered ASCII-logo sign-in with method, target, confirm, and key-input states.
+- Signed-in workspace with desktop horizontal navigation tabs and a content pane; narrow terminal widths adapt without horizontal overflow, with a pane prompt.
+- Dashboard summary/activity; resource list/detail rows; Register a Coworker, Account, and Sign out.
+- Visible selection/focus plus required `default`, `hover`, `focus`, `active`, `disabled`, `loading`, `empty`, `error`, and `success` states.
+- Chats/Channels appear only when existing Core service/model contracts back their data; do not copy prototype demo data or browser `localStorage` behavior.
+- [x] Signed-in navigation keeps Register as a preset-only tab and marks both the tab and Register pane with muted `(soon)` text; focused TUI tests and current source verify the navigation behavior is unchanged.
+- [x] Source-derived TUI values are covered by tests: `apps/cli/src/cli/metadata.ts` loads package `name`/`version` for `CLI_PACKAGE_NAME`/`CLI_VERSION`; API-key prefixes are `soko_mainnet_` and `soko_preprod_`; the creation route is `/connections`; the default OAuth callback is `http://127.0.0.1:53682/oauth/callback`.
+- [x] `TUI_THEME` is shared by the TUI resource, selector, status, and updater views: `black`, `blackBright`, `white`, `gray`, `gray`, `cyan`, `green`, `yellow`, `red` for background, surface, foreground, muted, border, accent, success, warning, and error.
+- [x] The Ink updater screen renders `Update now` and `Continue without updating`, accepts arrows + Enter and `y`/`n`, and maps Esc, `q`, and Ctrl+C to continue without updating.
+- [x] The updater callback accepts `render`, `stdin`, and `stdout`; Ink is configured with `exitOnCtrlC: false` and `patchConsole: false`.
+- [ ] Hover and disabled visual states are design requirements, not verified implementation evidence.
+
+**Actionable steps:**
+
+- [ ] Extract and freeze the v1 named token map, single mono type, terminal chrome, pane prompt, and width-safe layout rules for the dark bordered frame, titlebar, and statusbar.
+- [ ] Port the centered ASCII-logo sign-in through method, target, confirm, and key-input states while preserving existing OAuth/API-key and auth transitions.
+- [ ] Port the signed-in desktop tab workspace and dashboard: horizontal navigation tabs, content pane, summary/activity, and narrow-terminal adaptation without horizontal overflow.
+- [ ] Port resource list/detail rows and Register a Coworker, Account, and Sign out states with visible selection/focus and all required `default`, `hover`, `focus`, `active`, `disabled`, `loading`, `empty`, `error`, and `success` variants; use live Core data and add Chats/Channels only when existing contracts support them.
+- [ ] Verify the built Ink CLI in a PTY at narrow and wide terminal widths plus keyboard flows through sign-in, tabs/workspace, resources, register, account, and sign-out using arrows + Enter, Esc back, and q quit.
+
+**Verification:**
+
+- `pnpm --filter ./apps/cli test`
+- `pnpm --filter ./apps/cli typecheck`
+- `pnpm --filter ./apps/cli build`
+- `pnpm check`
+- Built PTY smoke of the sign-in, tab/workspace, dashboard, resource, register, account, and sign-out flows at narrow and wide terminal widths, including keyboard transitions and no horizontal overflow.
+
+**Pending verification:**
+
+- [ ] V1 visual parity against primary `sokosumi-tui-v1.html` and `DESIGN-HANDOFF.md`: terminal chrome, sign-in states, tab workspace/content pane, dashboard, resource rows, register/account/sign-out, selection/focus, and all required state variants.
+- [ ] Token/type fidelity: `DESIGN-MANIFEST.json` named tokens and `brand-spec.md` single mono type, dark palette, low-chroma state colors, and SPEC V13/V20 identity are represented.
+- [ ] Responsive terminal widths/no horizontal overflow: narrow and wide terminal PTYs adapt the v1 browser viewport matrix without clipped or horizontally scrolling content.
+- [ ] Keyboard transitions: arrows + Enter, Esc back, and q quit work across sign-in, tabs/workspace, list/detail, register, account, and sign-out states.
+- [ ] Real data/no prototype fixtures: dashboard and resource panes use existing Core HTTP services/models; no copied demo data, browser `localStorage`, direct database access, or changed auth/secret boundary; Chats/Channels remain conditional on existing contracts.
+- [x] Full CLI test suite: `156` tests, `156` passed, `0` failed. Updater/bin: `21` tests, `21` passed; update-prompt: `6` tests, `6` passed.
+- [x] Root `pnpm check`: `Checked 3962 files in 1118ms. No fixes applied.`
+- [x] `pnpm --filter ./apps/cli typecheck`.
+- [x] `pnpm --filter ./apps/cli build`; verified built CLI version: `2.1.3`.
 - [ ] `pnpm typecheck` (fails only in unrelated `web#typecheck`; CLI typecheck passed).
-- [x] Run `node apps/cli/dist/bin/sokosumi.js --help` and `node apps/cli/dist/bin/sokosumi.js auth status --json`.
-- [x] PTY smoke with a local fixture API: API-key selector, signed-in Agents list, Agent detail, Esc back, and q exit.
+- [x] Built sign-in PTYs exercised at `40x20` and `100x30`.
+- [x] Signed-in Register fixture PTY at `120x40` captured `Register (soon)` and `/ register (soon)` with no overflow.
+- [x] Fixture/JSON evidence: local fixture API flow and headless JSON command checks passed.
 - [x] Confirm no CLI source imports `@sokosumi/database` or writes secrets to `~/.sokosumi/config.json`.
 - [x] Confirm the sibling repository has no product-source edits.
-- [x] Live hosted OAuth gate: `REPORTED` user check says mainnet and preprod OAuth succeed, including preprod token exchange after fixing wrong preprod `BETTER_AUTH_SECRET` that caused JWK token verification failure; cause and fix are not independently verified here.
+- [x] npm pack dry-run: `sokosumi@2.1.3`, `86` entries.
+- [ ] Explicit package version bump remains pending; current package is `2.1.3`.
+- [ ] Live published-package smoke remains pending.
+- [ ] Hosted OAuth gate remains pending: verify mainnet/preprod clients use public-native registration with canonical `redirect_uris=["http://127.0.0.1/oauth/callback"]`, then complete real authorization-code exchanges; not independently verified here.
+- [ ] Full workspace-flow gate remains pending; broad visual parity, responsive layout, hover/disabled states, and complete keyboard flow coverage remain unverified.
+- [ ] OAuth/release gate: verify native-client registration/path and real authorization-code exchanges using runtime `http://127.0.0.1:53682/oauth/callback`; port `53682` valid under RFC 8252 §7.3, not a SPEC mismatch.
 
 ## Least confident decisions
 
 1. The standard-library `.env` parser may need one additional escaping rule if real deployment files use multiline or export-prefixed values.
 2. Resource views remain read-only. Input-request submission stays headless until a tested interactive flow exists.
-3. Registered hosted clients `GxmewjdHVAaqUEglxWdyCqVFvnTASycj` (mainnet) and `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` (preprod) plus hourly repair route must run in both hosted environments before the published CLI relies on built-in defaults. Live hosted OAuth gate complete from user report; cause reported as wrong preprod `BETTER_AUTH_SECRET` causing JWK verification failure, but not independently verified in this repository.
+3. Registered hosted clients `GxmewjdHVAaqUEglxWdyCqVFvnTASycj` (mainnet) and `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` (preprod) plus hourly repair route must run in both hosted environments before the published CLI relies on built-in defaults. Hosted OAuth remains pending and unverified in this repository; line 35 preserves the separate user-reported success claim.
+4. The v1 browser viewport matrix and responsive/layout details require translation into terminal widths; existing Core support may not cover Chats/Channels, so decide when those surfaces are supported from the existing contracts and omit them otherwise.

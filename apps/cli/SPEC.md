@@ -14,22 +14,24 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - API-key login target → reserved key prefix. Legacy untagged key → explicit target. ⊥ cross-target bearer probing.
 - API-key input ∉ argv. Use env or stdin.
 - signup/login ∈ web `/signin` during OAuth authorize. ⊥ CLI email/password form.
-- hosted public OAuth IDs built in: mainnet → `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod → `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override. OAuth flow uses PKCE. loopback `http://127.0.0.1/oauth/callback` + `http://[::1]/oauth/callback`. ⊥ `localhost`.
+- hosted public OAuth IDs built in: mainnet → `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod → `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override. OAuth flow uses PKCE. Native clients = public (`application_type=native`, `token_endpoint_auth_method=none`) with canonical portless redirect `http://127.0.0.1/oauth/callback`; runtime redirect = `http://127.0.0.1:<port>/oauth/callback`, default port `53682` valid under RFC 8252 §7.3. Current CLI binds IPv4 only. ⊥ `localhost`; ⊥ claim current IPv6 runtime support.
 - consent on (`skipConsent: false`). scopes `openid sokosumi:api offline_access`.
 - TUI menus use arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
+- v1 visual source = external user-provided `I-Want-You-Desing-Tui-Sokosumi` bundle. Production TUI = Ink/React. ⊥ HTML/CSS runtime, copied prototype fixtures, browser `localStorage`.
 - Biome format. Conventional Commits. pinned deps (no semver ranges).
 - complements web `/developer`. ⊥ replace it. [VISION.md:45]
 
 ## §I INTERFACES
 
-- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Dashboard, Agents, Coworkers, Tasks, Jobs, Account, Register a Coworker, Sign out
+- cmd: `sokosumi` (no args) → optional npm update prompt (interactive npm-global only) → Ink: auth method → OAuth target or API-key target detection → signed-in Dashboard, Agents, Coworkers, Tasks, Jobs, Account, Register a Coworker, Sign out
 - cmd: `auth login` → browser OAuth or env/stdin user API key
 - cmd: `auth status` → text/JSON auth state
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate
 - cmd: `discover` → command catalog + Core resource snapshot; partial resource failure → JSON/text errors
-- cmd: `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get` → Core HTTP; `--json` → JSON-only stdout
+- `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get|input` → Core HTTP; `--json` → JSON-only stdout
 - global: `--json`, `--api-url`, `--preprod`, `--client-id`, `--api-key-stdin`
 - env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`; hosted OAuth IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted auth base = selected API URL + `/auth`
+- design: external `I-Want-You-Desing-Tui-Sokosumi` bundle primary file `sokosumi-tui-v1.html`; companions `DESIGN-HANDOFF.md`, `DESIGN-MANIFEST.json`, `brand-spec.md`; visual source only, ⊥ runtime asset.
 - file: `~/.sokosumi/config.json` → non-secret preferences only
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
 - pkg: npm/workspace `sokosumi` @ `apps/cli` → bin `sokosumi`; install → CLI commands
@@ -38,7 +40,7 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
 V2: provider key ∉ argv & ∉ logs.
 V3: target → matching API URL, auth URL, public OAuth client ID, vault entry.
-V4: loopback redirects omit port. CLI may bind 53682 (RFC 8252 §7.3).
+V4: native public client registration = portless `http://127.0.0.1/oauth/callback`; runtime redirect = `http://127.0.0.1:<port>/oauth/callback`, default port `53682` valid under RFC 8252 §7.3. Current CLI runtime = IPv4 only. ⊥ `localhost`; ⊥ claim current IPv6 runtime support.
 V5: CLI → Core HTTP only. ⊥ Prisma/DB import.
 V6: `coworker_*` key ∉ dev CLI session.
 V7: ⊥ second CLI product.
@@ -72,6 +74,31 @@ V34: TUI hosted target selection → preserve explicit `--client-id`; without an
 V35: CLI `--version` output = package manifest `version`.
 V36: packaged hosted CLI → registered target OAuth ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) + Core auth base (selected API URL + `/auth`) without local `.env` or runtime client-ID configuration; overrides optional.
 V37: hosted target OAuth release gate → real authorization-code exchange returns token for mainnet & preprod; metadata/authorize-only checks insufficient.
+V38: Only interactive npm-global `sokosumi` no-arg run → check npm latest (short timeout, fail open); ⊥ headless/local/noninteractive check or prompt
+V39: explicit `y`/`yes` only → `npm install --global --ignore-scripts sokosumi@<validated-version>`; success → print restart, stop. `n`/other or install failure → continue normally.
+V40: external v1 design bundle → Ink/React TUI visual source; ⊥ HTML/CSS runtime, copied demo data, browser `localStorage`; live Core data only.
+V41: v1 TUI → dark terminal chrome + centered ASCII sign-in states + signed-in tab/workspace/pane states + visible selection/status state variants; ⊥ change to arrows + Enter, Esc back, q quit, SPEC V13 identity copy.
+V42: every headless Core-backed command resolves initial auth before any Core call; unauthenticated preflight rejects before Core and `--json` emits exactly one stdout JSON error document with credentials redacted and no stderr copy.
+V43: TUI explicit target selection (flag/env/API URL) is authoritative; a prefixed API key cannot rewrite it and a mismatched prefix rejects before login.
+V44: untagged API keys require an explicit target (`--preprod` or `--api-url`) before auth status/login; ⊥ implicit hosted-default acceptance.
+V45: raw API-key input treats `q` as key data; Ctrl+C/Esc cancel the active input without accepting the partial key.
+V46: dashboard resource counts use finite Core pagination metadata totals when present; fallback to current-page length only when metadata has no usable total.
+V47: error redaction recursively replaces credential-shaped fields regardless of casing/separators/nesting, and credential values do not remain in rendered/serialized errors.
+V48: npm self-update → `--ignore-scripts` and child environment limited to safe path/home/temp/prefix resolution keys; secrets and arbitrary npm configuration do not inherit.
+V49: unsupported inline option values are rejected without echoing the supplied value in diagnostics, including `--json` output.
+V50: leaving API-key input/target selection by Ctrl+C/Esc clears the pending full key before any later TUI action; ⊥ stale key reuse.
+V51: explicit custom `--api-url` target rejects target-coded mainnet/preprod environment or stored API keys before bootstrap proceeds.
+V52: OAuth completion observing an aborted/canceled login cannot save credentials or transition the TUI to authenticated/success.
+V53: every Ink/React TUI layout prop ∈ the installed Ink/React type surface; `pnpm --filter ./apps/cli build` passes without unsupported props such as `marginRight` or `maxWidth`.
+V54: every React/Ink TUI test callback passed to a component prop is assignable to the installed component prop type; `pnpm --filter ./apps/cli typecheck` passes without strict-function-variance failures.
+V55: every user-visible `apiUrl` in auth login/status, discover, and TUI output passes the canonical `sanitizeApiUrl`; userinfo, fragments, and credential-shaped query keys never appear.
+V57: custom vault scope material = lowercase-hex encoding of `sanitizeApiUrl(apiUrl)`; userinfo, fragments, and credential-shaped query values never enter keyring account names while distinct sanitized URLs remain distinct.
+V58: reserved `coworker_*` API keys are rejected before any auth-manager/Core call and never accepted or saved by CLI login.
+V59: malformed home config under `--json` emits exactly one parseable redacted stdout error document and no stderr copy.
+V60: Ink is the sole raw-input owner during API-key entry; q is key data, Enter submits, and Esc/arrows remain TUI navigation without competing stdin ownership.
+V61: `sanitizeApiUrl` removes standalone credential query keys `key` and `access_key` (case-insensitive) from every user-visible URL and custom vault scope while preserving non-credential keys such as `monkey`.
+V62: default Ink updater prompt → `y`/`yes` update; arrows + Enter select update/continue; `n`/Esc/`q`/Ctrl+C → continue without update.
+V63: error redaction recursively sanitizes credential-shaped `key=value` pairs inside nested string fields, including CoreApiError/discover JSON; secret values never remain in rendered/serialized output.
 
 ## §T TASKS
 
@@ -101,6 +128,8 @@ T22|x|resource request → preflight API-key target check|V31
 T23|x|configured API target → key-prefix inference precedence|V30
 T24|x|TUI hosted target → explicit API URL override|V32
 T25|x|preprod live OAuth smoke: fresh authorization-code exchange → token; compare mainnet/preprod|V37,I
+T26|~|interactive npm-global no-arg auto-update check/prompt/install; stop for restart|V38,V39,I
+T27|.|redesign Ink TUI against external v1 bundle: terminal chrome, sign-in, tabs/workspace, state variants, PTY widths|V40,V41,I
 
 ## §B BUGS
 
@@ -125,3 +154,23 @@ B17|2026-09-10|release version changed manifest but binary test hardcoded prior 
 B18|2026-09-10|generic mock callbacks omitted parameter annotations ∴ CLI typecheck failed|-
 B19|2026-09-10|VERIFIED manifest omission: package omits local `apps/cli/.env` ∴ unregistered `sokosumi_cli` fallback; REPORTED user error: old published bundle used `https://app.sokosumi.com/api/auth`, not Core auth base|V36
 B20|2026-09-10|REPORTED worker evidence: preprod metadata + authorize passed; fake code → 400 `invalid_grant`; exact local cmd `env -u SOKOSUMI_API_URL -u SOKOSUMI_AUTH_URL -u SOKOSUMI_OAUTH_CLIENT_ID -u SOKOSUMI_MAINNET_OAUTH_CLIENT_ID -u SOKOSUMI_PREPROD_OAUTH_CLIENT_ID -u SOKOSUMI_OAUTH_CLIENT_SECRET -u SOKOSUMI_API_KEY node apps/cli/dist/bin/sokosumi.js auth login --preprod --json --oauth-timeout-ms 180000` → OAuth token request failed with status 500; user reports wrong preprod `BETTER_AUTH_SECRET` caused JWK token verification failure, followed by successful preprod OAuth exchange; mainnet OAuth succeeds per user report; Core issue SOK-1040 tracks reported cause|V37
+B21|2026-09-11|Core-backed headless dispatch discarded `resolveInitialAuth`'s unauthenticated result, allowing Core calls without credentials; JSON failures lacked one redacted stdout document|V42
+B22|2026-09-11|TUI API-key login inferred a prefixed key's target even after an explicit target was selected, allowing the key to override the chosen Core host|V43
+B23|2026-09-11|legacy untagged API keys fell through the hosted default without proving which target they belonged to|V44
+B24|2026-09-11|raw API-key q/cancel handling could accept the wrong terminal action or leave a partial key input active|V45
+B25|2026-09-11|dashboard counted only the current Core page, so paginated resources displayed page length instead of metadata totals|V46
+B26|2026-09-11|credential-shaped error fields were redacted only for limited casing/flat shapes, leaking nested or separator variants|V47
+B27|2026-09-11|npm self-update inherited process secrets/configuration and allowed package lifecycle scripts during install|V48
+B28|2026-09-11|unsupported `--name=value` options exposed the supplied value in parser diagnostics|V49
+B29|2026-09-11|pendingApiKey retained the full untagged key after API-key cancellation or Escape from target selection, leaving stale credential state in the TUI|V50
+B30|2026-09-11|explicit custom API URLs allowed target-coded mainnet/preprod environment keys through bootstrap instead of rejecting a cross-target credential|V51
+B31|2026-09-11|OAuth completion continued after cancellation and could save credentials or enter success after the login was aborted|V52
+B32|2026-09-11|Ink TUI used `Text.marginRight` and `Box.maxWidth`, which the installed Ink/React types reject and caused the CLI build to fail|V53; verify `pnpm --filter ./apps/cli build`
+B33|2026-09-11|`select-input.test.ts` narrowed React's inferred `onSelect` value from `unknown` to `string`, so strict callback variance broke the CLI typecheck|V54; verify `pnpm --filter ./apps/cli typecheck`
+B34|2026-09-11|custom API URL userinfo and credential-shaped query parameters leaked through auth login/status, discover, and TUI output because each surface lacked one canonical output sanitizer|V55
+B35|2026-09-11|custom vault scope encoded raw API URLs, so keyring account names inherited userinfo and credential-shaped query material|V57
+B36|2026-09-11|reserved `coworker_*` API keys reached credential acceptance paths instead of being rejected before save or Core auth calls|V58
+B37|2026-09-11|malformed home config failed before the JSON-aware error boundary, so `--json` produced no error document|V59
+B38|2026-09-11|raw API-key input installed a competing stdin/raw-mode owner, so Ink Esc/arrow navigation and key capture conflicted|V60
+B39|2026-09-11|credential query keys named `key` and `access_key` were not classified as credentials, so sanitizer output and decoded custom vault scopes retained their values|V61
+B40|2026-09-11|probe confirmed V47 redacted object keys but nested string fields retained credential-shaped `key=value`; real CoreApiError/discover JSON leaked `apiKey=soko_mainnet_secret` and `refreshToken=soko_refresh_secret`|V63

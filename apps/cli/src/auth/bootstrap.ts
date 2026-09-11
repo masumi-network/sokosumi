@@ -37,18 +37,34 @@ export function selectBootRoute({
   return hasAuth ? "signed-in" : "auth";
 }
 
-function assertApiKeyTarget(apiKey: string, config: CliTargetConfig): void {
+const COWORKER_API_KEY_PREFIX = "coworker_";
+
+function assertApiKeyTarget(
+  apiKey: string,
+  config: CliTargetConfig,
+  targetExplicit: boolean,
+): void {
   if (/\s/.test(apiKey)) {
     throw new Error("API key must not contain whitespace");
   }
+  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
+    throw new Error("Coworker API keys are not supported by the CLI");
+  }
   const detectedTarget = targetFromUserApiKey(apiKey);
+  if (!detectedTarget && !targetExplicit) {
+    throw new Error(
+      "Legacy API keys need an explicit target. Use --preprod or --api-url.",
+    );
+  }
   if (
     detectedTarget &&
-    config.target !== "custom" &&
-    detectedTarget !== config.target
+    ((config.target === "custom" && targetExplicit) ||
+      (config.target !== "custom" && detectedTarget !== config.target))
   ) {
     throw new Error(
-      `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
+      config.target === "custom" && targetExplicit
+        ? `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`
+        : `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
     );
   }
 }
@@ -57,17 +73,19 @@ export async function resolveInitialAuth({
   authManager,
   config,
   environment = process.env,
+  targetExplicit = false,
 }: {
   authManager: AuthBootstrapManager;
   config: CliTargetConfig;
   environment?: AuthEnvironment;
+  targetExplicit?: boolean;
 }): Promise<InitialAuthState> {
   const envApiKey = String(environment.SOKOSUMI_API_KEY || "").trim();
-  if (envApiKey) assertApiKeyTarget(envApiKey, config);
+  if (envApiKey) assertApiKeyTarget(envApiKey, config, targetExplicit);
 
   const storedApiKey = authManager.getApiKeyCredentials();
   if (storedApiKey?.apiKey) {
-    assertApiKeyTarget(storedApiKey.apiKey, config);
+    assertApiKeyTarget(storedApiKey.apiKey, config, targetExplicit);
     if (storedApiKey.target && storedApiKey.target !== config.target) {
       throw new Error(
         `Stored API key belongs to ${storedApiKey.target}, but the selected target is ${config.target}`,

@@ -1,9 +1,11 @@
 import { Box, Text, useInput } from "ink";
 import React, { useEffect, useState } from "react";
+import { TUI_THEME } from "./theme.js";
 
 export interface SelectItem<T> {
   value: T;
   label: string;
+  hint?: string;
 }
 
 export function moveSelectionIndex(
@@ -23,11 +25,13 @@ export function SelectInput<T>({
   onSelect,
   initialIndex = 0,
   listen = true,
+  direction = "vertical",
 }: {
   items: readonly SelectItem<T>[];
   onSelect: (value: T) => void;
   initialIndex?: number;
   listen?: boolean;
+  direction?: "vertical" | "horizontal";
 }): React.ReactElement {
   const [index, setIndex] = useState(() =>
     Math.max(0, Math.min(initialIndex, Math.max(items.length - 1, 0))),
@@ -41,11 +45,11 @@ export function SelectInput<T>({
 
   useInput((_input, key) => {
     if (!listen || items.length === 0) return;
-    if (key.upArrow) {
+    if (key.upArrow || (direction === "horizontal" && key.leftArrow)) {
       setIndex((current) => moveSelectionIndex(current, -1, items.length));
       return;
     }
-    if (key.downArrow) {
+    if (key.downArrow || (direction === "horizontal" && key.rightArrow)) {
       setIndex((current) => moveSelectionIndex(current, 1, items.length));
       return;
     }
@@ -57,13 +61,40 @@ export function SelectInput<T>({
 
   return React.createElement(
     Box,
-    { flexDirection: "column" },
+    {
+      flexDirection: direction === "horizontal" ? "row" : "column",
+      flexWrap: direction === "horizontal" ? "wrap" : undefined,
+      borderStyle: "single",
+      borderColor: TUI_THEME.border,
+      paddingX: 1,
+      width: "100%",
+    },
     ...items.map((item, itemIndex) => {
       const selected = itemIndex === index;
       return React.createElement(
         Text,
-        { key: item.label, color: selected ? "cyan" : undefined },
-        `${selected ? "›" : " "} ${item.label}`,
+        {
+          key: `${item.label}-${itemIndex}`,
+          color: selected ? TUI_THEME.accent : undefined,
+          bold: selected,
+        },
+        direction === "horizontal"
+          ? React.createElement(
+              React.Fragment,
+              null,
+              `${selected ? "▸" : " "} ${item.label}`,
+              item.hint
+                ? React.createElement(Text, { dimColor: true }, ` ${item.hint}`)
+                : null,
+            )
+          : React.createElement(
+              React.Fragment,
+              null,
+              `${selected ? "›" : " "} ${item.label}`,
+              item.hint
+                ? React.createElement(Text, { dimColor: true }, ` ${item.hint}`)
+                : null,
+            ),
       );
     }),
   );

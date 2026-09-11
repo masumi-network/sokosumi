@@ -4,6 +4,7 @@ import {
   type CliTargetConfig,
   resolveCliConfig,
   resolveTargetScope,
+  sanitizeApiUrl,
 } from "../auth/config.js";
 
 interface TextOutput {
@@ -37,12 +38,14 @@ export async function runAuthStatus({
   authManager,
   stdout = process.stdout,
   json = false,
+  targetExplicit = false,
 }: {
   env?: AuthEnvironment;
   config?: CliTargetConfig;
   authManager?: AuthStatusManager;
   stdout?: TextOutput;
   json?: boolean;
+  targetExplicit?: boolean;
 } = {}): Promise<AuthStatusResult> {
   const resolvedConfig = config || resolveCliConfig({ env });
   const manager =
@@ -59,6 +62,7 @@ export async function runAuthStatus({
     authManager: manager,
     config: resolvedConfig,
     environment: env,
+    targetExplicit,
   });
   const result: AuthStatusResult = {
     authenticated: auth.authenticated,
@@ -68,7 +72,7 @@ export async function runAuthStatus({
         manager.getApiKeyCredentials()?.apiKey,
     ),
     target: resolvedConfig.target,
-    apiUrl: resolvedConfig.apiUrl,
+    apiUrl: sanitizeApiUrl(resolvedConfig.apiUrl),
     expiresAt: auth.expiresAt,
   };
   if (json) {

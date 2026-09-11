@@ -1,6 +1,3 @@
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-
 import {
   type CoreHttpClient,
   createCoreHttpClient,
@@ -20,6 +17,7 @@ import {
   targetFromUserApiKey,
 } from "../auth/config.js";
 import { loadCliEnvironment } from "../config/loader.js";
+import { redactErrorMessage } from "../error-redaction.js";
 import { renderStatusApp, type StatusAppOptions } from "../tui/status-app.js";
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
@@ -29,28 +27,8 @@ import { runCoworkersCommand } from "./commands/coworkers.js";
 import { runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import { runTasksCommand } from "./commands/tasks.js";
-
-const require = createRequire(import.meta.url);
-
-function loadCliVersion(): string {
-  const packageUrls = [
-    new URL("../../package.json", import.meta.url),
-    new URL("../../../package.json", import.meta.url),
-  ];
-  for (const packageUrl of packageUrls) {
-    try {
-      const packageJson = require(fileURLToPath(packageUrl)) as {
-        version?: unknown;
-      };
-      if (typeof packageJson.version === "string") return packageJson.version;
-    } catch {
-      continue;
-    }
-  }
-  throw new Error("Could not load the CLI package version");
-}
-
-const CLI_VERSION = loadCliVersion();
+import { CLI_VERSION } from "./metadata.js";
+import type { UpdateCheckDependencies } from "./update-check.js";
 
 interface TextOutput {
   write(value: string): unknown;
@@ -152,6 +130,7 @@ export interface CliDependencies {
   coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
+  updateCheck?: UpdateCheckDependencies;
 }
 
 export interface CliResult {
@@ -257,10 +236,11 @@ const CORE_COMMAND_SECTIONS = new Set([
   "tasks",
   "jobs",
 ]);
-export function parseArgv(argv: string[]): {
+interface ParsedArgv {
   positionals: string[];
   options: CliOptions;
-} {
+}
+export function parseArgv(argv: string[]): ParsedArgv {
   const positionals: string[] = [];
   const options: CliOptions = {};
   for (let index = 0; index < argv.length; index += 1) {
@@ -291,7 +271,7 @@ export function parseArgv(argv: string[]): {
       continue;
     }
 
-    const name = token.slice(2);
+    const name = token.slice(2).split("=")[0];
     if (BOOLEAN_OPTIONS.has(name)) {
       options[name] = true;
       continue;
@@ -393,12 +373,32 @@ function getCoreClient(
   );
 }
 
+function writeJsonError(
+  stdout: TextOutput,
+  error: unknown,
+  environment?: AuthEnvironment,
+): void {
+  const knownSecrets = [
+    environment?.SOKOSUMI_API_KEY,
+    environment?.SOKOSUMI_AUTH_TOKEN,
+    environment?.SOKOSUMI_OAUTH_CLIENT_SECRET,
+  ].filter((secret): secret is string => Boolean(secret));
+  const message = redactErrorMessage(error, knownSecrets);
+  stdout.write(`${JSON.stringify({ error: message })}\n`);
+}
 export async function runCli(
   argv: string[] = process.argv.slice(2),
   dependencies: CliDependencies = {},
 ): Promise<CliResult> {
-  const { positionals, options } = parseArgv(argv);
   const stdout = dependencies.stdout || process.stdout;
+  let parsed: ParsedArgv;
+  try {
+    parsed = parseArgv(argv);
+  } catch (error) {
+    if (argv.includes("--json")) writeJsonError(stdout, error);
+    throw error;
+  }
+  const { positionals, options } = parsed;
 
   if (options.help) {
     stdout.write(HELP_TEXT);
@@ -409,14 +409,25 @@ export async function runCli(
     return { version: CLI_VERSION };
   }
 
-  const env = applyGlobalEnv(
-    loadCliEnvironment({
-      environment: dependencies.env || process.env,
-      loadFiles: dependencies.env === undefined,
-    }),
-    options,
+  let env: AuthEnvironment;
+  let config: CliTargetConfig;
+  try {
+    env = applyGlobalEnv(
+      loadCliEnvironment({
+        environment: dependencies.env || process.env,
+        loadFiles: dependencies.env === undefined,
+      }),
+      options,
+    );
+    config = resolveCommandConfig(env, options);
+  } catch (error) {
+    if (options.json)
+      writeJsonError(stdout, error, dependencies.env || process.env);
+    throw error;
+  }
+  const targetExplicit = Boolean(
+    options.preprod || options["api-url"] || env.SOKOSUMI_API_URL,
   );
-  const config = resolveCommandConfig(env, options);
 
   if (positionals.length === 0) {
     const authManager = getManager(config, env, dependencies.authManager);
@@ -427,138 +438,154 @@ export async function runCli(
       env,
       config,
       clientIdOverride: options["client-id"],
+      targetExplicit,
       loginFn: dependencies.loginFn,
-      readStdin: dependencies.readStdin,
+      oauthPort:
+        options["oauth-port"] === undefined
+          ? undefined
+          : Number(options["oauth-port"]),
     });
   }
 
-  const [section, command, positionalId, ...rest] = positionals;
-  if (rest.length > 0) {
-    throw new Error(`Unexpected argument: ${rest[0]}`);
-  }
-  if (CORE_COMMAND_SECTIONS.has(section)) {
-    await resolveInitialAuth({
-      authManager: getManager(config, env, dependencies.authManager),
-      config,
-      environment: env,
-    });
-  }
-  if (section === "discover" && command === undefined) {
-    await runDiscoverCommand({
-      client: getCoreClient(config, env, dependencies),
-      config,
-      stdout,
-      json: options.json,
-    });
-    return {};
-  }
-  if (
-    section === "agents" &&
-    (command === undefined || command === "list" || command === "hire")
-  ) {
-    await runAgentsCommand({
-      client: getCoreClient(config, env, dependencies),
-      stdout,
-      json: options.json,
-      subcommand: command,
-      positionalId,
-      options,
-    });
-    return {};
-  }
-  if (
-    section === "coworkers" &&
-    (command === undefined ||
-      ["list", "register", "update", "api-key", "me"].includes(command))
-  ) {
-    await runCoworkersCommand({
-      client: getCoreClient(config, env, dependencies),
-      stdout,
-      json: options.json,
-      subcommand: command,
-      positionalId,
-      options,
-    });
-    return {};
-  }
-  if (
-    section === "tasks" &&
-    (command === undefined ||
-      ["list", "create", "get", "events", "jobs", "comment"].includes(command))
-  ) {
-    await runTasksCommand({
-      client: getCoreClient(config, env, dependencies),
-      stdout,
-      json: options.json,
-      subcommand: command,
-      positionalId,
-      options,
-    });
-    return {};
-  }
-  if (
-    section === "jobs" &&
-    (command === undefined || ["list", "get", "input"].includes(command))
-  ) {
-    await runJobsCommand({
-      client: getCoreClient(config, env, dependencies),
-      stdout,
-      json: options.json,
-      subcommand: command,
-      positionalId,
-      options,
-    });
-    return {};
-  }
-  if (
-    section !== "auth" ||
-    (command !== "login" && command !== "logout" && command !== "status") ||
-    positionalId !== undefined
-  ) {
-    throw new Error(
-      "Usage: sokosumi discover | agents list | coworkers | tasks | jobs | auth login|status|logout",
-    );
-  }
+  try {
+    const [section, command, positionalId, ...rest] = positionals;
+    if (rest.length > 0) {
+      throw new Error(`Unexpected argument: ${rest[0]}`);
+    }
+    if (CORE_COMMAND_SECTIONS.has(section)) {
+      const auth = await resolveInitialAuth({
+        authManager: getManager(config, env, dependencies.authManager),
+        config,
+        environment: env,
+        targetExplicit,
+      });
+      if (!auth.authenticated) {
+        throw new Error(
+          "Authentication required. Run `sokosumi auth login` first.",
+        );
+      }
+    }
+    if (section === "discover" && command === undefined) {
+      await runDiscoverCommand({
+        client: getCoreClient(config, env, dependencies),
+        config,
+        stdout,
+        json: options.json,
+      });
+      return {};
+    }
+    if (
+      section === "agents" &&
+      (command === undefined || command === "list" || command === "hire")
+    ) {
+      await runAgentsCommand({
+        client: getCoreClient(config, env, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+        positionalId,
+        options,
+      });
+      return {};
+    }
+    if (
+      section === "coworkers" &&
+      (command === undefined ||
+        ["list", "register", "update", "api-key", "me"].includes(command))
+    ) {
+      await runCoworkersCommand({
+        client: getCoreClient(config, env, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+        positionalId,
+        options,
+      });
+      return {};
+    }
+    if (
+      section === "tasks" &&
+      (command === undefined ||
+        ["list", "create", "get", "events", "jobs", "comment"].includes(
+          command,
+        ))
+    ) {
+      await runTasksCommand({
+        client: getCoreClient(config, env, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+        positionalId,
+        options,
+      });
+      return {};
+    }
+    if (
+      section === "jobs" &&
+      (command === undefined || ["list", "get", "input"].includes(command))
+    ) {
+      await runJobsCommand({
+        client: getCoreClient(config, env, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+        positionalId,
+        options,
+      });
+      return {};
+    }
+    if (
+      section !== "auth" ||
+      (command !== "login" && command !== "logout" && command !== "status") ||
+      positionalId !== undefined
+    ) {
+      throw new Error(
+        "Usage: sokosumi discover | agents list | coworkers | tasks | jobs | auth login|status|logout",
+      );
+    }
 
-  if (command === "logout") {
-    return runAuthLogout({
+    if (command === "logout") {
+      return await runAuthLogout({
+        env,
+        config,
+        authManager: dependencies.authManager,
+        stdout,
+        json: options.json,
+      });
+    }
+    if (command === "status") {
+      return await runAuthStatus({
+        env,
+        config,
+        authManager: dependencies.authManager,
+        stdout,
+        json: options.json,
+        targetExplicit,
+      });
+    }
+
+    return await runAuthLogin({
+      ...dependencies,
       env,
       config,
+      targetExplicit,
+      authBaseUrl: options["auth-url"],
+      clientId: options["client-id"],
+      port:
+        options["oauth-port"] === undefined
+          ? undefined
+          : Number(options["oauth-port"]),
+      timeoutMs:
+        options["oauth-timeout-ms"] === undefined
+          ? undefined
+          : Number(options["oauth-timeout-ms"]),
+      apiKeyStdin: options["api-key-stdin"],
+      json: options.json,
       authManager: dependencies.authManager,
       stdout,
-      json: options.json,
     });
+  } catch (error) {
+    if (options.json) writeJsonError(stdout, error, env);
+    throw error;
   }
-  if (command === "status") {
-    return runAuthStatus({
-      env,
-      config,
-      authManager: dependencies.authManager,
-      stdout,
-      json: options.json,
-    });
-  }
-
-  return runAuthLogin({
-    ...dependencies,
-    env,
-    config,
-    targetExplicit: Boolean(
-      options.preprod || options["api-url"] || env.SOKOSUMI_API_URL,
-    ),
-    authBaseUrl: options["auth-url"],
-    clientId: options["client-id"],
-    port:
-      options["oauth-port"] === undefined
-        ? undefined
-        : Number(options["oauth-port"]),
-    timeoutMs:
-      options["oauth-timeout-ms"] === undefined
-        ? undefined
-        : Number(options["oauth-timeout-ms"]),
-    apiKeyStdin: options["api-key-stdin"],
-    json: options.json,
-    authManager: dependencies.authManager,
-    stdout,
-  });
 }

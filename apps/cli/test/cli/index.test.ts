@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   AuthManager,
@@ -22,6 +27,9 @@ function createTestAuthManager(): AuthManager {
     },
   });
 }
+const binPath = fileURLToPath(
+  new URL("../../bin/sokosumi.ts", import.meta.url),
+);
 
 test("dispatches auth login and emits token-free JSON", async () => {
   const output: string[] = [];
@@ -46,6 +54,9 @@ test("dispatches auth login and emits token-free JSON", async () => {
     loginFn,
     authManager: createTestAuthManager(),
     stdout: { write: (value) => output.push(value) },
+    tuiFn: async () => {
+      throw new Error("TUI should not launch");
+    },
   });
 
   assert.deepEqual(result, {
@@ -59,7 +70,7 @@ test("dispatches auth login and emits token-free JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
   assert.doesNotMatch(output.join(""), /access-token|refresh-token/);
 });
-test("configured API URL wins over target-coded API-key inference", async () => {
+test("TestV43 configured API URL wins over target-coded API-key inference", async () => {
   let selectedApiUrl: string | undefined;
   let selectedTarget: string | undefined;
   await runCli([], {
@@ -99,6 +110,42 @@ test("resource commands reject mismatched target API keys before Core requests",
     /API key belongs to mainnet, but the selected target is preprod/,
   );
   assert.equal(requested, false);
+});
+
+test("TestV42 preflight rejects unauthenticated resource commands before Core", async () => {
+  let coreCalls = 0;
+  const output: string[] = [];
+  const errorMessage =
+    "Authentication required. Run `sokosumi auth login` first.";
+  await assert.rejects(
+    runCli(["agents", "list", "--json"], {
+      env: { SOKOSUMI_API_URL: "https://api.example.test" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>() => {
+          coreCalls += 1;
+          return {} as T;
+        },
+        post: async <T>() => {
+          coreCalls += 1;
+          return {} as T;
+        },
+        patch: async <T>() => {
+          coreCalls += 1;
+          return {} as T;
+        },
+        delete: async <T>() => {
+          coreCalls += 1;
+          return {} as T;
+        },
+      },
+      stdout: { write: (value) => output.push(value) },
+    }),
+    new RegExp(errorMessage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
+  assert.equal(coreCalls, 0);
+  assert.equal(output.join(""), `${JSON.stringify({ error: errorMessage })}\n`);
+  assert.deepEqual(JSON.parse(output.join("")), { error: errorMessage });
 });
 
 test("TestV24 preprod auth ignores a hosted mainnet auth URL flag", async () => {
@@ -152,6 +199,54 @@ test("parses coworker registration vendor ID", () => {
     "vendor-1",
   ]);
   assert.deepEqual(parsed.options["vendor-id"], "vendor-1");
+});
+
+test("TestV49 unsupported inline option values are never echoed", async () => {
+  const secret = "soko_mainnet_secret";
+  const output: string[] = [];
+  await assert.rejects(
+    runCli([`--api-key=${secret}`, "--json"], {
+      stdout: { write: (value) => output.push(value) },
+    }),
+    /Unknown option: --api-key$/,
+  );
+  assert.equal(
+    output.join(""),
+    `${JSON.stringify({ error: "Unknown option: --api-key" })}\n`,
+  );
+  assert.equal(output.join("").includes(secret), false);
+});
+
+test("TestV47 index JSON errors redact credential assignments", async () => {
+  const apiKey = "index-api-key";
+  const refreshToken = "index-refresh-token";
+  const output: string[] = [];
+  const message = `Core API failed: apiKey=${apiKey} refreshToken=${refreshToken} ordinary detail`;
+  await assert.rejects(
+    runCli(["agents", "list", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "auth-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <_T>() => {
+          throw new Error(message);
+        },
+        post: async <T>() => ({}) as T,
+        patch: async <T>() => ({}) as T,
+        delete: async <T>() => ({}) as T,
+      },
+      stdout: { write: (value) => output.push(value) },
+    }),
+    new RegExp(message),
+  );
+
+  assert.equal(output.length, 1);
+  const serialized = output[0];
+  assert.doesNotMatch(serialized, new RegExp(apiKey));
+  assert.doesNotMatch(serialized, new RegExp(refreshToken));
+  assert.deepEqual(JSON.parse(serialized), {
+    error:
+      "Core API failed: apiKey: [REDACTED] refreshToken: [REDACTED] ordinary detail",
+  });
 });
 
 test("parses job input event ID", () => {
@@ -210,10 +305,103 @@ test("auth status returns stable non-secret JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
 });
 
+test("TestV19 auth status rejected promises emit one redacted JSON error", async () => {
+  const secret = "status-secret-token";
+  const output: string[] = [];
+  const authManager = createTestAuthManager();
+  authManager.getAuthTokenAsync = async () => {
+    throw new Error(`Authorization Bearer ${secret}`);
+  };
+
+  await assert.rejects(
+    runCli(["auth", "status", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: secret },
+      authManager,
+      stdout: { write: (value) => output.push(value) },
+    }),
+    /Authorization Bearer status-secret-token/,
+  );
+
+  assert.equal(output.length, 1);
+  assert.deepEqual(JSON.parse(output[0]), {
+    error: "Authorization Bearer [REDACTED]",
+  });
+  assert.equal(output[0].includes(secret), false);
+});
+
+test("TestV59 malformed HOME config emits one redacted JSON error", () => {
+  const secret = "home-secret-token";
+  const home = mkdtempSync(join(tmpdir(), `${secret}-`));
+  const configPath = join(home, ".sokosumi", "config.json");
+  mkdirSync(join(home, ".sokosumi"));
+  writeFileSync(configPath, "{", "utf8");
+
+  const result = spawnSync(
+    process.execPath,
+    ["--import", "tsx", binPath, "auth", "status", "--json"],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: home,
+        SOKOSUMI_AUTH_TOKEN: secret,
+      },
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.equal(result.stderr, "");
+  assert.equal(result.stdout.split(/\r?\n/u).filter(Boolean).length, 1);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    error: `Could not parse CLI config file: ${configPath.replaceAll(
+      secret,
+      "[REDACTED]",
+    )}`,
+  });
+  assert.equal(result.stdout.includes(secret), false);
+});
+
+test("TestV44 auth status accepts an untagged key with --preprod", async () => {
+  const output: string[] = [];
+  const result = await runCli(["--preprod", "auth", "status", "--json"], {
+    env: { SOKOSUMI_API_KEY: "legacy-api-key" },
+    authManager: createTestAuthManager(),
+    stdout: { write: (value) => output.push(value) },
+  });
+
+  assert.equal(result.authenticated, true);
+  assert.equal(result.authMethod, "api-key");
+  assert.equal(result.target, "preprod");
+  assert.equal(result.apiKeyAvailable, true);
+  assert.deepEqual(JSON.parse(output.join("")), result);
+});
+
+test("TestV44 auth status accepts an untagged key with --api-url", async () => {
+  const output: string[] = [];
+  const result = await runCli(
+    ["--api-url", "https://api.example.test", "auth", "status", "--json"],
+    {
+      env: { SOKOSUMI_API_KEY: "legacy-api-key" },
+      authManager: createTestAuthManager(),
+      stdout: { write: (value) => output.push(value) },
+    },
+  );
+
+  assert.equal(result.authenticated, true);
+  assert.equal(result.authMethod, "api-key");
+  assert.equal(result.target, "custom");
+  assert.equal(result.apiUrl, "https://api.example.test");
+  assert.equal(result.apiKeyAvailable, true);
+  assert.deepEqual(JSON.parse(output.join("")), result);
+});
+
 test("dispatches discover JSON without opening a TUI", async () => {
   const output: string[] = [];
   const result = await runCli(["discover", "--json"], {
-    env: { SOKOSUMI_API_URL: "https://api.example.test" },
+    env: {
+      SOKOSUMI_API_URL: "https://api.example.test",
+      SOKOSUMI_AUTH_TOKEN: "test-token",
+    },
     authManager: createTestAuthManager(),
     coreClient: {
       get: async <T>() => ({ data: [] }) as T,

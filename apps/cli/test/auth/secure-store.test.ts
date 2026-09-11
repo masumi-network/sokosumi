@@ -117,6 +117,45 @@ test("TestV29 custom target vault entries stay isolated in case-insensitive vaul
   });
 });
 
+test("TestV61 custom target scopes omit standalone key credentials", () => {
+  const credentialUrl =
+    "https://user:password@host/api?API_KEY=secret&key=key-value&access_key=access-value&Authorization=bearer-token&private-key=private-value&auth-key=auth-value&signature=signature-value&JWT=jwt-value&region=west#fragment";
+  const distinctUrl =
+    "https://other:password@host/api?authorization=other-secret&region=east";
+  const scope = resolveTargetScope("custom", credentialUrl);
+  const distinctScope = resolveTargetScope("custom", distinctUrl);
+  const accountNames: string[] = [];
+
+  createAuthCredentialStores({
+    targetScope: scope,
+    clientId: "cli-client",
+    platform: "darwin",
+    entryFactory: (serviceName, accountName) => {
+      accountNames.push(`${serviceName}:${accountName}`);
+      return {
+        getPassword: () => null,
+        setPassword: () => {},
+        deletePassword: () => true,
+      };
+    },
+  });
+
+  const scopedUrl = Buffer.from(scope.replace(/^custom-/u, ""), "hex").toString(
+    "utf8",
+  );
+  assert.equal(scopedUrl, "https://host/api?region=west");
+  assert.notEqual(scope, distinctScope);
+  assert.doesNotMatch(
+    scopedUrl,
+    /user|password|secret|bearer|private|auth|signature|jwt|fragment/i,
+  );
+  assert.ok(
+    accountNames.every((accountName) =>
+      accountName.startsWith(`sokosumi-cli:${scope}:`),
+    ),
+  );
+});
+
 test("uses the native macOS credential entry without process arguments", () => {
   let storedPassword: string | null = null;
   let entryDetails: readonly string[] = [];

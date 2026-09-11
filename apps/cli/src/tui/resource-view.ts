@@ -1,6 +1,5 @@
 import { Box, Text } from "ink";
 import React, { useEffect, useState } from "react";
-
 import type { CoreHttpClient } from "../api/http-client.js";
 import type { Agent } from "../api/models/agent.js";
 import type { AgentJob } from "../api/models/agent-job.js";
@@ -12,7 +11,9 @@ import { fetchCoworkers } from "../api/services/coworker-service.js";
 import { fetchJobs } from "../api/services/job-service.js";
 import { fetchTasks } from "../api/services/task-service.js";
 import { fetchCurrentUser } from "../api/services/user-service.js";
+import { redactErrorMessage } from "../error-redaction.js";
 import { SelectInput, type SelectItem } from "./select-input.js";
+import { TUI_THEME } from "./theme.js";
 
 export type ResourceKind =
   | "dashboard"
@@ -23,7 +24,12 @@ export type ResourceKind =
   | "account";
 
 type ResourceData =
-  | { kind: "dashboard"; counts: ResourceCounts; failures: string[] }
+  | {
+      kind: "dashboard";
+      counts: ResourceCounts;
+      failures: string[];
+      recentTasks: Task[];
+    }
   | { kind: "agents"; items: Agent[] }
   | { kind: "coworkers"; items: Coworker[] }
   | { kind: "tasks"; items: Task[] }
@@ -50,6 +56,9 @@ export interface ResourceViewProps {
   onNavigate?: (
     resource: Exclude<ResourceKind, "dashboard" | "account">,
   ) => void;
+  listen?: boolean;
+  accountAuthMethod?: "oauth" | "api-key" | null;
+  accountTarget?: string;
 }
 
 const resourceTitles: Record<ResourceKind, string> = {
@@ -64,19 +73,55 @@ const resourceTitles: Record<ResourceKind, string> = {
 function readable(value: string | null | undefined, fallback: string): string {
   return value?.trim() || fallback;
 }
+export const safeError = redactErrorMessage;
 
-function safeError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message
-    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
-    .replace(
-      /((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password))\s*[:=]\s*\S+/gi,
-      "$1: [REDACTED]",
-    );
+export function paginationTotal(
+  response: { meta?: Record<string, unknown> },
+  fallback: number,
+): number {
+  const meta = response.meta || {};
+  const pagination =
+    meta.pagination && typeof meta.pagination === "object"
+      ? (meta.pagination as Record<string, unknown>)
+      : {};
+  const candidate = [
+    meta.total,
+    meta.totalCount,
+    meta.totalItems,
+    meta.count,
+    pagination.total,
+    pagination.totalCount,
+    pagination.totalItems,
+    pagination.count,
+  ].find(
+    (value): value is number | string =>
+      (typeof value === "number" && Number.isFinite(value)) ||
+      (typeof value === "string" && /^\d+$/.test(value)),
+  );
+  return candidate === undefined ? fallback : Number(candidate);
+}
+
+export function recentTaskActivity(tasks: readonly Task[], limit = 5): Task[] {
+  return tasks
+    .filter(
+      (task) =>
+        task.updatedAt !== null && !Number.isNaN(Date.parse(task.updatedAt)),
+    )
+    .slice()
+    .sort(
+      (left, right) =>
+        Date.parse(right.updatedAt as string) -
+        Date.parse(left.updatedAt as string),
+    )
+    .slice(0, limit);
 }
 
 function titleLine(title: string): React.ReactElement {
-  return React.createElement(Text, { bold: true }, title);
+  return React.createElement(
+    Text,
+    { bold: true, color: TUI_THEME.accent },
+    `/ ${title}`,
+  );
 }
 
 function navigationHint(): React.ReactElement {
@@ -104,6 +149,7 @@ function renderDetail(
   title: string,
   fields: readonly string[],
   onBack: () => void,
+  listen = true,
 ): React.ReactElement {
   return React.createElement(
     Box,
@@ -113,6 +159,7 @@ function renderDetail(
     React.createElement(SelectInput, {
       items: [{ value: "back", label: "Back" }],
       onSelect: onBack,
+      listen,
     }),
     navigationHint(),
   );
@@ -156,6 +203,7 @@ function renderList<T>(
   label: (item: T) => string,
   onSelect: (item: T) => void,
   onBack: () => void,
+  listen = true,
 ): React.ReactElement {
   const selectorItems = resourceItems(items, label);
   return React.createElement(
@@ -181,6 +229,7 @@ function renderList<T>(
           onSelect(items[index]);
         }
       },
+      listen,
     }),
     navigationHint(),
   );
@@ -189,6 +238,7 @@ function renderList<T>(
 function renderAgentDetail(
   agent: Agent,
   onBack: () => void,
+  listen = true,
 ): React.ReactElement {
   const tags = agent.tags
     .map((tag) => tag.name?.trim())
@@ -205,12 +255,14 @@ function renderAgentDetail(
       `Created: ${formatDate(agent.createdAt)}`,
     ],
     onBack,
+    listen,
   );
 }
 
 function renderCoworkerDetail(
   coworker: Coworker,
   onBack: () => void,
+  listen = true,
 ): React.ReactElement {
   return renderDetail(
     preview(coworker.name, "Coworker"),
@@ -224,10 +276,15 @@ function renderCoworkerDetail(
       `URL: ${readable(coworker.url, "not provided")}`,
     ],
     onBack,
+    listen,
   );
 }
 
-function renderTaskDetail(task: Task, onBack: () => void): React.ReactElement {
+function renderTaskDetail(
+  task: Task,
+  onBack: () => void,
+  listen = true,
+): React.ReactElement {
   return renderDetail(
     preview(task.name, "Task"),
     [
@@ -241,12 +298,14 @@ function renderTaskDetail(task: Task, onBack: () => void): React.ReactElement {
       `Updated: ${formatDate(task.updatedAt)}`,
     ],
     onBack,
+    listen,
   );
 }
 
 function renderJobDetail(
   job: AgentJob,
   onBack: () => void,
+  listen = true,
 ): React.ReactElement {
   return renderDetail(
     preview(job.name, "Job"),
@@ -258,16 +317,19 @@ function renderJobDetail(
       `Updated: ${formatDate(job.updatedAt)}`,
     ],
     onBack,
+    listen,
   );
 }
 
 function renderDashboard(
   counts: ResourceCounts,
   failures: readonly string[],
+  recentTasks: readonly Task[],
   onBack: () => void,
   onNavigate?: (
     resource: Exclude<ResourceKind, "dashboard" | "account">,
   ) => void,
+  listen = true,
 ): React.ReactElement {
   const count = (value: number | null): string =>
     value === null ? "unavailable" : String(value);
@@ -282,6 +344,28 @@ function renderDashboard(
     Box,
     { flexDirection: "column" },
     titleLine("Dashboard"),
+    React.createElement(
+      Text,
+      { bold: true, color: TUI_THEME.accent },
+      "Recent task activity",
+    ),
+    recentTasks.length === 0
+      ? React.createElement(
+          Text,
+          { dimColor: true },
+          "No recent task activity.",
+        )
+      : React.createElement(
+          Box,
+          { flexDirection: "column" },
+          ...recentTasks.map((task) =>
+            React.createElement(
+              Text,
+              { key: task.id || task.updatedAt || task.name || "task" },
+              `• ${readable(task.name, "Unnamed task")} · ${readable(task.status, "unknown")} · ${formatDate(task.updatedAt)}`,
+            ),
+          ),
+        ),
     failures.length > 0
       ? React.createElement(
           Text,
@@ -305,36 +389,35 @@ function renderDashboard(
           onNavigate?.(value);
         }
       },
+      listen,
     }),
     navigationHint(),
   );
 }
 
-function renderAccount(user: User, onBack: () => void): React.ReactElement {
+function renderAccount(
+  user: User,
+  onBack: () => void,
+  listen = true,
+  authMethod: "oauth" | "api-key" | null = null,
+  target = "unknown",
+): React.ReactElement {
   const items: SelectItem<string>[] = [{ value: "back", label: "Back" }];
   return React.createElement(
     Box,
     { flexDirection: "column" },
     titleLine("Account"),
-    React.createElement(Text, null, `Name: ${readable(user.name, "Not set")}`),
+    React.createElement(Text, { color: TUI_THEME.success }, "● Signed in"),
     React.createElement(
       Text,
       null,
-      `Email: ${readable(user.email, "Not set")}`,
+      `Auth method: ${authMethod === "api-key" ? "user API key" : "browser OAuth"}`,
     ),
-    React.createElement(
-      Text,
-      null,
-      `ID: ${readable(user.id, "Not available")}`,
-    ),
-    React.createElement(
-      Text,
-      null,
-      `Terms accepted: ${user.termsAccepted ? "yes" : "no"}`,
-    ),
+    React.createElement(Text, null, `Target: ${target}`),
     React.createElement(SelectInput, {
       items,
       onSelect: () => onBack(),
+      listen,
     }),
     navigationHint(),
   );
@@ -345,9 +428,15 @@ export function ResourceView({
   coreClient,
   onBack,
   onNavigate,
+  listen = true,
+  accountAuthMethod = null,
+  accountTarget = "unknown",
 }: ResourceViewProps): React.ReactElement {
   const [state, setState] = useState<ResourceState>({ status: "loading" });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  useEffect(() => {
+    if (!listen) setSelectedIndex(null);
+  }, [listen]);
 
   useEffect(() => {
     setSelectedIndex(null);
@@ -386,20 +475,38 @@ export function ResourceView({
               counts: {
                 agents:
                   agents.status === "fulfilled"
-                    ? agents.value.agents.length
+                    ? paginationTotal(
+                        agents.value.response,
+                        agents.value.agents.length,
+                      )
                     : null,
                 coworkers:
                   coworkers.status === "fulfilled"
-                    ? coworkers.value.coworkers.length
+                    ? paginationTotal(
+                        coworkers.value.response,
+                        coworkers.value.coworkers.length,
+                      )
                     : null,
                 tasks:
                   tasks.status === "fulfilled"
-                    ? tasks.value.tasks.length
+                    ? paginationTotal(
+                        tasks.value.response,
+                        tasks.value.tasks.length,
+                      )
                     : null,
                 jobs:
-                  jobs.status === "fulfilled" ? jobs.value.jobs.length : null,
+                  jobs.status === "fulfilled"
+                    ? paginationTotal(
+                        jobs.value.response,
+                        jobs.value.jobs.length,
+                      )
+                    : null,
               },
               failures,
+              recentTasks:
+                tasks.status === "fulfilled"
+                  ? recentTaskActivity(tasks.value.tasks)
+                  : [],
             },
           });
           return;
@@ -467,7 +574,11 @@ export function ResourceView({
   }, [coreClient, resource]);
 
   if (state.status === "loading")
-    return React.createElement(Text, null, "Loading...");
+    return React.createElement(
+      Text,
+      { color: TUI_THEME.accent },
+      `Loading ${(resourceTitles[resource] || "resource").toLowerCase()}...`,
+    );
   if (state.status === "unavailable") {
     return React.createElement(
       Box,
@@ -477,6 +588,7 @@ export function ResourceView({
       React.createElement(SelectInput, {
         items: [{ value: "back", label: "Back" }],
         onSelect: onBack,
+        listen,
       }),
       navigationHint(),
     );
@@ -486,10 +598,15 @@ export function ResourceView({
       Box,
       { flexDirection: "column" },
       titleLine(resourceTitles[resource]),
-      React.createElement(Text, null, `Error: ${state.message}`),
+      React.createElement(
+        Text,
+        { color: TUI_THEME.error },
+        `Error: ${state.message}`,
+      ),
       React.createElement(SelectInput, {
         items: [{ value: "back", label: "Back" }],
         onSelect: onBack,
+        listen,
       }),
       navigationHint(),
     );
@@ -497,8 +614,22 @@ export function ResourceView({
 
   const { data } = state;
   if (data.kind === "dashboard")
-    return renderDashboard(data.counts, data.failures, onBack, onNavigate);
-  if (data.kind === "account") return renderAccount(data.user, onBack);
+    return renderDashboard(
+      data.counts,
+      data.failures,
+      data.recentTasks,
+      onBack,
+      onNavigate,
+      listen,
+    );
+  if (data.kind === "account")
+    return renderAccount(
+      data.user,
+      onBack,
+      listen,
+      accountAuthMethod,
+      accountTarget,
+    );
 
   const listBack =
     selectedIndex === null ? onBack : () => setSelectedIndex(null);
@@ -506,7 +637,7 @@ export function ResourceView({
     const selected =
       selectedIndex === null ? undefined : data.items[selectedIndex];
     if (selected)
-      return renderAgentDetail(selected, () => setSelectedIndex(null));
+      return renderAgentDetail(selected, () => setSelectedIndex(null), listen);
     return renderList(
       "Agents",
       data.items,
@@ -514,13 +645,18 @@ export function ResourceView({
         `${readable(item.name, "Unnamed agent")} · ID: ${readable(item.id, "none")} · Status: ${readable(item.status, "unknown")}`,
       (item) => setSelectedIndex(data.items.indexOf(item)),
       listBack,
+      listen,
     );
   }
   if (data.kind === "coworkers") {
     const selected =
       selectedIndex === null ? undefined : data.items[selectedIndex];
     if (selected)
-      return renderCoworkerDetail(selected, () => setSelectedIndex(null));
+      return renderCoworkerDetail(
+        selected,
+        () => setSelectedIndex(null),
+        listen,
+      );
     return renderList(
       "Coworkers",
       data.items,
@@ -528,13 +664,14 @@ export function ResourceView({
         `${readable(item.name, "Unnamed coworker")} · ID: ${readable(item.id, "none")} · Status: ${readable(item.status, "unknown")}`,
       (item) => setSelectedIndex(data.items.indexOf(item)),
       listBack,
+      listen,
     );
   }
   if (data.kind === "tasks") {
     const selected =
       selectedIndex === null ? undefined : data.items[selectedIndex];
     if (selected)
-      return renderTaskDetail(selected, () => setSelectedIndex(null));
+      return renderTaskDetail(selected, () => setSelectedIndex(null), listen);
     return renderList(
       "Tasks",
       data.items,
@@ -542,11 +679,13 @@ export function ResourceView({
         `${readable(item.name, "Unnamed task")} · ID: ${readable(item.id, "none")} · Status: ${readable(item.status, "unknown")}`,
       (item) => setSelectedIndex(data.items.indexOf(item)),
       listBack,
+      listen,
     );
   }
   const selected =
     selectedIndex === null ? undefined : data.items[selectedIndex];
-  if (selected) return renderJobDetail(selected, () => setSelectedIndex(null));
+  if (selected)
+    return renderJobDetail(selected, () => setSelectedIndex(null), listen);
   return renderList(
     "Jobs",
     data.items,
@@ -554,5 +693,6 @@ export function ResourceView({
       `${readable(item.name, "Unnamed job")} · ID: ${readable(item.id, "none")} · Status: ${readable(item.status, "unknown")}`,
     (item) => setSelectedIndex(data.items.indexOf(item)),
     listBack,
+    listen,
   );
 }

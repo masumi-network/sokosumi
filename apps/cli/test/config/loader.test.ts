@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { resolveCliConfig } from "../../src/auth/config.js";
+import { resolveCliConfig, sanitizeApiUrl } from "../../src/auth/config.js";
 import { loadCliEnvironment } from "../../src/config/loader.js";
 
 function createFixture() {
@@ -139,6 +139,20 @@ test("TestV24 hosted OAuth derives auth base from selected target", () => {
   } finally {
     rmSync(fixture.root, { recursive: true, force: true });
   }
+});
+
+test("TestV61 canonical API URL sanitizer removes standalone key credentials", () => {
+  const apiUrl =
+    "https://user:password@host/api?API_KEY=secret&key=key-value&access_key=access-value&region=west&monkey=banana#fragment";
+
+  assert.equal(
+    sanitizeApiUrl(apiUrl),
+    "https://host/api?region=west&monkey=banana",
+  );
+  assert.doesNotMatch(
+    sanitizeApiUrl(apiUrl),
+    /user|password|secret|key-value|access-value|fragment/i,
+  );
 });
 
 test("does not load secret fields from the home config file", () => {

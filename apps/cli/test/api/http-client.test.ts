@@ -87,8 +87,17 @@ test("joins URL segments and sends JSON with the requested method", async () => 
   assert.equal(requestInit?.body, JSON.stringify({ name: "Updated" }));
 });
 
-test("redacts authorization values from status errors", async () => {
+test("TestV47 recursively redacts credential-shaped error fields", async () => {
   const credential = "very-secret-token";
+  const nestedAccessToken = "nested-access-token";
+  const nestedRefreshToken = "nested-refresh-token";
+  const embeddedApiKey = "embedded-api-key";
+  const embeddedRefreshToken = "embedded-refresh-token";
+  const bearerSecret = "bearer-secret";
+  const quotedApiKey = "quoted api key";
+  const quotedRefreshToken = "quoted refresh token";
+  const adjacentApiKey = "adjacent-api-key";
+  const adjacentRefreshToken = "adjacent-refresh-token";
   const client = createCoreHttpClient({
     apiUrl: "https://api.example.test",
     authManager: createManager({ SOKOSUMI_AUTH_TOKEN: credential }),
@@ -97,6 +106,14 @@ test("redacts authorization values from status errors", async () => {
         JSON.stringify({
           message: credential,
           authorization: credential,
+          accessToken: nestedAccessToken,
+          details: [
+            {
+              refreshToken: nestedRefreshToken,
+              note: "ordinary detail",
+              diagnostic: `API__KEY=${embeddedApiKey} REFRESH--TOKEN=${embeddedRefreshToken}; authorization=Bearer ${bearerSecret}; apiKey="${quotedApiKey}" refreshToken='${quotedRefreshToken}'; apiKey=${adjacentApiKey},refreshToken=${adjacentRefreshToken} ordinary detail`,
+            },
+          ],
           reason: "denied",
         }),
         { status: 403 },
@@ -106,10 +123,27 @@ test("redacts authorization values from status errors", async () => {
   await assert.rejects(
     () => client.get("/v1/agents"),
     (error: Error & { status?: number }) => {
+      const serialized = JSON.stringify(error);
       assert.equal(error.status, 403);
       assert.match(error.message, /403/);
       assert.match(error.message, /denied/);
-      assert.doesNotMatch(error.message, new RegExp(credential));
+      assert.match(error.message, /ordinary detail/);
+      for (const secret of [
+        credential,
+        nestedAccessToken,
+        nestedRefreshToken,
+        embeddedApiKey,
+        embeddedRefreshToken,
+        bearerSecret,
+        quotedApiKey,
+        quotedRefreshToken,
+        adjacentApiKey,
+        adjacentRefreshToken,
+      ]) {
+        assert.doesNotMatch(error.message, new RegExp(secret));
+        assert.doesNotMatch(serialized, new RegExp(secret));
+      }
+      assert.match(serialized, /ordinary detail/);
       return true;
     },
   );
@@ -128,17 +162,60 @@ test("reports invalid JSON responses explicitly", async () => {
   );
 });
 
-test("createApiError keeps status and redacts sensitive body keys", () => {
+test("TestV47 createApiError redacts credential-shaped keys across casing and nesting", () => {
   const error = createApiError(401, {
-    authorization: "token",
+    authorization: "body-value-01",
+    accessToken: "body-value-02",
+    "refresh-token": "body-value-03",
+    auth_token: "body-value-04",
+    clientSecret: "body-value-05",
+    apiKey: "body-value-06",
+    password: "body-value-07",
     message: "Unauthorized",
+    details: [
+      {
+        "client-secret": "body-value-08",
+        api_key: "body-value-09",
+        note: "ordinary detail",
+      },
+    ],
   }) as Error & { status?: number; body?: unknown };
+  const serialized = JSON.stringify(error);
 
   assert.equal(error.status, 401);
   assert.match(error.message, /Unauthorized/);
-  assert.doesNotMatch(error.message, /token/);
+  assert.match(error.message, /ordinary detail/);
+  assert.match(serialized, /Unauthorized/);
+  assert.match(serialized, /ordinary detail/);
+  for (const secret of [
+    "body-value-01",
+    "body-value-02",
+    "body-value-03",
+    "body-value-04",
+    "body-value-05",
+    "body-value-06",
+    "body-value-07",
+    "body-value-08",
+    "body-value-09",
+  ]) {
+    assert.doesNotMatch(error.message, new RegExp(secret));
+    assert.doesNotMatch(serialized, new RegExp(secret));
+  }
   assert.deepEqual(error.body, {
     authorization: "[REDACTED]",
+    accessToken: "[REDACTED]",
+    "refresh-token": "[REDACTED]",
+    auth_token: "[REDACTED]",
+    clientSecret: "[REDACTED]",
+    apiKey: "[REDACTED]",
+    password: "[REDACTED]",
     message: "Unauthorized",
+    details: [
+      {
+        "client-secret": "[REDACTED]",
+        api_key: "[REDACTED]",
+        note: "ordinary detail",
+      },
+    ],
   });
 });

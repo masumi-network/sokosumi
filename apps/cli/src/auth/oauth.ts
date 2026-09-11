@@ -271,6 +271,7 @@ export async function refreshAccessToken({
   return postTokenRequest({ authBaseUrl, body, fetchImpl, signal });
 }
 
+export const OAUTH_LOOPBACK_HOST = "127.0.0.1";
 export const DEFAULT_OAUTH_REDIRECT_PORT = 53682;
 export const DEFAULT_OAUTH_REDIRECT_PATH = "/oauth/callback";
 
@@ -345,7 +346,7 @@ function listen(server: Server, port: number): Promise<void> {
     };
     server.once("error", onError);
     server.once("listening", onListening);
-    server.listen(port, "127.0.0.1");
+    server.listen(port, OAUTH_LOOPBACK_HOST);
   });
 }
 
@@ -405,7 +406,10 @@ function waitForCallback({
       (request: IncomingMessage, response: ServerResponse) => {
         let url: URL;
         try {
-          url = new URL(request.url || "/", `http://127.0.0.1:${port}`);
+          url = new URL(
+            request.url || "/",
+            `http://${OAUTH_LOOPBACK_HOST}:${port}`,
+          );
         } catch {
           response.statusCode = 400;
           response.end("Invalid callback");
@@ -472,7 +476,7 @@ export async function loginWithBrowser({
     : `/${callbackPath}`;
   const pkce = createPkcePair();
   const state = randomBytes(32).toString("base64url");
-  const redirectUri = `http://127.0.0.1:${resolvedPort}${resolvedPath}`;
+  const redirectUri = `http://${OAUTH_LOOPBACK_HOST}:${resolvedPort}${resolvedPath}`;
   const server = serverFactory();
   let callbackPromise: Promise<string> | undefined;
 

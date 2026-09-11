@@ -2,7 +2,8 @@ import type { CoreHttpClient } from "../../api/http-client.js";
 import { fetchAgents } from "../../api/services/agent-service.js";
 import { fetchCoworkers } from "../../api/services/coworker-service.js";
 import { fetchJobs } from "../../api/services/job-service.js";
-import type { CliTargetConfig } from "../../auth/config.js";
+import { type CliTargetConfig, sanitizeApiUrl } from "../../auth/config.js";
+import { redactErrorMessage } from "../../error-redaction.js";
 
 interface TextOutput {
   write(value: string): unknown;
@@ -40,7 +41,7 @@ export interface DiscoverCommandOptions {
 }
 
 function errorMessage(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "fetch failed";
+  return redactErrorMessage(reason);
 }
 
 export async function runDiscoverCommand({
@@ -59,7 +60,7 @@ export async function runDiscoverCommand({
     jobs?: unknown[];
     errors?: { resource: string; message: string }[];
   } = {
-    apiUrl: config.apiUrl,
+    apiUrl: sanitizeApiUrl(config.apiUrl),
     environment: config.target,
     commands: [...CLI_COMMANDS],
   };

@@ -66,6 +66,71 @@ test("auth login stores OAuth credentials without printing the access token", as
   );
 });
 
+test("TestV55 auth login sanitizes the API URL in its JSON result", async () => {
+  const output: string[] = [];
+  let loginRequest: BrowserLoginOptions | undefined;
+  const apiUrl =
+    "https://user:password@host/api?api_key=secret&region=west#fragment";
+  const authBaseUrl =
+    "https://user:password@host/auth?api_key=secret&region=west";
+  const result = await runAuthLogin({
+    config: {
+      target: "custom",
+      apiUrl,
+      authBaseUrl,
+      clientId: "client",
+      clientSecret: "",
+    },
+    loginFn: async (request) => {
+      loginRequest = request;
+      return { authToken: "access-token" };
+    },
+    authManager: {
+      saveCredentials: (credentials) => credentials,
+    },
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+  });
+
+  assert.equal(loginRequest?.authBaseUrl, authBaseUrl);
+  assert.equal(result.apiUrl, "https://host/api?region=west");
+  assert.deepEqual(JSON.parse(output.join("")), result);
+  assert.doesNotMatch(output.join(""), /user|password|secret|fragment/i);
+});
+
+test("TestV52 auth login cancels before saving credentials for aborted OAuth signals", async () => {
+  for (const abortMode of ["before login", "during login"] as const) {
+    const controller = new AbortController();
+    if (abortMode === "before login") controller.abort();
+
+    let saveCount = 0;
+    const output: string[] = [];
+    await assert.rejects(
+      runAuthLogin({
+        env: {
+          SOKOSUMI_API_URL: "https://api.example.test",
+          SOKOSUMI_OAUTH_CLIENT_ID: "cli-client",
+        },
+        signal: controller.signal,
+        loginFn: async () => {
+          if (abortMode === "during login") controller.abort();
+          return { authToken: "secret-access-token" };
+        },
+        authManager: {
+          saveCredentials: (credentials) => {
+            saveCount += 1;
+            return credentials;
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      { message: "OAuth login was cancelled" },
+    );
+    assert.equal(saveCount, 0, `credentials saved ${abortMode}`);
+    assert.deepEqual(output, [], `success reported ${abortMode}`);
+  }
+});
+
 test("auth login uses the first-party Sokosumi CLI client when env is unset", async () => {
   let loginRequest: BrowserLoginOptions | undefined;
   const loginFn = async (
@@ -172,6 +237,64 @@ test("legacy API keys require an explicit target", async () => {
     }),
     /explicit target/,
   );
+});
+
+test("auth login rejects target-coded keys for explicit custom targets", async () => {
+  let saved = false;
+  await assert.rejects(
+    runAuthLogin({
+      env: {},
+      apiKey: "soko_mainnet_secret",
+      config: {
+        target: "custom",
+        apiUrl: "https://api.example.test",
+        authBaseUrl: "https://api.example.test/auth",
+        clientId: "custom-client",
+        clientSecret: "",
+      },
+      targetExplicit: true,
+      authManager: {
+        saveCredentials: () => {
+          throw new Error("OAuth should not run");
+        },
+        saveApiKey: () => {
+          saved = true;
+        },
+      },
+      stdout: { write: () => undefined },
+    }),
+    /explicit target is custom/,
+  );
+  assert.equal(saved, false);
+});
+
+test("TestV58 auth login rejects coworker API keys before injected store writes", async () => {
+  let saveApiKeyCalls = 0;
+  await assert.rejects(
+    runAuthLogin({
+      env: {},
+      apiKey: "coworker_secret",
+      config: {
+        target: "custom",
+        apiUrl: "https://api.example.test",
+        authBaseUrl: "https://api.example.test/auth",
+        clientId: "custom-client",
+        clientSecret: "",
+      },
+      targetExplicit: true,
+      authManager: {
+        saveCredentials: () => {
+          throw new Error("OAuth should not run");
+        },
+        saveApiKey: () => {
+          saveApiKeyCalls += 1;
+        },
+      },
+      stdout: { write: () => undefined },
+    }),
+    /Coworker API keys are not supported by the CLI/,
+  );
+  assert.equal(saveApiKeyCalls, 0);
 });
 
 test("auth login rejects API keys containing whitespace", async () => {

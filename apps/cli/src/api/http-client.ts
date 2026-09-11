@@ -2,6 +2,7 @@ import {
   type AuthEnvironment,
   type AuthManager,
 } from "../auth/auth-manager.js";
+import { redactSensitive } from "../error-redaction.js";
 
 export interface CoreHttpClientOptions {
   apiUrl: string;
@@ -20,42 +21,6 @@ export interface CoreHttpClient {
   delete<T>(pathname: string, signal?: AbortSignal): Promise<T>;
 }
 
-const REDACTED = "[REDACTED]";
-const SENSITIVE_KEYS: Record<string, true> = {
-  authorization: true,
-  access_token: true,
-  api_key: true,
-  apikey: true,
-  client_secret: true,
-  password: true,
-  refresh_token: true,
-  secret: true,
-  token: true,
-};
-
-function redactBody(value: unknown, secret?: string): unknown {
-  if (typeof value === "string") {
-    return secret && secret.length > 0
-      ? value.split(secret).join(REDACTED)
-      : value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => redactBody(item, secret));
-  }
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.entries(record).map(([key, item]) => [
-        key,
-        SENSITIVE_KEYS[key.toLowerCase()] === true
-          ? REDACTED
-          : redactBody(item, secret),
-      ]),
-    );
-  }
-  return value;
-}
-
 function formatBody(body: unknown): string {
   if (body === undefined) return "no response body";
   if (typeof body === "string") return body;
@@ -66,8 +31,12 @@ function formatBody(body: unknown): string {
   }
 }
 
-export function createApiError(status: number, body: unknown): Error {
-  const safeBody = redactBody(body);
+export function createApiError(
+  status: number,
+  body: unknown,
+  knownSecrets: readonly string[] = [],
+): Error {
+  const safeBody = redactSensitive(body, knownSecrets);
   const error = new Error(
     `Core API request failed with status ${status}: ${formatBody(safeBody)}`,
   );
@@ -130,8 +99,7 @@ export function createCoreHttpClient({
     });
     const parsedBody = await readResponseBody(response);
     if (!response.ok) {
-      const safeBody = redactBody(parsedBody, token ?? undefined);
-      throw createApiError(response.status, safeBody);
+      throw createApiError(response.status, parsedBody, token ? [token] : []);
     }
     return parsedBody as T;
   }

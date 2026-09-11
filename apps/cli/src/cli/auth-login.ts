@@ -9,6 +9,7 @@ import {
   type CliTargetConfig,
   resolveCliConfig,
   resolveTargetScope,
+  sanitizeApiUrl,
   targetFromUserApiKey,
 } from "../auth/config.js";
 import { type BrowserLoginOptions, loginWithBrowser } from "../auth/oauth.js";
@@ -80,6 +81,8 @@ function readApiKeyFromStdin(readStdin: () => string): string {
   return apiKey;
 }
 
+const COWORKER_API_KEY_PREFIX = "coworker_";
+
 function validateApiKeyTarget(
   apiKey: string,
   config: CliTargetConfig,
@@ -87,6 +90,9 @@ function validateApiKeyTarget(
 ): void {
   if (/\s/.test(apiKey)) {
     throw new Error("API key must not contain whitespace");
+  }
+  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
+    throw new Error("Coworker API keys are not supported by the CLI");
   }
   const detectedTarget = targetFromUserApiKey(apiKey);
   if (!detectedTarget && !targetExplicit) {
@@ -96,11 +102,13 @@ function validateApiKeyTarget(
   }
   if (
     detectedTarget &&
-    config.target !== "custom" &&
-    detectedTarget !== config.target
+    ((config.target === "custom" && targetExplicit) ||
+      (config.target !== "custom" && detectedTarget !== config.target))
   ) {
     throw new Error(
-      `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
+      config.target === "custom" && targetExplicit
+        ? `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`
+        : `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
     );
   }
 }
@@ -183,7 +191,7 @@ export async function runAuthLogin({
       authMethod: "api-key",
       apiKeyAvailable: true,
       target: resolvedConfig.target,
-      apiUrl: resolvedConfig.apiUrl,
+      apiUrl: sanitizeApiUrl(resolvedConfig.apiUrl),
       expiresAt: null,
     };
     writeResult(stdout, result, json);
@@ -202,6 +210,9 @@ export async function runAuthLogin({
     ...(signal === undefined ? {} : { signal }),
   };
   const credentials = await loginFn(loginRequest);
+  if (signal?.aborted) {
+    throw new Error("OAuth login was cancelled");
+  }
   manager.saveCredentials(credentials);
 
   const result: AuthLoginResult = {
@@ -209,7 +220,7 @@ export async function runAuthLogin({
     authMethod: "oauth",
     apiKeyAvailable: Boolean(manager.getApiKeyCredentials?.()),
     target: resolvedConfig.target,
-    apiUrl: resolvedConfig.apiUrl,
+    apiUrl: sanitizeApiUrl(resolvedConfig.apiUrl),
     expiresAt: credentials.expiresAt || null,
   };
   writeResult(stdout, result, json);
