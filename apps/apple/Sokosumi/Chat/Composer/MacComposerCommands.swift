@@ -11,11 +11,130 @@
     @Published private(set) var activeBlocks: Set<ComposerBlockFormat> = []
     @Published var linkEditor: LinkEditor?
 
+    @Published private(set) var mentionOptions: [ComposerMention] = []
+    @Published var selectedSuggestionID: String?
+    @Published private(set) var channelOptions: [ComposerChannel] = []
+    @Published private(set) var emojiOptions: [String] = []
+    private var emojiTrigger: String?
+    private var dismissedEmojiTrigger: String?
+    private var referenceTrigger: ComposerReferenceTrigger?
+    private var dismissedReferenceTrigger: ComposerReferenceTrigger?
+
+    func refreshSuggestions() {
+      let trigger = input?.referenceTrigger
+      if trigger != referenceTrigger {
+        referenceTrigger = trigger
+        dismissedReferenceTrigger = nil
+        selectedSuggestionID = nil
+      }
+      let matches = trigger.flatMap { trigger in
+        input.map { trigger.kind == .mention ? ComposerMention.matching($0.mentions, query: trigger.query) : [] }
+      } ?? []
+      let options = trigger != nil && trigger != dismissedReferenceTrigger ? matches : []
+      // Keep section order identical for mouse and keyboard navigation.
+      let grouped = options.filter { $0.kind == .human || $0.kind == .all }
+        + options.filter { $0.kind == .coworker || $0.kind == .sokoBot }
+      if mentionOptions != grouped {
+        mentionOptions = grouped
+      }
+      let channels = trigger.flatMap { trigger in
+        input.map { trigger.kind == .channel && trigger != dismissedReferenceTrigger ? ComposerChannel.matching($0.channels, query: trigger.query) : [] }
+      } ?? []
+      if channelOptions != channels {
+        channelOptions = channels
+      }
+      let emoji = input.flatMap { input in
+        input.emojiCompletionRange.map { range in
+          "\(range.location):" + (input.string as NSString).substring(with: range)
+        }
+      }
+      if emoji != emojiTrigger {
+        emojiTrigger = emoji
+        dismissedEmojiTrigger = nil
+        selectedSuggestionID = nil
+      }
+      let shortcodes: [String] = if emoji != nil, emoji != dismissedEmojiTrigger, let input, let range = input.emojiCompletionRange {
+        ComposerEmoji.completions(for: String((input.string as NSString).substring(with: range).dropFirst()))
+      } else {
+        []
+      }
+      if emojiOptions != shortcodes {
+        emojiOptions = shortcodes
+      }
+      if !suggestionIDs.contains(selectedSuggestionID ?? "") {
+        selectedSuggestionID = suggestionIDs.first
+      }
+    }
+
+    func dismissSuggestions() {
+      dismissedReferenceTrigger = referenceTrigger
+      mentionOptions = []
+      channelOptions = []
+      dismissedEmojiTrigger = emojiTrigger
+      emojiOptions = []
+    }
+
+    func acceptMention(_ mention: ComposerMention) {
+      input?.window?.makeFirstResponder(input)
+      input?.acceptMention(mention)
+      mentionOptions = []
+      refresh()
+    }
+
+    private var suggestionIDs: [String] {
+      mentionOptions.map(\.id) + channelOptions.map(\.id) + emojiOptions
+    }
+
+    func acceptChannel(_ channel: ComposerChannel) {
+      input?.window?.makeFirstResponder(input)
+      input?.acceptChannel(channel)
+      channelOptions = []
+      refresh()
+    }
+
+    func acceptEmoji(_ shortcode: String) {
+      input?.window?.makeFirstResponder(input)
+      input?.acceptEmoji(shortcode)
+      emojiOptions = []
+      refresh()
+    }
+
+    func handleSuggestionKey(_ key: UInt16) -> Bool {
+      refreshSuggestions()
+      guard !suggestionIDs.isEmpty else { return false }
+      switch key {
+      case 53:
+        dismissSuggestions()
+      case 125, 126:
+        let index = suggestionIDs.firstIndex { $0 == selectedSuggestionID } ?? 0
+        selectedSuggestionID = suggestionIDs[(index + (key == 125 ? 1 : suggestionIDs.count - 1)) % suggestionIDs.count]
+      case 36, 76, 48:
+        if let mention = mentionOptions.first(where: { $0.id == selectedSuggestionID }) {
+          acceptMention(mention)
+        } else if let channel = channelOptions.first(where: { $0.id == selectedSuggestionID }) {
+          acceptChannel(channel)
+        } else if let shortcode = selectedSuggestionID, emojiOptions.contains(shortcode) {
+          acceptEmoji(shortcode)
+        }
+      default: return false
+      }
+      return true
+    }
+
     struct LinkEditor: Identifiable {
       let id = UUID()
       let range: NSRange
       var text: String
       var url: String
+    }
+
+    func beginMention() {
+      guard let input, !input.hasMarkedText(), !input.mentions.isEmpty else { return }
+      input.window?.makeFirstResponder(input)
+      let range = input.selectedRange()
+      let prefix = (input.string as NSString).substring(to: range.location)
+      let separator = prefix.last.map { $0.isWhitespace ? "" : " " } ?? ""
+      input.insertText(separator + "@", replacementRange: range)
     }
 
     func beginLink() {
@@ -71,6 +190,7 @@
       // Selection callbacks can arrive during SwiftUI's representable update.
       Task { @MainActor [weak self] in
         guard let self, let input else { return }
+        refreshSuggestions()
         let range = input.selectedRange()
         let sample = range.length == 0
           ? NSAttributedString(string: " ", attributes: input.typingAttributes)

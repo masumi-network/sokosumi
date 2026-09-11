@@ -47,6 +47,8 @@ import SwiftUI
     /// native sidebar (28pt "me" avatar), so the transcript matches in-app.
     static let avatarDiameter: CGFloat = 28
 
+    var channels: [ComposerChannel] = []
+    var room: Components.Schemas.ChatRoom?
     let message: Components.Schemas.ChatRoomMessage
     let isContinuation: Bool
     let outbound: OutboundShell?
@@ -68,17 +70,19 @@ import SwiftUI
           Color.clear
             .frame(width: Self.avatarDiameter, height: 0)
         } else {
-          avatarView
+          ParticipantProfileButton(sender: message.sender) { avatarView }
         }
         // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
         // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
           if !isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-              Text(messageSenderName(message.sender))
-                .fontWeight(.semibold)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
+              ParticipantProfileButton(sender: message.sender) {
+                Text(messageSenderName(message.sender))
+                  .fontWeight(.semibold)
+                  .foregroundStyle(.primary)
+                  .lineLimit(1)
+              }
               Text(messageTimeFormatter.string(from: message.createdAt))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -98,7 +102,7 @@ import SwiftUI
               .italic()
               .foregroundStyle(.secondary)
           } else {
-            MessageMarkdownView(source: message.content)
+            MessageMarkdownView(source: message.content, room: room, channels: channels)
             if isContinuation, message.editedAt != nil {
               Text("Edited").font(.caption).foregroundStyle(.secondary)
             }

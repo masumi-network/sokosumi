@@ -81,12 +81,16 @@ public enum ComposerInlineText {
 
   private static func decode(_ text: NSAttributedString, range: NSRange, level: Int) -> [ComposerDocument.Inline] {
     guard range.length > 0 else { return [] }
-    // Link wraps other inlines. Code is a leaf, so it must be decoded inside the link.
-    let keys = [link, code, bold, italic, underline, strikethrough]
+    // References are atomic; links wrap inline code so their destinations survive.
+    let keys = [ComposerReferenceText.token, link, code, bold, italic, underline, strikethrough]
     guard level < keys.count else { return [.text((text.string as NSString).substring(with: range))] }
     let key = keys[level]
     var output: [ComposerDocument.Inline] = []
     text.enumerateAttribute(key, in: range) { value, run, _ in
+      if key == ComposerReferenceText.token, let token = value as? String {
+        output.append(.text(String(repeating: token, count: run.length)))
+        return
+      }
       if key == code, value as? Bool == true {
         output.append(.code((text.string as NSString).substring(with: run)))
         return

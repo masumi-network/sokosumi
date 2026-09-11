@@ -90,6 +90,7 @@ public final class ThreadSession: ObservableObject {
   public func send(
     _ content: String, client: Client, organizationSlug: String?,
     sender: Components.Schemas.ChatRoomUserParticipant,
+    mentions: [ComposerMention] = [],
     settled: @escaping (Result<Message, Error>) -> Void
   ) -> Bool {
     let draft = ComposerContent(content)
@@ -100,7 +101,7 @@ public final class ThreadSession: ObservableObject {
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: parent.roomId, content: draft.text, clientMessageId: id,
-        parentMessageId: parent.id, organizationSlug: organizationSlug
+        parentMessageId: parent.id, mentions: mentions, organizationSlug: organizationSlug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }

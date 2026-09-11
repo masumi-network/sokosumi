@@ -87,7 +87,8 @@ public extension WorkspaceState {
                                  signOutIfUnauthorized(error, auth: auth)
                                })
     }
-    return thread.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender) { [weak self, weak auth] result in
+    return thread.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender,
+                       mentions: ComposerMention.selected(in: content, catalog: composerMentions)) { [weak self, weak auth] result in
       guard let self, let auth else { return }
       switch result {
       case .success:

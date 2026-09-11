@@ -10,6 +10,8 @@
     var placeholder = "Message"
     var emojiPickerRequest = 0
     var commands: MacComposerCommands?
+    var channels: [ComposerChannel] = []
+    var mentions: [ComposerMention] = []
 
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
@@ -38,9 +40,12 @@
       input.delegate = context.coordinator
       commands?.input = input
       input.openLinkEditor = { [weak commands] in commands?.beginLink() }
+      input.suggestionKeyHandler = { [weak commands] key in commands?.handleSuggestionKey(key) ?? false }
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
       input.placeholder = placeholder
+      input.mentions = mentions
+      input.channels = channels
       commands?.refresh()
       scroll.documentView = input
       return scroll
@@ -51,6 +56,8 @@
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
       input.placeholder = placeholder
+      input.mentions = mentions
+      input.channels = channels
       if context.coordinator.emojiPickerRequest != emojiPickerRequest {
         context.coordinator.emojiPickerRequest = emojiPickerRequest
         Task { @MainActor [weak input] in
@@ -121,18 +128,25 @@
         parent.commands?.refresh()
       }
 
-      func textViewDidChangeSelection(_: Notification) {
+      func textDidEndEditing(_: Notification) {
+        Task { @MainActor [weak commands = parent.commands] in commands?.dismissSuggestions() }
+      }
+
+      func textViewDidChangeSelection(_ notification: Notification) {
+        (notification.object as? InputView)?.clearReferenceTypingAttributes()
         parent.commands?.refresh()
       }
     }
 
     final class InputView: NSTextView {
-      private var showingCompletions = false
       private var preservesRawDraft = false
       private(set) var serializedDraft = ""
       var submit: () -> Bool = { false }
       var openLinkEditor: (() -> Void)?
       var formattingDidChange: (() -> Void)?
+      var channels: [ComposerChannel] = []
+      var mentions: [ComposerMention] = []
+      var suggestionKeyHandler: ((UInt16) -> Bool)?
       var placeholder = "Message" {
         didSet { needsDisplay = true }
       }
@@ -140,7 +154,8 @@
       func restoreDraft(_ source: String) {
         guard !hasMarkedText() else { return }
         if let document = try? ComposerDocument(markdown: source) {
-          textStorage?.setAttributedString(MacComposerAttributedText.render(document))
+          let references = ComposerReferenceText.presenting(ComposerBlockText.attributedText(document), catalog: mentions)
+          textStorage?.setAttributedString(MacComposerAttributedText.styled(ComposerReferenceText.presentingChannels(references, channels: channels)))
           preservesRawDraft = false
           isRichText = true
         } else {
@@ -225,6 +240,9 @@
             attributes = attributedString().attributes(at: min(range.location, attributedString().length - 1), effectiveRange: nil)
           }
           attributes.removeValue(forKey: ComposerBlockText.listMarker)
+          attributes.removeValue(forKey: ComposerReferenceText.token)
+          attributes.removeValue(forKey: ComposerReferenceText.name)
+          attributes.removeValue(forKey: .attachment)
           replacement = NSMutableAttributedString(string: label.isEmpty ? "link" : label, attributes: attributes)
         }
         replacement.addAttribute(ComposerInlineText.link, value: url, range: NSRange(location: 0, length: replacement.length))
@@ -236,16 +254,32 @@
 
       override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
+        clearReferenceTypingAttributes()
         super.insertText(insertString, replacementRange: replacementRange)
         guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return }
         if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
           breakUndoCoalescing()
           super.insertText(edit.replacement, replacementRange: edit.range)
           breakUndoCoalescing()
-        } else if window != nil, !showingCompletions, rangeForUserCompletion.location != NSNotFound {
-          showingCompletions = true
-          complete(nil)
         }
+      }
+
+      func clearReferenceTypingAttributes() {
+        typingAttributes.removeValue(forKey: ComposerReferenceText.token)
+        typingAttributes.removeValue(forKey: ComposerReferenceText.name)
+        typingAttributes.removeValue(forKey: .attachment)
+      }
+
+      override func writeSelection(to pasteboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        guard type == .string else { return super.writeSelection(to: pasteboard, type: type) }
+        let selection = attributedString().attributedSubstring(from: selectedRange())
+        let text = NSMutableString(string: selection.string)
+        selection.enumerateAttribute(ComposerReferenceText.token, in: NSRange(location: 0, length: selection.length), options: .reverse) { value, range, _ in
+          if let token = value as? String {
+            text.replaceCharacters(in: range, with: String(repeating: token, count: range.length))
+          }
+        }
+        return pasteboard.setString(text as String, forType: type)
       }
 
       override func paste(_: Any?) {
@@ -259,37 +293,47 @@
         insertText(text, replacementRange: selectedRange())
       }
 
-      override var rangeForUserCompletion: NSRange {
-        guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return NSRange(location: NSNotFound, length: 0) }
-        return ComposerEmoji.completionRange(in: string, caret: selectedRange().location) ?? NSRange(location: NSNotFound, length: 0)
+      var emojiCompletionRange: NSRange? {
+        guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return nil }
+        return ComposerEmoji.completionRange(in: string, caret: selectedRange().location)
       }
 
-      override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
-        guard charRange.location != NSNotFound, NSMaxRange(charRange) <= string.utf16.count else { return nil }
-        let query = (string as NSString).substring(with: charRange).dropFirst()
-        let words = ComposerEmoji.completions(for: String(query))
-        if words.isEmpty {
-          showingCompletions = false
-        }
-        index.pointee = 0
-        return words.map { ComposerEmoji.completionPreview(for: $0) }
-      }
-
-      override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal: Bool) {
-        guard isFinal else { return }
-        showingCompletions = false
-        let mouseSelection = movement == NSOtherTextMovement
-          && (NSApp.currentEvent?.type == .leftMouseDown || NSApp.currentEvent?.type == .leftMouseUp)
-        let explicitSelection = movement == NSReturnTextMovement || movement == NSTabTextMovement || mouseSelection
-        // AppKit also finalizes when typing dismisses the list. That is not acceptance.
-        guard explicitSelection, word.hasSuffix(":"), NSMaxRange(charRange) <= string.utf16.count else { return }
-        // The menu label includes a preview; only the shortcode participates in insertion.
-        let shortcode = String(word.split(separator: " ").last ?? Substring(word))
-        let suffix = (string as NSString).substring(from: NSMaxRange(charRange))
+      func acceptEmoji(_ shortcode: String) {
+        guard let range = emojiCompletionRange,
+              ComposerEmoji.completions(for: String((string as NSString).substring(with: range).dropFirst())).contains(shortcode) else { return }
+        let suffix = (string as NSString).substring(from: NSMaxRange(range))
         guard let edit = ComposerEmoji.match(in: shortcode + suffix, caret: shortcode.utf16.count) else { return }
-        // Native completion owns navigation/cancellation; persist only the accepted result.
         breakUndoCoalescing()
-        super.insertText(edit.replacement, replacementRange: charRange)
+        super.insertText(edit.replacement, replacementRange: range)
+        breakUndoCoalescing()
+      }
+
+      var referenceTrigger: ComposerReferenceTrigger? {
+        guard !hasMarkedText(), selectedRange().length == 0, !caretIsInCode,
+              let trigger = ComposerReferenceTrigger.match(in: string, caret: selectedRange().location) else { return nil }
+        return trigger
+      }
+
+      func acceptMention(_ mention: ComposerMention) {
+        guard let trigger = referenceTrigger, trigger.kind == .mention,
+              let current = mentions.first(where: { $0.id == mention.id && $0.kind == mention.kind }) else { return }
+        insertReference(token: current.token, label: "@" + current.name, range: trigger.range)
+      }
+
+      func acceptChannel(_ channel: ComposerChannel) {
+        guard let trigger = referenceTrigger, trigger.kind == .channel,
+              let current = ComposerChannel.matching(channels, query: trigger.query).first(where: { $0.id == channel.id }) else { return }
+        insertReference(token: current.token(in: channels), label: "#" + current.name, range: trigger.range)
+      }
+
+      private func insertReference(token: String, label: String, range: NSRange) {
+        let suffix = (string as NSString).substring(from: NSMaxRange(range))
+        breakUndoCoalescing()
+        let chip = NSMutableAttributedString(attributedString: ComposerReferenceText.chip(token: token, name: label, attributes: typingAttributes))
+        if suffix.isEmpty || suffix.first?.isWhitespace == false {
+          chip.append(NSAttributedString(string: " ", attributes: typingAttributes))
+        }
+        super.insertText(MacComposerAttributedText.styled(chip), replacementRange: range)
         breakUndoCoalescing()
       }
 
@@ -344,8 +388,8 @@
         // Capture this before AppKit commits marked text. Checking inside
         // a submit/delegate callback is too late for the committing Return.
         let isReturn = event.keyCode == 36 || event.keyCode == 76
-        if showingCompletions {
-          super.keyDown(with: event)
+        if !hasMarkedText(), event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift]),
+           suggestionKeyHandler?(event.keyCode) == true {
           return
         }
         guard isReturn, !hasMarkedText() else {

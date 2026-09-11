@@ -8,6 +8,24 @@
       styled(ComposerBlockText.attributedText(document))
     }
 
+    private static func referenceAttachment(name: String, font: NSFont) -> NSTextAttachment {
+      let label = NSAttributedString(string: name, attributes: [
+        .font: font, .foregroundColor: NSColor.controlAccentColor
+      ])
+      let size = NSSize(width: ceil(label.size().width) + 8, height: ceil(label.size().height) + 2)
+      let image = NSImage(size: size, flipped: false) { bounds in
+        NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: 3, yRadius: 3).fill()
+        label.draw(at: NSPoint(x: 4, y: 1))
+        return true
+      }
+      image.accessibilityDescription = name
+      let attachment = NSTextAttachment()
+      attachment.image = image
+      attachment.bounds = NSRect(x: 0, y: font.descender - 1, width: size.width, height: size.height)
+      return attachment
+    }
+
     static func styled(_ semantic: NSAttributedString) -> NSAttributedString {
       let output = NSMutableAttributedString(attributedString: semantic)
       let fullRange = NSRange(location: 0, length: output.length)
@@ -48,6 +66,9 @@
         }
         if let destination = values[ComposerInlineText.link] as? String {
           styled[.link] = destination
+        }
+        if let name = values[ComposerReferenceText.name] as? String {
+          styled[.attachment] = referenceAttachment(name: name, font: font)
         }
         output.addAttributes(styled, range: range)
       }
