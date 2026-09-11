@@ -390,8 +390,10 @@ function JobDetailsInputsError() {
   const t = useTranslations("Components.Jobs.JobDetails.Input");
 
   return (
-    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">
-      <span className="text-lg text-red-500">{t("failedToParseInput")}</span>
+    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-semantic-destructive-tertiary bg-semantic-destructive-quinary p-4">
+      <span className="text-lg text-semantic-destructive">
+        {t("failedToParseInput")}
+      </span>
     </div>
   );
 }

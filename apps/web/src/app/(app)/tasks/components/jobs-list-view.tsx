@@ -12,7 +12,7 @@ import { ColumnHeader } from "./column-header";
 import { JobListItem } from "./job-list-item";
 
 const JOBS_LAST_SEEN_AT_STORAGE_KEY = "sokosumi.tasks.jobs.lastSeenAt";
-const RECENT_SECTION_COLOR_CLASS = "bg-violet-500";
+const RECENT_SECTION_COLOR_CLASS = "bg-primary";
 const RECENT_RETENTION_MS = 1000 * 60 * 60 * 24;
 
 interface RecentJobsReference {

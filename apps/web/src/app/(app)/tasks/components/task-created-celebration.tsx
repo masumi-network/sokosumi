@@ -49,10 +49,10 @@ const STATUS_CARD_STYLES: Record<
 > = {
   DRAFT: {
     badge: "bg-muted text-muted-foreground",
-    dot: "bg-gray-400",
+    dot: COLUMN_STATUS_COLORS.backlog,
   },
   READY: {
-    badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    badge: "bg-status-ready-quinary text-foreground",
     dot: COLUMN_STATUS_COLORS.todo,
   },
   QUEUED: {

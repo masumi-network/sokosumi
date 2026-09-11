@@ -26,6 +26,10 @@ export function JobStatusBadge({
   const label = t(getJobStatusBadgeLabelKey(status));
   const styles = getJobStatusPillStyle(status);
   const showIcon = shouldShowWarningIcon(status);
+  // The icon stands in for the dot, so it takes the dot's colour. `bg-`
+  // becomes `text-` because the same token paints a fill there and a stroke
+  // here. The label stays in the foreground colour.
+  const iconColor = styles.dot.replace("bg-", "text-");
 
   if (variant === "dot") {
     return (
@@ -50,10 +54,7 @@ export function JobStatusBadge({
       )}
     >
       {showIcon ? (
-        <CircleAlert
-          className={cn("size-3 shrink-0", styles.text)}
-          aria-hidden
-        />
+        <CircleAlert className={cn("size-3 shrink-0", iconColor)} aria-hidden />
       ) : null}
       <span>{label}</span>
     </span>

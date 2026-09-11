@@ -12,10 +12,12 @@ export default function SignUpHeader({ invitationId }: SignUpHeaderProps) {
       <div className="flex items-end gap-2">
         <h1 className="text-2xl font-light">{t("title")}</h1>
         {invitationId && (
-          <p className="text-sm text-gray-400 italic">{t("viaInvitation")}</p>
+          <p className="text-sm text-muted-foreground italic">
+            {t("viaInvitation")}
+          </p>
         )}
       </div>
-      <p className="text-sm text-gray-400">{t("description")}</p>
+      <p className="text-sm text-muted-foreground">{t("description")}</p>
     </div>
   );
 }
