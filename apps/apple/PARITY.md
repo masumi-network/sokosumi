@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active slice: native Office-file viewing (15), branch `codex/apple-office-file-preview`, based on main `56a5243f3f`. Uses an isolated Quick Look bridge and shared temporary-file ownership; no external dependency or API change.
+- Active slice: native Office-file viewing (15), draft [#4473](https://github.com/masumi-network/sokosumi/pull/4473), branch `codex/apple-office-file-preview`, based on main `56a5243f3f`. Uses an isolated Quick Look bridge and shared temporary-file ownership; no external dependency or API change.
 - Text-file viewing [#4470](https://github.com/masumi-network/sokosumi/pull/4470) merged as `56a5243f3f`. Full Apple CI passed at final head `9ae4f875d` (run `34647058920`), including Xcode build/app tests, all packages and lint/format. Live text acceptance remains unconfirmed.
 - PDF viewing [#4469](https://github.com/masumi-network/sokosumi/pull/4469) merged as `c97c47c1a`. Full Apple CI passed at final head `0ae491821` (run `34640292097`), including Xcode build/app tests, all package suites and lint/format. Review follow-up prevents double spacing before text; only a trailing file receives extra bottom padding.
 - Files attachment picker [#4440](https://github.com/masumi-network/sokosumi/pull/4440) merged as `b7366d9b3`. Includes web menu names/icons and Sendable export data. Final local Xcode app tests and lint passed; final PR CI was canceled at merge after the Xcode build passed. File selection is not independently confirmed.
