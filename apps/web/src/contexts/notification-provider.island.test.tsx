@@ -197,6 +197,66 @@ describe("NotificationProvider island", () => {
     expect(healPushSubscriptionMock).toHaveBeenCalledWith("user-1");
   });
 
+  /**
+   * useMountEffect runs once per instance. A new userId on the same instance
+   * is the next reader after a client session swap, and they would never be
+   * repaired. Remounting by identity is what AuthenticatedAppFrame does.
+   */
+  it("does not repair again when the same instance receives a new userId", async () => {
+    lazyAblyProviderMock.mockImplementation((): ReactNode => null);
+
+    const { rerender } = render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(healPushSubscriptionMock).toHaveBeenCalledTimes(1);
+    expect(healPushSubscriptionMock).toHaveBeenCalledWith("user-1");
+
+    rerender(
+      <NotificationProvider userId="user-2">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(healPushSubscriptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("repairs the new reader when remounted by identity", async () => {
+    lazyAblyProviderMock.mockImplementation((): ReactNode => null);
+
+    function Frame({ userId }: { userId: string }) {
+      return (
+        <NotificationProvider key={userId} userId={userId}>
+          <NotificationConsumer />
+        </NotificationProvider>
+      );
+    }
+
+    const { rerender } = render(<Frame userId="user-1" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(healPushSubscriptionMock).toHaveBeenCalledWith("user-1");
+
+    healPushSubscriptionMock.mockClear();
+    rerender(<Frame userId="user-2" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(healPushSubscriptionMock).toHaveBeenCalledTimes(1);
+    expect(healPushSubscriptionMock).toHaveBeenCalledWith("user-2");
+  });
+
   it("mounts realtime bridge and toast listener under the LazyAbly island", async () => {
     render(
       <NotificationProvider userId="user-1">
