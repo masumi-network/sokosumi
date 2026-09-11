@@ -187,7 +187,7 @@ function FileChipMiniPreviewShell({
               type="button"
               aria-label={removeLabel}
               onClick={onRemove}
-              className="bg-background/90 hover:bg-accent focus-visible:ring-ring absolute top-1 right-1 inline-flex size-5 items-center justify-center rounded-full border shadow-sm outline-none transition"
+              className="bg-surface-glass hover:bg-accent focus-visible:ring-ring absolute top-1 right-1 inline-flex size-5 items-center justify-center rounded-full border shadow-sm outline-none transition"
             >
               <X className="size-3" />
             </button>

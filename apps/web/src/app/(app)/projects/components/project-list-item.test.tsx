@@ -69,7 +69,7 @@ describe("ProjectListItem", () => {
     expect(link.className).toContain("rounded-none");
     expect(link.className).toContain("md:rounded-lg");
     expect(link.className).not.toContain("border-border");
-    expect(link.className).not.toContain("bg-background/60");
+    expect(link.className).not.toContain("bg-overlay");
     expect(link.className.split(/\s+/)).not.toContain("border");
 
     const article = link.closest("article");
