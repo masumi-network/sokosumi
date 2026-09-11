@@ -35,12 +35,6 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-// Named per reader by its own helper, which has its own tests. A direct room
-// is always named that way, so every test here would otherwise stub its reads.
-vi.mock("@/helpers/chat-direct-room-names", () => ({
-  loadDirectRoomNamesByReader: vi.fn().mockResolvedValue(new Map()),
-}));
-
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));

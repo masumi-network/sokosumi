@@ -1,4 +1,8 @@
-import { buildDirectRoomName } from "@sokosumi/utils";
+import {
+  compareByDisplayNameThenId,
+  formatParticipantNameList,
+} from "@sokosumi/utils";
+
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
 
@@ -6,12 +10,6 @@ import prisma from "@/lib/db/prisma";
 interface Participant {
   id: string;
   name: string;
-}
-
-function byDisplayNameThenId(a: Participant, b: Participant): number {
-  const byName = a.name.localeCompare(b.name);
-
-  return byName !== 0 ? byName : a.id.localeCompare(b.id);
 }
 
 /**
@@ -30,29 +28,36 @@ function byDisplayNameThenId(a: Participant, b: Participant): number {
  * service worker can query nothing (ADR-0023), so it is built here, once per
  * reader, from the roster as it stands now.
  *
- * The three reads run one after another, the same way `loadChatMentionNames`
- * does, so this stays safe to call on a transaction client.
+ * The list is joined by `formatParticipantNameList`, the same rule the sidebar
+ * is built from, so a notification cannot name the room differently from the
+ * list the reader reads it in.
+ *
+ * A reader who is the only member left gets no entry, so the caller keeps the
+ * stored name for them. That matches web, which falls back to the room's own
+ * name when the list it builds is empty.
  */
 export async function loadDirectRoomNamesByReader(params: {
   roomId: string;
   readerUserIds: readonly string[];
 }): Promise<ReadonlyMap<string, string>> {
-  const humanMembers = await prisma.chatRoomUserMember.findMany({
-    where: { roomId: params.roomId },
-    select: { user: { select: { id: true, name: true, email: true } } },
-  });
-  const coworkerMembers = await prisma.chatRoomCoworkerMember.findMany({
-    where: { roomId: params.roomId },
-    select: { coworker: { select: { id: true, name: true } } },
-  });
-  const sokoBotMembers = await prisma.chatRoomSokoBotMember.findMany({
-    where: { roomId: params.roomId },
-    select: {
-      sokoBot: {
-        select: { id: true, name: true, user: { select: { name: true } } },
-      },
-    },
-  });
+  // Three reads at once rather than one after another. Prisma cannot batch
+  // across models, so this is three round trips either way; what it saves is
+  // waiting for each before starting the next, on the path a sent message
+  // takes. No read here depends on another.
+  const [humanMembers, coworkerMembers, sokoBotMembers] = await Promise.all([
+    prisma.chatRoomUserMember.findMany({
+      where: { roomId: params.roomId },
+      select: { user: { select: { id: true, name: true, email: true } } },
+    }),
+    prisma.chatRoomCoworkerMember.findMany({
+      where: { roomId: params.roomId },
+      select: { coworker: { select: { id: true, name: true } } },
+    }),
+    prisma.chatRoomSokoBotMember.findMany({
+      where: { roomId: params.roomId },
+      select: { sokoBot: { select: { id: true, name: true } } },
+    }),
+  ]);
 
   const humans: Participant[] = humanMembers.map(({ user }) => ({
     id: user.id,
@@ -68,20 +73,26 @@ export async function loadDirectRoomNamesByReader(params: {
     id: sokoBot.id,
     name: sokoBotDisplayName(sokoBot),
   }));
-  humans.sort(byDisplayNameThenId);
-  coworkers.sort(byDisplayNameThenId);
-  sokoBots.sort(byDisplayNameThenId);
+  humans.sort(compareByDisplayNameThenId);
+  coworkers.sort(compareByDisplayNameThenId);
+  sokoBots.sort(compareByDisplayNameThenId);
 
-  return new Map(
-    params.readerUserIds.map((readerUserId) => [
-      readerUserId,
-      buildDirectRoomName([
-        ...humans
-          .filter((human) => human.id !== readerUserId)
-          .map((human) => human.name),
-        ...coworkers.map((coworker) => coworker.name),
-        ...sokoBots.map((sokoBot) => sokoBot.name),
-      ]),
-    ]),
-  );
+  const namesByReader = new Map<string, string>();
+  for (const readerUserId of params.readerUserIds) {
+    const names = [
+      ...humans
+        .filter((human) => human.id !== readerUserId)
+        .map((human) => human.name),
+      ...coworkers.map((coworker) => coworker.name),
+      ...sokoBots.map((sokoBot) => sokoBot.name),
+    ];
+
+    if (names.length === 0) {
+      continue;
+    }
+
+    namesByReader.set(readerUserId, formatParticipantNameList(names));
+  }
+
+  return namesByReader;
 }
