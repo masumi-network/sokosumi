@@ -49,6 +49,8 @@ struct DriveFilePickerView: View {
               query = ""
             } label: {
               Label(folder.name, systemImage: "folder")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
           case let .file(item):
             Button {
@@ -61,6 +63,7 @@ struct DriveFilePickerView: View {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(item.value1.size), countStyle: .file))
                   .font(.caption).foregroundStyle(.secondary)
               }
+              .contentShape(Rectangle())
             }
           }
         }
