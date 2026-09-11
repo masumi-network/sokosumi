@@ -116,9 +116,11 @@ export const taskScheduleOccurrenceSchema = z
     timeAccuracy: z
       .enum(CalendarTimeAccuracy)
       .openapi({ example: CalendarTimeAccuracy.EXACT }),
-    releasedTask: taskScheduleOccurrenceReleasedTaskSchema.nullable().openapi({
-      description: "Independent Task this occurrence released, when it did",
-    }),
+    releasedTask: z
+      .union([taskScheduleOccurrenceReleasedTaskSchema, z.null()])
+      .openapi({
+        description: "Independent Task this occurrence released, when it did",
+      }),
   })
   .openapi("TaskScheduleOccurrence");
 

@@ -5644,12 +5644,12 @@ export type TaskScheduleOccurrence = {
     sourceProjectId: string | null;
     sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
     timeAccuracy: 'EXACT' | 'APPROXIMATE';
-    releasedTask: TaskScheduleOccurrenceReleasedTask;
+    /**
+     * Independent Task this occurrence released, when it did
+     */
+    releasedTask: TaskScheduleOccurrenceReleasedTask | null;
 };
 
-/**
- * Independent Task this occurrence released, when it did
- */
 export type TaskScheduleOccurrenceReleasedTask = {
     id: string;
     name: string;
@@ -5658,7 +5658,7 @@ export type TaskScheduleOccurrenceReleasedTask = {
      * Set when the released Task was archived; it is no longer readable, so the summary is not navigable
      */
     archivedAt: Date | null;
-} | null;
+};
 
 /**
  * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
@@ -38091,10 +38091,6 @@ export type GetTasksByIdScheduleOccurrencesData = {
     };
     query?: {
         /**
-         * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
-         */
-        view?: TaskScheduleOccurrenceView;
-        /**
          * Opaque cursor from a previous page of the same view. A cursor minted before the schedule revision changed is rejected with kind schedule_cursor_stale.
          */
         cursor?: string;
@@ -38102,6 +38098,10 @@ export type GetTasksByIdScheduleOccurrencesData = {
          * Number of occurrences to return (max 100)
          */
         limit?: number;
+        /**
+         * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+         */
+        view?: TaskScheduleOccurrenceView;
     };
     url: '/tasks/{id}/schedule/occurrences';
 };
