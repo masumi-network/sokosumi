@@ -829,6 +829,59 @@ describe("authMiddleware", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401 when the session belongs to a banned user", async () => {
+    // `enableSessionForAPIKeys` means an `x-api-key` header produces a session
+    // the admin plugin's ban hook never inspected.
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_session" },
+      user: {
+        id: "user_session",
+        role: "user",
+        banned: true,
+        banExpires: null,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 when the session user's ban has not expired yet", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_session" },
+      user: {
+        id: "user_session",
+        role: "user",
+        banned: true,
+        banExpires: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("authenticates a session once the user's ban has expired", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_session" },
+      user: {
+        id: "user_session",
+        role: "user",
+        banned: true,
+        banExpires: new Date(Date.now() - 60_000),
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+  });
+
   it("returns 401 when session is missing or invalid", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/");

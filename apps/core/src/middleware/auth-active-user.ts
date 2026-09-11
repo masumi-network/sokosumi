@@ -15,16 +15,26 @@
 /**
  * Columns every bearer path selects for its user: `role` for the auth context
  * it builds, `banned` and `banExpires` for {@link isActiveUser}.
+ *
+ * The `satisfies` clause is the guard rail. {@link ActiveUserCandidate} has to
+ * keep both ban columns optional for session users, so a select that dropped
+ * one would still compile at the call site and quietly authenticate a banned
+ * user. Narrowing this constant fails the build instead.
  */
 export const BEARER_USER_SELECT = {
   role: true,
   banned: true,
   banExpires: true,
-} as const;
+} as const satisfies Record<keyof ActiveUserCandidate | "role", true>;
 
+/**
+ * Both columns are optional because Better Auth's admin plugin declares them
+ * `required: false`, so a session user carries them as `T | null | undefined`
+ * while a Prisma select yields `T | null`.
+ */
 export interface ActiveUserCandidate {
-  banned: boolean | null;
-  banExpires: Date | null;
+  banned?: boolean | null;
+  banExpires?: Date | null;
 }
 
 /**
@@ -53,5 +63,9 @@ export function isActiveUser<T extends ActiveUserCandidate>(
     return true;
   }
 
-  return user.banExpires !== null && user.banExpires.getTime() < now.getTime();
+  // A ban with no expiry is permanent, whether that is stored as null or, on a
+  // session user, left undefined.
+  const { banExpires } = user;
+
+  return banExpires != null && banExpires.getTime() < now.getTime();
 }

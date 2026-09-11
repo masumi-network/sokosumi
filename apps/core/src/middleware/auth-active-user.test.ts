@@ -15,8 +15,20 @@ describe("isActiveUser", () => {
     expect(isActiveUser({ banned: null, banExpires: null }, NOW)).toBe(true);
   });
 
+  it("accepts a user whose ban columns are absent", () => {
+    // A Better Auth session user carries them as optional, not null.
+    expect(isActiveUser({}, NOW)).toBe(true);
+  });
+
   it("rejects a permanent ban", () => {
     expect(isActiveUser({ banned: true, banExpires: null }, NOW)).toBe(false);
+  });
+
+  it("rejects a ban whose expiry is absent rather than null", () => {
+    expect(isActiveUser({ banned: true }, NOW)).toBe(false);
+    expect(isActiveUser({ banned: true, banExpires: undefined }, NOW)).toBe(
+      false,
+    );
   });
 
   it("rejects a ban that has not expired yet", () => {

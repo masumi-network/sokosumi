@@ -699,6 +699,16 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   }
 
   const { session, user } = response;
+
+  // Not every session here was created by signing in. With
+  // `enableSessionForAPIKeys`, an `x-api-key` header makes the api-key plugin
+  // build a session in memory rather than through `internalAdapter`, so the
+  // admin plugin's ban hook never sees it. `getSession` already returns the
+  // ban columns, so this costs no extra query.
+  if (!isActiveUser(user)) {
+    throw unauthorized("Invalid, expired or missing session");
+  }
+
   setAuthContext(c, {
     isAuthenticated: true,
     authContext: {
