@@ -1,9 +1,9 @@
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AgentLegal } from "@/lib/types/agent";
+import type { Agent } from "@/lib/clients/generated/core";
 
-function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
+function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
   const t = useTranslations("Components.Agents.AgentDetail.Legal");
 
   return (
