@@ -2169,9 +2169,17 @@ export function ChatMessageRow({
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const longPress = useLongPress(() => {
+  // Neither overlay is mounted until first opened. A closed Radix dialog
+  // still costs a root, a portal, and its contexts per row, and a transcript
+  // carries a couple of hundred rows. Once opened it stays mounted so its
+  // exit animation can run.
+  const [sheetMounted, setSheetMounted] = useState(false);
+  const [deleteDialogMounted, setDeleteDialogMounted] = useState(false);
+  function openSheet() {
+    setSheetMounted(true);
     setSheetOpen(true);
-  });
+  }
+  const longPress = useLongPress(openSheet);
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
   const canCopy =
@@ -2191,6 +2199,7 @@ export function ChatMessageRow({
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
+    setDeleteDialogMounted(true);
     setDeleteDialogOpen(true);
   }
 
@@ -2475,33 +2484,35 @@ export function ChatMessageRow({
             type="button"
             className="sr-only"
             onClick={() => {
-              setSheetOpen(true);
+              openSheet();
             }}
           >
             {tChannels("Actions.more")}
           </button>
-          <TouchMessageActionsSheet
-            open={sheetOpen}
-            onOpenChange={setSheetOpen}
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            onQuote={onQuote}
-            onPin={onPin}
-            onCopy={handleCopy}
-            onEdit={onStartEdit}
-            onDelete={requestDelete}
-            showThreadButton={showThreadButton}
-            showQuoteButton={canQuote}
-            showPinButton={canPin}
-            isPinned={isPinned}
-            showCopyButton={canCopy}
-            showEditButton={canEdit}
-            showDeleteButton={canDelete}
-          />
+          {sheetMounted ? (
+            <TouchMessageActionsSheet
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              message={message}
+              onToggleReaction={onToggleReaction}
+              onOpenThread={onOpenThread}
+              onQuote={onQuote}
+              onPin={onPin}
+              onCopy={handleCopy}
+              onEdit={onStartEdit}
+              onDelete={requestDelete}
+              showThreadButton={showThreadButton}
+              showQuoteButton={canQuote}
+              showPinButton={canPin}
+              isPinned={isPinned}
+              showCopyButton={canCopy}
+              showEditButton={canEdit}
+              showDeleteButton={canDelete}
+            />
+          ) : null}
         </>
       ) : null}
-      {canDelete ? (
+      {canDelete && deleteDialogMounted ? (
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>

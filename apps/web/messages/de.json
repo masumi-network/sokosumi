@@ -5256,6 +5256,7 @@
         "close": "Angeheftete Nachrichten schließen",
         "empty": "Noch keine angehefteten Nachrichten",
         "loading": "Angeheftete Nachrichten werden geladen…",
+        "jumping": "Nachricht wird geöffnet…",
         "error": "Angeheftete Nachrichten konnten nicht geladen werden",
         "couldNotLoad": "Nachricht konnte nicht geladen werden",
         "pin": "Nachricht anheften",

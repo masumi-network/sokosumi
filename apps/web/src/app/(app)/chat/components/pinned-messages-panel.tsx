@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChannelLinkTarget } from "@sokosumi/utils";
-import { Pin, PinOff, X } from "lucide-react";
+import { Loader2, Pin, PinOff, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ export interface PinnedMessagesPanelLabels {
   couldNotLoad: string;
   unpin: string;
   loadOlder: string;
+  jumping: string;
 }
 
 interface PinnedMessagesPanelProps {
@@ -46,7 +47,8 @@ interface PinnedMessagesPanelProps {
   onOpenDirectMessage: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey: string | null;
   onClose: () => void;
-  onJump: (messageId: string) => void;
+  /** Resolves true once the message is on screen. */
+  onJump: (messageId: string) => Promise<boolean>;
   onUnpin: (messageId: string) => Promise<boolean>;
   onIdsLoaded: (messageIds: readonly string[]) => void;
 }
@@ -101,7 +103,26 @@ export function PinnedMessagesPanel({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jumpingMessageId, setJumpingMessageId] = useState<string | null>(null);
   const { formatTimeAgo } = useLocalizedDateTime();
+
+  // The panel stays up while the window loads, with the tapped row marked, so
+  // the tap is seen to do something. It closes only once the message is on
+  // screen: on a phone it covers the transcript, and closing early would show
+  // the reader the room standing still. A jump that gave up leaves the panel
+  // open so the row is still there to tap again.
+  async function handleJump(messageId: string) {
+    setJumpingMessageId(messageId);
+    try {
+      if (await onJump(messageId)) {
+        onClose();
+      }
+    } finally {
+      setJumpingMessageId((current) =>
+        current === messageId ? null : current,
+      );
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +233,7 @@ export function PinnedMessagesPanel({
             );
           }
           const sender = messageSender(message);
+          const isJumping = jumpingMessageId === item.messageId;
           return (
             <div
               key={item.messageId}
@@ -222,17 +244,25 @@ export function PinnedMessagesPanel({
               <button
                 type="button"
                 className="min-w-0 flex-1 text-left"
+                aria-busy={isJumping}
                 onClick={() => {
-                  onJump(item.messageId);
+                  void handleJump(item.messageId);
                 }}
               >
                 <div className="flex min-w-0 items-baseline gap-2">
                   <span className="truncate text-sm font-medium">
                     {sender.name}
                   </span>
-                  <span className="text-muted-foreground shrink-0 text-xs">
-                    {formatTimeAgo(new Date(message.createdAt))}
-                  </span>
+                  {isJumping ? (
+                    <span className="text-muted-foreground flex shrink-0 items-center self-center">
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      <span className="sr-only">{labels.jumping}</span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground shrink-0 text-xs">
+                      {formatTimeAgo(new Date(message.createdAt))}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 line-clamp-6 text-sm">
                   <ChannelMessageText

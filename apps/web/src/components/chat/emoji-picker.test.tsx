@@ -25,6 +25,32 @@ vi.mock("next-intl", () => ({
 }));
 
 describe("EmojiPicker", () => {
+  it("costs no viewport subscription and no style read while closed", async () => {
+    const addListener = vi.spyOn(window, "addEventListener");
+    const computedStyle = vi.spyOn(window, "getComputedStyle");
+    const user = userEvent.setup();
+    render(
+      <EmojiPicker
+        title="Add reaction"
+        ariaLabel="Add reaction"
+        onPick={vi.fn()}
+      />,
+    );
+
+    const resizeListeners = () =>
+      addListener.mock.calls.filter(([type]) => type === "resize").length;
+    expect(resizeListeners()).toBe(0);
+    expect(computedStyle).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Add reaction" }));
+
+    await waitFor(() => {
+      expect(resizeListeners()).toBeGreaterThan(0);
+    });
+    addListener.mockRestore();
+    computedStyle.mockRestore();
+  });
+
   it("opens with a touch-pannable overflow scroll region", async () => {
     const user = userEvent.setup();
     render(

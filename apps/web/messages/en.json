@@ -5256,6 +5256,7 @@
         "close": "Close pinned messages",
         "empty": "No pinned messages yet",
         "loading": "Loading pinned messages…",
+        "jumping": "Opening message…",
         "error": "Could not load pinned messages",
         "couldNotLoad": "Message could not be loaded",
         "pin": "Pin message",

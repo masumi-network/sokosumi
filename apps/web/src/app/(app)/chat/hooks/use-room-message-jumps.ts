@@ -204,27 +204,27 @@ export function useRoomMessageJumps({
   /**
    * Put a message on screen and highlight it, loading the window around it
    * when it is not already there. Reached from the pinned list and from a
-   * notification that named the message on the room's URL.
+   * notification that named the message on the room's URL. True once the
+   * message is on screen.
    */
-  async function handleJumpToMessage(messageId: string) {
+  async function handleJumpToMessage(messageId: string): Promise<boolean> {
     if (!roomId) {
-      return;
+      return false;
     }
+    // Held through the scroller's refs alone. The state flag exists for the
+    // thread panel, which a room jump never touches, and toggling it
+    // re-renders every row in the transcript twice, once on hold and once on
+    // release, which with a couple of hundred rows on screen was most of the
+    // wait after the window had already loaded.
     const { isNewestJump, holdOffBottom, releaseHoldOffBottom } = startRoomJump(
       jumpStateRef.current,
       {
         isStillSelectedRoom: () => isStillSelectedRoom(roomId),
-        hold: () => {
-          suppressStickToBottom();
-          setSearchHoldOffBottom(true);
-        },
-        release: () => {
-          releaseStickToBottomSuppress();
-          setSearchHoldOffBottom(false);
-        },
+        hold: suppressStickToBottom,
+        release: releaseStickToBottomSuppress,
       },
     );
-    await performRoomMessageJump(messageId, {
+    return performRoomMessageJump(messageId, {
       // Guarded because this runs twice: once on entry, where this jump is
       // always the newest, and once after the window loads, where it may not
       // be. Scrolling then would drag the reader off the message a later

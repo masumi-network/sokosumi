@@ -2738,9 +2738,7 @@ export function RoomsClient({
                 onClose={() => {
                   setPinnedOpen(false);
                 }}
-                onJump={(messageId) => {
-                  void handleJumpToMessage(messageId);
-                }}
+                onJump={handleJumpToMessage}
                 onUnpin={async (messageId) => {
                   const result = await unpinRoomMessageAction(
                     selectedRoom.id,
@@ -2762,6 +2760,7 @@ export function RoomsClient({
                   couldNotLoad: t("PinnedMessages.couldNotLoad"),
                   unpin: t("PinnedMessages.unpin"),
                   loadOlder: t("loadOlder"),
+                  jumping: t("PinnedMessages.jumping"),
                 }}
               />
             ) : showRoomRosterControl && rosterOpen ? (
