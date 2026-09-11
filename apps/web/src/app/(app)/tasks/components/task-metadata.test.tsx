@@ -485,6 +485,7 @@ describe("TaskMetadata", () => {
               id: "coworker-1",
               name: "Elena",
               image: null,
+              slug: "elena",
             },
           },
         }),
