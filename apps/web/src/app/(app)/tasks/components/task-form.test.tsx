@@ -1215,7 +1215,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}

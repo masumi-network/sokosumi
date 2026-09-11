@@ -51,10 +51,7 @@ import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigne
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
-import {
-  formatShortDateTime,
-  HYDRATION_STABLE_TIME_ZONE,
-} from "@/lib/utils/datetime";
+import { formatShortDateTime } from "@/lib/utils/datetime";
 import {
   buildVendorGrantReviewHref,
   canApproveVendorGrants,
