@@ -175,7 +175,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     {badge ? (
                       <span
                         className={cn(
-                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
+                          "border-border text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
                           isActive &&
                             "border-primary-foreground/30 text-primary-foreground",
                         )}

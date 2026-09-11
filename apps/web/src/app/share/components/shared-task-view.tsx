@@ -110,7 +110,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           <span className="truncate text-sm">{task.assignee?.name ?? "—"}</span>
         </div>
       </div>
-      <div className="border-border/50 border-t pt-4">
+      <div className="border-border border-t pt-4">
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground text-sm">
             {tTaskDetail("created")}
@@ -310,7 +310,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                       data-testid={`activity-row-${event.id}`}
                       className={cn(
                         "rounded-lg pr-3 pl-3",
-                        isCommentEvent && "bg-muted/20 border-border/50 border",
+                        isCommentEvent && "bg-muted/20 border-border border",
                         shouldHighlightDoneBorder &&
                           getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                       )}

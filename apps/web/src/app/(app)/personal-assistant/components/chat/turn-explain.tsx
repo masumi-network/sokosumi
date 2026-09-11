@@ -204,7 +204,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
   const ctx = turn.contextSummary;
 
   return (
-    <div className="border-border/60 mt-2 divide-y rounded-lg border">
+    <div className="border-border mt-2 divide-y rounded-lg border">
       <div className="px-4 py-2">
         <Row label={t("classified")}>
           <span className="font-medium">
@@ -276,7 +276,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
         {chain.length === 0 ? (
           <p className="text-muted-foreground pb-2 text-sm">{t("noChain")}</p>
         ) : (
-          <ol className="divide-border/40 divide-y">
+          <ol className="divide-border divide-y">
             {chain.map((item) => {
               if (item.kind === "said") {
                 return (

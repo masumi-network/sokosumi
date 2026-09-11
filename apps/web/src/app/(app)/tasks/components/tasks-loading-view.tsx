@@ -180,7 +180,7 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
 
 function TasksListLoading() {
   return (
-    <div className="bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-muted/30 border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       <div className="flex items-center justify-center px-4 py-16">
         <Loader2
           className="text-muted-foreground size-5 animate-spin"

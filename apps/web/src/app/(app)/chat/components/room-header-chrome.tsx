@@ -57,7 +57,7 @@ function RoomParticipantStack({
           className="relative inline-flex size-6 shrink-0 md:size-7"
           style={{ zIndex: visibleParticipants.length - index }}
         >
-          <Avatar className="ring-border/60 size-full shadow-xs ring-1">
+          <Avatar className="ring-border size-full shadow-xs ring-1">
             <AvatarImage src={participant.image ?? undefined} alt="" />
             <AvatarFallback
               className={cn(
@@ -87,7 +87,7 @@ function RoomParticipantStack({
       ))}
       {remainingCount > 0 ? (
         <span
-          className="bg-muted text-muted-foreground ring-border/60 relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
+          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
           style={{ zIndex: 0 }}
           aria-hidden
         >

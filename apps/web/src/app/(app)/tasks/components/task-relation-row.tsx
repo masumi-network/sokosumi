@@ -70,7 +70,7 @@ export function TaskRelationRow({
   return (
     <TaskDetailLink
       href={`/tasks/${taskId}`}
-      className="bg-muted/40 border-border/50 hover:bg-muted/60 flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
+      className="bg-muted/40 border-border hover:bg-muted/60 flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
     >
       <div className="flex min-w-0 items-center gap-2">
         {iconBadge}

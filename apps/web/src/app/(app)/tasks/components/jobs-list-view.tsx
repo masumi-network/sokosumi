@@ -123,9 +123,9 @@ export function JobsListView({
   const hasAnyJobs = sortedJobs.length > 0;
 
   const listContent = (
-    <div className="bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-muted/30 border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       {hasAnyJobs ? (
-        <div className="divide-border/50 divide-y">
+        <div className="divide-border divide-y">
           <section className="flex flex-col gap-1">
             <div className="bg-muted/40 sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
               <ColumnHeader
@@ -134,7 +134,7 @@ export function JobsListView({
                 statusColorClass={RECENT_SECTION_COLOR_CLASS}
               />
             </div>
-            <div className="divide-border/50 flex flex-col divide-y px-2">
+            <div className="divide-border flex flex-col divide-y px-2">
               {recentJobs.length > 0 ? (
                 recentJobs.map((job) => (
                   <JobListItem
@@ -164,7 +164,7 @@ export function JobsListView({
                     statusColorClass={COLUMN_STATUS_COLORS[columnId]}
                   />
                 </div>
-                <div className="divide-border/50 flex flex-col divide-y px-2">
+                <div className="divide-border flex flex-col divide-y px-2">
                   {columnJobs.length > 0 ? (
                     columnJobs.map((job) => (
                       <JobListItem
