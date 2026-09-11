@@ -223,7 +223,7 @@ export function ProjectBrandCard({
         data-testid="project-brand-card"
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-muted-foreground/60 text-xs font-medium">
+          <h2 className="text-muted-foreground text-xs font-medium">
             {t("brand")}
           </h2>
           <DropdownMenu>

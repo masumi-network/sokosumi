@@ -57,7 +57,7 @@ export function KanbanColumn({
         {footer}
         {isEmpty && (
           <div className="flex flex-1 items-center justify-center py-8">
-            <p className="text-muted-foreground/50 text-sm">{emptyLabel}</p>
+            <p className="text-muted-foreground text-sm">{emptyLabel}</p>
           </div>
         )}
       </div>

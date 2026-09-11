@@ -45,7 +45,7 @@ export function TaskDescription({
           ) : null}
         </div>
       ) : (
-        <p className="text-muted-foreground/40 text-sm">—</p>
+        <p className="text-muted-foreground text-sm">—</p>
       )}
     </section>
   );

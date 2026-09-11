@@ -334,7 +334,7 @@ export function JobRow({
         <p
           className={cn(
             "text-muted-foreground truncate text-xs",
-            selected && "text-primary-solid-foreground/80",
+            selected && "text-primary-solid-foreground",
           )}
         >
           {formatTimeAgo(job.createdAt)}

@@ -35,7 +35,7 @@ export function ProjectBriefing({
 
   return (
     <section className="space-y-2" data-testid="project-briefing">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       {content ? (
         <div className="space-y-2">
           <div
@@ -62,7 +62,7 @@ export function ProjectBriefing({
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-muted-foreground/60 text-sm">{emptyLabel}</p>
+          <p className="text-muted-foreground text-sm">{emptyLabel}</p>
           {editHref && emptyActionLabel ? (
             <Button variant="outline" size="sm" asChild>
               <Link href={editHref}>{emptyActionLabel}</Link>

@@ -62,12 +62,12 @@ export function DriveListSkeleton({
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <Skeleton className="h-4 w-32 sm:w-48" />
-                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                <div className="text-muted-foreground flex items-center gap-3 text-xs md:hidden">
                   <Skeleton className="h-3 w-12" />
                   <Skeleton className="h-3 w-24" />
                 </div>
               </div>
-              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+              <div className="text-muted-foreground hidden shrink-0 items-center gap-3 text-xs md:flex">
                 <Skeleton className="h-3 w-12" />
                 <Skeleton className="h-3 w-24" />
               </div>

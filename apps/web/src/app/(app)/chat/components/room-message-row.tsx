@@ -393,7 +393,7 @@ function MessageQuoteBlock({
       {expanded || overflows ? (
         <button
           type="button"
-          className="text-primary hover:text-primary/80 mt-0.5 text-xs font-medium outline-none focus-visible:underline"
+          className="text-primary hover:text-primary-hover mt-0.5 text-xs font-medium outline-none focus-visible:underline"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -783,7 +783,7 @@ function ChannelMessageBody({
       {!skipBodyClamp && (expanded || overflows) ? (
         <button
           type="button"
-          className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
+          className="text-primary hover:text-primary-hover mt-1 text-xs font-medium outline-none focus-visible:underline"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -1781,7 +1781,7 @@ function OutboundPendingSpinner({ className }: { className?: string }) {
       fill="none"
       aria-hidden
       className={cn(
-        "text-muted-foreground/70 animate-outbound-pending-spin motion-reduce:animate-none",
+        "text-muted-foreground animate-outbound-pending-spin motion-reduce:animate-none",
         className,
       )}
       data-testid="outbound-delivery-pending-spinner"
@@ -1982,7 +1982,7 @@ function FailedMentionActions({
     >
       <button
         type="button"
-        className="text-primary hover:text-primary/80 font-medium"
+        className="text-primary hover:text-primary-hover font-medium"
         data-testid="coworker-mention-retry"
         onClick={onRetryMention}
       >
@@ -2018,7 +2018,7 @@ function OutboundFailedActions({
       {onRetryOutbound ? (
         <button
           type="button"
-          className="text-primary hover:text-primary/80 font-medium"
+          className="text-primary hover:text-primary-hover font-medium"
           onClick={() => onRetryOutbound(message)}
         >
           {t("Outbound.retry")}
@@ -2027,7 +2027,7 @@ function OutboundFailedActions({
       {onRemoveOutbound ? (
         <button
           type="button"
-          className="text-primary hover:text-primary/80 font-medium"
+          className="text-primary hover:text-primary-hover font-medium"
           onClick={() => onRemoveOutbound(message)}
         >
           {t("Outbound.remove")}
@@ -2094,7 +2094,7 @@ function MessageMetaFooter({
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
         <button
           type="button"
-          className="text-primary hover:text-primary/80 -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0"
+          className="text-primary hover:text-primary-hover -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0"
           onClick={() => onOpenThread(message)}
         >
           {t("Thread.replyCount", { count: message.threadReplyCount })}
