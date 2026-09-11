@@ -30,7 +30,7 @@ export function DeleteNotificationMenuItem({
   return (
     <DropdownMenuItem
       aria-label={t("delete", { message: notificationMessage })}
-      className="text-muted-foreground focus:bg-foreground/10 focus:text-foreground my-2 mr-2.5 size-7 shrink-0 justify-center p-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-has-[[data-highlighted]]/row:opacity-100"
+      className="text-muted-foreground focus:bg-quinary focus:text-foreground my-2 mr-2.5 size-7 shrink-0 justify-center p-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-has-[[data-highlighted]]/row:opacity-100"
       onSelect={(event) => {
         // The menu stays open, because one delete is rarely the only one.
         event.preventDefault();
