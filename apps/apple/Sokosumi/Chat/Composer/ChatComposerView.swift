@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
     @EnvironmentObject private var auth: AuthState
     @State private var draft: String
     @State private var filePickerPresented = false
+    @State private var drivePickerPresented = false
     @StateObject private var uploads: ComposeUploads
 
     private let savedDraft: SavedComposeDraft
@@ -67,6 +68,14 @@ import UniformTypeIdentifiers
         case let .failure(error): uploads.report(error)
         }
       }
+      .sheet(isPresented: $drivePickerPresented) {
+        DriveFilePickerView(load: { folder, query in
+          try await workspaces.driveItems(folder: folder, query: query, roomId: roomId, auth: auth)
+        }, select: { attachment in
+          guard workspaces.canAttachFiles(roomId: roomId) else { return }
+          uploads.add(attachment)
+        })
+      }
       .dropDestination(for: URL.self) { files, _ in
         guard workspaces.canAttachFiles(roomId: roomId), uploads.uploadingName == nil else { return false }
         attachFiles(files)
@@ -93,6 +102,7 @@ import UniformTypeIdentifiers
       ), submit: sendDraft, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
       if workspaces.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
+        input.attachFromDrive = { drivePickerPresented = true }
         input.attachFiles = { files in attachFiles(files) }
         input.attachImage = { data in attachImage(data) }
       }
