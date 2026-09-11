@@ -325,7 +325,6 @@ export {
   type TaskScheduleMetadataV2,
 } from "./task-schedule.js";
 export {
-  canUserTransitionTaskStatus,
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   type UserTransitionTaskStatus,

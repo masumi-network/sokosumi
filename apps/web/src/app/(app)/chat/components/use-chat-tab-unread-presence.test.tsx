@@ -190,7 +190,7 @@ describe("useChatTabUnreadPresence", () => {
           },
         });
       });
-      expect(document.title).toBe("(1) Chats");
+      expect(document.title).toBe("(2) Chats");
       expect(listRoomsMock).toHaveBeenCalledTimes(1);
       mockPathname = "/chat";
       rerender(
@@ -207,7 +207,9 @@ describe("useChatTabUnreadPresence", () => {
     },
   );
 
-  it("does not read for a control event about the open room", async () => {
+  // The open room feeds the dot like any other, so a control event about it is
+  // a reason to read.
+  it("reads for a control event about the open room", async () => {
     mockPathname = "/chat/rooms/selected";
     render(
       <AppMobileChrome>
@@ -229,7 +231,7 @@ describe("useChatTabUnreadPresence", () => {
         },
       });
     });
-    expect(listRoomsMock).not.toHaveBeenCalled();
+    expect(listRoomsMock).toHaveBeenCalled();
   });
 
   it("preserves the latest sidebar unread while the handoff read is pending", async () => {
@@ -319,7 +321,7 @@ describe("useChatTabUnreadPresence", () => {
     });
   });
 
-  it("hides unread for the active room even when that room reports attention", async () => {
+  it("shows unread for the active room when that room reports attention", async () => {
     mockPathname = "/chat/rooms/a";
     listRoomsMock.mockResolvedValue({
       ok: true,
@@ -331,7 +333,7 @@ describe("useChatTabUnreadPresence", () => {
     await waitFor(() => {
       expect(listRoomsMock).toHaveBeenCalled();
     });
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
   });
 
   it("keeps previous presence when a later poll fails", async () => {

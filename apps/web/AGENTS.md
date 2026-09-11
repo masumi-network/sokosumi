@@ -252,7 +252,7 @@ Import **pure helpers** and the **documented exceptions** above from `@sokosumi/
 5. **Locale** — `AppLocale`, `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `LOCALE_COOKIE_NAME`, `parseLocalePreference`, `resolveRequestLocale`, …
 6. **URL / file / markdown** — `file-url` helpers (`getExtensionFromUrl`, `isImageUrl`, `isUrlString`, …), IPFS helpers (`resolveIpfsOrHttpUrl`, …), markdown link extract/escape, `sanitizeFileName`
 7. **Metadata** — `getOrganizationMetadata`, `getUserMetadata`, `parseOrganizationMetadata` / `parseUserMetadata`, `buildOrganizationMetadataWith*` / `buildUserMetadataWith*`
-8. **Task pure helpers** (status **logic**, not enum maps) — `canUserTransitionTaskStatus`, `isTaskArchivableStatus`, `isTaskEditableStatus`, archive/editable status helpers
+8. **Task pure helpers** (status **logic**, not enum maps) — `userTaskStatusTransitionRequiresComment`, `isAgentOnlyTaskStatus`, `isTaskArchivableStatus`, `isTaskEditableStatus`, archive/editable status helpers
 9. **Uploads & org logo** — user-upload content-type/path helpers, `ORGANIZATION_LOGO_*` constants
 10. **Realtime / chat helpers** — Ably channel name builders, `isChatUiProviderReasoningPartType`, OpenRouter react-envelope helpers
 11. **Masumi payment-protocol bridges** — `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus` **only** when transforming Masumi purchaser/payment responses (not as stand-ins for Core job DTOs)

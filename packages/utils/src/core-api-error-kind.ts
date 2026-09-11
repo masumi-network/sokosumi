@@ -28,6 +28,7 @@ export const CORE_API_ERROR_KINDS = {
   IDEMPOTENCY_CONFLICT: "idempotency_conflict",
   SCHEDULE_QUARANTINED: "schedule_quarantined",
   SCHEDULE_QUARANTINE_CONFLICT: "schedule_quarantine_conflict",
+  QUEUED_REQUIRES_SCHEDULE: "queued_requires_schedule",
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",
   CHANNEL_SLUG_TAKEN: "channel_slug_taken",
 } as const;
