@@ -36,7 +36,7 @@ export function DeleteNotificationButton({
       variant="ghost"
       size="icon"
       aria-label={t("delete", { message: notificationMessage })}
-      className="text-muted-foreground size-7 shrink-0"
+      className="text-muted-foreground size-7 shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-100 [@media(hover:hover)]:group-focus-within/row:opacity-100"
       onClick={handleClick}
     >
       <X className="size-4" />
