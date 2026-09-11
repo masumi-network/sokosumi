@@ -195,7 +195,8 @@ export function NotificationDropdownContent({
         className="mx-2 my-2"
         onNavigate={onClose}
       />
-      <div className="-mx-1 max-h-96 overflow-y-auto">
+      {/* Pulled onto the separators, so the first and last row tint edge to edge. */}
+      <div className="-mx-1 -my-1 max-h-96 overflow-y-auto">
         {notifications.map((notification) => (
           <NotificationItem
             key={notification.id}
