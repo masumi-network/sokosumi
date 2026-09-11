@@ -151,7 +151,7 @@ function RailItemSkeleton({ className }: { className?: string }) {
 
 function OfferCardSkeleton() {
   return (
-    <div className="bg-card border-border/60 flex flex-col overflow-hidden rounded-2xl border">
+    <div className="bg-card border-border flex flex-col overflow-hidden rounded-2xl border">
       <Skeleton className="aspect-[16/10] w-full rounded-none border-b" />
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="space-y-2">
