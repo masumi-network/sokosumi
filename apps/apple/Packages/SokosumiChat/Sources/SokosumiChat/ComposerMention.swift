@@ -40,7 +40,7 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
     return everyone + humans + coworkers + assistants
   }
 
-  /// Resolve both ID:slug tokens and legacy @name text as the web composer does.
+  /// Resolve ID-only tokens, existing ID:slug tokens, and legacy @name text.
   public static func selected(in text: String, catalog: [Self]) -> [Self] {
     guard let expression = try? NSRegularExpression(pattern: "@([^\\s:,.!?;()\\[\\]{}]+)(?::([^\\s]+))?") else { return [] }
     let source = text as NSString

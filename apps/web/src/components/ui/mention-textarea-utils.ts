@@ -73,13 +73,13 @@ export function filterNormalizedMentions<TData = unknown>(
 
   for (const mention of items) {
     const value = mention.value.toLowerCase();
-    const slug = (mention.searchText ?? mention.slug).toLowerCase();
+    const searchText = (mention.searchText ?? mention.slug).toLowerCase();
 
-    if (value.startsWith(q) || slug.startsWith(q)) {
+    if (value.startsWith(q) || searchText.startsWith(q)) {
       prefixMatches.push(mention);
       continue;
     }
-    if (value.includes(q) || slug.includes(q)) {
+    if (value.includes(q) || searchText.includes(q)) {
       includesMatches.push(mention);
     }
   }
