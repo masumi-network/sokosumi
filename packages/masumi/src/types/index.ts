@@ -1,2 +1,2 @@
-export * from "./agent.js";
-export * from "./input-types.js";
+export type { Agent } from "./agent.js";
+export { InputFormat, InputType, InputValidation } from "./input-types.js";
