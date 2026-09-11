@@ -119,7 +119,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Source folder not found");
     }
 
-    // Check if target folder prefix already has blobs (conflict)
     const targetCheck = await list({
       prefix: newPrefix,
       token,
@@ -138,10 +137,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!(error instanceof BlobNotFoundError)) {
         throw error;
       }
-      // File doesn't exist, proceed
     }
 
-    // Reject renaming a folder into its own descendant
     if (
       newPrefix === oldPrefix ||
       newPrefix.startsWith(`${oldPrefix}`) // oldPrefix already ends with /
@@ -193,17 +190,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         try {
           const targetCheck = await head(newPathname, { token });
           if (targetCheck) {
-            // Already exists at target, skip
             return;
           }
         } catch (error) {
           if (!(error instanceof BlobNotFoundError)) {
             throw error;
           }
-          // Target doesn't exist, proceed with rename
         }
 
-        // Get source metadata
         let sourceMetadata;
         try {
           sourceMetadata = await head(sourcePathname, { token });
@@ -215,7 +209,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw error;
         }
 
-        // Rename
         const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
         try {
           await rename(sourcePathname, newPathname, {

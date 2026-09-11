@@ -97,7 +97,7 @@ export function DirectRoomAvatarStack({
       {participants.map((participant, index) => {
         // Soko bots are AI too, so they report always-online like coworkers
         // (ADR-0003). Miss the second arm and the row says "Offline" while the
-        // hover card on the same avatar says "Online".
+        // mark on the same avatar's hover card says "Online".
         const isAi =
           participant.kind === "coworker" || participant.kind === "sokoBot";
 

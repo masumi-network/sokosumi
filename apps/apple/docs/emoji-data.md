@@ -18,7 +18,7 @@ resolves the data through web's actual dependency graph, checks the approved
 source versions, preserves order, copies notices and prints output hashes.
 Review version changes separately before changing the version guards.
 
-Swift conversion is intentionally not implemented in this prerequisite PR.
+Swift conversion was intentionally not implemented in this prerequisite.
 Shortcode matching must be case-sensitive, unknown values must remain literal,
 and emoticon group order must be preserved. Conversion belongs on Markdown text
 nodes, never source code or link destinations. Raw-message jumbo sizing remains

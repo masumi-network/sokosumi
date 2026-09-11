@@ -43,7 +43,7 @@ function deps(
 }
 
 describe("performRoomNotificationJump", () => {
-  it("skips the lookup when the message is already on screen", async () => {
+  it("skips the lookup when the message is already in the transcript", async () => {
     const d = deps({ highlight: vi.fn(() => true) });
 
     await performRoomNotificationJump("msg-1", d);

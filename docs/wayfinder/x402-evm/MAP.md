@@ -44,5 +44,6 @@ implementation is a separate effort fed by its spec.
 - **Code changes in masumi-registry-service or the payment node** — external
   repos.
 - **Human-coworker task assignment** (Patrick's aside) — separate effort.
-- **End-user visibility or hireability of Bazaar agents** — PR 1 is API-only
-  by explicit product call; the catalog and hire flows do not change.
+- **End-user hireability of Bazaar agents** — PR 1 is API-only by explicit
+  product call; app Hire stays off. Catalog browse was restored (ADR-0024);
+  that does not add in-app x402 hire or pay.
