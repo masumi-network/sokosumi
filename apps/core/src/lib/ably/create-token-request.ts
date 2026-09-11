@@ -28,24 +28,6 @@ export interface CreateAblyClientTokenRequestInput {
   clientInstanceId: string;
 }
 
-/**
- * Mint an Ably TokenRequest for Realtime (subscribe + org presence).
- * clientId is `{userId}:{clientInstanceId}` so multi-device presence aggregates.
- */
-export async function createAblySubscribeTokenRequest(
-  userId: string,
-  roomIds: readonly string[],
-  organizationIds: readonly string[] = [],
-  clientInstanceId = "default00",
-): Promise<TokenRequest> {
-  return createAblyClientTokenRequest({
-    userId,
-    roomIds,
-    organizationIds,
-    clientInstanceId,
-  });
-}
-
 export async function createAblyClientTokenRequest({
   userId,
   roomIds,

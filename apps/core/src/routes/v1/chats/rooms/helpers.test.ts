@@ -8,7 +8,6 @@ import {
   buildDirectCoworkerRoomKey,
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
-  buildDirectRoomName,
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
@@ -214,6 +213,26 @@ describe("resolveMentionedUserIds", () => {
     ).toEqual(["user_alice", "user_bob"]);
   });
 
+  it("resolves ID-only @userId tokens without explicitUserIds", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "please sync with @user_alice",
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual(["user_alice"]);
+  });
+
+  it("resolves ID-only tokens followed by a comma", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "hey @user_alice, can you look?",
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual(["user_alice"]);
+  });
+
   it("expands @all:all to all room users except the author", () => {
     expect(
       resolveMentionedUserIds({
@@ -404,18 +423,6 @@ describe("buildDirectRoomKey", () => {
       }),
     ).toBe(
       "direct:v2:sokoBot:01960001-0001-7001-8001-000000000099:user:user_a:user:user_b",
-    );
-  });
-});
-
-describe("buildDirectRoomName", () => {
-  it("formats short direct message names", () => {
-    expect(buildDirectRoomName(["Andreas", "Elena"])).toBe("Andreas, Elena");
-  });
-
-  it("compacts long direct message names", () => {
-    expect(buildDirectRoomName(["Andreas", "Elena", "Hannah", "Alex"])).toBe(
-      "Andreas, Elena, Hannah and 1 more",
     );
   });
 });

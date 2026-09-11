@@ -13,16 +13,20 @@ import {
   listRoomMessagesAction,
   listThreadMessagesAction,
 } from "@/app/chat/actions";
-import { highlightRoomMessageElement } from "@/app/chat/components/room-helpers";
 import { mergeRoomMessages } from "@/app/chat/utils/merge-room-messages";
 import {
   createRoomJumpState,
   startRoomJump,
 } from "@/app/chat/utils/room-jump-hold";
+import {
+  highlightRoomTranscriptMessage,
+  highlightThreadMessage,
+} from "@/app/chat/utils/room-message-highlight";
 import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
 import {
   performRoomSearchJump,
   waitForSearchJumpPaint,
+  waitForThreadJumpPaint,
 } from "@/app/chat/utils/room-search-jump";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
@@ -101,8 +105,13 @@ export function useRoomMessageJumps({
       releaseHoldOffBottom,
       // Guarded because a superseded jump reaching this would scroll the
       // reader off the message a later click has already put them on.
-      highlight: (id) => isNewestJump() && highlightRoomMessageElement(id),
-      afterRender: waitForSearchJumpPaint,
+      //
+      // Scoped to the thread, which is the list this hit lives in: the jump
+      // reaches here only for a reply, and a reply is never on the room
+      // timeline.
+      highlightInThread: (id) => isNewestJump() && highlightThreadMessage(id),
+      afterThreadRender: waitForThreadJumpPaint,
+      afterRoomRender: waitForSearchJumpPaint,
       loadAroundInRoom: async (aroundId) => {
         const result = await listRoomMessagesAction(roomId, {
           around: aroundId,
@@ -159,7 +168,20 @@ export function useRoomMessageJumps({
         }
         return result.value.parentMessage;
       },
+      // Opened even when the panel already shows this thread, which costs a
+      // blank list and a refetch. Skipping it would also skip the load
+      // generation it bumps, and a reply list still in flight from the first
+      // click would then land on top of the window this jump loads and leave
+      // the thread flagged historical.
       openThread: handleOpenThreadFromMessage,
+      // Guarded like the highlight above it: a superseded jump moving the
+      // transcript would drag the reader off what a later click put them on.
+      //
+      // Answers for the transcript alone. An open thread renders its parent
+      // too, and taking that copy for a landing would end a jump with the
+      // transcript never moved.
+      highlightInRoom: (id) =>
+        isNewestJump() && highlightRoomTranscriptMessage(id),
       loadAroundInThread: async (parentId, aroundId) => {
         const result = await listThreadMessagesAction(roomId, parentId, {
           around: aroundId,
@@ -207,7 +229,12 @@ export function useRoomMessageJumps({
       // always the newest, and once after the window loads, where it may not
       // be. Scrolling then would drag the reader off the message a later
       // click has already put them on.
-      highlight: (id) => isNewestJump() && highlightRoomMessageElement(id),
+      //
+      // Scoped to the transcript, which is the list this jump moves. An open
+      // thread renders its parent as well, so a document-wide lookup would
+      // answer from the panel for a message the transcript has not loaded and
+      // end the jump with the transcript untouched.
+      highlight: (id) => isNewestJump() && highlightRoomTranscriptMessage(id),
       holdOffBottom,
       releaseHoldOffBottom,
       loadAround: async (aroundId) => {

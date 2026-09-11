@@ -179,10 +179,6 @@ export const jobInclude = {
   ...jobWithShare,
 } as const;
 
-export const jobOrderBy = {
-  createdAt: "desc",
-} as const;
-
 export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;

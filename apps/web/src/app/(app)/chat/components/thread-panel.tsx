@@ -4,6 +4,7 @@ import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
+import { CHAT_MESSAGE_LIST_THREAD } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
@@ -252,6 +253,11 @@ export function ThreadPanel({
         <div ref={scrollerRef} className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
           <div
             ref={contentRef}
+            // A jump can land in a thread too, so the spotlight in globals.css
+            // scopes to this list the same way it does the room transcript.
+            // Named so a room-scoped lookup does not find this copy of a
+            // message id the transcript also renders.
+            data-chat-message-list={CHAT_MESSAGE_LIST_THREAD}
             className="flex min-w-0 w-full flex-col justify-end px-4 pt-4 pb-0"
             style={
               contentMinHeight != null

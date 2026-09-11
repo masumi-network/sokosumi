@@ -6,7 +6,35 @@
 
 **Stack**: One Xcode project (`Sokosumi.xcodeproj`, product `Sokosumi`), macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (portable Ably connection, token source, room subscriptions), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (portable Ably connection, token source, room subscriptions), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
+
+## Source navigation
+
+The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-synchronized groups. Add Swift files to the owning folder; do not add parallel virtual groups or manual build-file entries.
+
+- `App/`: app scenes, `ChatRootView` and endpoint configuration.
+- `Authentication/`: sign-in presentation, app OAuth configuration and system-browser adapter.
+- `Packages/SokosumiWorkspace/`: shared workspace, room and realtime coordination; thread orchestration is in `WorkspaceState+Threads.swift`.
+- `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels.
+- `Chat/Timeline/`: room scrolling, message rows and timeline status rows.
+- `Chat/Threads/`: reply-thread presentation.
+- `Chat/Composer/`: draft-owning composer and isolated native text input.
+- `Chat/Rendering/`: Markdown, code, expansion and coworker thought presentation.
+- `Shared/`: reusable participant avatar view. Avatar networking remains in `SokosumiChat`.
+- `Settings/`: Settings scene content.
+
+`SokosumiTests/` mirrors the relevant feature folders. Shared packages keep their existing platform-agnostic ownership. Name files after their main type; use role-specific names rather than generic `ContentView` or helper buckets. Extract independent views without changing their state identity or widening private orchestration state just to shorten a file.
+
+## Ownership rules
+
+Read [README.md](README.md#architecture-and-navigation) for the dependency map and source navigation. Keep it synchronized with ownership and setup changes; keep live feature/PR status only in `PARITY.md`.
+
+- Views own layout, focus, hover and transient editing state. Dispatch chat actions through the coordinator; do not add HTTP requests or token handling to views.
+- `WorkspaceState` composes package lifecycles. Reusable room/thread behavior belongs in `SokosumiChat`, auth in `SokosumiAuth`, and socket transport in `SokosumiRealtime`. The coordinator lives in `SokosumiWorkspace`; inject app configuration through its client provider rather than importing the app target or putting orchestration in a transport package.
+- Preserve app-owned auth/workspace objects, per-window visibility identities and per-room/thread draft identities during extraction. Do not recreate these objects in child views.
+- Keep cancellation and generation guards with the operation they protect. Do not widen private access merely to split an extension into another file.
+- Package code must never import the app target or UI frameworks. Parsing produces portable models; SwiftUI rendering consumes them.
+- For structural changes, run the same app/affected-package tests before and after. Verify the diff for changed defaults, state lifetime, async ordering, access control and generated/project configuration.
 
 ## App-Specific Conventions
 
@@ -36,6 +64,7 @@ swift test --package-path Packages/SokosumiChat   # per-package tests
 swift test --package-path Packages/SokosumiAuth
 swift test --package-path Packages/CoreAPI
 swift test --package-path Packages/SokosumiRealtime
+swift test --package-path Packages/SokosumiWorkspace
 ```
 
 No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding CI steps.

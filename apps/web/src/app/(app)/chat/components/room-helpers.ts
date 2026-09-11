@@ -149,6 +149,7 @@ export function composerMentionDisplayNames({
 
 /** Shared mention-picker payload for humans, coworkers, PAs, and synthetic @all. */
 export interface RoomMentionParticipant {
+  email?: string;
   kind: "human" | "coworker" | "sokoBot" | "all";
   id: string;
   name: string;
@@ -396,31 +397,6 @@ export function scrollToRoomMessageElement(
     behavior: options?.behavior ?? "smooth",
     block: "center",
   });
-  return true;
-}
-
-const ROOM_MESSAGE_HIGHLIGHT_MS = 2500;
-
-/**
- * Scroll into view and mark the row as landed for a moment when the node
- * exists. The row styles the mark itself, off `data-search-landed`, so a
- * React re-render inside that moment cannot wipe it, as it would a class
- * added here.
- */
-export function highlightRoomMessageElement(messageId: string): boolean {
-  if (!scrollToRoomMessageElement(messageId, { behavior: "auto" })) {
-    return false;
-  }
-  const target = document.querySelector<HTMLElement>(
-    `[data-message-id="${CSS.escape(messageId)}"]`,
-  );
-  if (!target) {
-    return false;
-  }
-  target.dataset.searchLanded = "true";
-  window.setTimeout(() => {
-    delete target.dataset.searchLanded;
-  }, ROOM_MESSAGE_HIGHLIGHT_MS);
   return true;
 }
 

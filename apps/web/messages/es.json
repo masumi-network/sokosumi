@@ -1824,34 +1824,22 @@
         "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
-        "chooseAgent": "Elige tu agente",
-        "chooseAgentDescription": "Elige quién debe gestionar esta tarea — compara su modelo, alojamiento y capacidades.",
         "defaultBadge": "Predeterminado",
         "modelLabel": "Modelo",
         "hostingLabel": "Alojado en",
-        "examplesTitle": "Qué puede hacer {name}",
-        "continue": "Continuar",
         "taskStepTitle": "¿Qué debe hacer {name}?",
-        "previousAgent": "Agente anterior",
-        "nextAgent": "Agente siguiente",
-        "searchAgents": "Buscar agentes…",
         "noAgentsFound": "No se encontraron agentes.",
-        "askPrompt": "Pide a {name} que…",
-        "promptHint": "Haz clic en un ejemplo para empezar o escribe tus propias instrucciones.",
         "tasksTitle": "Tareas listas para ejecutar",
         "startFromScratch": "Empezar desde cero",
         "startFromScratchHint": "Escribe tus propias instrucciones",
         "previewExample": "Ver ejemplo",
         "previewUse": "Usar esta tarea",
         "previewEmpty": "Aún no hay salida de ejemplo disponible.",
-        "allCompanies": "Todos",
         "taskCreated": "Tarea creada",
         "taskCreatedHint": "Todo está configurado y listo.",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
-        "close": "Cerrar",
-        "unassigned": "Sin asignar",
-        "unassignedDescription": "Dejar el trabajo listo para que cualquiera lo tome"
+        "close": "Cerrar"
       },
       "EditTask": {
         "title": "Editar Task",
@@ -1882,8 +1870,7 @@
         "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
-        "unassigned": "Sin asignar",
-        "unassignedDescription": "Dejar el trabajo listo para que cualquiera lo tome"
+        "unassigned": "Sin asignar"
       },
       "Schedule": {
         "title": "Programación",
@@ -5117,7 +5104,6 @@
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Asistente personal",
-      "humanBadge": "Humano",
       "openDirectMessage": "Mensaje",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
@@ -5394,6 +5380,10 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
         "unreadMessagesCapped": "Más de {max} mensajes no leídos"
+      },
+      "RoomMentions": {
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
+        "mentionsCapped": "Más de {max} menciones"
       },
       "MembershipStatus": {
         "joined": "{name} se unió",

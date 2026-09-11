@@ -16,7 +16,9 @@ const getNotificationsUnreadCountMock = vi.fn();
 const useNotificationRealtimeMock = vi.fn();
 
 const lazyAblyProviderMock = vi.fn(
-  ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
+  ({ children }: { children: ReactNode }): ReactNode => (
+    <div data-testid="lazy-ably-island">{children}</div>
+  ),
 );
 
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
@@ -56,6 +58,12 @@ vi.mock("@/app/components/notification-toast-listener", () => ({
     userId: string;
     markRead: (id: string) => Promise<void>;
   }) => <div data-testid="notification-toast-listener">{userId}</div>,
+}));
+
+vi.mock("@/app/components/notification-url-target-opener", () => ({
+  NotificationUrlTargetOpener: (_props: {
+    markRead: (id: string) => Promise<void>;
+  }) => <div data-testid="notification-url-target-opener" />,
 }));
 
 let currentNotifications: ReturnType<typeof useNotifications>;
@@ -120,7 +128,9 @@ describe("NotificationProvider island", () => {
     useNotificationRealtimeMock.mockReset();
     lazyAblyProviderMock.mockReset();
     lazyAblyProviderMock.mockImplementation(
-      ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
+      ({ children }: { children: ReactNode }): ReactNode => (
+        <div data-testid="lazy-ably-island">{children}</div>
+      ),
     );
 
     deleteNotificationMock.mockReset();
@@ -172,6 +182,13 @@ describe("NotificationProvider island", () => {
       "user-1",
     );
     expect(useNotificationRealtimeMock).toHaveBeenCalled();
+
+    // Outside the island, unlike the two above. A window the push worker
+    // opened carries its target on the URL, and spending that must not wait
+    // on the Ably chunk to load or on a client that may never start.
+    const opener = screen.getByTestId("notification-url-target-opener");
+    expect(opener).toBeInTheDocument();
+    expect(screen.getByTestId("lazy-ably-island").contains(opener)).toBe(false);
 
     await act(async () => {
       await Promise.resolve();

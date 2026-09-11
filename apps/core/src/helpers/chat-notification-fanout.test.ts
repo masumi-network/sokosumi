@@ -15,6 +15,8 @@ const {
   captureExceptionMock,
   transactionMock,
   queryRawMock,
+  loadChatMentionNamesMock,
+  loadDirectRoomNamesByReaderMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
@@ -29,6 +31,8 @@ const {
   captureExceptionMock: vi.fn(),
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
+  loadChatMentionNamesMock: vi.fn(),
+  loadDirectRoomNamesByReaderMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -57,6 +61,16 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: notificationFindUniqueMock,
     },
   },
+}));
+
+vi.mock("@/helpers/chat-direct-room-names", () => ({
+  loadDirectRoomNamesByReader: (...args: unknown[]) =>
+    loadDirectRoomNamesByReaderMock(...args),
+}));
+
+vi.mock("@/helpers/chat-mention-names", () => ({
+  loadChatMentionNames: (...args: unknown[]) =>
+    loadChatMentionNamesMock(...args),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -123,6 +137,8 @@ beforeEach(() => {
   notificationUpdateManyMock.mockResolvedValue({ count: 1 });
   notificationFindUniqueMock.mockResolvedValue({ id: "notification_1" });
   resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: false });
+  loadChatMentionNamesMock.mockResolvedValue(new Map());
+  loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
 });
 
 /** A row the reader already has for this room, unread and shown in the app. */
@@ -144,6 +160,64 @@ function unreadRow(
 }
 
 describe("fanOutChatNotifications", () => {
+  it("names a direct room the way each reader's own screen names it", async () => {
+    loadDirectRoomNamesByReaderMock.mockResolvedValue(
+      new Map([
+        [ALICE_ID, "Bob, Patrick"],
+        [BOB_ID, "Alice, Patrick"],
+      ]),
+    );
+
+    await fanOutChatNotifications(
+      params({
+        roomKind: "direct",
+        roomName: "Alice, Bob",
+        recipientUserIds: [ALICE_ID, BOB_ID],
+        messageKey: "Notifications.Chat.mentioned",
+      }),
+    );
+
+    expect(loadDirectRoomNamesByReaderMock).toHaveBeenCalledTimes(1);
+    expect(loadDirectRoomNamesByReaderMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      readerUserIds: [ALICE_ID, BOB_ID],
+    });
+    const roomNames = createNotificationMock.mock.calls.map(
+      ([input]) => [input.userId, input.messageParams.roomName] as const,
+    );
+    expect(roomNames).toEqual([
+      [ALICE_ID, "Bob, Patrick"],
+      [BOB_ID, "Alice, Patrick"],
+    ]);
+  });
+
+  it("keeps the stored name for a room that is not direct", async () => {
+    await fanOutChatNotifications(params({ roomKind: "channel" }));
+
+    expect(loadDirectRoomNamesByReaderMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({ roomName: "general" }),
+      }),
+    );
+  });
+
+  /**
+   * A reader the roster no longer names still gets the notification. The
+   * stored name is wrong for them, and wrong reads better than absent.
+   */
+  it("falls back to the stored name when the reader has none", async () => {
+    loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
+
+    await fanOutChatNotifications(params({ roomKind: "direct" }));
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({ roomName: "general" }),
+      }),
+    );
+  });
+
   it("writes one notification per recipient under the given message key", async () => {
     await fanOutChatNotifications(
       params({ recipientUserIds: [ALICE_ID, BOB_ID] }),
@@ -266,6 +340,33 @@ describe("fanOutChatNotifications", () => {
         }),
       );
     }
+  });
+
+  /**
+   * The slug in a token is a rewrite of a name, and a rewrite of a name that
+   * keeps no ascii is nothing at all. The room shows the member's name, so a
+   * banner for the same message has to show it too.
+   */
+  it("shows a mention as the name the room shows for that member", async () => {
+    const content = "@019fc7e4-e4bd-7005-900c-66e44d33f5e4: できますか";
+    messageSays(content);
+    loadChatMentionNamesMock.mockResolvedValue(
+      new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "あかり"]]),
+    );
+
+    await fanOutChatNotifications(params({ content }));
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      content,
+    });
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({
+          messagePreview: "@あかり できますか",
+        }),
+      }),
+    );
   });
 
   it("names the file when the message is only a file", async () => {
@@ -747,6 +848,89 @@ describe("rewriteChatNotificationPreviews", () => {
       isGroup: true,
       count: 4,
     });
+  });
+
+  /**
+   * A rewrite runs inside the transaction that holds the message, so the names
+   * are read on that client too. Reading them on another would step outside
+   * the lock this rewrite took.
+   */
+  it("shows a mention as a name on a row it rewrites", async () => {
+    notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+    loadChatMentionNamesMock.mockResolvedValue(
+      new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+    );
+
+    messageSays("@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping");
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        content: "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping",
+        client: expect.anything(),
+      }),
+    );
+    expect(paramsWrittenTo(0)).toEqual({
+      authorName: "Ada",
+      roomName: "general",
+      messagePreview: "@Ada Lovelace ping",
+    });
+  });
+
+  /**
+   * Every row of one message shows the same preview, so the members it
+   * mentions are read once for the sweep rather than once per reader.
+   */
+  it("reads the mentioned members once for a message, not once per row", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      storedRow(BASE),
+      storedRow(BASE),
+      storedRow(BASE),
+    ]);
+    loadChatMentionNamesMock.mockResolvedValue(
+      new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Ada Lovelace"]]),
+    );
+
+    messageSays("@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping");
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledTimes(1);
+    expect(paramsWrittenTo(2)).toEqual({
+      authorName: "Ada",
+      roomName: "general",
+      messagePreview: "@Ada Lovelace ping",
+    });
+  });
+
+  /** An edit landing mid-sweep is a different body, so it is read again. */
+  it("reads the members again when the message changes mid-sweep", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      storedRow(BASE),
+      storedRow(BASE),
+    ]);
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        deletedAt: null,
+        content: "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace ping",
+      })
+      .mockResolvedValue({
+        deletedAt: null,
+        content: "@019fc7e4-e4bd-7005-900c-66e44d33f5e5:ben-green ping",
+      });
+
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    expect(loadChatMentionNamesMock).toHaveBeenCalledTimes(2);
   });
 
   it("puts what the message now says on the row when it is edited", async () => {

@@ -906,3 +906,157 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
     color: var(--foreground);
   }
 }
+
+/* Chat jump highlight — a search hit, notification deep link, or reply jump
+   landed on this message. The hold sits on the list so the marked row and the
+   rows stepping back for it run off one clock. Keep it in sync with
+   ROOM_MESSAGE_HIGHLIGHT_MS in
+   apps/web/src/app/(app)/chat/utils/room-message-highlight.ts, which removes
+   the mark when it ends. */
+[data-chat-message-list] {
+  --chat-jump-hold: 4500ms;
+  --chat-jump-dim-opacity: 0.5;
+  --chat-jump-dim-blur: 1.5px;
+}
+
+/* Dark needs more of both: pulling opacity down on a dark ground takes far
+   less contrast out of the text than the same drop does on white, so the same
+   numbers read as almost no change. */
+.dark [data-chat-message-list] {
+  --chat-jump-dim-opacity: 0.36;
+  --chat-jump-dim-blur: 2.5px;
+}
+
+[data-message-id][data-search-landed="true"] {
+  /* Dark runs stronger: a light primary over a 4% ground lifts far less than
+     the same mix of a saturated primary over white. */
+  --chat-jump-wash-lead: 16%;
+  --chat-jump-wash-mid: 11%;
+  --chat-jump-wash-edge: 10%;
+}
+
+.dark [data-message-id][data-search-landed="true"] {
+  --chat-jump-wash-lead: 26%;
+  --chat-jump-wash-mid: 20%;
+  --chat-jump-wash-edge: 18%;
+}
+
+/* Wash: tint holds its strength all the way to the right edge so a wide row
+   stays marked instead of trailing off. Opens from the centre. */
+[data-message-id][data-search-landed="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    color-mix(in oklch, var(--primary) var(--chat-jump-wash-lead), transparent)
+      0%,
+    color-mix(in oklch, var(--primary) var(--chat-jump-wash-mid), transparent)
+      45%,
+    color-mix(in oklch, var(--primary) var(--chat-jump-wash-edge), transparent)
+      100%
+  );
+  animation: chat-jump-wash var(--chat-jump-hold) ease-out forwards;
+}
+
+/* Rail: marks where the row starts. */
+[data-message-id][data-search-landed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 0.1875rem;
+  bottom: 0.1875rem;
+  left: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--primary);
+  pointer-events: none;
+  animation: chat-jump-rail var(--chat-jump-hold) ease-out forwards;
+}
+
+/* Spotlight: the rest of the transcript steps back while the hold lasts. It
+   runs on the same timeline as the mark, so the dim never outlives it. */
+[data-chat-message-list]:has([data-search-landed="true"])
+[data-message-id]:not([data-search-landed="true"]) {
+  animation: chat-jump-dim var(--chat-jump-hold) ease-out forwards;
+}
+
+@keyframes chat-jump-wash {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.55);
+  }
+  10% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  76% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+/* Blur carries the step-back where opacity alone is weak. It reads as depth
+   rather than as faded text, so the marked row stands out in either theme. */
+@keyframes chat-jump-dim {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  10% {
+    opacity: var(--chat-jump-dim-opacity);
+    filter: blur(var(--chat-jump-dim-blur));
+  }
+  76% {
+    opacity: var(--chat-jump-dim-opacity);
+    filter: blur(var(--chat-jump-dim-blur));
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes chat-jump-rail {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.15);
+  }
+  10% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  76% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+/* Reduced motion: hold the mark steady, then drop it. No wipe, no fade, and
+   no spotlight — dimming the surrounding text would take it under the contrast
+   floor for the whole hold, which the rail and wash already do without. */
+@media (prefers-reduced-motion: reduce) {
+  [data-message-id][data-search-landed="true"]::before,
+  [data-message-id][data-search-landed="true"]::after {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-chat-message-list]:has([data-search-landed="true"])
+    [data-message-id]:not([data-search-landed="true"]) {
+    animation: none;
+    opacity: 1;
+    filter: none;
+  }
+}

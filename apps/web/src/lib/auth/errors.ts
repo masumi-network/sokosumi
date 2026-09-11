@@ -27,12 +27,6 @@ export class UnAuthenticatedError extends Error {
   }
 }
 
-export function isUnAuthenticatedError(
-  error: unknown,
-): error is UnAuthenticatedError {
-  return error instanceof UnAuthenticatedError;
-}
-
 export class AdminAccessRequiredError extends Error {
   constructor(message = "Admin access required") {
     super(message);

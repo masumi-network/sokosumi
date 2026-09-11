@@ -14,7 +14,12 @@ export type RoomNotificationLookup =
   | { status: "unavailable" };
 
 export interface RoomNotificationJumpDeps {
-  /** True when the message is already rendered, which saves the lookup. */
+  /**
+   * True when the message is already in the room transcript, which saves the
+   * lookup. Scoped to the transcript on purpose: a reply is rendered in the
+   * thread panel, and answering for it there would end the jump with the
+   * transcript still sitting on the newest message.
+   */
   highlight: (messageId: string) => boolean;
   loadMessage: (messageId: string) => Promise<RoomNotificationLookup>;
   jumpInRoom: (messageId: string) => Promise<void>;
@@ -29,8 +34,10 @@ export interface RoomNotificationJumpDeps {
  * not name. So the message is read first, and where it turns out to live
  * decides which jump runs.
  *
- * The read is skipped when the message is already on screen, which is the
- * common case for a room the reader is looking at.
+ * The read is skipped when the message is already in the room transcript,
+ * which is the common case for a room the reader is looking at. A reply does
+ * not answer it, even when its thread is open on screen, because the room
+ * behind that thread still has to be put on the parent.
  *
  * A message the reader cannot read stops the jump and nothing else. Usually
  * that leaves them in the room the notification's own link opened, and asking

@@ -16,7 +16,7 @@ export default async function AppShellOverlays() {
   await connection();
   const pendingNoticesResult = await getPendingNoticesAction();
   const pendingNotices = pendingNoticesResult.ok
-    ? pendingNoticesResult.data
+    ? pendingNoticesResult.value
     : [];
   const legalNotices = pendingNotices.filter(
     (notice: Notice) => notice.kind === NoticeKind.LEGAL_TERMS,

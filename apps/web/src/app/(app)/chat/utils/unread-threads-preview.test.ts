@@ -19,6 +19,15 @@ describe("formatUnreadThreadsPreview", () => {
     ).toBe("@noodles Hello Noodles");
   });
 
+  it("names a mentioned member when the room's roster is given", () => {
+    expect(
+      formatUnreadThreadsPreview(
+        "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:noodles Hello",
+        new Map([["019fc7e4-e4bd-7005-900c-66e44d33f5e4", "Noodle Chef"]]),
+      ),
+    ).toBe("@Noodle Chef Hello");
+  });
+
   it("renders @all:all as @all", () => {
     expect(formatUnreadThreadsPreview("ping @all:all please")).toBe(
       "ping @all please",

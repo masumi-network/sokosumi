@@ -18,12 +18,14 @@ import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Task } from "@/lib/clients/generated/core";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
+import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { listTaskAssigneeMemberOptions } from "./utils/task-assignee-members";
+import { listTaskAssigneeOptions } from "./utils/task-assignee-options";
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 import { getTasksListPage } from "./utils/tasks-list-page";
 
@@ -265,15 +267,35 @@ export async function loadJobsTabData(
   };
 }
 
-export async function loadCreateTaskModalData() {
-  const session = await getSession();
+async function loadCreateTaskData(userId: string | null) {
   const [agents, designMdAttachment] = await Promise.all([
     agentService.getAvailableAgentsWithCreditsPrice(),
-    session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+    userId ? designMdService.resolveEffectiveDesignMd() : null,
   ]);
 
   return {
     agentNameById: Object.fromEntries(buildAgentNameById(agents)),
     designMdAttachment,
   };
+}
+
+export async function loadCreateTaskModalData() {
+  const session = await getSession();
+  return loadCreateTaskData(session?.user.id ?? null);
+}
+
+/**
+ * Everything the New Task wizard opened from the sidebar needs, in one round
+ * trip: assignees and projects of the active workspace plus the create data
+ * the modal would otherwise load itself.
+ */
+export async function loadNewTaskWizardOptions() {
+  const session = await getSession();
+  const [coworkerOptions, projectOptions, createData] = await Promise.all([
+    listTaskAssigneeOptions(session?.session.activeOrganizationId ?? null),
+    getProjectFilterOptions(),
+    loadCreateTaskData(session?.user.id ?? null),
+  ]);
+
+  return { coworkerOptions, projectOptions, ...createData };
 }

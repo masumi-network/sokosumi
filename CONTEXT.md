@@ -76,6 +76,16 @@ _Avoid_: Coworker developer (when meaning this)
 The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
 _Avoid_: Treating `/developer` as deprecated, a second CLI per persona
 
+### Tasks
+
+**Task Manager**:
+The page behind the sidebar item "Tasks": the workspace's Tasks as a board or a list, plus its Jobs.
+_Avoid_: Task board, tasks page, kanban (unless a UI label)
+
+**New Task wizard**:
+The two-step flow that creates a Task: pick a Coworker or a ready-to-run task, then compose. It opens in place over the current page; it is not a page of its own.
+_Avoid_: Task form, new task page
+
 ### Task payments
 
 **Task payment claim**:

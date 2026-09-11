@@ -2,6 +2,8 @@ import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 
+import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
+import { loadChatMentionNames } from "@/helpers/chat-mention-names";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import {
   createNotification,
@@ -14,6 +16,11 @@ import prisma from "@/lib/db/prisma";
 export interface FanOutChatNotificationsParams {
   roomId: string;
   roomName: string;
+  /**
+   * Decides whether the room is named per reader. A direct room's stored name
+   * belongs to nobody, so each reader is told the name their own screen uses.
+   */
+  roomKind?: string;
   organizationId: string | null;
   messageId: string;
   /** The room message body, which the reader is shown a preview of. */
@@ -264,11 +271,43 @@ export async function fanOutChatNotifications(
   });
 
   // Built once rather than per reader: every recipient of one message is shown
-  // the same preview, and the rule reads the whole body to get there.
+  // the same preview, and the rule reads the whole body to get there. The
+  // mentioned members are read for the same reason a banner has a preview at
+  // all: a mention has to say who, and the id in the token says it to nobody.
   const messagePreview =
     message === null || message.deletedAt !== null
       ? ""
-      : buildChatMessagePreview(params.content);
+      : buildChatMessagePreview(
+          params.content,
+          await loadChatMentionNames({
+            roomId: params.roomId,
+            content: params.content,
+          }),
+        );
+
+  // A direct room is named after who is in it, so its name differs by reader
+  // and the stored one is right for nobody. Read once for the whole fan-out.
+  //
+  // A failed read costs the readers a correct name, not the notification. The
+  // stored name is wrong for a group direct room, and wrong still says which
+  // room and who wrote; nothing at all says neither.
+  let roomNamesByReader: ReadonlyMap<string, string> | null = null;
+  if (params.roomKind === "direct") {
+    try {
+      roomNamesByReader = await loadDirectRoomNamesByReader({
+        roomId: params.roomId,
+        readerUserIds: notifyUserIds,
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        extra: {
+          roomId: params.roomId,
+          messageId: params.messageId,
+          notificationType: "chat-direct-room-name",
+        },
+      });
+    }
+  }
 
   for (const userId of notifyUserIds) {
     const input: CreateNotificationInput = {
@@ -279,7 +318,7 @@ export async function fanOutChatNotifications(
       messageKey: params.messageKey,
       messageParams: {
         authorName: params.authorName,
-        roomName: params.roomName,
+        roomName: roomNamesByReader?.get(userId) ?? params.roomName,
         ...(params.isGroup ? { isGroup: true } : {}),
         // Omitted rather than empty when the body cleans to nothing. A reader
         // is then shown the line that names the author and the room, which is
@@ -431,10 +470,46 @@ interface PreviewMessageSource {
 
 const PREVIEW_TRANSACTION_ATTEMPTS = 3;
 
+/**
+ * The names one sweep has already read, kept by the body they were read for.
+ *
+ * Every row of a message carries the same preview, so the members it mentions
+ * are the same members for each of them. Reading them per row would put three
+ * more queries inside every recipient's transaction, and a room-wide sweep
+ * would pay them once per reader for one message.
+ *
+ * Keyed by the body, because a row locks and rereads the message: an edit that
+ * lands mid-sweep gives the rows after it a different body, and that body gets
+ * its own read.
+ */
+type MentionNamesBySource = Map<string, ReadonlyMap<string, string>>;
+
+async function mentionNamesFor(
+  cache: MentionNamesBySource,
+  source: PreviewMessageSource,
+  content: string,
+  tx: Prisma.TransactionClient,
+): Promise<ReadonlyMap<string, string>> {
+  const known = cache.get(content);
+  if (known) {
+    return known;
+  }
+
+  const names = await loadChatMentionNames({
+    roomId: source.roomId,
+    content,
+    client: tx,
+  });
+  cache.set(content, names);
+
+  return names;
+}
+
 /** Lock and reread the message for one recipient, including on each retry. */
 async function rewriteRowFromMessage(
   row: RewritableRow,
   source: PreviewMessageSource,
+  names: MentionNamesBySource,
 ): Promise<void> {
   for (let attempt = 0; attempt < PREVIEW_TRANSACTION_ATTEMPTS; attempt += 1) {
     try {
@@ -451,8 +526,11 @@ async function rewriteRowFromMessage(
           where: { id: source.messageId, roomId: source.roomId },
           select: { content: true, deletedAt: true },
         });
+        const content =
+          message === null || message.deletedAt !== null ? "" : message.content;
         const preview = buildChatMessagePreview(
-          message === null || message.deletedAt !== null ? "" : message.content,
+          content,
+          await mentionNamesFor(names, source, content, tx),
         );
         await rewriteRow(row, source.messageId, preview, tx);
       });
@@ -493,9 +571,10 @@ export async function rewriteChatNotificationPreviews(
       select: { id: true, messageParams: true, metadata: true },
       orderBy: { id: "asc" },
     });
+    const names: MentionNamesBySource = new Map();
     for (const row of rows) {
       try {
-        await rewriteRowFromMessage(row, params);
+        await rewriteRowFromMessage(row, params, names);
       } catch (error) {
         Sentry.captureException(error, {
           extra: {

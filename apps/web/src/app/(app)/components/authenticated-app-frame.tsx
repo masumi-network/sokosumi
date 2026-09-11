@@ -27,6 +27,7 @@ import { AuthSessionHydrator } from "./auth-session-hydrator.client";
 import { CoreUnavailableNotice } from "./core-unavailable-notice.client";
 import Header from "./header";
 import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
+import { NewTaskWizardProvider } from "./new-task-wizard-provider";
 import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToaster } from "./notification-toaster.client";
 import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
@@ -97,48 +98,52 @@ export default async function AuthenticatedAppFrame({
                   activeOrganizationId={activeOrganizationId}
                 >
                   <BreadcrumbOverrideProvider>
-                    <PrivateCachedAppSidebar
-                      sessionUser={session.user}
-                      activeOrganizationId={activeOrganizationId}
-                      adminMenuEnabled={adminMenuEnabled}
-                      calendarMenuEnabled={calendarBetaEnabled}
-                    />
-                    <Suspense fallback={null}>
-                      <AppShellOverlays />
-                    </Suspense>
-                    <div
-                      className="flex min-w-0 flex-1 overflow-clip"
-                      data-app-content
-                    >
+                    {/* Sidebar "New Task" opens the wizard in place, so the
+                        provider wraps sidebar and content. */}
+                    <NewTaskWizardProvider>
+                      <PrivateCachedAppSidebar
+                        sessionUser={session.user}
+                        activeOrganizationId={activeOrganizationId}
+                        adminMenuEnabled={adminMenuEnabled}
+                        calendarMenuEnabled={calendarBetaEnabled}
+                      />
+                      <Suspense fallback={null}>
+                        <AppShellOverlays />
+                      </Suspense>
                       <div
-                        className="flex min-w-0 flex-1 flex-col overflow-clip"
-                        data-app-content-inner
+                        className="flex min-w-0 flex-1 overflow-clip"
+                        data-app-content
                       >
-                        <Header
-                          // Horizontal pad only on md: vertical py would fight the
-                          // shared h-16 hairline with SidebarHeader.
-                          className="px-4 py-3 md:px-4 md:py-0"
-                          session={session}
-                        />
-                        <main
-                          className={cn(
-                            "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
-                            APP_MAIN_MOBILE_PT_CLASS,
-                            APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
-                            APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
-                          )}
-                          data-app-main
+                        <div
+                          className="flex min-w-0 flex-1 flex-col overflow-clip"
+                          data-app-content-inner
                         >
-                          <EmergencyDialog />
-                          <div
-                            className="flex min-h-full flex-1 flex-col overflow-visible"
-                            data-app-main-inner
+                          <Header
+                            // Horizontal pad only on md: vertical py would fight the
+                            // shared h-16 hairline with SidebarHeader.
+                            className="px-4 py-3 md:px-4 md:py-0"
+                            session={session}
+                          />
+                          <main
+                            className={cn(
+                              "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
+                              APP_MAIN_MOBILE_PT_CLASS,
+                              APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+                              APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+                            )}
+                            data-app-main
                           >
-                            <AppMobileChrome>{children}</AppMobileChrome>
-                          </div>
-                        </main>
+                            <EmergencyDialog />
+                            <div
+                              className="flex min-h-full flex-1 flex-col overflow-visible"
+                              data-app-main-inner
+                            >
+                              <AppMobileChrome>{children}</AppMobileChrome>
+                            </div>
+                          </main>
+                        </div>
                       </div>
-                    </div>
+                    </NewTaskWizardProvider>
                   </BreadcrumbOverrideProvider>
                 </HistorySearchDialogProvider>
               </NoticeDialogProvider>

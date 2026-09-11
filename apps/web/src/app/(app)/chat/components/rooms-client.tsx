@@ -90,6 +90,7 @@ import {
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
@@ -143,7 +144,6 @@ import {
   type ChatParticipantHoverProfile,
   getRoomDisplayName,
   getRoomParticipantPreviews,
-  highlightRoomMessageElement,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -1178,9 +1178,30 @@ export function RoomsClient({
       ]),
     );
   }, [selectedRoom]);
+  /**
+   * The display name of every member of this room, by the id a mention token
+   * carries. A thread row reads a message body the same way a banner does, so
+   * it names the members the same way too.
+   */
+  const roomMentionNames = useMemo(() => {
+    return new Map<string, string>([
+      ...(selectedRoom?.userMembers ?? []).map(
+        (user) => [user.id, user.name || user.email] as const,
+      ),
+      ...(selectedRoom?.coworkerMembers ?? []).map(
+        (coworker) => [coworker.id, coworker.name] as const,
+      ),
+      ...(selectedRoom?.sokoBotMembers ?? []).map(
+        (sokoBot) => [sokoBot.id, sokoBot.name] as const,
+      ),
+    ]);
+  }, [selectedRoom]);
   const usersById = useMemo(() => {
     return new Map(
-      (selectedRoom?.userMembers ?? []).map((user) => [user.id, user]),
+      (selectedRoom?.userMembers ?? []).map((user) => [
+        user.id,
+        { ...user, name: user.name || user.email },
+      ]),
     );
   }, [selectedRoom]);
   const usersBySlug = useMemo(() => {
@@ -1200,14 +1221,16 @@ export function RoomsClient({
         const participant: RoomMentionParticipant = {
           kind: "human",
           id: user.id,
-          name: user.name,
-          slug: slugifyMentionValue(user.name),
+          name: user.name || user.email,
+          email: user.email,
+          slug: "",
           image: user.image,
         };
         return [
           user.id,
           {
-            value: user.name,
+            value: user.name || user.email,
+            searchText: user.email,
             slug: participant.slug,
             data: participant,
           },
@@ -1618,7 +1641,10 @@ export function RoomsClient({
     pathname,
     searchParams,
     replace: router.replace,
-    highlight: highlightRoomMessageElement,
+    // Scoped to the transcript. A reply rendered in the open thread panel must
+    // not answer this: it would end the jump before the room is put on the
+    // message that thread hangs off.
+    highlight: highlightRoomTranscriptMessage,
     isStillSelectedRoom,
     jumpInRoom: handleJumpToMessage,
     jumpInThread: (hit) =>
@@ -2637,6 +2663,7 @@ export function RoomsClient({
             ) : threadListOpen ? (
               <ThreadListPanel
                 roomId={selectedRoom.id}
+                mentionNames={roomMentionNames}
                 onOpenThread={handleOpenThreadFromList}
                 onClose={() => {
                   setThreadListOpen(false);

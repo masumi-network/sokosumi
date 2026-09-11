@@ -1424,6 +1424,38 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor).toHaveTextContent("ping @missing:ghost hey");
   });
 
+  it("accepts a human mention found by email using only its ID", () => {
+    const onChange = vi.fn();
+    render(
+      <ComposerWysiwygEditor
+        value=""
+        onChange={onChange}
+        mentions={{
+          user1: { value: "Anna", slug: "", searchText: "anna@example.com" },
+        }}
+      />,
+    );
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = "@example";
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    fireEvent.input(editor);
+    fireEvent.click(screen.getByRole("option", { name: /Anna/i }));
+    fireEvent.blur(editor);
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.stringContaining("@user1"),
+    );
+    expect(
+      editor
+        .querySelector("[data-mention-key='user1']")
+        ?.getAttribute("data-mention-slug"),
+    ).toBe("");
+  });
+
   it("does not list roster-only names in the mention picker", () => {
     render(
       <ComposerWysiwygEditor

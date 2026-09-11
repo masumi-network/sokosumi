@@ -7,6 +7,10 @@ import createNextIntlPlugin from "next-intl/plugin";
 import { documentSecurityHeaders } from "./src/config/document-security-headers";
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
+  PUSH_WORKER_MESSAGES_CACHE_CONTROL,
+  PUSH_WORKER_MESSAGES_PATH,
+} from "./src/config/push-worker-assets";
+import {
   getCoreRelatedProjectName,
   normalizeCoreApiBaseUrl,
   resolveCoreNetwork,
@@ -42,6 +46,15 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: documentSecurityHeaders({ includeHsts: isVercelProduction }),
+      },
+      {
+        source: PUSH_WORKER_MESSAGES_PATH,
+        headers: [
+          {
+            key: "Cache-Control",
+            value: PUSH_WORKER_MESSAGES_CACHE_CONTROL,
+          },
+        ],
       },
     ];
   },
