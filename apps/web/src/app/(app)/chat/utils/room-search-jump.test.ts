@@ -37,6 +37,7 @@ function deps(overrides: Partial<Parameters<typeof performRoomSearchJump>[1]>) {
     findLoadedParent: vi.fn(() => undefined),
     loadParent: vi.fn(async () => null),
     openThread: vi.fn(async () => true),
+    scrollInRoom: vi.fn(),
     loadAroundInThread: vi.fn(async () => false),
     ...overrides,
   };
@@ -114,6 +115,81 @@ describe("performRoomSearchJump", () => {
     expect(jump.highlight).toHaveBeenCalledWith(hit.id);
     expect(jump.releaseHoldOffBottom).toHaveBeenCalled();
     expect(jump.loadAroundInThread).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A reply lives in a thread, but the thread hangs off a message in the room
+   * transcript. Landing in the thread alone leaves the transcript behind it
+   * wherever it was, which is usually the newest message: the reader is shown
+   * a reply with no sight of what it is a reply to.
+   *
+   * Scrolled, not marked. `highlightRoomMessageElement` keeps one mark at a
+   * time (`room-helpers.ts`), so marking the parent here would be wiped by the
+   * reply's own mark a moment later, and the mark belongs to the reply anyway:
+   * it is the message the reader was sent to.
+   */
+  it("puts the room transcript on the parent as well as opening the thread", async () => {
+    const parent = message({ id: "550e8400-e29b-41d4-a716-446655440010" });
+    const hit = message({
+      id: "550e8400-e29b-41d4-a716-446655440011",
+      parentMessageId: parent.id,
+    });
+    const order: string[] = [];
+    const jump = deps({
+      findLoadedParent: vi.fn(() => parent),
+      openThread: vi.fn(async () => {
+        order.push("openThread");
+        return true;
+      }),
+      scrollInRoom: vi.fn((id: string) => {
+        order.push(`scrollInRoom:${id}`);
+      }),
+      highlight: vi.fn((id: string) => {
+        order.push(`highlight:${id}`);
+        return true;
+      }),
+    });
+
+    await performRoomSearchJump(hit, jump);
+
+    expect(jump.scrollInRoom).toHaveBeenCalledWith(parent.id);
+    // After the panel opens, or the layout shift that opening it causes would
+    // move the transcript out from under the scroll that just landed.
+    expect(order).toEqual([
+      "openThread",
+      `scrollInRoom:${parent.id}`,
+      `highlight:${hit.id}`,
+    ]);
+  });
+
+  /**
+   * The parent can sit further back than the loaded page of the transcript.
+   * Loading a window around it would swap the timeline and mark it historical
+   * (`use-room-message-jumps.ts`), which stops every later realtime message
+   * from merging. Not worth it to move a transcript the thread panel is
+   * covering, so the transcript is left where it is.
+   *
+   * Named for the room window rather than for the missing parent, because the
+   * missing parent is what `scrollInRoom` swallows and this test cannot see:
+   * what it does pin is that no fallback load was added behind it.
+   */
+  it("loads no room window for a thread jump", async () => {
+    const parent = message({ id: "550e8400-e29b-41d4-a716-446655440010" });
+    const hit = message({
+      id: "550e8400-e29b-41d4-a716-446655440011",
+      parentMessageId: parent.id,
+    });
+    const jump = deps({
+      findLoadedParent: vi.fn(() => parent),
+      highlight: vi.fn(() => true),
+    });
+
+    await performRoomSearchJump(hit, jump);
+
+    expect(jump.loadAroundInRoom).not.toHaveBeenCalled();
+    expect(jump.openThread).toHaveBeenCalledWith(parent);
+    expect(jump.highlight).toHaveBeenCalledWith(hit.id);
+    expect(jump.releaseHoldOffBottom).toHaveBeenCalled();
   });
 
   it("fetches a missing parent, opens the thread, then loads around an old reply", async () => {

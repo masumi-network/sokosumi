@@ -13,6 +13,7 @@ import {
   listRoomMessagesAction,
   listThreadMessagesAction,
 } from "@/app/chat/actions";
+import { scrollRoomTranscriptToMessage } from "@/app/chat/chat-message-list";
 import { highlightRoomMessageElement } from "@/app/chat/components/room-helpers";
 import { mergeRoomMessages } from "@/app/chat/utils/merge-room-messages";
 import {
@@ -160,6 +161,13 @@ export function useRoomMessageJumps({
         return result.value.parentMessage;
       },
       openThread: handleOpenThreadFromMessage,
+      // Guarded like the highlight above it: a superseded jump moving the
+      // transcript would drag the reader off what a later click put them on.
+      scrollInRoom: (id) => {
+        if (isNewestJump()) {
+          scrollRoomTranscriptToMessage(id);
+        }
+      },
       loadAroundInThread: async (parentId, aroundId) => {
         const result = await listThreadMessagesAction(roomId, parentId, {
           around: aroundId,

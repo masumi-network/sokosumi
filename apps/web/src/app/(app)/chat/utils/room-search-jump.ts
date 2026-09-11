@@ -9,6 +9,12 @@ export interface RoomSearchJumpDeps {
   findLoadedParent: (parentMessageId: string) => ChatRoomMessage | undefined;
   loadParent: (parentMessageId: string) => Promise<ChatRoomMessage | null>;
   openThread: (parent: ChatRoomMessage) => Promise<boolean>;
+  /**
+   * Scroll the room transcript to a message, without marking it. Does nothing
+   * when the message is not in the loaded page, and says so to nobody: there
+   * is no fallback worth running, so an answer here would only be discarded.
+   */
+  scrollInRoom: (messageId: string) => void;
   loadAroundInThread: (
     parentMessageId: string,
     aroundId: string,
@@ -82,6 +88,24 @@ export async function performRoomSearchJump(
         return;
       }
       await deps.openThread(parent);
+      // The thread the reply lives in hangs off a message in the transcript,
+      // and landing in the panel alone leaves that transcript wherever it
+      // was, which is usually the newest message. So the room is put on the
+      // parent too, and the reader can see what the reply is a reply to.
+      //
+      // After the panel opens, or the layout shift that opening it causes
+      // would move the transcript out from under a scroll that had landed.
+      //
+      // Scrolled and not marked: `highlightRoomMessageElement` keeps one mark
+      // at a time, so a mark here would be wiped by the reply's own a moment
+      // later. The mark belongs to the reply in any case, which is the
+      // message the reader was sent to.
+      //
+      // A parent further back than the loaded page is left alone. Loading a
+      // window around it swaps the timeline and marks it historical, which
+      // stops every later realtime message from merging, and that is too much
+      // to pay to move a transcript the thread panel is covering.
+      deps.scrollInRoom(parent.id);
       await deps.afterRender(hit.id);
       if (deps.highlight(hit.id)) {
         deps.releaseHoldOffBottom();
