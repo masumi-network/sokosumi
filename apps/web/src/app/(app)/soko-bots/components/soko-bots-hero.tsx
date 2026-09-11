@@ -17,11 +17,14 @@ type Member = SokoBotTeam["members"][number];
 function AvatarStack({
   avatars,
   seeds,
+  ownImage,
 }: {
   avatars: SokoBotAvatar[];
   seeds: string[];
+  /** The owner's own bot, when it has picked a face rather than an orb. */
+  ownImage: string | null;
 }) {
-  const hasFaces = avatars.length > 0 || seeds.length > 0;
+  const hasFaces = avatars.length > 0 || seeds.length > 0 || ownImage !== null;
   if (!hasFaces) return null;
   return (
     <span className="flex shrink-0 -space-x-4" aria-hidden>
@@ -42,6 +45,13 @@ function AvatarStack({
           className="size-14 sm:size-16"
         />
       ))}
+      {ownImage ? (
+        <img
+          src={ownImage}
+          alt=""
+          className="size-14 rounded-full object-cover sm:size-16"
+        />
+      ) : null}
     </span>
   );
 }
@@ -60,8 +70,12 @@ export async function SokoBotsHero({
   const t = await getTranslations("App.SokoBots");
   const bot = me?.bot ?? null;
 
-  // Your own bot leads the stack when you have one; mascots fill the rest.
-  const seeds = bot && me ? [bot.avatarSeed ?? defaultOrbSeed(me.userId)] : [];
+  // Your own bot closes the stack when you have one; mascots fill the rest.
+  // A bot that claimed a mascot wears it here too — rendering the orb
+  // regardless put a blank disc beside four faces and read as a stranger.
+  const ownImage = bot?.avatarImageUrl ?? null;
+  const seeds =
+    bot && me && !ownImage ? [bot.avatarSeed ?? defaultOrbSeed(me.userId)] : [];
   const faces = avatars.slice(0, bot ? 4 : 5);
 
   return (
@@ -79,6 +93,7 @@ export async function SokoBotsHero({
         <AvatarStack
           avatars={bot ? faces : avatars.slice(0, 5)}
           seeds={seeds}
+          ownImage={ownImage}
         />
 
         {bot && me ? (
