@@ -66,7 +66,7 @@ function PillMarker({ pressed }: { pressed: boolean }) {
     <Check className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
   ) : (
     <span
-      className="border-muted-foreground/50 size-3 shrink-0 rounded-full border"
+      className="border-input size-3 shrink-0 rounded-full border"
       aria-hidden
     />
   );
@@ -248,7 +248,7 @@ export function TaskContextAttachmentsField({
             <button
               type="button"
               aria-label={t("brandMenuAria")}
-              className="focus-visible:ring-ring hover:bg-senary inline-flex h-full items-center border-l border-current/10 px-1.5 outline-none focus-visible:ring-2"
+              className="focus-visible:ring-ring hover:bg-senary inline-flex h-full items-center border-l border-current px-1.5 outline-none focus-visible:ring-2"
             >
               <ChevronDown className="size-3" aria-hidden />
             </button>
