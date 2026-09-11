@@ -188,6 +188,26 @@ describe("RoomSearchPanel", () => {
 
       expect(screen.queryByText(labels.idle)).not.toBeInTheDocument();
     });
+
+    it("does not paint the previous hits after the query is cleared", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      expect(await screen.findByTestId("room-search-result")).toHaveTextContent(
+        "Hello budget review",
+      );
+
+      typeQuery("");
+      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
+
+      getChatRoomMessagesMock.mockClear();
+      typeQuery("other");
+
+      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+      expect(screen.queryByText("Hello budget review")).not.toBeInTheDocument();
+      expect(getChatRoomMessagesMock).not.toHaveBeenCalled();
+    });
   });
 
   it("shows loading, not the idle hint, while the debounce is pending", () => {
@@ -608,6 +628,21 @@ describe("RoomSearchPanel", () => {
       expect(await screen.findByTestId("room-search-result")).toHaveTextContent(
         "Hello budget review",
       );
+    });
+
+    it("keeps the field mounted when the query is cleared", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      await screen.findByTestId("room-search-result");
+
+      typeQuery("");
+
+      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+      expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
+      expect(screen.getByText(labels.idle)).toBeInTheDocument();
+      expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
     });
   });
 });

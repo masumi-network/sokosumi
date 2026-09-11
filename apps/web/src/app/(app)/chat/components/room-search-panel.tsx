@@ -304,10 +304,24 @@ export function RoomSearchPanel({
         ref={inputRef}
         value={query}
         onChange={(event) => {
-          setQuery(event.target.value);
-          // The results surface only shows for a query; an empty field just
-          // sits expanded in the header.
-          setOpen(event.target.value.trim() !== "");
+          const nextQuery = event.target.value;
+          setQuery(nextQuery);
+          if (nextQuery.trim() !== "") {
+            setOpen(true);
+            return;
+          }
+          // Hits must not outlive the query, or the next keystroke reopens
+          // on the previous fetch. Mobile keeps the popover because the
+          // field lives inside it.
+          setDebouncedQuery("");
+          setResults([]);
+          setActiveIndex(0);
+          setError(null);
+          setIsLoading(false);
+          requestIdRef.current += 1;
+          if (!isMobile) {
+            setOpen(false);
+          }
         }}
         onClick={() => {
           if (query) {
@@ -333,7 +347,7 @@ export function RoomSearchPanel({
           isMobile ? "pr-3" : isApplePlatform ? "pr-12" : "pr-16",
           // Collapsed, the field passes for the ghost icon button next to it.
           !isExpanded &&
-            "hover:bg-accent hover:text-accent-foreground cursor-pointer border-transparent dark:bg-transparent placeholder:opacity-0",
+            "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 cursor-pointer border-transparent dark:bg-transparent placeholder:opacity-0",
         )}
       />
       {isMobile ? null : (
