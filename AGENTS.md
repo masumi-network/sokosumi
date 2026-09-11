@@ -12,32 +12,6 @@
 **Auth**: Better Auth with organization-aware sessions
 **i18n**: next-intl for internationalization
 
-## Project Layout
-
-The live trees are the directories below. Package **exports** (not a cached file list) are the entry points — see each `package.json`. Scoped contracts: [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`apps/apple/AGENTS.md`](./apps/apple/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
-
-```
-sokosumi/
-├── apps/
-│   ├── web/                   # Next.js web app — live tree `src/`
-│   ├── core/                  # Hono API — live tree `src/`
-│   ├── apple/                 # Native macOS + iOS — Xcode (outside turbo and Biome)
-│   └── cli/                   # Developer CLI — VISION.md only until specced
-├── packages/
-│   ├── database/              # @sokosumi/database — `src/` + `prisma/`; exports in package.json
-│   ├── masumi/                # @sokosumi/masumi — `src/`; exports in package.json
-│   ├── utils/                 # @sokosumi/utils — `src/`
-│   ├── net/                   # @sokosumi/net — `src/`
-│   ├── email/                 # @sokosumi/email — `src/`
-│   ├── chat/                  # @sokosumi/chat — `src/`
-│   ├── ai-provider/           # @sokosumi/ai-provider — `src/`
-│   └── soko-bot/              # @sokosumi/soko-bot — `src/`; exports in package.json
-├── docs/                      # Agent, domain, coworker, and design docs
-├── scripts/                   # local-env, cloud-agent-db, CI helpers
-├── skills/                    # First-party skill sources (installed into `.agents/skills/`)
-└── biome.jsonc                # Root Biome configuration
-```
-
 ## Authoritative Conventions
 
 ### UI & Styling
@@ -121,32 +95,6 @@ function handler(_req, res) {
   }
 }
 ```
-
-#### Formatting Configuration
-
-All code must follow these formatting rules:
-
-- **Indentation**: 2 spaces (never tabs)
-- **Semicolons**: Required
-- **Quotes**: Double quotes (not single)
-- **Trailing Commas**: Required in multi-line structures
-- **Auto-fix**: Run `pnpm format`
-
-**Example**:
-
-```typescript
-const config = {
-  name: "example",
-  items: [1, 2, 3],
-};
-```
-
-#### Common Linter Fixes
-
-| Error                               | Solution                          |
-| ----------------------------------- | --------------------------------- |
-| `lint/correctness/noUnusedImports`  | Remove import or use it           |
-| `assist/source/organizeImports`     | Run `pnpm check:write` or `pnpm format` |
 
 ## Environment & Tooling
 
@@ -376,14 +324,6 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
 - [Avoid re-exports](.cursor/rules/avoid-re-exports.mdc) – import from the canonical owner; no passthrough barrels between packages or apps
 - [Utils vs database helpers](.cursor/rules/utils-vs-database.mdc) – client-safe shared code in `@sokosumi/utils`; Prisma-backed logic in `@sokosumi/database`
-
-## References
-
-- [Cursor Agents Documentation](https://cursor.com/docs/context/rules#agentsmd)
-- [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-- [Next.js App Router](https://nextjs.org/docs/app)
-- [Shadcn UI](https://ui.shadcn.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
 
 ## Cursor Cloud specific instructions
 
