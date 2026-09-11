@@ -4,13 +4,14 @@ import SwiftUI
 /// Measure native text so the limit tracks the font and accessibility text size.
 struct ExpandableMessageBody<Content: View>: View {
   let source: String
+  var clampHeight = true
   @ViewBuilder let content: Content
   @State private var expanded = false
   @State private var contentHeight: CGFloat = 0
   @State private var collapsedHeight: CGFloat = 0
 
   private var overflows: Bool {
-    collapsedHeight > 0 && contentHeight > collapsedHeight + 1
+    clampHeight && collapsedHeight > 0 && contentHeight > collapsedHeight + 1
   }
 
   var body: some View {
@@ -22,10 +23,10 @@ struct ExpandableMessageBody<Content: View>: View {
         } action: { height in
           contentHeight = height
         }
-        .frame(maxHeight: expanded || collapsedHeight == 0 ? nil : collapsedHeight, alignment: .top)
+        .frame(maxHeight: clampHeight && !expanded && collapsedHeight > 0 ? collapsedHeight : nil, alignment: .top)
         .clipped()
         .contentShape(Rectangle())
-      if expanded || overflows {
+      if clampHeight, expanded || overflows {
         Button(expanded ? "Show less" : "Show more") {
           expanded.toggle()
         }

@@ -171,6 +171,9 @@ private struct MarkdownBlockBuilder {
        let url = URL(string: destination, relativeTo: baseURL)?.absoluteURL,
        url.scheme == nil || MessageHTML.linkSchemes.contains(url.scheme?.lowercased() ?? "") {
       result.link = url
+      if node is Markdown.Image {
+        result[MessageAttachmentKindAttribute.self] = .image
+      }
     }
     return result
   }
