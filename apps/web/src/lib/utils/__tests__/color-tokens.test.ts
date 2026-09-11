@@ -48,21 +48,39 @@ const TAILWIND_PALETTE = [
   "rose",
 ].join("|");
 
+/**
+ * `ring-offset` comes before `ring` because the alternation is ordered: with
+ * `ring` first, `ring-offset-white` never reaches the palette branch and the
+ * raw colour survives.
+ */
 const COLOR_UTILITIES =
-  "bg|text|border|ring|inset-ring|outline|divide|fill|stroke|shadow|decoration|accent|caret|placeholder|from|via|to";
+  "bg|text|ring-offset|ring|inset-ring|border|outline|divide|fill|stroke|shadow|decoration|accent|caret|placeholder|from|via|to";
 
 const RAW_PALETTE = new RegExp(
   `\\b(?:${COLOR_UTILITIES})-(?:(?:${TAILWIND_PALETTE})-\\d{2,3}|black|white)\\b`,
 );
 
+const COLOR_UTILITIES_NO_TEXT = COLOR_UTILITIES.split("|")
+  .filter((utility) => utility !== "text")
+  .join("|");
+
 /**
  * `text-sm/6` sets a line height, not an opacity, so the font-size names are
  * the one thing a colour utility prefix can carry a slash for legitimately.
+ * The exemption is scoped to `text-`: `shadow` takes the same size words and
+ * a real opacity modifier, so an unscoped lookahead let `shadow-lg/25`
+ * through.
  */
 const FONT_SIZES = "xs|sm|base|lg|xl|[2-9]xl";
 
+/**
+ * The tail is a negative lookahead, not `\b`. A word boundary after `]` needs
+ * a word character next, which a class name never has, so the arbitrary-value
+ * branch was unreachable and `bg-primary/[0.04]` — the rule's own headline
+ * example — compiled with the guard green.
+ */
 const TOKEN_OPACITY = new RegExp(
-  `\\b(?:${COLOR_UTILITIES})-(?!(?:${FONT_SIZES})/)[a-z0-9-]+/(?:\\[[0-9.]+\\]|\\d{1,3})\\b`,
+  `\\b(?:text-(?!(?:${FONT_SIZES})/)|(?:${COLOR_UTILITIES_NO_TEXT})-)[a-z0-9-]+/(?:\\[[0-9.]+%?\\]|\\d{1,3})(?![\\w.])`,
 );
 
 /**
@@ -93,6 +111,9 @@ const LITERAL_ALLOWLIST = new Set([
   // A canvas library needs a resolved string; it reads `--primary` first and
   // only falls back to the literal.
   "app/(app)/personal-assistant/components/chat/thinking-orb.tsx",
+  // Canvas painters. Both build a concrete string for a 2D context.
+  "lib/aurora-orb.ts",
+  "lib/job-input/form.ts",
 ]);
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -136,9 +157,10 @@ function findViolations(
 
 describe("color tokens", () => {
   it("uses no raw Tailwind palette colors", () => {
-    const violations = findViolations(RAW_PALETTE, (rel) =>
-      LITERAL_ALLOWLIST.has(rel),
-    );
+    // No allowlist here. LITERAL_ALLOWLIST exempts files that must hand a
+    // concrete colour string to something that cannot read a custom property;
+    // none of them has any reason to write a palette class.
+    const violations = findViolations(RAW_PALETTE);
 
     expect(violations, violations.join("\n")).toEqual([]);
   });
@@ -152,11 +174,7 @@ describe("color tokens", () => {
   it("has no color literal in a component", () => {
     const violations = findViolations(
       COLOR_LITERAL,
-      (rel) =>
-        LITERAL_ALLOWLIST.has(rel) ||
-        // Canvas painters and color helpers build concrete strings by design.
-        rel.startsWith("lib/") ||
-        rel.includes(".test."),
+      (rel) => LITERAL_ALLOWLIST.has(rel) || rel.includes(".test."),
     );
 
     expect(violations, violations.join("\n")).toEqual([]);
