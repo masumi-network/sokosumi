@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { getSession } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableJson,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
@@ -10,8 +13,11 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
  * user's own server actions (send/accept), which Next serializes per session.
  */
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return coreSessionUnavailableJson("State unavailable", sessionRead);
+  }
+  if (sessionRead.status === "signedOut") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
