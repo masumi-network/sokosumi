@@ -143,6 +143,17 @@ describe("mention-textarea utils", () => {
     expect(mentionSpan?.textContent).toBe("@Stock Photos Agent");
   });
 
+  it("round trips ID-only mentions without adding a name-derived slug", () => {
+    const root = document.createElement("div");
+    setEditorFromRaw(root, "Hi @user-1, and @user-1:old-name", () => ({
+      displayName: "Renamed",
+      isKnown: true,
+    }));
+    expect(root.textContent).toBe("Hi @Renamed, and @Renamed");
+    expect(serializeEditorText(root)).toBe("Hi @user-1, and @user-1:old-name");
+    expect(buildMentionToken("user-1", "", undefined)).toBe("@user-1 ");
+  });
+
   it("round-trips newlines with mentions", () => {
     const root = document.createElement("div");
     const raw = "Hello\n@agent1:stock-photos-agent\nWorld";
@@ -513,11 +524,3 @@ describe("mention-textarea utils", () => {
     });
   });
 });
-
- it("round trips ID-only mentions without adding a name-derived slug", () => {
-   const root = document.createElement("div");
-   setEditorFromRaw(root, "Hi @user-1, and @user-1:old-name", () => ({displayName: "Renamed", isKnown: true}));
-   expect(root.textContent).toBe("Hi @Renamed, and @Renamed");
-   expect(serializeEditorText(root)).toBe("Hi @user-1, and @user-1:old-name");
-   expect(buildMentionToken("user-1", "", undefined)).toBe("@user-1 ");
- });

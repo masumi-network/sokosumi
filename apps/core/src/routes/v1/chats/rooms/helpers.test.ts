@@ -214,6 +214,26 @@ describe("resolveMentionedUserIds", () => {
     ).toEqual(["user_alice", "user_bob"]);
   });
 
+  it("resolves ID-only @userId tokens without explicitUserIds", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "please sync with @user_alice",
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual(["user_alice"]);
+  });
+
+  it("resolves ID-only tokens followed by a comma", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "hey @user_alice, can you look?",
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual(["user_alice"]);
+  });
+
   it("expands @all:all to all room users except the author", () => {
     expect(
       resolveMentionedUserIds({
