@@ -23,7 +23,7 @@ import { cn, generateGradientBorder } from "@/lib/utils";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 import { AgentDetailLink } from "./agent-detail-link";
-import AgentIcon from "./agent-icon";
+import { AgentIcon } from "./agent-icon";
 import AgentSummary from "./agent-summary";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 import { StarRating } from "./star-rating";

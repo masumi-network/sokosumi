@@ -1,10 +1,2 @@
-export * from "./agent-detail";
-export * from "./agent-detail-view-tracker";
-export * from "./examples/examples";
-export * from "./header";
-export * from "./legal";
-export * from "./overview";
-export * from "./reviews";
-export * from "./reviews-list";
-export * from "./risk";
-export * from "./stats";
+export { AgentDetail, AgentDetailPageSkeleton } from "./agent-detail";
+export { AgentDetailViewTracker } from "./agent-detail-view-tracker";

@@ -2,8 +2,7 @@
 
 import { Check, ListFilter, type LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import AgentIcon from "@/components/agents/agent-icon";
-
+import { AgentIcon } from "@/components/agents/agent-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
