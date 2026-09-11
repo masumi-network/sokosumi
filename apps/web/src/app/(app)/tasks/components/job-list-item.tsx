@@ -105,7 +105,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
       </div>
 
       {/* Mobile: keep meta grouped so it wraps nicely */}
-      <div className="text-muted-foreground/70 flex flex-wrap items-center gap-3 text-xs sm:hidden">
+      <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs sm:hidden">
         {statusBadge}
         {agentCell}
         {coworkerCell}

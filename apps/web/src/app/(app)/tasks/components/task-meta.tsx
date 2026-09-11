@@ -136,7 +136,7 @@ export function TaskMetaDetails({
           </TooltipContent>
         </Tooltip>
       </div>
-      <div className="text-muted-foreground/60 flex items-center gap-2">
+      <div className="text-muted-foreground flex items-center gap-2">
         {commentsCount > 0 && (
           <div className="flex items-center gap-1">
             <MessageSquare className="size-3" aria-hidden />

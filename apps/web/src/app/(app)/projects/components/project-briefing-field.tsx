@@ -97,7 +97,7 @@ export function ProjectBriefingField({
       <p
         className={cn(
           "text-xs leading-relaxed",
-          targetMet ? "text-muted-foreground" : "text-muted-foreground/70",
+          targetMet ? "text-muted-foreground" : "text-muted-foreground",
         )}
         data-testid="briefing-encouragement"
       >

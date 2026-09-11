@@ -46,7 +46,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
             <span className="text-sm font-medium">{rating.user.name}</span>
             <TimeAgo
               date={rating.createdAt}
-              className="text-muted-foreground/40 text-xs whitespace-nowrap"
+              className="text-muted-foreground text-xs whitespace-nowrap"
             />
           </div>
           <div className="mt-1">
@@ -55,7 +55,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
           {rating.comment ? (
             <div className="mt-2">
               <p
-                className="text-foreground/70 text-sm"
+                className="text-foreground text-sm"
                 style={{
                   wordBreak: "break-all",
                   overflowWrap: "anywhere",

@@ -56,14 +56,14 @@ export const DRIVE_FILE_TYPE_ICON_CLASS =
 /** Grid: one-line size · date. List: mobile-only row; desktop uses `driveItemMetaDesktopClass`. */
 export function driveItemMetaMobileClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "text-muted-foreground/70 flex items-center text-xs [&>span+span]:before:mx-1 [&>span+span]:before:content-['·']"
-    : "text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden";
+    ? "text-muted-foreground flex items-center text-xs [&>span+span]:before:mx-1 [&>span+span]:before:content-['·']"
+    : "text-muted-foreground flex items-center gap-3 text-xs md:hidden";
 }
 
 export function driveItemMetaDesktopClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? "hidden"
-    : "text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex";
+    : "text-muted-foreground hidden shrink-0 items-center gap-3 text-xs md:flex";
 }
 
 export function driveItemActionsClass(viewMode: FilesViewMode): string {
