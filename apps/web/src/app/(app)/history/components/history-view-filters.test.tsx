@@ -54,10 +54,10 @@ const labels = {
     [TaskStatus.COMPLETED]: "Completed",
     [TaskStatus.FAILED]: "Failed",
     [TaskStatus.CANCELED]: "Canceled",
-    [SokosumiJobStatus.STARTED]: "Hiring",
+    [SokosumiJobStatus.STARTED]: "Started",
     [SokosumiJobStatus.RESULT_PENDING]: "Result missing",
-    [SokosumiJobStatus.PAYMENT_PENDING]: "Hiring",
-    [SokosumiJobStatus.PAYMENT_FAILED]: "Hiring failed",
+    [SokosumiJobStatus.PAYMENT_PENDING]: "Payment Pending",
+    [SokosumiJobStatus.PAYMENT_FAILED]: "Payment Failed",
     [SokosumiJobStatus.REFUND_PENDING]: "Refund requested",
     [SokosumiJobStatus.REFUND_RESOLVED]: "Refunded",
     [SokosumiJobStatus.DISPUTE_PENDING]: "Dispute pending",
@@ -127,7 +127,7 @@ describe("HistoryViewFilters", () => {
       expect.arrayContaining([
         expect.objectContaining({
           value: SokosumiJobStatus.PAYMENT_PENDING,
-          label: "Hiring",
+          label: "Payment Pending",
         }),
         expect.objectContaining({
           value: SokosumiJobStatus.DISPUTE_RESOLVED,
