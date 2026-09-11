@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildChatMessagePreview,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+  localizeChatMentionAllPreview,
   readChatMentionKeys,
 } from "./chat-message-preview";
 
@@ -1291,5 +1292,29 @@ describe("buildChatMessagePreview", () => {
 
     expect([...preview]).toHaveLength(CHAT_MESSAGE_PREVIEW_MAX_LENGTH);
     expect(preview.endsWith("🙂…")).toBe(true);
+  });
+});
+
+describe("localizeChatMentionAllPreview", () => {
+  it("swaps the neutral @all for the reader's word", () => {
+    expect(localizeChatMentionAllPreview("hi @all, ship it @all", "Alle")).toBe(
+      "hi @Alle, ship it @Alle",
+    );
+  });
+
+  it("treats the preview ellipsis as a boundary and keeps an unlabeled preview", () => {
+    expect(localizeChatMentionAllPreview("ping @all\u2026", "Alle")).toBe(
+      "ping @Alle\u2026",
+    );
+    expect(localizeChatMentionAllPreview("ping @all", "")).toBe("ping @all");
+  });
+
+  it("leaves other mentions and words alone", () => {
+    expect(
+      localizeChatMentionAllPreview(
+        "@allison @all:other email@all.test",
+        "Alle",
+      ),
+    ).toBe("@allison @all:other email@all.test");
   });
 });
