@@ -473,3 +473,74 @@ struct ChatServiceTests {
     #expect(transport.requests.map(\.operationID) == ["put/users/{id}/preferred-organization", "put/users/{id}/preferred-organization"])
   }
 }
+
+@Test func driveListingWalksPagesWithWorkspaceAndFolder() async throws {
+  let transport = ScriptedTransport([
+    (200, drivePageBody(items: ["{\"type\":\"folder\",\"name\":\"Reports\",\"path\":\"Reports\"}"], nextCursor: "next")),
+    (200, drivePageBody(items: ["""
+    {"type":"file","name":"report.pdf","fileUrl":"https://blob.example/report.pdf","pathname":"drive/organizations/org_1/Projects/report.pdf","size":1024,"uploadedAt":"2026-09-11T10:00:00.000Z"}
+    """], nextCursor: nil))
+  ])
+  let client = try makeClient(transport)
+  let items = try await ChatService().driveItems(client: client, organizationId: "org_1", folder: "Projects", query: "Report")
+  #expect(items.count == 2)
+  guard case let .file(file) = items[1] else { Issue.record("Expected Drive file")
+    return
+  }
+  #expect(file.value1.name == "report.pdf")
+  #expect(transport.requests.count == 2)
+  for request in transport.requests {
+    let query = requestQuery(request.request)
+    #expect(query.contains("scope=org"))
+    #expect(query.contains("organizationId=org_1"))
+    #expect(query.contains("folder=Projects"))
+    #expect(query.contains("q=Report"))
+  }
+  #expect(requestQuery(transport.requests[1].request).contains("cursor=next"))
+}
+
+@Test func driveListingRejectsRepeatedCursor() async throws {
+  let page = drivePageBody(items: [], nextCursor: "same")
+  let transport = ScriptedTransport([(200, page), (200, page)])
+  let client = try makeClient(transport)
+  await #expect(throws: ChatServiceError.self) {
+    try await ChatService().driveItems(client: client, organizationId: nil, folder: "", query: "")
+  }
+  #expect(requestQuery(transport.requests[0].request).contains("scope=me"))
+  #expect(!requestQuery(transport.requests[0].request).contains("organizationId"))
+}
+
+@Test @MainActor func drivePickerCanRecoverAfterFailure() async {
+  let picker = DrivePicker()
+  await picker.load { throw ChatServiceError.unprocessable(statusCode: 503, message: "Unavailable") }
+  #expect(picker.errorMessage == "Unavailable")
+  #expect(!picker.loading)
+  await picker.load { [] }
+  #expect(picker.errorMessage == nil)
+  #expect(!picker.loading)
+}
+
+private func drivePageBody(items: [String], nextCursor: String?) -> String {
+  let cursorJSON = nextCursor.map { "\"\($0)\"" } ?? "null"
+  return """
+  {"data":[\(items.joined(separator: ","))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"nextCursor":\(cursorJSON)}}}
+  """
+}
+
+@Test @MainActor func drivePickerIgnoresOlderRequestCompletion() async {
+  let picker = DrivePicker()
+  var pending: CheckedContinuation<[Components.Schemas.DriveItem], Never>?
+  let first = Task {
+    await picker.load {
+      await withCheckedContinuation { pending = $0 }
+    }
+  }
+  while pending == nil {
+    await Task.yield()
+  }
+  await picker.load { throw ChatServiceError.unprocessable(statusCode: 503, message: "Latest failure") }
+  pending?.resume(returning: [])
+  await first.value
+  #expect(picker.errorMessage == "Latest failure")
+  #expect(!picker.loading)
+}

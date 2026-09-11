@@ -16,6 +16,7 @@ import SwiftUI
     var channels: [ComposerChannel] = []
     var mentions: [ComposerMention] = []
     var attach: (() -> Void)?
+    var attachFromDrive: (() -> Void)?
     var attachFiles: (([URL]) -> Void)?
     var attachImage: ((Data) -> Void)?
 
@@ -28,7 +29,18 @@ import SwiftUI
         }
       } actions: {
         if let attach {
-          ComposerToolbarButton(title: "Attach files", symbol: "paperclip", action: attach)
+          Menu {
+            Button("Upload files…", systemImage: "arrow.up.doc", action: attach)
+            if let attachFromDrive {
+              Button("From Drive…", systemImage: "folder", action: attachFromDrive)
+            }
+          } label: {
+            Image(systemName: "paperclip")
+          }
+          .menuStyle(.borderlessButton)
+          .fixedSize()
+          .help("Attach files")
+          .accessibilityLabel("Attach files")
         }
         ComposerToolbarButton(title: toolbarVisible ? "Hide formatting" : "Show formatting", symbol: "textformat", selected: toolbarVisible) {
           toolbarVisible.toggle()
