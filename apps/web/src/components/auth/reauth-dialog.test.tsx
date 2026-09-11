@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { canReauthenticateWith, ReauthDialog } from "./reauth-dialog";
+import { ReauthDialog } from "./reauth-dialog";
 
 const mockSignInEmail = vi.fn();
 const mockSignInSocial = vi.fn();
@@ -58,19 +58,6 @@ function renderDialog(accounts: Account[]) {
 
   return { onOpenChange, onReauthenticated };
 }
-
-describe("canReauthenticateWith", () => {
-  it("is true for a password or a supported provider", () => {
-    expect(canReauthenticateWith([passwordAccount])).toBe(true);
-    expect(canReauthenticateWith([googleAccount])).toBe(true);
-    expect(canReauthenticateWith([microsoftAccount])).toBe(true);
-  });
-
-  it("is false with no accounts or only an unsupported provider", () => {
-    expect(canReauthenticateWith([])).toBe(false);
-    expect(canReauthenticateWith([account("apple")])).toBe(false);
-  });
-});
 
 describe("ReauthDialog", () => {
   beforeEach(() => {

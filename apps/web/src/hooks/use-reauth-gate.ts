@@ -4,9 +4,8 @@ import type { Account } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-
-import { canReauthenticateWith } from "@/components/auth/reauth-dialog";
 import { isSessionNotFreshError } from "@/lib/auth/session-freshness";
+import { canReauthenticateWith } from "@/lib/auth/social-providers";
 
 interface UseReauthGateOptions {
   /** The viewer's linked accounts, which decide what the dialog can offer. */

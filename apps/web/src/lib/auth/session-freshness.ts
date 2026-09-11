@@ -7,7 +7,8 @@
  * `/unlink-account` and `/list-sessions`. Credential changes are not gated on
  * freshness; they ask for the current password instead.
  */
-export const SESSION_NOT_FRESH_ERROR_CODE = "SESSION_NOT_FRESH";
+/** Better Auth's code for a session too old to pass `freshSessionMiddleware`. */
+const SESSION_NOT_FRESH_ERROR_CODE = "SESSION_NOT_FRESH";
 
 export function isSessionNotFreshError(error: unknown): boolean {
   if (typeof error !== "object" || error === null || !("code" in error)) {

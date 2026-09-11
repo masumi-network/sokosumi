@@ -9,7 +9,6 @@ const mockDeletePasskey = vi.fn();
 const mockListUserPasskeys = vi.fn();
 const mockRefresh = vi.fn();
 const mockToastError = vi.fn();
-const mockToastInfo = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockUpdatePasskey = vi.fn();
 const mockSignInEmail = vi.fn();
@@ -73,7 +72,6 @@ vi.mock("next-intl", () => ({
 vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => mockToastError(...args),
-    info: (...args: unknown[]) => mockToastInfo(...args),
     success: (...args: unknown[]) => mockToastSuccess(...args),
   },
 }));
@@ -92,15 +90,9 @@ vi.mock("@/lib/auth/auth.client", () => ({
     },
   },
   useSession: () => ({
-    data: {
-      session: { createdAt: sessionCreatedAt },
-      user: { email: "passkey-owner@example.com" },
-    },
+    data: { user: { email: "passkey-owner@example.com" } },
   }),
 }));
-
-/** The session's `createdAt`, so a test can pose as a fresh sign-in. */
-let sessionCreatedAt = "2026-01-01T00:00:00.000Z";
 
 const passwordAccount = {
   accountId: "account-credential",
@@ -164,10 +156,7 @@ describe("PasskeySettings", () => {
     mockSignInSocial.mockReset();
     mockSignInSocial.mockResolvedValue({ data: {}, error: null });
     mockToastError.mockReset();
-    mockToastInfo.mockReset();
-    sessionCreatedAt = "2026-01-01T00:00:00.000Z";
     mockToastSuccess.mockReset();
-    window.sessionStorage.clear();
   });
 
   it("renders the user passkeys", async () => {

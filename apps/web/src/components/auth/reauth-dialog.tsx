@@ -25,20 +25,14 @@ import {
 } from "@/lib/auth/social-providers";
 import { AccountProvider } from "@/lib/auth/types";
 
-/** True when the dialog can offer this viewer at least one method. */
-export function canReauthenticateWith(accounts: Account[]): boolean {
-  return accounts.some(
-    (account) =>
-      account.providerId === AccountProvider.CREDENTIAL ||
-      isSocialProvider(account.providerId),
-  );
-}
-
 interface ReauthDialogProps {
   /** The viewer's linked accounts, used to offer only the methods they own. */
   accounts: Account[];
   onOpenChange: (open: boolean) => void;
-  /** Runs after a new session exists, so the caller can retry its action. */
+  /**
+   * Runs after the password path signs in. The social path leaves the page
+   * instead, so it never reaches this.
+   */
   onReauthenticated: () => void;
   open: boolean;
 }
@@ -65,6 +59,7 @@ export function ReauthDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Empty until `useSession` resolves, which is why Confirm stays disabled.
   const email = session?.user.email ?? "";
   const hasPasswordAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -155,7 +150,9 @@ export function ReauthDialog({
             </fieldset>
             <Button
               className="w-full"
-              disabled={isSubmitting || password.length === 0}
+              disabled={
+                isSubmitting || email.length === 0 || password.length === 0
+              }
               type="submit"
             >
               {isSubmitting ? (

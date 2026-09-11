@@ -52,28 +52,30 @@ export default function DisconnectModal({
 
   async function handleDisconnect() {
     setLoading(true);
-    const result = await authClient.unlinkAccount(
-      unlinkSocialAccountInput(account),
-    );
-    if (result.error) {
+
+    try {
+      const result = await authClient.unlinkAccount(
+        unlinkSocialAccountInput(account),
+      );
+
+      if (!result.error) {
+        toast.success(t("success"));
+        setOpen(false);
+        router.refresh();
+        return;
+      }
+
       // Core gates unlinking on a fresh session. The gate asks the viewer to
       // authenticate again, then they disconnect again.
       if (reauthGate.handleError(result.error)) {
-        setLoading(false);
         // Close this dialog so the two never stack.
         setOpen(false);
         return;
       }
 
-      const errorMessage =
-        result.error.message ?? t("error", { provider: providerId });
-      toast.error(errorMessage);
+      toast.error(result.error.message ?? t("error", { provider: providerId }));
+    } finally {
       setLoading(false);
-    } else {
-      toast.success(t("success"));
-      setLoading(false);
-      setOpen(false);
-      router.refresh();
     }
   }
 
