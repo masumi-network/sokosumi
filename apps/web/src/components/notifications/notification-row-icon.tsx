@@ -28,7 +28,7 @@ export function NotificationRowIcon({
         // Translucent, so the circle survives the row's hover tint, which is
         // the same colour as the muted surface.
         notification.isRead
-          ? "bg-foreground/10 text-muted-foreground"
+          ? "bg-quinary text-muted-foreground"
           : "bg-primary/15 text-primary",
       )}
       aria-hidden

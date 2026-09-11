@@ -24,7 +24,7 @@ export function NotificationsSkeletonRows(): React.ReactElement {
 /** List card bones for Instant `loading.tsx`. */
 export function NotificationsListSkeleton(): React.ReactElement {
   return (
-    <div className="bg-muted/30 border-border overflow-hidden rounded-xl border">
+    <div className="bg-card-background border-border overflow-hidden rounded-xl border">
       <NotificationsSkeletonRows />
     </div>
   );
