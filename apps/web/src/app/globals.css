@@ -381,9 +381,10 @@
   /* Categorical statuses. Distinct purposes, so distinct hues rather than
      four shades of one. Carried by the dot, which needs 3:1 not 4.5:1.
 
-     The tint step is -quaternary, not -quinary. A quinary pill measured
-     1.06-1.17:1 against the page it sits on, so the badge had no visible edge
-     at all; -quaternary doubles the alpha and reaches 1.12-1.46:1. */
+     The tint step is -quaternary, not -quinary. Every quinary step measures
+     between 1.13 and 1.21:1 against the light page, so the badge had no
+     visible edge at all. -quaternary raises the alpha and reaches 1.24 to
+     1.50:1 in light and 1.33 to 2.18:1 in dark. */
 
   /* The last of the material family. The glass surfaces below read it with a
      fallback; the other nine steps had no reader at all. */

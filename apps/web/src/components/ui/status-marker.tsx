@@ -185,7 +185,7 @@ export function StatusMarker({
       aria-hidden
       // 14px, not 12px, and a heavier stroke. A light stroke on a dark ground
       // erodes optically, so the dark glyph read as missing even though it
-      // measured 3.61 to 6.65 against its own fill, above the light side.
+      // measured 3.61 to 7.45 against its own fill, above the light side.
       strokeWidth={2.25}
       className={cn(
         "size-3.5 shrink-0",
