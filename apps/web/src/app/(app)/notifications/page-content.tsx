@@ -182,7 +182,7 @@ export function NotificationsPageContent({
       {isLoading && notifications.length === 0 ? (
         <NotificationsListSkeleton />
       ) : hasFetchError && notifications.length === 0 ? (
-        <div className="bg-muted/30 border-border flex flex-col items-center justify-center gap-3 rounded-xl border p-8">
+        <div className="bg-card-background border-border flex flex-col items-center justify-center gap-3 rounded-xl border p-8">
           <p className="text-muted-foreground text-center">
             {tCenter("fetchError")}
           </p>
@@ -196,14 +196,14 @@ export function NotificationsPageContent({
           </Button>
         </div>
       ) : notifications.length === 0 && notice === null ? (
-        <div className="bg-muted/30 border-border flex flex-col items-center justify-center rounded-xl border p-8">
+        <div className="bg-card-background border-border flex flex-col items-center justify-center rounded-xl border p-8">
           <p className="text-muted-foreground text-center">
             {tCenter("emptyState")}
           </p>
         </div>
       ) : notifications.length > 0 ? (
         <>
-          <div className="bg-muted/30 border-border overflow-hidden rounded-xl border">
+          <div className="bg-card-background border-border overflow-hidden rounded-xl border">
             <div className="divide-border divide-y">
               {notifications.map((notification) => (
                 <NotificationRow
@@ -287,7 +287,7 @@ function NotificationRow({
           // Translucent, so the circle survives the row's hover tint, which
           // is the same colour as the muted surface.
           notification.isRead
-            ? "bg-foreground/10 text-muted-foreground"
+            ? "bg-quinary text-muted-foreground"
             : "bg-primary/15 text-primary",
         )}
         aria-hidden
@@ -298,7 +298,7 @@ function NotificationRow({
         {showPendingAccessActions ? (
           <button
             type="button"
-            className="hover:bg-accent/50 -mx-1 cursor-pointer rounded-md px-1 text-left"
+            className="hover:bg-card-background -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={() => onClick(notification)}
           >
             <p className={cn("text-sm", !notification.isRead && "font-medium")}>

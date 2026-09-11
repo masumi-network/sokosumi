@@ -213,7 +213,7 @@ describe("ProjectDetailPage", () => {
     expect(layoutGrid?.className).not.toContain("xl:col-span-2");
 
     expect(container.innerHTML).not.toContain(
-      "bg-muted/30 border-border rounded-none border p-4",
+      "bg-card-background border-border rounded-none border p-4",
     );
     const workspaceHeading = screen.getByText(
       "App.Projects.Detail.modules.title",

@@ -282,7 +282,7 @@ function PendingQuotePreview({
 
   return (
     <div
-      className="border-border bg-muted/30 flex items-start gap-2 border-b px-3 py-2"
+      className="border-border bg-card-background flex items-start gap-2 border-b px-3 py-2"
       role="status"
       aria-label={t("previewLabel", { author: quote.authorName })}
     >

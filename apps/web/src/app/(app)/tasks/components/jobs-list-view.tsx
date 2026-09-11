@@ -123,11 +123,11 @@ export function JobsListView({
   const hasAnyJobs = sortedJobs.length > 0;
 
   const listContent = (
-    <div className="bg-muted/30 border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-card-background border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       {hasAnyJobs ? (
         <div className="divide-border divide-y">
           <section className="flex flex-col gap-1">
-            <div className="bg-muted/40 sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
+            <div className="bg-card-background sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
               <ColumnHeader
                 title={labels.recentTitle}
                 count={recentJobs.length}
@@ -157,7 +157,7 @@ export function JobsListView({
 
             return (
               <section key={columnId} className="flex flex-col gap-1">
-                <div className="bg-muted/40 sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
+                <div className="bg-card-background sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
                   <ColumnHeader
                     title={columnLabels[columnId]}
                     count={columnJobs.length}

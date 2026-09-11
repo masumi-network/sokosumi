@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function NotificationsListSkeleton(): React.ReactElement {
   return (
-    <div className="bg-muted/30 border-border overflow-hidden rounded-xl border">
+    <div className="bg-card-background border-border overflow-hidden rounded-xl border">
       <div
         data-testid="notifications-loading-list"
         className="divide-border divide-y"

@@ -111,7 +111,7 @@ export function ChatMobileBottomNav({
                   isActive
                     ? cn(
                         "text-foreground font-medium",
-                        isApple && "bg-foreground/10 shadow-sm",
+                        isApple && "bg-quinary shadow-sm",
                       )
                     : "text-muted-foreground hover:text-foreground",
                 )}
