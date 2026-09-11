@@ -6,7 +6,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
-import { betaBotRelationFilter } from "@/helpers/soko-bot-beta";
+import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import {
@@ -151,7 +151,7 @@ export class SokoBotSchedulesSyncService {
     const pending = await prisma.sokoBotScheduleRun.findFirst({
       where: {
         schedule: {
-          sokoBot: betaBotRelationFilter({
+          sokoBot: withBetaBotOwner({
             archivedAt: null,
             status: { not: "PAUSED" },
           }),
@@ -213,7 +213,7 @@ export class SokoBotSchedulesSyncService {
       where: {
         enabled: true,
         nextRunAt: { lte: new Date() },
-        sokoBot: betaBotRelationFilter({
+        sokoBot: withBetaBotOwner({
           archivedAt: null,
           status: { not: "PAUSED" },
           // Every schedule is something the bot runs unattended, including the
