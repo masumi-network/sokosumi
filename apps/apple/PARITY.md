@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active slice: text-file viewing (15), branch `codex/apple-text-file-preview`, based on main `c97c47c1a`. Reuses attachment download and native Markdown rendering for `.txt`, `.md`, and `.markdown`; PDF viewing remains unchanged. No API or dependency change.
+- Active slice: text-file viewing (15), draft [#4470](https://github.com/masumi-network/sokosumi/pull/4470), branch `codex/apple-text-file-preview`, based on main `c97c47c1a`. Reuses attachment download and native Markdown rendering for `.txt`, `.md`, and `.markdown`; PDF viewing remains unchanged. No API or dependency change.
 - PDF viewing [#4469](https://github.com/masumi-network/sokosumi/pull/4469) merged as `c97c47c1a`. Full Apple CI passed at final head `0ae491821` (run `34640292097`), including Xcode build/app tests, all package suites and lint/format. Review follow-up prevents double spacing before text; only a trailing file receives extra bottom padding.
 - Files attachment picker [#4440](https://github.com/masumi-network/sokosumi/pull/4440) merged as `b7366d9b3`. Includes web menu names/icons and Sendable export data. Final local Xcode app tests and lint passed; final PR CI was canceled at merge after the Xcode build passed. File selection is not independently confirmed.
 - Delivery-status placement [#4427](https://github.com/masumi-network/sokosumi/pull/4427) merged as `3eded00034`; compact marks are beside the sender or in the continuation gutter.
