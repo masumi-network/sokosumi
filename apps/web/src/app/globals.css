@@ -11,7 +11,6 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
-  --color-background-platform: var(--background-platform);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -24,13 +23,11 @@
   --color-primary-quaternary: var(--primary-quaternary);
   --color-primary-quinary: var(--primary-quinary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary-muted-foreground: var(--primary-muted-foreground);
   --color-primary-iris: var(--primary-iris);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-tertiary: var(--tertiary);
   --color-tertiary-foreground: var(--tertiary-foreground);
-  --color-quaternary: var(--quaternary);
   --color-quinary: var(--quinary);
   --color-senary: var(--senary);
   --color-muted: var(--muted);
@@ -49,8 +46,6 @@
   --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
@@ -60,7 +55,6 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   --color-semantic-destructive: var(--semantic-destructive);
-  --color-semantic-destructive-variant: var(--semantic-destructive-variant);
   --color-semantic-destructive-tertiary: var(--semantic-destructive-tertiary);
   --color-semantic-destructive-quaternary: var(
     --semantic-destructive-quaternary
@@ -69,87 +63,42 @@
   --color-semantic-destructive-foreground: var(
     --semantic-destructive-foreground
   );
-  --color-semantic-destructive-ring: var(--semantic-destructive-ring);
-
-  --color-semantic-critical: var(--semantic-critical);
-  --color-semantic-critical-variant: var(--semantic-critical-variant);
-  --color-semantic-critical-tertiary: var(--semantic-critical-tertiary);
-  --color-semantic-critical-quaternary: var(--semantic-critical-quaternary);
-  --color-semantic-critical-quinary: var(--semantic-critical-quinary);
-  --color-semantic-critical-foreground: var(--semantic-critical-foreground);
-  --color-semantic-critical-ring: var(--semantic-critical-ring);
 
   --color-semantic-warning: var(--semantic-warning);
-  --color-semantic-warning-variant: var(--semantic-warning-variant);
   --color-semantic-warning-tertiary: var(--semantic-warning-tertiary);
   --color-semantic-warning-quaternary: var(--semantic-warning-quaternary);
   --color-semantic-warning-quinary: var(--semantic-warning-quinary);
   --color-semantic-warning-foreground: var(--semantic-warning-foreground);
-  --color-semantic-warning-ring: var(--semantic-warning-ring);
 
   --color-semantic-success: var(--semantic-success);
-  --color-semantic-success-variant: var(--semantic-success-variant);
   --color-semantic-success-tertiary: var(--semantic-success-tertiary);
   --color-semantic-success-quaternary: var(--semantic-success-quaternary);
   --color-semantic-success-quinary: var(--semantic-success-quinary);
   --color-semantic-success-foreground: var(--semantic-success-foreground);
-  --color-semantic-success-ring: var(--semantic-success-ring);
 
   --color-presence-offline: var(--presence-offline);
 
   --color-risk-high: var(--risk-high);
   --color-risk-high-foreground: var(--risk-high-foreground);
   --color-status-ready: var(--status-ready);
-  --color-status-ready-tertiary: var(--status-ready-tertiary);
   --color-status-ready-quinary: var(--status-ready-quinary);
   --color-status-running: var(--status-running);
   --color-status-running-tertiary: var(--status-running-tertiary);
   --color-status-running-quinary: var(--status-running-quinary);
   --color-status-awaiting: var(--status-awaiting);
-  --color-status-awaiting-tertiary: var(--status-awaiting-tertiary);
   --color-status-awaiting-quinary: var(--status-awaiting-quinary);
   --color-status-topped-up: var(--status-topped-up);
-  --color-status-topped-up-tertiary: var(--status-topped-up-tertiary);
   --color-status-topped-up-quinary: var(--status-topped-up-quinary);
   --color-status-auth: var(--status-auth);
-  --color-status-auth-tertiary: var(--status-auth-tertiary);
   --color-status-auth-quinary: var(--status-auth-quinary);
   --color-status-done: var(--status-done);
   --color-status-done-tertiary: var(--status-done-tertiary);
-  --color-status-done-quinary: var(--status-done-quinary);
 
   --color-semantic-info: var(--semantic-info);
-  --color-semantic-info-variant: var(--semantic-info-variant);
   --color-semantic-info-tertiary: var(--semantic-info-tertiary);
   --color-semantic-info-quaternary: var(--semantic-info-quaternary);
   --color-semantic-info-quinary: var(--semantic-info-quinary);
   --color-semantic-info-foreground: var(--semantic-info-foreground);
-  --color-semantic-info-ring: var(--semantic-info-ring);
-
-  /* Material */
-  --color-material-ultrathin: var(--material-ultrathin);
-  --color-material-ultrathin-overlay: var(--material-ultrathin-overlay);
-  --color-material-thin: var(--material-thin);
-  --color-material-thin-overlay: var(--material-thin-overlay);
-  --color-material-regular: var(--material-regular);
-  --color-material-regular-overlay: var(--material-regular-overlay);
-  --color-material-thick: var(--material-thick);
-  --color-material-thick-overlay: var(--material-thick-overlay);
-  --color-material-ultrathick: var(--material-ultrathick);
-  --color-material-ultrathick-overlay: var(--material-ultrathick-overlay);
-
-  /* Alpha */
-  --color-alpha-95: var(--alpha-95);
-  --color-alpha-90: var(--alpha-90);
-  --color-alpha-80: var(--alpha-80);
-  --color-alpha-70: var(--alpha-70);
-  --color-alpha-60: var(--alpha-60);
-  --color-alpha-50: var(--alpha-50);
-  --color-alpha-40: var(--alpha-40);
-  --color-alpha-30: var(--alpha-30);
-  --color-alpha-20: var(--alpha-20);
-  --color-alpha-10: var(--alpha-10);
-  --color-alpha-5: var(--alpha-5);
 
   /* Custom Colors */
   /* Duplicated the success ramp verbatim and, declared here, could not follow
@@ -286,7 +235,6 @@
 :root {
   --radius: 0.625rem;
   --background: hsla(0, 0%, 100%, 1);
-  --background-platform: hsla(0, 0%, 98%, 1);
   --foreground: hsla(0, 0%, 4%, 1);
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
@@ -300,13 +248,11 @@
   --primary-quaternary: hsla(263.5, 100.0%, 95.0%, 1);
   --primary-quinary: hsla(263.5, 100.0%, 97.5%, 1);
   --primary-foreground: hsla(0, 0%, 98%, 1);
-  --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 4%, 0.95);
   --secondary-foreground: hsla(0, 0%, 98%, 1);
   --tertiary: hsla(0, 0.0%, 80.8%, 1);
   --tertiary-foreground: hsla(0, 0.0%, 23.2%, 1);
-  --quaternary: hsla(0, 0.0%, 90.4%, 1);
   --quinary: hsla(0, 0.0%, 95.2%, 1);
   --senary: hsla(0, 0.0%, 97.1%, 1);
   --muted: hsla(300, 0%, 96%, 1);
@@ -322,7 +268,6 @@
      transparent ring cannot do both: it needs 0.55 alpha to reach 3:1. */
   --ring: hsla(263.5, 100%, 50%, 1);
   --ring-halo: hsla(263.5, 100%, 50%, 0.22);
-  --ring-semantic: hsla(0, 96%, 89%, 1);
   /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
   --chart-1: #00a4fa; /* kodosumi · Sky Blue */
   --chart-2: #fa008c; /* masumi · Electric Pink */
@@ -331,8 +276,6 @@
   --chart-5: #ff6400; /* masumi · Persimmon */
   --sidebar: hsla(300, 0%, 98%, 1);
   --sidebar-foreground: hsla(300, 0%, 4%, 1);
-  --sidebar-primary: hsla(330, 0%, 9%, 1);
-  --sidebar-primary-foreground: hsla(300, 0%, 98%, 1);
   --sidebar-accent: hsla(300, 0%, 96%, 1);
   --sidebar-accent-foreground: hsla(330, 0%, 9%, 1);
   --sidebar-border: hsla(330, 0%, 90%, 1);
@@ -340,36 +283,22 @@
 
   /* Semantic */
   --semantic-destructive: hsla(0, 74%, 42%, 1);
-  --semantic-destructive-variant: hsla(0, 74%, 42%, 1);
   --semantic-destructive-tertiary: hsla(0, 53.6%, 88.4%, 1);
   --semantic-destructive-quaternary: hsla(0, 53.6%, 94.2%, 1);
   --semantic-destructive-quinary: hsla(0, 53.6%, 97.1%, 1);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
-  --semantic-destructive-ring: hsla(0, 96%, 89%, 1);
 
   --semantic-warning: hsla(35, 92%, 33%, 1);
-  --semantic-warning-variant: hsla(35, 92%, 33%, 1);
   --semantic-warning-tertiary: hsla(35, 45.3%, 86.6%, 1);
   --semantic-warning-quaternary: hsla(35, 45.3%, 93.3%, 1);
   --semantic-warning-quinary: hsla(35, 45.3%, 96.6%, 1);
   --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
-  --semantic-warning-ring: hsla(52, 100%, 30%, 1);
-
-  --semantic-critical: hsla(41, 96%, 40%, 1);
-  --semantic-critical-variant: hsla(35, 92%, 33%, 1);
-  --semantic-critical-tertiary: hsla(41, 96%, 40%, 0.2);
-  --semantic-critical-quaternary: hsla(41, 96%, 40%, 0.1);
-  --semantic-critical-quinary: hsla(41, 96%, 40%, 0.05);
-  --semantic-critical-foreground: hsla(55, 92%, 95%, 1);
-  --semantic-critical-ring: hsla(53, 98%, 77%, 1);
 
   --semantic-success: hsla(142, 72%, 29%, 1);
-  --semantic-success-variant: hsla(142, 72%, 29%, 1);
   --semantic-success-tertiary: hsla(142, 29.4%, 85.8%, 1);
   --semantic-success-quaternary: hsla(142, 29.4%, 92.9%, 1);
   --semantic-success-quinary: hsla(142, 29.4%, 96.4%, 1);
   --semantic-success-foreground: hsla(138, 76%, 97%, 1);
-  --semantic-success-ring: hsla(141, 79%, 85%, 1);
 
   /* Online and afk now come straight from --semantic-success and
      --semantic-warning. Those forked here because the old warning reached only
@@ -380,12 +309,10 @@
   --presence-offline: hsla(220, 9%, 46%, 1);
 
   --semantic-info: hsla(193, 82%, 31%, 1);
-  --semantic-info-variant: hsla(193, 82%, 31%, 1);
   --semantic-info-tertiary: hsla(193, 36.8%, 86.2%, 1);
   --semantic-info-quaternary: hsla(193, 36.8%, 93.1%, 1);
   --semantic-info-quinary: hsla(193, 36.8%, 96.6%, 1);
   --semantic-info-foreground: hsla(183, 100%, 96%, 1);
-  --semantic-info-ring: hsla(186, 94%, 82%, 1);
 
   /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
      only extra value, solid with a near-black label at 7.88:1. Same in both
@@ -396,54 +323,26 @@
   /* Categorical statuses. Distinct purposes, so distinct hues rather than
      four shades of one. Carried by the dot, which needs 3:1 not 4.5:1. */
   --status-ready: hsla(217, 91.0%, 47.0%, 1);
-  --status-ready-tertiary: hsla(217, 80.7%, 89.4%, 1);
   --status-ready-quinary: hsla(217, 80.7%, 97.4%, 1);
   --status-running: hsla(192, 91.0%, 36.0%, 1);
   --status-running-tertiary: hsla(192, 51.2%, 87.2%, 1);
   --status-running-quinary: hsla(192, 51.2%, 96.8%, 1);
   --status-awaiting: hsla(199, 89.0%, 39.0%, 1);
-  --status-awaiting-tertiary: hsla(199, 56.9%, 87.8%, 1);
   --status-awaiting-quinary: hsla(199, 56.9%, 97.0%, 1);
   --status-topped-up: hsla(174, 84.0%, 32.0%, 1);
-  --status-topped-up-tertiary: hsla(174, 39.5%, 86.4%, 1);
   --status-topped-up-quinary: hsla(174, 39.5%, 96.6%, 1);
   --status-auth: hsla(263, 70.0%, 50.0%, 1);
-  --status-auth-tertiary: hsla(263, 70.0%, 90.0%, 1);
   --status-auth-quinary: hsla(263, 70.0%, 97.5%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 89.0%, 1);
-  --status-done-quinary: hsla(0, 0.0%, 97.2%, 1);
 
-  /* Material */
-  --material-ultrathin: hsla(0, 0%, 100%, 0.33);
-  --material-ultrathin-overlay: hsla(0, 0%, 45%, 1);
-  --material-thin: hsla(0, 0%, 96%, 0.48);
-  --material-thin-overlay: hsla(0, 0%, 64%, 1);
-  --material-regular: hsla(0, 0%, 100%, 0.85);
-  --material-regular-overlay: hsla(0, 0%, 32%, 1);
-  --material-thick: hsla(0, 0%, 100%, 0.9);
-  --material-thick-overlay: hsla(0, 0%, 45%, 1);
-  --material-ultrathick: hsla(0, 0%, 98%, 0.97);
-  --material-ultrathick-overlay: hsla(0, 0%, 64%, 1);
-
-  /* Alpha */
-  --alpha-95: hsla(0, 0%, 100%, 0.05);
-  --alpha-90: hsla(0, 0%, 100%, 0.1);
-  --alpha-80: hsla(0, 0%, 100%, 0.2);
-  --alpha-70: hsla(0, 0%, 100%, 0.3);
-  --alpha-60: hsla(0, 0%, 100%, 0.4);
-  --alpha-50: hsla(0, 0%, 100%, 0.5);
-  --alpha-40: hsla(0, 0%, 100%, 0.6);
-  --alpha-30: hsla(0, 0%, 100%, 0.7);
-  --alpha-20: hsla(0, 0%, 100%, 0.8);
-  --alpha-10: hsla(0, 0%, 100%, 0.9);
-  --alpha-5: hsla(0, 0%, 100%, 0.95);
+  /* The last of the material family. The glass surfaces below read it with a
+     fallback; the other nine steps had no reader at all. */
 }
 
 .dark {
   --radius: 0.625rem;
   --background: hsla(0, 0%, 4%, 1);
-  --background-platform: hsla(0, 0%, 9%, 1);
   --foreground: hsla(0, 0%, 98%, 1);
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
@@ -457,13 +356,11 @@
   --primary-quaternary: hsla(270, 30.0%, 15.8%, 1);
   --primary-quinary: hsla(270, 23.9%, 9.9%, 1);
   --primary-foreground: hsla(0, 0%, 4%, 1);
-  --primary-muted-foreground: hsla(0, 0%, 4%, 0.7);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 100%, 0.95);
   --secondary-foreground: hsla(0, 0%, 4%, 1);
   --tertiary: hsla(0, 0.0%, 32.8%, 1);
   --tertiary-foreground: hsla(0, 0.0%, 80.8%, 1);
-  --quaternary: hsla(0, 0.0%, 23.2%, 1);
   --quinary: hsla(0, 0.0%, 13.6%, 1);
   --senary: hsla(0, 0.0%, 8.8%, 1);
   --muted: hsla(0, 0%, 15%, 1);
@@ -475,7 +372,6 @@
   --input: hsla(0, 0.0%, 18.4%, 1);
   --ring: hsla(270, 64%, 63%, 1);
   --ring-halo: hsla(270, 64%, 63%, 0.26);
-  --ring-semantic: hsla(0, 75%, 15%, 1);
   /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
   --chart-1: #00a4fa; /* kodosumi · Sky Blue */
   --chart-2: #fa008c; /* masumi · Electric Pink */
@@ -484,8 +380,6 @@
   --chart-5: #ff6400; /* masumi · Persimmon */
   --sidebar: hsla(330, 0%, 9%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
-  --sidebar-primary: hsla(225, 84%, 49%, 1);
-  --sidebar-primary-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-accent: hsla(0, 0%, 15%, 1);
   --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-border: hsla(0, 0.0%, 13.6%, 1);
@@ -493,47 +387,31 @@
 
   /* Semantic */
   --semantic-destructive: hsla(0, 84%, 60%, 1);
-  --semantic-destructive-variant: hsla(0, 84%, 60%, 1);
   --semantic-destructive-tertiary: hsla(0, 48.5%, 20.8%, 1);
   --semantic-destructive-quaternary: hsla(0, 44.2%, 15.2%, 1);
   --semantic-destructive-quinary: hsla(0, 35.0%, 9.6%, 1);
   --semantic-destructive-foreground: hsla(0, 0%, 4%, 1);
-  --semantic-destructive-ring: hsla(0, 75%, 15%, 1);
 
   --semantic-warning: hsla(43, 96%, 56%, 1);
-  --semantic-warning-variant: hsla(43, 96%, 56%, 1);
   --semantic-warning-tertiary: hsla(43, 64.7%, 19.6%, 1);
   --semantic-warning-quaternary: hsla(43, 58.7%, 14.4%, 1);
   --semantic-warning-quinary: hsla(43, 45.9%, 9.2%, 1);
   --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
-  --semantic-warning-ring: hsla(52, 100%, 30%, 1);
-
-  --semantic-critical: hsla(32, 81%, 29%, 1);
-  --semantic-critical-variant: hsla(45, 93%, 47%, 1);
-  --semantic-critical-tertiary: hsla(32, 81%, 29%, 0.3);
-  --semantic-critical-quaternary: hsla(32, 81%, 29%, 0.2);
-  --semantic-critical-quinary: hsla(32, 81%, 29%, 0.1);
-  --semantic-critical-foreground: hsla(55, 92%, 95%, 1);
-  --semantic-critical-ring: hsla(26, 83%, 14%, 1);
 
   --semantic-success: hsla(142, 71%, 45%, 1);
-  --semantic-success-variant: hsla(142, 71%, 45%, 1);
   --semantic-success-tertiary: hsla(142, 58.8%, 16.3%, 1);
   --semantic-success-quaternary: hsla(142, 52.4%, 12.2%, 1);
   --semantic-success-quinary: hsla(142, 39.4%, 8.1%, 1);
   --semantic-success-foreground: hsla(0, 0%, 4%, 1);
-  --semantic-success-ring: hsla(145, 80%, 10%, 1);
 
   /* Measured against the dark ground: 5.61. */
   --presence-offline: hsla(215, 14%, 55%, 1);
 
   --semantic-info: hsla(189, 94%, 43%, 1);
-  --semantic-info-variant: hsla(189, 94%, 43%, 1);
   --semantic-info-tertiary: hsla(189, 77.2%, 15.7%, 1);
   --semantic-info-quaternary: hsla(189, 68.5%, 11.8%, 1);
   --semantic-info-quinary: hsla(189, 51.2%, 7.9%, 1);
   --semantic-info-foreground: hsla(0, 0%, 4%, 1);
-  --semantic-info-ring: hsla(197, 79%, 15%, 1);
 
   /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
      only extra value, solid with a near-black label at 7.88:1. Same in both
@@ -544,48 +422,18 @@
   /* Categorical statuses. Distinct purposes, so distinct hues rather than
      four shades of one. Carried by the dot, which needs 3:1 not 4.5:1. */
   --status-ready: hsla(213, 94.0%, 68.0%, 1);
-  --status-ready-tertiary: hsla(213, 38.9%, 23.2%, 1);
   --status-ready-quinary: hsla(213, 28.9%, 10.4%, 1);
   --status-running: hsla(187, 85.0%, 53.0%, 1);
   --status-running-tertiary: hsla(187, 64.1%, 18.7%, 1);
   --status-running-quinary: hsla(187, 44.9%, 8.9%, 1);
   --status-awaiting: hsla(198, 93.0%, 60.0%, 1);
-  --status-awaiting-tertiary: hsla(198, 53.7%, 20.8%, 1);
   --status-awaiting-quinary: hsla(198, 38.8%, 9.6%, 1);
   --status-topped-up: hsla(172, 66.0%, 50.0%, 1);
-  --status-topped-up-tertiary: hsla(172, 55.6%, 17.8%, 1);
   --status-topped-up-quinary: hsla(172, 38.4%, 8.6%, 1);
   --status-auth: hsla(258, 90.0%, 66.0%, 1);
-  --status-auth-tertiary: hsla(258, 40.6%, 22.6%, 1);
   --status-auth-quinary: hsla(258, 30.0%, 10.2%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 22.0%, 1);
-  --status-done-quinary: hsla(0, 0.0%, 10.0%, 1);
-
-  /* Material */
-  --material-ultrathin: hsla(0, 0%, 15%, 0.55);
-  --material-ultrathin-overlay: hsla(0, 0%, 64%, 1);
-  --material-thin: hsla(0, 0%, 15%, 0.7);
-  --material-thin-overlay: hsla(0, 0%, 64%, 1);
-  --material-regular: hsla(0, 0%, 15%, 0.8);
-  --material-regular-overlay: hsla(0, 0%, 45%, 1);
-  --material-thick: hsla(0, 0%, 15%, 0.9);
-  --material-thick-overlay: hsla(0, 0%, 45%, 1);
-  --material-ultrathick: hsla(0, 0%, 15%, 0.95);
-  --material-ultrathick-overlay: hsla(0, 0%, 45%, 1);
-
-  /* Alpha */
-  --alpha-95: hsla(0, 0%, 4%, 0.05);
-  --alpha-90: hsla(0, 0%, 4%, 0.1);
-  --alpha-80: hsla(0, 0%, 4%, 0.2);
-  --alpha-70: hsla(0, 0%, 4%, 0.3);
-  --alpha-60: hsla(0, 0%, 4%, 0.4);
-  --alpha-50: hsla(0, 0%, 4%, 0.5);
-  --alpha-40: hsla(0, 0%, 4%, 0.6);
-  --alpha-30: hsla(0, 0%, 4%, 0.7);
-  --alpha-20: hsla(0, 0%, 4%, 0.8);
-  --alpha-10: hsla(0, 0%, 4%, 0.9);
-  --alpha-5: hsla(0, 0%, 4%, 0.95);
 }
 
 @layer base {
@@ -707,18 +555,6 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 @utility agent-card-image-shadow {
   box-shadow: 0px 0px 8px 2px
     color-mix(in oklab, var(--muted-foreground) 30%, transparent);
-}
-
-@utility agent-modal-card {
-  background: var(--material-regular, rgba(255, 255, 255, 0.85));
-  border-radius: var(--border-radius-xl, 12px);
-  border: 1px solid var(--base-senary, rgba(10, 10, 10, 0.03));
-
-  @variant dark {
-    background: var(--material-regular, rgba(38, 38, 38, 0.8));
-    border-radius: var(--border-radius-xl, 12px);
-    border: 1px solid var(--base-senary, rgba(255, 255, 255, 0.05));
-  }
 }
 
 @utility job-table-width {
