@@ -5,22 +5,28 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring-halo focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none border border-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-2 aria-invalid:ring-destructive aria-invalid:ring-offset-2 aria-invalid:ring-offset-background",
   {
     variants: {
       variant: {
-        primary:
-          "bg-primary text-primary-foreground hover:bg-primary/90",
+        primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
         default:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/90",
+          "bg-secondary text-secondary-foreground hover:bg-secondary-hover",
+        // No private focus ring. Every variant wears the one shared ring, so
+        // the most dangerous button is not the one with the faintest focus
+        // mark. Its own ring measured 1.41:1 in light and 1.70:1 in dark,
+        // against 7.04 and 5.07 for the shared one.
+        //
+        // The fill is the solid red, not the text red. A red that carries a
+        // near-white label must be darker than a red that reads as text on the
+        // page: white on the dark-mode text red measures 3.43, under the 4.5
+        // floor, while white on the solid measures 4.91.
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover",
         outline:
-          "border bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-quinary text-foreground hover:bg-quinary/70",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+          "border-input hover:bg-accent hover:text-accent-foreground bg-background",
+        secondary: "bg-quinary text-foreground hover:bg-quaternary",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         muted: "text-muted-foreground hover:bg-transparent hover:text-muted-foreground",
       },
