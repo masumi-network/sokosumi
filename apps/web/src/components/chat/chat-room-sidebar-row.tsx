@@ -85,13 +85,15 @@ interface ChatRoomSidebarRowProps {
 }
 
 /**
- * The cap every number on the row shares: the unread message count and the
- * mention badge. One constant, so the row can never show two ceilings.
+ * The cap both numbers on this row share: the unread message count and the
+ * mention badge. One constant, so a sidebar row cannot show two ceilings. The
+ * nav unread in `menu-items.tsx` still carries its own 99 and is not this
+ * row's to change.
  */
 const ROW_COUNT_CAP = 99;
 
 /** The digits a capped number prints, e.g. `4` or `99+`. */
-function capCount(count: number): string {
+function countLabel(count: number): string {
   return count > ROW_COUNT_CAP ? `${ROW_COUNT_CAP}+` : String(count);
 }
 
@@ -100,8 +102,9 @@ function capCount(count: number): string {
  *
  * Text rather than a pill, because it is not the mention badge and a reader has
  * to tell the two apart at a glance. It caps like the badge so a very loud room
- * cannot reflow the row, and it hides with the badge when the sidebar collapses
- * to icons.
+ * cannot reflow the row. Collapsed to icons the row is a 20px glyph with space
+ * for neither number, so count and badge both hide. That is decided, not an
+ * oversight.
  *
  * A middot opens the count, so the digits stop running on from the room name
  * they follow. Dot and digits carry the name's unread weight and colour,
@@ -124,7 +127,7 @@ function RoomUnreadCount({ count }: { count: number }) {
   // the badge's bare number. Real text carries it instead.
   return (
     <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold tabular-nums">
-      <span aria-hidden="true">{`· ${capCount(count)}`}</span>
+      <span aria-hidden="true">{`· ${countLabel(count)}`}</span>
       <span className="sr-only">
         {capped
           ? t("unreadMessagesCapped", { max: ROW_COUNT_CAP })
@@ -140,7 +143,8 @@ function RoomUnreadCount({ count }: { count: number }) {
  * The announced text is a translated string in its own `sr-only` span, for the
  * same reason the count carries one: `aria-label` on a role `generic` span may
  * be dropped, and an English literal would reach a German or Spanish reader
- * untranslated either way.
+ * untranslated either way. It hides with the count when the sidebar collapses
+ * to icons.
  */
 function MentionBadge({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomMentions");
@@ -151,7 +155,7 @@ function MentionBadge({ count }: { count: number }) {
 
   return (
     <span className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
-      <span aria-hidden="true">{capCount(count)}</span>
+      <span aria-hidden="true">{countLabel(count)}</span>
       <span className="sr-only">
         {count > ROW_COUNT_CAP
           ? t("mentionsCapped", { max: ROW_COUNT_CAP })

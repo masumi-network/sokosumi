@@ -49,33 +49,65 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("next-intl", () => ({
-  useTranslations:
-    (_namespace?: string) =>
-    (key: string, values?: Record<string, string | number>) => {
-      const translations: Record<string, string> = {
-        unreadMessages: `${values?.count ?? ""} unread messages`,
-        unreadMessagesCapped: `More than ${values?.max ?? ""} unread messages`,
-        mentions: `${values?.count ?? ""} mentions`,
-        mentionsCapped: `More than ${values?.max ?? ""} mentions`,
-        leave: "Leave channel",
-        leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
-        leaveConfirmDescription: `Leave description for ${values?.name ?? ""}`,
-        leaveConfirm: "Leave channel",
-        leaveSuccess: `You left ${values?.name ?? ""}.`,
-        cancel: "Cancel",
-        markUnread: "Mark as unread",
-        editChannel: "Edit channel",
-        pin: "Pin",
-        unpin: "Unpin",
-        mute: "Mute",
-        unmute: "Unmute",
-        roomMenu: `Chat actions for ${values?.name ?? ""}`,
-        actionFailed: "Could not update this chat. Try again.",
-      };
-      return translations[key] ?? key;
-    },
-}));
+// The row's two numbers are checked against the real English catalog: the mock
+// resolves them by full key path and throws when that path is not in `en.json`.
+// So a typo in either half of the path fails here, and so does a path the
+// catalog never had. The plain strings below stand in for ICU output.
+vi.mock("next-intl", async () => {
+  const en = (await import("@/messages/en.json")).default;
+
+  function catalogHas(path: string): boolean {
+    return (
+      path.split(".").reduce<unknown>((node, segment) => {
+        return typeof node === "object" && node !== null
+          ? (node as Record<string, unknown>)[segment]
+          : undefined;
+      }, en) !== undefined
+    );
+  }
+
+  return {
+    useTranslations:
+      (namespace?: string) =>
+      (key: string, values?: Record<string, string | number>) => {
+        const path = `${namespace ?? ""}.${key}`;
+        const numbers: Record<string, string> = {
+          "App.Channels.RoomUnread.unreadMessages": `${values?.count ?? ""} unread messages`,
+          "App.Channels.RoomUnread.unreadMessagesCapped": `More than ${values?.max ?? ""} unread messages`,
+          "App.Channels.RoomMentions.mentions": `${values?.count ?? ""} mentions`,
+          "App.Channels.RoomMentions.mentionsCapped": `More than ${values?.max ?? ""} mentions`,
+        };
+
+        if (namespace?.startsWith("App.Channels.Room") === true) {
+          if (!catalogHas(path)) {
+            throw new Error(`en.json has no message at ${path}`);
+          }
+          const number = numbers[path];
+          if (number !== undefined) {
+            return number;
+          }
+        }
+
+        const translations: Record<string, string> = {
+          leave: "Leave channel",
+          leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
+          leaveConfirmDescription: `Leave description for ${values?.name ?? ""}`,
+          leaveConfirm: "Leave channel",
+          leaveSuccess: `You left ${values?.name ?? ""}.`,
+          cancel: "Cancel",
+          markUnread: "Mark as unread",
+          editChannel: "Edit channel",
+          pin: "Pin",
+          unpin: "Unpin",
+          mute: "Mute",
+          unmute: "Unmute",
+          roomMenu: `Chat actions for ${values?.name ?? ""}`,
+          actionFailed: "Could not update this chat. Try again.",
+        };
+        return translations[key] ?? key;
+      },
+  };
+});
 
 vi.mock("sonner", () => ({
   toast: {
@@ -763,7 +795,7 @@ describe("ChatRoomSidebarRow unread message count", () => {
     expect(screen.queryByLabelText(/mentions/)).toBeNull();
   });
 
-  // One cap for both numbers: the row can never show two ceilings.
+  // One cap for both numbers on this row.
   it("caps the mention badge at the same ceiling as the message count", () => {
     renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
 
