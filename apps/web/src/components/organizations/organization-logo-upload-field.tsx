@@ -111,7 +111,7 @@ export function OrganizationLogoUploadField({
               </Avatar>
               <div
                 className={cn(
-                  "absolute inset-0 flex flex-col items-center justify-center gap-1 bg-scrim px-2 text-white transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100",
+                  "absolute inset-0 flex flex-col items-center justify-center gap-1 bg-scrim px-2 text-on-media transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100",
                   isUploading ? "opacity-100" : "opacity-0",
                 )}
               >
