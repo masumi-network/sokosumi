@@ -345,7 +345,7 @@ describe("TaskMetadata", () => {
 
     const pill = trigger.querySelector("span.inline-flex");
     expect(pill).toHaveClass(
-      "bg-status-running-quaternary",
+      "bg-status-active-quaternary",
       "rounded-sm",
       "px-2.5",
       "py-1",

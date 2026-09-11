@@ -3,10 +3,14 @@
 import { ChevronDown, Loader2 } from "lucide-react";
 
 import { SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  STATUS_ROLE_STYLES,
+  StatusMarker,
+} from "@/components/ui/status-marker";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-import { getTaskStatusPillTone } from "./task-status-badge";
+import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskStatusPillSelectTriggerProps {
   status: TaskStatus;
@@ -21,7 +25,8 @@ export function TaskStatusPillSelectTrigger({
   ariaLabel,
   isPending = false,
 }: TaskStatusPillSelectTriggerProps) {
-  const pillTone = getTaskStatusPillTone(status);
+  const marker = getTaskStatusMarker(status);
+  const role = STATUS_ROLE_STYLES[marker.role];
 
   return (
     <SelectTrigger
@@ -37,13 +42,15 @@ export function TaskStatusPillSelectTrigger({
         <span
           className={cn(
             "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
-            pillTone.bg,
-            pillTone.text,
+            role.bg,
+            role.text,
           )}
         >
           {isPending ? (
             <Loader2 className="size-3 animate-spin" aria-hidden />
-          ) : null}
+          ) : (
+            <StatusMarker spec={marker} />
+          )}
           <span>{label}</span>
           <ChevronDown className="size-3 opacity-70" aria-hidden />
         </span>

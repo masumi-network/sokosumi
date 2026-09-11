@@ -1,92 +1,106 @@
+import {
+  MARKER_ICONS,
+  STATUS_ROLE_STYLES,
+  type StatusMarkerSpec,
+} from "@/components/ui/status-marker";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
-interface StatusPillStyle {
-  bg: string;
-  text: string;
-  dot: string;
-}
-
-const DEFAULT_STATUS_STYLE: StatusPillStyle = {
-  bg: "bg-quaternary",
-  text: "text-foreground",
-  dot: "bg-status-done",
-};
-
 /**
- * Pattern: tinted fill, a vivid dot, and the label in the foreground colour.
- * A coloured label needs 4.5:1, which drags every hue dark enough to go muddy;
- * the dot needs only 3:1 (WCAG 2.2 SC 1.4.11), so the colour stays vivid where
- * it is small.
- *
- * Mirrors `STATUS_PILL_STYLES` in the task status badge, because a job and a
- * task state that mean the same thing must look the same. This file used to
- * paint `COMPLETED` stone while that one painted it emerald.
+ * The job scale in the same five roles the task badge uses, so a job and a
+ * task that mean the same thing look the same. Colour carries urgency, the
+ * glyph carries identity. See `status-marker.tsx`.
  *
  * The two `*_RESOLVED` states stay neutral on purpose: the case is closed, and
  * neither outcome is the one the user was hoping for.
  */
-const STATUS_PILL_STYLES: Partial<Record<SokosumiJobStatus, StatusPillStyle>> =
-  {
-    [SokosumiJobStatus.COMPLETED]: {
-      bg: "bg-semantic-success-quaternary",
-      text: "text-foreground",
-      dot: "bg-semantic-success",
-    },
-    [SokosumiJobStatus.REFUND_RESOLVED]: DEFAULT_STATUS_STYLE,
-    [SokosumiJobStatus.DISPUTE_RESOLVED]: DEFAULT_STATUS_STYLE,
-    [SokosumiJobStatus.FAILED]: {
-      bg: "bg-semantic-destructive-quaternary",
-      text: "text-foreground",
-      dot: "bg-semantic-destructive",
-    },
-    [SokosumiJobStatus.PAYMENT_FAILED]: {
-      bg: "bg-semantic-destructive-quaternary",
-      text: "text-foreground",
-      dot: "bg-semantic-destructive",
-    },
-    [SokosumiJobStatus.INPUT_REQUIRED]: {
-      bg: "bg-semantic-destructive-quaternary",
-      text: "text-foreground",
-      dot: "bg-semantic-destructive",
-    },
-    [SokosumiJobStatus.RESULT_PENDING]: {
-      bg: "bg-status-awaiting-quaternary",
-      text: "text-foreground",
-      dot: "bg-status-awaiting",
-    },
-    [SokosumiJobStatus.REFUND_PENDING]: {
-      bg: "bg-semantic-warning-quaternary",
-      text: "text-foreground",
-      dot: "bg-semantic-warning",
-    },
-    [SokosumiJobStatus.DISPUTE_PENDING]: {
-      bg: "bg-semantic-warning-quaternary",
-      text: "text-foreground",
-      dot: "bg-semantic-warning",
-    },
-    [SokosumiJobStatus.PAYMENT_PENDING]: {
-      bg: "bg-semantic-warning-quaternary",
-      text: "text-foreground",
-      dot: "bg-semantic-warning",
-    },
-    [SokosumiJobStatus.STARTED]: {
-      bg: "bg-status-running-quaternary",
-      text: "text-foreground",
-      dot: "bg-status-running",
-    },
-    [SokosumiJobStatus.PROCESSING]: {
-      bg: "bg-status-running-quaternary",
-      text: "text-foreground",
-      dot: "bg-status-running",
-    },
-  };
+const JOB_STATUS_MARKERS: Record<SokosumiJobStatus, StatusMarkerSpec> = {
+  // Placed by what the reader must do and whether anything is wrong, the same
+  // two questions the task badge answers.
 
-export function getJobStatusPillStyle(
+  // Hiring. The chain is settling and then the coworker holds the job. The
+  // reader is not blocked in either, so neither is amber. Both statuses render
+  // the same label today, so they must render the same colour.
+  [SokosumiJobStatus.PAYMENT_PENDING]: {
+    role: "queued",
+    icon: MARKER_ICONS.hiring,
+  },
+  [SokosumiJobStatus.STARTED]: { role: "queued", icon: MARKER_ICONS.hiring },
+
+  // The only state where work is happening.
+  [SokosumiJobStatus.PROCESSING]: {
+    role: "active",
+    icon: MARKER_ICONS.running,
+    spin: true,
+  },
+
+  // The one badge that should pull the eye: nothing moves until the reader
+  // answers.
+  [SokosumiJobStatus.INPUT_REQUIRED]: {
+    role: "action",
+    icon: MARKER_ICONS.input,
+  },
+
+  // "Result Missing" is an accusation, not a wait: the seller is past its
+  // deadline and the reader's next move is usually a refund.
+  [SokosumiJobStatus.RESULT_PENDING]: {
+    role: "problem",
+    icon: MARKER_ICONS.resultMissing,
+  },
+
+  // Both are terminal: this job produced nothing and the only way forward is
+  // to hire again. A tint would imply it may still resolve.
+  [SokosumiJobStatus.FAILED]: { role: "failure", icon: MARKER_ICONS.failed },
+  [SokosumiJobStatus.PAYMENT_FAILED]: {
+    role: "failure",
+    icon: MARKER_ICONS.hiringFailed,
+  },
+
+  // The refund is proceeding normally and needs nothing from the reader, who
+  // already knows the job failed. A red tint would charge them twice for one
+  // event.
+  [SokosumiJobStatus.REFUND_PENDING]: {
+    role: "waiting",
+    icon: MARKER_ICONS.refund,
+  },
+  // Money back, no work. Not green: green sits beside Completed and would
+  // claim a result that never arrived.
+  [SokosumiJobStatus.REFUND_RESOLVED]: {
+    role: "closed",
+    icon: MARKER_ICONS.refund,
+  },
+
+  // Contested money with an arbiter deciding. The resolved label does not say
+  // who won, so the badge must not imply it either.
+  [SokosumiJobStatus.DISPUTE_PENDING]: {
+    role: "problem",
+    icon: MARKER_ICONS.dispute,
+  },
+  [SokosumiJobStatus.DISPUTE_RESOLVED]: {
+    role: "closed",
+    icon: MARKER_ICONS.dispute,
+  },
+
+  [SokosumiJobStatus.COMPLETED]: {
+    role: "success",
+    icon: MARKER_ICONS.completed,
+  },
+};
+
+const DEFAULT_JOB_MARKER: StatusMarkerSpec = {
+  role: "idle",
+  icon: MARKER_ICONS.queued,
+};
+
+export function getJobStatusMarker(
   status: SokosumiJobStatus,
-): StatusPillStyle {
-  return STATUS_PILL_STYLES[status] ?? DEFAULT_STATUS_STYLE;
+): StatusMarkerSpec {
+  return JOB_STATUS_MARKERS[status] ?? DEFAULT_JOB_MARKER;
 }
 
+/** Kept for callers that paint a bare dot outside a badge. */
 export function getJobStatusDotColorClass(status: SokosumiJobStatus): string {
-  return getJobStatusPillStyle(status).dot;
+  return STATUS_ROLE_STYLES[getJobStatusMarker(status).role].marker.replace(
+    "text-",
+    "bg-",
+  );
 }

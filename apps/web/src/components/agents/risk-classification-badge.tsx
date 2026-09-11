@@ -1,42 +1,44 @@
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
+import { MARKER_ICONS } from "@/components/ui/status-marker";
 import type { RiskClassification } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 /**
- * Four ordered tiers, so colour alone cannot carry the escalation: the warm
- * hues sit too close together to separate on hue. Fill weight is the second
- * channel. The lower two tiers are a tint with a coloured dot, the upper two
- * are solid, which makes Medium to High the step a reader notices. No tier
- * draws a border: the tint itself carries the badge edge now that it is a
- * -quaternary step, and a border on two of four tiers read as a fifth state.
+ * Four ordered tiers with four distinct silhouettes, so the escalation does
+ * not depend on telling amber from orange. The lower two are a tint, the upper
+ * two are solid, and the glyph steps shield to triangle to octagon the way
+ * road signs do.
  *
- * The label stays in the foreground colour on the tinted tiers. A coloured
- * label would need 4.5:1, and there is no vivid amber that reaches it on
- * white — that constraint is what turns amber into mud. The dot only needs
- * 3:1 (WCAG 2.2 SC 1.4.11), so the colour stays vivid there instead.
+ * On the solid tiers the glyph takes the label colour, not the hue: a marker
+ * in the fill colour has nothing to separate against. `--risk-high-foreground`
+ * on `--risk-high` measures 9.22:1.
  */
 export const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {
     labelKey: "minimal",
     color: "bg-semantic-success-quaternary border-transparent text-foreground",
-    dot: "bg-semantic-success",
+    icon: MARKER_ICONS.riskMinimal,
+    iconColor: "text-semantic-success",
   },
   LIMITED: {
     labelKey: "limited",
     color: "bg-semantic-warning-quaternary border-transparent text-foreground",
-    dot: "bg-semantic-warning",
+    icon: MARKER_ICONS.riskLimited,
+    iconColor: "text-semantic-warning",
   },
   HIGH: {
     labelKey: "high",
     color: "bg-risk-high text-risk-high-foreground border-transparent",
-    dot: null,
+    icon: MARKER_ICONS.riskHigh,
+    iconColor: "text-risk-high-foreground",
   },
   UNACCEPTABLE: {
     labelKey: "unacceptable",
     color:
-      "bg-semantic-destructive text-semantic-destructive-foreground border-transparent",
-    dot: null,
+      "bg-semantic-destructive-solid text-semantic-destructive-foreground border-transparent",
+    icon: MARKER_ICONS.riskUnacceptable,
+    iconColor: "text-semantic-destructive-foreground",
   },
 } as const;
 
@@ -57,12 +59,11 @@ export function RiskClassificationBadge({
       className={cn(config.color)}
       aria-label={t(config.labelKey)}
     >
-      {config.dot ? (
-        <span
-          aria-hidden="true"
-          className={cn("size-1.5 shrink-0 rounded-full", config.dot)}
-        />
-      ) : null}
+      <config.icon
+        aria-hidden="true"
+        strokeWidth={2.25}
+        className={cn("size-3.5 shrink-0", config.iconColor)}
+      />
       {t(config.labelKey)}
     </Badge>
   );

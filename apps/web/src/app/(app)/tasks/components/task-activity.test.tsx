@@ -401,7 +401,7 @@ describe("TaskActivitySection", () => {
 
     const dot = screen.getByTestId("status-dot-latest-running");
     expect(dot).toHaveClass("size-1.5");
-    expect(dot).toHaveClass("bg-status-running");
+    expect(dot).toHaveClass("bg-status-active");
     expect(
       screen.queryByRole("img", { name: "Alice" }),
     ).not.toBeInTheDocument();
