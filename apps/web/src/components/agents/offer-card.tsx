@@ -656,7 +656,7 @@ function OfferDetailBody({
             <DialogTitle className="text-foreground text-xl font-semibold text-balance">
               {offer.title}
             </DialogTitle>
-            <DialogDescription className="text-foreground/80 text-sm leading-relaxed text-pretty">
+            <DialogDescription className="text-foreground text-sm leading-relaxed text-pretty">
               {offer.description ?? labels.fallbackTitle ?? offer.title}
             </DialogDescription>
           </div>

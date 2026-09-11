@@ -17,7 +17,7 @@ export function NoneInput({
 
   return (
     <div className="">
-      <Markdown className="text-foreground/80">{description}</Markdown>
+      <Markdown className="text-foreground">{description}</Markdown>
     </div>
   );
 }

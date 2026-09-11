@@ -113,9 +113,7 @@ function renderInputValue(
       type === InputType.NONE)
   ) {
     return (
-      <Markdown className="text-foreground/80 wrap-break-word">
-        {value}
-      </Markdown>
+      <Markdown className="text-foreground wrap-break-word">{value}</Markdown>
     );
   }
 

@@ -30,7 +30,7 @@ export function ProjectLatestUpdate({
           id="project-latest-update-content"
           data-testid="project-latest-update-content"
           className={cn(
-            "text-foreground/80",
+            "text-foreground",
             isLong && !expanded && "max-h-64 overflow-hidden",
           )}
         >
