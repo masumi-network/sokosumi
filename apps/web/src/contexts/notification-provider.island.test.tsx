@@ -14,6 +14,7 @@ const deleteNotificationMock = vi.fn();
 const deleteNotificationsMock = vi.fn();
 const getNotificationsUnreadCountMock = vi.fn();
 const useNotificationRealtimeMock = vi.fn();
+const healPushSubscriptionMock = vi.fn();
 
 const lazyAblyProviderMock = vi.fn(
   ({ children }: { children: ReactNode }): ReactNode => (
@@ -58,6 +59,11 @@ vi.mock("@/app/components/notification-toast-listener", () => ({
     userId: string;
     markRead: (id: string) => Promise<void>;
   }) => <div data-testid="notification-toast-listener">{userId}</div>,
+}));
+
+vi.mock("@/lib/ably/push-self-heal.client", () => ({
+  healPushSubscription: (...args: unknown[]) =>
+    healPushSubscriptionMock(...args),
 }));
 
 vi.mock("@/app/components/notification-url-target-opener", () => ({
@@ -126,6 +132,8 @@ describe("NotificationProvider island", () => {
     patchNotificationsReadAllMock.mockReset();
     getNotificationsUnreadCountMock.mockReset();
     useNotificationRealtimeMock.mockReset();
+    healPushSubscriptionMock.mockReset();
+    healPushSubscriptionMock.mockResolvedValue(false);
     lazyAblyProviderMock.mockReset();
     lazyAblyProviderMock.mockImplementation(
       ({ children }: { children: ReactNode }): ReactNode => (
@@ -166,6 +174,27 @@ describe("NotificationProvider island", () => {
     expect(screen.getByTestId("loading")).toHaveTextContent("false");
     expect(screen.getByTestId("fetch-error")).toHaveTextContent("false");
     expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
+  });
+
+  /**
+   * A browser that was set up for push and lost its subscription is repaired
+   * where a signed-in reader arrives, however they got in. Nothing else in
+   * the app calls the repair, so this is the only line that wires it.
+   */
+  it("repairs a push subscription that died on its own", async () => {
+    lazyAblyProviderMock.mockImplementation((): ReactNode => null);
+
+    render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(healPushSubscriptionMock).toHaveBeenCalledWith("user-1");
   });
 
   it("mounts realtime bridge and toast listener under the LazyAbly island", async () => {
