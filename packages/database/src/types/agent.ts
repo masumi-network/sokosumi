@@ -10,10 +10,6 @@ export const agentPricingInclude = {
   },
 } as const;
 
-export const agentRatingInclude = {
-  userAgentRating: true,
-} as const;
-
 /** Override row with tags + exampleOutputs (order matches marketplace merge). */
 export const agentMetadataOverrideRelationsInclude = {
   metadataOverride: {
@@ -38,10 +34,6 @@ export const agentTagsInclude = {
   ...agentMetadataOverrideRelationsInclude,
 } as const;
 
-export const agentCategoriesInclude = {
-  categories: true,
-} as const;
-
 export const agentExampleOutputInclude = {
   exampleOutput: {
     orderBy: [
@@ -50,18 +42,6 @@ export const agentExampleOutputInclude = {
     ] as Prisma.ExampleOutputOrderByWithRelationInput[],
   },
   ...agentMetadataOverrideRelationsInclude,
-} as const;
-
-export const agentJobsInclude = {
-  jobs: true,
-} as const;
-
-export const agentInclude = {
-  ...agentPricingInclude,
-  ...agentExampleOutputInclude,
-  ...agentTagsInclude,
-  ...agentCategoriesInclude,
-  ...agentRatingInclude,
 } as const;
 
 export const agentJobCountOrderBy = {
@@ -77,46 +57,6 @@ export const agentOrderBy = [
   { ...agentCreatedAtOrderBy },
 ] as const;
 
-export type AgentWithCreditsPrice = Prisma.AgentGetPayload<{
-  include: typeof agentInclude;
-}> & {
-  creditsPrice: {
-    cents: bigint;
-  };
-};
-
-export type AgentWithRelations = Prisma.AgentGetPayload<{
-  include: typeof agentInclude;
-}>;
-
 export type AgentWithPricing = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude;
-}>;
-
-export type AgentWithRating = Prisma.AgentGetPayload<{
-  include: typeof agentRatingInclude;
-}>;
-
-export type AgentWithTags = Prisma.AgentGetPayload<{
-  include: typeof agentTagsInclude;
-}>;
-
-export type AgentWithCategories = Prisma.AgentGetPayload<{
-  include: typeof agentCategoriesInclude;
-}>;
-
-export type AgentWithExampleOutput = Prisma.AgentGetPayload<{
-  include: typeof agentExampleOutputInclude;
-}>;
-
-export type AgentWithJobs = Prisma.AgentGetPayload<{
-  include: typeof agentJobsInclude;
-}>;
-
-export type AgentWithMetadataOverride = Prisma.AgentGetPayload<{
-  include: typeof agentMetadataOverrideScalarsInclude;
-}>;
-
-export type AgentWithMetadataOverrideDetail = Prisma.AgentGetPayload<{
-  include: typeof agentMetadataOverrideRelationsInclude;
 }>;
