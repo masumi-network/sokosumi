@@ -124,7 +124,7 @@ function JobDetailsOutputsError() {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
 
   return (
-    <div className="border-semantic-destructive bg-semantic-destructive/10 flex min-h-[120px] w-full items-center justify-center rounded-md border p-4">
+    <div className="border-semantic-destructive-tertiary bg-semantic-destructive-quinary flex min-h-[120px] w-full items-center justify-center rounded-md border p-4">
       <span className="text-semantic-destructive text-lg">
         {t("failedToParseResult")}
       </span>
