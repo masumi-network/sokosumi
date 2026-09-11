@@ -1,13 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { releasePushDeviceOnSignOut } from "./release-push-device.client";
+import {
+  dropBrowserPushSubscriptionOnAccountDeletion,
+  releasePushDeviceOnSignOut,
+} from "./release-push-device.client";
 
 const deactivatePushMock = vi.fn();
+const dropBrowserPushSubscriptionMock = vi.fn();
 const hasWebPushSubscriptionMock = vi.fn();
 const isPushSupportedMock = vi.fn();
 
 vi.mock("./push-activation.client", () => ({
   deactivatePush: (...args: unknown[]) => deactivatePushMock(...args),
+  dropBrowserPushSubscription: () => dropBrowserPushSubscriptionMock(),
 }));
 
 vi.mock("@/lib/utils/notification-service-worker", () => ({
@@ -167,6 +172,123 @@ describe("releasePushDeviceOnSignOut", () => {
 
     expect(logged).toHaveBeenCalledWith(
       "Failed to release the push device on sign out",
+      reason,
+    );
+  });
+});
+
+describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    isPushSupportedMock.mockReturnValue(true);
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+    dropBrowserPushSubscriptionMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  /**
+   * The account row is gone, but the browser keeps the subscription the
+   * account page reads. The next reader to sign in here would find the Push
+   * cell on over a subscription that belongs to a deleted account.
+   */
+  it("drops the subscription this browser holds", async () => {
+    await dropBrowserPushSubscriptionOnAccountDeletion();
+
+    expect(dropBrowserPushSubscriptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Deactivation mints an Ably token, and the session died with the account.
+   * Only the half that needs no session is left, and that is the half that
+   * stops delivery.
+   */
+  it("does not try the Ably half, which has no session left", async () => {
+    await dropBrowserPushSubscriptionOnAccountDeletion();
+
+    expect(deactivatePushMock).not.toHaveBeenCalled();
+  });
+
+  it("loads nothing for a browser that never subscribed", async () => {
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+
+    await dropBrowserPushSubscriptionOnAccountDeletion();
+
+    expect(dropBrowserPushSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing on a browser that cannot push at all", async () => {
+    isPushSupportedMock.mockReturnValue(false);
+
+    await dropBrowserPushSubscriptionOnAccountDeletion();
+
+    expect(hasWebPushSubscriptionMock).not.toHaveBeenCalled();
+    expect(dropBrowserPushSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The dynamic import has to fetch the chunk that carries the Ably SDK. The
+   * account is already deleted, so a reader held on that fetch would sit on
+   * the account page of an account that no longer exists.
+   */
+  it("lets the reader go when the release hangs", async () => {
+    vi.useFakeTimers();
+    dropBrowserPushSubscriptionMock.mockReturnValue(new Promise(() => {}));
+
+    const released = dropBrowserPushSubscriptionOnAccountDeletion();
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(released).resolves.toBeUndefined();
+  });
+
+  /**
+   * The cap lets the reader go first, so the rejection lands with the outer
+   * `try` already over. Without a handler on the release itself it would be
+   * unhandled. A chunk fetch that 404s after a deploy rotated its hash is the
+   * way to get one.
+   */
+  it("logs a rejection that lands after the cap", async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reason = new Error("the chunk is gone");
+    let failRelease: (error: unknown) => void = () => {};
+    dropBrowserPushSubscriptionMock.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        failRelease = reject;
+      }),
+    );
+
+    const released = dropBrowserPushSubscriptionOnAccountDeletion();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(released).resolves.toBeUndefined();
+
+    failRelease(reason);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(logged).toHaveBeenCalledWith(
+      "Failed to release the push device after account deletion",
+      reason,
+    );
+  });
+
+  /**
+   * The account is already deleted, so there is nothing to fail back to. The
+   * reader still has to reach the success toast and leave the page.
+   */
+  it("returns when the unsubscribe fails", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reason = new Error("the browser said no");
+    dropBrowserPushSubscriptionMock.mockRejectedValue(reason);
+
+    await expect(
+      dropBrowserPushSubscriptionOnAccountDeletion(),
+    ).resolves.toBeUndefined();
+
+    expect(logged).toHaveBeenCalledWith(
+      "Failed to release the push device after account deletion",
       reason,
     );
   });

@@ -41,7 +41,7 @@ function hasAblyPushRegistration(): boolean {
 }
 
 /**
- * How long the sign-out waits for the release before it goes anyway.
+ * How long a release is waited on before the caller goes anyway.
  *
  * The browser unsubscribe leads and does not wait on the network, so this
  * only ever sheds the Ably half. `PushSubscription.unsubscribe()` deactivates
@@ -64,6 +64,28 @@ function hasAblyPushRegistration(): boolean {
  * minute. Signing out is the more urgent of the two.
  */
 const RELEASE_TIMEOUT_MS = 5_000;
+
+/**
+ * Waits for a release, and lets the caller go when the cap runs out.
+ *
+ * Shared by both paths, because both have a step that leaves the machine: the
+ * sign-out has Ably's two REST calls, and the deletion has the chunk fetch its
+ * dynamic import needs. A caller held on either has already done the part that
+ * stops delivery.
+ *
+ * The release must carry its own rejection handler. The cap can let the caller
+ * go first, and a rejection that lands after that has no one left to catch it.
+ */
+async function waitForRelease(release: Promise<void>): Promise<void> {
+  let capTimer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    release,
+    new Promise<void>((resolve) => {
+      capTimer = setTimeout(resolve, RELEASE_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(capTimer);
+}
 
 /**
  * Drop this browser's push registration before an explicit sign-out.
@@ -104,18 +126,11 @@ export async function releasePushDeviceOnSignOut(
     // Caught here rather than by the `catch` below, because the cap can let
     // the sign-out go before this settles. The alternative for a late
     // rejection is no handler at all.
-    const release = deactivatePush(userId).catch((error) => {
-      console.error("Failed to release the push device on sign out", error);
-    });
-
-    let capTimer: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      release,
-      new Promise<void>((resolve) => {
-        capTimer = setTimeout(resolve, RELEASE_TIMEOUT_MS);
+    await waitForRelease(
+      deactivatePush(userId).catch((error) => {
+        console.error("Failed to release the push device on sign out", error);
       }),
-    ]);
-    clearTimeout(capTimer);
+    );
   } catch (error) {
     // Signing out must not fail because Ably did. The registration is then
     // still live, and the reader can clear it from the browser's own site
@@ -123,4 +138,69 @@ export async function releasePushDeviceOnSignOut(
     // browser, which replaces the registration rather than adding one.
     console.error("Failed to release the push device on sign out", error);
   }
+}
+
+/**
+ * Drop this browser's push subscription once an account deletion has gone
+ * through.
+ *
+ * Deleting the account takes the publish gate with it, so no banner can reach
+ * the wrong reader. What stays behind is the browser's own subscription, which
+ * the account page reads: the next reader to sign in on this browser would
+ * find the Push cell on over a subscription that belongs to a deleted account.
+ *
+ * Runs after the deletion, not before it. Deletion asks for a password and can
+ * be blocked, and releasing first would turn push off for an account that
+ * still exists.
+ *
+ * That order gives up the Ably half, which mints a token and needs the session
+ * the deletion just ended. Only the browser unsubscribe is left, and that is
+ * the step that stops delivery and clears the cell, which is why the name says
+ * so. Ably prunes a device whose endpoint stops answering.
+ *
+ * Capped like the sign-out, for a different step. `unsubscribe()` resolves
+ * before its own request to the push service, so that one cannot hang; the
+ * dynamic import below can, because the chunk it names carries the Ably SDK
+ * and has to be fetched. The account is already deleted by then, so a reader
+ * left waiting on it would sit on the account page of an account that no
+ * longer exists, with the button still disabled, until they reloaded.
+ *
+ * What stays is Ably's own identity token in this browser's storage. The next
+ * reader heals it either way: a sign-out reads it and releases the device with
+ * their own session, and an activation that finds no subscription deactivates
+ * and goes round again (`activatePush`).
+ */
+export async function dropBrowserPushSubscriptionOnAccountDeletion(): Promise<void> {
+  try {
+    // Both reads are local, so a reader who never enabled push pays nothing
+    // and never loads the Ably SDK on their way out.
+    if (!isPushSupported() || !(await hasWebPushSubscription())) {
+      return;
+    }
+
+    await waitForRelease(
+      dropSubscription().catch((error) => {
+        console.error(
+          "Failed to release the push device after account deletion",
+          error,
+        );
+      }),
+    );
+  } catch (error) {
+    // The account is already gone, so there is nothing to fail back to. The
+    // subscription is then still live, and the reader can clear it from the
+    // browser's own site data.
+    console.error(
+      "Failed to release the push device after account deletion",
+      error,
+    );
+  }
+}
+
+/** The drop, with the chunk fetch its import needs folded into one promise. */
+async function dropSubscription(): Promise<void> {
+  const { dropBrowserPushSubscription } = await import(
+    "./push-activation.client"
+  );
+  await dropBrowserPushSubscription();
 }
