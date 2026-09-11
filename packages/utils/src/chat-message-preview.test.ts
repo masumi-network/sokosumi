@@ -1302,6 +1302,13 @@ describe("localizeChatMentionAllPreview", () => {
     );
   });
 
+  it("treats the preview ellipsis as a boundary and keeps an unlabeled preview", () => {
+    expect(localizeChatMentionAllPreview("ping @all\u2026", "Alle")).toBe(
+      "ping @Alle\u2026",
+    );
+    expect(localizeChatMentionAllPreview("ping @all", "")).toBe("ping @all");
+  });
+
   it("leaves other mentions and words alone", () => {
     expect(
       localizeChatMentionAllPreview(

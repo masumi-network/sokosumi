@@ -273,7 +273,7 @@ function localizeMentionAll(preview, label) {
   if (typeof label !== "string" || !label) {
     return preview;
   }
-  return preview.replace(/(^|\s)@all(?=$|[\s.,!?;])/g, `$1@${label}`);
+  return preview.replace(/(^|\s)@all(?=$|[\s.,!?;\u2026])/g, `$1@${label}`);
 }
 
 /**
