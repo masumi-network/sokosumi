@@ -50,7 +50,7 @@ const CUSTOM_HINT_KEY = "presetCustomHint";
  * that fades in trails a reader who is tabbing.
  */
 const TRIGGER =
-  "focus-visible:ring-ring/50 inline-flex h-8 shrink-0 items-center gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none focus-visible:ring-[3px]";
+  "focus-visible:border-ring focus-visible:ring-ring-halo inline-flex h-8 shrink-0 items-center gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none focus-visible:ring-[3px]";
 
 /**
  * The mark each situation carries, beside its word.
