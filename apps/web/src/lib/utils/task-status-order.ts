@@ -3,6 +3,14 @@ import {
   type TaskStatus as TaskStatusType,
 } from "@/lib/clients/generated/core";
 
+/** Queued is only pickable for an agent assignee with an active schedule. */
+export function canSelectQueuedTaskStatus(options: {
+  hasSchedule: boolean;
+  isAgent: boolean;
+}): boolean {
+  return options.hasSchedule && options.isAgent;
+}
+
 /** UI display order for task statuses (stats chips, label builders, etc.). */
 export const TASK_STATUS_DISPLAY_ORDER = [
   TaskStatus.DRAFT,
@@ -22,3 +30,25 @@ export const TASK_STATUS_DISPLAY_ORDER = [
 ] as const satisfies readonly TaskStatusType[];
 
 export type TaskStatusLabelKey = (typeof TASK_STATUS_DISPLAY_ORDER)[number];
+
+/** Not user-pickable in manual status selects; badges/filters/kanban keep them. */
+export const TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT = [
+  TaskStatus.GRANT_PENDING,
+  TaskStatus.AUTHENTICATION_REQUIRED,
+  TaskStatus.OUT_OF_CREDITS,
+  TaskStatus.CREDITS_TOPPED_UP,
+  TaskStatus.FAILED,
+] as const satisfies readonly TaskStatusType[];
+
+const HIDDEN_FROM_MANUAL_SELECT = new Set<TaskStatusType>(
+  TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT,
+);
+
+export function getManualTaskStatusSelectOptions(
+  currentStatus?: TaskStatusType,
+): readonly TaskStatusType[] {
+  return TASK_STATUS_DISPLAY_ORDER.filter(
+    (status) =>
+      !HIDDEN_FROM_MANUAL_SELECT.has(status) || status === currentStatus,
+  );
+}

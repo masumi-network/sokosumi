@@ -57,6 +57,18 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
       }
       offset += part.characters.count
     }
+    for index in result.indices where result[index].attachment == nil {
+      if index > 0, result[index - 1].attachment != nil {
+        while result[index].text.characters.first?.isNewline == true {
+          result[index].text.removeSubrange(result[index].text.startIndex ..< result[index].text.characters.index(after: result[index].text.startIndex))
+        }
+      }
+      if index + 1 < result.count, result[index + 1].attachment != nil {
+        while result[index].text.characters.last?.isNewline == true {
+          result[index].text.removeSubrange(result[index].text.characters.index(before: result[index].text.endIndex) ..< result[index].text.endIndex)
+        }
+      }
+    }
     return result
   }
 }
