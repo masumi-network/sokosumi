@@ -372,21 +372,61 @@ function serializePacket(packetWithoutHash: ContextPacketWithoutHash) {
   };
 }
 
-function largestTailCollection(
+/**
+ * Collections rendered oldest-first, so the entry to drop is at the front.
+ * Every other collection is ordered most-relevant-first and drops its tail.
+ * `recentTurns` renders chronologically so the model reads the conversation in
+ * order, which puts the newest — and most relevant — exchange last.
+ */
+const OLDEST_FIRST_COLLECTIONS = new Set<PacketCollectionKey>(["recentTurns"]);
+
+/**
+ * Entries kept even when the packet is over budget. Without a floor the turn
+ * entries, being the largest, are chosen first and the whole conversation is
+ * dropped: the bot answers a direct message having forgotten what was just
+ * said. Broken only when nothing else is left to trim.
+ */
+const TRIM_FLOOR: Partial<Record<PacketCollectionKey, number>> = {
+  recentTurns: 3,
+};
+
+function droppableEntry(
   packet: ContextPacketWithoutHash,
+  key: PacketCollectionKey,
+) {
+  const collection = packet[key];
+  return OLDEST_FIRST_COLLECTIONS.has(key) ? collection[0] : collection.at(-1);
+}
+
+function largestDroppableCollection(
+  packet: ContextPacketWithoutHash,
+  respectFloor: boolean,
 ): PacketCollectionKey | null {
   let selected: PacketCollectionKey | null = null;
   let selectedSize = -1;
   for (const key of PACKET_COLLECTION_KEYS) {
-    const tail = packet[key].at(-1);
-    if (!tail) continue;
-    const size = Buffer.byteLength(JSON.stringify(tail), "utf8");
+    if (respectFloor && packet[key].length <= (TRIM_FLOOR[key] ?? 0)) continue;
+    const entry = droppableEntry(packet, key);
+    if (!entry) continue;
+    const size = Buffer.byteLength(JSON.stringify(entry), "utf8");
     if (size > selectedSize) {
       selected = key;
       selectedSize = size;
     }
   }
   return selected;
+}
+
+function dropOneEntry(
+  packet: ContextPacketWithoutHash,
+  key: PacketCollectionKey,
+): ContextPacketWithoutHash {
+  return {
+    ...packet,
+    [key]: OLDEST_FIRST_COLLECTIONS.has(key)
+      ? packet[key].slice(1)
+      : packet[key].slice(0, -1),
+  };
 }
 
 function fitPacketToBudget(
@@ -398,12 +438,11 @@ function fitPacketToBudget(
   let serialized = serializePacket(packetWithoutHash);
 
   while (serialized.byteSize > SOKO_BOT_CONTEXT_PACKET_MAX_BYTES) {
-    const collection = largestTailCollection(packetWithoutHash);
+    const collection =
+      largestDroppableCollection(packetWithoutHash, true) ??
+      largestDroppableCollection(packetWithoutHash, false);
     if (collection) {
-      packetWithoutHash = {
-        ...packetWithoutHash,
-        [collection]: packetWithoutHash[collection].slice(0, -1),
-      };
+      packetWithoutHash = dropOneEntry(packetWithoutHash, collection);
     } else if (packetWithoutHash.memory.markdown !== "# Soko Bot memory") {
       packetWithoutHash = {
         ...packetWithoutHash,
