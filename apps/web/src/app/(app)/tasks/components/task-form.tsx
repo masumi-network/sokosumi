@@ -1,6 +1,9 @@
 "use client";
 
-import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
+import {
+  formatTaskAttachmentMarkdown,
+  isAgentOnlyTaskStatus,
+} from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
@@ -68,6 +71,10 @@ import {
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
+import {
+  canSelectQueuedTaskStatus,
+  getManualTaskStatusSelectOptions,
+} from "@/lib/utils/task-status-order";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import {
@@ -79,6 +86,7 @@ import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskScheduleModal } from "./task-schedule-modal";
+import { TaskStatusPillSelectTrigger } from "./task-status-pill-select-trigger";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -115,8 +123,7 @@ export interface TaskFormLabels {
   statusDraft: string;
   statusQueued?: string;
   statusReady: string;
-  markAsReady?: string;
-  revertToDraft?: string;
+  statusLabels?: Record<TaskStatus, string>;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -124,7 +131,6 @@ export interface TaskFormLabels {
   uploadingFiles: string;
   removeAttachment?: string;
   submit: string;
-  saveAsDraft?: string;
   createTask?: string;
   scheduleTask?: string;
   openSchedule: string;
@@ -154,6 +160,63 @@ export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
 /** Sentinel for the edit assignee select's Unassigned item (Radix needs non-empty values). */
 const UNASSIGNED_SELECT_VALUE = "__unassigned__";
 
+const CREATE_STATUS_OPTIONS = [
+  TaskStatus.DRAFT,
+  TaskStatus.QUEUED,
+  TaskStatus.READY,
+] as const;
+
+function isAgentAssigneeFields(fields: {
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+}): boolean {
+  return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
+}
+
+function resolveStatusForAssigneeAndSchedule(options: {
+  isAgent: boolean;
+  hasSchedule: boolean;
+}): TaskStatus {
+  if (options.hasSchedule) {
+    return options.isAgent ? TaskStatus.QUEUED : TaskStatus.READY;
+  }
+  return options.isAgent ? TaskStatus.READY : TaskStatus.DRAFT;
+}
+
+function resolveCelebrationStatus(options: {
+  desiredStatus: TaskStatus;
+  isAgent: boolean;
+  hasSchedule: boolean;
+}): "DRAFT" | "QUEUED" | "READY" {
+  if (options.desiredStatus === TaskStatus.DRAFT) {
+    return "DRAFT";
+  }
+  // Honor an explicit Queued create when the action succeeded (Core accepted).
+  if (options.desiredStatus === TaskStatus.QUEUED) {
+    return "QUEUED";
+  }
+  if (options.hasSchedule) {
+    return options.isAgent ? "QUEUED" : "READY";
+  }
+  return "READY";
+}
+
+function getTaskFormStatusLabel(
+  value: TaskStatus,
+  labels: TaskFormLabels,
+): string {
+  return (
+    labels.statusLabels?.[value] ??
+    (value === TaskStatus.DRAFT
+      ? labels.statusDraft
+      : value === TaskStatus.READY
+        ? labels.statusReady
+        : value === TaskStatus.QUEUED
+          ? (labels.statusQueued ?? value)
+          : value)
+  );
+}
+
 export interface TaskFormCreateInput {
   description: string;
   assigneeId: string | null;
@@ -161,7 +224,7 @@ export interface TaskFormCreateInput {
   assigneeUserId: string | null;
   projectId?: string | null;
   context: TaskContextSelectionInput;
-  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
 }
 
@@ -302,20 +365,60 @@ export function TaskForm({
   );
 
   const coworkerTouchedRef = useRef(false);
+  const statusTouchedRef = useRef(
+    mode === "edit" && initialValues?.status !== undefined,
+  );
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
-
-  useLayoutEffect(() => {
-    if (coworkerTouchedRef.current) return;
-    setAssigneeId(defaultAssigneeId);
-  }, [defaultAssigneeId]);
-
-  const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [scheduleSelection, setScheduleSelection] =
     useState<TaskScheduleSelection>(
       () =>
         initialValues?.schedule ??
         metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
     );
+  const [status, setStatus] = useState<TaskStatus>(() => {
+    if (mode === "edit" && initialValues?.status !== undefined) {
+      return initialValues.status;
+    }
+    const initialSchedule =
+      initialValues?.schedule ??
+      metadataToSelection(initialValues?.metadata, getDefaultTimezone());
+    const fields = resolveTaskAssigneeFields(
+      defaultAssigneeId,
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+    );
+    return resolveStatusForAssigneeAndSchedule({
+      isAgent: isAgentAssigneeFields(fields),
+      hasSchedule: initialSchedule.mode !== "none",
+    });
+  });
+
+  useLayoutEffect(() => {
+    if (coworkerTouchedRef.current) return;
+    setAssigneeId(defaultAssigneeId);
+    if (!statusTouchedRef.current) {
+      const fields = resolveTaskAssigneeFields(
+        defaultAssigneeId,
+        coworkerOptions,
+        knownSokoBotId,
+        initialValues?.assigneeUserId,
+      );
+      setStatus(
+        resolveStatusForAssigneeAndSchedule({
+          isAgent: isAgentAssigneeFields(fields),
+          hasSchedule: scheduleSelection.mode !== "none",
+        }),
+      );
+    }
+  }, [
+    defaultAssigneeId,
+    coworkerOptions,
+    knownSokoBotId,
+    initialValues?.assigneeUserId,
+    scheduleSelection.mode,
+  ]);
+
   const originalScheduleSelection = useRef(scheduleSelection);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const hadSchedule = useMemo(
@@ -327,7 +430,6 @@ export function TaskForm({
     [initialValues?.metadata, initialValues?.nextRunAt],
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [createdTask, setCreatedTask] = useState<{
     id: string;
     name: string;
@@ -348,7 +450,7 @@ export function TaskForm({
     () => convertAgentNamesToMentionOptions(agentNameById),
     [agentNameById],
   );
-  const isSubmittingAny = isSubmitting || isSubmittingDraft;
+  const isSubmittingAny = isSubmitting;
   useEffect(() => {
     onCreatedChange?.(createdTask !== null);
   }, [createdTask, onCreatedChange]);
@@ -356,6 +458,13 @@ export function TaskForm({
   const handleCoworkerSelect = useCallback(
     (id: string) => {
       coworkerTouchedRef.current = true;
+      const previousFields = resolveTaskAssigneeFields(
+        assigneeId,
+        coworkerOptions,
+        knownSokoBotId,
+        initialValues?.assigneeUserId,
+      );
+      const previousIsAgent = isAgentAssigneeFields(previousFields);
       setAssigneeId(id);
       const fields = resolveTaskAssigneeFields(
         id,
@@ -363,20 +472,54 @@ export function TaskForm({
         knownSokoBotId,
         initialValues?.assigneeUserId,
       );
-      if (
+      const isAgent = isAgentAssigneeFields(fields);
+      const isUnassigned =
         fields.assigneeId === null &&
         fields.assigneeSokoBotId === null &&
-        fields.assigneeUserId === null
-      ) {
-        setScheduleSelection((current) =>
-          current.mode === "none"
-            ? current
-            : { mode: "none", timezone: current.timezone },
+        fields.assigneeUserId === null;
+      const assigneeKindChanged = previousIsAgent !== isAgent || isUnassigned;
+
+      let nextSchedule = scheduleSelection;
+      if (isUnassigned && scheduleSelection.mode !== "none") {
+        nextSchedule = {
+          mode: "none",
+          timezone: scheduleSelection.timezone,
+        };
+        setScheduleSelection(nextSchedule);
+      }
+
+      const nextHasSchedule = nextSchedule.mode !== "none";
+      const shouldResolveStatus =
+        !statusTouchedRef.current ||
+        assigneeKindChanged ||
+        (status === TaskStatus.QUEUED &&
+          !canSelectQueuedTaskStatus({
+            isAgent,
+            hasSchedule: nextHasSchedule,
+          }));
+      if (shouldResolveStatus) {
+        setStatus(
+          resolveStatusForAssigneeAndSchedule({
+            isAgent,
+            hasSchedule: nextHasSchedule,
+          }),
         );
       }
     },
-    [coworkerOptions, knownSokoBotId, initialValues?.assigneeUserId],
+    [
+      assigneeId,
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+      scheduleSelection,
+      status,
+    ],
   );
+
+  const handleStatusSelect = useCallback((value: TaskStatus) => {
+    statusTouchedRef.current = true;
+    setStatus(value);
+  }, []);
 
   const handleCreateProject = useCallback((searchQuery: string) => {
     setCreateProjectQuery(searchQuery);
@@ -501,118 +644,33 @@ export function TaskForm({
   const canUseSubmitShortcut =
     showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
-  const shouldShowEditToggle = mode === "edit";
-  const canMarkAsReady = !hasSchedule;
-  const statusToggleLabel =
-    status === TaskStatus.DRAFT
-      ? (labels.markAsReady ?? labels.statusReady)
-      : (labels.revertToDraft ?? labels.statusDraft);
-  const isStatusToggleDisabled =
-    isSubmitting || (status === TaskStatus.DRAFT && !canMarkAsReady);
+  const statusOptions =
+    mode === "create"
+      ? CREATE_STATUS_OPTIONS
+      : getManualTaskStatusSelectOptions(status);
 
-  function handleStatusToggle() {
-    setStatus((current) => {
-      if (current === TaskStatus.DRAFT) {
-        return canMarkAsReady ? TaskStatus.READY : current;
-      }
-      return TaskStatus.DRAFT;
-    });
-  }
-
-  const handleSave = useCallback(
-    async (overrideStatus?: TaskStatus) => {
-      if (isSaveDisabled || (useWizard && step === 1)) return;
+  const handleSave = useCallback(async () => {
+    if (isSaveDisabled || (useWizard && step === 1)) return;
+    if (
+      shouldShowProjectSelect &&
+      projectId === undefined &&
+      labels.projectRequired
+    ) {
+      setIsProjectMissing(true);
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const trimmedDescription = description.trim();
+      const desiredStatus = status;
       if (
-        shouldShowProjectSelect &&
-        projectId === undefined &&
-        labels.projectRequired
+        mode === "create" &&
+        (desiredStatus === TaskStatus.DRAFT ||
+          desiredStatus === TaskStatus.READY ||
+          desiredStatus === TaskStatus.QUEUED)
       ) {
-        setIsProjectMissing(true);
-        return;
-      }
-      if (overrideStatus && overrideStatus === TaskStatus.DRAFT) {
-        setIsSubmittingDraft(true);
-      } else {
-        setIsSubmitting(true);
-      }
-      try {
-        const trimmedDescription = description.trim();
-        const desiredStatus = overrideStatus ?? status;
-        if (mode === "create" && ["DRAFT", "READY"].includes(desiredStatus)) {
-          const createTaskHandler = onCreateTask ?? createTask;
-          const result = await createTaskHandler({
-            description: trimmedDescription,
-            ...resolveTaskAssigneeFields(
-              assigneeId,
-              coworkerOptions,
-              knownSokoBotId,
-              initialValues?.assigneeUserId,
-            ),
-            context: {
-              brand: {
-                enabled: contextSelection.brand.enabled,
-                source: contextSelection.brand.source,
-                custom: contextSelection.brand.custom
-                  ? { url: contextSelection.brand.custom.url }
-                  : null,
-              },
-              briefingEnabled: contextSelection.briefingEnabled,
-              contextMdEnabled: contextSelection.contextMdEnabled,
-            },
-            ...(hasProjectSelection ? { projectId } : {}),
-            status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
-            schedule: scheduleSelection,
-          });
-          if (!result.ok) {
-            showCalendarClientUpgradeModal();
-            return;
-          }
-          const createdTask = result.value;
-          // Confirm success in place and let the user choose when to navigate;
-          // the redirect target is prefetched so it lands fast.
-          const assigneeFields = resolveTaskAssigneeFields(
-            assigneeId,
-            coworkerOptions,
-            knownSokoBotId,
-            initialValues?.assigneeUserId,
-          );
-          const createdStatus =
-            scheduleSelection.mode !== "none" &&
-            desiredStatus !== TaskStatus.DRAFT &&
-            assigneeFields.assigneeUserId === null
-              ? "QUEUED"
-              : desiredStatus === TaskStatus.DRAFT
-                ? "DRAFT"
-                : "READY";
-          router.prefetch(`/tasks/${createdTask.taskId}`);
-          setCreatedTask({
-            id: createdTask.taskId,
-            name: createdTask.name.trim() || "Untitled task",
-            status: createdStatus,
-            statusLabel:
-              createdStatus === "QUEUED"
-                ? (labels.statusQueued ?? "Queued")
-                : createdStatus === "DRAFT"
-                  ? labels.statusDraft
-                  : labels.statusReady,
-            scheduleLabel:
-              scheduleSelection.mode !== "none" &&
-              desiredStatus !== TaskStatus.DRAFT
-                ? (scheduleLabel ?? undefined)
-                : undefined,
-          });
-          onCreated?.(createdTask.taskId);
-          return;
-        }
-
-        if (!taskId) {
-          throw new Error("Task ID is required");
-        }
-
-        const trimmedName = name.trim();
-        const result = await updateTask({
-          taskId,
-          name: trimmedName,
+        const createTaskHandler = onCreateTask ?? createTask;
+        const result = await createTaskHandler({
           description: trimmedDescription,
           ...resolveTaskAssigneeFields(
             assigneeId,
@@ -620,66 +678,136 @@ export function TaskForm({
             knownSokoBotId,
             initialValues?.assigneeUserId,
           ),
+          context: {
+            brand: {
+              enabled: contextSelection.brand.enabled,
+              source: contextSelection.brand.source,
+              custom: contextSelection.brand.custom
+                ? { url: contextSelection.brand.custom.url }
+                : null,
+            },
+            briefingEnabled: contextSelection.briefingEnabled,
+            contextMdEnabled: contextSelection.contextMdEnabled,
+          },
           ...(hasProjectSelection ? { projectId } : {}),
-          currentStatus: originalStatus,
-          desiredStatus,
+          status: desiredStatus as Extract<
+            TaskStatus,
+            "DRAFT" | "READY" | "QUEUED"
+          >,
           schedule: scheduleSelection,
-          hadSchedule,
-          originalSchedule: originalScheduleSelection.current,
         });
         if (!result.ok) {
           showCalendarClientUpgradeModal();
           return;
         }
-        if (onSuccess) {
-          onSuccess(taskId);
-          return;
-        }
-        router.push(`/tasks/${taskId}`);
-      } catch (error) {
-        console.error("Failed to save task", error);
-        toast.error(
-          error instanceof Error && error.message === "Invalid schedule"
-            ? tSchedule("errors.futureDateTime")
-            : "Failed to save task",
+        const createdTask = result.value;
+        // Confirm success in place and let the user choose when to navigate;
+        // the redirect target is prefetched so it lands fast.
+        const assigneeFields = resolveTaskAssigneeFields(
+          assigneeId,
+          coworkerOptions,
+          knownSokoBotId,
+          initialValues?.assigneeUserId,
         );
-      } finally {
-        setIsSubmitting(false);
-        setIsSubmittingDraft(false);
+        const createdStatus = resolveCelebrationStatus({
+          desiredStatus,
+          isAgent: isAgentAssigneeFields(assigneeFields),
+          hasSchedule: scheduleSelection.mode !== "none",
+        });
+        router.prefetch(`/tasks/${createdTask.taskId}`);
+        setCreatedTask({
+          id: createdTask.taskId,
+          name: createdTask.name.trim() || "Untitled task",
+          status: createdStatus,
+          statusLabel:
+            createdStatus === "QUEUED"
+              ? (labels.statusQueued ?? "Queued")
+              : createdStatus === "DRAFT"
+                ? labels.statusDraft
+                : labels.statusReady,
+          scheduleLabel:
+            scheduleSelection.mode !== "none" &&
+            desiredStatus !== TaskStatus.DRAFT
+              ? (scheduleLabel ?? undefined)
+              : undefined,
+        });
+        onCreated?.(createdTask.taskId);
+        return;
       }
-    },
-    [
-      description,
-      isSaveDisabled,
-      mode,
-      step,
-      useWizard,
-      name,
-      assigneeId,
-      coworkerOptions,
-      knownSokoBotId,
-      initialValues?.assigneeUserId,
-      projectId,
-      hasProjectSelection,
-      shouldShowProjectSelect,
-      originalStatus,
-      router,
-      status,
-      taskId,
-      onSuccess,
-      onCreated,
-      onCreateTask,
-      showCalendarClientUpgradeModal,
-      scheduleSelection,
-      scheduleLabel,
-      hadSchedule,
-      contextSelection,
-      labels.statusDraft,
-      labels.statusQueued,
-      labels.statusReady,
-      tSchedule,
-    ],
-  );
+
+      if (!taskId) {
+        throw new Error("Task ID is required");
+      }
+
+      const trimmedName = name.trim();
+      const result = await updateTask({
+        taskId,
+        name: trimmedName,
+        description: trimmedDescription,
+        ...resolveTaskAssigneeFields(
+          assigneeId,
+          coworkerOptions,
+          knownSokoBotId,
+          initialValues?.assigneeUserId,
+        ),
+        ...(hasProjectSelection ? { projectId } : {}),
+        currentStatus: originalStatus,
+        desiredStatus,
+        schedule: scheduleSelection,
+        hadSchedule,
+        originalSchedule: originalScheduleSelection.current,
+      });
+      if (!result.ok) {
+        showCalendarClientUpgradeModal();
+        return;
+      }
+      if (onSuccess) {
+        onSuccess(taskId);
+        return;
+      }
+      router.push(`/tasks/${taskId}`);
+    } catch (error) {
+      console.error("Failed to save task", error);
+      toast.error(
+        error instanceof Error && error.message === "Invalid schedule"
+          ? tSchedule("errors.futureDateTime")
+          : "Failed to save task",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    description,
+    isSaveDisabled,
+    mode,
+    step,
+    useWizard,
+    name,
+    assigneeId,
+    coworkerOptions,
+    knownSokoBotId,
+    initialValues?.assigneeUserId,
+    projectId,
+    hasProjectSelection,
+    shouldShowProjectSelect,
+    originalStatus,
+    router,
+    status,
+    taskId,
+    onSuccess,
+    onCreated,
+    onCreateTask,
+    showCalendarClientUpgradeModal,
+    scheduleSelection,
+    scheduleLabel,
+    hadSchedule,
+    contextSelection,
+    labels.projectRequired,
+    labels.statusDraft,
+    labels.statusQueued,
+    labels.statusReady,
+    tSchedule,
+  ]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -690,8 +818,7 @@ export function TaskForm({
         canUseSubmitShortcut
       ) {
         event.preventDefault();
-        const shortcutStatus = mode === "create" ? TaskStatus.READY : undefined;
-        void handleSave(shortcutStatus);
+        void handleSave();
       }
     }
 
@@ -770,6 +897,10 @@ export function TaskForm({
   const isAgentAssignee =
     selectedAssigneeFields.assigneeId !== null ||
     selectedAssigneeFields.assigneeSokoBotId !== null;
+  const isQueuedSelectable = canSelectQueuedTaskStatus({
+    isAgent: isAgentAssignee,
+    hasSchedule,
+  });
   const isSchedulableAssignee =
     isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
   // Queued work must stay agent-assigned: Core rejects reassignment away
@@ -811,6 +942,47 @@ export function TaskForm({
       mode: "none",
       timezone: scheduleSelection.timezone,
     });
+    if (status === TaskStatus.QUEUED) {
+      const fields = resolveTaskAssigneeFields(
+        assigneeId,
+        coworkerOptions,
+        knownSokoBotId,
+        initialValues?.assigneeUserId,
+      );
+      setStatus(
+        resolveStatusForAssigneeAndSchedule({
+          isAgent: isAgentAssigneeFields(fields),
+          hasSchedule: false,
+        }),
+      );
+    }
+  }
+
+  function handleScheduleApply(selection: TaskScheduleSelection) {
+    setScheduleSelection(selection);
+    const fields = resolveTaskAssigneeFields(
+      assigneeId,
+      coworkerOptions,
+      knownSokoBotId,
+      initialValues?.assigneeUserId,
+    );
+    const isAgent = isAgentAssigneeFields(fields);
+    const nextHasSchedule = selection.mode !== "none";
+    const shouldResolveStatus =
+      !statusTouchedRef.current ||
+      (status === TaskStatus.QUEUED &&
+        !canSelectQueuedTaskStatus({
+          isAgent,
+          hasSchedule: nextHasSchedule,
+        }));
+    if (shouldResolveStatus) {
+      setStatus(
+        resolveStatusForAssigneeAndSchedule({
+          isAgent,
+          hasSchedule: nextHasSchedule,
+        }),
+      );
+    }
   }
 
   const handleGoToTask = () => {
@@ -1095,9 +1267,7 @@ export function TaskForm({
                       value={description}
                       onChange={setDescription}
                       onSubmitShortcut={() => {
-                        const shortcutStatus =
-                          mode === "create" ? TaskStatus.READY : undefined;
-                        void handleSave(shortcutStatus);
+                        void handleSave();
                       }}
                       onAttachClick={() =>
                         attachmentTriggerRef.current?.click()
@@ -1148,7 +1318,7 @@ export function TaskForm({
             open={isScheduleModalOpen}
             onOpenChange={setIsScheduleModalOpen}
             initialSelection={scheduleSelection}
-            onApply={setScheduleSelection}
+            onApply={handleScheduleApply}
             onClearSchedule={handleClearSchedule}
           />
         ) : null}
@@ -1164,120 +1334,77 @@ export function TaskForm({
 
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-            {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
-              <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
-                <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
-                <span className="truncate">{scheduleLabel}</span>
-              </div>
-            ) : null}
-            <div className="flex items-center gap-3 sm:ml-auto">
-              {mode === "create" ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={createdTask !== null || !isSchedulableAssignee}
-                    aria-label={labels.openSchedule}
-                    aria-pressed={hasSchedule}
-                    onClick={() => setIsScheduleModalOpen(true)}
-                  >
-                    <CalendarClock className="size-4" aria-hidden />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isSaveDisabled}
-                    onClick={() => handleSave(TaskStatus.DRAFT)}
-                  >
-                    {isSubmittingDraft ? (
-                      <Loader2
-                        className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                        aria-hidden
-                      />
-                    ) : null}
-                    {labels.saveAsDraft ?? labels.submit}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={isSaveDisabled}
-                    onClick={() => handleSave(TaskStatus.READY)}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      {isSubmitting ? (
-                        <Loader2
-                          className="h-3.5 w-3.5 animate-spin"
-                          aria-hidden
-                        />
-                      ) : null}
-                      {hasSchedule
-                        ? (labels.scheduleTask ??
-                          labels.createTask ??
-                          labels.submit)
-                        : (labels.createTask ?? labels.submit)}
-                      {!isMobile ? (
-                        <div className="flex items-center gap-0.5 opacity-60">
-                          {os === "MacOS" ? (
-                            <Command className="size-3" />
-                          ) : (
-                            <span className="text-xs">{labels.ctrl}</span>
-                          )}
-                          <CornerDownLeft className="size-3" />
-                        </div>
-                      ) : null}
-                    </div>
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={createdTask !== null || !isSchedulableAssignee}
-                    aria-label={labels.openSchedule}
-                    aria-pressed={hasSchedule}
-                    onClick={() => setIsScheduleModalOpen(true)}
-                  >
-                    <CalendarClock className="size-4" aria-hidden />
-                  </Button>
-                  {shouldShowEditToggle ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-w-28"
-                      onClick={handleStatusToggle}
-                      disabled={isStatusToggleDisabled}
+            <div className="flex min-w-0 items-center gap-2">
+              <Select
+                value={status}
+                onValueChange={(value) =>
+                  handleStatusSelect(value as TaskStatus)
+                }
+              >
+                <TaskStatusPillSelectTrigger
+                  status={status}
+                  label={getTaskFormStatusLabel(status, labels)}
+                  ariaLabel={labels.status}
+                />
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem
+                      key={option}
+                      value={option}
+                      disabled={
+                        (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
+                        (option === TaskStatus.QUEUED && !isQueuedSelectable)
+                      }
                     >
-                      {statusToggleLabel}
-                    </Button>
-                  ) : (
-                    <span />
-                  )}
-                  <Button
-                    type="button"
-                    className="min-w-28 items-center justify-between gap-1"
-                    disabled={isSaveDisabled}
-                    onClick={() => handleSave()}
-                  >
-                    <div className="flex items-center gap-2">
-                      {isSubmitting ? (
-                        <Loader2
-                          className="h-3.5 w-3.5 animate-spin"
-                          aria-hidden
-                        />
-                      ) : null}
-                      {labels.submit}
-                      {!isMobile ? (
-                        <div className="flex items-center gap-1">
-                          {os === "MacOS" ? <Command /> : labels.ctrl}
-                          <CornerDownLeft />
-                        </div>
-                      ) : null}
+                      {getTaskFormStatusLabel(option, labels)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
+                <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+                  <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
+                  <span className="truncate">{scheduleLabel}</span>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-3 sm:ml-auto">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                disabled={createdTask !== null || !isSchedulableAssignee}
+                aria-label={labels.openSchedule}
+                aria-pressed={hasSchedule}
+                onClick={() => setIsScheduleModalOpen(true)}
+              >
+                <CalendarClock className="size-4" aria-hidden />
+              </Button>
+              <Button
+                type="button"
+                className="min-w-28 items-center justify-between gap-1"
+                disabled={isSaveDisabled}
+                onClick={() => handleSave()}
+              >
+                <div className="flex items-center gap-2">
+                  {isSubmitting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : null}
+                  {mode === "create"
+                    ? hasSchedule
+                      ? (labels.scheduleTask ??
+                        labels.createTask ??
+                        labels.submit)
+                      : (labels.createTask ?? labels.submit)
+                    : labels.submit}
+                  {!isMobile ? (
+                    <div className="flex items-center gap-1">
+                      {os === "MacOS" ? <Command /> : labels.ctrl}
+                      <CornerDownLeft />
                     </div>
-                  </Button>
-                </>
-              )}
+                  ) : null}
+                </div>
+              </Button>
               {showCancel ? (
                 <Button
                   type="button"
