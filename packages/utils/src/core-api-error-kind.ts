@@ -28,6 +28,9 @@ export const CORE_API_ERROR_KINDS = {
   IDEMPOTENCY_CONFLICT: "idempotency_conflict",
   SCHEDULE_ACTIVE: "schedule_active",
   SCHEDULE_CURSOR_STALE: "schedule_cursor_stale",
+  SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE:
+    "schedule_occurrence_not_reschedulable",
+  SCHEDULE_OCCURRENCE_TARGET_INVALID: "schedule_occurrence_target_invalid",
   SCHEDULE_QUARANTINED: "schedule_quarantined",
   SCHEDULE_QUARANTINE_CONFLICT: "schedule_quarantine_conflict",
   QUEUED_REQUIRES_SCHEDULE: "queued_requires_schedule",
