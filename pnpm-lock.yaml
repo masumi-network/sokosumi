@@ -665,9 +665,6 @@ importers:
       '@prisma/client':
         specifier: 7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.2.5(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(typescript@7.0.2)
-      '@sokosumi/masumi':
-        specifier: workspace:*
-        version: link:../masumi
       '@sokosumi/utils':
         specifier: workspace:*
         version: link:../utils
@@ -683,9 +680,6 @@ importers:
       uuid:
         specifier: 14.0.2
         version: 14.0.2
-      zod:
-        specifier: 4.6.2
-        version: 4.6.2
     devDependencies:
       '@types/node':
         specifier: 24.13.4
@@ -792,9 +786,6 @@ importers:
       '@typescript/typescript6':
         specifier: 6.0.2
         version: 6.0.2
-      tsx:
-        specifier: 4.23.13
-        version: 4.23.13
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -839,9 +830,6 @@ importers:
       '@typescript/typescript6':
         specifier: 6.0.2
         version: 6.0.2
-      tsx:
-        specifier: 4.23.13
-        version: 4.23.13
       typescript:
         specifier: 7.0.2
         version: 7.0.2
