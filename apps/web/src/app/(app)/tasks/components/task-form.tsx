@@ -189,6 +189,10 @@ function resolveCelebrationStatus(options: {
   if (options.desiredStatus === TaskStatus.DRAFT) {
     return "DRAFT";
   }
+  // Honor an explicit Queued create when the action succeeded (Core accepted).
+  if (options.desiredStatus === TaskStatus.QUEUED) {
+    return "QUEUED";
+  }
   if (options.hasSchedule) {
     return options.isAgent ? "QUEUED" : "READY";
   }
