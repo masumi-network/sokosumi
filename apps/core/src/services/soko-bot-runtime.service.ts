@@ -59,6 +59,7 @@ import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
@@ -76,7 +77,6 @@ import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
-  sokoBotDisplayName,
 } from "@/routes/v1/chats/rooms/helpers";
 
 function toolAssigneeFields(

@@ -136,6 +136,7 @@ export {
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
+export { buildDirectRoomName } from "./direct-room-name.js";
 export {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,

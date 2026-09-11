@@ -5,6 +5,8 @@ import { fanOutChatNotifications } from "./chat-notification-fanout";
 export interface EmitChatMentionNotificationsParams {
   roomId: string;
   roomName: string;
+  /** Names a direct room per reader, the way that reader's sidebar does. */
+  roomKind: string;
   organizationId: string | null;
   messageId: string;
   content: string;
@@ -20,6 +22,7 @@ export async function emitChatMentionNotifications(
   await fanOutChatNotifications({
     roomId: params.roomId,
     roomName: params.roomName,
+    roomKind: params.roomKind,
     organizationId: params.organizationId,
     messageId: params.messageId,
     content: params.content,

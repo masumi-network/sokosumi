@@ -177,6 +177,7 @@ async function emitChatRoomMessageNotifications(
   await fanOutChatNotifications({
     roomId: params.roomId,
     roomName: params.roomName,
+    roomKind: params.roomKind,
     organizationId: params.organizationId,
     messageId: params.messageId,
     content: params.content,

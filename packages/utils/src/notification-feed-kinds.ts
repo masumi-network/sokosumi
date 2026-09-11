@@ -1,4 +1,7 @@
-import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "./chat-notification-message-keys.js";
+import {
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+} from "./chat-notification-message-keys.js";
 
 /**
  * Notification kinds that still create rows + realtime events (browser OS
@@ -20,17 +23,31 @@ function isBrowserOnlyNotificationKind(
 }
 
 /**
+ * The chat keys the notification center keeps, despite their kind.
+ *
+ * A mention is addressed to the reader by name, so it belongs where the reader
+ * looks for what is waiting on them. The sidebar badge says which room it was
+ * in; it cannot say who wrote it or what they said, and it is gone the moment
+ * the room is read. A room message is here because the reader asked to be told
+ * about every message, and the center is the only surface that keeps what it
+ * was told.
+ *
+ * Whether either actually arrives is still the reader's own setting: the row
+ * carries the in-app answer its category resolved to, and the feed reads that.
+ */
+const CHAT_FEED_MESSAGE_KEYS: readonly string[] = [
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+];
+
+/**
  * Whether a stored notification stays out of the in-app notification center.
  *
- * The kind answers it for every row but one. A chat room message is the
- * reader's own answer to "tell me about every message in this room", and the
- * notification center is the only place that answer can be read back: the
- * sidebar badge counts what was addressed to the reader, and an OS banner is
- * gone the moment it is dismissed. So the room message leaves its kind behind.
+ * The kind answers it for every row but the chat keys listed above.
  *
- * Mentions and direct messages stay browser-only. The sidebar already counts
- * those, beside the room they are in, which is where a reader goes to answer
- * one.
+ * A direct message stays browser-only. Every message in a direct room is
+ * addressed to the reader, so keeping them would make the center a second copy
+ * of the room rather than a list of what is waiting.
  */
 export function isBrowserOnlyNotification(
   kind: string,
@@ -38,6 +55,6 @@ export function isBrowserOnlyNotification(
 ): boolean {
   return (
     isBrowserOnlyNotificationKind(kind) &&
-    messageKey !== CHAT_ROOM_MESSAGE_MESSAGE_KEY
+    !CHAT_FEED_MESSAGE_KEYS.includes(messageKey)
   );
 }

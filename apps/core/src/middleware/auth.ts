@@ -14,6 +14,8 @@ import {
 import prisma from "@/lib/db/prisma";
 import { attachAuthToLogger } from "@/lib/evlog";
 
+import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
+
 const DEFAULT_USER_ROLE = "user";
 
 export interface UserAuthenticationContext {
@@ -418,8 +420,14 @@ async function verifyApiKey(
   if (apiKeyResult.valid && apiKeyResult.key) {
     const dbUser = await prisma.user.findUnique({
       where: { id: apiKeyResult.key.referenceId },
-      select: { role: true },
+      select: BEARER_USER_SELECT,
     });
+
+    // A key outlives its owner: deleting a user leaves the row behind, and
+    // banning one does not touch it.
+    if (!isActiveUser(dbUser)) {
+      return false;
+    }
 
     setAuthContext(c, {
       isAuthenticated: true,
@@ -427,7 +435,7 @@ async function verifyApiKey(
         actor: "user",
         userId: apiKeyResult.key.referenceId,
         organizationId: null,
-        role: dbUser?.role ?? DEFAULT_USER_ROLE,
+        role: dbUser.role,
         authenticationMethod: "api_key",
       },
     });
@@ -555,7 +563,7 @@ async function verifyOAuthToken(
       include: {
         refreshToken: true,
         user: {
-          select: { role: true },
+          select: BEARER_USER_SELECT,
         },
         client: {
           select: {
@@ -575,8 +583,19 @@ async function verifyOAuthToken(
       return null;
     }
 
+    // This access token revoked on its own. The refresh-token check below
+    // covers a revoked grant, not a single token withdrawn from it.
+    if (oauthToken.revoked) {
+      return null;
+    }
+
     // Verify user exists (OAuth tokens should have a userId)
     if (!oauthToken.userId) {
+      return null;
+    }
+
+    // A ban clears sessions but leaves bearer tokens usable until they expire.
+    if (!isActiveUser(oauthToken.user)) {
       return null;
     }
 
@@ -630,6 +649,8 @@ async function verifyOAuthToken(
       actor: "user",
       userId: oauthToken.userId,
       organizationId: null,
+      // `isActiveUser` already proved `user` is there, but the narrowing does
+      // not cross the transaction boundary, so the fallback stays.
       role: oauthToken.user?.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
     },
@@ -678,6 +699,16 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   }
 
   const { session, user } = response;
+
+  // Not every session here was created by signing in. With
+  // `enableSessionForAPIKeys`, an `x-api-key` header makes the api-key plugin
+  // build a session in memory rather than through `internalAdapter`, so the
+  // admin plugin's ban hook never sees it. `getSession` already returns the
+  // ban columns, so this costs no extra query.
+  if (!isActiveUser(user)) {
+    throw unauthorized("Invalid, expired or missing session");
+  }
+
   setAuthContext(c, {
     isAuthenticated: true,
     authContext: {
