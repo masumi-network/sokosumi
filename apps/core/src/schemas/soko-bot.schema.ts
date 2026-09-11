@@ -656,15 +656,20 @@ export const listSokoBotAvatarsQuerySchema = z.object({
   take: z.coerce.number().int().min(1).max(12).default(6),
   /** Comma-separated avatar ids already shown; ask for a fresh set. */
   exclude: z.string().max(1_000).optional(),
+});
+
+/**
+ * Body for the top-up POST. Generation bills a third party and writes rows, so
+ * it never rides on the GET: a GET is cacheable and a cross-site top-level
+ * navigation carries the session cookie under `SameSite=Lax`.
+ */
+export const topUpSokoBotAvatarsRequestSchema = z.object({
+  take: z.number().int().min(1).max(12).default(6),
   /**
-   * Fill the pool first when it is short. Only the creation picker sets this:
-   * the caller is waiting on purpose there. Decorative reads leave it off so a
-   * page render never waits on image generation.
+   * Avatar ids already shown; ask for a fresh set. The cap matches the one the
+   * web action enforces on the picker.
    */
-  topUp: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+  excludeIds: z.array(z.string().uuid()).max(60).default([]),
 });
 
 export const sokoBotVersionSchema = z

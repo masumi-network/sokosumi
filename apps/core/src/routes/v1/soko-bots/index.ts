@@ -76,6 +76,7 @@ import {
   sokoBotVersionSchema,
   startSokoBotTurnRequestSchema,
   startSokoBotTurnResponseSchema,
+  topUpSokoBotAvatarsRequestSchema,
   updateSokoBotBoardFollowingRequestSchema,
   updateSokoBotProactiveRequestSchema,
   updateSokoBotScheduleRequestSchema,
@@ -85,6 +86,7 @@ import { getSokoBotAvailability } from "@/services/soko-bot-availability.service
 import {
   claimAvatar,
   listAvailableAvatars,
+  topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
@@ -776,14 +778,52 @@ const listAvatarsRoute = createRoute({
 
 app.openapi(listAvatarsRoute, async (c) => {
   requireUserAuthContext(c.var.authContext);
-  const { take, exclude, topUp } = c.req.valid("query");
+  const { take, exclude } = c.req.valid("query");
   const excludeIds = exclude
     ? exclude
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean)
     : [];
-  const avatars = await listAvailableAvatars(take, { excludeIds, topUp });
+  const avatars = await listAvailableAvatars(take, { excludeIds });
+  return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
+});
+
+/**
+ * Generation writes rows and bills FAL, so it is a POST. As a GET it was
+ * reachable by a cross-site top-level navigation, which carries the session
+ * cookie under `SameSite=Lax`, and was cacheable by intermediaries.
+ */
+const topUpAvatarsRoute = createRoute({
+  method: "post",
+  path: "/avatars/top-up",
+  operationId: "topUpSokoBotAvatars",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      // Without `required`, @hono/zod-openapi skips body validation entirely
+      // when the request carries no JSON content-type, so `take` would arrive
+      // undefined and Prisma would read the whole pool instead of a page.
+      required: true,
+      content: {
+        "application/json": { schema: topUpSokoBotAvatarsRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.array(sokoBotAvatarSchema),
+      "Unclaimed mascot avatars, after filling a short pool",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(topUpAvatarsRoute, async (c) => {
+  requireUserAuthContext(c.var.authContext);
+  const { take, excludeIds } = c.req.valid("json");
+  const avatars = await topUpAvailableAvatars(take, { excludeIds });
   return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
 });
 

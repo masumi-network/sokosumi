@@ -3033,6 +3033,21 @@ export type DriveFile = {
     uploadedAt: Date;
 };
 
+export type DrivePaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
 export type MoveDriveItemRequest = {
     /**
      * Source pathname (file) or folder path relative to scope root (folder)
@@ -3756,7 +3771,7 @@ export type NotificationPreference = {
 
 export type PreferredOrganization = {
     /**
-     * Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
+     * Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
      */
     organizationId: string | null;
 };
@@ -17600,7 +17615,7 @@ export type GetChatsRoomsByIdMessagesData = {
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Cursor for pagination (ID of the last message from previous page)
          */
         cursor?: string;
         /**
@@ -19821,7 +19836,7 @@ export type GetDriveFilesResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination: PaginationMetadata;
+            pagination: DrivePaginationMetadata;
         };
     };
 };
@@ -23005,6 +23020,95 @@ export type PatchUsersByIdPreferencesResponses = {
 };
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
+
+export type GetUsersByIdPreferredOrganizationData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferred-organization';
+};
+
+export type GetUsersByIdPreferredOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationError = GetUsersByIdPreferredOrganizationErrors[keyof GetUsersByIdPreferredOrganizationErrors];
+
+export type GetUsersByIdPreferredOrganizationResponses = {
+    /**
+     * The resolved organization selection for workspace restoration
+     */
+    200: {
+        data: PreferredOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationResponse = GetUsersByIdPreferredOrganizationResponses[keyof GetUsersByIdPreferredOrganizationResponses];
 
 export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
@@ -33433,7 +33537,6 @@ export type ListSokoBotAvatarsData = {
     query?: {
         take?: number;
         exclude?: string;
-        topUp?: 'true' | 'false';
     };
     url: '/soko-bots/avatars';
 };
@@ -33472,6 +33575,65 @@ export type ListSokoBotAvatarsResponses = {
 };
 
 export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
+
+export type TopUpSokoBotAvatarsData = {
+    body: {
+        take?: number;
+        excludeIds?: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/soko-bots/avatars/top-up';
+};
+
+export type TopUpSokoBotAvatarsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSokoBotAvatarsErrors];
+
+export type TopUpSokoBotAvatarsResponses = {
+    /**
+     * Unclaimed mascot avatars, after filling a short pool
+     */
+    200: {
+        data: Array<SokoBotAvatar>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TopUpSokoBotAvatarsResponse = TopUpSokoBotAvatarsResponses[keyof TopUpSokoBotAvatarsResponses];
 
 export type ListMySokoBotIntegrationsData = {
     body?: never;

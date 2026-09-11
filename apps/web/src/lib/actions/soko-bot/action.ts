@@ -252,18 +252,21 @@ interface ListAvatarsParams extends AuthenticatedRequest {
   input: unknown;
 }
 
-/** Unclaimed mascot avatars for the picker; pass shown ids to get a fresh set. */
-export const listSokoBotAvatarsAction = withSession<
+/**
+ * Unclaimed mascot avatars for the picker; pass shown ids to get a fresh set.
+ * This generates missing mascots first, so it bills FAL and writes rows. Named
+ * for that rather than for the list it returns.
+ */
+export const topUpSokoBotAvatarsAction = withSession<
   ListAvatarsParams,
   ActionResultDto<SokoBotAvatar[], ActionError>
 >(async ({ input }) => {
   const parsed = avatarListSchema.safeParse(input ?? {});
   if (!parsed.success) return toActionResult(err(invalidInput()));
   try {
-    const avatars = await sokoBotService.listAvatars(
+    const avatars = await sokoBotService.topUpAvatars(
       parsed.data.take,
       parsed.data.excludeIds,
-      true,
     );
     return toActionResult(ok(avatars));
   } catch (error) {
