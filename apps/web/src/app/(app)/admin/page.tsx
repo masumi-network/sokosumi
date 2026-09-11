@@ -63,7 +63,7 @@ export default async function AdminOverviewPage() {
                     href={href}
                     className="focus-visible:ring-ring rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                   >
-                    <Card className="hover:border-primary/40 h-full gap-3 transition-colors hover:shadow-sm">
+                    <Card className="hover:border-primary-tertiary h-full gap-3 transition-colors hover:shadow-sm">
                       <CardHeader>
                         <Icon
                           className="text-muted-foreground size-5"

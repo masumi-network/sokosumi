@@ -56,7 +56,7 @@ const STATUS_CARD_STYLES: Record<
     dot: COLUMN_STATUS_COLORS.todo,
   },
   QUEUED: {
-    badge: "bg-primary/10 text-primary",
+    badge: "bg-primary-quinary text-primary",
     dot: CELEBRATION_SCHEDULED_DOT,
   },
 };
@@ -148,7 +148,7 @@ export function TaskCreatedCelebration({
                     {reduceMotion ? null : (
                       <motion.span
                         aria-hidden
-                        className="ring-primary/50 pointer-events-none absolute inset-0 rounded-lg ring-2"
+                        className="ring-ring-halo pointer-events-none absolute inset-0 rounded-lg ring-2"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: [0, 1, 0] }}
                         transition={{ duration: 0.9, delay: 0.3 }}

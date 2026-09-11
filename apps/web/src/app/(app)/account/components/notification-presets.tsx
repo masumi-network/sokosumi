@@ -182,7 +182,7 @@ export function GroupAnswer({
             // says the group is on settings of its own, as loudly as a chosen
             // word does.
             preset === "CUSTOM"
-              ? "border-primary bg-primary/10 text-primary"
+              ? "border-primary bg-primary-quinary text-primary"
               : "border-input bg-background",
             saving && "opacity-50",
           )}

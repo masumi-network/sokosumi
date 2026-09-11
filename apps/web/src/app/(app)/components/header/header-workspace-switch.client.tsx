@@ -324,7 +324,7 @@ export default function HeaderWorkspaceSwitch({
             disabled={isPending || isCreatingPersonal}
             onClick={handleOpenCreateWorkspace}
           >
-            <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
+            <Avatar className="bg-primary-quinary flex size-6 items-center justify-center gap-2">
               <Plus className="text-primary size-4" />
             </Avatar>
             <span>{tOrganizationSwitcher("createWorkspace")}</span>

@@ -69,7 +69,7 @@ function PurchaseSuccessModalContent({
           <ConfettiBurst className="pointer-events-none absolute top-1/2 left-1/2 z-10" />
         )}
         <motion.div
-          className="bg-primary/10 flex size-14 items-center justify-center rounded-full"
+          className="bg-primary-quinary flex size-14 items-center justify-center rounded-full"
           initial={reduceMotion ? false : { scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={

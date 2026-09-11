@@ -348,7 +348,7 @@ function MessageQuoteBlock({
   const attachment = quote.attachment ?? null;
 
   return (
-    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
+    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-1.5">
       <button
         type="button"
         className="hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
@@ -472,7 +472,7 @@ function MessageUnfurlCard({
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-card-background hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-card-background hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
@@ -936,7 +936,7 @@ function MessageActionControls({
             size="icon"
             className={cn(
               "group/quick-reaction size-9 rounded-full text-sm sm:size-7",
-              reacted && "bg-primary/10 hover:bg-primary/15",
+              reacted && "bg-primary-quinary hover:bg-primary-quaternary",
             )}
             title={
               shortcode ? `:${shortcode}:` : t("Reactions.toggle", { emoji })
@@ -1454,7 +1454,8 @@ function TouchMessageActionsSheet({
               size="icon"
               className={cn(
                 "size-11 rounded-full text-xl",
-                reactedEmojis.has(emoji) && "bg-primary/10 hover:bg-primary/15",
+                reactedEmojis.has(emoji) &&
+                  "bg-primary-quinary hover:bg-primary-quaternary",
               )}
               aria-label={t("Reactions.toggle", { emoji })}
               aria-pressed={reactedEmojis.has(emoji)}
@@ -2068,7 +2069,7 @@ function MessageMetaFooter({
                     className={cn(
                       "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                       reaction.reactedByCurrentUser &&
-                        "border-primary/30 bg-primary/10 text-primary",
+                        "border-primary-tertiary bg-primary-quinary text-primary",
                     )}
                     aria-label={t("Reactions.toggle", {
                       emoji: reaction.emoji,

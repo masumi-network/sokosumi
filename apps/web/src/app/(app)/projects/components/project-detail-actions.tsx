@@ -110,7 +110,7 @@ export function ProjectDetailActions({
             {labels.deleteDialog.cancel}
           </AlertDialogCancel>
           <AlertDialogAction
-            className="bg-destructive text-white hover:bg-destructive/90"
+            className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
             disabled={isDeleting}
             onClick={(event) => {
               event.preventDefault();

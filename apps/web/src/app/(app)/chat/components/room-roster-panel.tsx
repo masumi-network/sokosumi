@@ -69,7 +69,7 @@ function RosterMemberAvatar({
             className={cn(
               "text-[0.625rem]",
               isAi
-                ? "bg-primary/10 text-primary"
+                ? "bg-primary-quinary text-primary"
                 : "bg-muted text-muted-foreground",
             )}
           >
