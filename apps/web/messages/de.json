@@ -5380,6 +5380,10 @@
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
         "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten"
       },
+      "RoomMentions": {
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "mentionsCapped": "Mehr als {max} Erwähnungen"
+      },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"

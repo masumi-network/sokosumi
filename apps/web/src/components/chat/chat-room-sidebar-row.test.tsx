@@ -56,6 +56,8 @@ vi.mock("next-intl", () => ({
       const translations: Record<string, string> = {
         unreadMessages: `${values?.count ?? ""} unread messages`,
         unreadMessagesCapped: `More than ${values?.max ?? ""} unread messages`,
+        mentions: `${values?.count ?? ""} mentions`,
+        mentionsCapped: `More than ${values?.max ?? ""} mentions`,
         leave: "Leave channel",
         leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
         leaveConfirmDescription: `Leave description for ${values?.name ?? ""}`,
@@ -678,13 +680,13 @@ describe("ChatRoomSidebarRow unread message count", () => {
     renderRow(makeRoom({ unreadCount: 4 }));
 
     expect(screen.queryByText("4 unread messages")).toBeNull();
-    expect(screen.queryByText("4")).toBeNull();
+    expect(screen.queryByText("· 4")).toBeNull();
   });
 
   it("shows the unread message count when the reader opted in", () => {
     renderRow(makeRoom({ unreadCount: 4 }));
 
-    expect(screen.getByText("4")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("· 4")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("4 unread messages").className).toContain(
       "sr-only",
     );
@@ -725,16 +727,20 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("caps a very loud room so the row cannot reflow", () => {
     renderRow(makeRoom({ unreadCount: 1234 }));
 
-    expect(screen.getByText("99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("More than 99 unread messages")).toBeVisible();
   });
 
+  // Collapsed to icons, the row is a 20px glyph with no room for either
+  // number. Hiding both is the decided behaviour, not an oversight.
   it("hides the count with the mention badge when the sidebar collapses", () => {
-    renderRow(makeRoom({ unreadCount: 4 }));
+    renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }));
 
-    expect(
-      screen.getByText("4 unread messages").parentElement?.className,
-    ).toContain("group-data-[collapsible=icon]:hidden");
+    for (const text of ["4 unread messages", "2 mentions"]) {
+      expect(screen.getByText(text).parentElement?.className).toContain(
+        "group-data-[collapsible=icon]:hidden",
+      );
+    }
   });
 
   // The regression guard: a mention and unread messages on one row, each
@@ -742,9 +748,29 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("shows a mention badge and a message count without either changing", () => {
     renderRow(makeRoom({ unreadCount: 9, unreadMentionCount: 2 }));
 
-    expect(screen.getByLabelText("2 mentions")).toHaveTextContent("2");
+    expect(screen.getByText("2 mentions")).toBeInTheDocument();
+    expect(screen.getByText("2")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("9 unread messages")).toBeInTheDocument();
-    expect(screen.getByText("9")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("· 9")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  // The badge announced a hardcoded English `aria-label` before SOK-1042, so a
+  // German or Spanish reader heard English and one mention read "1 mentions".
+  it("announces the mention badge through a translated string", () => {
+    renderRow(makeRoom({ unreadCount: 0, unreadMentionCount: 3 }));
+
+    expect(screen.getByText("3 mentions").className).toContain("sr-only");
+    expect(screen.queryByLabelText(/mentions/)).toBeNull();
+  });
+
+  // One cap for both numbers: the row can never show two ceilings.
+  it("caps the mention badge at the same ceiling as the message count", () => {
+    renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
+
+    expect(screen.getByText("99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("More than 99 mentions")).toBeInTheDocument();
+    expect(screen.getByText("More than 99 unread messages")).toBeVisible();
   });
 
   // The pure-function seam never receives the room kind, so it cannot prove

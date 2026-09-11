@@ -5380,6 +5380,10 @@
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "unreadMessagesCapped": "More than {max} unread messages"
       },
+      "RoomMentions": {
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "mentionsCapped": "More than {max} mentions"
+      },
       "MembershipStatus": {
         "joined": "{name} joined",
         "left": "{name} left"
