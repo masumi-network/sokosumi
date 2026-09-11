@@ -1,16 +1,19 @@
 # @sokosumi/database
 
-Standalone database layer package for the Sokosumi monorepo, providing a clean repository pattern over Prisma with full TypeScript support.
+Standalone database layer for the Sokosumi monorepo: Prisma schema, client factory, repositories, helpers, and shared types.
+
+**Core owns all database access.** Only Core creates a Prisma client (`apps/core/src/lib/db/prisma.ts`). The web app must not import `@sokosumi/database`, Prisma, or Postgres — it reaches data through the Core API.
 
 ## Overview
 
-This package encapsulates all database access through:
+This package encapsulates database access through:
 
 - **Prisma Schema**: Single source of truth for the database structure
-- **Repositories**: Domain-specific data access layer
-- **Type Exports**: Browser-safe type definitions
-- **Transaction Support**: Atomic operations across repositories
-- **Helpers**: Domain logic utilities
+- **Repositories**: Legacy data-access modules (new Core routes prefer direct Prisma)
+- **Type Exports**: Prisma models, enums, and shared include/payload types for Core and other server packages
+- **Helpers**: Prisma-backed domain logic (job status, credit buckets, billing plan resolution)
+
+Credit conversion (`convertCentsToCredits` / `convertCreditsToCents`) lives in `@sokosumi/utils`, not here.
 
 ## Installation
 
@@ -29,17 +32,11 @@ This package is part of the Sokosumi monorepo and uses pnpm workspaces:
 ```
 packages/database/
 ├── src/
-│   ├── client.ts              # Prisma client singleton
+│   ├── client.ts              # createPrismaClient factory
 │   ├── index.ts               # Main exports (types & models)
-│   ├── repositories/          # Repository layer
-│   │   ├── user.repository.ts
-│   │   └── ...
+│   ├── repositories/          # Legacy repository layer
 │   ├── types/                 # Shared type definitions
-│   │   ├── agent.ts
-│   │   ├── job.ts
-│   │   └── ...
-│   ├── helpers/               # Domain helpers
-│   │   └── job.ts
+│   ├── helpers/               # Prisma-backed domain helpers
 │   └── generated/             # Prisma generated files (gitignored)
 ├── prisma/
 │   ├── schema.prisma          # Database schema
@@ -52,60 +49,66 @@ packages/database/
 
 ### Importing Types and Models
 
+Use in Core and other server packages that own DB access:
+
 ```typescript
-// Import Prisma types and model types
 import { Prisma, Agent, User, Job } from "@sokosumi/database";
 
-// Use in type annotations
 type AgentWhereInput = Prisma.AgentWhereInput;
 type UserUpdateInput = Prisma.UserUpdateInput;
 ```
 
 ### Using the Prisma Client
 
+Only Core (and package tests/scripts) should create a client:
+
 ```typescript
-// Create a Prisma client instance using the factory function
 import { createPrismaClient } from "@sokosumi/database/client";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL);
+```
 
-// Direct Prisma access (use sparingly - prefer repositories)
+In Core, import the app singleton instead of calling the factory again:
+
+```typescript
+// apps/core/src/lib/db/prisma.ts
+import { createPrismaClient } from "@sokosumi/database/client";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL!);
+export default prisma;
+```
+
+```typescript
+// Core routes / services
+import prisma from "@/lib/db/prisma";
+
 const user = await prisma.user.findUnique({ where: { id: userId } });
 ```
 
-**Note**: In the Sokosumi monorepo, each app (web/core) creates its own Prisma client instance. Import from the app-level client:
-
-```typescript
-// In apps/web
-import prisma from "@/lib/db/prisma";
-
-// In apps/core
-import prisma from "@/lib/db/prisma";
-```
+New Core routes use that singleton directly. Do not import `@sokosumi/database` from `apps/web`.
 
 ### Using Repositories
 
+Repositories remain for legacy Core services. Pass the Prisma client explicitly:
+
 ```typescript
 import { userRepository } from "@sokosumi/database/repositories";
-
-// Get a user (prisma client is required)
 import prisma from "@/lib/db/prisma";
+
 const user = await userRepository.getUserById("user-id", prisma);
 ```
 
 ### Using Transactions
 
+Transactions live in Core (`apps/core/src/lib/db/transaction.ts`), not in this package. For serializable mutations, use `serializableTransaction`. For a simple interactive transaction, pass Core's Prisma client into repositories:
+
 ```typescript
-// In apps/web or apps/core
-import { transaction } from "@/lib/db/transaction";
+import prisma from "@/lib/db/prisma";
 import { userRepository, jobRepository } from "@sokosumi/database/repositories";
 
-// Execute multiple operations atomically
-await transaction.run(async (tx) => {
+await prisma.$transaction(async (tx) => {
   const user = await userRepository.getUserById(userId, tx);
   const job = await jobRepository.getJobById(jobId, tx);
-
-  // If any operation fails, all changes are rolled back
 });
 ```
 
@@ -115,57 +118,70 @@ await transaction.run(async (tx) => {
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
 import type { Job } from "@sokosumi/database";
 
-// Compute job status
 const status = computeJobStatus(job);
-
-// Map job to include computed status
 const jobWithStatus = mapJobWithStatus(jobWithRelations);
 ```
 
-### Custom Types
+### Named exports (`@sokosumi/database`)
+
+Besides Prisma-generated models and enums, the main entry point currently re-exports:
 
 ```typescript
-import type {
-  AgentWithRelations,
-  JobWithStatus,
-  OrganizationWithRelations,
+import {
+  type AgentWithPricing,
+  agentExampleOutputInclude,
+  agentMetadataOverrideScalarsInclude,
+  agentOrderBy,
+  agentPricingInclude,
+  agentTagsInclude,
+  InvitationStatus,
+  MemberRole,
+  workspaceRelationInclude,
 } from "@sokosumi/database";
-
-// Use in function signatures
-async function getAgentDetails(id: string): Promise<AgentWithRelations | null> {
-  // ...
-}
+import type { JobWithStatus } from "@sokosumi/database";
 ```
+
+Agent query shapes used by Core:
+
+- `agentPricingInclude` / `AgentWithPricing`
+- `agentTagsInclude`
+- `agentExampleOutputInclude`
+- `agentMetadataOverrideScalarsInclude`
+- `agentOrderBy`
+
+`agentTagsInclude` and `agentExampleOutputInclude` both embed `agentMetadataOverrideRelationsInclude` (tags + example outputs on the override row). Core owns `agentCategoriesInclude` locally — it is not exported from this package.
+
+Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-exported from `src/types/job.ts`. `InvitationStatus` includes `EXPIRED` for UI/API mapping; that value is not stored in the database.
 
 ## Entry Points
 
-The package provides multiple entry points for different use cases:
-
 ### Main Export (`@sokosumi/database`)
 
-- **Purpose**: Browser-safe types and enums
-- **Includes**: Prisma namespace, model types, enums, shared types
-- **Excludes**: PrismaClient (Node.js only)
-- **Use in**: Client and server components for type annotations
+- **Purpose**: Prisma model types, enums, and shared types for server packages
+- **Includes**: Prisma namespace, model types, enums, named includes/types above
+- **Excludes**: PrismaClient (use `@sokosumi/database/client`)
+- **Use in**: Core and server packages that own DB access. **Web must not import this package.**
 
 ### Client Export (`@sokosumi/database/client`)
 
 - **Purpose**: Factory function to create Prisma client instances
-- **Includes**: `createPrismaClient(databaseUrl: string)` function
-- **Use in**: Server-side code only (protected by `server-only`)
-- **Note**: Each app creates its own client instance using the factory
+- **Includes**: `createPrismaClient(databaseUrl: string)`
+- **Use in**: Core (`apps/core/src/lib/db/prisma.ts`) and server-side tests/scripts (`server-only`)
 
 ### Repositories Export (`@sokosumi/database/repositories`)
 
-- **Purpose**: All domain repositories
-- **Includes**: 18+ repository objects
-- **Use in**: Server-side services and actions
+- **Purpose**: Domain repositories (legacy consumers)
+- **Use in**: Legacy Core services. New Core routes prefer direct Prisma.
 
 ### Helpers Export (`@sokosumi/database/helpers`)
 
-- **Purpose**: Domain logic utilities
-- **Includes**: Job status computation, mapping functions
-- **Use in**: Services, actions, API handlers
+- **Purpose**: Prisma-backed domain helpers
+- **Includes**: Job status, credit buckets, billing plan resolution, and related helpers
+- **Use in**: Core services, routes, and other server packages
+
+### Job Types Export (`@sokosumi/database/types/job`)
+
+- **Purpose**: Job include/payload types without pulling the full package surface when needed as a subpath
 
 ## Development
 
@@ -223,122 +239,47 @@ pnpm run format:check
 
 All repositories follow a consistent pattern:
 
-1. **Accept optional transaction client**: Every method accepts `tx?: Prisma.TransactionClient`
+1. **Accept Prisma client as last parameter**: Every method requires an explicit client
 2. **Return Prisma types**: Use generated Prisma types for consistency
 3. **No business logic**: Repositories only handle data access
 4. **Use includes**: Define relationship includes as constants
 
-Example repository structure:
-
 ```typescript
 export const userRepository = {
-  async getUserById(
-    id: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<User | null> {
-    return tx.user.findUnique({ where: { id } });
+  async getUserById(id: string, prisma: PrismaClient): Promise<User | null> {
+    return prisma.user.findUnique({ where: { id } });
   },
-
-  // ... more methods
 };
 ```
 
-### Three-Layer Pattern
+### Data access ownership
 
-The database package is the foundation of a three-layer architecture:
-
-1. **Repositories** (this package): Data access
-2. **Services** (web app): Business logic coordination
-3. **Actions** (web app): Server mutations and API handlers
+1. **This package**: Schema, Prisma client factory, helpers, legacy repositories
+2. **Core**: The only app that instantiates Prisma and queries the database
+3. **Web**: Consumes Core API DTOs — never this package
 
 ### Type Safety
 
-- All types are generated from the Prisma schema
-- The main export uses browser-safe types (no Node.js dependencies)
-- Server-side code imports the full client from `/client`
-- Transaction types ensure consistency across operations
-
-## Migration Guide
-
-### Factory Pattern Migration (v0.2.0+)
-
-The database package now uses a factory pattern for creating Prisma clients. This improves testability and explicit dependency injection.
-
-**Before (Singleton Pattern):**
-
-```typescript
-import prisma from "@sokosumi/database/client";
-import { userRepository } from "@sokosumi/database/repositories";
-
-// Prisma client was a singleton
-const user = await userRepository.getUserById(id); // default prisma used
-```
-
-**After (Factory Pattern):**
-
-```typescript
-// In each app, create Prisma client instance
-import prisma from "@/lib/db/prisma"; // app-level client
-import { transaction } from "@/lib/db/transaction"; // app-level transaction
-import { userRepository } from "@sokosumi/database/repositories";
-
-// Repository methods now require explicit prisma client
-const user = await userRepository.getUserById(id, prisma);
-```
-
-### Repository Method Changes
-
-All repository methods now require the Prisma client as the last parameter:
-
-**Before:**
-
-```typescript
-await userRepository.getUserById(id); // default prisma used
-```
-
-**After:**
-
-```typescript
-import prisma from "@/lib/db/prisma";
-await userRepository.getUserById(id, prisma);
-```
-
-### From Direct Prisma to Repository Pattern
-
-**Before:**
-
-```typescript
-import prisma from "@/lib/db/repositories/prisma";
-
-const user = await prisma.user.findUnique({ where: { id } });
-```
-
-**After:**
-
-```typescript
-import prisma from "@/lib/db/prisma";
-import { userRepository } from "@sokosumi/database/repositories";
-
-const user = await userRepository.getUserById(id, prisma);
-```
+- Relationship payload types are inferred from Prisma includes
+- The main export is for Core and other server packages, not the web app
+- Server-side code that needs a client imports `@sokosumi/database/client`
 
 ## Best Practices
 
-### ✅ Do
+### Do
 
-- Use repositories for all database access
-- Pass transaction client for multi-operation workflows
-- Import types from the main export
-- Use helpers for domain logic
-- Follow the three-layer pattern
+- Prefer direct Prisma in new Core route handlers (`import prisma from "@/lib/db/prisma"`)
+- Keep repositories for package consumers / legacy Core services; pass the Prisma client explicitly
+- Import types from the main export in Core and server packages
+- Use database helpers for Prisma-backed domain logic; use `@sokosumi/utils` for credit conversion
 
-### ❌ Don't
+### Don't
 
-- Import Prisma client directly in client components
-- Mix direct Prisma access with repositories
+- Import `@sokosumi/database` from the web app
 - Put business logic in repositories
-- Skip transaction for related operations
 - Access generated files directly
+- Use default exports in repositories
+- Re-export `@sokosumi/utils` symbols from database helpers
 
 ## Troubleshooting
 
@@ -389,6 +330,7 @@ Ensure you're using the correct entry point:
 - Types: `@sokosumi/database`
 - Client: `@sokosumi/database/client`
 - Repositories: `@sokosumi/database/repositories`
+- Helpers: `@sokosumi/database/helpers`
 
 ## Contributing
 
@@ -396,7 +338,7 @@ When adding new database entities:
 
 1. Update `prisma/schema.prisma`
 2. Create migration: `pnpm run prisma:migrate:dev`
-3. Create repository in `src/repositories/`
+3. Create repository in `src/repositories/` only if a legacy consumer still needs one
 4. Export repository in `src/repositories/index.ts`
 5. Add types to `src/types/` if needed
 6. Update this README
@@ -406,3 +348,4 @@ When adding new database entities:
 - [Prisma Documentation](https://www.prisma.io/docs)
 - [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
 - [Sokosumi AGENTS.md](../../AGENTS.md)
+- [Database package AGENTS.md](./AGENTS.md)
