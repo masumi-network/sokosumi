@@ -85,7 +85,7 @@ export function ChatMobileBottomNav({
         "z-40 md:hidden",
         mobileChromeSurfaceClass(isApple),
         isApple
-          ? "fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-full border border-border shadow-lg shadow-black/10 dark:shadow-black/40"
+          ? "fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-full border border-border shadow-lg shadow-scrim-soft dark:shadow-scrim"
           : "border-border fixed inset-x-0 bottom-0 border-t pb-[env(safe-area-inset-bottom)]",
       )}
     >

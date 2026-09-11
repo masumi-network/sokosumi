@@ -158,7 +158,7 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
   "[&_a]:text-primary [&_a]:underline",
-  "[&_blockquote]:border-muted-foreground/40 [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
+  "[&_blockquote]:border-input [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
   "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
   "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
   "[&_span[data-channel-label]]:text-primary [&_span[data-channel-label]]:cursor-pointer [&_span[data-channel-label]]:font-semibold [&_span[data-channel-label]]:hover:underline",
