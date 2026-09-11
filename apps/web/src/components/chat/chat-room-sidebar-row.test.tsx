@@ -15,6 +15,7 @@ import {
   chatRoomEditHref,
 } from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
+import { makeRoom, makeUser } from "./__tests__/chat-room-fixtures";
 
 const {
   leaveRoomActionMock,
@@ -49,65 +50,44 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// The row's two numbers are checked against the real English catalog: the mock
-// resolves them by full key path and throws when that path is not in `en.json`.
-// So a typo in either half of the path fails here, and so does a path the
-// catalog never had. The plain strings below stand in for ICU output.
-vi.mock("next-intl", async () => {
-  const en = (await import("@/messages/en.json")).default;
+// The row's two numbers resolve by full key path, so a typo in the namespace
+// fails here instead of passing on a bare key that happens to match. The real
+// catalog and the real ICU plurals are bound in
+// `__tests__/chat-room-sidebar-row-messages.test.tsx`.
+vi.mock("next-intl", () => ({
+  useTranslations:
+    (namespace?: string) =>
+    (key: string, values?: Record<string, string | number>) => {
+      const numbers: Record<string, string> = {
+        "App.Channels.RoomUnread.unreadMessages": `${values?.count ?? ""} unread messages`,
+        "App.Channels.RoomUnread.unreadMessagesCapped": `More than ${values?.max ?? ""} unread messages`,
+        "App.Channels.RoomMentions.mentions": `${values?.count ?? ""} mentions`,
+        "App.Channels.RoomMentions.mentionsCapped": `More than ${values?.max ?? ""} mentions`,
+      };
+      const number = numbers[`${namespace ?? ""}.${key}`];
+      if (number !== undefined) {
+        return number;
+      }
 
-  function catalogHas(path: string): boolean {
-    return (
-      path.split(".").reduce<unknown>((node, segment) => {
-        return typeof node === "object" && node !== null
-          ? (node as Record<string, unknown>)[segment]
-          : undefined;
-      }, en) !== undefined
-    );
-  }
-
-  return {
-    useTranslations:
-      (namespace?: string) =>
-      (key: string, values?: Record<string, string | number>) => {
-        const path = `${namespace ?? ""}.${key}`;
-        const numbers: Record<string, string> = {
-          "App.Channels.RoomUnread.unreadMessages": `${values?.count ?? ""} unread messages`,
-          "App.Channels.RoomUnread.unreadMessagesCapped": `More than ${values?.max ?? ""} unread messages`,
-          "App.Channels.RoomMentions.mentions": `${values?.count ?? ""} mentions`,
-          "App.Channels.RoomMentions.mentionsCapped": `More than ${values?.max ?? ""} mentions`,
-        };
-
-        if (namespace?.startsWith("App.Channels.Room") === true) {
-          if (!catalogHas(path)) {
-            throw new Error(`en.json has no message at ${path}`);
-          }
-          const number = numbers[path];
-          if (number !== undefined) {
-            return number;
-          }
-        }
-
-        const translations: Record<string, string> = {
-          leave: "Leave channel",
-          leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
-          leaveConfirmDescription: `Leave description for ${values?.name ?? ""}`,
-          leaveConfirm: "Leave channel",
-          leaveSuccess: `You left ${values?.name ?? ""}.`,
-          cancel: "Cancel",
-          markUnread: "Mark as unread",
-          editChannel: "Edit channel",
-          pin: "Pin",
-          unpin: "Unpin",
-          mute: "Mute",
-          unmute: "Unmute",
-          roomMenu: `Chat actions for ${values?.name ?? ""}`,
-          actionFailed: "Could not update this chat. Try again.",
-        };
-        return translations[key] ?? key;
-      },
-  };
-});
+      const translations: Record<string, string> = {
+        leave: "Leave channel",
+        leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
+        leaveConfirmDescription: `Leave description for ${values?.name ?? ""}`,
+        leaveConfirm: "Leave channel",
+        leaveSuccess: `You left ${values?.name ?? ""}.`,
+        cancel: "Cancel",
+        markUnread: "Mark as unread",
+        editChannel: "Edit channel",
+        pin: "Pin",
+        unpin: "Unpin",
+        mute: "Mute",
+        unmute: "Unmute",
+        roomMenu: `Chat actions for ${values?.name ?? ""}`,
+        actionFailed: "Could not update this chat. Try again.",
+      };
+      return translations[key] ?? key;
+    },
+}));
 
 vi.mock("sonner", () => ({
   toast: {
@@ -331,44 +311,6 @@ import {
   rememberRoomRead,
   settleRoomAttentionChange,
 } from "./room-read-overlay";
-
-function makeUser(id: string, access: "member" | "guest" = "member") {
-  return {
-    id,
-    name: `User ${id}`,
-    email: `${id}@example.com`,
-    image: null,
-    presence: "offline" as const,
-    access,
-  };
-}
-
-function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-  return {
-    id: "room-1",
-    organizationId: "org-1",
-    organizationName: null,
-    name: "general",
-    slug: "general",
-    kind: "channel",
-    directKey: null,
-    topic: null,
-    discoverability: "public",
-    createdByUserId: "user-1",
-    createdAt: new Date("2025-01-01T00:00:00.000Z"),
-    updatedAt: new Date("2025-01-01T00:00:00.000Z"),
-    unreadCount: 0,
-    unreadMentionCount: 0,
-    starredAt: null,
-    mutedAt: null,
-    markedUnread: false,
-    myAccess: "member",
-    userMembers: [makeUser("user-1"), makeUser("user-2")],
-    coworkerMembers: [],
-    ...overrides,
-    sokoBotMembers: overrides.sokoBotMembers ?? [],
-  };
-}
 
 async function openRoomMenu(label = "general") {
   const user = userEvent.setup();
