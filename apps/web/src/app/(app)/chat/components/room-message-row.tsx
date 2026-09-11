@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  memo,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
@@ -2003,7 +2004,7 @@ function MessageMetaFooter({
   );
 }
 
-export function ChatMessageRow({
+export const ChatMessageRow = memo(function ChatMessageRow({
   message,
   coworkersById,
   coworkersBySlug,
@@ -2537,4 +2538,4 @@ export function ChatMessageRow({
       ) : null}
     </article>
   );
-}
+});
