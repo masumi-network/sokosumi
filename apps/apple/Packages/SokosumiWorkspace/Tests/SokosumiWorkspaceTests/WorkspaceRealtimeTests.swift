@@ -279,6 +279,52 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 }
 
 struct WorkspaceRealtimeTests {
+  @Test func fallbackPollsOnlyLastVisitedRoomAndStopsWhenHealthyOrHidden() async throws {
+    let ids = (700 ... 706).map { "550e8400-e29b-41d4-a716-446655440\($0)" }
+    var responses = [
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: ids))
+    ]
+    for id in ids {
+      responses += [(200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: id))]
+    }
+    responses += Array(repeating: (200, realtimePageBody(messages: [])), count: 20)
+    let (state, auth, transport) = try realtimeState(responses)
+    let fake = FakeRealtimeConnection()
+    state.realtimeConnectionFactory = { fake }
+    defer { state.setWindowVisible(false, window: realtimeWindow)
+      state.clearTranscript()
+      state.sidebarRecovery.stop()
+    }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    for id in ids.dropFirst() {
+      state.selectRoom(id, auth: auth)
+      await waitForRealtimeIdle(state)
+    }
+    let beforeFallback = transport.requests.count
+    try await Task.sleep(for: .milliseconds(3300))
+    await waitForRealtimeIdle(state)
+    let polls = transport.requests.dropFirst(beforeFallback).filter { $0.path?.contains("/messages") == true }
+    #expect(polls.count == 1)
+    #expect(polls.allSatisfy { $0.path?.contains(ids.last!) == true })
+
+    try fake.deliver(.roomHealth(roomId: #require(ids.last), healthy: true, continuityLost: false))
+    for _ in 0 ..< 1000 where !state.transcriptRealtimeHealthy {
+      await Task.yield()
+    }
+    #expect(state.transcriptRealtimeHealthy)
+    let beforeHealthy = transport.requests.count
+    try await Task.sleep(for: .milliseconds(3300))
+    #expect(transport.requests.count == beforeHealthy)
+
+    state.setWindowVisible(false, window: realtimeWindow)
+    try fake.deliver(.roomHealth(roomId: #require(ids.last), healthy: false, continuityLost: false))
+    try await Task.sleep(for: .milliseconds(3300))
+    #expect(transport.requests.count == beforeHealthy)
+  }
+
   @Test func hiddenEnvelopeWaitsForWindowReturn() async throws {
     let (state, auth, transport) = try realtimeState([
       (200, realtimeAccessBody()),

@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active slice: native Office-file viewing (15), draft [#4473](https://github.com/masumi-network/sokosumi/pull/4473), branch `codex/apple-office-file-preview`, based on main `56a5243f3f`, updated with main `46bc456d6` (#4471) in `49c6d9127`. Uses an isolated Quick Look bridge and shared temporary-file ownership; no external dependency or API change.
+- Active investigation: SOK-1059 on `sok-1059-apple-app-polls-every-room-every-3-seconds`. Office viewing #4473 merged as `55783b8dd`. No production polling fix justified yet; see the diagnostic evidence below.
 - Text-file viewing [#4470](https://github.com/masumi-network/sokosumi/pull/4470) merged as `56a5243f3f`. Full Apple CI passed at final head `9ae4f875d` (run `34647058920`), including Xcode build/app tests, all packages and lint/format. Live text acceptance remains unconfirmed.
 - PDF viewing [#4469](https://github.com/masumi-network/sokosumi/pull/4469) merged as `c97c47c1a`. Full Apple CI passed at final head `0ae491821` (run `34640292097`), including Xcode build/app tests, all package suites and lint/format. Review follow-up prevents double spacing before text; only a trailing file receives extra bottom padding.
 - Files attachment picker [#4440](https://github.com/masumi-network/sokosumi/pull/4440) merged as `b7366d9b3`. Includes web menu names/icons and Sendable export data. Final local Xcode app tests and lint passed; final PR CI was canceled at merge after the Xcode build passed. File selection is not independently confirmed.
@@ -596,3 +596,9 @@ The UI-free `AttachmentPreviewFile` retains the downloaded file until the native
 Validation: 323 Chat tests cover formats, precedence, download errors, extension retention and cleanup on release. Xcode app tests and pinned lint/format pass. A generated DOCX sample rendered correctly through macOS Quick Look thumbnail generation; this is system-renderer evidence, not a live in-chat test. Live Office viewer acceptance (Word/Excel/PowerPoint, scrolling, resizing, close/reopen, and Save) remains pending.
 
 - Office review follow-up (#4473): standardized the Quick Look initialization fallback with ContentUnavailableView and corrected the checkpoint after the main merge. No Critical/Important findings or reviewer-pushed fixes. Native Office hosting/resize coverage and live Word/Excel/PowerPoint acceptance remain pending; the iOS Quick Look adapter is not compiled by the macOS app target (shared-package iOS compilation does not cover it).
+
+### SOK-1059 polling investigation (2026-09-12)
+
+- Vercel Core production logs confirm multi-room message reads around every three seconds. Two sampled requests at 2026-09-11 22:22:51 UTC identify `User Agent: node`, with `limit=9` and `limit=7`. Vercel request IDs: `nc9dv-1789165371301-4ee44c96b810` and `s4dk9-1789165371201-7f84a235e621`. This does not establish the original issue's Apple attribution or identify the Node caller.
+- Native `RoomTimeline` requests the default `limit=100`. Coordinator coverage visits seven rooms, observes only the last room's fallback read, then verifies healthy realtime and a hidden window suppress the short-interval reads. It uses the actual three-second timer and fake HTTP/realtime boundaries; it does not prove production Ably health.
+- Verification: all 56 Workspace tests, seven ChatRefreshScheduler tests, SwiftFormat and strict SwiftLint pass. No production code, Core or web changes. Identify the Node caller before changing the Apple scheduler speculatively.
