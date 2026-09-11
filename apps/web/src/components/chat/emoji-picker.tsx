@@ -128,6 +128,17 @@ export function EmojiPicker({
   portalContainer,
 }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
+  // Radix keeps the content mounted through its exit animation. A reopen
+  // inside that window would otherwise reuse the old panel, with its query
+  // and no refocus, so each opening gets a fresh one.
+  const [opening, setOpening] = useState(0);
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setOpening((count) => count + 1);
+    }
+    setOpen(nextOpen);
+  }
 
   function handlePick(emoji: string) {
     onPick(emoji);
@@ -135,7 +146,7 @@ export function EmojiPicker({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -153,7 +164,7 @@ export function EmojiPicker({
         container={portalContainer}
         className="w-80 overflow-hidden p-0"
       >
-        <EmojiPickerPanel onPick={handlePick} />
+        <EmojiPickerPanel key={opening} onPick={handlePick} />
       </PopoverContent>
     </Popover>
   );
