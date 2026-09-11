@@ -5670,6 +5670,29 @@ export const TaskScheduleOccurrenceView = { UPCOMING: 'upcoming', HISTORY: 'hist
  */
 export type TaskScheduleOccurrenceView = typeof TaskScheduleOccurrenceView[keyof typeof TaskScheduleOccurrenceView];
 
+export type TaskScheduleOccurrenceMutation = {
+    /**
+     * Series revision after the move
+     */
+    scheduleRevision: number;
+    occurrence: TaskScheduleOccurrence;
+};
+
+export type RescheduleTaskScheduleOccurrenceRequest = {
+    /**
+     * Idempotency identity for this occurrence move
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    /**
+     * New absolute time for the occurrence. Strictly future and inside the projection horizon.
+     */
+    scheduledAt: Date;
+};
+
 export type TaskWorkspace = {
     /**
      * Task title
@@ -38210,6 +38233,121 @@ export type GetTasksByIdScheduleOccurrencesResponses = {
 };
 
 export type GetTasksByIdScheduleOccurrencesResponse = GetTasksByIdScheduleOccurrencesResponses[keyof GetTasksByIdScheduleOccurrencesResponses];
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdData = {
+    body?: RescheduleTaskScheduleOccurrenceRequest;
+    path: {
+        id: string;
+        occurrenceId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule/occurrences/{occurrenceId}';
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdError = PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors[keyof PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors];
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses = {
+    /**
+     * Schedule occurrence rescheduled
+     */
+    200: {
+        data: TaskScheduleOccurrenceMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponse = PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses[keyof PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;
