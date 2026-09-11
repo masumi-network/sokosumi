@@ -5376,7 +5376,9 @@
         "markAllReadError": "Could not mark unread threads as read. Try again.",
         "loadOlder": "Load older threads",
         "startedBy": "Started by {name}",
-        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
+        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
+        "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
+        "unreadThreadsCapped": "More than {max} unread threads"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",

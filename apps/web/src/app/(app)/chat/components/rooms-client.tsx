@@ -45,6 +45,7 @@ import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import {
   filterTopLevelChatRoomMessages,
@@ -101,6 +102,7 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
+import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
@@ -432,6 +434,14 @@ export function RoomsClient({
   );
 
   const [threadListOpen, setThreadListOpen] = useState(false);
+  // Every event that can change how many threads in this room are unread: a
+  // reply landing over realtime, a thread Look, and Mark all. Nothing else in
+  // the client sees an inbound reply while the panel is closed, because a
+  // reply never enters the room transcript.
+  const [threadUnreadGeneration, setThreadUnreadGeneration] = useState(0);
+  const bumpThreadUnread = useCallback(() => {
+    setThreadUnreadGeneration((generation) => generation + 1);
+  }, []);
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const [pinnedListGeneration, setPinnedListGeneration] = useState(0);
   const [pinnedMessageIds, setPinnedMessageIds] = useState<Set<string>>(
@@ -818,7 +828,10 @@ export function RoomsClient({
   const [selectedRoomHealthy, setSelectedRoomHealthy] = useState(false);
   const handleContinuityLost = useCallback(() => {
     refreshLatestRef.current();
-  }, []);
+    // A reattach that missed events missed thread replies too, and the count
+    // has no other way back to the truth.
+    bumpThreadUnread();
+  }, [bumpThreadUnread]);
 
   const handlePinnedMessageRealtime = useCallback(
     (event: ChatRoomPinnedMessageEventData) => {
@@ -846,6 +859,11 @@ export function RoomsClient({
         );
         if (action.kind === "ignore") {
           return;
+        }
+        // An over-limit reply arrives as an id envelope and never reaches the
+        // full path below, so the count is re-read from here as well.
+        if (event.parentMessageId != null) {
+          bumpThreadUnread();
         }
         if (action.kind === "refresh") {
           refreshLatestRef.current();
@@ -968,6 +986,15 @@ export function RoomsClient({
       const isHardDelete =
         event.eventType === "delete" && message.deletedAt == null;
 
+      // A reply never enters the room transcript, so with the thread panel
+      // closed this is the only place the shell hears that a thread moved.
+      // Every event about a reply counts, not creates alone: Core excludes
+      // deleted replies, so a delete lowers the number too. Re-counting is a
+      // cheap Core count, and an own send simply reads back unchanged.
+      if (message.parentMessageId != null) {
+        bumpThreadUnread();
+      }
+
       if (route.mergeIntoRoomTimeline) {
         applyMessagesFlashingOutboundConfirms(setMessagesState, (current) => {
           if (
@@ -1006,7 +1033,7 @@ export function RoomsClient({
         });
       }
     },
-    [],
+    [bumpThreadUnread],
   );
 
   const topLevelStreamOverlayMessages = useMemo(
@@ -1363,6 +1390,7 @@ export function RoomsClient({
       openThreadParentId: threadParentMessage?.id ?? null,
       threadMessages: persistedThreadMessages,
       isThreadLoading,
+      onThreadLooked: bumpThreadUnread,
     });
 
   const refreshFocusedRoomMessages = useCallback(
@@ -2296,6 +2324,12 @@ export function RoomsClient({
     ],
   );
 
+  const showRoomUnreadCount = useShowRoomUnreadCount();
+  const unreadThreadCount = useUnreadThreadCount(
+    selectedRoom?.id ?? null,
+    `${threadUnreadGeneration}:${threadListOpen}`,
+  );
+
   const roomHeaderChrome =
     selectedRoom != null ? (
       <RoomHeaderChrome
@@ -2304,6 +2338,8 @@ export function RoomsClient({
         isDirectRoom={isDirectRoom}
         onJumpToMessage={handleSearchJump}
         threadListOpen={threadListOpen}
+        unreadThreadCount={unreadThreadCount}
+        showUnreadCount={showRoomUnreadCount}
         pinnedOpen={pinnedOpen}
         onTogglePinned={handleTogglePinned}
         onToggleThreadList={() => {
@@ -2669,6 +2705,7 @@ export function RoomsClient({
                   setThreadListOpen(false);
                 }}
                 onAllThreadsLooked={() => {
+                  bumpThreadUnread();
                   void syncRoomAttentionAfterThreadLook(selectedRoom.id);
                 }}
                 labels={{

@@ -4,16 +4,25 @@ import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
 
 const labels = {
   open: "Threads",
+  unreadThreads: (count: number) => `${count} unread threads`,
+  unreadThreadsCapped: (max: number) => `More than ${max} unread threads`,
 };
 
 function renderTrigger(
-  options: { isOpen?: boolean; onToggle?: () => void } = {},
+  options: {
+    isOpen?: boolean;
+    onToggle?: () => void;
+    unreadCount?: number;
+    showUnreadCount?: boolean;
+  } = {},
 ) {
   return render(
     <UnreadThreadsPanel
       labels={labels}
       isOpen={options.isOpen ?? false}
       onToggle={options.onToggle ?? vi.fn()}
+      unreadCount={options.unreadCount ?? 0}
+      showUnreadCount={options.showUnreadCount ?? false}
     />,
   );
 }
@@ -35,5 +44,60 @@ describe("UnreadThreadsPanel", () => {
       "aria-expanded",
       "false",
     );
+  });
+
+  it("stays quiet when the room holds no unread threads", () => {
+    renderTrigger({ unreadCount: 0, showUnreadCount: true });
+
+    const trigger = screen.getByTestId("unread-threads-trigger");
+    expect(trigger).toHaveAttribute("data-unread", "false");
+    expect(trigger).toHaveAccessibleName(labels.open);
+    expect(trigger).toHaveTextContent("");
+  });
+
+  it("carries unread weight without a number when counts are off", () => {
+    renderTrigger({ unreadCount: 3, showUnreadCount: false });
+
+    const trigger = screen.getByTestId("unread-threads-trigger");
+    expect(trigger).toHaveAttribute("data-unread", "true");
+    expect(trigger).toHaveAccessibleName("Threads, 3 unread threads");
+    expect(trigger).toHaveTextContent("");
+  });
+
+  it("shows the number when the reader opted in to counts", () => {
+    renderTrigger({ unreadCount: 3, showUnreadCount: true });
+
+    const trigger = screen.getByTestId("unread-threads-trigger");
+    expect(trigger).toHaveAttribute("data-unread", "true");
+    expect(trigger).toHaveTextContent("3");
+    expect(trigger).toHaveAccessibleName("Threads, 3 unread threads");
+  });
+
+  it("caps a very loud room so the header cannot reflow", () => {
+    renderTrigger({ unreadCount: 140, showUnreadCount: true });
+
+    const trigger = screen.getByTestId("unread-threads-trigger");
+    expect(trigger).toHaveTextContent("99+");
+    // What it shows and what it says must agree past the cap.
+    expect(trigger).toHaveAccessibleName(
+      "Threads, More than 99 unread threads",
+    );
+  });
+
+  it("still speaks the exact number at the cap itself", () => {
+    renderTrigger({ unreadCount: 99, showUnreadCount: true });
+
+    const trigger = screen.getByTestId("unread-threads-trigger");
+    expect(trigger).toHaveTextContent("99");
+    expect(trigger).toHaveAccessibleName("Threads, 99 unread threads");
+  });
+
+  it("drops unread chrome while the panel is open", () => {
+    renderTrigger({ unreadCount: 3, showUnreadCount: true, isOpen: true });
+
+    const trigger = screen.getByTestId("unread-threads-trigger");
+    expect(trigger).toHaveAttribute("data-unread", "false");
+    expect(trigger).toHaveTextContent("");
+    expect(trigger).toHaveAccessibleName(labels.open);
   });
 });

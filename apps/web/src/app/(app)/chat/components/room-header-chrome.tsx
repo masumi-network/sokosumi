@@ -105,6 +105,10 @@ export interface RoomHeaderChromeProps {
   onJumpToMessage: (hit: ChatRoomMessage) => void;
   threadListOpen: boolean;
   onToggleThreadList: () => void;
+  /** Unread threads in this room, counted by the shell. */
+  unreadThreadCount: number;
+  /** The reader's opt-in numeric chat counts. */
+  showUnreadCount: boolean;
   pinnedOpen: boolean;
   onTogglePinned: () => void;
   rosterOpen: boolean;
@@ -133,6 +137,8 @@ export function RoomHeaderChrome({
   onJumpToMessage,
   threadListOpen,
   onToggleThreadList,
+  unreadThreadCount,
+  showUnreadCount,
   pinnedOpen,
   onTogglePinned,
   rosterOpen,
@@ -240,8 +246,14 @@ export function RoomHeaderChrome({
             key={`unread-threads-${room.id}`}
             isOpen={threadListOpen}
             onToggle={onToggleThreadList}
+            unreadCount={unreadThreadCount}
+            showUnreadCount={showUnreadCount}
             labels={{
               open: t("UnreadThreads.open"),
+              unreadThreads: (count) =>
+                t("UnreadThreads.unreadThreads", { count }),
+              unreadThreadsCapped: (max) =>
+                t("UnreadThreads.unreadThreadsCapped", { max }),
             }}
           />
         </div>

@@ -35,6 +35,10 @@ import {
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
 import {
+  ROOM_COUNT_CAP,
+  roomCountLabel,
+} from "@/components/chat/room-count-label";
+import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
   settleRoomAttentionChange,
@@ -85,19 +89,6 @@ interface ChatRoomSidebarRowProps {
 }
 
 /**
- * The cap both numbers on this row share: the unread message count and the
- * mention badge. One constant, so a sidebar row cannot show two ceilings. The
- * nav unread in `menu-items.tsx` still carries its own 99 and is not this
- * row's to change.
- */
-const ROW_COUNT_CAP = 99;
-
-/** The digits a capped number prints, e.g. `4` or `99+`. */
-function countLabel(count: number): string {
-  return count > ROW_COUNT_CAP ? `${ROW_COUNT_CAP}+` : String(count);
-}
-
-/**
  * The reader's opt-in Room unread count.
  *
  * Text rather than a pill, because it is not the mention badge and a reader has
@@ -120,17 +111,17 @@ function RoomUnreadCount({ count }: { count: number }) {
     return null;
   }
 
-  const capped = count > ROW_COUNT_CAP;
+  const capped = count > ROOM_COUNT_CAP;
 
   // A bare `span` is role `generic`, which prohibits an accessible name, so an
   // `aria-label` here can be dropped and the row announces a bare number beside
   // the badge's bare number. Real text carries it instead.
   return (
     <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold tabular-nums">
-      <span aria-hidden="true">{`· ${countLabel(count)}`}</span>
+      <span aria-hidden="true">{`· ${roomCountLabel(count)}`}</span>
       <span className="sr-only">
         {capped
-          ? t("unreadMessagesCapped", { max: ROW_COUNT_CAP })
+          ? t("unreadMessagesCapped", { max: ROOM_COUNT_CAP })
           : t("unreadMessages", { count })}
       </span>
     </span>
@@ -155,10 +146,10 @@ function MentionBadge({ count }: { count: number }) {
 
   return (
     <span className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
-      <span aria-hidden="true">{countLabel(count)}</span>
+      <span aria-hidden="true">{roomCountLabel(count)}</span>
       <span className="sr-only">
-        {count > ROW_COUNT_CAP
-          ? t("mentionsCapped", { max: ROW_COUNT_CAP })
+        {count > ROOM_COUNT_CAP
+          ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
           : t("mentions", { count })}
       </span>
     </span>
