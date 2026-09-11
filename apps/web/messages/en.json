@@ -38,6 +38,7 @@
       "resendEmail": "Send the link again",
       "retryPrompt": "You are signed in again. Try that again now.",
       "socialError": "We could not start that sign-in.",
+      "termsNotAccepted": "Accept the updated terms before signing in again.",
       "title": "Confirm it is you"
     },
     "ShareButton": {

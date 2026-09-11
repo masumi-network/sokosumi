@@ -38,6 +38,7 @@
       "resendEmail": "Enviar el enlace otra vez",
       "retryPrompt": "Has iniciado sesión de nuevo. Inténtalo otra vez ahora.",
       "socialError": "No hemos podido iniciar ese acceso.",
+      "termsNotAccepted": "Acepta los términos actualizados antes de iniciar sesión de nuevo.",
       "title": "Confirma que eres tú"
     },
     "ShareButton": {

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import {
@@ -113,7 +114,7 @@ export function ReauthDialog({
       });
 
       if (result.error) {
-        setErrorMessage(result.error.message ?? t("passwordError"));
+        setErrorMessage(describeSignInError(result.error));
         return;
       }
 
@@ -125,6 +126,22 @@ export function ReauthDialog({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  /**
+   * Core rejects any `/sign-in*` for a viewer who has not accepted the terms,
+   * with a code and no message. Both sign-in forms branch on it, so the dialog
+   * must too, or a correct password reads as wrong.
+   */
+  const describeSignInError = (error: {
+    code?: string;
+    message?: string;
+  }): string => {
+    if (error.code === AuthErrorCode.TERMS_NOT_ACCEPTED) {
+      return t("termsNotAccepted");
+    }
+
+    return error.message ?? t("passwordError");
   };
 
   const handleMagicLinkSubmit = async () => {
@@ -161,7 +178,11 @@ export function ReauthDialog({
       });
 
       if (result.error) {
-        setErrorMessage(result.error.message ?? t("socialError"));
+        setErrorMessage(
+          result.error.code === AuthErrorCode.TERMS_NOT_ACCEPTED
+            ? t("termsNotAccepted")
+            : (result.error.message ?? t("socialError")),
+        );
       }
     } catch {
       setErrorMessage(t("socialError"));

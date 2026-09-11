@@ -230,6 +230,28 @@ describe("ReauthDialog", () => {
     });
   });
 
+  it("names a terms block instead of blaming the password", async () => {
+    // Core throws this with a code and no message, so the default branch
+    // would tell a viewer their correct password was wrong.
+    mockSignInEmail.mockResolvedValue({
+      data: null,
+      error: { code: "TERMS_NOT_ACCEPTED" },
+    });
+
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "termsNotAccepted",
+    );
+  });
+
   it("names each provider rather than echoing its wire id", () => {
     renderDialog([googleAccount, microsoftAccount, passwordAccount]);
 
