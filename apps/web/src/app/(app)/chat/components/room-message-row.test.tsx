@@ -82,8 +82,15 @@ vi.mock("next-intl", () => ({
   },
 }));
 
+const { markdownRenders } = vi.hoisted(() => ({
+  markdownRenders: { count: 0 },
+}));
+
 vi.mock("@/components/markdown", () => ({
-  default: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+  default: ({ children }: { children: ReactNode }) => {
+    markdownRenders.count += 1;
+    return <span>{children}</span>;
+  },
 }));
 
 vi.mock("@/components/ui/file-chip-mini-preview", () => ({
@@ -261,6 +268,28 @@ function renderContinuation(message: ChatRoomMessage = userMessage()) {
 }
 
 describe("ChatMessageRow", () => {
+  it("skips re-rendering for an identical prop set", () => {
+    const message = userMessage();
+    const coworkersById = new Map<string, ChatRoomCoworkerParticipant>();
+    const coworkersBySlug = new Map<string, ChatRoomCoworkerParticipant>();
+    const onToggleReaction = vi.fn();
+    const row = () => (
+      <ChatMessageRow
+        message={message}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        onToggleReaction={onToggleReaction}
+      />
+    );
+    const { rerender } = render(row());
+    const rendersAfterMount = markdownRenders.count;
+    expect(rendersAfterMount).toBeGreaterThan(0);
+
+    rerender(row());
+
+    expect(markdownRenders.count).toBe(rendersAfterMount);
+  });
+
   it("shows coworker bot badge on avatar, not beside name", () => {
     renderRow({ message: coworkerMessage() });
 

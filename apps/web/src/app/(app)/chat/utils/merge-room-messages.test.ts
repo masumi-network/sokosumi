@@ -98,6 +98,20 @@ describe("applyFullChatRoomMessageEvent", () => {
 });
 
 describe("mergeRoomMessages", () => {
+  it("keeps the existing object for an unchanged incoming message", () => {
+    const first = message("m1", "2026-07-01T10:00:00.000Z");
+    const second = message("m2", "2026-07-01T11:00:00.000Z");
+    const changedSecond = { ...second, content: "edited" };
+
+    const merged = mergeRoomMessages(
+      [first, second],
+      [message("m1", "2026-07-01T10:00:00.000Z"), changedSecond],
+    );
+
+    expect(merged[0]).toBe(first);
+    expect(merged[1]).toBe(changedSecond);
+  });
+
   it("keeps pending shells after confirmed rows when peers merge", () => {
     const older = message("m1", "2026-07-01T10:00:00.000Z");
     const pending = createPendingRoomMessage({
