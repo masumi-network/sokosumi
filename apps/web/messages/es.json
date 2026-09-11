@@ -1684,7 +1684,6 @@
           "confirmArchive": "¿Archivar esta tarea?",
           "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista, incluidas las ejecuciones programadas vinculadas. Las ejecuciones en curso deben terminar o cancelarse primero. No se elimina permanentemente de la base de datos.",
           "archiveError": "No se pudo archivar la tarea",
-          "markAsReady": "Marcar como listo",
           "reopenToReady": "Reabrir como Lista",
           "reopenToReadyTitle": "Reabrir tarea",
           "reopenToReadyDescription": "Añade un comentario para que tu coworker sepa qué hacer a continuación. La tarea volverá a Lista.",
@@ -1692,7 +1691,6 @@
           "reopenToReadyCommentPlaceholder": "Describe lo que aún hay que hacer…",
           "reopenToReadyCommentRequired": "Se requiere un comentario para reabrir esta tarea",
           "reopenToReadyConfirm": "Reabrir como Lista",
-          "revertToDraft": "Revertir a borrador",
           "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
@@ -1838,8 +1836,6 @@
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Eliminar adjunto",
-        "saveDraft": "Guardar",
-        "saveAsDraft": "Guardar como borrador",
         "createTask": "Crear Task",
         "scheduleTask": "Programar tarea",
         "openSchedule": "Configurar programación",
@@ -6328,7 +6324,8 @@
         "roomMessageGroup": "{authorName} escribió en el grupo {roomName}",
         "roomMessagesGroup": "{count} mensajes en el grupo {roomName}",
         "roomMessageTitle": "{authorName} en el canal {roomName}",
-        "roomMessageGroupTitle": "{authorName} en el grupo {roomName}"
+        "roomMessageGroupTitle": "{authorName} en el grupo {roomName}",
+        "mentionAll": "Todos"
       }
     }
   },

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DeleteAccountForm } from "./delete-account-form";
 
 const deleteUserMock = vi.fn();
+const releasePushDeviceMock = vi.fn();
 const mockRouterPush = vi.fn();
 const mockRouterRefresh = vi.fn();
 
@@ -86,6 +87,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
   deleteUser: (...args: unknown[]) => deleteUserMock(...args),
 }));
 
+vi.mock("@/lib/ably/release-push-device.client", () => ({
+  dropBrowserPushSubscriptionOnAccountDeletion: () => releasePushDeviceMock(),
+}));
+
 async function openDialog() {
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "Delete account" }));
@@ -95,6 +100,7 @@ async function openDialog() {
 describe("DeleteAccountForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    releasePushDeviceMock.mockResolvedValue(undefined);
   });
 
   it("lists mapped blockers and disables confirm while any remain", async () => {
@@ -302,5 +308,67 @@ describe("DeleteAccountForm", () => {
     expect(toast.error).toHaveBeenCalledWith(
       "A task payment is still pending; contact support to have it resolved, then delete your account again.",
     );
+  });
+  /**
+   * Web Push needs no session, so the deleted account's subscription would go
+   * on rendering banners on this browser, and the next reader to sign in here
+   * would find the Push cell on over it.
+   */
+  it("releases this browser's push device once the account is gone", async () => {
+    deleteUserMock.mockResolvedValue({ error: null });
+    let finishRelease: () => void = () => {};
+    releasePushDeviceMock.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishRelease = resolve;
+      }),
+    );
+
+    render(<DeleteAccountForm blockers={[]} />);
+
+    const user = await openDialog();
+    await user.type(screen.getByLabelText("Current password"), "Password123!");
+    await user.click(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    );
+
+    await waitFor(() => {
+      expect(releasePushDeviceMock).toHaveBeenCalledTimes(1);
+    });
+    // Finished, not merely started. A release still in flight across
+    // `router.push` is one the unmounting page no longer holds.
+    expect(mockRouterPush).not.toHaveBeenCalled();
+
+    finishRelease();
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith("/");
+    });
+  });
+
+  /**
+   * The password check can refuse the deletion. Releasing first would turn
+   * push off for an account that still exists.
+   */
+  it("keeps push on when the delete is refused", async () => {
+    deleteUserMock.mockResolvedValue({
+      error: {
+        code: "TASK_PAYMENT_CLAIM_PENDING",
+        message: "Backend fallback",
+        status: 400,
+        statusText: "Bad Request",
+      },
+    });
+
+    render(<DeleteAccountForm blockers={[]} />);
+
+    const user = await openDialog();
+    await user.type(screen.getByLabelText("Current password"), "Password123!");
+    await user.click(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    );
+
+    await waitFor(() => {
+      expect(deleteUserMock).toHaveBeenCalledOnce();
+    });
+    expect(releasePushDeviceMock).not.toHaveBeenCalled();
   });
 });

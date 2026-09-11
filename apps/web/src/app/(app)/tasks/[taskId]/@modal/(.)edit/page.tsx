@@ -8,6 +8,7 @@ import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { taskFormAssigneeId } from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
+import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Project } from "@/lib/clients/generated/core";
@@ -73,9 +74,9 @@ export default async function TaskEditModalPage({
   );
   const agentNameById = buildAgentNameById(agents);
 
-  const [tEdit, tActions] = await Promise.all([
+  const [tEdit, tStatus] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),
-    getTranslations("App.Tasks.Detail.actions"),
+    getTranslations("App.Tasks.Filters.statusOptions"),
   ]);
 
   return (
@@ -101,8 +102,7 @@ export default async function TaskEditModalPage({
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
         statusReady: tEdit("statusReady"),
-        markAsReady: tActions("markAsReady"),
-        revertToDraft: tActions("revertToDraft"),
+        statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
         back: tEdit("back"),
         uploadFile: tEdit("uploadFile"),
         uploadFileError: tEdit("uploadFileError"),
