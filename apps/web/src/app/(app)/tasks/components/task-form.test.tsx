@@ -795,7 +795,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("disables Queued for a human assignee even with a schedule (SOK-1033)", async () => {
+  it("enables Queued whenever a schedule is set, including for human assignees", async () => {
     const user = userEvent.setup();
 
     render(
@@ -821,7 +821,51 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "save" }));
 
     await user.click(screen.getByRole("combobox", { name: "Status" }));
-    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("enables Queued on edit when Ready with an active schedule", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        taskId="task-1"
+        initialValues={{
+          name: "Daily sync",
+          description: "Run the sync",
+          assigneeUserId: "user-1",
+          status: TaskStatus.READY,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-26T09:00:00.000Z",
+            runAt: "2026-06-26T09:00:00.000Z",
+          }),
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
       "data-disabled",
     );
   });

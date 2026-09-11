@@ -31,22 +31,17 @@ interface TaskMetadataStatusFieldProps {
   taskId: string;
   status: TaskStatus;
   hasSchedule: boolean;
-  isAgentAssignee: boolean;
   labels: TaskMetadataStatusFieldLabels;
 }
 
-function canSelectQueued(options: {
-  hasSchedule: boolean;
-  isAgentAssignee: boolean;
-}): boolean {
-  return options.hasSchedule && options.isAgentAssignee;
+function canSelectQueued(options: { hasSchedule: boolean }): boolean {
+  return options.hasSchedule;
 }
 
 export function TaskMetadataStatusField({
   taskId,
   status,
   hasSchedule,
-  isAgentAssignee,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
@@ -56,7 +51,7 @@ export function TaskMetadataStatusField({
   const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
-  const isQueuedSelectable = canSelectQueued({ hasSchedule, isAgentAssignee });
+  const isQueuedSelectable = canSelectQueued({ hasSchedule });
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
     const previousStatus = currentStatus;

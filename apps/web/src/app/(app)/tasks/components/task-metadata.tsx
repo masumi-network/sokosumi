@@ -193,8 +193,6 @@ export function TaskMetadata({
   );
   const creator = resolveTaskCreatorDisplay(task, labels);
   const hasSchedule = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
-  const isAgentAssignee =
-    task.assignee?.type === "coworker" || task.assignee?.type === "sokoBot";
 
   return (
     <section className="space-y-3">
@@ -207,7 +205,6 @@ export function TaskMetadata({
             taskId={taskId}
             status={task.status}
             hasSchedule={hasSchedule}
-            isAgentAssignee={isAgentAssignee}
             labels={statusFieldLabels}
           />
         ) : (

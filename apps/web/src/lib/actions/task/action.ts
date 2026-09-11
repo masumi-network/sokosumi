@@ -254,6 +254,14 @@ function resolveUpdateTargetStatus(
 ): TaskStatus {
   if (scheduleWasMutated) {
     if (scheduleActiveOnServer) {
+      // Schedule apply may land Ready (e.g. human assignee). Honor an
+      // explicit Queued choice so Core can accept or reject it.
+      if (
+        desiredStatus === TaskStatus.QUEUED &&
+        statusAfterSchedule !== TaskStatus.QUEUED
+      ) {
+        return desiredStatus;
+      }
       return statusAfterSchedule;
     }
 
@@ -458,7 +466,24 @@ async function createTaskFromDescription(input: {
       input.schedule &&
       input.schedule.mode !== "none"
     ) {
-      await applyTaskSchedule(task.id, input.schedule, false);
+      const statusAfterSchedule = await applyTaskSchedule(
+        task.id,
+        input.schedule,
+        false,
+      );
+      // Create always goes Draft → schedule. Schedule apply may leave the
+      // task Ready (human assignee). Carry an explicit Queued choice through
+      // so Core accepts it for agents or rejects it for humans instead of
+      // silently succeeding as Ready.
+      if (
+        input.status === TaskStatus.QUEUED &&
+        statusAfterSchedule != null &&
+        statusAfterSchedule !== TaskStatus.QUEUED
+      ) {
+        await taskService.createTaskEvent(task.id, {
+          status: TaskStatus.QUEUED,
+        });
+      }
     }
     return task;
   } catch (error) {
