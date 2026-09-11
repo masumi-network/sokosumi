@@ -74,13 +74,19 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
     // Nothing of this run was queued while those waits ran, so a sign-out
     // inside one of them tore this browser down and left, with nothing of
     // this run to order itself against. Activating now would subscribe the
-    // browser the reader just signed out of. Ordering covers the rest: from
-    // here the activation is queued without another wait.
-    if (countPushTeardowns() !== teardownsBefore) {
+    // browser the reader just signed out of. The shared note is the same
+    // window in another tab: it can land while this page loads the chunk,
+    // and a repair must not answer it. Ordering covers the rest: from here
+    // the activation is queued without another wait, and still reads the
+    // note again before it subscribes.
+    if (
+      hasUnfinishedPushTeardown() ||
+      countPushTeardowns() !== teardownsBefore
+    ) {
       return false;
     }
 
-    await activatePush(userId);
+    await activatePush(userId, { readerInitiated: false });
 
     return true;
   } catch (error) {

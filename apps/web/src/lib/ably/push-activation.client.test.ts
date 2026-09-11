@@ -362,6 +362,7 @@ describe("activatePush", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    localStorage.clear();
   });
 
   /**
@@ -375,6 +376,39 @@ describe("activatePush", () => {
     await activatePush("user_1");
 
     expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+  });
+
+  /**
+   * A repair is not the reader asking for push on. Clearing the note would
+   * answer a teardown another tab started, and then subscribe over it.
+   */
+  it("leaves an unfinished teardown in place when the reader did not ask", async () => {
+    localStorage.setItem("sokosumi.push.teardownStarted", "1");
+
+    await activatePush("user_1", { readerInitiated: false });
+
+    expect(activateMock).not.toHaveBeenCalled();
+    expect(subscribeDeviceMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+  });
+
+  /**
+   * The first round already ran, and the retry is the widest window a
+   * teardown in another tab can land in. Subscribing then would turn push
+   * back on for a reader who asked it off.
+   */
+  it("stops a repair before the second subscribe when a teardown starts between rounds", async () => {
+    hasWebPushSubscriptionMock
+      .mockResolvedValueOnce(false)
+      .mockResolvedValue(true);
+    deactivateMock.mockImplementation(async () => {
+      localStorage.setItem("sokosumi.push.teardownStarted", "1");
+    });
+
+    await activatePush("user_1", { readerInitiated: false });
+
+    expect(calls).toEqual(["activate", "subscribeDevice", "deactivate"]);
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
   });
 
   /**

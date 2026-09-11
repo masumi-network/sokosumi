@@ -17,8 +17,13 @@ import { getAblyRealtimeClient } from "./realtime-singleton.client";
 import {
   forgetAblyPushRegistration,
   forgetUnfinishedPushTeardown,
+  hasUnfinishedPushTeardown,
   notePushTeardownStarted,
 } from "./release-push-device.client";
+
+interface ActivatePushOptions {
+  readerInitiated?: boolean;
+}
 
 /**
  * Turn closed-app push on for this browser (ADR-0022).
@@ -30,12 +35,19 @@ import {
  * `subscribeDevice` then binds the device to the reader's own notifications
  * channel, which is the channel Core publishes the push payload on.
  */
-export async function activatePush(userId: string): Promise<void> {
+export async function activatePush(
+  userId: string,
+  options?: ActivatePushOptions,
+): Promise<void> {
   // The reader is asking for push on, which answers any teardown this browser
   // was left in the middle of. Said here rather than after the run, because
   // what it clears is a note that would otherwise outlast a run this page
-  // does not finish either.
-  forgetUnfinishedPushTeardown();
+  // does not finish either. A repair does not: nobody pressed anything for
+  // that one, and the note is shared across tabs while the queue is not.
+  const readerInitiated = options?.readerInitiated !== false;
+  if (readerInitiated) {
+    forgetUnfinishedPushTeardown();
+  }
 
   // The same reader asking twice gets the run already going. A repair on open
   // and a reader pressing the Push cell a second later are the same request.
@@ -46,7 +58,10 @@ export async function activatePush(userId: string): Promise<void> {
   // A second reader waits rather than joins. Signing in again never reloads
   // the page, so this module outlives the reader it ran for, and joining
   // would answer the second reader with the first reader's subscription.
-  const entry = { userId, work: queuePushWork(() => runActivation(userId)) };
+  const entry = {
+    userId,
+    work: queuePushWork(() => runActivation(userId, readerInitiated)),
+  };
   inFlightActivation = entry;
 
   try {
@@ -64,7 +79,10 @@ export async function activatePush(userId: string): Promise<void> {
 /** The activation running now, and the reader it is running for. */
 let inFlightActivation: { userId: string; work: Promise<void> } | null = null;
 
-async function runActivation(userId: string): Promise<void> {
+async function runActivation(
+  userId: string,
+  readerInitiated: boolean,
+): Promise<void> {
   // Read before anything, and asked again after every step that leaves the
   // machine. A teardown can land in the middle of this: the sign-out waits
   // its turn in the queue, but an account deletion cannot afford to and runs
@@ -81,6 +99,9 @@ async function runActivation(userId: string): Promise<void> {
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
     const client = getAblyRealtimeClient();
+    if (repairOvertakenAcrossTabs(readerInitiated)) {
+      return;
+    }
     await subscribeThisDevice(client, userId);
     if (await abandonedToTeardown(teardownsAtStart)) {
       return;
@@ -98,6 +119,9 @@ async function runActivation(userId: string): Promise<void> {
     // that state and go round once, so the reader never gets a success toast
     // over a browser that gets no pushes.
     await client.push.deactivate();
+    if (repairOvertakenAcrossTabs(readerInitiated)) {
+      return;
+    }
     await subscribeThisDevice(client, userId);
     if (await abandonedToTeardown(teardownsAtStart)) {
       return;
@@ -109,6 +133,19 @@ async function runActivation(userId: string): Promise<void> {
   } finally {
     restorePermissionRequest();
   }
+}
+
+/**
+ * Whether another tab asked for push off while this repair was away.
+ *
+ * The note is shared across every tab of this origin, and the queue is not.
+ * A teardown in another tab can write it after this repair decided to act,
+ * and subscribing then would turn push back on for a reader who asked it
+ * off. A press on the Push cell is the reader saying the opposite, so it
+ * still goes through.
+ */
+function repairOvertakenAcrossTabs(readerInitiated: boolean): boolean {
+  return !readerInitiated && hasUnfinishedPushTeardown();
 }
 
 /**
