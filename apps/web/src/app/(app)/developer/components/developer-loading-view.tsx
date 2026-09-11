@@ -28,7 +28,7 @@ export function DeveloperSectionRowsSkeleton({
       {Array.from({ length: rows }, (_, index) => (
         <div
           key={index}
-          className="flex items-center gap-3 rounded-lg border border-border/40 p-3"
+          className="flex items-center gap-3 rounded-lg border border-border p-3"
         >
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-44" />

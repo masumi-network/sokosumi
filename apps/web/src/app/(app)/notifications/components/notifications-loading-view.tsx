@@ -6,10 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function NotificationsListSkeleton(): React.ReactElement {
   return (
-    <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
+    <div className="bg-muted/30 border-border overflow-hidden rounded-xl border">
       <div
         data-testid="notifications-loading-list"
-        className="divide-border/50 divide-y"
+        className="divide-border divide-y"
       >
         {Array.from({ length: 5 }, (_, index) => (
           <div key={index} className="flex flex-col gap-2 p-4">

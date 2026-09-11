@@ -137,7 +137,7 @@ export default async function OrganizationInformation({
               {detailCards.map((card) => (
                 <div
                   key={card.label}
-                  className="rounded-2xl border border-border/60 bg-background/80 px-4 py-4"
+                  className="rounded-2xl border border-border bg-background/80 px-4 py-4"
                 >
                   <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                     {card.label}
