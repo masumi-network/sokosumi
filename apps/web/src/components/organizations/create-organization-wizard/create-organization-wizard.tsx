@@ -126,7 +126,7 @@ function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
           {name.charAt(0).toUpperCase()}
         </span>
       ) : (
-        <Building2 className="text-muted-foreground/50 size-8" />
+        <Building2 className="text-muted-foreground size-8" />
       )}
     </div>
   );
@@ -629,7 +629,7 @@ export function CreateOrganizationWizard({
               </span>
             ))}
           </div>
-          <span className="text-muted-foreground/60 text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
+          <span className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
             {String(step + 1).padStart(2, "0")} /{" "}
             {String(TOTAL_STEPS).padStart(2, "0")}
           </span>
@@ -681,7 +681,7 @@ export function CreateOrganizationWizard({
                               <Input
                                 autoFocus
                                 placeholder={t("Details.namePlaceholder")}
-                                className="placeholder:text-muted-foreground/50 h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
+                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
                                 {...field}
                               />
                             </FormControl>
@@ -706,7 +706,7 @@ export function CreateOrganizationWizard({
                               <Input
                                 inputMode="url"
                                 placeholder={t("Details.urlPlaceholder")}
-                                className="placeholder:text-muted-foreground/50 h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
+                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
                                 {...field}
                               />
                             </FormControl>
@@ -729,7 +729,7 @@ export function CreateOrganizationWizard({
                           form.formState.errors.url?.message}
                       </p>
                     </div>
-                    <p className="text-muted-foreground/70 text-left text-[0.8125rem]">
+                    <p className="text-muted-foreground text-left text-[0.8125rem]">
                       {t("Details.urlHint")}
                     </p>
                   </div>
@@ -805,7 +805,7 @@ export function CreateOrganizationWizard({
                         </Button>
                       </FileUploadTrigger>
                     </FileUpload>
-                    <p className="text-muted-foreground/70 text-[0.8125rem]">
+                    <p className="text-muted-foreground text-[0.8125rem]">
                       {t("Logo.uploadHint")}
                     </p>
                   </div>
@@ -853,7 +853,7 @@ export function CreateOrganizationWizard({
                         aria-label={t("Brand.title")}
                         className="focus-visible:ring-ring ml-1.5 inline-flex size-5 translate-y-[3px] items-center justify-center rounded-md outline-none focus-visible:ring-2"
                       >
-                        <Info className="text-muted-foreground/60 hover:text-foreground size-3.5 transition-colors duration-200" />
+                        <Info className="text-muted-foreground hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
@@ -863,7 +863,7 @@ export function CreateOrganizationWizard({
                 </p>
 
                 {brand.status !== "completed" && (
-                  <p className="text-muted-foreground/70 mt-3 text-[0.8125rem]">
+                  <p className="text-muted-foreground mt-3 text-[0.8125rem]">
                     {brand.status === "failed"
                       ? t("Brand.failedSubtitle")
                       : t("Brand.skipHint")}
@@ -878,7 +878,7 @@ export function CreateOrganizationWizard({
                         DESIGN.md
                       </span>
                     </div>
-                    <p className="text-muted-foreground/70 mt-4 text-[0.8125rem]">
+                    <p className="text-muted-foreground mt-4 text-[0.8125rem]">
                       {t("Brand.editHint")}
                     </p>
                   </div>
@@ -977,7 +977,7 @@ export function CreateOrganizationWizard({
                       </Button>
                     )}
                   </div>
-                  <p className="text-muted-foreground/70 mt-2 text-left text-[0.8125rem]">
+                  <p className="text-muted-foreground mt-2 text-left text-[0.8125rem]">
                     {t("Invite.linkHint")}
                   </p>
 
@@ -991,7 +991,7 @@ export function CreateOrganizationWizard({
                     className="bg-card-background dark:bg-card-background min-h-14 resize-none rounded-xl border px-4 py-3 text-[0.9375rem] shadow-none"
                   />
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="text-muted-foreground/70 text-left text-[0.8125rem]">
+                    <p className="text-muted-foreground text-left text-[0.8125rem]">
                       {t("Invite.emailsHint")}
                     </p>
                     <Button

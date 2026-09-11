@@ -332,7 +332,7 @@ export function TaskContextAttachmentsField({
           <button
             type="button"
             aria-label={t("infoAria")}
-            className="text-muted-foreground/70 hover:bg-accent hover:text-foreground focus-visible:ring-ring inline-flex size-6 shrink-0 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring inline-flex size-6 shrink-0 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2"
           >
             <Info className="size-3.5" aria-hidden />
           </button>

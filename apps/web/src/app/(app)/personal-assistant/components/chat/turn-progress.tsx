@@ -34,7 +34,7 @@ export function ElapsedTimer({ startedAt }: { startedAt: number }) {
       ? `${secs}s`
       : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
   return (
-    <span className="text-muted-foreground/70 ml-1.5 text-xs tabular-nums">
+    <span className="text-muted-foreground ml-1.5 text-xs tabular-nums">
       {label}
     </span>
   );
@@ -108,7 +108,7 @@ export function TurnProgress({
                 {chip.done ? (
                   <Check
                     aria-hidden
-                    className="text-primary/70 size-3.5 shrink-0"
+                    className="text-primary size-3.5 shrink-0"
                   />
                 ) : (
                   <Loader2
@@ -171,7 +171,7 @@ export function CompletedSteps({ steps }: { steps: ProgressChip[] }) {
             >
               <Check
                 aria-hidden
-                className="text-primary/60 mt-0.5 size-3 shrink-0"
+                className="text-primary mt-0.5 size-3 shrink-0"
               />
               <span className="text-foreground font-medium">
                 {toolLabel(step.toolName)}

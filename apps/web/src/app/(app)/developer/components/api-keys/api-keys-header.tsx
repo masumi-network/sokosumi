@@ -24,7 +24,7 @@ export function ApiKeysHeader({ onCreateClick }: ApiKeysHeaderProps) {
                 href="https://www.masumi.network/dev/sokosumi/api-reference"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm underline underline-offset-4"
+                className="text-primary hover:text-primary inline-flex items-center gap-1 text-sm underline underline-offset-4"
               >
                 {t("apiDocsLink")}
                 <ExternalLink className="size-3" />

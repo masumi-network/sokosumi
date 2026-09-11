@@ -131,12 +131,12 @@ export default function AnnouncementCards() {
                   </p>
                 ) : null}
                 {card.summary ? (
-                  <p className="text-sidebar-foreground/70 line-clamp-2 text-xs leading-4">
+                  <p className="text-sidebar-foreground line-clamp-2 text-xs leading-4">
                     {card.summary}
                   </p>
                 ) : null}
                 {!card.title && !card.summary ? (
-                  <Markdown className="text-sidebar-foreground/80 line-clamp-3 text-xs leading-4 *:m-0 [&_p]:inline">
+                  <Markdown className="text-sidebar-foreground line-clamp-3 text-xs leading-4 *:m-0 [&_p]:inline">
                     {card.bodyMarkdown}
                   </Markdown>
                 ) : null}

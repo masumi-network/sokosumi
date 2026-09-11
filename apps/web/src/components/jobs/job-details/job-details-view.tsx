@@ -153,7 +153,7 @@ export default function JobDetailsView({
               ) : null}
 
               <section className="space-y-4">
-                <h2 className="text-muted-foreground/60 text-xs font-medium">
+                <h2 className="text-muted-foreground text-xs font-medium">
                   {t("activity")}
                 </h2>
 
@@ -360,7 +360,7 @@ function CollapsedEventsButton({
     <button
       type="button"
       onClick={onExpand}
-      className="text-muted-foreground hover:text-muted-foreground/50 mx-3 my-4 flex w-[calc(100%-1.5rem)] cursor-pointer items-center justify-between gap-2 py-4 pb-2 transition-colors hover:underline"
+      className="text-muted-foreground hover:text-muted-foreground mx-3 my-4 flex w-[calc(100%-1.5rem)] cursor-pointer items-center justify-between gap-2 py-4 pb-2 transition-colors hover:underline"
     >
       <div className="flex shrink-0 items-center gap-2">
         <List className="size-4" />
@@ -385,7 +385,7 @@ function JobDetailsInitiatedSection({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {t("title")}
       </h2>
       <div>
@@ -475,7 +475,7 @@ function JobDetailsContent({
           <div className="flex flex-row items-baseline justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-baseline gap-2 text-sm">
               <span className="truncate text-sm font-medium">{actor.name}</span>
-              <span className="text-muted-foreground/60 text-xs">
+              <span className="text-muted-foreground text-xs">
                 {t("actionUpdatedStatus")}
               </span>
               <AgentJobStatusBadge
@@ -483,7 +483,7 @@ function JobDetailsContent({
                 variant={isStatusOnlyEvent ? "text" : "dot"}
               />
             </div>
-            <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
+            <span className="text-muted-foreground text-xs whitespace-nowrap">
               {formatTimeAgo(event.createdAt)}
             </span>
           </div>
@@ -502,7 +502,7 @@ function JobDetailsContent({
 
               {hasSources ? (
                 <section className="space-y-2">
-                  <h3 className="text-muted-foreground/60 text-xs font-medium">
+                  <h3 className="text-muted-foreground text-xs font-medium">
                     {t("Sources.title")}
                   </h3>
                   <JotOutputSources event={event} />
@@ -523,7 +523,7 @@ function JobDetailsContent({
 
               {isAwaitingInput ? (
                 <section className="space-y-2">
-                  <h3 className="text-muted-foreground/60 text-xs font-medium">
+                  <h3 className="text-muted-foreground text-xs font-medium">
                     {t("AwaitingInput.title")}
                   </h3>
                   <JobDetailsProvideInput job={job} event={event} />

@@ -540,7 +540,7 @@ export function OfferEmbed({
   }
   return (
     <div className="bg-card-background flex h-full flex-col items-center justify-center gap-3 px-10">
-      <AlignLeft aria-hidden className="text-muted-foreground/50 size-9" />
+      <AlignLeft aria-hidden className="text-muted-foreground size-9" />
       <div className="w-full max-w-md space-y-2">
         <div className="bg-quaternary h-1.5 w-full rounded" />
         <div className="bg-quaternary h-1.5 w-11/12 rounded" />

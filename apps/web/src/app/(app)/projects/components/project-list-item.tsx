@@ -36,7 +36,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
             <span className="text-foreground line-clamp-1 text-sm font-medium">
               {project.name}
             </span>
-            <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
+            <p className="text-muted-foreground line-clamp-1 text-xs break-all">
               {briefing}
             </p>
           </div>
