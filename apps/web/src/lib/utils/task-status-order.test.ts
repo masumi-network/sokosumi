@@ -2,10 +2,25 @@ import { describe, expect, it } from "vitest";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 import {
+  canSelectQueuedTaskStatus,
   getManualTaskStatusSelectOptions,
   TASK_STATUS_DISPLAY_ORDER,
   TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT,
 } from "@/lib/utils/task-status-order";
+
+describe("canSelectQueuedTaskStatus", () => {
+  it("requires both an agent assignee and an active schedule", () => {
+    expect(
+      canSelectQueuedTaskStatus({ hasSchedule: true, isAgent: true }),
+    ).toBe(true);
+    expect(
+      canSelectQueuedTaskStatus({ hasSchedule: false, isAgent: true }),
+    ).toBe(false);
+    expect(
+      canSelectQueuedTaskStatus({ hasSchedule: true, isAgent: false }),
+    ).toBe(false);
+  });
+});
 
 describe("TASK_STATUS_DISPLAY_ORDER", () => {
   it("includes every TaskStatus exactly once", () => {

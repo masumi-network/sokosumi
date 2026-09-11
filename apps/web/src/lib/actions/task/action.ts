@@ -904,8 +904,8 @@ export const setTaskStatusFromDrag = withSession<
     let statusAfterSchedule = currentStatus;
 
     const shouldClearSchedule =
-      currentStatus === TaskStatus.QUEUED &&
       desiredStatus !== TaskStatus.QUEUED &&
+      desiredStatus !== currentStatus &&
       hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
     if (shouldClearSchedule) {

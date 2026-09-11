@@ -1,6 +1,9 @@
 "use client";
 
-import { userTaskStatusTransitionRequiresComment } from "@sokosumi/utils";
+import {
+  isAgentOnlyTaskStatus,
+  userTaskStatusTransitionRequiresComment,
+} from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -9,7 +12,10 @@ import { useGlobalModalsContext } from "@/components/modals/global-modals-contex
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
-import { getManualTaskStatusSelectOptions } from "@/lib/utils/task-status-order";
+import {
+  canSelectQueuedTaskStatus,
+  getManualTaskStatusSelectOptions,
+} from "@/lib/utils/task-status-order";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskStatusPillSelectTrigger } from "./task-status-pill-select-trigger";
@@ -35,13 +41,6 @@ interface TaskMetadataStatusFieldProps {
   labels: TaskMetadataStatusFieldLabels;
 }
 
-function canSelectQueued(options: {
-  hasSchedule: boolean;
-  isAgentAssignee: boolean;
-}): boolean {
-  return options.hasSchedule && options.isAgentAssignee;
-}
-
 export function TaskMetadataStatusField({
   taskId,
   status,
@@ -56,7 +55,10 @@ export function TaskMetadataStatusField({
   const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
-  const isQueuedSelectable = canSelectQueued({ hasSchedule, isAgentAssignee });
+  const isQueuedSelectable = canSelectQueuedTaskStatus({
+    hasSchedule,
+    isAgent: isAgentAssignee,
+  });
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
     const previousStatus = currentStatus;
@@ -133,7 +135,10 @@ export function TaskMetadataStatusField({
             <SelectItem
               key={option}
               value={option}
-              disabled={option === TaskStatus.QUEUED && !isQueuedSelectable}
+              disabled={
+                (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
+                (option === TaskStatus.QUEUED && !isQueuedSelectable)
+              }
             >
               {labels.statusLabels[option]}
             </SelectItem>

@@ -1,6 +1,9 @@
 "use client";
 
-import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
+import {
+  formatTaskAttachmentMarkdown,
+  isAgentOnlyTaskStatus,
+} from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
@@ -68,7 +71,10 @@ import {
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
-import { getManualTaskStatusSelectOptions } from "@/lib/utils/task-status-order";
+import {
+  canSelectQueuedTaskStatus,
+  getManualTaskStatusSelectOptions,
+} from "@/lib/utils/task-status-order";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import {
@@ -165,13 +171,6 @@ function isAgentAssigneeFields(fields: {
   assigneeSokoBotId: string | null;
 }): boolean {
   return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
-}
-
-function canSelectQueued(options: {
-  hasSchedule: boolean;
-  isAgent: boolean;
-}): boolean {
-  return options.hasSchedule && options.isAgent;
 }
 
 function resolveStatusForAssigneeAndSchedule(options: {
@@ -494,7 +493,7 @@ export function TaskForm({
         !statusTouchedRef.current ||
         assigneeKindChanged ||
         (status === TaskStatus.QUEUED &&
-          !canSelectQueued({
+          !canSelectQueuedTaskStatus({
             isAgent,
             hasSchedule: nextHasSchedule,
           }));
@@ -898,7 +897,7 @@ export function TaskForm({
   const isAgentAssignee =
     selectedAssigneeFields.assigneeId !== null ||
     selectedAssigneeFields.assigneeSokoBotId !== null;
-  const isQueuedSelectable = canSelectQueued({
+  const isQueuedSelectable = canSelectQueuedTaskStatus({
     isAgent: isAgentAssignee,
     hasSchedule,
   });
@@ -967,21 +966,20 @@ export function TaskForm({
       knownSokoBotId,
       initialValues?.assigneeUserId,
     );
+    const isAgent = isAgentAssigneeFields(fields);
     const nextHasSchedule = selection.mode !== "none";
-    if (nextHasSchedule) {
+    const shouldResolveStatus =
+      !statusTouchedRef.current ||
+      (status === TaskStatus.QUEUED &&
+        !canSelectQueuedTaskStatus({
+          isAgent,
+          hasSchedule: nextHasSchedule,
+        }));
+    if (shouldResolveStatus) {
       setStatus(
         resolveStatusForAssigneeAndSchedule({
-          isAgent: isAgentAssigneeFields(fields),
-          hasSchedule: true,
-        }),
-      );
-      return;
-    }
-    if (status === TaskStatus.QUEUED) {
-      setStatus(
-        resolveStatusForAssigneeAndSchedule({
-          isAgent: isAgentAssigneeFields(fields),
-          hasSchedule: false,
+          isAgent,
+          hasSchedule: nextHasSchedule,
         }),
       );
     }
@@ -1354,7 +1352,8 @@ export function TaskForm({
                       key={option}
                       value={option}
                       disabled={
-                        option === TaskStatus.QUEUED && !isQueuedSelectable
+                        (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
+                        (option === TaskStatus.QUEUED && !isQueuedSelectable)
                       }
                     >
                       {getTaskFormStatusLabel(option, labels)}

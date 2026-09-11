@@ -1015,6 +1015,35 @@ describe("setTaskStatusFromDrag", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
+  it("clears the schedule when moving a scheduled ready task to draft", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
+        id: "task-1",
+        status: TaskStatus.READY,
+        metadata: scheduledMetadata,
+        nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      }),
+    );
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.READY,
+    });
+
+    const { setTaskStatusFromDrag } = await import("./action");
+
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.DRAFT,
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.DRAFT,
+    });
+  });
+
   it("returns a client-upgrade result when schedule clearing is gated", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({

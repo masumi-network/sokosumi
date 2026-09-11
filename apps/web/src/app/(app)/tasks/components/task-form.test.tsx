@@ -767,6 +767,33 @@ describe("TaskForm", () => {
     ).not.toHaveTextContent("Queued");
   });
 
+  it("keeps a manual Draft when applying a schedule after an explicit status choice", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await selectTaskStatus(user, "Draft");
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+  });
+
   it("disables Queued without a schedule (SOK-1033)", async () => {
     const user = userEvent.setup();
 
@@ -904,6 +931,50 @@ describe("TaskForm", () => {
     expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
       "data-disabled",
     );
+  });
+
+  it("disables agent-only statuses for a human assignee on edit", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={{
+          ...baseLabels,
+          statusLabels: {
+            ...baseLabels.statusLabels,
+            [TaskStatus.INPUT_REQUIRED]: "Input required",
+            [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
+          },
+        }}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        taskId="task-1"
+        initialValues={{
+          name: "Daily sync",
+          description: "Run the sync",
+          assigneeUserId: "user-1",
+          status: TaskStatus.READY,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(
+      screen.getByRole("option", { name: "Input required" }),
+    ).toHaveAttribute("data-disabled");
+    expect(
+      screen.getByRole("option", { name: "Approval required" }),
+    ).toHaveAttribute("data-disabled");
   });
 
   it("keeps a manual Ready override when switching agents with a schedule (SOK-1033)", async () => {

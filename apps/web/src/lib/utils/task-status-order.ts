@@ -3,6 +3,14 @@ import {
   type TaskStatus as TaskStatusType,
 } from "@/lib/clients/generated/core";
 
+/** Queued is only pickable for an agent assignee with an active schedule. */
+export function canSelectQueuedTaskStatus(options: {
+  hasSchedule: boolean;
+  isAgent: boolean;
+}): boolean {
+  return options.hasSchedule && options.isAgent;
+}
+
 /** UI display order for task statuses (stats chips, label builders, etc.). */
 export const TASK_STATUS_DISPLAY_ORDER = [
   TaskStatus.DRAFT,
