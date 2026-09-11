@@ -15,15 +15,21 @@ import SwiftUI
     var content = ComposerContent("")
     var channels: [ComposerChannel] = []
     var mentions: [ComposerMention] = []
+    var attach: (() -> Void)?
+    var attachFiles: (([URL]) -> Void)?
+    var attachImage: ((Data) -> Void)?
 
     var body: some View {
       ComposerLayout {
-        MacComposerTextInput(text: $text, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions)
+        MacComposerTextInput(text: $text, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage)
       } formatting: {
         if toolbarVisible {
           ComposerFormatToolbar(commands: commands)
         }
       } actions: {
+        if let attach {
+          ComposerToolbarButton(title: "Attach files", symbol: "paperclip", action: attach)
+        }
         ComposerToolbarButton(title: toolbarVisible ? "Hide formatting" : "Show formatting", symbol: "textformat", selected: toolbarVisible) {
           toolbarVisible.toggle()
           ComposerPreferences().toolbarVisible = toolbarVisible
