@@ -86,7 +86,7 @@ export function OAuthClientsList({
                   </span>
                 ) : null}
                 {client.disabled ? (
-                  <span className="bg-semantic-destructive/10 text-semantic-destructive inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
+                  <span className="bg-semantic-destructive-quinary text-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
                     {t("Status.disabled")}
                   </span>
                 ) : null}

@@ -401,13 +401,13 @@ describe("TaskActivitySection", () => {
 
     const dot = screen.getByTestId("status-dot-latest-running");
     expect(dot).toHaveClass("size-1.5");
-    expect(dot).toHaveClass("bg-emerald-500");
+    expect(dot).toHaveClass("bg-status-running");
     expect(
       screen.queryByRole("img", { name: "Alice" }),
     ).not.toBeInTheDocument();
   });
 
-  it("highlights completed comment events with a stone border", () => {
+  it("highlights completed comment events with a success border", () => {
     const events: TaskEvent[] = [
       createEvent("completed-with-comment", {
         createdAt: "2026-01-01T12:00:00.000Z",
@@ -420,7 +420,7 @@ describe("TaskActivitySection", () => {
       <TaskActivitySection {...baseProps} events={events} />,
     );
 
-    const row = container.querySelector(".border-stone-500\\/30");
+    const row = container.querySelector(".border-semantic-success-tertiary");
     expect(row).toBeInTheDocument();
   });
 
@@ -471,7 +471,7 @@ describe("TaskActivitySection", () => {
     );
 
     expect(
-      container.querySelector(".border-stone-500\\/30"),
+      container.querySelector(".border-semantic-success-tertiary"),
     ).not.toBeInTheDocument();
   });
 

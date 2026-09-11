@@ -49,36 +49,36 @@ export function AgentJobStatusBadge({
 export function getAgentStatusDotColorClass(status: AgentJobStatus) {
   switch (status) {
     case AgentJobStatus.COMPLETED:
-      return "bg-green-500";
+      return "bg-semantic-success";
     case AgentJobStatus.FAILED:
-      return "bg-red-500";
+      return "bg-semantic-destructive";
     case AgentJobStatus.AWAITING_INPUT:
-      return "bg-yellow-500";
+      return "bg-semantic-warning";
     case AgentJobStatus.AWAITING_PAYMENT:
-      return "bg-orange-500";
+      return "bg-risk-high";
     case AgentJobStatus.RUNNING:
     case AgentJobStatus.INITIATED:
-      return "bg-sky-500";
+      return "bg-status-running";
     default:
-      return "bg-gray-500";
+      return "bg-status-done";
   }
 }
 
 export function getAgentStatusBorderColorClass(status: AgentJobStatus) {
   switch (status) {
     case AgentJobStatus.COMPLETED:
-      return "border-green-500/40";
+      return "border-semantic-success-tertiary";
     case AgentJobStatus.FAILED:
-      return "border-red-500/40";
+      return "border-semantic-destructive-tertiary";
     case AgentJobStatus.AWAITING_INPUT:
-      return "border-yellow-500/40";
+      return "border-semantic-warning-tertiary";
     case AgentJobStatus.AWAITING_PAYMENT:
-      return "border-orange-500/40";
+      return "border-semantic-warning-tertiary";
     case AgentJobStatus.RUNNING:
     case AgentJobStatus.INITIATED:
-      return "border-sky-500/40";
+      return "border-status-running-tertiary";
     default:
-      return "border-gray-500/40";
+      return "border-status-done-tertiary";
   }
 }
 

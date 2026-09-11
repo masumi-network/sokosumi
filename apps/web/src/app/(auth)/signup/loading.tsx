@@ -10,7 +10,9 @@ export default function RegisterLoadingPage() {
     <div className="flex flex-1 flex-col">
       <div className="p-6">
         <h1 className="text-2xl font-light">{t("Header.title")}</h1>
-        <p className="text-sm text-gray-400">{t("Header.description")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("Header.description")}
+        </p>
       </div>
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         <div className="flex flex-col gap-4">

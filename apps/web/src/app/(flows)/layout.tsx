@@ -45,10 +45,16 @@ function FlowsLayoutFooter() {
 
   return (
     <div className="flex items-center justify-center gap-4">
-      <Link href="/privacy-policy" className="text-sm hover:text-gray-300">
+      <Link
+        href="/privacy-policy"
+        className="text-sm text-muted-foreground hover:text-foreground"
+      >
         {t("privacyPolicy")}
       </Link>
-      <Link href="/terms-of-service" className="text-sm hover:text-gray-300">
+      <Link
+        href="/terms-of-service"
+        className="text-sm text-muted-foreground hover:text-foreground"
+      >
         {t("termsOfServices")}
       </Link>
     </div>

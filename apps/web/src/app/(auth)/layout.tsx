@@ -92,7 +92,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.TERMS_OF_SERVICE}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("termsOfServices")}
       </Link>
@@ -100,7 +100,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.PRIVACY_POLICY}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("privacyPolicy")}
       </Link>
@@ -108,7 +108,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.IMPRINT}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("imprint")}
       </Link>
@@ -116,7 +116,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.ACCEPTABLE_USE}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("acceptableUse")}
       </Link>

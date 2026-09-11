@@ -1,27 +1,42 @@
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { RiskClassification } from "@/lib/types/core-dto";
+import { cn } from "@/lib/utils";
 
+/**
+ * Four ordered tiers, so colour alone cannot carry the escalation: the warm
+ * hues sit too close together to separate on hue. Fill weight is the second
+ * channel. The lower two tiers are a tint with a coloured dot, the upper two
+ * are solid, which makes Medium to High the step a reader notices.
+ *
+ * The label stays in the foreground colour on the tinted tiers. A coloured
+ * label would need 4.5:1, and there is no vivid amber that reaches it on
+ * white — that constraint is what turns amber into mud. The dot only needs
+ * 3:1 (WCAG 2.2 SC 1.4.11), so the colour stays vivid there instead.
+ */
 export const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {
     labelKey: "minimal",
-    variant: "default",
-    color: "bg-semantic-success text-semantic-success-foreground",
+    color:
+      "bg-semantic-success-quinary border-semantic-success-tertiary text-foreground",
+    dot: "bg-semantic-success",
   },
   LIMITED: {
     labelKey: "limited",
-    variant: "secondary",
-    color: "bg-semantic-warning text-semantic-warning-foreground",
+    color:
+      "bg-semantic-warning-quinary border-semantic-warning-tertiary text-foreground",
+    dot: "bg-semantic-warning",
   },
   HIGH: {
     labelKey: "high",
-    variant: "outline",
-    color: "bg-semantic-critical text-semantic-critical-foreground",
+    color: "bg-risk-high text-risk-high-foreground border-transparent",
+    dot: null,
   },
   UNACCEPTABLE: {
     labelKey: "unacceptable",
-    variant: "destructive",
-    color: "bg-semantic-destructive text-semantic-destructive-foreground",
+    color:
+      "bg-semantic-destructive text-semantic-destructive-foreground border-transparent",
+    dot: null,
   },
 } as const;
 
@@ -38,10 +53,16 @@ export function RiskClassificationBadge({
     RISK_CLASSIFICATION_MAP.MINIMAL;
   return (
     <Badge
-      variant={config.variant}
-      className={config.color}
+      variant="outline"
+      className={cn(config.color)}
       aria-label={t(config.labelKey)}
     >
+      {config.dot ? (
+        <span
+          aria-hidden="true"
+          className={cn("size-1.5 shrink-0 rounded-full", config.dot)}
+        />
+      ) : null}
       {t(config.labelKey)}
     </Badge>
   );

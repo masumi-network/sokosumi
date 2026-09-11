@@ -76,8 +76,8 @@ export default function ChatRoomInvitationCard({
           <CardTitle>{t("title")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
-            <CheckIcon className="size-8 text-green-600" />
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-semantic-success-quinary">
+            <CheckIcon className="size-8 text-semantic-success" />
           </div>
           <h1 className="text-center text-2xl font-light">
             {t("acceptedTitle", { roomName: invitation.roomName })}
@@ -123,8 +123,8 @@ export default function ChatRoomInvitationCard({
           <CardTitle>{t("title")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
-            <XIcon className="size-8 text-red-600" />
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-semantic-destructive-quinary">
+            <XIcon className="size-8 text-semantic-destructive" />
           </div>
           <h1 className="text-center text-2xl font-light">{t(titleKey)}</h1>
           <p className="text-muted-foreground text-center text-sm">
