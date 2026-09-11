@@ -124,7 +124,15 @@ vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
   }),
 }));
 
+vi.mock("@/components/chat/use-show-room-unread-count", () => ({
+  useShowRoomUnreadCount: () => false,
+}));
+
 vi.mock("@/app/chat/actions", () => ({
+  countUnreadThreadsAction: vi.fn(async () => ({
+    ok: true as const,
+    value: 0,
+  })),
   deleteRoomMessageAction: vi.fn(),
   editRoomMessageAction: vi.fn(),
   listRoomMessagesAction: vi.fn(),

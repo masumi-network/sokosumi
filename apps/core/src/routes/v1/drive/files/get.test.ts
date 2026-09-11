@@ -223,3 +223,48 @@ describe("GET /v1/drive/files sort", () => {
     expect(listMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("GET /v1/drive/files pagination contract", () => {
+  it.each(["", "&sortBy=name&sortOrder=asc"])(
+    "documents the returned metadata without a total (%s)",
+    async (sort) => {
+      listMock.mockResolvedValue(blobPage({}));
+      const app = createFilesApp();
+      const document = app.getOpenAPI31Document({
+        openapi: "3.1.0",
+        info: { title: "Drive test", version: "1" },
+      });
+      expect(
+        document.components?.schemas?.DrivePaginationMetadata,
+      ).toMatchObject({
+        type: "object",
+        required: ["cursor", "limit", "nextCursor"],
+      });
+      expect(document.paths?.["/"]?.get?.responses?.["200"]).toMatchObject({
+        content: {
+          "application/json": {
+            schema: {
+              properties: {
+                meta: {
+                  properties: {
+                    pagination: {
+                      $ref: "#/components/schemas/DrivePaginationMetadata",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      const response = await app.request(`/?scope=me&limit=20${sort}`);
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.meta.pagination).toEqual({
+        cursor: null,
+        limit: 20,
+        nextCursor: null,
+      });
+    },
+  );
+});

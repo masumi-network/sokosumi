@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { getSessionResult } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableJson,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 interface BackgroundChatReadPage {
@@ -24,16 +27,13 @@ export async function respondToBackgroundChatRead(
   read: () => Promise<BackgroundChatReadPage>,
 ): Promise<NextResponse> {
   try {
-    const sessionResult = await getSessionResult();
+    const sessionRead = await readRouteSession();
     // A Core timeout is not a logout. Answering 401 for one told the browser
-    // the session was gone; 503 says retry.
-    if (sessionResult.isErr()) {
-      return NextResponse.json(
-        { error: unavailableMessage, reason: sessionResult.error.reason },
-        { status: 503, headers: { "Retry-After": "1" } },
-      );
+    // the session was gone and cost it its realtime client; 503 says retry.
+    if (sessionRead.status === "unavailable") {
+      return coreSessionUnavailableJson(unavailableMessage, sessionRead);
     }
-    if (!sessionResult.value) {
+    if (sessionRead.status === "signedOut") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const page = await read();
@@ -53,8 +53,13 @@ export async function respondToBackgroundChatRead(
   } catch (error) {
     // Core's server client may throw a sign-in redirect. A background read
     // must return a failed response, never sign-in HTML as successful data.
+    //
+    // A `CoreApiRequestError` with no status never reached Core at all: a
+    // timeout or a dropped connection. That is the same retriable stall as the
+    // session read above, so it answers 503. An answered failure keeps its own
+    // status, and anything else thrown here stays 502.
     const status =
-      error instanceof CoreApiRequestError && error.status ? error.status : 502;
+      error instanceof CoreApiRequestError ? error.status || 503 : 502;
     return NextResponse.json({ error: unavailableMessage }, { status });
   }
 }

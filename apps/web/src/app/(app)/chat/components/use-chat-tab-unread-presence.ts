@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -8,7 +7,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { getActiveRoomIdFromPathname } from "@/components/chat/active-room-id";
 import { countChatRoomsWithUnreadAttention } from "@/components/chat/chat-unread-document-title";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
 import {
@@ -48,12 +46,10 @@ interface UseChatTabUnreadPresenceResult {
 }
 
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
-  const pathname = usePathname();
   const { data: session } = useSession();
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
   const latestAppliedRefreshRef = useRef(0);
-  const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const [rooms, setRooms] = useState<ChatRoom[]>(
     getInitialRoomsFromSessionSnapshot,
   );
@@ -83,9 +79,7 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
     setRooms([...liveSnapshot.rooms]);
   }, [sidebarOwnsReads, liveSnapshot, currentUserId, organizationId]);
 
-  const unreadRoomCount = countChatRoomsWithUnreadAttention(rooms, {
-    activeRoomId,
-  });
+  const unreadRoomCount = countChatRoomsWithUnreadAttention(rooms);
   const showUnreadDot = unreadRoomCount > 0;
 
   const scope = currentUserId
@@ -200,11 +194,7 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
         return;
       }
 
-      // Only the active collection feeds the dot, and the open room never
-      // counts, so a change in it needs no read here.
-      if (detail?.roomId && detail.roomId === activeRoomId) {
-        return;
-      }
+      // Only the active collection feeds the dot.
       if (!detail?.collections || detail.collections.includes("active")) {
         requestRefresh();
       }
@@ -220,7 +210,7 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
         handleRoomsChanged,
       );
     };
-  }, [requestRefresh, activeRoomId]);
+  }, [requestRefresh]);
 
   return { showUnreadDot, unreadRoomCount };
 }

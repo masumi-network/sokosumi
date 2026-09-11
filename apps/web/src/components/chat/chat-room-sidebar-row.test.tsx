@@ -692,10 +692,16 @@ describe("ChatRoomSidebarRow unread message count", () => {
     expect(screen.queryByText(/unread messages/)).toBeNull();
   });
 
-  it("shows no count on the room the reader has open", () => {
-    renderRow(makeRoom({ unreadCount: 4 }), true);
+  // Opening a room does not read it, so the open row keeps the whole statement:
+  // the bold name, the mention badge, and the count. It is pinned here rather
+  // than in `room-attention.test.ts`, which no longer has an active flag to
+  // pass.
+  it("keeps bold, badge, and count on the room the reader has open", () => {
+    renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }), true);
 
-    expect(screen.queryByText(/unread messages/)).toBeNull();
+    expect(screen.getByText("general").className).toContain("font-semibold");
+    expect(screen.getByText("2 mentions")).toBeInTheDocument();
+    expect(screen.getByText("4 unread messages")).toBeInTheDocument();
   });
 
   it("caps a very loud room so the row cannot reflow", () => {

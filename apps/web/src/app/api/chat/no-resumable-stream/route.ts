@@ -1,6 +1,9 @@
 import type { NextRequest } from "next/server";
 
-import { getSession } from "@/lib/auth/auth.server";
+import {
+  coreSessionUnavailableText,
+  readRouteSession,
+} from "@/lib/auth/route-session";
 
 /**
  * Used by the chat client when `useChat` runs stream resume but no real
@@ -8,8 +11,11 @@ import { getSession } from "@/lib/auth/auth.server";
  * stream” and does not throw.
  */
 export async function GET(_req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return coreSessionUnavailableText(sessionRead);
+  }
+  if (sessionRead.status === "signedOut") {
     return new Response("Unauthorized", { status: 401 });
   }
 

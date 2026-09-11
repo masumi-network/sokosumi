@@ -1,6 +1,5 @@
 "use client";
 
-import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -20,6 +19,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
+import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
@@ -272,21 +272,28 @@ function NotificationRow({
     isPendingCoworkerAccessNotification(notification);
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
+  const Icon = getNotificationIcon(notification);
   const rowClassName = cn(
-    "hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
-    !notification.isRead && "bg-accent/50",
+    "group/row hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     isPending && "bg-accent opacity-80",
     showPendingAccessActions ? "cursor-default" : "cursor-pointer",
   );
 
   const body = (
     <div className="flex w-full items-start gap-3">
-      <Bell
+      <span
         className={cn(
-          "mt-0.5 size-4 shrink-0",
-          notification.isRead ? "text-muted-foreground" : "text-primary",
+          "flex size-8 shrink-0 items-center justify-center rounded-full",
+          // Translucent, so the circle survives the row's hover tint, which
+          // is the same colour as the muted surface.
+          notification.isRead
+            ? "bg-foreground/10 text-muted-foreground"
+            : "bg-primary/15 text-primary",
         )}
-      />
+        aria-hidden
+      >
+        <Icon className="size-4" />
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {showPendingAccessActions ? (
           <button

@@ -32,7 +32,11 @@ import {
   reportAblyConnectionConnected,
   setAblyConnectionHealthy,
 } from "./ably-connection-health-store";
-import { getAblyRealtimeClient } from "./realtime-singleton.client";
+import {
+  discardRetiredAblyRealtimeClient,
+  getAblyRealtimeClient,
+  subscribeToAblyRealtimeClient,
+} from "./realtime-singleton.client";
 
 interface RealtimeAuthCallback {
   (
@@ -49,14 +53,30 @@ interface RealtimeClientOptions {
   echoMessages?: boolean;
 }
 
-function getConstructedRealtimeClient(): {
+function getConstructedRealtimeClient(index = 0): {
   close: ReturnType<typeof vi.fn>;
 } {
-  const constructed = RealtimeMock.mock.instances[0];
+  const constructed = RealtimeMock.mock.instances[index];
   if (!constructed) {
     throw new Error("Ably.Realtime was not constructed");
   }
   return constructed;
+}
+
+function mockUnauthorized(): void {
+  fetchMockValue({
+    ok: false,
+    status: 401,
+    text: async () => '{"error":"Unauthorized"}',
+  });
+}
+
+function mockTokenFor(clientId: string): void {
+  fetchMockValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ clientId, keyName: "key", mac: "mac" }),
+  });
 }
 
 function getRealtimeClientOptions(): RealtimeClientOptions {
@@ -85,14 +105,22 @@ async function invokeAuthCallback(): Promise<{
   });
 }
 
+const fetchMock = vi.fn();
+
+function fetchMockValue(response: unknown): void {
+  fetchMock.mockResolvedValue(response);
+}
+
 describe("getAblyRealtimeClient", () => {
-  const fetchMock = vi.fn();
   const consoleErrorMock = vi
     .spyOn(console, "error")
     .mockImplementation(() => undefined);
 
   beforeEach(() => {
     globalThis.__sokosumiAblyRealtimeClient = undefined;
+    // The retired client is module state, so drop the previous test's pointer.
+    // The global is already empty, so this only clears that pointer.
+    discardRetiredAblyRealtimeClient();
     setAblyConnectionHealthy(false);
     RealtimeMock.mockClear();
     fetchMock.mockReset();
@@ -176,6 +204,11 @@ describe("getAblyRealtimeClient", () => {
     );
     expect(authResult.token).toBeNull();
     expect(authResult.error).toEqual(expect.any(String));
+    // The status is the only signal that tells a real logout from an outage.
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "Ably auth request failed",
+      expect.objectContaining({ status: 401 }),
+    );
     // close() is terminal for the instance AblyProvider already holds.
     // Production mixed 401 with 200 on this route in the same minute; treating
     // 401 as logout killed realtime until a page reload.
@@ -221,11 +254,7 @@ describe("getAblyRealtimeClient", () => {
   });
 
   it("reuses the same client after a 401 instead of building a second one", async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 401,
-      text: async () => '{"error":"Unauthorized"}',
-    });
+    mockUnauthorized();
 
     const client = getAblyRealtimeClient();
     await invokeAuthCallback();
@@ -258,5 +287,294 @@ describe("getAblyRealtimeClient", () => {
     expect(getAblyConnectionHealthy()).toBe(false);
     reportAblyConnectionConnected(true);
     expect(getAblyConnectionHealthy()).toBe(true);
+  });
+
+  /**
+   * ably-js re-runs the auth callback on its own backoff and never gives up on
+   * our auth failure, so a tab left open after a logout would POST
+   * /api/ably/auth every 30s for the life of the page.
+   */
+  it("retires the client once 401s prove the session is really gone", async () => {
+    mockUnauthorized();
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    // Two is still a blip — Core reported timed-out session reads as 401.
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+
+    await invokeAuthCallback();
+
+    expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+  });
+
+  it("does not count a 502 towards the session-loss limit", async () => {
+    fetchMockValue({
+      ok: false,
+      status: 502,
+      text: async () => '{"error":"Failed to create Ably token"}',
+    });
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    // An outage must stay retriable however long it lasts.
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+  });
+
+  it("forgets earlier 401s once a token comes back", async () => {
+    const client = getAblyRealtimeClient();
+
+    mockUnauthorized();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    mockTokenFor("user-a:inst_test01");
+    await invokeAuthCallback();
+
+    mockUnauthorized();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Core mints `${userId}:${clientInstanceId}`. ably-js rejects a token whose
+   * clientId contradicts the one the client latched (40102) and fails the
+   * connection terminally, which no retry and no remount can undo while the
+   * global still points at that client.
+   */
+  it("retires the client when a second user signs in to the tab", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    const firstResult = await invokeAuthCallback();
+    expect(firstResult.error).toBeNull();
+
+    mockTokenFor("user-b:inst_test01");
+    const secondResult = await invokeAuthCallback();
+
+    expect(secondResult.token).toBeNull();
+    expect(secondResult.error).toEqual(expect.any(String));
+    expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
+
+    const replacement = getAblyRealtimeClient();
+    expect(replacement).not.toBe(client);
+    expect(getConstructedRealtimeClient(1).close).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A callback that was already in flight when its own client was retired
+   * must not close the replacement. Closing whatever happens to be global at
+   * settle time kills a healthy client built for the user who just signed in,
+   * and a counter left armed retires that replacement on its first failure.
+   */
+  it("does not let a late 401 from a retired client close its replacement", async () => {
+    // The identity change is the retire that leaves a replacement to protect.
+    // A lost session keeps its own client in the global, so nothing is built
+    // behind it.
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    const retiredCallback = getRealtimeClientOptions().authCallback;
+    if (!retiredCallback) {
+      throw new Error("expected an authCallback");
+    }
+    await invokeAuthCallback();
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
+
+    const replacement = getAblyRealtimeClient();
+    expect(replacement).not.toBe(client);
+
+    // A late answer settles on the retired client's own closure.
+    mockUnauthorized();
+    await new Promise<void>((resolve) => {
+      retiredCallback({}, () => resolve());
+    });
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
+    expect(getConstructedRealtimeClient(1).close).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A retired client is closed, so its health says nothing about the page. A
+   * late failure that still reported would flip the replacement's health to
+   * unhealthy and start the fallback polling for a client that is fine.
+   */
+  it("does not report health for a failure that lands after the retire", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    const retiredCallback = getRealtimeClientOptions().authCallback;
+    if (!retiredCallback) {
+      throw new Error("expected an authCallback");
+    }
+    await invokeAuthCallback();
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    // The replacement is delivering.
+    setAblyConnectionHealthy(true);
+
+    mockUnauthorized();
+    await new Promise<void>((resolve) => {
+      retiredCallback({}, () => resolve());
+    });
+
+    expect(getAblyConnectionHealthy()).toBe(true);
+  });
+
+  it("rebuilds the client for mounted providers after an identity change", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    await invokeAuthCallback();
+
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    // Without the notification a mounted provider keeps the closed client and
+    // stays silent for the rest of the page's life.
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("does not rebuild for a signed-out browser", async () => {
+    mockUnauthorized();
+
+    const client = getAblyRealtimeClient();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    // Rebuilding here would restart the polling the retire just stopped.
+    expect(listener).not.toHaveBeenCalled();
+
+    // A listener is not the only way back. `getAblyRealtimeClient` builds
+    // whenever the global is empty, so keeping the retired client there is
+    // what actually stops the rebuild: any later render would otherwise get a
+    // fresh client that 401s its way to the same retire, for the life of the
+    // tab.
+    expect(getAblyRealtimeClient()).toBe(client);
+    expect(RealtimeMock).toHaveBeenCalledOnce();
+    unsubscribe();
+  });
+
+  /**
+   * Every sign-in path finishes with `router.replace`, so the document survives
+   * a re-sign-in and the retired client would survive with it. `/signin` is
+   * reached the same way, from the error boundary's `router.push`, so the whole
+   * logout-and-back-in loop can happen without a reload.
+   */
+  it("rebuilds after a sign-in in the same document", async () => {
+    mockUnauthorized();
+
+    const client = getAblyRealtimeClient();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+    await invokeAuthCallback();
+
+    discardRetiredAblyRealtimeClient();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
+    expect(listener).toHaveBeenCalledOnce();
+    expect(getAblyRealtimeClient()).not.toBe(client);
+    expect(RealtimeMock).toHaveBeenCalledTimes(2);
+    unsubscribe();
+  });
+
+  it("leaves a healthy client alone when a sign-in happens", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAblyRealtimeClient(listener);
+
+    discardRetiredAblyRealtimeClient();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(listener).not.toHaveBeenCalled();
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  /**
+   * The identity change already dropped its client from the global and built a
+   * replacement. A sign-in landing after that must not throw the replacement
+   * away, which is why only a session-loss retire is remembered.
+   */
+  it("does not discard the replacement an identity change built", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    await invokeAuthCallback();
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    const replacement = getAblyRealtimeClient();
+    discardRetiredAblyRealtimeClient();
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
+  });
+
+  /**
+   * A TokenRequest without a clientId does not contradict the latched one, so
+   * ably-js accepts it. Treating a missing clientId as a changed identity
+   * would retire a healthy client on a routine renewal.
+   */
+  it("keeps the client when a renewal carries no clientId", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+
+    fetchMockValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ keyName: "key", mac: "mac" }),
+    });
+    const renewal = await invokeAuthCallback();
+
+    expect(renewal.error).toBeNull();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+  });
+
+  it("keeps serving the same user across token renewals", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    const client = getAblyRealtimeClient();
+    await invokeAuthCallback();
+    const renewal = await invokeAuthCallback();
+
+    expect(renewal.error).toBeNull();
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
   });
 });

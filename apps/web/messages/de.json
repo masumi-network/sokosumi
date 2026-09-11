@@ -748,7 +748,8 @@
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
       "emptyState": "Noch keine Benachrichtigungen",
-      "seeMore": "Mehr anzeigen",
+      "viewAll": "Alle Benachrichtigungen anzeigen",
+      "justNow": "Gerade eben",
       "loading": "Lädt...",
       "loadMore": "Mehr laden",
       "markAllRead": "Alle als gelesen markieren",
@@ -2197,6 +2198,8 @@
     "Error": {
       "title": "Etwas ist schiefgelaufen",
       "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "unavailableTitle": "Vorübergehend nicht verfügbar",
+      "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Das dauert meist nur kurz. Bitte versuche es gleich noch einmal.",
       "errorId": "Fehler-ID: {errorId}",
       "tryAgain": "Erneut versuchen",
       "goApp": "Zur App"
@@ -5369,7 +5372,9 @@
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "loadOlder": "Ältere Threads laden",
         "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
+        "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",

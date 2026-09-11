@@ -511,4 +511,33 @@ describe("useRoomReadAttention", () => {
       window.removeEventListener("organization-chat-room-read", handleRead);
     }
   });
+
+  it("reports every Look that reaches Core, including the automatic one", async () => {
+    const onThreadLooked = vi.fn();
+    visibility = "hidden";
+    const { result } = renderHook(() =>
+      useRoomReadAttention({
+        ...options(),
+        openThreadParentId: "thread-1",
+        onThreadLooked,
+      }),
+    );
+
+    // Hidden tab: the automatic read is refused, so nothing has been looked.
+    expect(onThreadLooked).not.toHaveBeenCalled();
+
+    await showTab("focus");
+    expect(markThreadReadAction).toHaveBeenCalledWith("room-1", "thread-1");
+    expect(onThreadLooked).toHaveBeenCalledTimes(1);
+
+    // An asked-for Look reports too, and a refused one never does.
+    vi.mocked(markThreadReadAction).mockResolvedValueOnce({
+      ok: false,
+      error: { message: "nope", code: "BAD_INPUT" },
+    } as Awaited<ReturnType<typeof markThreadReadAction>>);
+    await act(async () => {
+      await result.current.markThreadRead("room-1", "thread-1");
+    });
+    expect(onThreadLooked).toHaveBeenCalledTimes(1);
+  });
 });

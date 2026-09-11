@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 
-import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import { signInRedirectPath } from "@/lib/auth/auth.server";
+import { readRouteSession } from "@/lib/auth/route-session";
 import { userService } from "@/lib/services";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
+import { CoreUnavailableNotice } from "./core-unavailable-notice.client";
 
 interface WorkspaceAccessGateProps {
   children: React.ReactNode;
@@ -17,7 +19,13 @@ interface WorkspaceAccessGateProps {
 export default async function WorkspaceAccessGate({
   children,
 }: WorkspaceAccessGateProps) {
-  await getSessionOrRedirect();
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    return <CoreUnavailableNotice />;
+  }
+  if (sessionRead.status === "signedOut") {
+    redirect(await signInRedirectPath());
+  }
 
   let workspaceGate: string | null = null;
   try {

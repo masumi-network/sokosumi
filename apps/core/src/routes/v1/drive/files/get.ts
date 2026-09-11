@@ -37,6 +37,7 @@ import {
 } from "@/schemas/drive-list-sort.schema";
 import {
   type CursorPaginationMeta,
+  cursorPaginationMetaSchema,
   cursorPaginationQuerySchema,
 } from "@/schemas/pagination.schema";
 
@@ -76,6 +77,11 @@ const querySchema = z
   })
   .merge(cursorPaginationQuerySchema);
 
+// Blob listings do not provide an overall count. Keep counted endpoints unchanged.
+const drivePaginationMetaSchema = cursorPaginationMetaSchema
+  .omit({ total: true })
+  .openapi("DrivePaginationMetadata");
+
 const route = createRoute({
   method: "get",
   path: "/",
@@ -94,7 +100,12 @@ const route = createRoute({
     query: querySchema,
   },
   responses: {
-    200: jsonPaginatedSuccessResponse(driveItemsSchema, "Drive items"),
+    200: jsonPaginatedSuccessResponse(
+      driveItemsSchema,
+      "Drive items",
+      undefined,
+      drivePaginationMetaSchema,
+    ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),

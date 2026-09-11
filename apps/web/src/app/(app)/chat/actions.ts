@@ -829,6 +829,17 @@ export async function listThreadsAction(
   }
 }
 
+export async function countUnreadThreadsAction(
+  roomId: string,
+): Promise<RoomActionResult<number>> {
+  try {
+    const count = await chatRoomService.countUnreadThreads(roomId);
+    return roomOk(count);
+  } catch (error) {
+    return roomCatch(error, "Could not count unread threads.");
+  }
+}
+
 export async function markThreadReadAction(
   roomId: string,
   parentMessageId: string,

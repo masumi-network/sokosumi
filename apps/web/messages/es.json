@@ -748,7 +748,8 @@
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
       "emptyState": "Aún no hay notificaciones",
-      "seeMore": "Ver más",
+      "viewAll": "Ver todas las notificaciones",
+      "justNow": "Ahora mismo",
       "loading": "Cargando...",
       "loadMore": "Cargar más",
       "markAllRead": "Marcar todas como leídas",
@@ -2197,6 +2198,8 @@
     "Error": {
       "title": "Algo salió mal",
       "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
+      "unavailableTitle": "No disponible temporalmente",
+      "unavailableDescription": "No pudimos conectar con el servicio. Suele ser breve, así que inténtalo de nuevo en un momento.",
       "errorId": "ID de error: {errorId}",
       "tryAgain": "Intentar de nuevo",
       "goApp": "Ir a la app"
@@ -5369,7 +5372,9 @@
         "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
         "loadOlder": "Cargar hilos anteriores",
         "startedBy": "Iniciado por {name}",
-        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
+        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}",
+        "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
+        "unreadThreadsCapped": "Más de {max} hilos no leídos"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
