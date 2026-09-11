@@ -675,13 +675,24 @@ describe("PasskeySettings", () => {
     // never touches Core's freshness gate.
     render(<PasskeySettings accounts={[]} canAddPasskey={false} />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
-    });
-    expect(screen.getByText("addUnavailable")).toBeInTheDocument();
+    // Wait for the list, because Add is disabled while it loads either way.
+    // Asserting before this would pass with `canAddPasskey` ignored entirely.
     expect(
-      screen.getAllByRole("button", { name: /^delete-/ }).length,
+      (await screen.findAllByRole("button", { name: /^delete-/ })).length,
     ).toBeGreaterThan(0);
+
+    expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+    expect(screen.getByText("addUnavailable")).toBeInTheDocument();
+  });
+
+  it("allows adding once the account read succeeded", async () => {
+    // The control for the test above: same wait, opposite outcome.
+    render(<PasskeySettings accounts={[passwordAccount]} canAddPasskey />);
+
+    await screen.findAllByRole("button", { name: /^delete-/ });
+
+    expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    expect(screen.queryByText("addUnavailable")).not.toBeInTheDocument();
   });
 
   it("asks for the password again when the session is not fresh", async () => {

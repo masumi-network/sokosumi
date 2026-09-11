@@ -3886,7 +3886,7 @@
         "add": "Añadir passkey",
         "addError": "Error al añadir passkey",
         "addSuccess": "Passkey añadido correctamente",
-        "addUnavailable": "No puedes añadir hasta que carguen los datos de tu cuenta. Reinténtalo arriba.",
+        "addUnavailable": "Para añadir hacen falta los datos de tu cuenta, que no se cargaron. Recarga la página.",
         "cancel": "Cancelar",
         "createdAt": "Creado el {date}",
         "defaultName": "Passkey",

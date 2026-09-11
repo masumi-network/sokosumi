@@ -3886,7 +3886,7 @@
         "add": "Passkey hinzufügen",
         "addError": "Passkey konnte nicht hinzugefügt werden",
         "addSuccess": "Passkey erfolgreich hinzugefügt",
-        "addUnavailable": "Hinzufügen ist erst möglich, wenn deine Kontodaten geladen sind. Versuche es oben erneut.",
+        "addUnavailable": "Zum Hinzufügen werden deine Kontodaten benötigt, die nicht geladen wurden. Lade die Seite neu.",
         "cancel": "Abbrechen",
         "createdAt": "Erstellt am {date}",
         "defaultName": "Passkey",

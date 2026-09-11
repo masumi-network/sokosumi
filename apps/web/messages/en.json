@@ -3917,7 +3917,7 @@
         "add": "Add passkey",
         "addError": "Failed to add passkey",
         "addSuccess": "Passkey added successfully",
-        "addUnavailable": "Adding is unavailable until your account details load. Retry above.",
+        "addUnavailable": "Adding needs your account details, which did not load. Reload the page to try again.",
         "cancel": "Cancel",
         "createdAt": "Created {date}",
         "defaultName": "Passkey",
