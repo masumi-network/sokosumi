@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
  * Four ordered tiers, so colour alone cannot carry the escalation: the warm
  * hues sit too close together to separate on hue. Fill weight is the second
  * channel. The lower two tiers are a tint with a coloured dot, the upper two
- * are solid, which makes Medium to High the step a reader notices.
+ * are solid, which makes Medium to High the step a reader notices. No tier
+ * draws a border: the tint itself carries the badge edge now that it is a
+ * -quaternary step, and a border on two of four tiers read as a fifth state.
  *
  * The label stays in the foreground colour on the tinted tiers. A coloured
  * label would need 4.5:1, and there is no vivid amber that reaches it on
@@ -17,14 +19,12 @@ import { cn } from "@/lib/utils";
 export const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {
     labelKey: "minimal",
-    color:
-      "bg-semantic-success-quinary border-semantic-success-tertiary text-foreground",
+    color: "bg-semantic-success-quaternary border-transparent text-foreground",
     dot: "bg-semantic-success",
   },
   LIMITED: {
     labelKey: "limited",
-    color:
-      "bg-semantic-warning-quinary border-semantic-warning-tertiary text-foreground",
+    color: "bg-semantic-warning-quaternary border-transparent text-foreground",
     dot: "bg-semantic-warning",
   },
   HIGH: {
