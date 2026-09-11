@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChannelLinkTarget } from "@sokosumi/utils";
+import { useTranslations } from "next-intl";
 import { type MutableRefObject, type ReactNode, useMemo, useRef } from "react";
 import type { Components } from "react-markdown";
 
@@ -129,6 +130,7 @@ export function RoomMessageMarkdown({
   };
   const lookupsRef = useRef(lookups);
   lookupsRef.current = lookups;
+  const t = useTranslations("App.Channels");
 
   const components = useMemo<Components>(
     () => ({
@@ -154,6 +156,7 @@ export function RoomMessageMarkdown({
         usersById,
         usersBySlug,
         channelLinks,
+        mentionAllLabel: t("MentionAll.label"),
       })}
     </Markdown>
   );

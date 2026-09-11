@@ -124,3 +124,16 @@ private class AttachmentBlobProtocol: URLProtocol, @unchecked Sendable {
     }
   }
 }
+
+@Test @MainActor func driveSelectionDeduplicatesAndPersists() throws {
+  let name = UUID().uuidString
+  let defaults = try #require(UserDefaults(suiteName: name))
+  defer { defaults.removePersistentDomain(forName: name) }
+  let draft = SavedComposeDraft(userId: "me", organizationId: nil, roomId: "room", defaults: defaults)
+  let uploads = ComposeUploads(savedDraft: draft)
+  let file = ComposeAttachment(url: "https://blob.example/report.pdf", fileName: "report.pdf", mediaType: "")
+  uploads.add(file)
+  uploads.add(file)
+  #expect(uploads.attachments == [file])
+  #expect(draft.loadAttachments() == [file])
+}

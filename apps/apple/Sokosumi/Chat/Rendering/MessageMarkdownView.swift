@@ -156,6 +156,7 @@ private struct MarkdownBlockView: View {
         }
       }
     }
+    .padding(.bottom, segments.last?.attachment?.kind == .file ? 8 : 0)
   }
 
   private func styled(_ text: AttributedString) -> AttributedString {
