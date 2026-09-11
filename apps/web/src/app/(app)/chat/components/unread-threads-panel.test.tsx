@@ -78,10 +78,10 @@ describe("UnreadThreadsPanel", () => {
     expect(screen.queryByTestId("unread-threads-dot")).not.toBeInTheDocument();
   });
 
-  it("drops the dot while the panel is open", () => {
+  it("keeps the dot while the panel is open", () => {
     renderTrigger({ unreadCount: 3, showUnreadCount: false, isOpen: true });
 
-    expect(screen.queryByTestId("unread-threads-dot")).not.toBeInTheDocument();
+    expect(screen.getByTestId("unread-threads-dot")).toBeInTheDocument();
   });
 
   it("shows the number when the reader opted in to counts", () => {
@@ -112,12 +112,14 @@ describe("UnreadThreadsPanel", () => {
     expect(trigger).toHaveAccessibleName("Threads, 99 unread threads");
   });
 
-  it("drops unread chrome while the panel is open", () => {
+  // Opening the list is not reading it. The chrome stands down when the count
+  // reaches zero, never because the panel happens to be open over it.
+  it("keeps unread chrome while the panel is open", () => {
     renderTrigger({ unreadCount: 3, showUnreadCount: true, isOpen: true });
 
     const trigger = screen.getByTestId("unread-threads-trigger");
-    expect(trigger).toHaveAttribute("data-unread", "false");
-    expect(trigger).toHaveTextContent("");
-    expect(trigger).toHaveAccessibleName(labels.open);
+    expect(trigger).toHaveAttribute("data-unread", "true");
+    expect(trigger).toHaveTextContent("3");
+    expect(trigger).toHaveAccessibleName("Threads, 3 unread threads");
   });
 });

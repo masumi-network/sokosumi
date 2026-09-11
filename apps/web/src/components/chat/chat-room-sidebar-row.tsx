@@ -193,7 +193,6 @@ export function ChatRoomSidebarRow({
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     isMuted,
-    isActive,
     showUnreadCount,
   });
 

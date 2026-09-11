@@ -31,8 +31,9 @@ interface UnreadThreadsPanelProps {
  *
  * It speaks the sidebar's attention language: a mark says *something is here*,
  * the number says *how much*, and the number only appears for a reader who
- * asked for numbers. An open panel suppresses both, the same way an active room
- * suppresses a sidebar row, because the reader is already looking at the list.
+ * asked for numbers. Opening the panel suppresses neither: looking at a list is
+ * not reading it, so the mark stands until a Look or a Mark all actually zeroes
+ * the count. The sidebar row makes the same call for the room it is open on.
  *
  * Without a number the mark has to carry the whole statement, so it is a dot,
  * not a heavier glyph: a stroke going from 2 to 2.5 on a 16px icon is not a
@@ -59,7 +60,7 @@ export function UnreadThreadsPanel({
   unreadCount,
   showUnreadCount,
 }: UnreadThreadsPanelProps) {
-  const hasUnread = !isOpen && unreadCount > 0;
+  const hasUnread = unreadCount > 0;
   const showCount = hasUnread && showUnreadCount;
   const spokenUnread =
     unreadCount > ROOM_COUNT_CAP
