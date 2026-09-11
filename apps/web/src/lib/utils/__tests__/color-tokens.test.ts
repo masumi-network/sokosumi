@@ -13,11 +13,12 @@ const SRC_ROOT = path.resolve(
  * Guards the three rules in `.cursor/rules/color-tokens.mdc`. Each one is a
  * separate test so a failure names which rule broke.
  *
- * Scope note: rule 2 covers the ramps that have real `-tertiary` /
- * `-quaternary` / `-quinary` steps to move to. Opacity on the neutral tokens
- * (`muted-foreground/70`, `border/50`, …) is still in the codebase in roughly
- * 140 places and is tracked as debt, so this does not fail on it yet. Widen
- * `OPACITY_TOKENS` as those ramps land.
+ * The opacity rule is now absolute. It used to cover only the ramps that had
+ * solid steps to move to, because the neutral tokens were still faded by hand
+ * in roughly 700 places. Those are all converted, so a modifier on any colour
+ * utility is a bug from here on. Where a surface genuinely has to show what
+ * sits behind it, the token carries the alpha: `--overlay`, `--surface-glass`,
+ * `--surface-sticky`, `--scrim`.
  */
 
 const EXTENSIONS = new Set([".ts", ".tsx"]);
@@ -51,14 +52,17 @@ const COLOR_UTILITIES =
   "bg|text|border|ring|inset-ring|outline|divide|fill|stroke|shadow|decoration|accent|caret|placeholder|from|via|to";
 
 const RAW_PALETTE = new RegExp(
-  `\\b(?:${COLOR_UTILITIES})-(?:${TAILWIND_PALETTE})-\\d{2,3}\\b`,
+  `\\b(?:${COLOR_UTILITIES})-(?:(?:${TAILWIND_PALETTE})-\\d{2,3}|black|white)\\b`,
 );
 
-/** Token families whose solid steps exist, so an opacity modifier is a bug. */
-const OPACITY_TOKENS = "semantic-[a-z-]+|status-[a-z-]+|risk-[a-z-]+|ring";
+/**
+ * `text-sm/6` sets a line height, not an opacity, so the font-size names are
+ * the one thing a colour utility prefix can carry a slash for legitimately.
+ */
+const FONT_SIZES = "xs|sm|base|lg|xl|[2-9]xl";
 
 const TOKEN_OPACITY = new RegExp(
-  `\\b(?:${COLOR_UTILITIES})-(?:${OPACITY_TOKENS})/\\d+\\b`,
+  `\\b(?:${COLOR_UTILITIES})-(?!(?:${FONT_SIZES})/)[a-z0-9-]+/(?:\\[[0-9.]+\\]|\\d{1,3})\\b`,
 );
 
 /**
@@ -139,7 +143,7 @@ describe("color tokens", () => {
     expect(violations, violations.join("\n")).toEqual([]);
   });
 
-  it("puts no opacity modifier on a semantic, status, or risk token", () => {
+  it("puts no opacity modifier on any color utility", () => {
     const violations = findViolations(TOKEN_OPACITY);
 
     expect(violations, violations.join("\n")).toEqual([]);
