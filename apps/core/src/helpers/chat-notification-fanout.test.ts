@@ -170,7 +170,7 @@ describe("fanOutChatNotifications", () => {
 
     await fanOutChatNotifications(
       params({
-        roomKind: "direct",
+        nameRoomPerReader: true,
         roomName: "Alice, Bob",
         recipientUserIds: [ALICE_ID, BOB_ID],
         messageKey: "Notifications.Chat.mentioned",
@@ -191,8 +191,8 @@ describe("fanOutChatNotifications", () => {
     ]);
   });
 
-  it("keeps the stored name for a room that is not direct", async () => {
-    await fanOutChatNotifications(params({ roomKind: "channel" }));
+  it("keeps the stored name for a room nobody asked to name per reader", async () => {
+    await fanOutChatNotifications(params({ nameRoomPerReader: false }));
 
     expect(loadDirectRoomNamesByReaderMock).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith(
@@ -209,7 +209,7 @@ describe("fanOutChatNotifications", () => {
   it("falls back to the stored name when the reader has none", async () => {
     loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
 
-    await fanOutChatNotifications(params({ roomKind: "direct" }));
+    await fanOutChatNotifications(params({ nameRoomPerReader: true }));
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({

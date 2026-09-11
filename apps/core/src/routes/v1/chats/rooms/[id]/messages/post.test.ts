@@ -1131,7 +1131,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         roomName: "general",
-        roomKind: "channel",
+        roomShape: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
         content: `@${COWORKER_ID}:hannah hey @user_alice:alice`,
@@ -1143,6 +1143,138 @@ describe("POST /chats/rooms/{id}/messages", () => {
       // coworker dispatch + human mention emit + unfurl scrape
       expect(waitUntilMock.mock.calls.length).toBeGreaterThanOrEqual(3);
       expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
+    });
+
+    /**
+     * A direct room of three or more is named after who is in it, and that
+     * list differs by reader, so the emitter is told to build it per reader.
+     */
+    it("calls a bigger direct room a group when it emits a mention", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind: "direct",
+          name: "Alice, Bob",
+          userMembers: [
+            { userId: USER_ID, user: { name: "Patrick" } },
+            { userId: ALICE_ID, user: { name: "Alice" } },
+            { userId: BOB_ID, user: { name: "Bob" } },
+          ],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          content: "hey @user_alice:alice",
+          senderUserId: USER_ID,
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "hey @user_alice:alice",
+          mentionedUserIds: [ALICE_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ roomShape: "group" }),
+      );
+    });
+
+    /**
+     * Two humans and a bot. The direct-message row counts humans and gives up
+     * on neither, but the reader's screen names the room after the bot too, so
+     * it has a name worth saying and is a group here.
+     */
+    it("calls a direct room of two plus a bot a group", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind: "direct",
+          name: "Alice",
+          userMembers: [
+            { userId: USER_ID, user: { name: "Patrick" } },
+            { userId: ALICE_ID, user: { name: "Alice" } },
+          ],
+          coworkerMembers: [],
+          sokoBotMembers: [
+            {
+              sokoBot: {
+                id: "bot_1",
+                name: "Scout",
+                avatarImageUrl: null,
+                avatarSeed: null,
+                userId: USER_ID,
+                user: { name: "Patrick" },
+              },
+            },
+          ],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          content: "hey @user_alice:alice",
+          senderUserId: USER_ID,
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "hey @user_alice:alice",
+          mentionedUserIds: [ALICE_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ roomShape: "group" }),
+      );
+    });
+
+    /**
+     * A direct room of two is named after the other person, who in a mention
+     * is whoever wrote it. The emitter is told so, and the reader reads that
+     * they were named in a direct message instead of in a name.
+     */
+    it("calls a direct room of two a pair when it emits a mention", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind: "direct",
+          name: "Alice",
+          userMembers: [
+            { userId: USER_ID, user: { name: "Patrick" } },
+            { userId: ALICE_ID, user: { name: "Alice" } },
+          ],
+          coworkerMembers: [],
+          sokoBotMembers: [],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          content: "hey @user_alice:alice",
+          senderUserId: USER_ID,
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "hey @user_alice:alice",
+          mentionedUserIds: [ALICE_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ roomShape: "pair" }),
+      );
     });
 
     it("does not emit human mention notifications when nobody is mentioned", async () => {
@@ -1391,7 +1523,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         roomName: "general",
-        roomKind: "channel",
+        roomShape: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
         content: "**@all:all** please look",

@@ -79,7 +79,6 @@ async function emit(messageId: string, mentioned = true) {
   const message = {
     roomId: "room",
     roomName: "General",
-    roomKind: "channel",
     organizationId: null,
     messageId,
     content: "hello",
@@ -87,7 +86,7 @@ async function emit(messageId: string, mentioned = true) {
     authorName: "Ada",
     mentionedUserIds: mentioned ? ["reader"] : [],
   };
-  await emitChatMentionNotifications(message);
+  await emitChatMentionNotifications({ ...message, roomShape: "channel" });
   await emitChatRoomMessageCreatedEffects({
     ...message,
     roomKind: "channel",

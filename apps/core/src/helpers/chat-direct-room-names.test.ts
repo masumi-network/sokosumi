@@ -60,7 +60,7 @@ describe("loadDirectRoomNamesByReader", () => {
       { coworker: { id: "coworker_1", name: "Scout" } },
     ]);
     sokoBotMemberFindManyMock.mockResolvedValue([
-      { sokoBot: { id: "bot_1", name: "Orb", user: { name: "Ada" } } },
+      { sokoBot: { id: "bot_1", name: "Orb" } },
     ]);
 
     const names = await loadDirectRoomNamesByReader({
@@ -88,7 +88,7 @@ describe("loadDirectRoomNamesByReader", () => {
 
   it("names an unnamed Soko Bot", async () => {
     sokoBotMemberFindManyMock.mockResolvedValue([
-      { sokoBot: { id: "bot_1", name: null, user: { name: "Ada" } } },
+      { sokoBot: { id: "bot_1", name: null } },
     ]);
 
     const names = await loadDirectRoomNamesByReader({
@@ -99,7 +99,7 @@ describe("loadDirectRoomNamesByReader", () => {
     expect(names.get("user_ada")).toBe("Soko Bot");
   });
 
-  it("names a room the reader is alone in", async () => {
+  it("leaves a room the reader is alone in to the stored name", async () => {
     userMemberFindManyMock.mockResolvedValue([human("user_ada", "Ada")]);
 
     const names = await loadDirectRoomNamesByReader({
@@ -107,6 +107,21 @@ describe("loadDirectRoomNamesByReader", () => {
       readerUserIds: ["user_ada"],
     });
 
-    expect(names.get("user_ada")).toBe("Direct message");
+    expect(names.has("user_ada")).toBe(false);
+  });
+
+  it("lists two members of the same name twice, as the sidebar does", async () => {
+    userMemberFindManyMock.mockResolvedValue([
+      human("user_ada", "Ada"),
+      human("user_ben", "Sam"),
+      human("user_cara", "Sam"),
+    ]);
+
+    const names = await loadDirectRoomNamesByReader({
+      roomId: ROOM_ID,
+      readerUserIds: ["user_ada"],
+    });
+
+    expect(names.get("user_ada")).toBe("Sam, Sam");
   });
 });

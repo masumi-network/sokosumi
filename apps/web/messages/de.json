@@ -6294,6 +6294,7 @@
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
+        "mentionedDirect": "{authorName} hat dich in einer Direktnachricht erwähnt",
         "directMessage": "{authorName} hat dir eine Nachricht gesendet",
         "directMessages": "{count} Nachrichten von {authorName}",
         "roomMessage": "{authorName} hat im Kanal {roomName} geschrieben",

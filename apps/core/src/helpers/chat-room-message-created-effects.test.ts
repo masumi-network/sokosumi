@@ -6,6 +6,7 @@ import { NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  loadDirectRoomNamesByReaderMock,
   createNotificationMock,
   workspaceFindUniqueMock,
   membershipFindManyMock,
@@ -13,6 +14,7 @@ const {
   notificationFindFirstMock,
   resolveDeliveryMock,
 } = vi.hoisted(() => ({
+  loadDirectRoomNamesByReaderMock: vi.fn(),
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -44,6 +46,13 @@ vi.mock("@/lib/db/prisma", () => ({
         .mockResolvedValue({ deletedAt: null, content: "ship it" }),
     },
   },
+}));
+
+// A direct room is named per reader by its own helper, which has its own
+// tests. Stubbed here so the room this file writes about has a known name.
+vi.mock("@/helpers/chat-direct-room-names", () => ({
+  loadDirectRoomNamesByReader: (...args: unknown[]) =>
+    loadDirectRoomNamesByReaderMock(...args),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -101,6 +110,7 @@ beforeEach(() => {
   membershipFindManyMock.mockResolvedValue([]);
   userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
   notificationFindFirstMock.mockResolvedValue(null);
+  loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
   resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: true });
 });
 
@@ -301,16 +311,30 @@ describe("emitChatRoomMessageCreatedEffects", () => {
    * above. Its name is the list of who is in it, so the reader is told that
    * rather than being shown three names where a room name goes.
    */
-  it("says a group direct room is a group", async () => {
+  it("says a group direct room is a group, named as its reader sees it", async () => {
+    loadDirectRoomNamesByReaderMock.mockResolvedValue(
+      new Map([[SUBSCRIBER_ID, "Ada, Bob"]]),
+    );
+
     await emit({
       roomKind: "direct",
       memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID],
       roomName: "Ada, Bob, Alice",
     });
 
-    expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
-      messageParams: { roomName: "Ada, Bob, Alice", isGroup: true },
+    expect(loadDirectRoomNamesByReaderMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      readerUserIds: [SUBSCRIBER_ID],
     });
+    expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
+      messageParams: { roomName: "Ada, Bob", isGroup: true },
+    });
+  });
+
+  it("never asks for a per-reader name in a named channel", async () => {
+    await emit();
+
+    expect(loadDirectRoomNamesByReaderMock).not.toHaveBeenCalled();
   });
 
   it("says nothing about groups for a named channel", async () => {
