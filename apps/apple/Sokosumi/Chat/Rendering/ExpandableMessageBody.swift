@@ -5,6 +5,8 @@ import SwiftUI
 struct ExpandableMessageBody<Content: View>: View {
   let source: String
   var clampHeight = true
+  var collapsedLines = 16
+  var measurementFont: Font = .body
   @ViewBuilder let content: Content
   @State private var expanded = false
   @State private var contentHeight: CGFloat = 0
@@ -36,8 +38,8 @@ struct ExpandableMessageBody<Content: View>: View {
       }
     }
     .background(alignment: .topLeading) {
-      Text(String(repeating: "A\n", count: 15) + "A")
-        .font(.body)
+      Text(String(repeating: "A\n", count: max(0, collapsedLines - 1)) + "A")
+        .font(measurementFont)
         .fixedSize()
         .hidden()
         .accessibilityHidden(true)

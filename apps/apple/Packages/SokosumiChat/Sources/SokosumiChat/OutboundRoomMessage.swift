@@ -21,6 +21,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
   public var clientTurnId: String
   public var roomId: String
   public var parentMessageId: String?
+  public var quote: Components.Schemas.ChatRoomMessageQuote?
   public var content: String
   public var createdAt: Date
   public var status: OutboundDeliveryStatus
@@ -32,6 +33,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
     roomId: String,
     parentMessageId: String? = nil,
     content: String,
+    quote: Components.Schemas.ChatRoomMessageQuote? = nil,
     createdAt: Date = Date(),
     status: OutboundDeliveryStatus = .pending,
     errorMessage: String? = nil,
@@ -41,6 +43,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
     self.roomId = roomId
     self.parentMessageId = parentMessageId
     self.content = content
+    self.quote = quote
     self.createdAt = createdAt
     self.status = status
     self.errorMessage = errorMessage
@@ -79,7 +82,7 @@ public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.Cha
     threadReplyCount: 0,
     threadLastReplyAt: nil,
     metadata: turnId.map { .init(additionalProperties: ["client_message_id": $0]) },
-    quote: nil,
+    quote: shell.quote,
     membership: nil,
     unfurls: nil
   )
