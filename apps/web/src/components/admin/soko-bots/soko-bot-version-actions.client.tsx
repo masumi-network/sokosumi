@@ -150,7 +150,7 @@ export function SokoBotVersionActions({ version }: SokoBotVersionActionsProps) {
                 </AlertDialogCancel>
                 <AlertDialogAction
                   disabled={isArchiving}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                   onClick={() => {
                     void handleArchive();
                   }}

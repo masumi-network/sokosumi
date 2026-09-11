@@ -818,7 +818,7 @@ export function CreateOrganizationWizard({
               <>
                 <div className="flex min-h-24 flex-none items-center justify-center">
                   {brand.status === "completed" ? (
-                    <div className="bg-primary/10 border-primary/20 flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
+                    <div className="bg-primary-quinary border-primary-tertiary flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
                       <Check className="text-primary animate-in fade-in-0 size-7 duration-200" />
                     </div>
                   ) : brand.status === "failed" ? (
@@ -914,7 +914,7 @@ export function CreateOrganizationWizard({
                     row AND the email box, and with a two-line title it must
                     still fit the stage without scrolling. */}
                 <div className="flex min-h-14 flex-none items-center justify-center">
-                  <div className="bg-primary/10 border-primary/20 flex size-14 items-center justify-center rounded-lg border">
+                  <div className="bg-primary-quinary border-primary-tertiary flex size-14 items-center justify-center rounded-lg border">
                     <Check className="text-primary animate-in fade-in-0 size-6 duration-200" />
                   </div>
                 </div>

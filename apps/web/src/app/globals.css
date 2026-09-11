@@ -50,6 +50,11 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-1-quinary: var(--chart-1-quinary);
+  --color-chart-2-quinary: var(--chart-2-quinary);
+  --color-chart-3-quinary: var(--chart-3-quinary);
+  --color-chart-4-quinary: var(--chart-4-quinary);
+  --color-chart-5-quinary: var(--chart-5-quinary);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -289,6 +294,11 @@
   --chart-3: #0afa14; /* kodosumi · Neon Grass */
   --chart-4: #ffd300; /* masumi · Golden Yellow */
   --chart-5: #ff6400; /* masumi · Persimmon */
+  --chart-1-quinary: hsla(201, 94.9%, 92.4%, 1);
+  --chart-2-quinary: hsla(326, 94.9%, 92.4%, 1);
+  --chart-3-quinary: hsla(123, 94.7%, 92.5%, 1);
+  --chart-4-quinary: hsla(49, 100.0%, 92.5%, 1);
+  --chart-5-quinary: hsla(24, 100.0%, 92.5%, 1);
   --sidebar: hsla(300, 0%, 98%, 1);
   --sidebar-foreground: hsla(300, 0%, 4%, 1);
   --sidebar-accent: hsla(300, 0%, 96%, 1);
@@ -412,6 +422,11 @@
   --chart-3: #0afa14; /* kodosumi · Neon Grass */
   --chart-4: #ffd300; /* masumi · Golden Yellow */
   --chart-5: #ff6400; /* masumi · Persimmon */
+  --chart-1-quinary: hsla(201, 67.3%, 10.8%, 1);
+  --chart-2-quinary: hsla(326, 67.3%, 10.8%, 1);
+  --chart-3-quinary: hsla(123, 64.3%, 11.0%, 1);
+  --chart-4-quinary: hsla(49, 67.9%, 11.0%, 1);
+  --chart-5-quinary: hsla(24, 67.9%, 11.0%, 1);
   --sidebar: hsla(330, 0%, 9%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-accent: hsla(0, 0%, 15%, 1);

@@ -218,7 +218,7 @@ export function ChatParticipantHoverCard({
                   className={cn(
                     "text-sm",
                     isAi
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary-quinary text-primary"
                       : "bg-muted text-muted-foreground",
                   )}
                 >

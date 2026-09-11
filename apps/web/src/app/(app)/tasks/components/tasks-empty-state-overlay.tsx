@@ -346,13 +346,13 @@ export function TasksEmptyStateOverlay({
                 refY="8"
                 orient="auto"
               >
-                <path d="M 0 0 L 16 8 L 0 16 z" className="fill-primary/85" />
+                <path d="M 0 0 L 16 8 L 0 16 z" className="fill-primary" />
               </marker>
             </defs>
             <path
               key={currentStep}
               d={connectorPath}
-              className="stroke-primary/70 motion-safe:animate-in motion-safe:fade-in fill-none transition-opacity duration-200"
+              className="stroke-primary motion-safe:animate-in motion-safe:fade-in fill-none transition-opacity duration-200"
               strokeWidth={1.5}
               strokeLinecap="round"
               markerEnd="url(#tasks-overlay-arrowhead)"
@@ -363,7 +363,7 @@ export function TasksEmptyStateOverlay({
         {layout && !isGetStartedStep ? (
           <div
             key={`${currentStep}-hint`}
-            className="text-primary bg-background border-primary/30 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 absolute rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium shadow-sm transition-opacity duration-200"
+            className="text-primary bg-background border-primary-tertiary motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 absolute rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium shadow-sm transition-opacity duration-200"
             style={{
               left: layout.label.x,
               top: layout.label.y,
@@ -456,13 +456,13 @@ export function TasksEmptyStateOverlay({
                 refY="8"
                 orient="auto"
               >
-                <path d="M 0 0 L 16 8 L 0 16 z" className="fill-primary/85" />
+                <path d="M 0 0 L 16 8 L 0 16 z" className="fill-primary" />
               </marker>
             </defs>
             {mobileConnectorPath ? (
               <path
                 d={mobileConnectorPath}
-                className="stroke-primary/70 fill-none"
+                className="stroke-primary fill-none"
                 strokeWidth={1.5}
                 strokeLinecap="round"
                 markerEnd="url(#tasks-overlay-arrowhead-mobile)"
@@ -473,7 +473,7 @@ export function TasksEmptyStateOverlay({
 
         {mobileLayout && !isGetStartedStep ? (
           <div
-            className="text-primary bg-background border-primary/30 absolute rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium shadow-sm"
+            className="text-primary bg-background border-primary-tertiary absolute rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium shadow-sm"
             style={{
               left: mobileLayout.label.x,
               top: mobileLayout.label.y,
