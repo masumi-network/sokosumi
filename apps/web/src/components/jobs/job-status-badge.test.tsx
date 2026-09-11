@@ -20,10 +20,10 @@ describe("JobStatusBadge", () => {
 
   it("uses distinct dot colors for completed and processing jobs", () => {
     expect(getJobStatusDotColorClass(SokosumiJobStatus.COMPLETED)).toBe(
-      "bg-stone-500",
+      "bg-semantic-success",
     );
     expect(getJobStatusDotColorClass(SokosumiJobStatus.PROCESSING)).toBe(
-      "bg-emerald-500",
+      "bg-status-running",
     );
   });
 
@@ -45,7 +45,7 @@ describe("JobStatusBadge", () => {
 
     expect(container.querySelector("svg")).toHaveClass(
       "size-3",
-      "text-destructive",
+      "text-semantic-destructive",
     );
   });
 });

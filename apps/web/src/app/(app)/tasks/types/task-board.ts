@@ -60,10 +60,16 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
   { id: "done", translationKey: "App.Tasks.Columns.done" },
 ];
 
+/**
+ * Column marks reuse the task status ramps, so a column header and the badges
+ * inside it carry the same hue. The raw palette values these replace were a
+ * second colour system, which let a column mark and the badge under it paint
+ * the same meaning two different shades of green.
+ */
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
-  backlog: "bg-muted-foreground",
-  todo: "bg-blue-500",
-  "in-progress": "bg-amber-500",
-  "input-required": "bg-orange-500",
-  done: "bg-emerald-500",
+  backlog: "bg-status-done",
+  todo: "bg-status-ready",
+  "in-progress": "bg-status-running",
+  "input-required": "bg-semantic-destructive",
+  done: "bg-semantic-success",
 };
