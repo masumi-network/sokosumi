@@ -31,6 +31,7 @@ import {
 } from "@/lib/clients/generated/core";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
+  SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOT_ROUTE,
 } from "@/lib/soko-bot/constants";
@@ -70,6 +71,18 @@ const idSchema = z.string().trim().min(1);
 
 function invalidInput(): ActionError {
   return { code: CommonErrorCode.BAD_INPUT, message: "Invalid input" };
+}
+
+// A spent hourly allowance is a wait, not a breakage. Give the picker its own
+// code so it can say so instead of showing the generic load failure.
+function mapAvatarTopUpError(error: unknown): ActionError {
+  if (error instanceof CoreApiRequestError && error.status === 429) {
+    return {
+      code: SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+      message: error.message,
+    };
+  }
+  return toCoreApiActionError(error);
 }
 
 function mapTurnError(error: unknown): ActionError {
@@ -270,7 +283,7 @@ export const topUpSokoBotAvatarsAction = withSession<
     );
     return toActionResult(ok(avatars));
   } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
+    return toActionResult(err(mapAvatarTopUpError(error)));
   }
 });
 

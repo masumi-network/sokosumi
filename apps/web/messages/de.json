@@ -6028,7 +6028,8 @@
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
-        "loadError": "Bilder konnten nicht geladen werden."
+        "loadError": "Bilder konnten nicht geladen werden.",
+        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
       },
       "Skills": {
         "builtIn": "Enthalten",

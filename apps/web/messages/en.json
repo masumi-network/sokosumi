@@ -6028,7 +6028,8 @@
         "current": "Current picture",
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
-        "loadError": "Could not load pictures."
+        "loadError": "Could not load pictures.",
+        "rateLimited": "Too many new pictures requested. Try again later."
       },
       "Skills": {
         "builtIn": "Included",

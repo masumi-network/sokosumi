@@ -155,8 +155,9 @@ export const unprocessableEntity = (
  */
 export const tooManyRequests = (
   message: string = "Too Many Requests",
+  metadata?: HTTPExceptionMetadata,
 ): HTTPException => {
-  return createHTTPException(429, message);
+  return createHTTPException(429, message, metadata);
 };
 
 /**

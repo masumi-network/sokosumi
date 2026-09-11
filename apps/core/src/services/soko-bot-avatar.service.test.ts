@@ -35,6 +35,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+import { LIMITS } from "@/config/constants";
 import {
   AVATAR_POOL_FLOOR,
   generateAvatars,
@@ -201,6 +202,125 @@ describe("Soko Bot avatar pool", () => {
     for (const call of avatarCreateMock.mock.calls) {
       expect(call[0].data.requestedByUserId).toBeNull();
     }
+  });
+
+  it("refuses to generate once the user is over the hourly cap", async () => {
+    // The pool check is not a limit: it only asks whether the pool is short, so
+    // a caller who keeps it short keeps buying FAL images. This counts what the
+    // user actually caused.
+    avatarCountMock
+      // The unclaimed pool: short, so generation would otherwise run.
+      .mockResolvedValueOnce(0)
+      // What this user already caused in the window.
+      .mockResolvedValueOnce(LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
+    ).rejects.toMatchObject({ status: 429 });
+
+    expect(avatarCreateMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("counts exactly the last hour, and only that user's rows", async () => {
+    // Pin the window length. Asserting only `instanceof Date` let the window
+    // shrink to 1ms, which makes the cap unreachable while the suite stays
+    // green. An all-time count would instead lock a user out for ever.
+    const now = new Date("2026-09-11T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    try {
+      avatarCountMock.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ images: [{ url: "https://fal.test/a.png" }] }),
+          arrayBuffer: async () => new ArrayBuffer(8),
+        }),
+      );
+
+      await topUpAvailableAvatars(1, { requestedByUserId: "user-1" });
+
+      const [where] = avatarCountMock.mock.calls[1] ?? [];
+      expect(where.where.requestedByUserId).toBe("user-1");
+      expect(where.where.createdAt.gte).toEqual(
+        new Date("2026-09-11T11:00:00.000Z"),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shrinks the batch to the remaining allowance instead of overshooting", async () => {
+    // A plain "are you under the cap" check passes a user sitting at 23 and
+    // then generates a full batch of 6, finishing at 29 against a cap of 24.
+    avatarCountMock
+      // Unclaimed pool: empty, so the full page would otherwise be generated.
+      .mockResolvedValueOnce(0)
+      // Already caused this hour: one short of the cap.
+      .mockResolvedValueOnce(LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - 1);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [{ url: "https://fal.test/a.png" }] }),
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await topUpAvailableAvatars(6, { requestedByUserId: "user-1" });
+
+    // Exactly one image bought, not six.
+    expect(avatarCreateMock).toHaveBeenCalledTimes(1);
+    const billed = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes("fal.run"),
+    );
+    expect(billed).toHaveLength(1);
+  });
+
+  it("never consults the cap while the pool is full", async () => {
+    // Reads are free, so browsing a stocked pool must not depend on how much
+    // allowance the caller has left. The name is deliberately about the full
+    // pool: a capped caller whose pool is SHORT still loses the read to a 429
+    // at this layer, which is the gap the reserving layer closes.
+    // The pool has to come back populated: asserting an empty array here would
+    // pass just as well if the read had been swallowed entirely.
+    avatarCountMock.mockResolvedValue(AVATAR_POOL_FLOOR);
+    avatarFindManyMock.mockResolvedValue([
+      { id: "a", imageUrl: "https://blob.test/a.png", subject: "owl" },
+      { id: "b", imageUrl: "https://blob.test/b.png", subject: "fox" },
+    ]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
+    ).resolves.toHaveLength(2);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(avatarFindManyMock).toHaveBeenCalledTimes(1);
+    // One count only: the pool. A second would be the allowance count, which
+    // is what "never consults the cap" means and what earns the name.
+    expect(avatarCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the pool cron generate without a user allowance", async () => {
+    // Nobody asked for a refill, so there is no user to charge and no cap to
+    // apply. Counting it against someone would burn an allowance they never
+    // spent.
+    avatarCountMock.mockResolvedValue(0);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ images: [{ url: "https://fal.test/a.png" }] }),
+        arrayBuffer: async () => new ArrayBuffer(8),
+      }),
+    );
+
+    await expect(stockAvatarPool()).resolves.toBeDefined();
+    expect(avatarCreateMock).toHaveBeenCalled();
   });
 
   it("never counts or generates on a plain read", async () => {

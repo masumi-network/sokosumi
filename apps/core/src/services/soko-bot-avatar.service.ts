@@ -4,8 +4,13 @@ import type { Prisma } from "@sokosumi/database";
 
 import { put } from "@vercel/blob";
 
+import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { notFound, unprocessableEntity } from "@/helpers/error";
+import {
+  notFound,
+  tooManyRequests,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { buildSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
 import prisma from "@/lib/db/prisma";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
@@ -355,6 +360,42 @@ export async function stockAvatarPool(): Promise<{
   return { available: available + generated, generated };
 }
 
+const GENERATION_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * How many more paid images this user may cause right now.
+ *
+ * The pool check alone is not a limit. It only asks whether the pool is short,
+ * so a caller who empties the pool can keep it short and keep buying images.
+ * This counts what the user actually caused, which is the thing FAL bills for.
+ *
+ * Rows the pool cron wrote carry a null `requestedByUserId` and are excluded,
+ * so background refills never consume anyone's hourly allowance.
+ *
+ * Returns the remaining allowance so the caller can shrink the batch to fit.
+ * A plain "are you under the cap" check would let a user at 23 start a batch of
+ * 6 and finish at 29, over a cap documented as 24.
+ */
+async function remainingAvatarGenerationAllowance(
+  requestedByUserId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  const recentCount = await prisma.sokoBotAvatar.count({
+    where: {
+      requestedByUserId,
+      createdAt: { gte: new Date(now.getTime() - GENERATION_WINDOW_MS) },
+    },
+  });
+  const remaining = LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - recentCount;
+  if (remaining <= 0) {
+    throw tooManyRequests(
+      `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} mascot images per hour. Try again later.`,
+      { kind: "avatar_generation_rate_limited" },
+    );
+  }
+  return remaining;
+}
+
 function unclaimedAvatarFilter(excludeIds?: string[]) {
   return {
     claimedBySokoBotId: null,
@@ -399,10 +440,16 @@ export async function topUpAvailableAvatars(
       where: unclaimedAvatarFilter(),
     });
     if (available < take) {
-      await generateAvatars(
-        take - available,
-        options.requestedByUserId ?? null,
-      );
+      // Only once the pool is actually short, so a user at their cap can still
+      // read a full pool. Reads are free; the cap guards the paid call below.
+      let wanted = take - available;
+      if (options.requestedByUserId) {
+        const remaining = await remainingAvatarGenerationAllowance(
+          options.requestedByUserId,
+        );
+        wanted = Math.min(wanted, remaining);
+      }
+      await generateAvatars(wanted, options.requestedByUserId ?? null);
     }
   }
   return await listAvailableAvatars(take, options);
