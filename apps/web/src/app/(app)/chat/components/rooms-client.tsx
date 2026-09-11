@@ -93,6 +93,7 @@ import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
+import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
@@ -845,6 +846,14 @@ export function RoomsClient({
 
   const handleChatRoomRealtimeMessage = useCallback(
     (event: ChatRoomMessageEventData) => {
+      // Above the streaming guard, and above both message shapes: a reply
+      // moves the unread thread count whatever else this handler does with
+      // the event. The guard below keeps the transcript from churning while a
+      // coworker streams, and a count is not the transcript.
+      if (isThreadUnreadEvent(event, selectedRoomIdRef.current)) {
+        bumpThreadUnread();
+      }
+
       if (
         skipRealtimeWhileStreamingRef.current &&
         isCoworkerStreamingRef.current
@@ -859,11 +868,6 @@ export function RoomsClient({
         );
         if (action.kind === "ignore") {
           return;
-        }
-        // An over-limit reply arrives as an id envelope and never reaches the
-        // full path below, so the count is re-read from here as well.
-        if (event.parentMessageId != null) {
-          bumpThreadUnread();
         }
         if (action.kind === "refresh") {
           refreshLatestRef.current();
@@ -985,15 +989,6 @@ export function RoomsClient({
       );
       const isHardDelete =
         event.eventType === "delete" && message.deletedAt == null;
-
-      // A reply never enters the room transcript, so with the thread panel
-      // closed this is the only place the shell hears that a thread moved.
-      // Every event about a reply counts, not creates alone: Core excludes
-      // deleted replies, so a delete lowers the number too. Re-counting is a
-      // cheap Core count, and an own send simply reads back unchanged.
-      if (message.parentMessageId != null) {
-        bumpThreadUnread();
-      }
 
       if (route.mergeIntoRoomTimeline) {
         applyMessagesFlashingOutboundConfirms(setMessagesState, (current) => {
