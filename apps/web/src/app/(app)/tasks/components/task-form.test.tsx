@@ -495,9 +495,10 @@ describe("TaskForm", () => {
     const statusControl = screen.getByRole("combobox", { name: "Status" });
     expect(statusControl).toHaveTextContent("Draft");
     expect(
-      screen.getByTestId("markdown-editor").compareDocumentPosition(
-        statusControl,
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      screen
+        .getByTestId("markdown-editor")
+        .compareDocumentPosition(statusControl) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       statusControl.compareDocumentPosition(
