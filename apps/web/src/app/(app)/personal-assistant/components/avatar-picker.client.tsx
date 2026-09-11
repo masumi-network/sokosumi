@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { listSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
+import { topUpSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
 import type { SokoBotAvatar } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export function AvatarPicker({
 
   function load(excludeIds: string[]) {
     startTransition(async () => {
-      const result = await listSokoBotAvatarsAction({
+      const result = await topUpSokoBotAvatarsAction({
         input: { take: PAGE_SIZE, excludeIds },
       });
       if (!result.ok) {
@@ -44,7 +44,7 @@ export function AvatarPicker({
       // The pool is finite; when a fresh set comes back short, start over.
       const next =
         result.value.length === 0 && excludeIds.length > 0
-          ? await listSokoBotAvatarsAction({
+          ? await topUpSokoBotAvatarsAction({
               input: { take: PAGE_SIZE, excludeIds: [] },
             }).then((r) => (r.ok ? r.value : []))
           : result.value;
