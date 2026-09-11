@@ -85,23 +85,33 @@ interface ChatRoomSidebarRowProps {
 }
 
 /**
- * The cap the row's numeric chrome shares. `MentionBadge` hardcodes the same
- * value; this ticket leaves the badge untouched, so the two are stated apart.
+ * The cap both numbers on this row share: the unread message count and the
+ * mention badge. One constant, so a sidebar row cannot show two ceilings. The
+ * nav unread in `menu-items.tsx` still carries its own 99 and is not this
+ * row's to change.
  */
-const ROOM_UNREAD_COUNT_CAP = 99;
+const ROW_COUNT_CAP = 99;
+
+/** The digits a capped number prints, e.g. `4` or `99+`. */
+function countLabel(count: number): string {
+  return count > ROW_COUNT_CAP ? `${ROW_COUNT_CAP}+` : String(count);
+}
 
 /**
  * The reader's opt-in Room unread count.
  *
  * Text rather than a pill, because it is not the mention badge and a reader has
  * to tell the two apart at a glance. It caps like the badge so a very loud room
- * cannot reflow the row, and it hides with the badge when the sidebar collapses
- * to icons.
+ * cannot reflow the row. Collapsed to icons the row is a 20px glyph with space
+ * for neither number, so count and badge both hide. That is decided, not an
+ * oversight.
  *
- * It carries the name's unread weight and colour, because it is part of the
- * same statement: this room has something for you. `resolveRoomAttention` only
- * ever reports a count above zero together with `bold`, so there is no unbolded
- * state to render and no prop to thread. `room-attention.test.ts` pins that.
+ * A middot opens the count, so the digits stop running on from the room name
+ * they follow. Dot and digits carry the name's unread weight and colour,
+ * because they are part of the same statement: this room has something for you.
+ * `resolveRoomAttention` only ever reports a count above zero together with
+ * `bold`, so there is no unbolded state to render and no prop to thread.
+ * `room-attention.test.ts` pins that.
  */
 function RoomUnreadCount({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomUnread");
@@ -110,38 +120,47 @@ function RoomUnreadCount({ count }: { count: number }) {
     return null;
   }
 
-  const capped = count > ROOM_UNREAD_COUNT_CAP;
+  const capped = count > ROW_COUNT_CAP;
 
   // A bare `span` is role `generic`, which prohibits an accessible name, so an
   // `aria-label` here can be dropped and the row announces a bare number beside
   // the badge's bare number. Real text carries it instead.
   return (
     <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold tabular-nums">
-      <span aria-hidden="true">
-        {capped ? `${ROOM_UNREAD_COUNT_CAP}+` : count}
-      </span>
+      <span aria-hidden="true">{`· ${countLabel(count)}`}</span>
       <span className="sr-only">
         {capped
-          ? t("unreadMessagesCapped", { max: ROOM_UNREAD_COUNT_CAP })
+          ? t("unreadMessagesCapped", { max: ROW_COUNT_CAP })
           : t("unreadMessages", { count })}
       </span>
     </span>
   );
 }
 
+/**
+ * Unread @mentions and directs, never messages.
+ *
+ * The announced text is a translated string in its own `sr-only` span, for the
+ * same reason the count carries one: `aria-label` on a role `generic` span may
+ * be dropped, and an English literal would reach a German or Spanish reader
+ * untranslated either way. It hides with the count when the sidebar collapses
+ * to icons.
+ */
 function MentionBadge({ count }: { count: number }) {
+  const t = useTranslations("App.Channels.RoomMentions");
+
   if (count <= 0) {
     return null;
   }
 
-  const label = count > 99 ? "99+" : String(count);
-
   return (
-    <span
-      aria-label={`${label} mentions`}
-      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums"
-    >
-      {label}
+    <span className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
+      <span aria-hidden="true">{countLabel(count)}</span>
+      <span className="sr-only">
+        {count > ROW_COUNT_CAP
+          ? t("mentionsCapped", { max: ROW_COUNT_CAP })
+          : t("mentions", { count })}
+      </span>
     </span>
   );
 }

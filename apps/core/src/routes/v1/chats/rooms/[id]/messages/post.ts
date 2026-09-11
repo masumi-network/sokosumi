@@ -11,6 +11,7 @@ import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -40,7 +41,6 @@ import {
   resolveMentionedUserIds,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
-  sokoBotDisplayName,
 } from "../../helpers";
 import { markChatRoomThreadRead } from "../../room-unread";
 
@@ -244,6 +244,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 organizationId: room.organizationId,
                 kind: room.kind,
                 memberUserIds: room.userMembers.map((member) => member.userId),
+                nonHumanMemberCount:
+                  room.coworkerMembers.length + room.sokoBotMembers.length,
               },
               didCreate: false,
             };
@@ -426,6 +428,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             organizationId: room.organizationId,
             kind: room.kind,
             memberUserIds: room.userMembers.map((member) => member.userId),
+            nonHumanMemberCount:
+              room.coworkerMembers.length + room.sokoBotMembers.length,
           },
           didCreate: true,
         };
@@ -470,11 +474,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         waitUntil(dispatchChatRoomMention(mentionId));
       }
 
+      // The same rule the direct-message row is written by, asked once here so
+      // a mention and a message in the same room cannot disagree about whether
+      // that room is a pair.
+      const isDirectPair = shouldEmitChatDirectMessageNotifications({
+        kind: room.kind,
+        memberUserIds: room.memberUserIds,
+      });
+      // That rule counts humans, because a coworker and a bot are not sent a
+      // direct-message row. A name has to count them: a room of two humans and
+      // a bot is named after both the other two on the reader's own screen, so
+      // it has a name worth saying and is not a pair here.
+      const namesOnePerson = isDirectPair && room.nonHumanMemberCount === 0;
+
       if (mentionedUserIds.length > 0) {
         waitUntil(
           emitChatMentionNotifications({
             roomId: room.id,
             roomName: room.name,
+            roomShape:
+              room.kind !== "direct"
+                ? "channel"
+                : namesOnePerson
+                  ? "pair"
+                  : "group",
             organizationId: room.organizationId,
             messageId: message.id,
             content: message.content,
@@ -485,12 +508,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      if (
-        shouldEmitChatDirectMessageNotifications({
-          kind: room.kind,
-          memberUserIds: room.memberUserIds,
-        })
-      ) {
+      if (isDirectPair) {
         const mentionedUserIdSet = new Set(mentionedUserIds);
         const recipientUserIds = room.memberUserIds.filter(
           (userId) =>

@@ -7,7 +7,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -17,6 +16,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
+import { AgentSpotlightSkeleton } from "./agent-spotlight";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   TaskForm,
@@ -68,6 +68,8 @@ export function useCreateTaskModal() {
 interface CreateTaskModalProviderProps {
   children: React.ReactNode;
   initialOpen?: boolean;
+  /** Runs whenever the modal closes (dismiss, load error, or success). */
+  onClose?: () => void;
   initialAssigneeId?: string | null;
   initialProjectId?: string | null;
   initialPrompt?: string | null;
@@ -76,6 +78,7 @@ interface CreateTaskModalProviderProps {
 export function CreateTaskModalProvider({
   children,
   initialOpen = false,
+  onClose,
   initialAssigneeId = null,
   initialProjectId = null,
   initialPrompt = null,
@@ -144,7 +147,8 @@ export function CreateTaskModalProvider({
 
   const handleClose = useCallback(() => {
     setOpen(false);
-  }, []);
+    onClose?.();
+  }, [onClose]);
 
   const clearPromptOverride = useCallback(() => {
     setPromptOverride(null);
@@ -173,15 +177,25 @@ export function CreateTaskModalProvider({
 
 // --- Modal ---
 
+interface LoadedCreateData {
+  agentNameById: Map<string, string>;
+  designMdAttachment: TaskFormInitialDesignMdAttachment | null;
+}
+
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
   /** Omit to hide the project picker (e.g. when opened from the agents page). */
   projectOptions?: ProjectFilterOption[];
   lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
+  /** A caller that passes this owns the create data (agent names and
+   *  design.md) and the modal does not load it itself. */
   agentNameById?: Map<string, string>;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   initialCreateTaskOpen?: boolean;
+  /** Shows a skeleton instead of the form while the caller still loads
+   *  `coworkerOptions` / `projectOptions` (the sidebar New Task wizard). */
+  isLoadingOptions?: boolean;
   onCreateTask?: TaskFormCreateHandler;
 }
 
@@ -190,9 +204,10 @@ export function CreateTaskModal({
   projectOptions,
   lockProjectSelection = false,
   defaultProjectId,
-  agentNameById: initialAgentNameById,
+  agentNameById: agentNameByIdProp,
   initialDesignMdAttachment: initialDesignMdAttachmentProp = null,
   initialCreateTaskOpen = false,
+  isLoadingOptions = false,
   onCreateTask,
 }: CreateTaskModalProps) {
   const {
@@ -215,34 +230,30 @@ export function CreateTaskModal({
   const [isCreated, setIsCreated] = useState(false);
   // Bumped to remount the form with a clean slate for "Create another task".
   const [resetKey, setResetKey] = useState(0);
-  const [agentNameById, setAgentNameById] = useState(
-    () => initialAgentNameById ?? new Map<string, string>(),
-  );
-  const [initialDesignMdAttachment, setInitialDesignMdAttachment] = useState(
-    initialDesignMdAttachmentProp,
-  );
-  const hasLoadedCreateDataRef = useRef(
-    Boolean(
-      (initialAgentNameById && initialAgentNameById.size > 0) ||
-        initialDesignMdAttachmentProp,
-    ),
-  );
+  const ownsCreateData = agentNameByIdProp !== undefined;
+  const [loadedCreateData, setLoadedCreateData] =
+    useState<LoadedCreateData | null>(null);
+  const agentNameById = agentNameByIdProp ?? loadedCreateData?.agentNameById;
+  const initialDesignMdAttachment =
+    initialDesignMdAttachmentProp ??
+    loadedCreateData?.designMdAttachment ??
+    null;
   const selectedProjectId =
     projectOverrideId !== undefined ? projectOverrideId : defaultProjectId;
 
   useEffect(() => {
+    if (ownsCreateData || isLoadingOptions) return;
     if (!open && !initialCreateTaskOpen) return;
-    if (hasLoadedCreateDataRef.current) return;
+    if (loadedCreateData) return;
 
     let cancelled = false;
     void loadCreateTaskModalData()
       .then((data) => {
         if (cancelled) return;
-        hasLoadedCreateDataRef.current = true;
-        setAgentNameById(new Map(Object.entries(data.agentNameById)));
-        if (data.designMdAttachment) {
-          setInitialDesignMdAttachment(data.designMdAttachment);
-        }
+        setLoadedCreateData({
+          agentNameById: new Map(Object.entries(data.agentNameById)),
+          designMdAttachment: data.designMdAttachment,
+        });
       })
       .catch(() => {
         if (cancelled) return;
@@ -252,7 +263,14 @@ export function CreateTaskModal({
     return () => {
       cancelled = true;
     };
-  }, [initialCreateTaskOpen, open, tTasksErrors]);
+  }, [
+    initialCreateTaskOpen,
+    isLoadingOptions,
+    loadedCreateData,
+    open,
+    ownsCreateData,
+    tTasksErrors,
+  ]);
 
   const stripCreateTaskSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -273,10 +291,12 @@ export function CreateTaskModal({
   }, [pathname, router]);
 
   const handleDismiss = useCallback(() => {
-    stripCreateTaskSearchParams();
+    // Only the `?create=true` deep link put those params in the URL; a wizard
+    // opened in place must leave the page's own URL alone.
+    if (initialCreateTaskOpen) stripCreateTaskSearchParams();
     setIsCreated(false);
     handleClose();
-  }, [handleClose, stripCreateTaskSearchParams]);
+  }, [handleClose, initialCreateTaskOpen, stripCreateTaskSearchParams]);
 
   const handleOnOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) handleDismiss();
@@ -290,114 +310,125 @@ export function CreateTaskModal({
       cancelLabel={isCreated ? t("close") : t("cancel")}
       isDismissDisabled={isDismissDisabled}
     >
-      <TaskForm
-        key={`${formInstanceKey}-${resetKey}`}
-        variant="modal"
-        mode="create"
-        showCancel={false}
-        labels={{
-          details: t("details"),
-          detailsDescription: t("detailsDescription"),
-          name: t("name"),
-          namePlaceholder: t("namePlaceholder"),
-          descriptionPlaceholder: t("descriptionPlaceholder"),
-          projectLabel: t("projectLabel"),
-          projectNone: t("projectNone"),
-          projectPlaceholder: t("projectPlaceholder"),
-          projectRequired: t("projectRequired"),
-          projectSearchPlaceholder: t("projectSearchPlaceholder"),
-          projectEmptyResults: t("projectEmptyResults"),
-          projectCreate: t("projectCreate"),
-          projectCreateNamed: t.raw("projectCreateNamed") as string,
-          coworker: t("coworker"),
-          coworkerDescription: t("coworkerDescription"),
-          chooseAgent: t("chooseAgent"),
-          chooseAgentDescription: t("chooseAgentDescription"),
-          defaultBadge: t("defaultBadge"),
-          modelLabel: t("modelLabel"),
-          hostingLabel: t("hostingLabel"),
-          examplesTitle: t.raw("examplesTitle") as string,
-          continueLabel: t("continue"),
-          taskStepTitle: t.raw("taskStepTitle") as string,
-          previousLabel: t("previousAgent"),
-          nextLabel: t("nextAgent"),
-          searchPlaceholder: t("searchAgents"),
-          noResults: t("noAgentsFound"),
-          askPrompt: t.raw("askPrompt") as string,
-          promptHint: t("promptHint"),
-          tasksTitle: t.has("tasksTitle")
-            ? t("tasksTitle")
-            : "Ready-To-Run Tasks",
-          startFromScratch: t.has("startFromScratch")
-            ? t("startFromScratch")
-            : "Start from scratch",
-          startFromScratchHint: t.has("startFromScratchHint")
-            ? t("startFromScratchHint")
-            : "Write your own instructions",
-          previewExample: t.has("previewExample")
-            ? t("previewExample")
-            : "Preview example",
-          previewUse: t.has("previewUse") ? t("previewUse") : "Use this task",
-          previewEmpty: t.has("previewEmpty")
-            ? t("previewEmpty")
-            : "No example output available yet.",
-          allCompanies: t("allCompanies"),
-          status: t("status"),
-          statusDescription: t("statusDescription"),
-          statusDraft: t("statusDraft"),
-          statusQueued: t("statusQueued"),
-          statusReady: t("statusReady"),
-          back: t("back"),
-          uploadFile: t("uploadFile"),
-          uploadFileError: t("uploadFileError"),
-          uploadingFile: getTaskAttachmentUploadLabelTemplate(
-            t,
-            "uploadingFile",
-          ),
-          uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-            t,
-            "uploadingFiles",
-          ),
-          removeAttachment: t("removeAttachment"),
-          submit: t("createTask"),
-          createTask: t("createTask"),
-          scheduleTask: t("scheduleTask"),
-          openSchedule: t("openSchedule"),
-          cancel: t("cancel"),
-          ctrl: t("ctrl"),
-          taskCreated: t("taskCreated"),
-          taskCreatedHint: t("taskCreatedHint"),
-          goToTask: t("goToTask"),
-          createAnother: t("createAnother"),
-        }}
-        coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
-        lockProjectSelection={lockProjectSelection}
-        agentNameById={agentNameById}
-        initialDesignMdAttachment={initialDesignMdAttachment}
-        initialValues={{
-          ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
-          ...(promptOverride ? { description: promptOverride } : {}),
-          projectId: selectedProjectId,
-          ...(scheduleOverride ? { schedule: scheduleOverride } : {}),
-        }}
-        onCreateTask={onCreateTask}
-        onCancel={handleDismiss}
-        onSubmittingChange={setIsDismissDisabled}
-        onCreatedChange={setIsCreated}
-        onCreated={() => {
-          router.refresh();
-        }}
-        onSuccess={(taskId) => {
-          handleClose();
-          router.push(`/tasks/${taskId}`);
-        }}
-        onCreateAnother={() => {
-          clearPromptOverride();
-          setIsCreated(false);
-          setResetKey((key) => key + 1);
-        }}
-      />
+      {isLoadingOptions ? (
+        <NewTaskWizardLoading />
+      ) : (
+        <TaskForm
+          key={`${formInstanceKey}-${resetKey}`}
+          mode="create"
+          showCancel={false}
+          labels={{
+            details: t("details"),
+            detailsDescription: t("detailsDescription"),
+            name: t("name"),
+            namePlaceholder: t("namePlaceholder"),
+            descriptionPlaceholder: t("descriptionPlaceholder"),
+            projectLabel: t("projectLabel"),
+            projectNone: t("projectNone"),
+            projectPlaceholder: t("projectPlaceholder"),
+            projectRequired: t("projectRequired"),
+            projectSearchPlaceholder: t("projectSearchPlaceholder"),
+            projectEmptyResults: t("projectEmptyResults"),
+            projectCreate: t("projectCreate"),
+            projectCreateNamed: t.raw("projectCreateNamed") as string,
+            coworker: t("coworker"),
+            coworkerDescription: t("coworkerDescription"),
+            defaultBadge: t("defaultBadge"),
+            modelLabel: t("modelLabel"),
+            hostingLabel: t("hostingLabel"),
+            taskStepTitle: t.raw("taskStepTitle") as string,
+            noResults: t("noAgentsFound"),
+            tasksTitle: t.has("tasksTitle")
+              ? t("tasksTitle")
+              : "Ready-To-Run Tasks",
+            startFromScratch: t.has("startFromScratch")
+              ? t("startFromScratch")
+              : "Start from scratch",
+            startFromScratchHint: t.has("startFromScratchHint")
+              ? t("startFromScratchHint")
+              : "Write your own instructions",
+            previewExample: t.has("previewExample")
+              ? t("previewExample")
+              : "Preview example",
+            previewUse: t.has("previewUse") ? t("previewUse") : "Use this task",
+            previewEmpty: t.has("previewEmpty")
+              ? t("previewEmpty")
+              : "No example output available yet.",
+            status: t("status"),
+            statusDescription: t("statusDescription"),
+            statusDraft: t("statusDraft"),
+            statusQueued: t("statusQueued"),
+            statusReady: t("statusReady"),
+            back: t("back"),
+            uploadFile: t("uploadFile"),
+            uploadFileError: t("uploadFileError"),
+            uploadingFile: getTaskAttachmentUploadLabelTemplate(
+              t,
+              "uploadingFile",
+            ),
+            uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+              t,
+              "uploadingFiles",
+            ),
+            removeAttachment: t("removeAttachment"),
+            submit: t("createTask"),
+            createTask: t("createTask"),
+            scheduleTask: t("scheduleTask"),
+            openSchedule: t("openSchedule"),
+            cancel: t("cancel"),
+            ctrl: t("ctrl"),
+            taskCreated: t("taskCreated"),
+            taskCreatedHint: t("taskCreatedHint"),
+            goToTask: t("goToTask"),
+            createAnother: t("createAnother"),
+          }}
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          lockProjectSelection={lockProjectSelection}
+          agentNameById={agentNameById}
+          initialDesignMdAttachment={initialDesignMdAttachment}
+          initialValues={{
+            ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
+            ...(promptOverride ? { description: promptOverride } : {}),
+            projectId: selectedProjectId,
+            ...(scheduleOverride ? { schedule: scheduleOverride } : {}),
+          }}
+          onCreateTask={onCreateTask}
+          onCancel={handleDismiss}
+          onSubmittingChange={setIsDismissDisabled}
+          onCreatedChange={setIsCreated}
+          onCreated={() => {
+            router.refresh();
+          }}
+          onSuccess={(taskId) => {
+            handleClose();
+            router.push(`/tasks/${taskId}`);
+          }}
+          onCreateAnother={() => {
+            clearPromptOverride();
+            setIsCreated(false);
+            setResetKey((key) => key + 1);
+          }}
+        />
+      )}
     </TaskFormModal>
+  );
+}
+
+// Same wrapper as the wizard's first step, so the skeleton sits exactly where
+// the spotlight will.
+function NewTaskWizardLoading() {
+  const tTasks = useTranslations("App.Tasks");
+
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label={tTasks("Actions.loading")}
+      data-testid="new-task-wizard-loading"
+      className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8"
+    >
+      <AgentSpotlightSkeleton />
+    </div>
   );
 }

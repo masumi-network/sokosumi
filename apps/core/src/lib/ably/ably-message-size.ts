@@ -39,12 +39,6 @@ export function ablyPublishSize(name: string, data: unknown): number {
   return name.length + Buffer.byteLength(encoded, "utf8");
 }
 
-export function isChatRoomMessageIdEnvelope(
-  body: ChatRoomMessagePublishBody,
-): body is ChatRoomMessageIdEnvelope {
-  return !("message" in body);
-}
-
 /**
  * Full DTO when it fits maxMessageSize; otherwise an id envelope.
  * Does not shrink or truncate the DTO (ADR 0014).

@@ -3,6 +3,7 @@
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
@@ -32,21 +33,30 @@ function countsMany(count: unknown): boolean {
  * the room the way that mention was stored.
  *
  * A direct room is named after the other person, so its count names the sender
- * instead: "3 messages in Ada" would read as a place.
+ * instead: "3 messages in Ada" would read as a place. A mention in a room of
+ * two reads the same way, and is stored with `isDirect` to say so.
  */
 function countedMessageKey(
   messageKey: string,
   messageParams: Record<string, unknown>,
 ): string {
   const group = messageParams.isGroup === true;
+  const pair =
+    messageKey === CHAT_MENTION_MESSAGE_KEY && messageParams.isDirect === true;
 
   if (!countsMany(messageParams.count)) {
+    if (pair) {
+      return CHAT_MENTION_DIRECT_MESSAGE_KEY;
+    }
+
     return messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY && group
       ? CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY
       : messageKey;
   }
 
-  if (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY) {
+  // A room of two is named after the other person either way, so several
+  // mentions in one read the way several messages from them do.
+  if (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY || pair) {
     return CHAT_DIRECT_MESSAGES_MESSAGE_KEY;
   }
 

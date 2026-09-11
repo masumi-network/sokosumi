@@ -10,6 +10,7 @@ import {
 import { TagIcon } from "@/components/agents/tag-icon";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { CoworkerOffer, CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
@@ -128,6 +129,101 @@ function RailItem({
         ) : null}
       </div>
     </button>
+  );
+}
+
+function RailItemSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2.5 rounded-lg px-2 py-2",
+        className,
+      )}
+    >
+      <Skeleton className="size-8 shrink-0 rounded-full" />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+    </div>
+  );
+}
+
+function OfferCardSkeleton() {
+  return (
+    <div className="bg-card border-border/60 flex flex-col overflow-hidden rounded-2xl border">
+      <Skeleton className="aspect-[16/10] w-full rounded-none border-b" />
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3.5 w-5/6" />
+        </div>
+        <div className="mt-auto flex items-center pt-1">
+          <Skeleton className="ml-auto size-4 rounded-sm" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The spotlight's silhouette while its coworker options are still loading:
+ *  same rails, header, chips, and task-card grid, so nothing shifts once the
+ *  real thing mounts. Keep it in step with `AgentSpotlight` below. */
+export function AgentSpotlightSkeleton() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+      {/* Rail (mobile) */}
+      <div className="flex shrink-0 gap-2 overflow-hidden border-b pb-3 md:hidden">
+        {Array.from({ length: 4 }, (_, index) => (
+          <RailItemSkeleton key={index} className="w-44 shrink-0" />
+        ))}
+      </div>
+
+      {/* Rail (desktop) */}
+      <div className="hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:py-1 md:pr-3">
+        {[3, 2].map((count, group) => (
+          <div key={group} className="space-y-1">
+            <Skeleton className="mx-2 my-1 h-3 w-16" />
+            {Array.from({ length: count }, (_, index) => (
+              <RailItemSkeleton key={index} className="w-full" />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Detail */}
+      <div className="border-border min-w-0 flex-1 space-y-5 overflow-hidden pt-4 md:border-l md:pt-1 md:pl-6">
+        <div className="flex items-start gap-4">
+          <Skeleton className="size-16 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2 pt-1">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-56 max-w-full" />
+            <Skeleton className="mt-1.5 h-4 w-24" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3.5 w-11/12" />
+          <Skeleton className="h-3.5 w-2/3" />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Skeleton className="h-6 w-24 rounded-md" />
+          <Skeleton className="h-6 w-20 rounded-md" />
+        </div>
+
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-44" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }, (_, index) => (
+              <OfferCardSkeleton key={index} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

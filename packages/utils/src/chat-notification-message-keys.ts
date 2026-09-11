@@ -30,6 +30,16 @@ export const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
 /** The row once more than one message has landed on it. */
 export const CHAT_ROOM_MESSAGES_MESSAGE_KEY = "Notifications.Chat.roomMessages";
 
+/**
+ * One mention, in a direct room of two.
+ *
+ * Such a room is named after the other person, who in a mention is whoever
+ * wrote it. "Ada mentioned you in Ada" names Ada twice and a place not at all,
+ * so the reader is told which kind of room it was instead.
+ */
+export const CHAT_MENTION_DIRECT_MESSAGE_KEY =
+  "Notifications.Chat.mentionedDirect";
+
 /** One message, in a room whose name is the list of who is in it. */
 export const CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY =
   "Notifications.Chat.roomMessageGroup";

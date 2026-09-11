@@ -1,8 +1,7 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
-import type { AgentExampleOutput } from "@/lib/clients/generated/core";
+import type { Agent, AgentExampleOutput } from "@/lib/clients/generated/core";
 import { categoryStylesSchema } from "@/lib/schemas/category";
-import type { AgentLegal } from "@/lib/types/agent";
 import type { CategoryStyles } from "@/lib/types/category";
 import { type CoreAgentDto, isCoreAgentDetail } from "@/lib/types/core-dto";
 
@@ -70,7 +69,7 @@ export function getAgentTags(agent: CoreAgentDto): string[] {
 
 export function getAgentLegal(
   agent: CoreAgentDto | AgentJobAgentSource,
-): AgentLegal | null {
+): Agent["legal"] | null {
   const privacyPolicy = getAgentLegalPrivacyPolicy(agent);
   const terms = getAgentLegalTerms(agent);
   const dpa = getAgentLegalDpa(agent);
@@ -80,7 +79,7 @@ export function getAgentLegal(
     : null;
 }
 
-export function getAgentLegalPrivacyPolicy(
+function getAgentLegalPrivacyPolicy(
   agent: CoreAgentDto | AgentJobAgentSource,
 ): string | null {
   if ("legal" in agent) {
@@ -90,7 +89,7 @@ export function getAgentLegalPrivacyPolicy(
   return agent.overrideLegalPrivacyPolicy ?? agent.legalPrivacyPolicy ?? null;
 }
 
-export function getAgentLegalTerms(
+function getAgentLegalTerms(
   agent: CoreAgentDto | AgentJobAgentSource,
 ): string | null {
   if ("legal" in agent) {
@@ -100,7 +99,7 @@ export function getAgentLegalTerms(
   return agent.overrideLegalTerms ?? agent.legalTerms ?? null;
 }
 
-export function getAgentLegalDpa(
+function getAgentLegalDpa(
   agent: CoreAgentDto | AgentJobAgentSource,
 ): string | null {
   if ("legal" in agent) {
@@ -110,7 +109,7 @@ export function getAgentLegalDpa(
   return agent.overrideLegalDpa ?? agent.legalDpa ?? null;
 }
 
-export function getAgentLegalOther(
+function getAgentLegalOther(
   agent: CoreAgentDto | AgentJobAgentSource,
 ): string | null {
   if ("legal" in agent) {

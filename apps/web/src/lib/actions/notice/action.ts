@@ -1,40 +1,32 @@
 "use server";
 
+import { err, ok } from "neverthrow";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
-import type { Notice } from "@/lib/clients/generated/core";
-import { NoticeKind } from "@/lib/clients/generated/core";
-
-export type PendingNotice = Notice;
-export type NoticeAcknowledgment = Awaited<
-  ReturnType<typeof coreClient.acknowledgeNotice>
->;
+import type { Notice, NoticeKind } from "@/lib/clients/generated/core";
 
 export async function getPendingNoticesAction(
   kind?: NoticeKind,
-): Promise<
-  { ok: true; data: PendingNotice[] } | { ok: false; error: ActionError }
-> {
+): Promise<ActionResultDto<Notice[], ActionError>> {
   try {
     const notices = await coreClient.getPendingNotices(kind);
-    return { ok: true, data: notices };
+    return toActionResult(ok(notices));
   } catch (error) {
-    return { ok: false, error: toCoreApiActionError(error) };
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 }
 
 export async function acknowledgeNoticeAction(
   noticeId: string,
-): Promise<
-  { ok: true; data: NoticeAcknowledgment } | { ok: false; error: ActionError }
-> {
+): Promise<ActionResultDto<void, ActionError>> {
   try {
-    const data = await coreClient.acknowledgeNotice(noticeId);
-    return {
-      ok: true,
-      data,
-    };
+    await coreClient.acknowledgeNotice(noticeId);
+    return toActionResult(ok(undefined));
   } catch (error) {
-    return { ok: false, error: toCoreApiActionError(error) };
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 }

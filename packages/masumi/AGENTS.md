@@ -63,9 +63,8 @@ const agentClient = createAgentClient({
 
 ```typescript
 import {
-  jobStatusResponseSchema,
-  inputSchemaResponseSchema,
   type InputSchemaType,
+  type JobStatusResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
 ```
 

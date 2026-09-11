@@ -1804,27 +1804,17 @@
         "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
         "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
-        "chooseAgent": "Choose your agent",
-        "chooseAgentDescription": "Pick who should handle this task — compare their model, host, and capabilities.",
         "defaultBadge": "Default",
         "modelLabel": "Model",
         "hostingLabel": "Hosted in",
-        "examplesTitle": "What {name} can do",
-        "continue": "Continue",
         "taskStepTitle": "What should {name} do?",
-        "previousAgent": "Previous agent",
-        "nextAgent": "Next agent",
-        "searchAgents": "Search agents…",
         "noAgentsFound": "No agents found.",
-        "askPrompt": "Ask {name} to…",
-        "promptHint": "Click an example to start, or continue to write your own.",
         "tasksTitle": "Ready-To-Run Tasks",
         "startFromScratch": "Start from scratch",
         "startFromScratchHint": "Write your own instructions",
         "previewExample": "Preview example",
         "previewUse": "Use this task",
         "previewEmpty": "No example output available yet.",
-        "allCompanies": "All",
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
@@ -1845,9 +1835,7 @@
         "taskCreatedHint": "Everything's set up and ready to go.",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
-        "close": "Close",
-        "unassigned": "Unassigned",
-        "unassignedDescription": "Leave ready work for anyone to pick up"
+        "close": "Close"
       },
       "EditTask": {
         "title": "Edit Task",
@@ -1878,8 +1866,7 @@
         "openSchedule": "Set schedule",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
-        "unassigned": "Unassigned",
-        "unassignedDescription": "Leave ready work for anyone to pick up"
+        "unassigned": "Unassigned"
       },
       "Schedule": {
         "title": "Schedule",
@@ -5111,7 +5098,6 @@
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Personal assistant",
-      "humanBadge": "Human",
       "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
@@ -5388,6 +5374,10 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "unreadMessagesCapped": "More than {max} unread messages"
+      },
+      "RoomMentions": {
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "mentionsCapped": "More than {max} mentions"
       },
       "MembershipStatus": {
         "joined": "{name} joined",
@@ -6300,6 +6290,7 @@
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
+        "mentionedDirect": "{authorName} mentioned you in a direct message",
         "directMessage": "{authorName} sent you a message",
         "directMessages": "{count} messages from {authorName}",
         "roomMessage": "{authorName} wrote in channel {roomName}",

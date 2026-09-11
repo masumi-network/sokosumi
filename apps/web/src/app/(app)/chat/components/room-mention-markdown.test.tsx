@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -9,7 +9,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       coworkerBadge: "AI coworker",
-      humanBadge: "Human",
       openDirectMessage: "Message",
     };
     return labels[key] ?? key;
@@ -55,7 +54,7 @@ describe("RoomMessageMarkdown mention hover", () => {
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Elena");
-    expect(card).toHaveTextContent("AI coworker");
+    expect(within(card).getByLabelText("AI coworker")).toBeInTheDocument();
     expect(card).toHaveTextContent("Message");
   });
 

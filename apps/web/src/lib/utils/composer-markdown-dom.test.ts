@@ -9,6 +9,15 @@ import {
 } from "@/lib/utils/composer-markdown-dom";
 
 describe("markdownToHtml", () => {
+  it("preserves ID-only human tokens through rich editing and sanitization", () => {
+    const source = "Hello @user-1, and @user-1:old-name";
+    const root = document.createElement("div");
+    root.innerHTML = sanitizeComposerHtml(
+      markdownToHtml(source, () => ({ displayName: "Renamed", isKnown: true })),
+    );
+    expect(root.textContent).toBe("Hello @Renamed, and @Renamed");
+    expect(htmlToMarkdown(root).trim()).toBe(source);
+  });
   it("renders italic/bold/strike/code with markers removed from HTML", () => {
     const html = markdownToHtml("hello _world_ and **bold** ~~x~~ `c`");
     expect(html).toContain("<em>world</em>");

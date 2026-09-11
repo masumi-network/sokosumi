@@ -962,7 +962,6 @@ export function TaskDetailActions({
           isDismissDisabled={isCreateRelatedDismissDisabled}
         >
           <TaskForm
-            variant="modal"
             mode="create"
             showCancel={false}
             labels={createTaskLabels}

@@ -42,4 +42,12 @@ Keep the editor instance and undo history stable during typing. Toolbar actions 
 - Build/app tests and affected package suites, formatting and lint.
 - Interactive typing, shortcuts, toolbar focus, links, undo/redo and draft restoration. Pointer automation currently fails with `noWindowsAvailable`; request user verification where no reliable UI automation is available.
 
-No dependency additions are planned. Do not mark this design as implemented; 12a is in progress; 12b remains Todo until its vertical slice is complete.
+No dependency additions are needed. Live slice status and verification evidence belong in `../PARITY.md`.
+
+## Rich editor implementation
+
+`ComposerDocument` defines the portable block/inline structure and Markdown serialization. `ComposerInlineText` and `ComposerBlockText` preserve semantic attributes independently of fonts and colors; `ComposerBlockFormat` applies block commands. `ComposerLink`, `ComposerPaste`, and `ComposerPreferences` own validation, clipboard sanitization, and toolbar preference storage.
+
+`MacComposerAttributedText` adds native presentation. `MacComposerTextInput` preserves IME handling, selection and undo, while `MacComposerCommands` routes toolbar actions to that same editor. `ComposerLayout` and `ComposerToolbarButton` use SwiftUI without platform-specific APIs. The minimum editor height is three lines, growing to eight before scrolling.
+
+Modified Return inserts a line break within the current block, including a list item. On an empty final quote line it exits the quote, matching the web editor. Formatting controls refresh when typing attributes change, even before the first character is inserted. Unsupported restored structures retain their original text instead of being dropped.

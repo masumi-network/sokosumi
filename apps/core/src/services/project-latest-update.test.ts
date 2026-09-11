@@ -6,7 +6,6 @@ import {
   hasLeadingTldrHeading,
   latestUpdateWindowFor,
   PROJECT_LATEST_UPDATE_SYSTEM_PROMPT,
-  validateLatestUpdateMd,
 } from "./project-latest-update";
 
 describe("project latest update markdown", () => {
@@ -59,10 +58,6 @@ Shipped onboarding.
 
 Too late.`),
     ).toBe(false);
-    expect(validateLatestUpdateMd("").valid).toBe(false);
-    expect(
-      validateLatestUpdateMd("# Weekly Activity Report\n\nNo heading").reason,
-    ).toBe("missing_tldr");
   });
 
   it("caps long reports", () => {

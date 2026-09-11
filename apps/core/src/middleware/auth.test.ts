@@ -76,7 +76,11 @@ describe("authMiddleware", () => {
     getSessionMock.mockResolvedValue(null);
     oauthAccessTokenFindUniqueMock.mockResolvedValue(null);
     oauthConsentFindFirstMock.mockResolvedValue(null);
-    userFindUniqueMock.mockResolvedValue({ role: "user" });
+    userFindUniqueMock.mockResolvedValue({
+      role: "user",
+      banned: false,
+      banExpires: null,
+    });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
@@ -349,7 +353,7 @@ describe("authMiddleware", () => {
     });
     expect(userFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "user_api_key" },
-      select: { role: true },
+      select: { role: true, banned: true, banExpires: true },
     });
     expect(verifyApiKeyMock).toHaveBeenCalledWith({
       body: { configId: "default", key: "token" },
@@ -381,6 +385,74 @@ describe("authMiddleware", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401 for a Better Auth API key whose owner is banned", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: { referenceId: "user_banned" },
+    });
+    userFindUniqueMock.mockResolvedValue({
+      role: "user",
+      banned: true,
+      banExpires: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer token",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 for a Better Auth API key whose owner was deleted", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: { referenceId: "user_deleted" },
+    });
+    // `Apikey.referenceId` has no relation to `User`, so the key row outlives
+    // the account and Better Auth still reports it as valid.
+    userFindUniqueMock.mockResolvedValue(null);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer token",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("authenticates a Better Auth API key once the owner's ban has expired", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: { referenceId: "user_ban_expired" },
+    });
+    userFindUniqueMock.mockResolvedValue({
+      role: "user",
+      banned: true,
+      banExpires: new Date(Date.now() - 60_000),
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer token",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_ban_expired",
+      organizationId: null,
+      role: "user",
+      authenticationMethod: "api_key",
+    });
+  });
+
   it("falls back to OAuth token when API key is invalid", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",
@@ -390,7 +462,7 @@ describe("authMiddleware", () => {
       refreshToken: null,
       clientId: "client_123",
       scopes: ["openid", "sokosumi:api"],
-      user: { role: "user" },
+      user: { role: "user", banned: false, banExpires: null },
       client: {
         disabled: false,
         scopes: ["openid", "sokosumi:api"],
@@ -425,7 +497,7 @@ describe("authMiddleware", () => {
       include: {
         refreshToken: true,
         user: {
-          select: { role: true },
+          select: { role: true, banned: true, banExpires: true },
         },
         client: {
           select: {
@@ -446,6 +518,130 @@ describe("authMiddleware", () => {
         scopes: true,
       },
     });
+  });
+
+  it("returns 401 for an OAuth token whose user is banned", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      revoked: null,
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user", banned: true, banExpires: null },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_token",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 for an OAuth token whose user row is gone", async () => {
+    // `OauthAccessToken.userId` is `onDelete: SetNull`, so a deleted user
+    // normally nulls the column. Cover the dangling row as well.
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      revoked: null,
+      userId: "user_deleted",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: null,
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_token",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 for an OAuth token whose userId was nulled by deletion", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      revoked: null,
+      userId: null,
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: null,
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_token",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 for an OAuth access token revoked on its own", async () => {
+    // The grant's refresh token is still live: only this access token was
+    // withdrawn, which the refresh-token check cannot see.
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      revoked: new Date(),
+      userId: "user_oauth",
+      refreshId: "refresh_123",
+      refreshToken: { revoked: null },
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user", banned: false, banExpires: null },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+      scopes: ["openid", "sokosumi:api"],
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer oauth_token",
+      },
+    });
+
+    expect(response.status).toBe(401);
   });
 
   it("returns 401 for OAuth tokens that only have openid scope", async () => {
@@ -631,6 +827,59 @@ describe("authMiddleware", () => {
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when the session belongs to a banned user", async () => {
+    // `enableSessionForAPIKeys` means an `x-api-key` header produces a session
+    // the admin plugin's ban hook never inspected.
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_session" },
+      user: {
+        id: "user_session",
+        role: "user",
+        banned: true,
+        banExpires: null,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 when the session user's ban has not expired yet", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_session" },
+      user: {
+        id: "user_session",
+        role: "user",
+        banned: true,
+        banExpires: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("authenticates a session once the user's ban has expired", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_session" },
+      user: {
+        id: "user_session",
+        role: "user",
+        banned: true,
+        banExpires: new Date(Date.now() - 60_000),
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
   });
 
   it("returns 401 when session is missing or invalid", async () => {

@@ -25,7 +25,6 @@ import SwiftUI
     var body: some View {
       VStack(spacing: 0) {
         transcriptBody
-        Divider()
         ChatComposerView(
           userId: workspaces.currentUserId,
           organizationId: workspaces.selection?.workspace.organizationId,
@@ -105,22 +104,21 @@ import SwiftUI
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(
-                    message: message,
-                    isContinuation: isMessageContinuation(previous: previous, current: message),
-                    outbound: outbound,
-                    sentAt: workspaces.outbox.sentAt[message.id],
-                    onRetry: outbound.map { shell in
-                      { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
-                    },
-                    onRemove: outbound.map { shell in
-                      { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
-                    },
-                    onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
-                    horizontalInset: 12,
-                    streamReasoning: streamReasoning(for: message),
-                    streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy
-                  )
+                  MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId },
+                                 message: message,
+                                 isContinuation: isMessageContinuation(previous: previous, current: message),
+                                 outbound: outbound,
+                                 sentAt: workspaces.outbox.sentAt[message.id],
+                                 onRetry: outbound.map { shell in
+                                   { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
+                                 },
+                                 onRemove: outbound.map { shell in
+                                   { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
+                                 },
+                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                                 horizontalInset: 12,
+                                 streamReasoning: streamReasoning(for: message),
+                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
                 }
               }
               .id(message.id)

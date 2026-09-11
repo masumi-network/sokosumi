@@ -21,6 +21,19 @@ public struct SavedComposeDraft {
     key = "sokosumi.composeDraft.v1." + parts.map { "\($0.utf8.count):\($0)" }.joined()
   }
 
+  public func loadAttachments() -> [ComposeAttachment] {
+    guard let data = defaults.data(forKey: key + ".attachments") else { return [] }
+    return (try? JSONDecoder().decode([ComposeAttachment].self, from: data)) ?? []
+  }
+
+  public func saveAttachments(_ attachments: [ComposeAttachment]) {
+    if attachments.isEmpty {
+      defaults.removeObject(forKey: key + ".attachments")
+    } else if let data = try? JSONEncoder().encode(attachments) {
+      defaults.set(data, forKey: key + ".attachments")
+    }
+  }
+
   public func load() -> String {
     defaults.string(forKey: key) ?? ""
   }

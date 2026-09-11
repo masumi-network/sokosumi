@@ -28,7 +28,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/read-all",
     description:
-      "Mark all in-app notification-center items as read for the interactive session user. CHAT kind is excluded except for room messages, so a mention stays until its room is read.",
+      "Mark all in-app notification-center items as read for the interactive session user. Scoped by the feed rule, so it reaches a mention and a room message but never a direct message. A mention read here is read everywhere, including the room's sidebar badge, which counts the same rows.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(

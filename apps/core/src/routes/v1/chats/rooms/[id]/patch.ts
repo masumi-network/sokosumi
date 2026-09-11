@@ -13,6 +13,7 @@ import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { publishChatMembershipRevokedToUsers } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -35,7 +36,6 @@ import {
   normalizeUniqueStrings,
   requireChatRoomUserAccess,
   resolveWorkspaceIdForChatRoom,
-  sokoBotDisplayName,
   validateChatCoworkerIds,
   validateChatSokoBotIds,
 } from "../helpers";

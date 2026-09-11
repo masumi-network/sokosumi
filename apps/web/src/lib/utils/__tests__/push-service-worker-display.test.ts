@@ -281,6 +281,40 @@ const MENTION_TARGET = {
 };
 
 describe("ably-push-sw display", () => {
+  /**
+   * A direct room of two is named after the other person, who in a mention is
+   * whoever wrote it. The worker titles the banner with the author and puts
+   * the message under it, the way it does for a direct message.
+   */
+  it("titles a mention in a room of two with the author", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        isDirect: true,
+        messagePreview: "your call",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Ada");
+    expect(worker.shown[0]?.options.body).toBe("your call");
+  });
+
+  /** The same row with no preview reads as the line it was stored under. */
+  it("reads a previewless mention in a room of two as a direct message", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageParams: JSON.stringify({ authorName: "Ada", isDirect: true }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Ada");
+    expect(worker.shown[0]?.options.body).toBe("");
+  });
+
   /** `sokosumi.locale` is client-writable, so its value is not trusted. */
   it("ignores a cookie naming a prototype member", async () => {
     const worker = loadServiceWorker({

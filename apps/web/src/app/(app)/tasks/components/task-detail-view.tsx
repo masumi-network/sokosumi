@@ -7,7 +7,6 @@ import {
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -51,7 +50,6 @@ import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigne
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
-import { resolveAccountName } from "@/lib/utils/account-name";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 import {
   buildVendorGrantReviewHref,
@@ -79,14 +77,6 @@ interface TaskDetailViewProps {
    * able to edit, comment, or mutate the task.
    */
   forceReadOnly?: boolean;
-  /**
-   * Renders {@link AutoContextSwitch} so the active workspace follows the task.
-   * Only safe when the viewer is guaranteed to be a member of the task's
-   * workspace (the user-facing route). The admin route leaves this off — admins
-   * read tasks in workspaces they are not part of, where switching would fail or
-   * be wrong.
-   */
-  enableAutoSwitch?: boolean;
 }
 
 /**
@@ -98,7 +88,6 @@ interface TaskDetailViewProps {
 export async function TaskDetailView({
   task,
   forceReadOnly = false,
-  enableAutoSwitch = false,
 }: TaskDetailViewProps) {
   const taskId = task.id;
   const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
@@ -133,16 +122,6 @@ export async function TaskDetailView({
             sessionPromise={sessionPromise}
           />
         </Suspense>
-        {enableAutoSwitch ? (
-          <Suspense fallback={null}>
-            <TaskDetailAutoSwitch
-              targetOrganizationId={task.workspace.organizationId ?? null}
-              membersPromise={membersPromise}
-              sessionPromise={sessionPromise}
-            />
-          </Suspense>
-        ) : null}
-
         <div className={TASK_DETAIL_GRID_CLASS}>
           <div className={TASK_DETAIL_MAIN_CLASS}>
             <TaskDetailHeader
@@ -280,39 +259,6 @@ async function TaskDetailRealtimeListener({
 
   return (
     <TaskStatusRealtimeListener userId={session.user.id} taskId={taskId} />
-  );
-}
-
-async function TaskDetailAutoSwitch({
-  targetOrganizationId,
-  membersPromise,
-  sessionPromise,
-}: {
-  targetOrganizationId: string | null;
-  membersPromise: Promise<MembersResult>;
-  sessionPromise: Promise<SessionResult>;
-}) {
-  const [members, session, t, tOrganizationSwitcher] = await Promise.all([
-    membersPromise,
-    sessionPromise,
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("Components.OrganizationSwitcher"),
-  ]);
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const targetAccountName = resolveAccountName(
-    targetOrganizationId,
-    members,
-    tOrganizationSwitcher("personalAccount"),
-  );
-
-  return (
-    <AutoContextSwitch
-      activeOrganizationId={activeOrganizationId}
-      targetOrganizationId={targetOrganizationId}
-      successMessage={t("switchedWorkspace", {
-        account: targetAccountName,
-      })}
-    />
   );
 }
 

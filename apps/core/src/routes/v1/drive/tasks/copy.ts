@@ -137,7 +137,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const fileName = taskFile.name;
     const mimeType = taskFile.mimeType;
 
-    // Determine destination pathname
     let destPathname: string;
     if (body.scope === "me") {
       const ownerId = userContext.userId;
@@ -147,7 +146,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         sanitizeDriveFileName(fileName),
       );
     } else {
-      // scope === "org"
       if (!body.organizationId) {
         throw badRequest("organizationId is required when scope=org");
       }
@@ -159,13 +157,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    // Check for name collision in dest Drive
     try {
       await head(destPathname, { token });
       throw conflict("A file with that name already exists in Drive");
     } catch (error) {
       if (error instanceof BlobNotFoundError) {
-        // File doesn't exist, proceed
       } else if (
         error &&
         typeof error === "object" &&
@@ -178,7 +174,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // Also check if a folder with the same prefix exists
     const folderPrefix = `${destPathname}/`;
     const existingFolder = await list({
       prefix: folderPrefix,
@@ -189,7 +184,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("A folder with that name already exists in Drive");
     }
 
-    // Copy blob: fetch source then put to dest
     let sourceBlob: ArrayBuffer;
     try {
       const fetchResult = await ssrfSafeFetch(sourceUrl, {

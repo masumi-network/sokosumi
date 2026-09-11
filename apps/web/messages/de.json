@@ -1820,34 +1820,22 @@
         "openSchedule": "Zeitplan festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
-        "chooseAgent": "Wähle deinen Agenten",
-        "chooseAgentDescription": "Wähle, wer diese Aufgabe übernehmen soll — vergleiche Modell, Hosting und Fähigkeiten.",
         "defaultBadge": "Standard",
         "modelLabel": "Modell",
         "hostingLabel": "Gehostet in",
-        "examplesTitle": "Was {name} kann",
-        "continue": "Weiter",
         "taskStepTitle": "Was soll {name} tun?",
-        "previousAgent": "Vorheriger Agent",
-        "nextAgent": "Nächster Agent",
-        "searchAgents": "Agenten suchen…",
         "noAgentsFound": "Keine Agenten gefunden.",
-        "askPrompt": "Bitte {name}, …",
-        "promptHint": "Klicke auf ein Beispiel oder schreibe deine eigenen Anweisungen.",
         "tasksTitle": "Sofort startbare Tasks",
         "startFromScratch": "Von Grund auf starten",
         "startFromScratchHint": "Eigene Anweisungen schreiben",
         "previewExample": "Beispiel ansehen",
         "previewUse": "Diesen Task verwenden",
         "previewEmpty": "Noch kein Beispiel verfügbar.",
-        "allCompanies": "Alle",
         "taskCreated": "Task erstellt",
         "taskCreatedHint": "Alles ist eingerichtet und bereit.",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
-        "close": "Schließen",
-        "unassigned": "Nicht zugewiesen",
-        "unassignedDescription": "Arbeit zur Übernahme offen lassen"
+        "close": "Schließen"
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -1878,8 +1866,7 @@
         "openSchedule": "Zeitplan festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
-        "unassigned": "Nicht zugewiesen",
-        "unassignedDescription": "Arbeit zur Übernahme offen lassen"
+        "unassigned": "Nicht zugewiesen"
       },
       "Schedule": {
         "title": "Zeitplan",
@@ -5111,7 +5098,6 @@
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Persönlicher Assistent",
-      "humanBadge": "Mensch",
       "openDirectMessage": "Nachricht",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
@@ -5388,6 +5374,10 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
         "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten"
+      },
+      "RoomMentions": {
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "mentionsCapped": "Mehr als {max} Erwähnungen"
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
@@ -6300,6 +6290,7 @@
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
+        "mentionedDirect": "{authorName} hat dich in einer Direktnachricht erwähnt",
         "directMessage": "{authorName} hat dir eine Nachricht gesendet",
         "directMessages": "{count} Nachrichten von {authorName}",
         "roomMessage": "{authorName} hat im Kanal {roomName} geschrieben",

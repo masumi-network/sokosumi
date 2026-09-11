@@ -3,6 +3,7 @@ import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
+  formatParticipantNameList,
   getFirstName,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
@@ -19,6 +20,7 @@ import {
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isDirectKeyUniqueConstraintError } from "@/helpers/prisma";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
 import {
   type ChatRoom,
@@ -61,15 +63,6 @@ export function sokoBotAvatarSeedFor(bot: {
   avatarSeed: string | null;
 }): string {
   return bot.avatarSeed ?? `orb:${bot.userId}`;
-}
-
-export function sokoBotDisplayName(bot: {
-  name: string | null;
-  user: { name: string } | null;
-}): string {
-  const named = bot.name?.trim();
-  if (named) return named;
-  return "Soko Bot";
 }
 
 export function sokoBotCaption(bot: { user: { name: string } | null }): string {
@@ -872,11 +865,7 @@ export function buildDirectRoomName(names: readonly string[]): string {
     return "Direct message";
   }
 
-  if (cleanNames.length <= 3) {
-    return cleanNames.join(", ");
-  }
-
-  return `${cleanNames.slice(0, 3).join(", ")} and ${cleanNames.length - 3} more`;
+  return formatParticipantNameList(cleanNames);
 }
 
 /**
@@ -1676,7 +1665,8 @@ export function resolveMentionedUserIds(params: {
     }
   }
 
-  const idTokenRegex = /@([^\s:]+):([^\s]+)/g;
+  // Slug is optional: new human tokens are `@userId`; `@userId:slug` still matches.
+  const idTokenRegex = /@([^\s:,.!?;()[\]{}]+)(?::([^\s]+))?/g;
   for (const match of params.content.matchAll(idTokenRegex)) {
     const id = match[1];
     if (id && id !== ROOM_MENTION_ALL_ID && roomUserIds.has(id)) {

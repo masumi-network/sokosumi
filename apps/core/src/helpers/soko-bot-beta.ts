@@ -28,10 +28,3 @@ export function withBetaBotOwner(
     },
   };
 }
-
-/** The same rule for a query rooted elsewhere that filters through `sokoBot`. */
-export function betaBotRelationFilter(
-  where: Prisma.SokoBotWhereInput = {},
-): Prisma.SokoBotWhereInput {
-  return withBetaBotOwner(where);
-}
