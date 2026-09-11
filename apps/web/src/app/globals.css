@@ -99,6 +99,27 @@
   --color-presence-afk: var(--presence-afk);
   --color-presence-offline: var(--presence-offline);
 
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-foreground: var(--risk-high-foreground);
+  --color-status-ready: var(--status-ready);
+  --color-status-ready-tertiary: var(--status-ready-tertiary);
+  --color-status-ready-quinary: var(--status-ready-quinary);
+  --color-status-running: var(--status-running);
+  --color-status-running-tertiary: var(--status-running-tertiary);
+  --color-status-running-quinary: var(--status-running-quinary);
+  --color-status-awaiting: var(--status-awaiting);
+  --color-status-awaiting-tertiary: var(--status-awaiting-tertiary);
+  --color-status-awaiting-quinary: var(--status-awaiting-quinary);
+  --color-status-topped-up: var(--status-topped-up);
+  --color-status-topped-up-tertiary: var(--status-topped-up-tertiary);
+  --color-status-topped-up-quinary: var(--status-topped-up-quinary);
+  --color-status-auth: var(--status-auth);
+  --color-status-auth-tertiary: var(--status-auth-tertiary);
+  --color-status-auth-quinary: var(--status-auth-quinary);
+  --color-status-done: var(--status-done);
+  --color-status-done-tertiary: var(--status-done-tertiary);
+  --color-status-done-quinary: var(--status-done-quinary);
+
   --color-semantic-info: var(--semantic-info);
   --color-semantic-info-variant: var(--semantic-info-variant);
   --color-semantic-info-tertiary: var(--semantic-info-tertiary);
@@ -277,21 +298,21 @@
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(263.5, 100%, 50%, 1); /* Sokosumi · Wisteria Purple #6400FF */
   --primary-variant: hsla(263.5, 100%, 50%, 1);
-  --primary-tertiary: hsla(263.5, 100%, 50%, 0.2);
-  --primary-quaternary: hsla(263.5, 100%, 50%, 0.1);
-  --primary-quinary: hsla(263.5, 100%, 50%, 0.05);
+  --primary-tertiary: hsla(263.5, 100.0%, 90.0%, 1);
+  --primary-quaternary: hsla(263.5, 100.0%, 95.0%, 1);
+  --primary-quinary: hsla(263.5, 100.0%, 97.5%, 1);
   --primary-foreground: hsla(0, 0%, 98%, 1);
   --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 4%, 0.95);
   --secondary-foreground: hsla(0, 0%, 98%, 1);
-  --tertiary: hsla(0, 0%, 4%, 0.2);
-  --tertiary-foreground: hsla(0, 0%, 4%, 0.8);
-  --quaternary: hsla(0, 0%, 4%, 0.1);
-  --quinary: hsla(0, 0%, 4%, 0.05);
-  --senary: hsla(0, 0%, 4%, 0.03);
+  --tertiary: hsla(0.0, 0.0%, 80.8%, 1);
+  --tertiary-foreground: hsla(0.0, 0.0%, 23.2%, 1);
+  --quaternary: hsla(0.0, 0.0%, 90.4%, 1);
+  --quinary: hsla(0.0, 0.0%, 95.2%, 1);
+  --senary: hsla(0.0, 0.0%, 97.1%, 1);
   --muted: hsla(300, 0%, 96%, 1);
-  --muted-foreground: hsla(0, 0%, 4%, 0.58);
+  --muted-foreground: hsla(0.0, 0.0%, 44.0%, 1);
   --accent: hsla(300, 0%, 96%, 1);
   --accent-foreground: hsla(330, 0%, 9%, 1);
   --destructive: hsla(0, 74%, 42%, 1);
@@ -322,17 +343,17 @@
   /* Semantic */
   --semantic-destructive: hsla(0, 74%, 42%, 1);
   --semantic-destructive-variant: hsla(0, 74%, 42%, 1);
-  --semantic-destructive-tertiary: hsla(0, 74%, 42%, 0.2);
-  --semantic-destructive-quaternary: hsla(0, 74%, 42%, 0.1);
-  --semantic-destructive-quinary: hsla(0, 74%, 42%, 0.05);
+  --semantic-destructive-tertiary: hsla(0.0, 53.6%, 88.4%, 1);
+  --semantic-destructive-quaternary: hsla(0.0, 53.6%, 94.2%, 1);
+  --semantic-destructive-quinary: hsla(0.0, 53.6%, 97.1%, 1);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
   --semantic-destructive-ring: hsla(0, 96%, 89%, 1);
 
   --semantic-warning: hsla(35, 92%, 33%, 1);
   --semantic-warning-variant: hsla(35, 92%, 33%, 1);
-  --semantic-warning-tertiary: hsla(35, 92%, 33%, 0.2);
-  --semantic-warning-quaternary: hsla(35, 92%, 33%, 0.1);
-  --semantic-warning-quinary: hsla(35, 92%, 33%, 0.05);
+  --semantic-warning-tertiary: hsla(35.0, 45.3%, 86.6%, 1);
+  --semantic-warning-quaternary: hsla(35.0, 45.3%, 93.3%, 1);
+  --semantic-warning-quinary: hsla(35.0, 45.3%, 96.6%, 1);
   --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
   --semantic-warning-ring: hsla(52, 100%, 30%, 1);
 
@@ -346,9 +367,9 @@
 
   --semantic-success: hsla(142, 72%, 29%, 1);
   --semantic-success-variant: hsla(142, 72%, 29%, 1);
-  --semantic-success-tertiary: hsla(142, 72%, 29%, 0.2);
-  --semantic-success-quaternary: hsla(142, 72%, 29%, 0.1);
-  --semantic-success-quinary: hsla(142, 72%, 29%, 0.05);
+  --semantic-success-tertiary: hsla(142.0, 29.4%, 85.8%, 1);
+  --semantic-success-quaternary: hsla(142.0, 29.4%, 92.9%, 1);
+  --semantic-success-quinary: hsla(142.0, 29.4%, 96.4%, 1);
   --semantic-success-foreground: hsla(138, 76%, 97%, 1);
   --semantic-success-ring: hsla(141, 79%, 85%, 1);
 
@@ -362,11 +383,38 @@
 
   --semantic-info: hsla(193, 82%, 31%, 1);
   --semantic-info-variant: hsla(193, 82%, 31%, 1);
-  --semantic-info-tertiary: hsla(193, 82%, 31%, 0.2);
-  --semantic-info-quaternary: hsla(193, 82%, 31%, 0.1);
-  --semantic-info-quinary: hsla(193, 82%, 31%, 0.05);
+  --semantic-info-tertiary: hsla(193.0, 36.8%, 86.2%, 1);
+  --semantic-info-quaternary: hsla(193.0, 36.8%, 93.1%, 1);
+  --semantic-info-quinary: hsla(193.0, 36.8%, 96.6%, 1);
   --semantic-info-foreground: hsla(183, 100%, 96%, 1);
   --semantic-info-ring: hsla(186, 94%, 82%, 1);
+
+  /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
+     only extra value, solid with a near-black label at 9.22:1. Same in both
+     themes: a solid fill is its own ground. */
+  --risk-high: hsla(32, 92%, 50%, 1);
+  --risk-high-foreground: hsla(0, 0%, 4%, 1);
+
+  /* Categorical statuses. Distinct purposes, so distinct hues rather than
+     four shades of one. Carried by the dot, which needs 3:1 not 4.5:1. */
+  --status-ready: hsla(217.0, 91.0%, 47.0%, 1);
+  --status-ready-tertiary: hsla(217.0, 80.7%, 89.4%, 1);
+  --status-ready-quinary: hsla(217.0, 80.7%, 97.4%, 1);
+  --status-running: hsla(192.0, 91.0%, 36.0%, 1);
+  --status-running-tertiary: hsla(192.0, 51.2%, 87.2%, 1);
+  --status-running-quinary: hsla(192.0, 51.2%, 96.8%, 1);
+  --status-awaiting: hsla(199.0, 89.0%, 39.0%, 1);
+  --status-awaiting-tertiary: hsla(199.0, 56.9%, 87.8%, 1);
+  --status-awaiting-quinary: hsla(199.0, 56.9%, 97.0%, 1);
+  --status-topped-up: hsla(174.0, 84.0%, 32.0%, 1);
+  --status-topped-up-tertiary: hsla(174.0, 39.5%, 86.4%, 1);
+  --status-topped-up-quinary: hsla(174.0, 39.5%, 96.6%, 1);
+  --status-auth: hsla(263.0, 70.0%, 50.0%, 1);
+  --status-auth-tertiary: hsla(263.0, 70.0%, 90.0%, 1);
+  --status-auth-quinary: hsla(263.0, 70.0%, 97.5%, 1);
+  --status-done: hsla(0.0, 0.0%, 45.0%, 1);
+  --status-done-tertiary: hsla(0.0, 0.0%, 89.0%, 1);
+  --status-done-quinary: hsla(0.0, 0.0%, 97.2%, 1);
 
   /* Material */
   --material-ultrathin: hsla(0, 0%, 100%, 0.33);
@@ -407,26 +455,26 @@
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
   --primary-variant: hsla(260, 100%, 73%, 1);
-  --primary-tertiary: hsla(260, 100%, 73%, 0.3);
-  --primary-quaternary: hsla(260, 100%, 73%, 0.2);
-  --primary-quinary: hsla(260, 100%, 73%, 0.1);
+  --primary-tertiary: hsla(270.0, 32.7%, 21.7%, 1);
+  --primary-quaternary: hsla(270.0, 30.0%, 15.8%, 1);
+  --primary-quinary: hsla(270.0, 23.9%, 9.9%, 1);
   --primary-foreground: hsla(0, 0%, 4%, 1);
   --primary-muted-foreground: hsla(0, 0%, 4%, 0.7);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 100%, 0.95);
   --secondary-foreground: hsla(0, 0%, 4%, 1);
-  --tertiary: hsla(0, 0%, 100%, 0.3);
-  --tertiary-foreground: hsla(0, 0%, 100%, 0.8);
-  --quaternary: hsla(0, 0%, 100%, 0.2);
-  --quinary: hsla(0, 0%, 100%, 0.1);
-  --senary: hsla(0, 0%, 100%, 0.05);
+  --tertiary: hsla(0.0, 0.0%, 32.8%, 1);
+  --tertiary-foreground: hsla(0.0, 0.0%, 80.8%, 1);
+  --quaternary: hsla(0.0, 0.0%, 23.2%, 1);
+  --quinary: hsla(0.0, 0.0%, 13.6%, 1);
+  --senary: hsla(0.0, 0.0%, 8.8%, 1);
   --muted: hsla(0, 0%, 15%, 1);
-  --muted-foreground: hsla(0, 0%, 100%, 0.6);
+  --muted-foreground: hsla(0.0, 0.0%, 50.0%, 1);
   --accent: hsla(0, 0%, 15%, 1);
   --accent-foreground: hsla(0, 0%, 98%, 1);
   --destructive: hsla(0, 84%, 60%, 1);
-  --border: hsla(300, 50%, 100%, 0.1);
-  --input: hsla(300, 50%, 100%, 0.15);
+  --border: hsla(0.0, 0.0%, 13.6%, 1);
+  --input: hsla(0.0, 0.0%, 18.4%, 1);
   --ring: hsla(270, 64%, 63%, 1);
   --ring-halo: hsla(270, 64%, 63%, 0.26);
   --ring-semantic: hsla(0, 75%, 15%, 1);
@@ -442,23 +490,23 @@
   --sidebar-primary-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-accent: hsla(0, 0%, 15%, 1);
   --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
-  --sidebar-border: hsla(300, 50%, 100%, 0.1);
+  --sidebar-border: hsla(0.0, 0.0%, 13.6%, 1);
   --sidebar-ring: hsla(300, 0%, 45%, 1);
 
   /* Semantic */
   --semantic-destructive: hsla(0, 84%, 60%, 1);
   --semantic-destructive-variant: hsla(0, 84%, 60%, 1);
-  --semantic-destructive-tertiary: hsla(0, 84%, 60%, 0.3);
-  --semantic-destructive-quaternary: hsla(0, 84%, 60%, 0.2);
-  --semantic-destructive-quinary: hsla(0, 84%, 60%, 0.1);
+  --semantic-destructive-tertiary: hsla(0.0, 48.5%, 20.8%, 1);
+  --semantic-destructive-quaternary: hsla(0.0, 44.2%, 15.2%, 1);
+  --semantic-destructive-quinary: hsla(0.0, 35.0%, 9.6%, 1);
   --semantic-destructive-foreground: hsla(0, 0%, 4%, 1);
   --semantic-destructive-ring: hsla(0, 75%, 15%, 1);
 
   --semantic-warning: hsla(43, 96%, 56%, 1);
   --semantic-warning-variant: hsla(43, 96%, 56%, 1);
-  --semantic-warning-tertiary: hsla(43, 96%, 56%, 0.3);
-  --semantic-warning-quaternary: hsla(43, 96%, 56%, 0.2);
-  --semantic-warning-quinary: hsla(43, 96%, 56%, 0.1);
+  --semantic-warning-tertiary: hsla(43.0, 64.7%, 19.6%, 1);
+  --semantic-warning-quaternary: hsla(43.0, 58.7%, 14.4%, 1);
+  --semantic-warning-quinary: hsla(43.0, 45.9%, 9.2%, 1);
   --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
   --semantic-warning-ring: hsla(52, 100%, 30%, 1);
 
@@ -472,9 +520,9 @@
 
   --semantic-success: hsla(142, 71%, 45%, 1);
   --semantic-success-variant: hsla(142, 71%, 45%, 1);
-  --semantic-success-tertiary: hsla(142, 71%, 45%, 0.3);
-  --semantic-success-quaternary: hsla(142, 71%, 45%, 0.2);
-  --semantic-success-quinary: hsla(142, 71%, 45%, 0.1);
+  --semantic-success-tertiary: hsla(142.0, 58.8%, 16.3%, 1);
+  --semantic-success-quaternary: hsla(142.0, 52.4%, 12.2%, 1);
+  --semantic-success-quinary: hsla(142.0, 39.4%, 8.1%, 1);
   --semantic-success-foreground: hsla(0, 0%, 4%, 1);
   --semantic-success-ring: hsla(145, 80%, 10%, 1);
 
@@ -485,11 +533,38 @@
 
   --semantic-info: hsla(189, 94%, 43%, 1);
   --semantic-info-variant: hsla(189, 94%, 43%, 1);
-  --semantic-info-tertiary: hsla(189, 94%, 43%, 0.3);
-  --semantic-info-quaternary: hsla(189, 94%, 43%, 0.2);
-  --semantic-info-quinary: hsla(189, 94%, 43%, 0.1);
+  --semantic-info-tertiary: hsla(189.0, 77.2%, 15.7%, 1);
+  --semantic-info-quaternary: hsla(189.0, 68.5%, 11.8%, 1);
+  --semantic-info-quinary: hsla(189.0, 51.2%, 7.9%, 1);
   --semantic-info-foreground: hsla(0, 0%, 4%, 1);
   --semantic-info-ring: hsla(197, 79%, 15%, 1);
+
+  /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
+     only extra value, solid with a near-black label at 9.22:1. Same in both
+     themes: a solid fill is its own ground. */
+  --risk-high: hsla(32, 92%, 50%, 1);
+  --risk-high-foreground: hsla(0, 0%, 4%, 1);
+
+  /* Categorical statuses. Distinct purposes, so distinct hues rather than
+     four shades of one. Carried by the dot, which needs 3:1 not 4.5:1. */
+  --status-ready: hsla(213.0, 94.0%, 68.0%, 1);
+  --status-ready-tertiary: hsla(213.0, 38.9%, 23.2%, 1);
+  --status-ready-quinary: hsla(213.0, 28.9%, 10.4%, 1);
+  --status-running: hsla(187.0, 85.0%, 53.0%, 1);
+  --status-running-tertiary: hsla(187.0, 64.1%, 18.7%, 1);
+  --status-running-quinary: hsla(187.0, 44.9%, 8.9%, 1);
+  --status-awaiting: hsla(198.0, 93.0%, 60.0%, 1);
+  --status-awaiting-tertiary: hsla(198.0, 53.7%, 20.8%, 1);
+  --status-awaiting-quinary: hsla(198.0, 38.8%, 9.6%, 1);
+  --status-topped-up: hsla(172.0, 66.0%, 50.0%, 1);
+  --status-topped-up-tertiary: hsla(172.0, 55.6%, 17.8%, 1);
+  --status-topped-up-quinary: hsla(172.0, 38.4%, 8.6%, 1);
+  --status-auth: hsla(258.0, 90.0%, 66.0%, 1);
+  --status-auth-tertiary: hsla(258.0, 40.6%, 22.6%, 1);
+  --status-auth-quinary: hsla(258.0, 30.0%, 10.2%, 1);
+  --status-done: hsla(0.0, 0.0%, 64.0%, 1);
+  --status-done-tertiary: hsla(0.0, 0.0%, 22.0%, 1);
+  --status-done-quinary: hsla(0.0, 0.0%, 10.0%, 1);
 
   /* Material */
   --material-ultrathin: hsla(0, 0%, 15%, 0.55);
