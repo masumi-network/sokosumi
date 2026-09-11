@@ -9,11 +9,6 @@ vi.mock("rehype-raw", () => ({
   default: () => null,
 }));
 
-vi.mock("rehype-highlight", () => ({
-  __esModule: true,
-  default: () => null,
-}));
-
 vi.mock("remark-gfm", () => ({
   __esModule: true,
   default: () => null,
@@ -48,7 +43,7 @@ vi.mock("react-markdown", () => ({
             className: "language-js",
             children: (
               <>
-                <span className="hljs-keyword">const</span>
+                <span className="th-keyword">const</span>
                 {" value = 1;"}
               </>
             ),
@@ -91,7 +86,7 @@ describe("Markdown", () => {
 
   it("renders highlighted block code tokens", () => {
     const { container } = render(<Markdown>{"BLOCK_ONLY"}</Markdown>);
-    const highlightedToken = container.querySelector("pre code .hljs-keyword");
+    const highlightedToken = container.querySelector("pre code .th-keyword");
 
     expect(highlightedToken).toBeInTheDocument();
     expect(highlightedToken).toHaveTextContent("const");

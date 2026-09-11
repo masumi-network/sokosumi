@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import {
+  TASK_STATUS_DISPLAY_ORDER,
+  TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT,
+} from "@/lib/utils/task-status-order";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {
@@ -292,12 +296,21 @@ const baseLabels = {
   statusDraft: "Draft",
   statusQueued: "Queued",
   statusReady: "Ready",
-  markAsReady: "Mark as Ready",
-  revertToDraft: "Revert to Draft",
+  statusLabels: Object.fromEntries(
+    TASK_STATUS_DISPLAY_ORDER.map((status) => [
+      status,
+      status === TaskStatus.DRAFT
+        ? "Draft"
+        : status === TaskStatus.READY
+          ? "Ready"
+          : status === TaskStatus.QUEUED
+            ? "Queued"
+            : status,
+    ]),
+  ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>,
   back: "Back",
   uploadFile: "Upload File",
   submit: "Save",
-  saveAsDraft: "Save as Draft",
   createTask: "Create Task",
   scheduleTask: "Schedule Task",
   openSchedule: "Set schedule",
@@ -348,6 +361,14 @@ function createTaskSuccess(taskId: string, name: string) {
 
 function updateTaskSuccess(taskId: string) {
   return { ok: true as const, value: { taskId } };
+}
+
+async function selectTaskStatus(
+  user: ReturnType<typeof userEvent.setup>,
+  statusLabel: string,
+) {
+  await user.click(screen.getByRole("combobox", { name: "Status" }));
+  await user.click(screen.getByRole("option", { name: statusLabel }));
 }
 
 describe("TaskForm", () => {
@@ -454,10 +475,46 @@ describe("TaskForm", () => {
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 
-  it("submits as draft from create modal actions", async () => {
+  it("shows the footer status pill defaulting to Draft on create", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Pick status")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("Status", { selector: "label" })).toHaveLength(
+      0,
+    );
+
+    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    expect(statusControl).toHaveTextContent("Draft");
+    expect(
+      screen
+        .getByTestId("markdown-editor")
+        .compareDocumentPosition(statusControl) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      statusControl.compareDocumentPosition(
+        screen.getByRole("button", { name: "Set schedule" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Save as Draft" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Mark as Ready" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("places the status pill before the schedule label in the footer", async () => {
     const user = userEvent.setup();
-    const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -470,9 +527,75 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
 
-    await user.click(screen.getByRole("button", { name: "Save as Draft" }));
+    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    const scheduleLabel = screen.getByText("footer.oneTimeAt");
+    expect(
+      statusControl.compareDocumentPosition(scheduleLabel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("hides status on the assignee wizard step", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Status" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("defaults status to Ready when selecting a coworker", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getAllByRole("button", { name: /Soko/ })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: /Start from scratch/i }),
+    );
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+  });
+
+  it("submits Draft from the dropdown by default on create", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         status: TaskStatus.DRAFT,
@@ -480,7 +603,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("submits as ready from create modal actions", async () => {
+  it("submits Ready when the dropdown is set to Ready", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
@@ -497,7 +620,7 @@ describe("TaskForm", () => {
     );
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
-
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -554,6 +677,7 @@ describe("TaskForm", () => {
     ).toBeInTheDocument();
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
 
     expect(createTaskMock).toHaveBeenCalledWith(
@@ -566,6 +690,418 @@ describe("TaskForm", () => {
         }),
       }),
     );
+  });
+
+  it("auto-selects Queued when applying a schedule for a coworker (SOK-1033)", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Queued",
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: TaskStatus.QUEUED,
+        schedule: expect.objectContaining({ mode: "once" }),
+      }),
+    );
+  });
+
+  it("keeps Ready when applying a schedule for a human assignee (SOK-1033)", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+    expect(
+      screen.queryByRole("combobox", { name: "Status" }),
+    ).not.toHaveTextContent("Queued");
+  });
+
+  it("keeps a manual Draft when applying a schedule after an explicit status choice", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await selectTaskStatus(user, "Draft");
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+  });
+
+  it("disables Queued without a schedule (SOK-1033)", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    const queuedOption = screen.getByRole("option", { name: "Queued" });
+    expect(queuedOption).toHaveAttribute("data-disabled");
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("disables Queued for human assignees even when a schedule is set (SOK-1033)", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("enables Queued on edit for an agent Ready task with an active schedule", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Daily sync",
+          description: "Run the sync",
+          assigneeId: "coworker-2",
+          status: TaskStatus.READY,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-26T09:00:00.000Z",
+            runAt: "2026-06-26T09:00:00.000Z",
+          }),
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("disables Queued on edit for a human Ready task with an active schedule", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        taskId="task-1"
+        initialValues={{
+          name: "Daily sync",
+          description: "Run the sync",
+          assigneeUserId: "user-1",
+          status: TaskStatus.READY,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-26T09:00:00.000Z",
+            runAt: "2026-06-26T09:00:00.000Z",
+          }),
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
+      "data-disabled",
+    );
+  });
+
+  it("disables agent-only statuses for a human assignee on edit", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={{
+          ...baseLabels,
+          statusLabels: {
+            ...baseLabels.statusLabels,
+            [TaskStatus.INPUT_REQUIRED]: "Input required",
+            [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
+          },
+        }}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        taskId="task-1"
+        initialValues={{
+          name: "Daily sync",
+          description: "Run the sync",
+          assigneeUserId: "user-1",
+          status: TaskStatus.READY,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    expect(
+      screen.getByRole("option", { name: "Input required" }),
+    ).toHaveAttribute("data-disabled");
+    expect(
+      screen.getByRole("option", { name: "Approval required" }),
+    ).toHaveAttribute("data-disabled");
+  });
+
+  it("keeps a manual Ready override when switching agents with a schedule (SOK-1033)", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-2",
+          status: TaskStatus.READY,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-26T09:00:00.000Z",
+            runAt: "2026-06-26T09:00:00.000Z",
+          }),
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await selectTaskStatus(user, "Queued");
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Queued",
+    );
+
+    await selectTaskStatus(user, "Ready");
+    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("option", { name: "Soko" }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+  });
+
+  it("clears schedule and status when unassigning a scheduled agent task (SOK-1033)", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-2",
+          status: TaskStatus.READY,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-26T09:00:00.000Z",
+            runAt: "2026-06-26T09:00:00.000Z",
+          }),
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await selectTaskStatus(user, "Queued");
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Queued",
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("option", { name: "Unassigned" }));
+
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.DRAFT,
+        schedule: expect.objectContaining({ mode: "none" }),
+      }),
+    );
+  });
+
+  it("shows a Ready celebration for a scheduled human create (SOK-1033)", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(
+      createTaskSuccess("task-human", "Human reminder"),
+    );
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await user.type(screen.getByTestId("markdown-editor"), "Remind me");
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText("Human reminder")).toBeInTheDocument();
+    expect(screen.queryByText("Queued")).not.toBeInTheDocument();
   });
 
   it("starts with a Calendar-provided schedule", () => {
@@ -640,6 +1176,7 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
 
     expect(await screen.findByText("Queued")).toBeInTheDocument();
@@ -841,81 +1378,6 @@ describe("TaskForm", () => {
     expect(onSuccess).toHaveBeenCalledWith("task-1");
   });
 
-  it("disables Mark as Ready in edit mode when the task has a schedule", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TaskForm
-        mode="edit"
-        showCancel={false}
-        labels={baseLabels}
-        coworkerOptions={coworkerOptions}
-        taskId="task-1"
-        initialValues={{
-          name: "Task name",
-          description: "Initial description",
-          assigneeId: "coworker-1",
-          status: TaskStatus.DRAFT,
-          metadata: JSON.stringify({
-            version: 1,
-            mode: "once",
-            scheduledAt: "2026-06-26T09:00:00.000Z",
-            runAt: "2026-06-26T09:00:00.000Z",
-          }),
-        }}
-        onSuccess={vi.fn()}
-      />,
-    );
-
-    const markAsReadyButton = screen.getByRole("button", {
-      name: "Mark as Ready",
-    });
-    expect(markAsReadyButton).toBeDisabled();
-
-    await user.click(markAsReadyButton);
-    expect(
-      screen.getByRole("button", { name: "Mark as Ready" }),
-    ).toBeInTheDocument();
-  });
-
-  it("disables Mark as Ready after adding a schedule while editing", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TaskForm
-        mode="edit"
-        showCancel={false}
-        labels={baseLabels}
-        coworkerOptions={coworkerOptions}
-        taskId="task-1"
-        initialValues={{
-          name: "Task name",
-          description: "Initial description",
-          assigneeId: "coworker-1",
-          status: TaskStatus.DRAFT,
-        }}
-        onSuccess={vi.fn()}
-      />,
-    );
-
-    expect(
-      screen.getByRole("button", { name: "Mark as Ready" }),
-    ).not.toBeDisabled();
-
-    await user.click(screen.getByRole("button", { name: "Set schedule" }));
-    await user.click(screen.getByRole("button", { name: "save" }));
-
-    const markAsReadyButton = screen.getByRole("button", {
-      name: "Mark as Ready",
-    });
-    expect(markAsReadyButton).toBeDisabled();
-
-    await user.click(markAsReadyButton);
-    expect(
-      screen.getByRole("button", { name: "Mark as Ready" }),
-    ).toBeInTheDocument();
-  });
-
   it("locks non-agent assignee options on queued tasks (SOK-868)", async () => {
     const user = userEvent.setup();
     render(
@@ -959,7 +1421,51 @@ describe("TaskForm", () => {
     );
   });
 
-  it("toggles status in edit modal and keeps the toggled status on save", async () => {
+  it("hides internal statuses from the edit status dropdown", async () => {
+    const user = userEvent.setup();
+    const hiddenManualStatusLabels: Partial<Record<TaskStatus, string>> = {
+      [TaskStatus.GRANT_PENDING]: "Grant pending",
+      [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
+      [TaskStatus.OUT_OF_CREDITS]: "Paused: credits needed",
+      [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
+      [TaskStatus.FAILED]: "Failed",
+    };
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={{
+          ...baseLabels,
+          statusLabels: {
+            ...baseLabels.statusLabels,
+            ...hiddenManualStatusLabels,
+          },
+        }}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+
+    for (const status of TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT) {
+      const label = hiddenManualStatusLabels[status];
+      if (!label) continue;
+      expect(
+        screen.queryByRole("option", { name: label }),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it("saves the status selected in the edit dropdown", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
     updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
@@ -986,11 +1492,7 @@ describe("TaskForm", () => {
       screen.getByRole("combobox", { name: "Coworker" }),
     ).toHaveTextContent("Soko");
 
-    await user.click(screen.getByRole("button", { name: "Mark as Ready" }));
-    expect(
-      screen.getByRole("button", { name: "Revert to Draft" }),
-    ).toBeInTheDocument();
-
+    await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(updateTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({

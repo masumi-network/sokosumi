@@ -1,3 +1,4 @@
+import CoreAPI
 import Foundation
 import SokosumiAuth
 import SokosumiChat
@@ -5,6 +6,24 @@ import SokosumiChat
 public extension WorkspaceState {
   func canAttachFiles(roomId: String) -> Bool {
     transcriptRoomId == roomId && !transcriptLoading && directStream.roomId != roomId
+  }
+
+  func driveItems(folder: String, query: String, roomId: String, auth: AuthState) async throws -> [Components.Schemas.DriveItem] {
+    guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
+      throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
+    }
+    let generation = timeline.generation
+    do {
+      let items = try await ChatService().driveItems(client: client, organizationId: selection?.workspace.organizationId, folder: folder, query: query)
+      try Task.checkCancellation()
+      guard generation == timeline.generation else { throw CancellationError() }
+      return items
+    } catch let error as ChatServiceError {
+      if !Task.isCancelled, generation == timeline.generation {
+        _ = signOutIfUnauthorized(error, auth: auth)
+      }
+      throw error
+    }
   }
 
   func uploadAttachment(_ file: URL, roomId: String, auth: AuthState) async throws -> ComposeAttachment {

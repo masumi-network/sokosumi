@@ -262,6 +262,20 @@ function render(messages, messageKey, params) {
   return interpolate(messages[messageKey], params);
 }
 
+/** Mirrors CHAT_MENTION_ALL_LABEL_MESSAGE_KEY in `@sokosumi/utils`. */
+const MENTION_ALL_LABEL_KEY = "Notifications.Chat.mentionAll";
+
+/**
+ * Mirrors `localizeChatMentionAllPreview` in `@sokosumi/utils`: the stored
+ * preview keeps the neutral `@all`, and the reader's own word goes in here.
+ */
+function localizeMentionAll(preview, label) {
+  if (typeof label !== "string" || !label) {
+    return preview;
+  }
+  return preview.replace(/(^|\s)@all(?=$|[\s.,!?;\u2026])/g, `$1@${label}`);
+}
+
 /**
  * The banner title for a chat message, or undefined when the key is not one.
  *
@@ -334,7 +348,13 @@ async function buildBanner(pushData) {
 
   const title = chatTitle(messages, pushData.messageKey, params);
   if (title !== undefined) {
-    return { title, body: typeof preview === "string" ? preview : "" };
+    return {
+      title,
+      body:
+        typeof preview === "string"
+          ? localizeMentionAll(preview, messages[MENTION_ALL_LABEL_KEY])
+          : "",
+    };
   }
 
   return {
