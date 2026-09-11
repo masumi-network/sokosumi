@@ -6303,7 +6303,8 @@
         "roomMessageGroup": "{authorName} wrote in group {roomName}",
         "roomMessagesGroup": "{count} messages in group {roomName}",
         "roomMessageTitle": "{authorName} in channel {roomName}",
-        "roomMessageGroupTitle": "{authorName} in group {roomName}"
+        "roomMessageGroupTitle": "{authorName} in group {roomName}",
+        "mentionAll": "Everyone"
       }
     }
   },
