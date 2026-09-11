@@ -17,14 +17,16 @@ const JOB_STATUS_MARKERS: Record<SokosumiJobStatus, StatusMarkerSpec> = {
   // Placed by what the reader must do and whether anything is wrong, the same
   // two questions the task badge answers.
 
-  // Hiring. The chain is settling and then the coworker holds the job. The
-  // reader is not blocked in either, so neither is amber. Both statuses render
-  // the same label today, so they must render the same colour.
+  // Two steps of getting the job underway: the payment settles, then the
+  // coworker takes it on. The reader is not blocked in either, so neither is
+  // amber and both sit in the same role. They take different glyphs because
+  // colour carries urgency and the glyph carries identity, and these are two
+  // different moments.
   [SokosumiJobStatus.PAYMENT_PENDING]: {
     role: "queued",
     icon: MARKER_ICONS.hiring,
   },
-  [SokosumiJobStatus.STARTED]: { role: "queued", icon: MARKER_ICONS.hiring },
+  [SokosumiJobStatus.STARTED]: { role: "queued", icon: MARKER_ICONS.ready },
 
   // The only state where work is happening.
   [SokosumiJobStatus.PROCESSING]: {
@@ -99,8 +101,5 @@ export function getJobStatusMarker(
 
 /** Kept for callers that paint a bare dot outside a badge. */
 export function getJobStatusDotColorClass(status: SokosumiJobStatus): string {
-  return STATUS_ROLE_STYLES[getJobStatusMarker(status).role].marker.replace(
-    "text-",
-    "bg-",
-  );
+  return STATUS_ROLE_STYLES[getJobStatusMarker(status).role].dot;
 }
