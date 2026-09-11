@@ -5,6 +5,8 @@ import {
   isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 
+import { isPushWorkPending, notePushTeardown } from "./push-work-queue.client";
+
 /**
  * The credential `ably@2.28.0` stores for a registered push device
  * (`build/push.js:265`).
@@ -24,14 +26,14 @@ const ABLY_DEVICE_IDENTITY_TOKEN_KEY = "ably.push.deviceIdentityToken";
  * Whether Ably still holds a registration for this browser.
  *
  * Read separately from the browser subscription, because the two come apart.
- * `activatePush` already heals the case: a subscription can die on its own
+ * `healPushSubscription` repairs that case: a subscription can die on its own
  * (permission revoked, storage cleared, a half-failed disable) while Ably's
  * registration stays. That device is still subscribed to the previous reader's
  * notifications channel, and the next reader's activation reuses the same id
  * and adds their channel beside it, so one browser ends up delivering both.
  * Releasing on the registration too is what stops that.
  */
-function hasAblyPushRegistration(): boolean {
+export function hasAblyPushRegistration(): boolean {
   try {
     return localStorage.getItem(ABLY_DEVICE_IDENTITY_TOKEN_KEY) !== null;
   } catch {
@@ -41,10 +43,94 @@ function hasAblyPushRegistration(): boolean {
 }
 
 /**
+ * Forget that this browser was ever registered.
+ *
+ * The token is what `healPushSubscription` reads to decide that a browser
+ * with no subscription once had one, so it must not outlive a decision to
+ * turn push off. `client.push.deactivate()` clears it, but only when it
+ * lands: a failed call, or one a cap cuts short, leaves the token behind and
+ * the browser looks like one that lost its subscription on its own. Removing
+ * it here cannot fail on the network. What is left behind is a device record
+ * on Ably, which its own delivery prunes once the endpoint stops answering.
+ */
+export function forgetAblyPushRegistration(): void {
+  try {
+    localStorage.removeItem(ABLY_DEVICE_IDENTITY_TOKEN_KEY);
+    localStorage.removeItem(PUSH_TEARDOWN_STARTED_KEY);
+  } catch {
+    // Writing storage throws outright where the browser blocks site data.
+    // Such a browser carries no token to begin with.
+  }
+}
+
+/**
+ * That a reader asked for push off and nobody saw it through.
+ *
+ * Written before the teardown runs and removed when the registration is
+ * forgotten, so it outlives only a teardown the page did not finish: a reload
+ * or a closed tab in the middle of one. The token is still in storage then,
+ * beside a browser with no subscription, which is exactly the shape the repair
+ * on open looks for. Without this it would read an interrupted disable as a
+ * subscription that died by itself and turn push back on.
+ *
+ * Cleared by a deliberate activation as well, because that is the reader
+ * saying the opposite. Nothing else clears it: an interrupted disable should
+ * go on reading as off. Storage is shared by every tab of this origin, while
+ * the ordering that protects a teardown is per tab, so an activation in one
+ * tab answers a note another tab wrote. Usually that is the reader asking for
+ * push on, which is the answer either way. The repair asks for it too, and
+ * nobody pressed anything for that one.
+ */
+const PUSH_TEARDOWN_STARTED_KEY = "sokosumi.push.teardownStarted";
+
+/**
+ * Say that a teardown has begun, before anything that can be interrupted.
+ *
+ * A write that does not land takes the token with it. A browser that blocks
+ * site data carries no token either, so there is nothing to do there; a
+ * browser whose storage is full does, and reads it back perfectly well. The
+ * note is what keeps that token from reading as a repair, so a token without
+ * one is worse than no token at all: the teardown is trying to take it away
+ * in any case.
+ */
+export function notePushTeardownStarted(): void {
+  try {
+    localStorage.setItem(PUSH_TEARDOWN_STARTED_KEY, "1");
+  } catch {
+    forgetAblyPushRegistration();
+  }
+}
+
+/** Say that the reader wants push on here, whatever they asked for before. */
+export function forgetUnfinishedPushTeardown(): void {
+  try {
+    localStorage.removeItem(PUSH_TEARDOWN_STARTED_KEY);
+  } catch {
+    // As above.
+  }
+}
+
+/** Whether a teardown was asked for and never seen through. */
+export function hasUnfinishedPushTeardown(): boolean {
+  try {
+    return localStorage.getItem(PUSH_TEARDOWN_STARTED_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * How long a release is waited on before the caller goes anyway.
  *
  * The browser unsubscribe leads and does not wait on the network, so this
- * only ever sheds the Ably half. `PushSubscription.unsubscribe()` deactivates
+ * sheds the Ably half whenever the release has got that far. On the sign-out
+ * it can shed the whole release, because that one waits its turn behind
+ * whatever is already changing this browser's push state. Usually that run
+ * lands later in the same page. A run that never settles holds the queue and
+ * it never lands at all, which is what a `pushManager.subscribe()` against an
+ * unreachable push service does (`push-work-queue.client.ts`).
+ *
+ * `PushSubscription.unsubscribe()` deactivates
  * the subscription and resolves; its request to the push service runs "in
  * parallel" and the browser retries that on its own. The browser "MUST NOT
  * deliver any further push messages" from the moment it deactivates, whether
@@ -70,8 +156,18 @@ const RELEASE_TIMEOUT_MS = 5_000;
  *
  * Shared by both paths, because both have a step that leaves the machine: the
  * sign-out has Ably's two REST calls, and the deletion has the chunk fetch its
- * dynamic import needs. A caller held on either has already done the part that
- * stops delivery.
+ * dynamic import needs. The sign-out can also be waiting its turn behind a
+ * run that is already changing this browser's push state, and a caller shed
+ * there has not stopped delivery yet.
+ *
+ * What covers the sign-out during the wait is not this function, and it is
+ * not the token either: forgetting a token unsubscribes nothing, and both
+ * paths forget theirs on a line a throw can skip. It is the note. That is
+ * written before the teardown is queued, so a reader who closes the tab two
+ * seconds into the wait leaves a token behind with a note beside it, and the
+ * repair on the next open reads a teardown nobody finished rather than a
+ * browser to bring back. An activation the teardown overtook undoes its own
+ * work as well, on the way out.
  *
  * The release must carry its own rejection handler. The cap can let the caller
  * go first, and a rejection that lands after that has no one left to catch it.
@@ -117,7 +213,15 @@ export async function releasePushDeviceOnSignOut(
       return;
     }
 
-    if (!(await hasWebPushSubscription()) && !hasAblyPushRegistration()) {
+    // Asked before the reads below, because it says whether they can be
+    // believed. An activation clears both the subscription and the token
+    // halfway through, so a reader signing out in that window reads a browser
+    // that never had push and leaves the run to resubscribe it behind them.
+    if (
+      !isPushWorkPending() &&
+      !(await hasWebPushSubscription()) &&
+      !hasAblyPushRegistration()
+    ) {
       return;
     }
 
@@ -131,6 +235,11 @@ export async function releasePushDeviceOnSignOut(
         console.error("Failed to release the push device on sign out", error);
       }),
     );
+
+    // Whether the release landed or the cap cut it, this browser is not one
+    // the reader wants push on. Say so locally, so nothing later reads the
+    // token as a registration that died by itself.
+    forgetAblyPushRegistration();
   } catch (error) {
     // Signing out must not fail because Ably did. The registration is then
     // still live, and the reader can clear it from the browser's own site
@@ -165,19 +274,44 @@ export async function releasePushDeviceOnSignOut(
  * left waiting on it would sit on the account page of an account that no
  * longer exists, with the button still disabled, until they reloaded.
  *
- * What stays is Ably's own identity token in this browser's storage. The next
- * reader heals it either way: a sign-out reads it and releases the device with
- * their own session, and an activation that finds no subscription deactivates
- * and goes round again (`activatePush`).
+ * Ably's own identity token is dropped with it. Keeping it was safe while the
+ * only thing that read it was a reader doing something deliberate. The repair
+ * on open reads it too, and reads a token beside a browser with no
+ * subscription as a subscription that died by itself, so keeping it would
+ * hand this browser back to a deleted account. What stays is the device
+ * record on Ably, which its own delivery prunes.
  */
 export async function dropBrowserPushSubscriptionOnAccountDeletion(): Promise<void> {
   try {
-    // Both reads are local, so a reader who never enabled push pays nothing
-    // and never loads the Ably SDK on their way out.
+    // Said before anything is read, and whatever the reads would have said.
+    // A token beside a browser with no subscription is the one shape
+    // `healPushSubscription` treats as a subscription that died by itself,
+    // and it answers that by subscribing again. That shape is not the case
+    // this skips over, it is the case it has to clear: a browser whose
+    // subscription had already died keeps its token, and the next reader to
+    // sign in here gets push turned on for them over a deleted account's
+    // device. Both calls are local and cannot fail on the network.
+    notePushTeardown();
+    forgetAblyPushRegistration();
+
+    // Both reads are local too, so a reader who never enabled push pays
+    // nothing and never loads the Ably SDK on their way out.
     if (!isPushSupported() || !(await hasWebPushSubscription())) {
       return;
     }
 
+    // Run rather than queued, unlike every other change to this browser's
+    // push state. An activation can be pending here, and waiting its turn
+    // behind one would hand a hung `client.push.activate()` the power to stop
+    // a deletion from unsubscribing at all, for the life of the page, and
+    // signing in again never reloads it.
+    //
+    // What that costs is real rather than narrow. An activation still running
+    // is not stopped by the session ending: it registers on the Ably token the
+    // client already holds, and can put back everything this just took. The
+    // answer to that is in the activation rather than here, which is why the
+    // count above is noted before anything else. It reads that count and
+    // undoes itself when a teardown overtook it.
     await waitForRelease(
       dropSubscription().catch((error) => {
         console.error(
