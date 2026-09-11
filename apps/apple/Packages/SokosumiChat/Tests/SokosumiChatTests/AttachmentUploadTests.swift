@@ -90,7 +90,11 @@ private class AttachmentBlobProtocol: URLProtocol, @unchecked Sendable {
   override func startLoading() {
     guard let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil) else { return }
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-    let body = url.path == "/missing" ? "{}" : "{\"url\":\"https://blob.example/uploaded.txt\"}"
+    let body = switch url.path {
+    case "/missing": "{}"
+    case "/malformed": "not JSON"
+    default: "{\"url\":\"https://blob.example/uploaded.txt\"}"
+    }
     client?.urlProtocol(self, didLoad: Data(body.utf8))
     client?.urlProtocolDidFinishLoading(self)
   }
@@ -113,8 +117,10 @@ private class AttachmentBlobProtocol: URLProtocol, @unchecked Sendable {
   let uploaded = try await AttachmentUpload.put(file: file, filename: "hello.txt", contentType: "text/plain", size: 5, grant: grant, session: session)
   #expect(uploaded.url == "https://blob.example/uploaded.txt")
   #expect(uploaded.fileName == "hello.txt")
-  grant.uploadUrl = "https://blob.example/missing"
-  await #expect(throws: (any Error).self) {
-    try await AttachmentUpload.put(file: file, filename: "hello.txt", contentType: "text/plain", size: 5, grant: grant, session: session)
+  for path in ["missing", "malformed"] {
+    grant.uploadUrl = "https://blob.example/" + path
+    await #expect(throws: AttachmentUpload.Failure.self) {
+      try await AttachmentUpload.put(file: file, filename: "hello.txt", contentType: "text/plain", size: 5, grant: grant, session: session)
+    }
   }
 }

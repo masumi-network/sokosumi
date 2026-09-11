@@ -80,7 +80,7 @@ public enum AttachmentUpload {
     let (data, response) = try await session.upload(for: request, fromFile: file)
     guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else { throw Failure.invalidResponse }
     struct Response: Decodable { let url: String }
-    let result = try JSONDecoder().decode(Response.self, from: data)
+    guard let result = try? JSONDecoder().decode(Response.self, from: data) else { throw Failure.invalidResponse }
     guard let url = URL(string: result.url), url.scheme == "https", url.host != nil else { throw Failure.invalidResponse }
     return ComposeAttachment(url: result.url, fileName: filename, mediaType: contentType)
   }
