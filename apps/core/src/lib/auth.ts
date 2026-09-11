@@ -285,6 +285,9 @@ export const auth = betterAuth({
       maxAge: env.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
     storeSessionInDatabase: true,
+    // Better Auth defaults this to 24 hours, which lets a day-old session
+    // register a passkey and so mint a new permanent login factor.
+    freshAge: TIME.SESSION_FRESH_AGE,
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",

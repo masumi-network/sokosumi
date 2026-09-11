@@ -1,5 +1,6 @@
 "use client";
 
+import type { Account } from "@sokosumi/utils";
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -11,7 +12,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
+import { ReauthDialog } from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { isSessionNotFreshError } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 
 function formatPasskeyDate(date: Date | string, locale: string): string {
@@ -48,7 +50,12 @@ interface PasskeyRecord {
   name?: string | null;
 }
 
-export function PasskeySettings() {
+interface PasskeySettingsProps {
+  /** Linked accounts, so the re-authentication dialog offers the right method. */
+  accounts: Account[];
+}
+
+export function PasskeySettings({ accounts }: PasskeySettingsProps) {
   const t = useTranslations("App.Account.Passkeys");
   const locale = useLocale();
   const router = useRouter();
@@ -62,6 +69,7 @@ export function PasskeySettings() {
     null,
   );
   const [savingPasskeyId, setSavingPasskeyId] = useState<string | null>(null);
+  const [isReauthOpen, setIsReauthOpen] = useState(false);
   const isMutatingPasskeys =
     isAddingPasskey || removingPasskeyId !== null || savingPasskeyId !== null;
 
@@ -153,6 +161,13 @@ export function PasskeySettings() {
       const result = await authClient.passkey.addPasskey();
 
       if (result.error) {
+        // Core gates passkey registration on a fresh session. Ask the person
+        // to authenticate again, then run this handler a second time.
+        if (isSessionNotFreshError(result.error)) {
+          setIsReauthOpen(true);
+          return;
+        }
+
         toast.error(getPasskeyErrorMessage(t("addError"), result.error));
         return;
       }
@@ -408,6 +423,14 @@ export function PasskeySettings() {
           {t("add")}
         </Button>
       </CardFooter>
+      <ReauthDialog
+        accounts={accounts}
+        onOpenChange={setIsReauthOpen}
+        onReauthenticated={() => {
+          void handleAddPasskey();
+        }}
+        open={isReauthOpen}
+      />
     </Card>
   );
 }

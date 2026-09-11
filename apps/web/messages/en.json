@@ -21,6 +21,16 @@
         "flags": "Flags"
       }
     },
+    "ReauthDialog": {
+      "title": "Confirm it is you",
+      "description": "Your session is too old for this change. Sign in again to continue.",
+      "passwordLabel": "Current password",
+      "confirm": "Confirm",
+      "passwordError": "We could not verify that password.",
+      "orSocial": "Or continue with a connected account.",
+      "continueWith": "Continue with {provider}",
+      "socialError": "We could not start that sign-in."
+    },
     "ShareButton": {
       "share": "Share",
       "linkCopied": "Link copied to clipboard",

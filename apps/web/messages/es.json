@@ -21,6 +21,16 @@
         "flags": "Banderas"
       }
     },
+    "ReauthDialog": {
+      "title": "Confirma que eres tú",
+      "description": "Tu sesión es demasiado antigua para este cambio. Inicia sesión de nuevo para continuar.",
+      "passwordLabel": "Contraseña actual",
+      "confirm": "Confirmar",
+      "passwordError": "No hemos podido verificar esa contraseña.",
+      "orSocial": "O continúa con una cuenta conectada.",
+      "continueWith": "Continuar con {provider}",
+      "socialError": "No hemos podido iniciar ese acceso."
+    },
     "ShareButton": {
       "share": "Compartir",
       "linkCopied": "Enlace copiado al portapapeles",

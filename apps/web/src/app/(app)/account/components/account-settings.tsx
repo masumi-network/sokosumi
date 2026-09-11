@@ -80,7 +80,7 @@ export function AccountSettings({
           )}
         </div>
         <div className="md:col-span-2">
-          <PasskeySettings />
+          <PasskeySettings accounts={accounts} />
         </div>
       </div>
 

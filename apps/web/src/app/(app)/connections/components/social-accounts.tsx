@@ -14,7 +14,8 @@ import { AccountProvider } from "@/lib/auth/types";
 import DisconnectModal from "./disconnect-modal";
 
 interface SocialAccountsProps {
-  socialAccounts: Account[];
+  /** Every linked account, including the credential one. */
+  accounts: Account[];
 }
 
 const socialIconMaps: Record<AccountProvider, React.ReactNode> = {
@@ -28,7 +29,10 @@ const supportedSocialProviders = [
   AccountProvider.MICROSOFT,
 ];
 
-export function SocialAccounts({ socialAccounts }: SocialAccountsProps) {
+export function SocialAccounts({ accounts }: SocialAccountsProps) {
+  const socialAccounts = accounts.filter(
+    (account) => account.providerId !== AccountProvider.CREDENTIAL,
+  );
   const t = useTranslations("App.Account.SocialAccounts");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,7 +88,12 @@ export function SocialAccounts({ socialAccounts }: SocialAccountsProps) {
         );
       })}
       {account && (
-        <DisconnectModal account={account} open={open} setOpen={setOpen} />
+        <DisconnectModal
+          account={account}
+          accounts={accounts}
+          open={open}
+          setOpen={setOpen}
+        />
       )}
     </div>
   );

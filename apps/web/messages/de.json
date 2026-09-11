@@ -21,6 +21,16 @@
         "flags": "Flaggen"
       }
     },
+    "ReauthDialog": {
+      "title": "Bestätige, dass du es bist",
+      "description": "Deine Sitzung ist für diese Änderung zu alt. Melde dich erneut an, um fortzufahren.",
+      "passwordLabel": "Aktuelles Passwort",
+      "confirm": "Bestätigen",
+      "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
+      "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
+      "continueWith": "Mit {provider} fortfahren",
+      "socialError": "Wir konnten diese Anmeldung nicht starten."
+    },
     "ShareButton": {
       "share": "Teilen",
       "linkCopied": "Link in Zwischenablage kopiert",
