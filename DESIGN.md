@@ -296,7 +296,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 
 ## Iconography
 
-- **lucide-react** (pinned **1.18.0**) is the icon library (~197 files). `react-icons` appears in
+- **lucide-react** (pin in `apps/web/package.json`) is the icon library (~197 files). `react-icons` appears in
   exactly one constants file for third-party brand glyphs; no heroicons/radix-icons.
 - **Sizing:** **`size-4` is canonical** (auto-applied to unsized SVGs in primitives via
   `[&_svg:not([class*='size-'])]:size-4`); badges force `size-3`; other sizes `size-3.5/5/6/8`.
@@ -342,9 +342,8 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   ", please contact our support" for unknown/on-chain errors.
 - **Success:** `{Noun} {verbed} successfully` ("Seat assigned successfully").
 - **i18n:** next-intl, `useTranslations`/`getTranslations` with **deep dot-namespaced keys**
-  mirroring the route/component tree (11 top-level domains; ~2,580 strings in `en.json`). Place
-  new strings under the matching namespace. **Shipped locales: `en`, `de`, `es`** (default `en`)
-  — extra catalog files on disk are not wired up.
+  mirroring the route/component tree (11 top-level domains). Place
+  new strings under the matching namespace. **Shipped locales: `en`, `de`, `es`** (default `en`).
 
 ## Logo
 

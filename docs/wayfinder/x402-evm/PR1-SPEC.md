@@ -19,9 +19,10 @@ API-only pay. Anyone can **list** x402/Bazaar agents on public
 `GET /v1/agents`. A coworker assigned to a task can **pay** a 402 one of
 them returned, charged to the task's org in credits, receiving a signed
 `X-PAYMENT` header to replay with. No end-user hire flow or job row — the
-coworker calls the agent **outside** Soko. Web `/agents` stays
-Coworkers-only (SOK-805). A temporary gallery preview existed 2026-08-14
-and was disabled; x402 is not advertised there.
+coworker calls the agent **outside** Soko. Web `/agents` later restored
+Agent catalog browse (ADR-0024); app Hire stays off (SOK-805). PR 1 remains
+API-only pay. A temporary gallery preview existed 2026-08-14 and was
+disabled; x402 is not a hire flow there.
 
 Out of scope: masumi-job x402 (PR 2), direct CDP-Bazaar crawling (agents must
 be Masumi-registered), end-user hireability.

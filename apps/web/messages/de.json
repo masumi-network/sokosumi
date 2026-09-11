@@ -5102,7 +5102,6 @@
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Persönlicher Assistent",
-      "humanBadge": "Mensch",
       "openDirectMessage": "Nachricht",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
@@ -5379,6 +5378,10 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
         "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten"
+      },
+      "RoomMentions": {
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "mentionsCapped": "Mehr als {max} Erwähnungen"
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
