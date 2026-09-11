@@ -78,7 +78,7 @@ export const PasswordInput = React.forwardRef<
         aria-pressed={isVisible}
         onPointerDown={(event) => event.preventDefault()}
         onClick={handleToggleVisibility}
-        className="text-muted-foreground hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50"
+        className="text-muted-foreground hover:text-foreground focus-visible:border-ring focus-visible:ring-ring-halo absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50"
       >
         {isVisible ? (
           <EyeOff className="size-4" aria-hidden />

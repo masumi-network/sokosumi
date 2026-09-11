@@ -759,10 +759,10 @@ function ScenarioRow({
                   className={cn(
                     "rounded-md border px-3 py-2 text-xs",
                     latest.judge.verdict === "pass"
-                      ? "border-semantic-success/40"
+                      ? "border-semantic-success-tertiary"
                       : latest.judge.verdict === "weak"
-                        ? "border-semantic-warning/40"
-                        : "border-semantic-destructive/40",
+                        ? "border-semantic-warning-tertiary"
+                        : "border-semantic-destructive-tertiary",
                   )}
                 >
                   <p className="font-medium">
