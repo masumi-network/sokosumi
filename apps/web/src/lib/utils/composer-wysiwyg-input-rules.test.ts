@@ -37,51 +37,48 @@ describe("matchComposerInputRule", () => {
 });
 
 describe("resolveComposerEnterAction", () => {
-  it("submits on plain Enter on desktop and narrow/mobile", () => {
-    expect(
-      resolveComposerEnterAction({
-        shiftKey: false,
-        metaKey: false,
-        ctrlKey: false,
-        isSuggestionKeyboardActive: false,
-      }),
-    ).toBe("submit");
+  const desktop = {
+    shiftKey: false,
+    metaKey: false,
+    ctrlKey: false,
+    isSuggestionKeyboardActive: false,
+    isTouchDevice: false,
+  };
+
+  it("submits on plain Enter on desktop", () => {
+    expect(resolveComposerEnterAction(desktop)).toBe("submit");
   });
 
   it("inserts newline on Shift/Cmd/Ctrl+Enter", () => {
+    expect(resolveComposerEnterAction({ ...desktop, shiftKey: true })).toBe(
+      "newline",
+    );
+    expect(resolveComposerEnterAction({ ...desktop, metaKey: true })).toBe(
+      "newline",
+    );
+    expect(resolveComposerEnterAction({ ...desktop, ctrlKey: true })).toBe(
+      "newline",
+    );
+  });
+
+  it("inserts newline on plain Enter on touch devices", () => {
     expect(
-      resolveComposerEnterAction({
-        shiftKey: true,
-        metaKey: false,
-        ctrlKey: false,
-        isSuggestionKeyboardActive: false,
-      }),
-    ).toBe("newline");
-    expect(
-      resolveComposerEnterAction({
-        shiftKey: false,
-        metaKey: true,
-        ctrlKey: false,
-        isSuggestionKeyboardActive: false,
-      }),
-    ).toBe("newline");
-    expect(
-      resolveComposerEnterAction({
-        shiftKey: false,
-        metaKey: false,
-        ctrlKey: true,
-        isSuggestionKeyboardActive: false,
-      }),
+      resolveComposerEnterAction({ ...desktop, isTouchDevice: true }),
     ).toBe("newline");
   });
 
   it("ignores Enter while suggestion keyboard is active", () => {
     expect(
       resolveComposerEnterAction({
-        shiftKey: false,
-        metaKey: false,
-        ctrlKey: false,
+        ...desktop,
         isSuggestionKeyboardActive: true,
+      }),
+    ).toBe("ignore");
+    expect(
+      resolveComposerEnterAction({
+        ...desktop,
+        isSuggestionKeyboardActive: true,
+        isTouchDevice: true,
       }),
     ).toBe("ignore");
   });

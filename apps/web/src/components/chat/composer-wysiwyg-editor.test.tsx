@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef, useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ComposerWysiwygEditor,
@@ -484,13 +484,92 @@ describe("ComposerWysiwygEditor", () => {
     render(<Harness />);
 
     const editor = screen.getByRole("textbox");
-    expect(editor).toHaveAttribute("enterkeyhint", "send");
+    expect(editor).not.toHaveAttribute("enterkeyhint");
 
     fireEvent.keyDown(editor, { key: "Enter" });
     expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
 
     fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
     expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+  });
+
+  describe("on touch devices (hover: none)", () => {
+    beforeEach(() => {
+      vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("inserts a newline on plain Enter instead of submitting", () => {
+      const onSubmitShortcut = vi.fn();
+
+      function Harness() {
+        const [value, setValue] = useState("");
+        return (
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+            onSubmitShortcut={onSubmitShortcut}
+          />
+        );
+      }
+
+      render(<Harness />);
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      editor.textContent = "first line";
+      const text = editor.firstChild;
+      expect(text).toBeTruthy();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.setStart(text!, "first line".length);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+
+      fireEvent.keyDown(editor, { key: "Enter" });
+
+      expect(onSubmitShortcut).not.toHaveBeenCalled();
+      expect(editor.querySelector("br")).not.toBeNull();
+    });
+
+    it("still commits inline edits on plain Enter", () => {
+      const onSubmitShortcut = vi.fn();
+
+      function Harness() {
+        const [value, setValue] = useState("");
+        return (
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+            modifierEnterSubmits
+            onSubmitShortcut={onSubmitShortcut}
+          />
+        );
+      }
+
+      render(<Harness />);
+
+      const editor = screen.getByRole("textbox");
+      expect(editor).toHaveAttribute("enterkeyhint", "send");
+      fireEvent.keyDown(editor, { key: "Enter" });
+
+      expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("exits a quote on Shift+Enter from an empty last line", () => {
@@ -578,7 +657,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(insideQuote).toBe(true);
   });
 
-  it("submits on plain Enter when the viewport is narrow", () => {
+  it("submits on plain Enter in a narrow window that can still hover", () => {
     const onSubmitShortcut = vi.fn();
     vi.stubGlobal("innerWidth", 390);
 
