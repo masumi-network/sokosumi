@@ -161,16 +161,19 @@ export interface RoomMentionParticipant {
 
 /**
  * Synthetic catalog row for the @all picker entry.
- * `label` is the localized display/search value (e.g. "Everyone"); key/slug stay `all`.
+ * `value` is the chip text so the composer shows `@all`, matching the sent
+ * message; `label` (e.g. "Everyone") stays searchable and is the row title.
  */
 export function buildRoomAllMentionRecord(label: string): {
   value: string;
   slug: string;
+  searchText: string;
   data: RoomMentionParticipant;
 } {
   return {
-    value: label,
+    value: ROOM_MENTION_ALL_SLUG,
     slug: ROOM_MENTION_ALL_SLUG,
+    searchText: label,
     data: {
       kind: "all",
       id: ROOM_MENTION_ALL_ID,

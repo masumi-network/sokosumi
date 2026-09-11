@@ -367,7 +367,8 @@ describe("mergeMembershipVisibleRooms", () => {
 describe("buildRoomAllMentionRecord", () => {
   it("builds a synthetic catalog entry keyed as all with localized label", () => {
     const record = buildRoomAllMentionRecord("Everyone");
-    expect(record.value).toBe("Everyone");
+    expect(record.value).toBe(ROOM_MENTION_ALL_SLUG);
+    expect(record.searchText).toBe("Everyone");
     expect(record.slug).toBe(ROOM_MENTION_ALL_SLUG);
     expect(record.data).toEqual({
       kind: "all",
