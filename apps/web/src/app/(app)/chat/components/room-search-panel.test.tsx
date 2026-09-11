@@ -74,13 +74,8 @@ function renderPanel(onJumpToMessage = vi.fn()) {
   return onJumpToMessage;
 }
 
-/** Opens the results surface the way the current viewport exposes it. */
 function openSearch() {
-  if (platform.isMobile) {
-    fireEvent.click(screen.getByTestId("room-search-trigger"));
-    return;
-  }
-  fireEvent.click(screen.getByTestId("room-search-input"));
+  fireEvent.click(screen.getByTestId("room-search-trigger"));
 }
 
 function typeQuery(value: string) {
@@ -97,15 +92,17 @@ describe("RoomSearchPanel", () => {
     getChatRoomMessagesMock.mockResolvedValue({ data: [message()] });
   });
 
-  it("shows the search field in the header before the results open", () => {
+  it("shows only the icon until it is opened", () => {
     renderPanel();
 
-    expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
+    expect(screen.getByTestId("room-search-trigger")).toBeInTheDocument();
+    expect(screen.queryByTestId("room-search-input")).not.toBeInTheDocument();
     expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
 
     openSearch();
 
     expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
     expect(screen.getByText(labels.idle)).toBeInTheDocument();
   });
 
@@ -186,8 +183,7 @@ describe("RoomSearchPanel", () => {
         />,
       );
 
-      expect(screen.getByText("⌘F")).toBeInTheDocument();
-      expect(screen.getByTestId("room-search-input")).toHaveAttribute(
+      expect(screen.getByTestId("room-search-trigger")).toHaveAttribute(
         "aria-keyshortcuts",
         "Meta+F",
       );
@@ -196,8 +192,7 @@ describe("RoomSearchPanel", () => {
       platform.isApple = false;
       renderPanel();
 
-      expect(screen.getByText("Ctrl+F")).toBeInTheDocument();
-      expect(screen.getByTestId("room-search-input")).toHaveAttribute(
+      expect(screen.getByTestId("room-search-trigger")).toHaveAttribute(
         "aria-keyshortcuts",
         "Control+F",
       );
@@ -275,7 +270,7 @@ describe("RoomSearchPanel", () => {
       expect(onJumpToMessage).toHaveBeenCalledWith(older);
     });
 
-    it("closes on Escape and keeps focus on the field", async () => {
+    it("closes on Escape and returns focus to the trigger", async () => {
       renderPanel();
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
@@ -288,10 +283,12 @@ describe("RoomSearchPanel", () => {
       });
 
       expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
-      expect(screen.getByTestId("room-search-input")).toHaveFocus();
+      await waitFor(() => {
+        expect(screen.getByTestId("room-search-trigger")).toHaveFocus();
+      });
     });
 
-    it("reopens from the shortcut after Escape, with the field still focused", async () => {
+    it("reopens from the shortcut after Escape", async () => {
       renderPanel();
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
@@ -303,7 +300,6 @@ describe("RoomSearchPanel", () => {
         key: "Escape",
       });
       expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
-      expect(screen.getByTestId("room-search-input")).toHaveFocus();
 
       const reopen = new KeyboardEvent("keydown", {
         key: "f",
@@ -342,66 +338,29 @@ describe("RoomSearchPanel", () => {
           screen.queryByTestId("room-search-panel"),
         ).not.toBeInTheDocument();
       });
+
+      openSearch();
+
       expect(screen.getByTestId("room-search-input")).toHaveValue("");
     });
 
-    it("keeps the query but drops the hits when a result closes it", async () => {
+    it("keeps the query but not the hits when a result closes it", async () => {
       renderPanel();
 
       openSearch();
       typeQuery("budget");
       fireEvent.click(await screen.findByTestId("room-search-result"));
-
       await waitFor(() => {
         expect(
           screen.queryByTestId("room-search-panel"),
         ).not.toBeInTheDocument();
       });
+
+      openSearch();
+
       expect(screen.getByTestId("room-search-input")).toHaveValue("budget");
-      expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
-    });
-
-    it("does not paint the previous hits when it reopens", async () => {
-      renderPanel();
-
-      openSearch();
-      typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
-      await waitFor(() => {
-        expect(
-          screen.queryByTestId("room-search-panel"),
-        ).not.toBeInTheDocument();
-      });
-
-      openSearch();
-
-      // Assert the surface is actually back, or the "no results" check below
-      // would pass simply because the whole subtree is unmounted.
-      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
       expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
       expect(screen.queryByTestId("room-search-empty")).not.toBeInTheDocument();
-    });
-
-    it("clears the query with Escape after the surface has closed", async () => {
-      renderPanel();
-
-      openSearch();
-      typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
-      await waitFor(() => {
-        expect(
-          screen.queryByTestId("room-search-panel"),
-        ).not.toBeInTheDocument();
-      });
-      expect(screen.getByTestId("room-search-input")).toHaveValue("budget");
-
-      // The dismissable layer is gone with the surface, so the field has to
-      // answer Escape itself.
-      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
-        key: "Escape",
-      });
-
-      expect(screen.getByTestId("room-search-input")).toHaveValue("");
     });
 
     it("leaves focus where the user clicked after an outside dismissal", async () => {
@@ -425,41 +384,7 @@ describe("RoomSearchPanel", () => {
       elsewhere.remove();
     });
 
-    it("does not jump from Enter while the surface is closed", async () => {
-      const onJumpToMessage = renderPanel();
-
-      openSearch();
-      typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
-      onJumpToMessage.mockClear();
-
-      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
-        key: "Enter",
-      });
-
-      expect(onJumpToMessage).not.toHaveBeenCalled();
-    });
-
-    it("reopens with ArrowDown after a close", async () => {
-      renderPanel();
-
-      openSearch();
-      typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
-      await waitFor(() => {
-        expect(
-          screen.queryByTestId("room-search-panel"),
-        ).not.toBeInTheDocument();
-      });
-
-      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
-        key: "ArrowDown",
-      });
-
-      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
-    });
-
-    it("returns focus to the field after a hit is selected", async () => {
+    it("returns focus to the trigger after a hit is selected", async () => {
       getChatRoomMessagesMock.mockResolvedValue({ data: [message()] });
       renderPanel();
 
@@ -468,7 +393,7 @@ describe("RoomSearchPanel", () => {
       fireEvent.click(await screen.findByTestId("room-search-result"));
 
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-input")).toHaveFocus();
+        expect(screen.getByTestId("room-search-trigger")).toHaveFocus();
       });
     });
   });
@@ -478,12 +403,12 @@ describe("RoomSearchPanel", () => {
       platform.isMobile = true;
     });
 
-    it("collapses to the icon trigger and hides the shortcut", () => {
+    it("does not advertise the shortcut", () => {
       renderPanel();
 
-      expect(screen.getByTestId("room-search-trigger")).toBeInTheDocument();
-      expect(screen.queryByTestId("room-search-input")).not.toBeInTheDocument();
-      expect(screen.queryByText("⌘F")).not.toBeInTheDocument();
+      expect(screen.getByTestId("room-search-trigger")).not.toHaveAttribute(
+        "aria-keyshortcuts",
+      );
     });
 
     it("does not bind the host shortcut", () => {
