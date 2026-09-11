@@ -17,7 +17,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       coworkerBadge: "AI coworker",
-      humanBadge: "Human",
       openDirectMessage: "Message",
       "Presence.online": "Online",
       "Presence.afk": "Away",
@@ -182,9 +181,9 @@ describe("DirectRoomAvatarStack", () => {
     );
 
     // Soko bots are AI and report always-online (ADR-0003), same as coworkers.
-    // Miss that arm and the mark says "Offline" while the hover card on the
-    // same avatar says "Online". The mark is aria-hidden, so its tooltip is
-    // where that state is observable.
+    // Miss that arm and this mark says "Offline" while the mark on the same
+    // avatar's hover card says "Online". The mark is aria-hidden, so its
+    // tooltip is where that state is observable.
     const trigger = screen.getByTestId("dm-sidebar-avatar-bot-1");
     expect(trigger.querySelector("[title]")?.getAttribute("title")).toBe(
       "Online",
@@ -241,7 +240,6 @@ describe("DirectRoomAvatarStack", () => {
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Patrick Tobler");
-    expect(card).toHaveTextContent("Human");
     expect(card).toHaveTextContent("patrick@example.com");
   });
 
@@ -294,7 +292,7 @@ describe("DirectRoomAvatarStack", () => {
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Matt");
-    expect(card).toHaveTextContent("AI coworker");
+    expect(within(card).getByLabelText("AI coworker")).toBeInTheDocument();
     expect(card).toHaveTextContent("Matt caption");
     expect(
       screen.getByRole("button", { name: /Message/i }),

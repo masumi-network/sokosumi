@@ -25,7 +25,7 @@ export interface RoomNotificationDeepLinkParams {
   pathname: string;
   searchParams: ReadonlyURLSearchParams;
   replace: (href: string, options: { scroll: false }) => void;
-  /** True when the message is already rendered, which saves the lookup. */
+  /** True when the message is already in the room transcript. Saves the lookup. */
   highlight: (messageId: string) => boolean;
   /** Still the room this jump was started for. */
   isStillSelectedRoom: (roomId: string) => boolean;

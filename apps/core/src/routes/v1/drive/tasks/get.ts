@@ -238,7 +238,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       baseTaskWhere.status = { not: TaskStatus.DRAFT };
     }
 
-    // Apply coworker access filter if needed
     let coworkerAccess:
       | {
           coworkerId: string;
@@ -479,7 +478,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 
-    // Determine level
     if (taskId) {
       await requireTaskReadForRouteVars(c.var, taskId);
 
@@ -661,7 +659,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 
-    // Level 1: Project rows + no-project row, sorted by latest file updatedAt desc
     // Key project rows by tasks in the Drive workspace, not by Project.workspaceId
     // (transferred tasks may have Task.workspaceId !== Project.workspaceId)
 
@@ -677,7 +674,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       .map((group) => group.projectId)
       .filter((id): id is string => id !== null);
 
-    // Fetch all projects by id + no-project count
     const MAX_PROJECTS_FOR_SORT = 10000;
     const [allProjects, noProjectTasksCount] = await Promise.all([
       projectIds.length > 0
@@ -708,7 +704,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     ]);
 
-    // Build map of found projects
     const projectMap = new Map(allProjects.map((p) => [p.id, p]));
 
     // Emit project rows for all projectIds, using fallback for missing projects
@@ -721,7 +716,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     });
 
-    // Build combined list: projects + no-project row
     interface SortableItem {
       type: "project" | "no-project";
       id: string;
@@ -731,7 +725,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const sortableItems: SortableItem[] = projectsToEmit.map((project) => {
-      // Find latest file time across all tasks in project
       let latestTime = 0;
       for (const task of project.tasks) {
         const fileTime = task.files[0]?.updatedAt.getTime() ?? 0;
@@ -752,9 +745,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     });
 
-    // Add no-project row if it has tasks with files
     if (noProjectTasksCount > 0) {
-      // Find latest file time for no-project tasks
       const latestNoProjectFile = await prisma.taskFile.findFirst({
         where: {
           task: {
@@ -807,14 +798,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return a.id.localeCompare(b.id) * dir;
     });
 
-    // Apply cursor pagination on sorted combined list
     let startIndex = 0;
     if (cursor) {
       const cursorIndex = sortableItems.findIndex((item) => item.id === cursor);
       if (cursorIndex < 0) {
         throw badRequest("Invalid pagination cursor");
       }
-      startIndex = cursorIndex + 1; // Skip cursor item
+      startIndex = cursorIndex + 1;
     }
 
     const pagedItems = sortableItems.slice(startIndex, startIndex + take);

@@ -1,2 +1,1 @@
-export * from "./job-details";
-export * from "./job-status-badge";
+export { JobDetails } from "./job-details";
