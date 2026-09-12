@@ -1,12 +1,12 @@
 import * as z from "zod";
 
-export const categoryGradientStopSchema = z.object({
+const categoryGradientStopSchema = z.object({
   color: z.string(),
   offset: z.number().min(0).max(1),
   opacity: z.number().min(0).max(1).optional(),
 });
 
-export const categoryGradientSchema = z.object({
+const categoryGradientSchema = z.object({
   type: z.string(),
   angle: z.number().optional(),
   shape: z.string().optional(),
@@ -20,7 +20,7 @@ export const categoryGradientSchema = z.object({
   stops: z.array(categoryGradientStopSchema).min(1),
 });
 
-export const categoryStyleThemeSchema = z.object({
+const categoryStyleThemeSchema = z.object({
   color: z.string().optional(),
   border: z
     .object({
