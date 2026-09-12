@@ -2,7 +2,6 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { listRoomMessagesAction } from "@/app/chat/actions";
-import { highlightThreadMessage } from "@/app/chat/utils/room-message-highlight";
 import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
@@ -13,13 +12,11 @@ vi.mock("@/app/chat/actions", () => ({
   listRoomMessagesAction: vi.fn(),
   listThreadMessagesAction: vi.fn(),
 }));
-vi.mock("@/app/chat/utils/room-message-highlight", () => ({
-  highlightThreadMessage: vi.fn(() => false),
-}));
 
-// The transcript viewport answers room landings; RoomsClient hands the hook
-// that answer, so the test owns it directly.
+// The transcript and thread viewports answer landings; RoomsClient hands
+// those answers to the hook, so the test owns them directly.
 const landOnRoomMessage = vi.fn((_messageId: string) => false);
+const landOnThreadMessage = vi.fn((_messageId: string) => false);
 
 type Params = Parameters<typeof useRoomMessageJumps>[0];
 
@@ -30,6 +27,7 @@ function params(): Params {
     threadParentMessage: null,
     isStillSelectedRoom: vi.fn(() => true),
     landOnRoomMessage,
+    landOnThreadMessage,
     suppressStickToBottom: vi.fn(),
     releaseStickToBottomSuppress: vi.fn(),
     setSearchHoldOffBottom: vi.fn(),
@@ -65,8 +63,8 @@ function message(): ChatRoomMessage {
 describe("useRoomMessageJumps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(highlightThreadMessage).mockReturnValue(false);
     landOnRoomMessage.mockReturnValue(false);
+    landOnThreadMessage.mockReturnValue(false);
   });
 
   it("discards an invalidated room window and releases its hold", async () => {
@@ -92,7 +90,7 @@ describe("useRoomMessageJumps", () => {
     // an open thread renders its parent too, and answering from there would
     // end the jump with the transcript untouched.
     expect(landOnRoomMessage).toHaveBeenCalledTimes(1);
-    expect(highlightThreadMessage).not.toHaveBeenCalled();
+    expect(landOnThreadMessage).not.toHaveBeenCalled();
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
     expect(options.setSearchHoldOffBottom).not.toHaveBeenCalled();
   });
@@ -146,13 +144,13 @@ describe("useRoomMessageJumps", () => {
     const reply = { ...message(), id: "reply-1", parentMessageId: parent.id };
     const options = params();
     options.topLevelRoomMessages = [parent];
-    vi.mocked(highlightThreadMessage).mockReturnValue(true);
+    landOnThreadMessage.mockReturnValue(true);
     const { result } = renderHook(() => useRoomMessageJumps(options));
 
     await result.current.handleSearchJump(reply);
 
     expect(options.handleOpenThreadFromMessage).toHaveBeenCalledWith(parent);
-    expect(highlightThreadMessage).toHaveBeenCalledWith(reply.id);
+    expect(landOnThreadMessage).toHaveBeenCalledWith(reply.id);
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
     expect(options.setThreadMessages).not.toHaveBeenCalled();
     // The transcript follows the thread: without this the reader lands on a

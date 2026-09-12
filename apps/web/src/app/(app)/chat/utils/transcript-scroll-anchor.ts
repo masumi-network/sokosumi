@@ -1,7 +1,4 @@
-import {
-  CHAT_MESSAGE_LIST_ATTRIBUTE,
-  CHAT_MESSAGE_LIST_ROOM,
-} from "@/app/chat/chat-message-list";
+import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 
 export interface TranscriptScrollAnchor {
   messageId: string;
@@ -14,7 +11,7 @@ function findTranscriptRow(
   messageId: string,
 ): HTMLElement | null {
   return scroller.querySelector<HTMLElement>(
-    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(messageId)}"]`,
+    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] [data-message-id="${CSS.escape(messageId)}"]`,
   );
 }
 
@@ -54,7 +51,7 @@ export function captureVisibleTranscriptScrollAnchor(
 ): TranscriptScrollAnchor | null {
   const scrollerRect = scroller.getBoundingClientRect();
   const rows = scroller.querySelectorAll<HTMLElement>(
-    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id]`,
+    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] [data-message-id]`,
   );
   let straddling: TranscriptScrollAnchor | null = null;
   for (const row of rows) {

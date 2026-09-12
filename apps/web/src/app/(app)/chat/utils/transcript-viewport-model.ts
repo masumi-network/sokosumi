@@ -1,6 +1,11 @@
-import { STICK_TO_BOTTOM_NEAR_PX } from "@/app/chat/hooks/use-stick-to-bottom";
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import type { RoomTranscriptRow } from "@/app/chat/utils/room-transcript-ranges";
+
+/**
+ * Within this distance of the bottom, content resizes still pin the viewport.
+ * Wider than a tiny nudge so mid-stream growth does not drop follow.
+ */
+export const STICK_TO_BOTTOM_NEAR_PX = 200;
 
 /**
  * Virtuoso needs `firstItemIndex` to stay positive however much history is

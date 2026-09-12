@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
   CHAT_MESSAGE_LIST_ROOM,
+  CHAT_MESSAGE_LIST_THREAD,
 } from "@/app/chat/chat-message-list";
 
 import {
@@ -10,14 +11,17 @@ import {
   captureVisibleTranscriptScrollAnchor,
 } from "./transcript-scroll-anchor";
 
-function scrollerWithRow(rowTop: number): {
+function scrollerWithRow(
+  rowTop: number,
+  listName: string = CHAT_MESSAGE_LIST_ROOM,
+): {
   scroller: HTMLElement;
   row: HTMLElement;
 } {
   const scroller = document.createElement("div");
   scroller.getBoundingClientRect = () => ({ top: 100, bottom: 400 }) as DOMRect;
   const list = document.createElement("div");
-  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, CHAT_MESSAGE_LIST_ROOM);
+  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, listName);
   const row = document.createElement("article");
   row.setAttribute("data-message-id", "msg-9");
   row.getBoundingClientRect = () =>
@@ -30,11 +34,12 @@ function scrollerWithRow(rowTop: number): {
 
 function scrollerWithRows(
   rows: Array<{ id: string; top: number; height?: number }>,
+  listName: string = CHAT_MESSAGE_LIST_ROOM,
 ): HTMLElement {
   const scroller = document.createElement("div");
   scroller.getBoundingClientRect = () => ({ top: 100, bottom: 400 }) as DOMRect;
   const list = document.createElement("div");
-  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, CHAT_MESSAGE_LIST_ROOM);
+  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, listName);
   for (const spec of rows) {
     const height = spec.height ?? 40;
     const row = document.createElement("article");
@@ -104,5 +109,21 @@ describe("transcript scroll anchor", () => {
     const scroller = scrollerWithRows([{ id: "msg-50", top: 40, height: 20 }]);
 
     expect(captureVisibleTranscriptScrollAnchor(scroller)).toBeNull();
+  });
+
+  it("anchors a thread list the same way as the room transcript", () => {
+    const scroller = scrollerWithRows(
+      [{ id: "msg-9", top: 140 }],
+      CHAT_MESSAGE_LIST_THREAD,
+    );
+
+    expect(captureTranscriptScrollAnchor(scroller, "msg-9")).toEqual({
+      messageId: "msg-9",
+      offset: 40,
+    });
+    expect(captureVisibleTranscriptScrollAnchor(scroller)).toEqual({
+      messageId: "msg-9",
+      offset: 40,
+    });
   });
 });

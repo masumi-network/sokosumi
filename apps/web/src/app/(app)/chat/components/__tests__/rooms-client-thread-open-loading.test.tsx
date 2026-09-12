@@ -161,18 +161,29 @@ vi.mock("../thread-panel", () => ({
   ThreadPanel: ({
     isLoading,
     replies,
+    olderLoadStatus,
+    onLoadOlder,
     onClose,
   }: {
     isLoading: boolean;
     replies: ChatRoomMessage[];
+    olderLoadStatus?: string;
+    onLoadOlder: () => void;
     onClose: () => void;
   }) => (
-    <div data-testid="thread-panel">
+    <div data-testid="thread-panel" data-older-status={olderLoadStatus}>
       <span data-testid="thread-loading">{String(isLoading)}</span>
       <span data-testid="thread-reply-count">{replies.length}</span>
       <span data-testid="thread-state">
         {isLoading ? "loading" : replies.length === 0 ? "empty" : "replies"}
       </span>
+      <button
+        type="button"
+        data-testid="thread-load-older"
+        onClick={onLoadOlder}
+      >
+        load older
+      </button>
       <button type="button" data-testid="thread-close" onClick={onClose}>
         close
       </button>
@@ -399,5 +410,45 @@ describe("RoomsClient thread open loading race", () => {
       await Promise.resolve();
     });
     expect(screen.queryByTestId("thread-panel")).toBeNull();
+  });
+
+  it("marks the older-thread boundary failed after a failed page", async () => {
+    actions.markThreadReadAction.mockResolvedValue({
+      ok: true as const,
+      value: { lookedAt: new Date().toISOString() },
+    });
+    actions.listThreadMessagesAction
+      .mockResolvedValueOnce({
+        ok: true as const,
+        value: {
+          messages: [replyMessage("r1")],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: false as const,
+        error: { message: "boom" },
+      } as never);
+
+    render(<RoomsClient {...baseProps} />);
+    fireEvent.click(screen.getByTestId("open-thread-parent-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-state").textContent).toBe("replies");
+    });
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-older-status",
+      "idle",
+    );
+
+    fireEvent.click(screen.getByTestId("thread-load-older"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+        "data-older-status",
+        "failed",
+      );
+    });
+    expect(actions.listThreadMessagesAction).toHaveBeenCalledTimes(2);
   });
 });
