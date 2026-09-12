@@ -1,3 +1,4 @@
+import Combine
 import CoreAPI
 import Foundation
 import HTTPTypes
@@ -1307,4 +1308,73 @@ private func roomReadBody(id: String, unread: Int, name: String = "general") -> 
   return """
   {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
   """
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: [false, true])
+  func savedEditUpdatesRoomParentOrThreadReply(reply: Bool) async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let messageId = "550e8400-e29b-41d4-a716-446655440123"
+    let response = createdMessageBody(id: messageId, roomId: roomId, content: "Changed")
+      .replacingOccurrences(of: "\"editedAt\":null", with: "\"editedAt\":\"2026-01-02T00:00:00.000Z\"")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
+    let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: roomId, content: "Original",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = messageId
+    state.timeline.reset(roomId: roomId)
+    if reply {
+      var parent = source
+      parent.id = "parent"
+      state.timeline.messages = [parent]
+      state.thread.open(parent)
+      source.parentMessageId = parent.id
+      state.thread.timeline.messages = [source]
+    } else {
+      state.timeline.messages = [source]
+      state.thread.open(source)
+    }
+    state.messageEditing.start(source, userId: "user_1")
+    state.messageEditing.draft = "Changed"
+    await state.saveMessageEdit(auth: auth)
+    #expect(state.messageEditing.source == nil)
+    if reply {
+      #expect(state.thread.timeline.messages.first?.content == "Changed")
+      #expect(state.timeline.messages.first?.content == "Original")
+    } else {
+      #expect(state.timeline.messages.first?.content == "Changed")
+      #expect(state.thread.parent?.content == "Changed")
+    }
+    #expect((reply ? state.thread.timeline.messages.first : state.timeline.messages.first)?.editedAt != nil)
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test
+  func editingKeystrokesDoNotInvalidateConversation() throws {
+    let (state, _, _, _) = try ephemeralState([], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: "room", content: "Original",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = "persisted-message"
+    var conversationUpdates = 0
+    var editorUpdates = 0
+    let conversationObservation = state.objectWillChange.sink { conversationUpdates += 1 }
+    let editorObservation = state.messageEditing.objectWillChange.sink { editorUpdates += 1 }
+    defer {
+      conversationObservation.cancel()
+      editorObservation.cancel()
+    }
+    state.messageEditing.start(source, userId: "user_1")
+    #expect(conversationUpdates > 0)
+    conversationUpdates = 0
+    editorUpdates = 0
+    for character in " typing an updated message" {
+      state.messageEditing.draft.append(character)
+    }
+    #expect(editorUpdates == 26)
+    #expect(conversationUpdates == 0)
+    state.messageEditing.cancel()
+    #expect(conversationUpdates > 0)
+    #expect(state.messageEditing.source == nil)
+  }
 }

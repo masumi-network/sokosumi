@@ -60,6 +60,8 @@ import SwiftUI
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
+    var onEdit: (() -> Void)?
+    var editing: MessageEditing?
     var onQuoteJump: ((String) -> Void)?
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
@@ -70,7 +72,7 @@ import SwiftUI
     @FocusState private var focusedAction: MessageAction?
 
     private enum MessageAction: Hashable {
-      case quote, reply
+      case quote, reply, edit
     }
 
     var body: some View {
@@ -96,7 +98,7 @@ import SwiftUI
               DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt,
                                timestamp: message.createdAt)
               if message.editedAt != nil {
-                Text("Edited")
+                Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
@@ -115,9 +117,13 @@ import SwiftUI
               MessageQuoteView(quote: quote, room: room, channels: channels, jump: onQuoteJump)
                 .id(quote.messageId + quote.snippet)
             }
-            MessageMarkdownView(source: message.content, room: room, channels: channels)
+            if let editing, editing.source?.id == message.id {
+              MessageEditComposer(editing: editing).id(message.id)
+            } else {
+              MessageMarkdownView(source: message.content, room: room, channels: channels)
+            }
             if isContinuation, message.editedAt != nil {
-              Text("Edited").font(.caption).foregroundStyle(.secondary)
+              Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
           if let onReply, message.threadReplyCount > 0 {
@@ -148,10 +154,13 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil) ? Color.primary.opacity(0.04) : .clear)
+      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil) ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
-        if message.deletedAt == nil, onReply != nil || onQuote != nil {
+        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil {
           HStack(spacing: 0) {
+            if let onEdit {
+              messageAction("Edit", symbol: "pencil", focus: .edit, action: onEdit)
+            }
             if let onQuote {
               messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
             }
@@ -180,6 +189,9 @@ import SwiftUI
         }
       }
       .contextMenu {
+        if let onEdit {
+          Button("Edit message", systemImage: "pencil", action: onEdit)
+        }
         if let onQuote {
           Button("Quote message", systemImage: "quote.opening", action: onQuote)
         }
@@ -189,6 +201,9 @@ import SwiftUI
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
+        if let onEdit {
+          Button("Edit message", action: onEdit)
+        }
         if let onQuote {
           Button("Quote message", action: onQuote)
         }

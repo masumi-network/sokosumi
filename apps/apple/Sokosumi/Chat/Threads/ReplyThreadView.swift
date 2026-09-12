@@ -19,11 +19,13 @@ import SwiftUI
         VStack(spacing: 0) {
           ScrollViewReader { proxy in
             ScrollView {
-              VStack(alignment: .leading, spacing: 8) {
+              LazyVStack(alignment: .leading, spacing: 8) {
                 MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                                onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
                                  quoteFocusRequest = UUID().uuidString
                                } : nil,
+                               onEdit: canEditMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
+                               editing: workspaces.messageEditing,
                                onQuoteJump: { quoteTarget = $0 })
                   .id(parent.id)
                 Divider()
@@ -127,6 +129,8 @@ import SwiftUI
                              onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                quoteFocusRequest = UUID().uuidString
                              } : nil,
+                             onEdit: canEditMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                             editing: workspaces.messageEditing,
                              onQuoteJump: { quoteTarget = $0 },
                              streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
             }
