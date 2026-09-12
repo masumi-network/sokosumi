@@ -61,7 +61,7 @@ export default function SignInForm({
     },
   });
 
-  // when user first sees the register page
+  // when user first sees the login area
   useEffect(() => {
     fireGTMEvent.viewLoginArea();
   }, []);

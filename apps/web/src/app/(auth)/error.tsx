@@ -22,10 +22,7 @@ export default function Error({
 }) {
   const t = useTranslations("Auth.Error");
 
-  // Effect is necessary: Error logging when component is displayed
-  // Logs error to console (or error reporting service) when error occurs
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error(error);
   }, [error]);
 
@@ -48,7 +45,7 @@ export default function Error({
             {t("tryAgain")}
           </Button>
           <Button asChild variant="secondary" className="w-full">
-            <Link href="/login">{t("goLogin")}</Link>
+            <Link href="/signin">{t("goLogin")}</Link>
           </Button>
         </CardFooter>
       </Card>

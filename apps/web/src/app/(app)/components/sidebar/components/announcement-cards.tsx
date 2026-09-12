@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import type { Notice } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { isVideoUrl } from "@/lib/utils/notice-media";
+import { isVideoUrl } from "@/lib/utils/file-preview";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 
 const Markdown = dynamic(() => import("@/components/markdown"), {

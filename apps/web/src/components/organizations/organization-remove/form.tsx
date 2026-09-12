@@ -150,7 +150,7 @@ export default function OrganizationRemoveForm({
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
-              router.push("/login");
+              router.push("/signin");
             },
           },
         });

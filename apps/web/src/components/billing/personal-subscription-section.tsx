@@ -90,7 +90,7 @@ export function PersonalSubscriptionSection({
               action: {
                 label: t("Errors.unauthenticatedAction"),
                 onClick: () => {
-                  router.push("/login");
+                  router.push("/signin");
                 },
               },
             });
