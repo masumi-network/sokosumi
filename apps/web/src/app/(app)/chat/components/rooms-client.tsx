@@ -39,6 +39,11 @@ import {
   TranscriptBoundaryRow,
   type TranscriptBoundaryStatus,
 } from "@/app/chat/components/transcript-boundary-row";
+import {
+  TranscriptViewport,
+  type TranscriptViewportAnchor,
+  type TranscriptViewportHandle,
+} from "@/app/chat/components/transcript-viewport";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
@@ -48,7 +53,6 @@ import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
 import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
-import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import {
@@ -95,7 +99,6 @@ import {
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
-import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
 import {
   buildRoomTranscriptRows,
   emptyRoomTranscript,
@@ -105,17 +108,12 @@ import {
   ROOM_HISTORY_WINDOW_LIMIT,
   type RoomTranscript,
   type RoomTranscriptPage,
+  type RoomTranscriptRenderRow,
   updateRoomTranscriptMessages,
   withTranscriptRowNeighbors,
 } from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
-import {
-  captureTranscriptScrollAnchor,
-  captureVisibleTranscriptScrollAnchor,
-  restoreTranscriptScrollAnchor,
-  type TranscriptScrollAnchor,
-} from "@/app/chat/utils/transcript-scroll-anchor";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
@@ -398,7 +396,7 @@ export function RoomsClient({
   // Rows inserted above the viewport would shove the reader's row down by
   // their height. The anchor taken before the merge puts it back once the
   // new rows have laid out.
-  const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
+  const pendingScrollAnchorRef = useRef<TranscriptViewportAnchor | null>(null);
   // Held in a ref as well as in state: the row's tap and its visibility
   // observer can fire in the same tick, before the loading state renders.
   const loadingBoundariesRef = useRef<Set<string>>(new Set());
@@ -551,19 +549,34 @@ export function RoomsClient({
   }
 
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
-  const {
-    scrollerRef,
-    contentRef,
-    contentMinHeight,
-    scrollToBottom,
-    pinToBottomAfterOwnSend,
-    scrollToBottomIfPinned,
-    suppressStickToBottom,
-    releaseStickToBottomSuppress,
-  } = useStickToBottom({
-    resetKey: selectedRoomId,
-    holdOffBottom: searchHoldOffBottom,
-  });
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  // The transcript viewport owns the live-edge pin, jump landings and the
+  // scroll anchor. Reached through a ref so the callbacks handed to rows,
+  // hooks and the composer keep one identity across the room's life.
+  const viewportRef = useRef<TranscriptViewportHandle | null>(null);
+  const scrollToBottom = useCallback(() => {
+    viewportRef.current?.scrollToBottom();
+  }, []);
+  const pinToBottomAfterOwnSend = useCallback(() => {
+    viewportRef.current?.pinToBottomAfterOwnSend();
+  }, []);
+  const scrollToBottomIfPinned = useCallback(() => {
+    viewportRef.current?.scrollToBottomIfPinned();
+  }, []);
+  const suppressStickToBottom = useCallback(() => {
+    viewportRef.current?.suppressStickToBottom();
+  }, []);
+  const releaseStickToBottomSuppress = useCallback(() => {
+    viewportRef.current?.releaseStickToBottomSuppress();
+  }, []);
+  // Scoped to the transcript, which is the list a jump moves. An open thread
+  // renders its parent as well, so a document-wide lookup would answer from
+  // the panel for a message the transcript has not loaded.
+  const landOnRoomMessage = useCallback(
+    (messageId: string) =>
+      viewportRef.current?.landOnMessage(messageId) ?? false,
+    [],
+  );
   // When history lands, pin live edge in layout (same frame as skeleton →
   // messages) so the list does not paint mid-jump then scroll.
   const wasHistoryPendingRef = useRef(messagesPending);
@@ -1677,6 +1690,7 @@ export function RoomsClient({
       topLevelRoomMessages,
       threadParentMessage,
       isStillSelectedRoom,
+      landOnRoomMessage,
       suppressStickToBottom,
       releaseStickToBottomSuppress,
       setSearchHoldOffBottom,
@@ -1708,7 +1722,7 @@ export function RoomsClient({
     // Scoped to the transcript. A reply rendered in the open thread panel must
     // not answer this: it would end the jump before the room is put on the
     // message that thread hangs off.
-    highlight: highlightRoomTranscriptMessage,
+    highlight: landOnRoomMessage,
     isStillSelectedRoom,
     jumpInRoom: handleJumpToMessage,
     jumpInThread: (hit) =>
@@ -1801,11 +1815,8 @@ export function RoomsClient({
           }));
           return;
         }
-        const scroller = scrollerRef.current;
-        pendingScrollAnchorRef.current = scroller
-          ? (captureVisibleTranscriptScrollAnchor(scroller) ??
-            captureTranscriptScrollAnchor(scroller, cursorMessageId))
-          : null;
+        pendingScrollAnchorRef.current =
+          viewportRef.current?.captureAnchor(cursorMessageId) ?? null;
         setTranscript((current) =>
           mergeRoomOlderPage(current, cursorMessageId, result.value),
         );
@@ -1832,12 +1843,11 @@ export function RoomsClient({
 
   useLayoutEffect(() => {
     const anchor = pendingScrollAnchorRef.current;
-    const scroller = scrollerRef.current;
-    if (!anchor || !scroller) {
+    if (!anchor) {
       return;
     }
     pendingScrollAnchorRef.current = null;
-    restoreTranscriptScrollAnchor(scroller, anchor);
+    viewportRef.current?.restoreAnchor(anchor);
   }, [transcript]);
 
   function handleLoadOlderThreadMessages() {
@@ -2263,6 +2273,11 @@ export function RoomsClient({
       onCancelEdit: () => latestMessageHandlersRef.current.handleCancelEdit(),
       onSaveEdit: (contentOverride?: string) =>
         latestMessageHandlersRef.current.handleSaveEdit(contentOverride),
+      // A quote is a room message, so this scrolls the transcript whichever
+      // list the quoting row sits in.
+      onJumpToQuotedMessage: (messageId: string) => {
+        viewportRef.current?.scrollToMessage(messageId);
+      },
     }),
     [],
   );
@@ -2503,6 +2518,136 @@ export function RoomsClient({
 
   if (selectedRoom) {
     const showListSkeleton = messagesPending && displayMessages.length === 0;
+    // Narrowed once here: the row renderer is a nested function, which
+    // TypeScript does not narrow through.
+    const room = selectedRoom;
+    // Rendered through the viewport, which mounts only the rows near the
+    // screen. Every row prop is stable or memoized, so a remounted row renders
+    // once from what it is handed.
+    function renderTranscriptRow(row: RoomTranscriptRenderRow) {
+      if (row.kind === "boundary") {
+        return (
+          <TranscriptBoundaryRow
+            cursorMessageId={row.cursorMessageId}
+            isGap={row.isGap}
+            status={boundaryStatus[row.cursorMessageId] ?? "idle"}
+            onLoad={handleLoadBoundary}
+          />
+        );
+      }
+      const { message, previousMessage, dayPreviousMessage } = row;
+      const showDaySeparator =
+        localCalendarReady &&
+        (!dayPreviousMessage ||
+          messageDayKey(dayPreviousMessage.createdAt) !==
+            messageDayKey(message.createdAt));
+      const isStreamOverlay = message.id.startsWith("stream:");
+      const isThinkingShell =
+        isPersistedMentionThoughtShell(message.metadata) ||
+        isFailedMentionThoughtShell(message.metadata);
+      const isOutboundLocal = isOutboundLocalMessage(message);
+      return (
+        <div className="min-w-0">
+          {showDaySeparator ? (
+            <DaySeparator
+              date={new Date(message.createdAt)}
+              formatDaySeparator={formatDaySeparator}
+            />
+          ) : null}
+          {message.membership != null ? (
+            <MembershipStatusRow message={message} />
+          ) : (
+            <ChatMessageRow
+              message={message}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              sokoBotsById={sokoBotsById}
+              sokoBotsBySlug={sokoBotsBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              mentions={mentionRecords}
+              channels={channelOptions}
+              channelLinks={channelLinks}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectKey}
+              onToggleReaction={stableMessageHandlers.onToggleReaction}
+              onOpenThread={
+                !isOutboundLocal &&
+                shouldShowChatRoomThreadButton({
+                  room,
+                  isStreamOverlay,
+                  isThinkingShell,
+                })
+                  ? stableMessageHandlers.onOpenThread
+                  : undefined
+              }
+              onQuote={
+                isOutboundLocal ? undefined : stableMessageHandlers.onQuote
+              }
+              onPin={
+                !isDirectRoom && !isOutboundLocal
+                  ? stableMessageHandlers.onPin
+                  : undefined
+              }
+              showPinButton={!isDirectRoom && !isOutboundLocal}
+              isPinned={pinnedMessageIds.has(message.id)}
+              onStartEdit={
+                isOutboundLocal ? undefined : stableMessageHandlers.onStartEdit
+              }
+              onDelete={
+                isOutboundLocal ? undefined : stableMessageHandlers.onDelete
+              }
+              onRemoveUnfurl={
+                isOutboundLocal
+                  ? undefined
+                  : stableMessageHandlers.onRemoveUnfurl
+              }
+              onRetryOutbound={stableMessageHandlers.onRetryOutbound}
+              onRetryMention={
+                isCurrentUserMentionerOfFailedShell({
+                  shell: message,
+                  currentUserId,
+                  sourceMessages: mentionRetrySourceMessages,
+                })
+                  ? stableMessageHandlers.onRetryMention
+                  : undefined
+              }
+              onRemoveOutbound={handleRemoveOutbound}
+              onJumpToQuotedMessage={
+                stableMessageHandlers.onJumpToQuotedMessage
+              }
+              showOutboundSentTick={outboundSentTickIds.has(message.id)}
+              isEditing={editSession?.messageId === message.id}
+              editDraft={
+                editSession?.messageId === message.id ? editSession.draft : ""
+              }
+              onEditDraftChange={stableMessageHandlers.onEditDraftChange}
+              onCancelEdit={stableMessageHandlers.onCancelEdit}
+              onSaveEdit={stableMessageHandlers.onSaveEdit}
+              isSavingEdit={
+                isSavingEdit && editSession?.messageId === message.id
+              }
+              showThreadButton={
+                !isOutboundLocal &&
+                shouldShowChatRoomThreadButton({
+                  room,
+                  isStreamOverlay,
+                  isThinkingShell,
+                })
+              }
+              isFirstOfDay={showDaySeparator}
+              isContinuation={
+                localCalendarReady &&
+                !showDaySeparator &&
+                isMessageContinuation(previousMessage, message)
+              }
+            />
+          )}
+        </div>
+      );
+    }
     const openRoomListBody = (
       <>
         {rosterPromise ? (
@@ -2534,147 +2679,18 @@ export function RoomsClient({
             </p>
           </div>
         ) : null}
-        {showListSkeleton
-          ? null
-          : transcriptRows.map((row) => {
-              if (row.kind === "boundary") {
-                return (
-                  <TranscriptBoundaryRow
-                    key={`boundary:${row.cursorMessageId}`}
-                    cursorMessageId={row.cursorMessageId}
-                    isGap={row.isGap}
-                    status={boundaryStatus[row.cursorMessageId] ?? "idle"}
-                    onLoad={handleLoadBoundary}
-                  />
-                );
-              }
-              const { message, previousMessage, dayPreviousMessage } = row;
-              const showDaySeparator =
-                localCalendarReady &&
-                (!dayPreviousMessage ||
-                  messageDayKey(dayPreviousMessage.createdAt) !==
-                    messageDayKey(message.createdAt));
-              const isStreamOverlay = message.id.startsWith("stream:");
-              const isThinkingShell =
-                isPersistedMentionThoughtShell(message.metadata) ||
-                isFailedMentionThoughtShell(message.metadata);
-              const isOutboundLocal = isOutboundLocalMessage(message);
-              return (
-                <div
-                  // Prefer client turn id so pending→confirmed keeps one row
-                  // instance (delivery chrome can transition without remount).
-                  key={readClientTurnId(message) ?? message.id}
-                  className="min-w-0"
-                >
-                  {showDaySeparator ? (
-                    <DaySeparator
-                      date={new Date(message.createdAt)}
-                      formatDaySeparator={formatDaySeparator}
-                    />
-                  ) : null}
-                  {message.membership != null ? (
-                    <MembershipStatusRow message={message} />
-                  ) : (
-                    <ChatMessageRow
-                      message={message}
-                      coworkersById={coworkersById}
-                      coworkersBySlug={coworkersBySlug}
-                      sokoBotsById={sokoBotsById}
-                      sokoBotsBySlug={sokoBotsBySlug}
-                      usersById={usersById}
-                      usersBySlug={usersBySlug}
-                      mentions={mentionRecords}
-                      channels={channelOptions}
-                      channelLinks={channelLinks}
-                      currentUserId={currentUserId}
-                      canOpenHumanDirect={canOpenHumanDirect}
-                      onOpenDirectMessage={
-                        stableMessageHandlers.onOpenDirectMessage
-                      }
-                      openingDirectParticipantKey={openingDirectKey}
-                      onToggleReaction={stableMessageHandlers.onToggleReaction}
-                      onOpenThread={
-                        !isOutboundLocal &&
-                        shouldShowChatRoomThreadButton({
-                          room: selectedRoom,
-                          isStreamOverlay,
-                          isThinkingShell,
-                        })
-                          ? stableMessageHandlers.onOpenThread
-                          : undefined
-                      }
-                      onQuote={
-                        isOutboundLocal
-                          ? undefined
-                          : stableMessageHandlers.onQuote
-                      }
-                      onPin={
-                        !isDirectRoom && !isOutboundLocal
-                          ? stableMessageHandlers.onPin
-                          : undefined
-                      }
-                      showPinButton={!isDirectRoom && !isOutboundLocal}
-                      isPinned={pinnedMessageIds.has(message.id)}
-                      onStartEdit={
-                        isOutboundLocal
-                          ? undefined
-                          : stableMessageHandlers.onStartEdit
-                      }
-                      onDelete={
-                        isOutboundLocal
-                          ? undefined
-                          : stableMessageHandlers.onDelete
-                      }
-                      onRemoveUnfurl={
-                        isOutboundLocal
-                          ? undefined
-                          : stableMessageHandlers.onRemoveUnfurl
-                      }
-                      onRetryOutbound={stableMessageHandlers.onRetryOutbound}
-                      onRetryMention={
-                        isCurrentUserMentionerOfFailedShell({
-                          shell: message,
-                          currentUserId,
-                          sourceMessages: mentionRetrySourceMessages,
-                        })
-                          ? stableMessageHandlers.onRetryMention
-                          : undefined
-                      }
-                      onRemoveOutbound={handleRemoveOutbound}
-                      showOutboundSentTick={outboundSentTickIds.has(message.id)}
-                      isEditing={editSession?.messageId === message.id}
-                      editDraft={
-                        editSession?.messageId === message.id
-                          ? editSession.draft
-                          : ""
-                      }
-                      onEditDraftChange={
-                        stableMessageHandlers.onEditDraftChange
-                      }
-                      onCancelEdit={stableMessageHandlers.onCancelEdit}
-                      onSaveEdit={stableMessageHandlers.onSaveEdit}
-                      isSavingEdit={
-                        isSavingEdit && editSession?.messageId === message.id
-                      }
-                      showThreadButton={
-                        !isOutboundLocal &&
-                        shouldShowChatRoomThreadButton({
-                          room: selectedRoom,
-                          isStreamOverlay,
-                          isThinkingShell,
-                        })
-                      }
-                      isFirstOfDay={showDaySeparator}
-                      isContinuation={
-                        localCalendarReady &&
-                        !showDaySeparator &&
-                        isMessageContinuation(previousMessage, message)
-                      }
-                    />
-                  )}
-                </div>
-              );
-            })}
+        {showListSkeleton ? null : (
+          <TranscriptViewport
+            // Remount per room: the viewport opens on the newest message and
+            // forgets the previous room's measurements and scroll state.
+            key={selectedRoom.id}
+            ref={viewportRef}
+            scrollerRef={scrollerRef}
+            rows={transcriptRows}
+            renderRow={renderTranscriptRow}
+            holdOffBottom={searchHoldOffBottom}
+          />
+        )}
       </>
     );
 
@@ -2719,12 +2735,6 @@ export function RoomsClient({
             </RoomFileDropZone>
           )}
           listScrollerRef={scrollerRef}
-          listContentRef={contentRef}
-          listContentStyle={
-            contentMinHeight != null
-              ? { minHeight: contentMinHeight }
-              : undefined
-          }
           listContent={openRoomListBody}
           composer={
             <RoomSessionComposer
@@ -2799,6 +2809,9 @@ export function RoomsClient({
                 onRetryOutbound={stableMessageHandlers.onRetryOutbound}
                 onRetryMention={stableMessageHandlers.onRetryMention}
                 onRemoveOutbound={handleRemoveOutbound}
+                onJumpToQuotedMessage={
+                  stableMessageHandlers.onJumpToQuotedMessage
+                }
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadSidePanel}

@@ -68,6 +68,7 @@ export function ThreadPanel({
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
+  onJumpToQuotedMessage,
   outboundSentTickIds,
   editSession = null,
   onEditDraftChange,
@@ -118,6 +119,7 @@ export function ThreadPanel({
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  onJumpToQuotedMessage?: (messageId: string) => void;
   outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
@@ -284,6 +286,7 @@ export function ThreadPanel({
                 openingDirectParticipantKey={openingDirectParticipantKey}
                 onToggleReaction={onToggleReaction}
                 onQuote={onQuote ? handleQuote : undefined}
+                onJumpToQuotedMessage={onJumpToQuotedMessage}
                 onRetryMention={retryMentionFor(parentMessage)}
                 showThreadButton={false}
                 reserveHoverActionGutter={false}
@@ -346,6 +349,7 @@ export function ThreadPanel({
                           onRetryOutbound={onRetryOutbound}
                           onRetryMention={retryMentionFor(reply)}
                           onRemoveOutbound={onRemoveOutbound}
+                          onJumpToQuotedMessage={onJumpToQuotedMessage}
                           showOutboundSentTick={outboundSentTickIds?.has(
                             reply.id,
                           )}

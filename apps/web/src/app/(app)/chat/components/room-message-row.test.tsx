@@ -197,6 +197,7 @@ function renderRow({
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
+  onJumpToQuotedMessage,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -222,6 +223,7 @@ function renderRow({
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  onJumpToQuotedMessage?: (messageId: string) => void;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -249,6 +251,7 @@ function renderRow({
       onRetryOutbound={onRetryOutbound}
       onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
+      onJumpToQuotedMessage={onJumpToQuotedMessage}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -881,20 +884,20 @@ describe("ChatMessageRow", () => {
     expect(article.className).not.toContain("pr-48");
   });
 
-  it("renders quote snapshot from DTO and soft-fails jump when target missing", async () => {
+  it("renders quote snapshot from DTO and hands a jump to the transcript", async () => {
     const user = userEvent.setup();
-    const scrollIntoView = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    const onJumpToQuotedMessage = vi.fn();
 
     renderRow({
       message: userMessage({
         content: "Reply body",
         quote: {
-          messageId: "missing-original",
+          messageId: "quoted-original",
           authorName: "Bob",
           snippet: "Earlier thought",
         },
       }),
+      onJumpToQuotedMessage,
     });
 
     expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -903,7 +906,11 @@ describe("ChatMessageRow", () => {
     await user.click(
       screen.getByRole("button", { name: "Jump to message from Bob" }),
     );
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    // The row does not know which rows the transcript has mounted, so the
+    // transcript owns the scroll.
+    expect(onJumpToQuotedMessage).toHaveBeenCalledExactlyOnceWith(
+      "quoted-original",
+    );
   });
 
   it("shows quote image attachment as inert thumbnail, not a link", () => {
@@ -966,42 +973,36 @@ describe("ChatMessageRow", () => {
 
   it("jumps to original message when quote attachment thumb is clicked", async () => {
     const user = userEvent.setup();
-    const scrollIntoView = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    const onJumpToQuotedMessage = vi.fn();
 
-    const original = document.createElement("article");
-    original.setAttribute("data-message-id", "original-with-thumb");
-    document.body.appendChild(original);
-
-    try {
-      renderRow({
-        message: userMessage({
-          content: "Reply body",
-          quote: {
-            messageId: "original-with-thumb",
-            authorName: "Bob",
-            snippet: "check this shot",
-            attachment: {
-              fileName: "launch.png",
-              url: "https://blob.example/launch.png",
-              mediaKind: "image",
-            },
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-with-thumb",
+          authorName: "Bob",
+          snippet: "check this shot",
+          attachment: {
+            fileName: "launch.png",
+            url: "https://blob.example/launch.png",
+            mediaKind: "image",
           },
-        }),
-      });
+        },
+      }),
+      onJumpToQuotedMessage,
+    });
 
-      const jumpButton = screen.getByRole("button", {
-        name: "Jump to message from Bob",
-      });
-      const thumb = jumpButton.querySelector(
-        'img[src="https://blob.example/launch.png"]',
-      );
-      expect(thumb).toBeTruthy();
-      await user.click(thumb!);
-      expect(scrollIntoView).toHaveBeenCalled();
-    } finally {
-      original.remove();
-    }
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    const thumb = jumpButton.querySelector(
+      'img[src="https://blob.example/launch.png"]',
+    );
+    expect(thumb).toBeTruthy();
+    await user.click(thumb!);
+    expect(onJumpToQuotedMessage).toHaveBeenCalledExactlyOnceWith(
+      "original-with-thumb",
+    );
   });
 
   it("keeps legacy quotes without attachment text-only", () => {

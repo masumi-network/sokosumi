@@ -136,7 +136,6 @@ import {
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
-  scrollToRoomMessageElement,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -326,6 +325,7 @@ function MessageQuoteBlock({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  onJumpToQuotedMessage,
 }: {
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -339,6 +339,7 @@ function MessageQuoteBlock({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
+  onJumpToQuotedMessage?: (messageId: string) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
@@ -354,7 +355,7 @@ function MessageQuoteBlock({
         className="hover:bg-muted/70 focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
-          scrollToRoomMessageElement(quote.messageId);
+          onJumpToQuotedMessage?.(quote.messageId);
         }}
       >
         <div className="text-foreground truncate text-xs font-semibold">
@@ -2027,6 +2028,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
+  onJumpToQuotedMessage,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -2066,6 +2068,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  /** Quote tap: scroll the room transcript to the quoted message. */
+  onJumpToQuotedMessage?: (messageId: string) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -2362,6 +2366,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   canOpenHumanDirect={canOpenHumanDirect}
                   onOpenDirectMessage={onOpenDirectMessage}
                   openingDirectParticipantKey={openingDirectParticipantKey}
+                  onJumpToQuotedMessage={onJumpToQuotedMessage}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (

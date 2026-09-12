@@ -381,27 +381,6 @@ export function pendingQuoteFromMessage(
   };
 }
 
-/** Soft-fail scroll to a room message article when it is still in the DOM. */
-export function scrollToRoomMessageElement(
-  messageId: string,
-  options?: { behavior?: ScrollBehavior },
-): boolean {
-  if (typeof document === "undefined") {
-    return false;
-  }
-  const target = document.querySelector<HTMLElement>(
-    `[data-message-id="${CSS.escape(messageId)}"]`,
-  );
-  if (!target) {
-    return false;
-  }
-  target.scrollIntoView({
-    behavior: options?.behavior ?? "smooth",
-    block: "center",
-  });
-  return true;
-}
-
 export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
   if (message.sender.type === "user") {
     const user = message.sender.user;

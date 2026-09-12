@@ -495,6 +495,9 @@ importers:
       react-social-login-buttons:
         specifier: 4.1.1
         version: 4.1.1(react@19.3.0)
+      react-virtuoso:
+        specifier: 4.18.13
+        version: 4.18.13(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       rehype-raw:
         specifier: 7.0.0
         version: 7.0.0
@@ -8860,6 +8863,12 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  react-virtuoso@4.18.13:
+    resolution: {integrity: sha512-M4kP7zbV7JmLrnJYs0X2FBA8gnNlHisSYuKMyeJVYtWz31CAJeP57dgPJzfneUdKDKmL9SiqvcBQ32si8CfQSQ==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
 
   react-zoom-pan-pinch@3.7.0:
     resolution: {integrity: sha512-UmReVZ0TxlKzxSbYiAj+LeGRW8s8LraAFTXRAxzMYnNRgGPsxCudwZKVkjvGmjtx7SW/hZamt69NUmGf4xrkXA==}
@@ -18999,6 +19008,11 @@ snapshots:
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.3.0
+
+  react-virtuoso@4.18.13(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   react-zoom-pan-pinch@3.7.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
