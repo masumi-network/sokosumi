@@ -100,6 +100,7 @@ V61: `sanitizeApiUrl` removes standalone credential query keys `key` and `access
 V62: default no-arg source run → status/auth Ink screen; ⊥ updater screen or update input handling.
 V63: error redaction recursively sanitizes credential-shaped `key=value` pairs inside nested string fields, including CoreApiError/discover JSON; secret values never remain in rendered/serialized output.
 V64: CLI direct `@types/react` pin = workspace React types pin; workspace typecheck sees one React type identity.
+V65: `secret-tool` lookup exit status 1 with empty/whitespace-only stderr or explicit missing-item text means a missing item and leaves Secret Service supported; any other error fails closed.
 
 ## §T TASKS
 
@@ -179,3 +180,4 @@ B40|2026-09-11|probe confirmed V47 redacted object keys but nested string fields
 B41|2026-09-11|npm updater built command lines from user-controlled environment ∴ CodeQL found 2 critical uncontrolled-command alerts|V39
 B42|2026-09-11|CLI pinned `@types/react@19.2.18` beside workspace `19.3.0` ∴ Web build/typecheck saw unrelated React `Key`/`Ref` types|V64
 B43|2026-09-11|updater bin tests used manifest `2.1.4` as both current/latest ∴ update path did not run and 3 CLI tests failed|V38
+B44|2026-09-12|GNOME `secret-tool` lookup returns status 1 with empty stderr for a missing item; text-only detection rejected a healthy empty vault|V65

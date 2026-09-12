@@ -271,14 +271,14 @@ test("fails closed when Linux Secret Service cannot connect over D-Bus", () => {
   assert.throws(() => store.write({ authToken: "secret" }), /credential vault/);
 });
 
-test("keeps Linux Secret Service available when only the entry is missing", () => {
+test("TestV65: keeps Linux Secret Service available when lookup returns status 1 with empty stderr", () => {
   const execFileSync = (): never => {
-    const error = new Error("secret item missing") as Error & {
+    const error = new Error("") as Error & {
       status: number;
       stderr: string;
     };
     error.status = 1;
-    error.stderr = "secret-tool: No such secret item found";
+    error.stderr = "";
     throw error;
   };
   const store = createCredentialStore({

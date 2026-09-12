@@ -67,8 +67,11 @@ function parseStoredValue<T extends object>(value: string | null): T | null {
 function isMissingSecretItem(error: unknown): boolean {
   const candidate = error as ExecFileSyncError;
   if (candidate.status !== 1) return false;
-  const stderr = String(candidate.stderr || "");
-  return /no (?:such )?secret(?: item)?(?: found)?/iu.test(stderr);
+  const stderr = String(candidate.stderr ?? "").trim();
+  return (
+    stderr.length === 0 ||
+    /no (?:such )?secret(?: item)?(?: found)?/iu.test(stderr)
+  );
 }
 
 function ensureSecretService(
