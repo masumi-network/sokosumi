@@ -28,13 +28,23 @@ import {
 } from "@/app/chat/utils/transcript-viewport-model";
 
 /**
- * Rows rendered beyond the viewport on each side. About one phone screen,
- * so a small scroll or a hover never reaches an unmounted row.
+ * Rows rendered beyond the viewport. Deep above, shallow below: a row is
+ * measured when it mounts, and a row that measures taller than its estimate
+ * shifts everything under it. Measured while the reader is still reading,
+ * that shift is put back before paint; measured while they scroll toward
+ * it, it shows. Below the viewport only the live edge needs a buffer.
  */
-const OVERSCAN_PX = 600;
+const OVERSCAN_PX = { top: 2400, bottom: 600 };
 
-/** Height assumed for a row until it is measured. */
-const DEFAULT_ROW_HEIGHT_PX = 56;
+/** Height assumed for a row until it is measured: a short text row. */
+const DEFAULT_ROW_HEIGHT_PX = 80;
+
+/**
+ * Virtuoso answers a prepend with a deferred scroll by its own estimate of
+ * the new rows, on top of whatever the restore did. The restore is issued
+ * again after that window so it has the last word.
+ */
+const RESTORE_AFTER_PREPEND_MS = 100;
 
 /**
  * How many frames a landing waits for its row to mount after the scroll.
@@ -91,11 +101,6 @@ interface TranscriptViewportProps {
   ref: Ref<TranscriptViewportHandle>;
 }
 
-interface TrackedRows {
-  rows: readonly RoomTranscriptRenderRow[];
-  firstItemIndex: number;
-}
-
 /**
  * The room transcript, mounting only the rows near the viewport.
  *
@@ -105,6 +110,11 @@ interface TrackedRows {
  * reader's row still while history loads above it. Remount it (key by room)
  * to open a new room on its newest message.
  */
+interface TrackedRows {
+  rows: readonly RoomTranscriptRenderRow[];
+  firstItemIndex: number;
+}
+
 export function TranscriptViewport({
   scroller,
   rows,
@@ -115,8 +125,8 @@ export function TranscriptViewport({
   const virtuosoRef = useRef<VirtuosoHandle | null>(null);
 
   // Rows and firstItemIndex have to change in the same render for Virtuoso
-  // to keep row sizes with their rows, so the shift is derived here rather
-  // than in an effect.
+  // to keep row sizes with their rows across a prepend, so the shift is
+  // derived here rather than in an effect.
   const [tracked, setTracked] = useState<TrackedRows>(() => ({
     rows,
     firstItemIndex: TRANSCRIPT_FIRST_ITEM_INDEX_START,
@@ -147,13 +157,16 @@ export function TranscriptViewport({
   const landingRef = useRef(0);
   const lastListHeightRef = useRef(0);
 
-  // Scroll anchoring, done by hand. Rows above the viewport mount fresh on
-  // every prepend and grow late as their images and unfurls load; Virtuoso
-  // compensates for that only while the reader is scrolling upward, and the
-  // browser's own anchoring is off inside the list. So the row at the top of
-  // the viewport is recorded on every scroll, and put back after the list
-  // height changes. Measured from the DOM, so a shift Virtuoso already made
-  // good reads as no drift.
+  // Scroll anchoring, done by hand, for a list at rest. Rows above the
+  // viewport mount fresh on every prepend and grow late as their images and
+  // unfurls load; Virtuoso compensates for that only while the reader is
+  // scrolling, and the browser's own anchoring is off inside the list. So
+  // the row at the top of the viewport is recorded on every scroll, and put
+  // back after the list height changes. Never while scrolling: Virtuoso is
+  // compensating then, in the same pass, and a second correction on top of
+  // its own shows as a jump. Measured from the DOM, so a shift Virtuoso
+  // already made good reads as no drift.
+  const scrollingRef = useRef(false);
   const visibleAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
   useEffect(() => {
     if (!scroller) {
@@ -170,7 +183,7 @@ export function TranscriptViewport({
   }, [scroller]);
   const holdVisibleAnchor = useCallback(() => {
     const anchor = visibleAnchorRef.current;
-    if (!scroller || !anchor) {
+    if (!scroller || !anchor || scrollingRef.current) {
       return;
     }
     const next = captureTranscriptScrollAnchor(scroller, anchor.messageId);
@@ -269,15 +282,18 @@ export function TranscriptViewport({
         if (index < 0) {
           return;
         }
-        // Always through scrollToIndex, even when firstItemIndex absorbed the
-        // insert. Virtuoso's own compensation for rows that measure taller
-        // than their estimate runs only while the reader is scrolling up; a
-        // scroll-to-index re-targets itself as those rows settle.
-        virtuosoRef.current?.scrollToIndex({
-          index,
-          align: "start",
-          offset: -anchor.offset,
-        });
+        // A scroll-to-index re-targets itself as the new rows are measured.
+        // Issued now, before paint, and once more after Virtuoso's own
+        // deferred prepend scroll has landed on top of it.
+        const restore = () => {
+          virtuosoRef.current?.scrollToIndex({
+            index,
+            align: "start",
+            offset: -anchor.offset,
+          });
+        };
+        restore();
+        window.setTimeout(restore, RESTORE_AFTER_PREPEND_MS);
       },
     }),
     [scrollToLast, scroller],
@@ -301,6 +317,9 @@ export function TranscriptViewport({
       atBottomThreshold={STICK_TO_BOTTOM_NEAR_PX}
       atBottomStateChange={(atBottom) => {
         atBottomRef.current = atBottom;
+      }}
+      isScrolling={(scrolling) => {
+        scrollingRef.current = scrolling;
       }}
       followOutput={held || holdOffBottom ? false : "auto"}
       // Virtuoso follows output on its own only when the row count changes.

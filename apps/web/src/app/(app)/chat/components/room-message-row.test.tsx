@@ -2027,6 +2027,11 @@ describe("ChatMessageRow", () => {
       "https://cdn.example.com/og.png",
     );
     // Keep intrinsic aspect ratio (do not force w-full + max-h + object-cover).
+    // Until the image loads its box is the cap itself, so a row scrolled
+    // into a virtualized list does not grow under the reader; afterwards it
+    // takes its own size, capped.
+    expect(unfurlImage).toHaveClass("h-48", "max-w-full");
+    fireEvent.load(unfurlImage);
     expect(unfurlImage).toHaveClass("h-auto", "max-h-48", "max-w-full");
     expect(unfurlImage).not.toHaveClass("w-full", "object-cover");
     // Markdown body still present (links stay clickable in body).

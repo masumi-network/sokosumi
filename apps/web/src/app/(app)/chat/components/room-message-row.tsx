@@ -108,6 +108,7 @@ import {
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -416,14 +417,29 @@ function MessageUnfurlImage({
   onError: () => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
+  // Reserves the box on a remount, so a row scrolled back into view does not
+  // grow by the image a frame later.
+  const { onLoad, ...size } = useRememberedImageSize(imageUrl);
+  const [loaded, setLoaded] = useState(size.width != null);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={imageUrl}
       alt={t("imageAlt", { title })}
-      className="mt-2 h-auto max-h-48 max-w-full rounded-md"
+      className={cn(
+        "mt-2 max-w-full rounded-md",
+        // Until the first load the box is the cap itself: link previews are
+        // wide, so nearly all of them land there, and the row does not grow
+        // under a reader scrolling past it.
+        loaded ? "h-auto max-h-48" : "h-48",
+      )}
       onError={onError}
+      onLoad={(event) => {
+        onLoad(event);
+        setLoaded(true);
+      }}
+      {...size}
     />
   );
 }
