@@ -3012,6 +3012,15 @@ describe("ChatMessageRow hover chrome", () => {
 
     expect(moreActions).toHaveFocus();
     expect(hoverPill()).toBeInTheDocument();
+
+    // The pill mounted after the stop that mounted it, so the next Tab must
+    // still walk forward into it rather than leave the row.
+    await user.tab();
+    expect(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Reactions.add",
+      }),
+    ).toHaveFocus();
   });
 
   it("renders no pill for a row being edited even after hover", async () => {

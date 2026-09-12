@@ -2479,6 +2479,18 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       </div>
       {showActions ? (
         <>
+          {/* Always mounted, and ahead of the pill in DOM order: on a row
+              whose body has no other tab stop this is the first stop, it
+              mounts the pill, and the next Tab then walks into it. */}
+          <button
+            type="button"
+            className="sr-only"
+            onClick={() => {
+              openSheet();
+            }}
+          >
+            {tChannels("Actions.more")}
+          </button>
           {interacted ? (
             <MessageActions
               message={message}
@@ -2498,15 +2510,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               showDeleteButton={canDelete}
             />
           ) : null}
-          <button
-            type="button"
-            className="sr-only"
-            onClick={() => {
-              openSheet();
-            }}
-          >
-            {tChannels("Actions.more")}
-          </button>
           {sheetMounted ? (
             <TouchMessageActionsSheet
               open={sheetOpen}
