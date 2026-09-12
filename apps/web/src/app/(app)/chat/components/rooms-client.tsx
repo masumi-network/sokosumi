@@ -520,6 +520,9 @@ export function RoomsClient({
   const [threadOlderNextCursor, setThreadOlderNextCursor] = useState<
     string | null
   >(null);
+  const threadOlderLoadRef = useRef(false);
+  const [threadOlderLoadStatus, setThreadOlderLoadStatus] =
+    useState<TranscriptBoundaryStatus>("idle");
   const [pendingThreadQuote, setPendingThreadQuote] =
     useState<PendingRoomQuote | null>(null);
   const [editSession, setEditSession] = useState<{
@@ -550,6 +553,8 @@ export function RoomsClient({
     setEditSession(null);
     threadLoadGenerationRef.current += 1;
     setIsThreadLoading(false);
+    threadOlderLoadRef.current = false;
+    setThreadOlderLoadStatus("idle");
   }
 
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
@@ -611,8 +616,6 @@ export function RoomsClient({
   const [_isReacting, startReactionTransition] = useTransition();
   const [_isRetryingMention, startMentionRetryTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
-  const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
-    useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
   const pendingMentionRetriesRef = useRef<Set<string>>(new Set());
   // Classic POST: single-flight queue per composer (channel vs thread).
@@ -1623,6 +1626,8 @@ export function RoomsClient({
     setThreadParentMessage(null);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
+    threadOlderLoadRef.current = false;
+    setThreadOlderLoadStatus("idle");
     setPendingThreadQuote(null);
     setThreadOpenedFromList(false);
     clearClassicOutboundQueue(classicThreadRefs);
@@ -1757,6 +1762,8 @@ export function RoomsClient({
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
+    threadOlderLoadRef.current = false;
+    setThreadOlderLoadStatus("idle");
     // Loading true in the same tick as clear — before any await — so the
     // panel never paints Thread.empty while mark-read / list are in flight.
     setIsThreadLoading(true);
@@ -1872,12 +1879,16 @@ export function RoomsClient({
     threadViewportRef.current?.restoreAnchor(anchor);
   }, [threadMessages]);
 
+  /**
+   * Older thread page. Failure stays on the boundary row (retry, no
+   * auto-load) the way a room gap does, not in a toast.
+   */
   function handleLoadOlderThreadMessages() {
     if (
       !selectedRoom ||
       !threadParentMessage ||
       !threadOlderNextCursor ||
-      isLoadingOlderThread
+      threadOlderLoadRef.current
     ) {
       return;
     }
@@ -1886,24 +1897,41 @@ export function RoomsClient({
     const parentMessageId = threadParentMessage.id;
     const cursor = threadOlderNextCursor;
     const fallbackMessageId = displayThreadMessages[0]?.id ?? parentMessageId;
-    startLoadingOlderThreadTransition(async () => {
-      const result = await listThreadMessagesAction(roomId, parentMessageId, {
-        cursor,
-      });
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
+    const generation = threadLoadGenerationRef.current;
+    threadOlderLoadRef.current = true;
+    setThreadOlderLoadStatus("loading");
+    void (async () => {
+      const isCurrentLoad = () =>
+        isStillSelectedRoom(roomId) &&
+        generation === threadLoadGenerationRef.current;
+      try {
+        const result = await listThreadMessagesAction(roomId, parentMessageId, {
+          cursor,
+        });
+        if (!isCurrentLoad()) {
+          return;
+        }
+        if (!result.ok) {
+          setThreadOlderLoadStatus("failed");
+          return;
+        }
+        pendingThreadScrollAnchorRef.current =
+          threadViewportRef.current?.captureAnchor(fallbackMessageId) ?? null;
+        setThreadMessages((current) =>
+          mergeRoomMessages(current, result.value.messages),
+        );
+        setThreadOlderNextCursor(result.value.nextCursor);
+        setThreadOlderLoadStatus("idle");
+      } catch {
+        if (isCurrentLoad()) {
+          setThreadOlderLoadStatus("failed");
+        }
+      } finally {
+        if (generation === threadLoadGenerationRef.current) {
+          threadOlderLoadRef.current = false;
+        }
       }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      pendingThreadScrollAnchorRef.current =
-        threadViewportRef.current?.captureAnchor(fallbackMessageId) ?? null;
-      setThreadMessages((current) =>
-        mergeRoomMessages(current, result.value.messages),
-      );
-      setThreadOlderNextCursor(result.value.nextCursor);
-    });
+    })();
   }
 
   function handleToggleReaction(message: ChatRoomMessage, emoji: string) {
@@ -2519,6 +2547,8 @@ export function RoomsClient({
             setThreadParentMessage(null);
             setThreadMessages([]);
             setThreadOlderNextCursor(null);
+            threadOlderLoadRef.current = false;
+            setThreadOlderLoadStatus("idle");
             setPendingThreadQuote(null);
             clearClassicOutboundQueue(classicThreadRefs);
             setThreadOpenedFromList(false);
@@ -2821,7 +2851,7 @@ export function RoomsClient({
                 replies={displayThreadMessages}
                 isLoading={isThreadLoading}
                 olderNextCursor={threadOlderNextCursor}
-                isLoadingOlder={isLoadingOlderThread}
+                olderLoadStatus={threadOlderLoadStatus}
                 onLoadOlder={handleLoadOlderThreadMessages}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}

@@ -6,7 +6,10 @@ import { useTranslations } from "next-intl";
 import { type RefObject, useMemo, useRef, useState } from "react";
 import { CHAT_MESSAGE_LIST_THREAD } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
-import { TranscriptBoundaryRow } from "@/app/chat/components/transcript-boundary-row";
+import {
+  TranscriptBoundaryRow,
+  type TranscriptBoundaryStatus,
+} from "@/app/chat/components/transcript-boundary-row";
 import {
   TranscriptViewport,
   type TranscriptViewportHandle,
@@ -76,7 +79,7 @@ export function ThreadPanel({
   replies,
   isLoading,
   olderNextCursor,
-  isLoadingOlder,
+  olderLoadStatus = "idle",
   onLoadOlder,
   coworkersById,
   coworkersBySlug,
@@ -126,7 +129,7 @@ export function ThreadPanel({
   replies: ChatRoomMessage[];
   isLoading: boolean;
   olderNextCursor: string | null;
-  isLoadingOlder: boolean;
+  olderLoadStatus?: TranscriptBoundaryStatus;
   onLoadOlder: () => void;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -241,7 +244,7 @@ export function ThreadPanel({
           <TranscriptBoundaryRow
             cursorMessageId={row.cursorMessageId}
             isGap={row.isGap}
-            status={isLoadingOlder ? "loading" : "idle"}
+            status={olderLoadStatus}
             onLoad={onLoadOlder}
           />
         </div>

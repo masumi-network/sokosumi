@@ -120,7 +120,6 @@ function renderThreadPanel(replies: ChatRoomMessage[] = [replyMessage("r1")]) {
       replies={replies}
       isLoading={false}
       olderNextCursor={null}
-      isLoadingOlder={false}
       onLoadOlder={() => undefined}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}

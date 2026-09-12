@@ -101,7 +101,6 @@ function renderThreadPanel(
       replies={[]}
       isLoading={false}
       olderNextCursor={null}
-      isLoadingOlder={false}
       onLoadOlder={() => undefined}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}

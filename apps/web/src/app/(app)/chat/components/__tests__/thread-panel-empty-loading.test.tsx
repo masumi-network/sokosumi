@@ -84,7 +84,6 @@ function renderPanel(options: {
       replies={options.replies ?? []}
       isLoading={options.isLoading}
       olderNextCursor={null}
-      isLoadingOlder={false}
       onLoadOlder={() => undefined}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}
