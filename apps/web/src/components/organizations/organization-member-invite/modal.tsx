@@ -12,7 +12,7 @@ import {
 
 import OrganizationMemberInviteForm from "./form";
 
-interface OrganizationInformationEditModalProps {
+interface OrganizationMemberInviteModalProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
   organizationId: string;
@@ -22,7 +22,7 @@ export default function OrganizationMemberInviteModal({
   open,
   onOpenChange,
   organizationId,
-}: OrganizationInformationEditModalProps) {
+}: OrganizationMemberInviteModalProps) {
   const t = useTranslations("Components.Organizations.InviteMemberModal");
   const [isLoading, setIsLoading] = useState(false);
 

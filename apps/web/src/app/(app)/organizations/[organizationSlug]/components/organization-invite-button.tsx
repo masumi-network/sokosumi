@@ -14,49 +14,15 @@ interface OrganizationInviteButtonProps {
   className?: string | undefined;
 }
 
-interface OrganizationMemberInviteModalHostProps {
-  open: boolean;
-  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
-  organizationId: string;
-}
-
-function OrganizationMemberInviteModalHost({
-  open,
-  onOpenChange,
-  organizationId,
-}: OrganizationMemberInviteModalHostProps) {
-  return (
-    <OrganizationMemberInviteModal
-      open={open}
-      onOpenChange={onOpenChange}
-      organizationId={organizationId}
-    />
-  );
-}
-
-function OrganizationBulkInviteModalHost({
-  open,
-  onOpenChange,
-  organizationId,
-}: OrganizationMemberInviteModalHostProps) {
-  return (
-    <OrganizationBulkInviteModal
-      open={open}
-      onOpenChange={onOpenChange}
-      organizationId={organizationId}
-    />
-  );
-}
-
 export default function OrganizationInviteButton({
   organizationId,
   className,
 }: OrganizationInviteButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component: InviteMemberModal, showModal: showInviteMemberModal } =
-    useModal(OrganizationMemberInviteModalHost, { organizationId });
+    useModal(OrganizationMemberInviteModal, { organizationId });
   const { Component: BulkInviteModal, showModal: showBulkInviteModal } =
-    useModal(OrganizationBulkInviteModalHost, { organizationId });
+    useModal(OrganizationBulkInviteModal, { organizationId });
 
   return (
     <>

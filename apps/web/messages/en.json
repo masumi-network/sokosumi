@@ -5235,6 +5235,13 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
+      "Boundary": {
+        "missingHere": "Messages are missing here",
+        "loadMissing": "Load missing messages",
+        "loadingMissing": "Loading missing messages…",
+        "loadFailed": "Couldn’t load messages.",
+        "retry": "Try again"
+      },
       "roomUnavailable": "This chat is unavailable or you no longer have access.",
       "archivedChannels": "Archived",
       "AddLink": {
