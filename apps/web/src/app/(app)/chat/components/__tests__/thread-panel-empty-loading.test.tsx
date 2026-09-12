@@ -34,17 +34,10 @@ vi.mock("../room-message-row", () => ({
   ),
 }));
 
-vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
-  useStickToBottom: () => ({
-    scrollerRef: { current: null },
-    contentRef: { current: null },
-    contentMinHeight: null,
-    pinToBottomAfterOwnSend: () => undefined,
-    suppressStickToBottom: () => undefined,
-    releaseStickToBottomSuppress: () => undefined,
-    scrollToBottomIfPinned: () => undefined,
-  }),
-}));
+vi.mock(
+  "@/app/chat/components/transcript-viewport",
+  () => import("./transcript-viewport-stub"),
+);
 
 function parentMessage(
   overrides: Partial<ChatRoomMessage> = {},

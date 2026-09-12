@@ -31,10 +31,6 @@ import {
   toggleMessageReactionAction,
   unpinRoomMessageAction,
 } from "@/app/chat/actions";
-import {
-  CHAT_MESSAGE_LIST_ATTRIBUTE,
-  CHAT_MESSAGE_LIST_THREAD,
-} from "@/app/chat/chat-message-list";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
@@ -401,6 +397,9 @@ export function RoomsClient({
   // their height. The anchor taken before the merge puts it back once the
   // new rows have laid out.
   const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
+  const pendingThreadScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(
+    null,
+  );
   // Held in a ref as well as in state: the row's tap and its visibility
   // observer can fire in the same tick, before the loading state renders.
   const loadingBoundariesRef = useRef<Set<string>>(new Set());
@@ -415,6 +414,7 @@ export function RoomsClient({
     setBoundaryStatus({});
     loadingBoundariesRef.current = new Set();
     pendingScrollAnchorRef.current = null;
+    pendingThreadScrollAnchorRef.current = null;
     boundaryLoadGenerationRef.current += 1;
     // The dialog belongs to the room it was opened for, and must not be
     // handed to the next one.
@@ -560,6 +560,7 @@ export function RoomsClient({
   // scroll anchor. Reached through a ref so the callbacks handed to rows,
   // hooks and the composer keep one identity across the room's life.
   const viewportRef = useRef<TranscriptViewportHandle | null>(null);
+  const threadViewportRef = useRef<TranscriptViewportHandle | null>(null);
   const scrollToBottom = useCallback(() => {
     viewportRef.current?.scrollToBottom();
   }, []);
@@ -581,6 +582,11 @@ export function RoomsClient({
   const landOnRoomMessage = useCallback(
     (messageId: string) =>
       viewportRef.current?.landOnMessage(messageId) ?? false,
+    [],
+  );
+  const landOnThreadMessage = useCallback(
+    (messageId: string) =>
+      threadViewportRef.current?.landOnMessage(messageId) ?? false,
     [],
   );
   // When history lands, pin live edge in layout (same frame as skeleton →
@@ -1697,6 +1703,7 @@ export function RoomsClient({
       threadParentMessage,
       isStillSelectedRoom,
       landOnRoomMessage,
+      landOnThreadMessage,
       suppressStickToBottom,
       releaseStickToBottomSuppress,
       setSearchHoldOffBottom,
@@ -1856,6 +1863,15 @@ export function RoomsClient({
     viewportRef.current?.restoreAnchor(anchor);
   }, [transcript]);
 
+  useLayoutEffect(() => {
+    const anchor = pendingThreadScrollAnchorRef.current;
+    if (!anchor) {
+      return;
+    }
+    pendingThreadScrollAnchorRef.current = null;
+    threadViewportRef.current?.restoreAnchor(anchor);
+  }, [threadMessages]);
+
   function handleLoadOlderThreadMessages() {
     if (
       !selectedRoom ||
@@ -1869,6 +1885,7 @@ export function RoomsClient({
     const roomId = selectedRoom.id;
     const parentMessageId = threadParentMessage.id;
     const cursor = threadOlderNextCursor;
+    const fallbackMessageId = displayThreadMessages[0]?.id ?? parentMessageId;
     startLoadingOlderThreadTransition(async () => {
       const result = await listThreadMessagesAction(roomId, parentMessageId, {
         cursor,
@@ -1880,6 +1897,8 @@ export function RoomsClient({
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
+      pendingThreadScrollAnchorRef.current =
+        threadViewportRef.current?.captureAnchor(fallbackMessageId) ?? null;
       setThreadMessages((current) =>
         mergeRoomMessages(current, result.value.messages),
       );
@@ -2281,17 +2300,12 @@ export function RoomsClient({
         latestMessageHandlersRef.current.handleSaveEdit(contentOverride),
       // A quote is usually a room message, so this scrolls the transcript
       // whichever list the quoting row sits in. A reply quoting another reply
-      // lives only in the open thread, which is not virtualized, so its copy
-      // is found in the panel.
+      // lives only in the open thread.
       onJumpToQuotedMessage: (messageId: string) => {
         if (viewportRef.current?.scrollToMessage(messageId)) {
           return;
         }
-        document
-          .querySelector(
-            `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_THREAD}"] [data-message-id="${CSS.escape(messageId)}"]`,
-          )
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        threadViewportRef.current?.scrollToMessage(messageId);
       },
     }),
     [],
@@ -2802,6 +2816,7 @@ export function RoomsClient({
             threadParentMessage ? (
               <ThreadPanel
                 parentMessage={threadParentMessage}
+                viewportRef={threadViewportRef}
                 holdOffBottom={searchHoldOffBottom}
                 replies={displayThreadMessages}
                 isLoading={isThreadLoading}

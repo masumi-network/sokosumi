@@ -51,6 +51,11 @@ vi.mock("../room-message-row", () => ({
   ),
 }));
 
+vi.mock(
+  "@/app/chat/components/transcript-viewport",
+  () => import("./transcript-viewport-stub"),
+);
+
 function parentMessage(
   overrides: Partial<ChatRoomMessage> = {},
 ): ChatRoomMessage {

@@ -215,32 +215,73 @@ vi.mock("../room-message-row", () => ({
 
 // Reports which thread was opened and what it holds. A notification for a
 // reply is meant to land inside the thread, and the real panel renders far
-// more than this test can set up.
-vi.mock("../thread-panel", () => ({
-  ThreadPanel: ({
-    parentMessage,
-    replies,
-  }: {
-    parentMessage: ChatRoomMessage | null;
-    replies: ChatRoomMessage[];
-  }) => (
-    <div
-      data-testid="thread-panel"
-      data-parent-id={parentMessage?.id ?? ""}
-      data-reply-ids={replies.map((reply) => reply.id).join(",")}
-    >
-      {mockThreadPanelRows.current ? (
-        <div data-chat-message-list="thread">
-          {[parentMessage, ...replies]
-            .filter((message) => message != null)
-            .map((message) => (
-              <div key={message.id} data-message-id={message.id} />
-            ))}
+// more than this test can set up. The viewport handle is how jumps land:
+// DOM attribute queries are the old path.
+vi.mock("../thread-panel", async () => {
+  const { useImperativeHandle } = await import("react");
+  return {
+    ThreadPanel: function ThreadPanelMock({
+      parentMessage,
+      replies,
+      viewportRef,
+    }: {
+      parentMessage: ChatRoomMessage | null;
+      replies: ChatRoomMessage[];
+      viewportRef?: Ref<{
+        landOnMessage: (messageId: string) => boolean;
+        scrollToMessage: (messageId: string) => boolean;
+        scrollToBottom: () => void;
+        pinToBottomAfterOwnSend: () => void;
+        scrollToBottomIfPinned: () => void;
+        suppressStickToBottom: () => void;
+        releaseStickToBottomSuppress: () => void;
+        captureAnchor: () => null;
+        restoreAnchor: () => void;
+      } | null>;
+    }) {
+      useImperativeHandle(viewportRef, () => ({
+        scrollToBottom: () => undefined,
+        pinToBottomAfterOwnSend: () => undefined,
+        scrollToBottomIfPinned: () => undefined,
+        suppressStickToBottom: () => undefined,
+        releaseStickToBottomSuppress: () => undefined,
+        captureAnchor: () => null,
+        restoreAnchor: () => undefined,
+        landOnMessage: (messageId: string) => {
+          const target = document.querySelector<HTMLElement>(
+            `[data-chat-message-list="thread"] [data-message-id="${CSS.escape(messageId)}"]`,
+          );
+          if (!target) {
+            return false;
+          }
+          target.dataset.searchLanded = "true";
+          return true;
+        },
+        scrollToMessage: (messageId: string) =>
+          document.querySelector(
+            `[data-chat-message-list="thread"] [data-message-id="${CSS.escape(messageId)}"]`,
+          ) != null,
+      }));
+      return (
+        <div
+          data-testid="thread-panel"
+          data-parent-id={parentMessage?.id ?? ""}
+          data-reply-ids={replies.map((reply) => reply.id).join(",")}
+        >
+          {mockThreadPanelRows.current ? (
+            <div data-chat-message-list="thread">
+              {[parentMessage, ...replies]
+                .filter((message) => message != null)
+                .map((message) => (
+                  <div key={message.id} data-message-id={message.id} />
+                ))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </div>
-  ),
-}));
+      );
+    },
+  };
+});
 
 vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: ({

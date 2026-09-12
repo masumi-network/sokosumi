@@ -3,12 +3,16 @@
 import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { type RefObject, useMemo, useRef, useState } from "react";
 import { CHAT_MESSAGE_LIST_THREAD } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
-import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import { TranscriptBoundaryRow } from "@/app/chat/components/transcript-boundary-row";
+import {
+  TranscriptViewport,
+  type TranscriptViewportHandle,
+} from "@/app/chat/components/transcript-viewport";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
-import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
+import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
@@ -33,6 +37,39 @@ import {
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
+
+function buildThreadTranscriptRows(
+  parentMessage: ChatRoomMessage,
+  replies: readonly ChatRoomMessage[],
+  olderNextCursor: string | null,
+): RoomTranscriptRenderRow[] {
+  const rows: RoomTranscriptRenderRow[] = [
+    {
+      kind: "message",
+      message: parentMessage,
+      previousMessage: undefined,
+      dayPreviousMessage: undefined,
+    },
+  ];
+  if (olderNextCursor) {
+    rows.push({
+      kind: "boundary",
+      cursorMessageId: olderNextCursor,
+      isGap: false,
+    });
+  }
+  let previousReply: ChatRoomMessage | undefined;
+  for (const reply of replies) {
+    rows.push({
+      kind: "message",
+      message: reply,
+      previousMessage: previousReply,
+      dayPreviousMessage: previousReply,
+    });
+    previousReply = reply;
+  }
+  return rows;
+}
 
 export function ThreadPanel({
   parentMessage,
@@ -83,6 +120,7 @@ export function ThreadPanel({
   roomId,
   holdOffBottom = false,
   composerDisabledMessage,
+  viewportRef: viewportRefFromParent,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -134,26 +172,22 @@ export function ThreadPanel({
   roomId: string;
   holdOffBottom?: boolean;
   composerDisabledMessage?: string;
+  viewportRef?: RefObject<TranscriptViewportHandle | null>;
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
-  const {
-    scrollerRef,
-    contentRef,
-    contentMinHeight,
-    pinToBottomAfterOwnSend,
-    scrollToBottomIfPinned,
-    suppressStickToBottom,
-  } = useStickToBottom({
-    resetKey: parentMessage.id,
-    holdOffBottom,
-  });
-
-  useEffect(() => {
-    if (holdOffBottom) {
-      suppressStickToBottom();
-    }
-  }, [holdOffBottom, suppressStickToBottom]);
+  const localViewportRef = useRef<TranscriptViewportHandle | null>(null);
+  const viewportRef = viewportRefFromParent ?? localViewportRef;
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const transcriptRows = useMemo(
+    () =>
+      buildThreadTranscriptRows(
+        parentMessage,
+        isLoading ? [] : replies,
+        isLoading ? null : olderNextCursor,
+      ),
+    [isLoading, olderNextCursor, parentMessage, replies],
+  );
 
   function handleQuote(message: ChatRoomMessage) {
     onQuote?.(message);
@@ -167,7 +201,7 @@ export function ThreadPanel({
   ): Promise<RoomSessionSendResult> {
     const result = await onSendReply(request);
     if (result.ok) {
-      pinToBottomAfterOwnSend();
+      viewportRef.current?.pinToBottomAfterOwnSend();
     }
     return result;
   }
@@ -198,6 +232,62 @@ export function ThreadPanel({
       onSaveEdit,
       isSavingEdit: isSavingEdit && isEditing,
     };
+  }
+
+  function renderThreadRow(row: RoomTranscriptRenderRow) {
+    if (row.kind === "boundary") {
+      return (
+        <div className="min-w-0 flow-root">
+          <TranscriptBoundaryRow
+            cursorMessageId={row.cursorMessageId}
+            isGap={row.isGap}
+            status={isLoadingOlder ? "loading" : "idle"}
+            onLoad={onLoadOlder}
+          />
+        </div>
+      );
+    }
+    const { message, previousMessage } = row;
+    const isParent = message.id === parentMessage.id;
+    return (
+      <div className="min-w-0 flow-root">
+        {message.membership != null ? (
+          <MembershipStatusRow message={message} />
+        ) : (
+          <ChatMessageRow
+            message={message}
+            coworkersById={coworkersById}
+            coworkersBySlug={coworkersBySlug}
+            sokoBotsById={sokoBotsById}
+            sokoBotsBySlug={sokoBotsBySlug}
+            usersById={usersById}
+            usersBySlug={usersBySlug}
+            mentions={mentionRecords}
+            channels={channelOptions}
+            channelLinks={channelLinks}
+            canOpenHumanDirect={canOpenHumanDirect}
+            onOpenDirectMessage={onOpenDirectMessage}
+            openingDirectParticipantKey={openingDirectParticipantKey}
+            onToggleReaction={onToggleReaction}
+            onQuote={onQuote ? handleQuote : undefined}
+            onRetryOutbound={isParent ? undefined : onRetryOutbound}
+            onRetryMention={retryMentionFor(message)}
+            onRemoveOutbound={isParent ? undefined : onRemoveOutbound}
+            onJumpToQuotedMessage={onJumpToQuotedMessage}
+            showOutboundSentTick={
+              isParent ? undefined : outboundSentTickIds?.has(message.id)
+            }
+            showThreadButton={false}
+            reserveHoverActionGutter={false}
+            isContinuation={
+              isParent ? false : isMessageContinuation(previousMessage, message)
+            }
+            {...editPropsFor(message.id)}
+          />
+        )}
+        {isParent ? <div className="my-4 border-t" /> : null}
+      </div>
+    );
   }
 
   return (
@@ -252,125 +342,34 @@ export function ThreadPanel({
             </Button>
           )}
         </header>
-        <div ref={scrollerRef} className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
+        <div ref={setScroller} className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
           <div
-            ref={contentRef}
             // A jump can land in a thread too, so the spotlight in globals.css
             // scopes to this list the same way it does the room transcript.
             // Named so a room-scoped lookup does not find this copy of a
             // message id the transcript also renders.
             data-chat-message-list={CHAT_MESSAGE_LIST_THREAD}
-            className="flex min-w-0 w-full flex-col justify-end px-4 pt-4 pb-0"
-            style={
-              contentMinHeight != null
-                ? { minHeight: contentMinHeight }
-                : undefined
-            }
+            className="flex min-h-full min-w-0 w-full flex-col justify-end px-4 pt-4 pb-0"
           >
-            {parentMessage.membership != null ? (
-              <MembershipStatusRow message={parentMessage} />
-            ) : (
-              <ChatMessageRow
-                message={parentMessage}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                sokoBotsById={sokoBotsById}
-                sokoBotsBySlug={sokoBotsBySlug}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-                mentions={mentionRecords}
-                channels={channelOptions}
-                channelLinks={channelLinks}
-                canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={onOpenDirectMessage}
-                openingDirectParticipantKey={openingDirectParticipantKey}
-                onToggleReaction={onToggleReaction}
-                onQuote={onQuote ? handleQuote : undefined}
-                onJumpToQuotedMessage={onJumpToQuotedMessage}
-                onRetryMention={retryMentionFor(parentMessage)}
-                showThreadButton={false}
-                reserveHoverActionGutter={false}
-                {...editPropsFor(parentMessage.id)}
-              />
-            )}
-            <div className="my-4 border-t" />
+            <TranscriptViewport
+              key={parentMessage.id}
+              ref={viewportRef}
+              scroller={scroller}
+              rows={transcriptRows}
+              renderRow={renderThreadRow}
+              list={CHAT_MESSAGE_LIST_THREAD}
+              holdOffBottom={holdOffBottom}
+            />
             {isLoading ? (
               <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
                 <Loader2 className="size-4 animate-spin" aria-hidden />
                 {t("Thread.loading")}
               </div>
-            ) : (
-              <>
-                {olderNextCursor ? (
-                  <div className="mb-3 flex justify-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={isLoadingOlder}
-                      onClick={onLoadOlder}
-                    >
-                      {isLoadingOlder ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin" />
-                          {t("loadingOlder")}
-                        </>
-                      ) : (
-                        t("loadOlder")
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                {replies.length > 0 ? (
-                  <div className="flex flex-col">
-                    {replies.map((reply, index) =>
-                      reply.membership != null ? (
-                        <MembershipStatusRow key={reply.id} message={reply} />
-                      ) : (
-                        <ChatMessageRow
-                          key={readClientTurnId(reply) ?? reply.id}
-                          message={reply}
-                          coworkersById={coworkersById}
-                          coworkersBySlug={coworkersBySlug}
-                          sokoBotsById={sokoBotsById}
-                          sokoBotsBySlug={sokoBotsBySlug}
-                          usersById={usersById}
-                          usersBySlug={usersBySlug}
-                          mentions={mentionRecords}
-                          channels={channelOptions}
-                          channelLinks={channelLinks}
-                          canOpenHumanDirect={canOpenHumanDirect}
-                          onOpenDirectMessage={onOpenDirectMessage}
-                          openingDirectParticipantKey={
-                            openingDirectParticipantKey
-                          }
-                          onToggleReaction={onToggleReaction}
-                          onQuote={onQuote ? handleQuote : undefined}
-                          onRetryOutbound={onRetryOutbound}
-                          onRetryMention={retryMentionFor(reply)}
-                          onRemoveOutbound={onRemoveOutbound}
-                          onJumpToQuotedMessage={onJumpToQuotedMessage}
-                          showOutboundSentTick={outboundSentTickIds?.has(
-                            reply.id,
-                          )}
-                          showThreadButton={false}
-                          reserveHoverActionGutter={false}
-                          isContinuation={isMessageContinuation(
-                            replies[index - 1],
-                            reply,
-                          )}
-                          {...editPropsFor(reply.id)}
-                        />
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground py-4 text-sm">
-                    {t("Thread.empty")}
-                  </p>
-                )}
-              </>
-            )}
+            ) : replies.length === 0 ? (
+              <p className="text-muted-foreground py-4 text-sm">
+                {t("Thread.empty")}
+              </p>
+            ) : null}
           </div>
         </div>
         {composerDisabledMessage ? (
@@ -399,7 +398,9 @@ export function ThreadPanel({
             pendingQuote={pendingQuote}
             onClearPendingQuote={onClearPendingQuote}
             onRestorePendingQuote={onRestorePendingQuote}
-            onChromeResize={scrollToBottomIfPinned}
+            onChromeResize={() => {
+              viewportRef.current?.scrollToBottomIfPinned();
+            }}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}
