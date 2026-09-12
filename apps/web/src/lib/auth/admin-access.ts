@@ -6,8 +6,6 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 
-export { hasAdminRole } from "@/lib/auth/has-admin-role";
-
 function getSessionUserRole(session: Session): string | null | undefined {
   const user = session.user as Session["user"] & { role?: string | null };
   return user.role ?? undefined;
