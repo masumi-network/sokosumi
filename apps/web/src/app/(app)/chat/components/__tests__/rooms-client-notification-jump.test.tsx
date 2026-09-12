@@ -8,6 +8,7 @@ import {
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
+import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -515,6 +516,7 @@ describe("RoomsClient notification deep link", () => {
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
         around: "msg-1",
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
       });
     });
   });
@@ -551,6 +553,7 @@ describe("RoomsClient notification deep link", () => {
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
         around: "msg-1",
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
       });
     });
 
@@ -959,6 +962,7 @@ describe("RoomsClient notification deep link", () => {
       await waitFor(() => {
         expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
           around: "msg-1",
+          limit: ROOM_HISTORY_WINDOW_LIMIT,
         });
       });
 
@@ -1041,6 +1045,7 @@ describe("RoomsClient notification deep link", () => {
       await waitFor(() => {
         expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
           around: "msg-hit",
+          limit: ROOM_HISTORY_WINDOW_LIMIT,
         });
       });
 
@@ -1192,6 +1197,7 @@ describe("RoomsClient notification deep link", () => {
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
         around: "msg-1",
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
       });
     });
 

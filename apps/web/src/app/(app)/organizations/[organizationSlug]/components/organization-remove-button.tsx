@@ -17,32 +17,6 @@ interface OrganizationRemoveButtonProps {
   preflightFailed?: boolean;
 }
 
-interface OrganizationRemoveModalHostProps {
-  open: boolean;
-  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
-  organization: OrganizationRecord;
-  blockers?: OrganizationDeletionEvaluation["blockers"];
-  preflightFailed?: boolean;
-}
-
-function OrganizationRemoveModalHost({
-  open,
-  onOpenChange,
-  organization,
-  blockers = [],
-  preflightFailed = false,
-}: OrganizationRemoveModalHostProps) {
-  return (
-    <OrganizationRemoveModal
-      open={open}
-      onOpenChange={onOpenChange}
-      organization={organization}
-      blockers={blockers}
-      preflightFailed={preflightFailed}
-    />
-  );
-}
-
 export default function OrganizationRemoveButton({
   organization,
   className,
@@ -50,7 +24,7 @@ export default function OrganizationRemoveButton({
   preflightFailed = false,
 }: OrganizationRemoveButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
-  const { Component, showModal } = useModal(OrganizationRemoveModalHost, {
+  const { Component, showModal } = useModal(OrganizationRemoveModal, {
     organization,
     blockers,
     preflightFailed,
