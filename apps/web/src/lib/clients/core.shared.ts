@@ -87,6 +87,7 @@ import type {
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
+  RescheduleTaskScheduleOccurrenceRequest,
   ResolveAdminTaskX402PaymentData,
   ResolveSokoBotDecisionRequest,
   SokoBotLabIngestRequest,
@@ -295,6 +296,7 @@ import {
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
+  patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
   patchVendor as corePatchVendor,
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -3464,6 +3466,24 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function rescheduleTaskScheduleOccurrence(
+    id: string,
+    occurrenceId: string,
+    body: RescheduleTaskScheduleOccurrenceRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchTasksByIdScheduleOccurrencesByOccurrenceId({
+          client,
+          path: { id, occurrenceId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to reschedule task schedule occurrence",
+    );
+  }
+
   async function getCoworkers(query?: GetCoworkersData["query"]) {
     return executeCoreOperation(
       getClient,
@@ -5175,6 +5195,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     putTaskCalendarSchedule,
     putTaskSchedule,
     putTaskShare,
+    rescheduleTaskScheduleOccurrence,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,

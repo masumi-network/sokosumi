@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   countTaskScheduleFutureExceptions,
   createTaskSchedulePlannedOccurrences,
+  findNextReleaseableOccurrence,
   refreshTaskSchedulePlannedOccurrences,
   replaceTaskSchedulePlannedOccurrences,
   retireTaskScheduleFutureOccurrences,
@@ -297,7 +298,13 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await expect(
       replaceTaskSchedulePlannedOccurrences(
-        { taskScheduleOccurrence: { deleteMany, createMany } },
+        {
+          taskScheduleOccurrence: {
+            findMany: vi.fn(),
+            deleteMany,
+            createMany,
+          },
+        },
         {
           id: "tsk_dense",
           workspaceId: WORKSPACE_ID,
@@ -319,15 +326,36 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     expect(createMany).not.toHaveBeenCalled();
   });
 
-  it("replaces planned version 1 occurrences through the rolling horizon", async () => {
+  it("replaces ordinary projections and preserves a moved durable exception", async () => {
     const deleteMany = vi.fn().mockResolvedValue({ count: 2 });
     const createMany = vi.fn().mockResolvedValue({ count: 3 });
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: "occ_ordinary_v1",
+        state: "PLANNED",
+        scheduleVersion: 1,
+        originalScheduledAt: null,
+        effectiveScheduledAt: new Date("2026-05-31T09:00:00.000Z"),
+      },
+      {
+        id: "occ_ordinary_v2",
+        state: "PLANNED",
+        scheduleVersion: 2,
+        originalScheduledAt: new Date("2026-05-31T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-05-31T09:00:00.000Z"),
+      },
+      {
+        id: "occ_moved_v2",
+        state: "PLANNED",
+        scheduleVersion: 2,
+        originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-02T15:00:00.000Z"),
+      },
+    ]);
     const now = new Date("2026-06-01T00:00:00.000Z");
 
     await replaceTaskSchedulePlannedOccurrences(
-      {
-        taskScheduleOccurrence: { deleteMany, createMany },
-      },
+      { taskScheduleOccurrence: { findMany, deleteMany, createMany } },
       {
         id: "tsk_v1",
         workspaceId: WORKSPACE_ID,
@@ -346,8 +374,9 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
       now,
     );
 
+    // The moved v2 row is a durable decision and is not deleted or rebuilt.
     expect(deleteMany).toHaveBeenCalledWith({
-      where: { seriesTaskId: "tsk_v1", state: "PLANNED" },
+      where: { id: { in: ["occ_ordinary_v1", "occ_ordinary_v2"] } },
     });
     expect(createMany).toHaveBeenCalledWith({
       data: [
@@ -372,12 +401,14 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
           effectiveScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
         }),
       ],
+      skipDuplicates: true,
     });
   });
 
   it("retains version 2 epoch identity", async () => {
     const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
     const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    const findMany = vi.fn().mockResolvedValue([]);
     const task = {
       id: "tsk_v2",
       workspaceId: WORKSPACE_ID,
@@ -396,7 +427,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     };
 
     await replaceTaskSchedulePlannedOccurrences(
-      { taskScheduleOccurrence: { deleteMany, createMany } },
+      { taskScheduleOccurrence: { findMany, deleteMany, createMany } },
       task,
       new Date("2026-06-01T00:00:00.000Z"),
     );
@@ -413,6 +444,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
           timezone: "UTC",
         }),
       ],
+      skipDuplicates: true,
     });
   });
 
@@ -423,7 +455,11 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     await expect(
       refreshTaskSchedulePlannedOccurrences(
         {
-          taskScheduleOccurrence: { deleteMany, createMany },
+          taskScheduleOccurrence: {
+            findMany: vi.fn(),
+            deleteMany,
+            createMany,
+          },
           taskScheduleQuarantine: { upsert: vi.fn() },
         },
         {
@@ -454,7 +490,11 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await refreshTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: { deleteMany, createMany: vi.fn() },
+        taskScheduleOccurrence: {
+          findMany: vi.fn(),
+          deleteMany,
+          createMany: vi.fn(),
+        },
         taskScheduleQuarantine: { upsert },
       },
       {
@@ -488,7 +528,11 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await refreshTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: { deleteMany, createMany: vi.fn() },
+        taskScheduleOccurrence: {
+          findMany: vi.fn(),
+          deleteMany,
+          createMany: vi.fn(),
+        },
         taskScheduleQuarantine: { upsert },
       },
       {
@@ -505,5 +549,58 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
       where: { seriesTaskId: "tsk_unscheduled", state: "PLANNED" },
     });
     expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("findNextReleaseableOccurrence", () => {
+  const NOW = new Date("2026-06-10T00:00:00.000Z");
+
+  it("returns the earliest planned row at or after now", async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      id: "occ_1",
+      epochId: "33333333-3333-7333-8333-333333333333",
+      originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+      effectiveScheduledAt: new Date("2026-06-11T15:00:00.000Z"),
+    });
+
+    await expect(
+      findNextReleaseableOccurrence(
+        { taskScheduleOccurrence: { findFirst } },
+        "tsk_series",
+        NOW,
+      ),
+    ).resolves.toEqual({
+      id: "occ_1",
+      epochId: "33333333-3333-7333-8333-333333333333",
+      originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+      effectiveScheduledAt: new Date("2026-06-11T15:00:00.000Z"),
+    });
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        seriesTaskId: "tsk_series",
+        state: "PLANNED",
+        effectiveScheduledAt: { gte: NOW },
+      },
+      orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        epochId: true,
+        originalScheduledAt: true,
+        effectiveScheduledAt: true,
+      },
+    });
+  });
+
+  it("returns null when no planned row remains", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+
+    await expect(
+      findNextReleaseableOccurrence(
+        { taskScheduleOccurrence: { findFirst } },
+        "tsk_series",
+        NOW,
+      ),
+    ).resolves.toBeNull();
   });
 });

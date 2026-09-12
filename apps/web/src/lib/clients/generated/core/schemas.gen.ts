@@ -19342,6 +19342,54 @@ export const TaskScheduleOccurrenceViewSchema = {
     example: 'upcoming'
 } as const;
 
+export const TaskScheduleOccurrenceMutationSchema = {
+    type: 'object',
+    properties: {
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Series revision after the move',
+            example: 4
+        },
+        occurrence: {
+            $ref: '#/components/schemas/TaskScheduleOccurrence'
+        }
+    },
+    required: [
+        'scheduleRevision',
+        'occurrence'
+    ]
+} as const;
+
+export const RescheduleTaskScheduleOccurrenceRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this occurrence move',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedScheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Schedule revision observed by the caller',
+            example: 3
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-09-20T09:00:00.000Z',
+            description: 'New absolute time for the occurrence. Strictly future and inside the projection horizon.'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedScheduleRevision',
+        'scheduledAt'
+    ]
+} as const;
+
 export const TaskWorkspaceSchema = {
     type: 'object',
     properties: {

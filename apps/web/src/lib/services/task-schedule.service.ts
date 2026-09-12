@@ -115,10 +115,41 @@ export const taskScheduleService = (() => {
     };
   }
 
+  /**
+   * Moves one unreleased occurrence to a new absolute time. Core keeps the
+   * occurrence's original identity and audits the move; the series revision
+   * advances so occurrence cursors refresh.
+   */
+  async function rescheduleOccurrence(
+    taskId: string,
+    occurrenceId: string,
+    precondition: TaskScheduleSeriesPrecondition,
+    scheduledAt: Date,
+  ): Promise<{
+    scheduleRevision: number;
+    occurrence: TaskScheduleOccurrence;
+  }> {
+    const result = await coreClient.rescheduleTaskScheduleOccurrence(
+      taskId,
+      occurrenceId,
+      {
+        operationId: precondition.operationId,
+        expectedScheduleRevision: precondition.expectedScheduleRevision,
+        scheduledAt,
+      },
+    );
+
+    return {
+      scheduleRevision: result.data.scheduleRevision,
+      occurrence: result.data.occurrence,
+    };
+  }
+
   return {
     editCalendarSeries,
     setSchedule,
     removeCalendarSeries,
     listOccurrences,
+    rescheduleOccurrence,
   };
 })();

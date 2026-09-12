@@ -8,7 +8,10 @@ import {
 } from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/utils";
 
-import { iterateTaskScheduleOccurrences } from "@/helpers/task-schedule";
+import {
+  computeNextRuleOccurrence,
+  iterateTaskScheduleOccurrences,
+} from "@/helpers/task-schedule";
 import { quarantineTaskSchedule } from "@/helpers/task-schedule-quarantine";
 import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
 
@@ -58,7 +61,7 @@ interface TaskScheduleOccurrenceCreateClient {
 interface TaskScheduleOccurrenceIndexClient {
   taskScheduleOccurrence: Pick<
     Prisma.TransactionClient["taskScheduleOccurrence"],
-    "createMany" | "deleteMany"
+    "createMany" | "deleteMany" | "findMany"
   >;
 }
 
@@ -113,11 +116,17 @@ function projectPlannedOccurrenceRows(
   now: Date,
 ) {
   const horizonEnd = new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS);
+  // For v2 the wake time (`nextRunAt`) is not a rule time once an occurrence is
+  // moved, so the projection walks the rule from its stored anchor instead.
+  const projectionStart =
+    task.schedule.mode === "recurring" && task.schedule.version === 2
+      ? (computeNextRuleOccurrence(task.schedule) ?? task.nextRunAt)
+      : task.nextRunAt;
   const occurrences = Array.from(
     iterateTaskScheduleOccurrences(
       task.id,
       task.schedule,
-      task.nextRunAt,
+      projectionStart,
       now,
       horizonEnd,
       MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES + 1,
@@ -163,6 +172,38 @@ export async function createTaskSchedulePlannedOccurrences(
   await tx.taskScheduleOccurrence.createMany({ data: rows });
 }
 
+/**
+ * Deletes only the ordinary projections a re-projection may replace. A moved
+ * occurrence (`originalScheduledAt != effectiveScheduledAt`) is a durable human
+ * decision and survives; a skipped row is not `PLANNED`, so it is never in the
+ * candidate set at all.
+ */
+async function removeOrdinaryPlannedOccurrences(
+  tx: TaskScheduleOccurrenceIndexClient,
+  seriesTaskId: string,
+): Promise<void> {
+  const planned = await tx.taskScheduleOccurrence.findMany({
+    where: { seriesTaskId, state: TaskScheduleOccurrenceState.PLANNED },
+    select: {
+      id: true,
+      state: true,
+      scheduleVersion: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
+  const ordinaryIds = planned
+    .filter((row) => !isDurableScheduleException(row))
+    .map((row) => row.id);
+  if (ordinaryIds.length === 0) {
+    return;
+  }
+
+  await tx.taskScheduleOccurrence.deleteMany({
+    where: { id: { in: ordinaryIds } },
+  });
+}
+
 export async function replaceTaskSchedulePlannedOccurrences(
   tx: TaskScheduleOccurrenceIndexClient,
   task: TaskScheduleOccurrenceIndexTask,
@@ -170,12 +211,58 @@ export async function replaceTaskSchedulePlannedOccurrences(
 ): Promise<void> {
   const rows = projectPlannedOccurrenceRows(task, now);
 
-  await removeTaskSchedulePlannedOccurrences(tx, task.id);
+  await removeOrdinaryPlannedOccurrences(tx, task.id);
   if (rows.length === 0) {
     return;
   }
 
-  await tx.taskScheduleOccurrence.createMany({ data: rows });
+  // A projected time still owned by a moved or skipped exception stays with
+  // that row, so the rebuild must not collide with its identity.
+  await tx.taskScheduleOccurrence.createMany({
+    data: rows,
+    skipDuplicates: true,
+  });
+}
+
+export interface TaskScheduleOccurrenceReleaseCandidate {
+  id: string;
+  epochId: string | null;
+  originalScheduledAt: Date | null;
+  effectiveScheduledAt: Date;
+}
+
+interface TaskScheduleOccurrenceNextClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "findFirst"
+  >;
+}
+
+/**
+ * The earliest occurrence the series still owes a release for: a `PLANNED` row
+ * at or after `now`, ignoring skipped and canceled decisions. This is the
+ * ledger-driven next run for v2 series, so a moved occurrence pulls the next run
+ * to its new time and a skipped one never becomes the next run.
+ */
+export async function findNextReleaseableOccurrence(
+  tx: TaskScheduleOccurrenceNextClient,
+  seriesTaskId: string,
+  now = new Date(),
+): Promise<TaskScheduleOccurrenceReleaseCandidate | null> {
+  return tx.taskScheduleOccurrence.findFirst({
+    where: {
+      seriesTaskId,
+      state: TaskScheduleOccurrenceState.PLANNED,
+      effectiveScheduledAt: { gte: now },
+    },
+    orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      epochId: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
 }
 
 export interface RetiredTaskScheduleOccurrences {
