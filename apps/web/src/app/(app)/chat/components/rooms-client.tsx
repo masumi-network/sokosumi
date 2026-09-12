@@ -31,6 +31,10 @@ import {
   toggleMessageReactionAction,
   unpinRoomMessageAction,
 } from "@/app/chat/actions";
+import {
+  CHAT_MESSAGE_LIST_ATTRIBUTE,
+  CHAT_MESSAGE_LIST_THREAD,
+} from "@/app/chat/chat-message-list";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
@@ -41,7 +45,6 @@ import {
 } from "@/app/chat/components/transcript-boundary-row";
 import {
   TranscriptViewport,
-  type TranscriptViewportAnchor,
   type TranscriptViewportHandle,
 } from "@/app/chat/components/transcript-viewport";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
@@ -114,6 +117,7 @@ import {
 } from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
+import type { TranscriptScrollAnchor } from "@/app/chat/utils/transcript-scroll-anchor";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
@@ -396,7 +400,7 @@ export function RoomsClient({
   // Rows inserted above the viewport would shove the reader's row down by
   // their height. The anchor taken before the merge puts it back once the
   // new rows have laid out.
-  const pendingScrollAnchorRef = useRef<TranscriptViewportAnchor | null>(null);
+  const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
   // Held in a ref as well as in state: the row's tap and its visibility
   // observer can fire in the same tick, before the loading state renders.
   const loadingBoundariesRef = useRef<Set<string>>(new Set());
@@ -2275,10 +2279,19 @@ export function RoomsClient({
       onCancelEdit: () => latestMessageHandlersRef.current.handleCancelEdit(),
       onSaveEdit: (contentOverride?: string) =>
         latestMessageHandlersRef.current.handleSaveEdit(contentOverride),
-      // A quote is a room message, so this scrolls the transcript whichever
-      // list the quoting row sits in.
+      // A quote is usually a room message, so this scrolls the transcript
+      // whichever list the quoting row sits in. A reply quoting another reply
+      // lives only in the open thread, which is not virtualized, so its copy
+      // is found in the panel.
       onJumpToQuotedMessage: (messageId: string) => {
-        viewportRef.current?.scrollToMessage(messageId);
+        if (viewportRef.current?.scrollToMessage(messageId)) {
+          return;
+        }
+        document
+          .querySelector(
+            `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_THREAD}"] [data-message-id="${CSS.escape(messageId)}"]`,
+          )
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
       },
     }),
     [],

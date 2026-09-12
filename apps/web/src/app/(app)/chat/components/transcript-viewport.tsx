@@ -53,11 +53,6 @@ const RESTORE_AFTER_PREPEND_MS = 100;
  */
 const LANDING_FRAMES = 90;
 
-export interface TranscriptViewportAnchor extends TranscriptScrollAnchor {
-  /** Row index at capture; the restore looks the row up again by id. */
-  index: number;
-}
-
 export interface TranscriptViewportHandle {
   /** Live edge, whatever the reader was doing. Drops any hold. */
   scrollToBottom: () => void;
@@ -81,9 +76,9 @@ export interface TranscriptViewportHandle {
    * What the reader is looking at, taken before rows change above it. Falls
    * back to the named row when nothing is in view.
    */
-  captureAnchor: (fallbackMessageId: string) => TranscriptViewportAnchor | null;
+  captureAnchor: (fallbackMessageId: string) => TranscriptScrollAnchor | null;
   /** Put the anchored row back where it was, after the rows changed. */
-  restoreAnchor: (anchor: TranscriptViewportAnchor) => void;
+  restoreAnchor: (anchor: TranscriptScrollAnchor) => void;
 }
 
 interface TranscriptViewportProps {
@@ -155,6 +150,13 @@ export function TranscriptViewport({
   const holdOffBottomRef = useRef(holdOffBottom);
   holdOffBottomRef.current = holdOffBottom;
   const landingRef = useRef(0);
+  // Unmount ends a landing still polling for its row.
+  useEffect(
+    () => () => {
+      landingRef.current += 1;
+    },
+    [],
+  );
   const lastListHeightRef = useRef(0);
 
   // Scroll anchoring, done by hand, for a list at rest. Rows above the
@@ -268,14 +270,10 @@ export function TranscriptViewport({
         if (!scroller) {
           return null;
         }
-        const anchor =
+        return (
           captureVisibleTranscriptScrollAnchor(scroller) ??
-          captureTranscriptScrollAnchor(scroller, fallbackMessageId);
-        if (!anchor) {
-          return null;
-        }
-        const index = findTranscriptRowIndex(rowsRef.current, anchor.messageId);
-        return index < 0 ? null : { ...anchor, index };
+          captureTranscriptScrollAnchor(scroller, fallbackMessageId)
+        );
       },
       restoreAnchor: (anchor) => {
         const index = findTranscriptRowIndex(rowsRef.current, anchor.messageId);

@@ -31,9 +31,9 @@ export const ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME =
 
 /**
  * Native overflow scroller only — do **not** add `flex flex-col` here.
- * Content uses `min-h-full` / pixel minHeight for short-transcript justify-end.
- * A flex column scroller + min-height child clamps scrollHeight to clientHeight
- * so the list cannot scroll up (tall transcripts unreadable).
+ * Content uses `min-h-full` for short-transcript justify-end. A flex column
+ * scroller + min-height child clamps scrollHeight to clientHeight so the list
+ * cannot scroll up (tall transcripts unreadable).
  */
 export const ROOM_SHELL_SCROLLER_CLASSNAME = CHAT_MESSAGE_LIST_SCROLLER_CLASS;
 
