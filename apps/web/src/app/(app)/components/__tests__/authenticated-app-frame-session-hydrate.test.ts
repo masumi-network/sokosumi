@@ -20,4 +20,20 @@ describe("AuthenticatedAppFrame session hydration", () => {
     expect(providerOpen).toBeGreaterThan(hydratorOpen);
     expect(headerOpen).toBeGreaterThan(providerOpen);
   });
+
+  /**
+   * Heal runs in useMountEffect, so a refreshed frame that keeps the same
+   * provider instance would never repair the next reader. The identity key
+   * remounts it when the session user changes.
+   */
+  it("remounts NotificationProvider when the session user changes", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "../authenticated-app-frame.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      "<NotificationProvider key={session.user.id} userId={session.user.id}>",
+    );
+  });
 });

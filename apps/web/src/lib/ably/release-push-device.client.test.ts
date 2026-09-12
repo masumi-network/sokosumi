@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { countPushTeardowns, queuePushWork } from "./push-work-queue.client";
 import {
   dropBrowserPushSubscriptionOnAccountDeletion,
+  notePushTeardownStarted,
   releasePushDeviceOnSignOut,
 } from "./release-push-device.client";
 
@@ -60,6 +62,32 @@ describe("releasePushDeviceOnSignOut", () => {
   });
 
   /**
+   * Turning push on clears the subscription and the token halfway through, so
+   * both reads say this browser never had push while a run is busy giving it
+   * one. A sign-out that believed them would leave that run to finish behind
+   * the reader and subscribe the browser they just signed out of.
+   */
+  it("releases a browser whose push state is being changed right now", async () => {
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+    let finishActivation = () => {};
+    const activation = queuePushWork(
+      () =>
+        new Promise<void>((resolve) => {
+          finishActivation = resolve;
+        }),
+    );
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(deactivatePushMock).toHaveBeenCalledWith("user_1");
+
+    // Left running, the queue would report work pending for every test after
+    // this one, and the read above would never be reached again.
+    finishActivation();
+    await activation;
+  });
+
+  /**
    * The browser subscription and Ably's registration come apart: a
    * subscription dies on its own while the registration stays. That device is
    * still subscribed to this reader's notifications channel, and the next
@@ -98,6 +126,25 @@ describe("releasePushDeviceOnSignOut", () => {
     await releasePushDeviceOnSignOut("user_1");
 
     expect(deactivatePushMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The token is what the repair on open reads to decide that a browser with
+   * no subscription once had one. A release the cap cut short, or one Ably
+   * refused, would otherwise leave the token behind and the next open would
+   * subscribe this browser again, for whoever signs in next.
+   */
+  it("forgets the registration even when the release never landed", async () => {
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+    localStorage.setItem(
+      "ably.push.deviceIdentityToken",
+      JSON.stringify({ value: JSON.stringify("tok_1") }),
+    );
+    deactivatePushMock.mockRejectedValue(new Error("Ably unreachable"));
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
   });
 
   it("reads nothing on a browser that cannot push at all", async () => {
@@ -183,6 +230,7 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
     isPushSupportedMock.mockReturnValue(true);
     hasWebPushSubscriptionMock.mockResolvedValue(true);
     dropBrowserPushSubscriptionMock.mockResolvedValue(undefined);
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -202,6 +250,24 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
   });
 
   /**
+   * A token beside a browser with no subscription is the one shape
+   * `healPushSubscription` reads as a subscription that died by itself, and it
+   * answers that by subscribing again. Left behind by a deletion, the next
+   * page this browser opens would turn push back on for an account that no
+   * longer exists.
+   */
+  it("forgets the registration, which the repair would otherwise act on", async () => {
+    localStorage.setItem(
+      "ably.push.deviceIdentityToken",
+      JSON.stringify({ value: JSON.stringify("tok_1") }),
+    );
+
+    await dropBrowserPushSubscriptionOnAccountDeletion();
+
+    expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
+  });
+
+  /**
    * Deactivation mints an Ably token, and the session died with the account.
    * Only the half that needs no session is left, and that is the half that
    * stops delivery.
@@ -210,6 +276,40 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
     await dropBrowserPushSubscriptionOnAccountDeletion();
 
     expect(deactivatePushMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The repair reads the token, then awaits twice before it activates: the
+   * subscription read and the chunk fetch its import needs. A deletion landing
+   * inside either window is past the read the repair already did, so the
+   * counter is the only thing left that can stop it activating over an account
+   * that is gone.
+   */
+  it("counts the teardown, which a repair already past its read reads", async () => {
+    const before = countPushTeardowns();
+
+    await dropBrowserPushSubscriptionOnAccountDeletion();
+
+    expect(countPushTeardowns()).toBe(before + 1);
+  });
+
+  /**
+   * The reader's subscription had already died on its own, so the deletion
+   * reads a browser with nothing to unsubscribe. That is not a browser to
+   * skip: it is the exact shape the repair acts on, token and all. Whoever
+   * signs in on it next would have push turned on for them over a device
+   * record belonging to an account that no longer exists.
+   */
+  it("forgets the registration of a browser whose subscription already died", async () => {
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+    localStorage.setItem(
+      "ably.push.deviceIdentityToken",
+      JSON.stringify({ value: JSON.stringify("tok_1") }),
+    );
+
+    await dropBrowserPushSubscriptionOnAccountDeletion();
+
+    expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
   });
 
   it("loads nothing for a browser that never subscribed", async () => {
@@ -291,5 +391,31 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
       "Failed to release the push device after account deletion",
       reason,
     );
+  });
+});
+
+describe("notePushTeardownStarted", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  /**
+   * A full storage refuses the write and still answers every read, so the
+   * token would sit there with nothing to say it is on its way out, and the
+   * repair on the next page would read it as a subscription to restore.
+   */
+  it("drops the registration when the note cannot be written", () => {
+    localStorage.setItem(
+      "ably.push.deviceIdentityToken",
+      JSON.stringify({ value: JSON.stringify("tok_1") }),
+    );
+    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+
+    notePushTeardownStarted();
+
+    expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
+import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
@@ -167,6 +168,14 @@ export function NotificationProvider({
   userId,
   children,
 }: NotificationProviderProps) {
+  // A browser that was set up for push and lost its subscription is repaired
+  // here, because this is where a signed-in reader arrives however they got
+  // in. Asks the reader for nothing and leaves a browser that never turned
+  // push on alone.
+  useMountEffect(() => {
+    void healPushSubscription(userId);
+  });
+
   const [state, setState] = useState<NotificationState>({
     notifications: [],
     unreadCount: 0,
