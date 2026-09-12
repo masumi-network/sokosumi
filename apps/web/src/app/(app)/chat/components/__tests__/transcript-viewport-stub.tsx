@@ -1,6 +1,10 @@
 import { Fragment, type ReactNode, type Ref, useImperativeHandle } from "react";
 import { vi } from "vitest";
 
+import {
+  CHAT_MESSAGE_LIST_ATTRIBUTE,
+  CHAT_MESSAGE_LIST_ROOM,
+} from "@/app/chat/chat-message-list";
 import type { TranscriptViewportHandle } from "@/app/chat/components/transcript-viewport";
 import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
@@ -24,7 +28,14 @@ export const transcriptViewportSpies = {
   scrollToBottomIfPinned: vi.fn(),
   suppressStickToBottom: vi.fn(),
   releaseStickToBottomSuppress: vi.fn(),
-  scrollToMessage: vi.fn((_messageId: string) => true),
+  // Answers like the real one: true only for a message the transcript holds,
+  // so the thread-only quote fallback in RoomsClient is reachable here.
+  scrollToMessage: vi.fn(
+    (messageId: string) =>
+      document.querySelector(
+        `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(messageId)}"]`,
+      ) != null,
+  ),
 };
 
 export function TranscriptViewport({
