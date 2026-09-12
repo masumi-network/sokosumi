@@ -19,7 +19,7 @@ import SwiftUI
         VStack(spacing: 0) {
           ScrollViewReader { proxy in
             ScrollView {
-              VStack(alignment: .leading, spacing: 8) {
+              LazyVStack(alignment: .leading, spacing: 8) {
                 MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                                onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
                                  quoteFocusRequest = UUID().uuidString

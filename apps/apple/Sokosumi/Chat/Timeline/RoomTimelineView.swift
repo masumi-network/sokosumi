@@ -65,12 +65,11 @@ import SwiftUI
     }
 
     private var messageList: some View {
-      // Eager stack so the bottom anchor has real last-row geometry on first
-      // paint. LazyVStack estimated a tall empty clip; scrolling up realized
-      // rows and the blank collapsed. First page is 100 messages.
+      // Realize nearby rows only: laying out every rich message makes each
+      // scroll event expensive. Keep each message unary and anchored by ID.
       ScrollViewReader { proxy in
         ScrollView {
-          VStack(alignment: .leading, spacing: 0) {
+          LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
               Button("Load older messages") {
                 scrollIntent.readOlder()
