@@ -53,6 +53,18 @@ export type RoomTranscriptRow =
       isGap: boolean;
     };
 
+/** Message row plus the neighbors the transcript chrome needs. */
+export type RoomTranscriptRenderRow =
+  | Extract<RoomTranscriptRow, { kind: "boundary" }>
+  | {
+      kind: "message";
+      message: ChatRoomMessage;
+      /** Unset after a boundary so continuation does not cross a gap. */
+      previousMessage: ChatRoomMessage | undefined;
+      /** Previous row in reading order, including across a gap. */
+      dayPreviousMessage: ChatRoomMessage | undefined;
+    };
+
 export function emptyRoomTranscript(): RoomTranscript {
   return { messages: [], rangeEdges: [], oldestHasMore: false };
 }
@@ -153,6 +165,28 @@ export function buildRoomTranscriptRows(
     hasRowAbove = true;
   }
   return rows;
+}
+
+/**
+ * Day separators still read across a gap. Continuation chrome must not: a
+ * first head row after "Messages are missing here" is a new burst, even when
+ * the sender and the clock would otherwise group it with the jump window.
+ */
+export function withTranscriptRowNeighbors(
+  rows: readonly RoomTranscriptRow[],
+): RoomTranscriptRenderRow[] {
+  let previousMessage: ChatRoomMessage | undefined;
+  let dayPreviousMessage: ChatRoomMessage | undefined;
+  return rows.map((row) => {
+    if (row.kind === "boundary") {
+      previousMessage = undefined;
+      return row;
+    }
+    const withNeighbors = { ...row, previousMessage, dayPreviousMessage };
+    previousMessage = row.message;
+    dayPreviousMessage = row.message;
+    return withNeighbors;
+  });
 }
 
 interface LoadedRange {

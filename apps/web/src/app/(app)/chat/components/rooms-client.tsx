@@ -106,11 +106,13 @@ import {
   type RoomTranscript,
   type RoomTranscriptPage,
   updateRoomTranscriptMessages,
+  withTranscriptRowNeighbors,
 } from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
 import {
   captureTranscriptScrollAnchor,
+  captureVisibleTranscriptScrollAnchor,
   restoreTranscriptScrollAnchor,
   type TranscriptScrollAnchor,
 } from "@/app/chat/utils/transcript-scroll-anchor";
@@ -393,6 +395,14 @@ export function RoomsClient({
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
   const historicalThreadRef = useRef(false);
+  // Rows inserted above the viewport would shove the reader's row down by
+  // their height. The anchor taken before the merge puts it back once the
+  // new rows have laid out.
+  const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
+  // Held in a ref as well as in state: the row's tap and its visibility
+  // observer can fire in the same tick, before the loading state renders.
+  const loadingBoundariesRef = useRef<Set<string>>(new Set());
+  const boundaryLoadGenerationRef = useRef(0);
   const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
@@ -401,6 +411,9 @@ export function RoomsClient({
     setSyncedHistoryRoomId(selectedRoomId);
     historicalThreadRef.current = false;
     setBoundaryStatus({});
+    loadingBoundariesRef.current = new Set();
+    pendingScrollAnchorRef.current = null;
+    boundaryLoadGenerationRef.current += 1;
     // The dialog belongs to the room it was opened for, and must not be
     // handed to the next one.
     setEditChannelOpen(false);
@@ -1087,23 +1100,18 @@ export function RoomsClient({
       topLevelStreamOverlayMessages,
     );
   }, [topLevelRoomMessages, topLevelStreamOverlayMessages]);
-  // Message rows with a boundary row wherever history is missing. Each
-  // message row carries the message before it so day separators and
-  // continuation chrome read across a boundary the same as anywhere else.
-  const transcriptRows = useMemo(() => {
-    let previousMessage: ChatRoomMessage | undefined;
-    return buildRoomTranscriptRows(
-      displayMessages,
-      messagesPending ? emptyRoomTranscript() : transcript,
-    ).map((row) => {
-      if (row.kind === "boundary") {
-        return row;
-      }
-      const withPrevious = { ...row, previousMessage };
-      previousMessage = row.message;
-      return withPrevious;
-    });
-  }, [displayMessages, messagesPending, transcript]);
+  // Message rows with a boundary row wherever history is missing. Day
+  // separators still read across a gap; continuation chrome does not.
+  const transcriptRows = useMemo(
+    () =>
+      withTranscriptRowNeighbors(
+        buildRoomTranscriptRows(
+          displayMessages,
+          messagesPending ? emptyRoomTranscript() : transcript,
+        ),
+      ),
+    [displayMessages, messagesPending, transcript],
+  );
 
   const threadStreamOverlayMessages = useMemo(() => {
     if (!threadParentMessage) {
@@ -1763,30 +1771,27 @@ export function RoomsClient({
    * The failure stays on the row, which keeps its retry, rather than in a
    * toast the reader has to connect back to it.
    */
-  // Rows inserted above the viewport would shove the reader's row down by
-  // their height. The anchor taken before the merge puts it back once the
-  // new rows have laid out.
-  const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
-  // Held in a ref as well as in state: the row's tap and its visibility
-  // observer can fire in the same tick, before the loading state renders.
-  const loadingBoundariesRef = useRef<Set<string>>(new Set());
   function handleLoadBoundary(cursorMessageId: string) {
     if (!selectedRoom || loadingBoundariesRef.current.has(cursorMessageId)) {
       return;
     }
     const roomId = selectedRoom.id;
+    const generation = boundaryLoadGenerationRef.current;
     loadingBoundariesRef.current.add(cursorMessageId);
     setBoundaryStatus((current) => ({
       ...current,
       [cursorMessageId]: "loading",
     }));
     void (async () => {
+      const isCurrentLoad = () =>
+        isStillSelectedRoom(roomId) &&
+        generation === boundaryLoadGenerationRef.current;
       try {
         const result = await listRoomMessagesAction(roomId, {
           cursor: cursorMessageId,
           limit: ROOM_HISTORY_WINDOW_LIMIT,
         });
-        if (!isStillSelectedRoom(roomId)) {
+        if (!isCurrentLoad()) {
           return;
         }
         if (!result.ok) {
@@ -1798,7 +1803,8 @@ export function RoomsClient({
         }
         const scroller = scrollerRef.current;
         pendingScrollAnchorRef.current = scroller
-          ? captureTranscriptScrollAnchor(scroller, cursorMessageId)
+          ? (captureVisibleTranscriptScrollAnchor(scroller) ??
+            captureTranscriptScrollAnchor(scroller, cursorMessageId))
           : null;
         setTranscript((current) =>
           mergeRoomOlderPage(current, cursorMessageId, result.value),
@@ -1810,14 +1816,16 @@ export function RoomsClient({
       } catch {
         // A dropped connection rejects the action itself. The row keeps its
         // retry rather than spinning until the next reload.
-        if (isStillSelectedRoom(roomId)) {
+        if (isCurrentLoad()) {
           setBoundaryStatus((current) => ({
             ...current,
             [cursorMessageId]: "failed",
           }));
         }
       } finally {
-        loadingBoundariesRef.current.delete(cursorMessageId);
+        if (generation === boundaryLoadGenerationRef.current) {
+          loadingBoundariesRef.current.delete(cursorMessageId);
+        }
       }
     })();
   }
@@ -2540,11 +2548,11 @@ export function RoomsClient({
                   />
                 );
               }
-              const { message, previousMessage } = row;
+              const { message, previousMessage, dayPreviousMessage } = row;
               const showDaySeparator =
                 localCalendarReady &&
-                (!previousMessage ||
-                  messageDayKey(previousMessage.createdAt) !==
+                (!dayPreviousMessage ||
+                  messageDayKey(dayPreviousMessage.createdAt) !==
                     messageDayKey(message.createdAt));
               const isStreamOverlay = message.id.startsWith("stream:");
               const isThinkingShell =

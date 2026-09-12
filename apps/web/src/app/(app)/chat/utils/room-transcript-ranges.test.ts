@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
+import { createPendingRoomMessage } from "./outbound-room-message";
 import {
   buildRoomTranscriptRows,
   emptyRoomTranscript,
@@ -10,6 +11,7 @@ import {
   mergeRoomOlderPage,
   type RoomTranscript,
   updateRoomTranscriptMessages,
+  withTranscriptRowNeighbors,
 } from "./room-transcript-ranges";
 
 function message(index: number): ChatRoomMessage {
@@ -43,13 +45,17 @@ function messages(from: number, to: number): ChatRoomMessage[] {
 
 /** Compact picture of the rows: `older`, `gap`, or a message index. */
 function picture(transcript: RoomTranscript): Array<string | number> {
-  return buildRoomTranscriptRows(transcript.messages, transcript).map((row) =>
-    row.kind === "message"
-      ? Number(row.message.id.slice(4))
-      : row.isGap
+  return buildRoomTranscriptRows(transcript.messages, transcript).map((row) => {
+    if (row.kind === "boundary") {
+      return row.isGap
         ? `gap@${Number(row.cursorMessageId.slice(4))}`
-        : `older@${Number(row.cursorMessageId.slice(4))}`,
-  );
+        : `older@${Number(row.cursorMessageId.slice(4))}`;
+    }
+    if (row.message.id.startsWith("pending:")) {
+      return "pending";
+    }
+    return Number(row.message.id.slice(4));
+  });
 }
 
 function openedRoom(): RoomTranscript {
@@ -126,7 +132,9 @@ describe("mergeRoomJumpWindow", () => {
   });
 
   it("joins a window that overlaps the head into one range", () => {
-    const transcript = mergeRoomJumpWindow(openedRoom(), {
+    const opened = openedRoom();
+    const headFirst = opened.messages[0];
+    const transcript = mergeRoomJumpWindow(opened, {
       messages: messages(85, 92),
       nextCursor: "msg-085",
     });
@@ -134,6 +142,9 @@ describe("mergeRoomJumpWindow", () => {
       "older@85",
       ...messages(85, 99).map((_, i) => 85 + i),
     ]);
+    expect(transcript.messages.find((row) => row.id === "msg-090")).toBe(
+      headFirst,
+    );
   });
 
   it("needs no boundary change for a window already inside a range", () => {
@@ -402,6 +413,92 @@ describe("updateRoomTranscriptMessages", () => {
       "gap@91",
       ...range(91, 99),
     ]);
+  });
+
+  it("keeps a pending outbound shell after the head", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "pending",
+      senderUser: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline",
+      },
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, 100)),
+    });
+    const transcript = updateRoomTranscriptMessages(
+      mergeRoomJumpWindow(openedRoom(), {
+        messages: messages(50, 52),
+        nextCursor: "msg-050",
+      }),
+      (rows) => [...rows, pending],
+    );
+    expect(transcript.messages.at(-1)?.id).toBe(pending.id);
+    expect(transcript.rangeEdges).toHaveLength(2);
+    expect(picture(transcript)).toEqual([
+      "older@50",
+      50,
+      51,
+      52,
+      "gap@90",
+      ...range(90, 99),
+      "pending",
+    ]);
+
+    const refreshed = mergeRoomHeadPage(transcript, {
+      messages: messages(95, 101),
+      nextCursor: "msg-095",
+    });
+    expect(refreshed.messages.at(-1)?.id).toBe(pending.id);
+    expect(picture(refreshed)).toEqual([
+      "older@50",
+      50,
+      51,
+      52,
+      "gap@90",
+      ...range(90, 101),
+      "pending",
+    ]);
+  });
+});
+
+describe("withTranscriptRowNeighbors", () => {
+  it("breaks continuation across a gap and keeps the day neighbor", () => {
+    const transcript = mergeRoomJumpWindow(openedRoom(), {
+      messages: messages(50, 52),
+      nextCursor: "msg-050",
+    });
+    const rows = withTranscriptRowNeighbors(
+      buildRoomTranscriptRows(transcript.messages, transcript),
+    );
+    const afterGap = rows.find(
+      (row) => row.kind === "message" && row.message.id === "msg-090",
+    );
+    expect(afterGap?.kind).toBe("message");
+    if (afterGap?.kind !== "message") {
+      return;
+    }
+    expect(afterGap.previousMessage).toBeUndefined();
+    expect(afterGap.dayPreviousMessage?.id).toBe("msg-052");
+  });
+
+  it("keeps continuation neighbors inside a range", () => {
+    const transcript = openedRoom();
+    const rows = withTranscriptRowNeighbors(
+      buildRoomTranscriptRows(transcript.messages, transcript),
+    );
+    const second = rows.find(
+      (row) => row.kind === "message" && row.message.id === "msg-091",
+    );
+    expect(second?.kind).toBe("message");
+    if (second?.kind !== "message") {
+      return;
+    }
+    expect(second.previousMessage?.id).toBe("msg-090");
+    expect(second.dayPreviousMessage?.id).toBe("msg-090");
   });
 });
 

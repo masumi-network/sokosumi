@@ -38,6 +38,39 @@ export function captureTranscriptScrollAnchor(
 }
 
 /**
+ * Hold whatever the reader is looking at, not the range below a gap. After a
+ * jump the gap sits under the window; anchoring the cursor (the first row of
+ * the range below) would scroll that cursor back into place and shove the
+ * highlighted jump target off screen.
+ */
+export function captureVisibleTranscriptScrollAnchor(
+  scroller: HTMLElement,
+): TranscriptScrollAnchor | null {
+  const scrollerRect = scroller.getBoundingClientRect();
+  const rows = scroller.querySelectorAll<HTMLElement>(
+    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id]`,
+  );
+  for (const row of rows) {
+    const rect = row.getBoundingClientRect();
+    if (rect.bottom <= scrollerRect.top) {
+      continue;
+    }
+    if (rect.top >= scrollerRect.bottom) {
+      break;
+    }
+    const messageId = row.getAttribute("data-message-id");
+    if (!messageId) {
+      continue;
+    }
+    return {
+      messageId,
+      offset: rect.top - scrollerRect.top,
+    };
+  }
+  return null;
+}
+
+/**
  * Put the anchored row back where it was. Done by hand rather than left to
  * `overflow-anchor`, which Safari does not implement, so a boundary load on
  * an iPhone would otherwise shove the transcript under the reader's thumb.
