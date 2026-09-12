@@ -1,6 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
-import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
+import BreadcrumbNavigation from "@/components/breadcrumb-navigation/breadcrumb-navigation";
 
 import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";

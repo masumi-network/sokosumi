@@ -1,6 +1,5 @@
 export type { DesignMdAdHocAttachment } from "./design-md-adhoc-dialog";
 export { DesignMdAdHocDialog } from "./design-md-adhoc-dialog";
-export { DesignMdGenerateDialog } from "./design-md-generate-dialog";
 export { DesignMdProfileSection } from "./design-md-profile-section";
 export { DesignMdUploadTrigger } from "./design-md-upload-trigger";
 export type {
