@@ -152,5 +152,3 @@ export const x402AgentSchema = z
   .openapi("X402Agent");
 
 export type X402Agent = z.infer<typeof x402AgentSchema>;
-
-export const x402AgentsSchema = z.array(x402AgentSchema);
