@@ -30,6 +30,21 @@ struct DirectStreamSessionTests {
           userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
   }
 
+  @Test func failedQuotedSendRestoresQuoteWithDraft() async throws {
+    let session = DirectStreamSession()
+    session.reset(room: room())
+    let quote = Components.Schemas.ChatRoomMessageQuote(messageId: "source", authorName: "Ada", snippet: "original")
+    let client = try makeTestClient(TestTransport([(500, #"{"message":"offline"}"#)]))
+    #expect(session.send("answer", client: client, organizationSlug: nil, quote: quote,
+                         settled: { true }, failed: { _ in }))
+    #expect(session.overlayMessages.first?.quote == quote)
+    await session.task?.value
+    #expect(session.restoredDraft == "answer")
+    #expect(session.restoredQuote == quote)
+    session.consumeRestoredDraft()
+    #expect(session.restoredQuote == nil)
+  }
+
   @Test func idleResumeDoesNotCreateThinkingShell() async throws {
     let session = DirectStreamSession()
     session.reset(room: room())

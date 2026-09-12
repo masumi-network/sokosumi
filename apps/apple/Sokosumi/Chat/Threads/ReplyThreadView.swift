@@ -10,6 +10,9 @@ import SwiftUI
     @EnvironmentObject private var auth: AuthState
     @State private var followsLatest = true
     @State private var userIsScrolling = false
+    @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
+    @State private var quoteTarget: String?
+    @State private var quoteFocusRequest: String?
 
     var body: some View {
       if let parent = workspaces.thread.parent {
@@ -17,7 +20,12 @@ import SwiftUI
           ScrollViewReader { proxy in
             ScrollView {
               VStack(alignment: .leading, spacing: 8) {
-                MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+                MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                               onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
+                                 quoteFocusRequest = UUID().uuidString
+                               } : nil,
+                               onQuoteJump: { quoteTarget = $0 })
+                  .id(parent.id)
                 Divider()
                 Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
                 replies
@@ -27,6 +35,13 @@ import SwiftUI
               .padding(.top)
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .onChange(of: quoteTarget) { _, target in
+              guard let target else { return }
+              quoteTarget = nil
+              guard parent.id == target || workspaces.displayedThreadReplies.contains(where: { $0.id == target }) else { return }
+              followsLatest = false
+              proxy.scrollTo(target, anchor: .center)
+            }
             .onScrollPhaseChange { _, phase in userIsScrolling = phase == .interacting || phase == .decelerating }
             .onScrollGeometryChange(for: Double.self) { geometry in
               geometry.contentSize.height - geometry.visibleRect.maxY
@@ -53,11 +68,14 @@ import SwiftUI
             }
           }
           ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
-                           roomId: parent.roomId, parentMessageId: parent.id,
+                           roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
                            onAccepted: { followsLatest = true })
             .id(parent.id)
         }
         .navigationTitle("Thread")
+        .onChange(of: parent.id) { _, _ in pendingQuote = nil
+          quoteTarget = nil
+        }
       }
     }
 
@@ -106,6 +124,10 @@ import SwiftUI
                              outbound: shell, sentAt: outbox.sentAt[message.id],
                              onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                              onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
+                             onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                               quoteFocusRequest = UUID().uuidString
+                             } : nil,
+                             onQuoteJump: { quoteTarget = $0 },
                              streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
             }
           }
