@@ -549,7 +549,9 @@ export function RoomsClient({
   }
 
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  // State, not a ref: the viewport needs the element as a prop, and the
+  // shell attaches its ref after a same-commit child has already rendered.
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   // The transcript viewport owns the live-edge pin, jump landings and the
   // scroll anchor. Reached through a ref so the callbacks handed to rows,
   // hooks and the composer keep one identity across the room's life.
@@ -2527,12 +2529,14 @@ export function RoomsClient({
     function renderTranscriptRow(row: RoomTranscriptRenderRow) {
       if (row.kind === "boundary") {
         return (
-          <TranscriptBoundaryRow
-            cursorMessageId={row.cursorMessageId}
-            isGap={row.isGap}
-            status={boundaryStatus[row.cursorMessageId] ?? "idle"}
-            onLoad={handleLoadBoundary}
-          />
+          <div className="min-w-0 flow-root">
+            <TranscriptBoundaryRow
+              cursorMessageId={row.cursorMessageId}
+              isGap={row.isGap}
+              status={boundaryStatus[row.cursorMessageId] ?? "idle"}
+              onLoad={handleLoadBoundary}
+            />
+          </div>
         );
       }
       const { message, previousMessage, dayPreviousMessage } = row;
@@ -2547,7 +2551,10 @@ export function RoomsClient({
         isFailedMentionThoughtShell(message.metadata);
       const isOutboundLocal = isOutboundLocalMessage(message);
       return (
-        <div className="min-w-0">
+        // flow-root on both wrappers: a row's vertical margins must stay
+        // inside the box Virtuoso measures. Collapsed through, they land
+        // outside the item and the list ends up taller than Virtuoso thinks.
+        <div className="min-w-0 flow-root">
           {showDaySeparator ? (
             <DaySeparator
               date={new Date(message.createdAt)}
@@ -2685,7 +2692,7 @@ export function RoomsClient({
             // forgets the previous room's measurements and scroll state.
             key={selectedRoom.id}
             ref={viewportRef}
-            scrollerRef={scrollerRef}
+            scroller={scroller}
             rows={transcriptRows}
             renderRow={renderTranscriptRow}
             holdOffBottom={searchHoldOffBottom}
@@ -2734,7 +2741,7 @@ export function RoomsClient({
               {columnBody}
             </RoomFileDropZone>
           )}
-          listScrollerRef={scrollerRef}
+          listScrollerRef={setScroller}
           listContent={openRoomListBody}
           composer={
             <RoomSessionComposer

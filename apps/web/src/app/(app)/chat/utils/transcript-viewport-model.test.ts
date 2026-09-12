@@ -7,6 +7,7 @@ import type { RoomTranscriptRow } from "./room-transcript-ranges";
 import {
   findTranscriptRowIndex,
   firstItemIndexAfterRowsChange,
+  shouldFollowListGrowth,
   TRANSCRIPT_FIRST_ITEM_INDEX_START,
   transcriptRowKey,
 } from "./transcript-viewport-model";
@@ -162,5 +163,64 @@ describe("firstItemIndexAfterRowsChange", () => {
         previousFirstItemIndex: 1000,
       }),
     ).toBe(1000);
+  });
+});
+
+describe("shouldFollowListGrowth", () => {
+  it("follows when the reader was at the live edge", () => {
+    expect(
+      shouldFollowListGrowth({
+        growth: 300,
+        held: false,
+        atBottom: true,
+        distanceFromBottom: 300,
+      }),
+    ).toBe(true);
+  });
+
+  it("follows when the growth itself is what moved the reader off the edge", () => {
+    // Virtuoso may clear its at-bottom state before reporting the height,
+    // so the distance is read net of the growth.
+    expect(
+      shouldFollowListGrowth({
+        growth: 400,
+        held: false,
+        atBottom: false,
+        distanceFromBottom: 450,
+      }),
+    ).toBe(true);
+  });
+
+  it("leaves a reader who had scrolled up alone", () => {
+    expect(
+      shouldFollowListGrowth({
+        growth: 400,
+        held: false,
+        atBottom: false,
+        distanceFromBottom: 2000,
+      }),
+    ).toBe(false);
+  });
+
+  it("never follows while a jump holds the view", () => {
+    expect(
+      shouldFollowListGrowth({
+        growth: 300,
+        held: true,
+        atBottom: true,
+        distanceFromBottom: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("ignores shrinking", () => {
+    expect(
+      shouldFollowListGrowth({
+        growth: -120,
+        held: false,
+        atBottom: true,
+        distanceFromBottom: 0,
+      }),
+    ).toBe(false);
   });
 });

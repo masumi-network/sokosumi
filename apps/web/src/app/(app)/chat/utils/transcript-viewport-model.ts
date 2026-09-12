@@ -1,9 +1,11 @@
+import { STICK_TO_BOTTOM_NEAR_PX } from "@/app/chat/hooks/use-stick-to-bottom";
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import type { RoomTranscriptRow } from "@/app/chat/utils/room-transcript-ranges";
 
 /**
  * Virtuoso needs `firstItemIndex` to stay positive however much history is
- * prepended, so it starts far from zero and only ever moves down.
+ * prepended, so it starts far from zero. It moves down by the rows inserted
+ * above the viewport and up by the rows removed there.
  */
 export const TRANSCRIPT_FIRST_ITEM_INDEX_START = 1_000_000;
 
@@ -12,13 +14,7 @@ export const TRANSCRIPT_FIRST_ITEM_INDEX_START = 1_000_000;
  * client turn so pending → confirmed keeps one row instance; a boundary row
  * keys by the cursor it loads from.
  */
-export function transcriptRowKey(
-  row: Pick<RoomTranscriptRow, "kind"> &
-    (
-      | Extract<RoomTranscriptRow, { kind: "message" }>
-      | Extract<RoomTranscriptRow, { kind: "boundary" }>
-    ),
-): string {
+export function transcriptRowKey(row: RoomTranscriptRow): string {
   if (row.kind === "boundary") {
     return `boundary:${row.cursorMessageId}`;
   }
@@ -64,4 +60,28 @@ export function firstItemIndexAfterRowsChange({
     }
   }
   return previousFirstItemIndex;
+}
+
+/**
+ * Whether the view should move to the live edge after the list grew. A
+ * reader at the bottom before the growth stays there; one who scrolled up is
+ * left alone; a jump that holds the view wins over both. The distance is read
+ * net of the growth because the size change can clear the at-bottom state
+ * before the height is reported.
+ */
+export function shouldFollowListGrowth({
+  growth,
+  held,
+  atBottom,
+  distanceFromBottom,
+}: {
+  growth: number;
+  held: boolean;
+  atBottom: boolean;
+  distanceFromBottom: number;
+}): boolean {
+  if (growth <= 0 || held) {
+    return false;
+  }
+  return atBottom || distanceFromBottom - growth < STICK_TO_BOTTOM_NEAR_PX;
 }

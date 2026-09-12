@@ -3,10 +3,9 @@
 import {
   type ReactNode,
   type Ref,
-  type RefObject,
   useCallback,
+  useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -18,10 +17,12 @@ import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-r
 import {
   captureTranscriptScrollAnchor,
   captureVisibleTranscriptScrollAnchor,
+  type TranscriptScrollAnchor,
 } from "@/app/chat/utils/transcript-scroll-anchor";
 import {
   findTranscriptRowIndex,
   firstItemIndexAfterRowsChange,
+  shouldFollowListGrowth,
   TRANSCRIPT_FIRST_ITEM_INDEX_START,
   transcriptRowKey,
 } from "@/app/chat/utils/transcript-viewport-model";
@@ -35,19 +36,20 @@ const OVERSCAN_PX = 600;
 /** Height assumed for a row until it is measured. */
 const DEFAULT_ROW_HEIGHT_PX = 56;
 
-/** How many frames a landing waits for its row to mount after the scroll. */
-const LANDING_FRAMES = 12;
+/**
+ * How many frames a landing waits for its row to mount after the scroll.
+ * Virtuoso re-issues a scroll for up to 1.2 s while rows above the target are
+ * still being measured, so the wait covers that.
+ */
+const LANDING_FRAMES = 90;
 
-export interface TranscriptViewportAnchor {
-  messageId: string;
-  /** Distance from the scroller's top edge to the row's top edge. */
-  offset: number;
-  /** Row index at capture, so a restore can tell what was inserted above. */
+export interface TranscriptViewportAnchor extends TranscriptScrollAnchor {
+  /** Row index at capture; the restore looks the row up again by id. */
   index: number;
 }
 
 export interface TranscriptViewportHandle {
-  /** Live edge, whatever the reader was doing. */
+  /** Live edge, whatever the reader was doing. Drops any hold. */
   scrollToBottom: () => void;
   /** Own send: always reveal the new bubble, even after scrolling up. */
   pinToBottomAfterOwnSend: () => void;
@@ -65,17 +67,23 @@ export interface TranscriptViewportHandle {
   landOnMessage: (messageId: string) => boolean;
   /** Smooth scroll to a message with no mark. False when it is not loaded. */
   scrollToMessage: (messageId: string) => boolean;
-  /** What the reader is looking at, taken before rows change above it. */
-  captureAnchor: (
-    fallbackMessageId?: string,
-  ) => TranscriptViewportAnchor | null;
+  /**
+   * What the reader is looking at, taken before rows change above it. Falls
+   * back to the named row when nothing is in view.
+   */
+  captureAnchor: (fallbackMessageId: string) => TranscriptViewportAnchor | null;
   /** Put the anchored row back where it was, after the rows changed. */
   restoreAnchor: (anchor: TranscriptViewportAnchor) => void;
 }
 
 interface TranscriptViewportProps {
-  /** The native overflow scroller the list lives in. */
-  scrollerRef: RefObject<HTMLElement | null>;
+  /**
+   * The native overflow scroller the list lives in. Handed in as an element
+   * rather than a ref: on a same-commit mount the shell's ref is attached
+   * after this component's effects have run, so a ref read here would still
+   * be empty.
+   */
+  scroller: HTMLElement | null;
   rows: readonly RoomTranscriptRenderRow[];
   renderRow: (row: RoomTranscriptRenderRow) => ReactNode;
   /** Search jump: do not follow new messages while landing on an older hit. */
@@ -86,8 +94,6 @@ interface TranscriptViewportProps {
 interface TrackedRows {
   rows: readonly RoomTranscriptRenderRow[];
   firstItemIndex: number;
-  /** Rows inserted above the first surviving row by the latest change. */
-  insertedAbove: number;
 }
 
 /**
@@ -100,44 +106,33 @@ interface TrackedRows {
  * to open a new room on its newest message.
  */
 export function TranscriptViewport({
-  scrollerRef,
+  scroller,
   rows,
   renderRow,
   holdOffBottom,
   ref,
 }: TranscriptViewportProps) {
   const virtuosoRef = useRef<VirtuosoHandle | null>(null);
-  // Virtuoso wants the scroll parent as an element, which exists only after
-  // the shell has mounted; syncing it once is the external-DOM case.
-  const [scroller, setScroller] = useState<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    setScroller(scrollerRef.current);
-  }, [scrollerRef]);
 
   // Rows and firstItemIndex have to change in the same render for Virtuoso
-  // to keep the viewport still, so the shift is derived here rather than in
-  // an effect.
+  // to keep row sizes with their rows, so the shift is derived here rather
+  // than in an effect.
   const [tracked, setTracked] = useState<TrackedRows>(() => ({
     rows,
     firstItemIndex: TRANSCRIPT_FIRST_ITEM_INDEX_START,
-    insertedAbove: 0,
   }));
   if (tracked.rows !== rows) {
-    const firstItemIndex = firstItemIndexAfterRowsChange({
-      previousRows: tracked.rows,
-      nextRows: rows,
-      previousFirstItemIndex: tracked.firstItemIndex,
-    });
     setTracked({
       rows,
-      firstItemIndex,
-      insertedAbove: tracked.firstItemIndex - firstItemIndex,
+      firstItemIndex: firstItemIndexAfterRowsChange({
+        previousRows: tracked.rows,
+        nextRows: rows,
+        previousFirstItemIndex: tracked.firstItemIndex,
+      }),
     });
   }
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
-  const trackedRef = useRef(tracked);
-  trackedRef.current = tracked;
 
   const atBottomRef = useRef(true);
   // A prop rather than a ref: Virtuoso re-pins on its own when the list grows
@@ -145,20 +140,58 @@ export function TranscriptViewport({
   // jump that merges a window while the reader sits at the live edge would
   // otherwise be undone by that re-pin.
   const [held, setHeld] = useState(false);
+  const heldRef = useRef(held);
+  heldRef.current = held;
+  const holdOffBottomRef = useRef(holdOffBottom);
+  holdOffBottomRef.current = holdOffBottom;
   const landingRef = useRef(0);
+  const lastListHeightRef = useRef(0);
 
-  const scrollToLast = useCallback((behavior: "auto" | "smooth" = "auto") => {
-    virtuosoRef.current?.scrollToIndex({
-      index: "LAST",
-      align: "end",
-      behavior,
-    });
+  // Scroll anchoring, done by hand. Rows above the viewport mount fresh on
+  // every prepend and grow late as their images and unfurls load; Virtuoso
+  // compensates for that only while the reader is scrolling upward, and the
+  // browser's own anchoring is off inside the list. So the row at the top of
+  // the viewport is recorded on every scroll, and put back after the list
+  // height changes. Measured from the DOM, so a shift Virtuoso already made
+  // good reads as no drift.
+  const visibleAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
+  useEffect(() => {
+    if (!scroller) {
+      return;
+    }
+    const record = () => {
+      visibleAnchorRef.current = captureVisibleTranscriptScrollAnchor(scroller);
+    };
+    record();
+    scroller.addEventListener("scroll", record, { passive: true });
+    return () => {
+      scroller.removeEventListener("scroll", record);
+    };
+  }, [scroller]);
+  const holdVisibleAnchor = useCallback(() => {
+    const anchor = visibleAnchorRef.current;
+    if (!scroller || !anchor) {
+      return;
+    }
+    const next = captureTranscriptScrollAnchor(scroller, anchor.messageId);
+    if (!next) {
+      return;
+    }
+    const drift = next.offset - anchor.offset;
+    if (drift !== 0) {
+      scroller.scrollTop += drift;
+    }
+  }, [scroller]);
+
+  const scrollToLast = useCallback(() => {
+    virtuosoRef.current?.scrollToIndex({ index: "LAST", align: "end" });
   }, []);
 
   useImperativeHandle(
     ref,
     () => ({
       scrollToBottom: () => {
+        setHeld(false);
         scrollToLast();
       },
       pinToBottomAfterOwnSend: () => {
@@ -188,8 +221,8 @@ export function TranscriptViewport({
         landingRef.current += 1;
         const landing = landingRef.current;
         virtuosoRef.current?.scrollToIndex({ index, align: "center" });
-        // The row mounts a render after the scroll. Poll a few frames for it;
-        // a later landing replaces this one, which stops the poll.
+        // The row mounts a render after the scroll. Poll frames for it; a
+        // later landing replaces this one, which stops the poll.
         let frames = 0;
         const tryMark = () => {
           if (landing !== landingRef.current) {
@@ -219,15 +252,12 @@ export function TranscriptViewport({
         return true;
       },
       captureAnchor: (fallbackMessageId) => {
-        const node = scrollerRef.current;
-        if (!node) {
+        if (!scroller) {
           return null;
         }
         const anchor =
-          captureVisibleTranscriptScrollAnchor(node) ??
-          (fallbackMessageId
-            ? captureTranscriptScrollAnchor(node, fallbackMessageId)
-            : null);
+          captureVisibleTranscriptScrollAnchor(scroller) ??
+          captureTranscriptScrollAnchor(scroller, fallbackMessageId);
         if (!anchor) {
           return null;
         }
@@ -239,12 +269,10 @@ export function TranscriptViewport({
         if (index < 0) {
           return;
         }
-        // Rows inserted above the first row were absorbed by firstItemIndex;
-        // Virtuoso already held the viewport for those. Anything inserted
-        // between the first row and the anchor (a gap fill) still moved it.
-        if (index - anchor.index === trackedRef.current.insertedAbove) {
-          return;
-        }
+        // Always through scrollToIndex, even when firstItemIndex absorbed the
+        // insert. Virtuoso's own compensation for rows that measure taller
+        // than their estimate runs only while the reader is scrolling up; a
+        // scroll-to-index re-targets itself as those rows settle.
         virtuosoRef.current?.scrollToIndex({
           index,
           align: "start",
@@ -252,7 +280,7 @@ export function TranscriptViewport({
         });
       },
     }),
-    [scrollToLast, scrollerRef],
+    [scrollToLast, scroller],
   );
 
   if (!scroller) {
@@ -275,6 +303,34 @@ export function TranscriptViewport({
         atBottomRef.current = atBottom;
       }}
       followOutput={held || holdOffBottom ? false : "auto"}
+      // Virtuoso follows output on its own only when the row count changes.
+      // Rows also grow after they mount: a measured row replaces its estimate,
+      // an unfurl or image loads. A reader at the live edge before that growth
+      // stays there.
+      totalListHeightChanged={(height) => {
+        const growth = height - lastListHeightRef.current;
+        lastListHeightRef.current = height;
+        if (
+          shouldFollowListGrowth({
+            growth,
+            held: heldRef.current || holdOffBottomRef.current,
+            atBottom: atBottomRef.current,
+            distanceFromBottom:
+              scroller.scrollHeight -
+              scroller.scrollTop -
+              scroller.clientHeight,
+          })
+        ) {
+          scrollToLast();
+          return;
+        }
+        // Now, because the grown row is already laid out when its resize is
+        // reported, so the frame about to paint is the corrected one. Again
+        // next frame, once Virtuoso has re-laid the list and any compensating
+        // scroll of its own has refreshed the record, to settle what is left.
+        holdVisibleAnchor();
+        requestAnimationFrame(holdVisibleAnchor);
+      }}
     />
   );
 }
