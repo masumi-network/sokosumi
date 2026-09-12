@@ -60,7 +60,6 @@ export {
   type ScenarioCheck,
   type ScenarioResult,
   SOKO_BOT_SCENARIOS,
-  type SokoBotLabTurn,
   type SokoBotScenario,
 } from "./scenarios.js";
 export {
