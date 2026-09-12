@@ -2,12 +2,6 @@ import Combine
 import CoreAPI
 import Foundation
 
-public func canEditMessage(_ message: Components.Schemas.ChatRoomMessage, userId: String) -> Bool {
-  guard !userId.isEmpty, case let .case1(sender) = message.sender else { return false }
-  return sender.user.id == userId && message.deletedAt == nil && message.membership == nil
-    && !isOutboundLocalMessage(message) && !message.id.hasPrefix("stream:")
-}
-
 /// One edit per window. A failed save keeps the draft; changing rooms invalidates its response.
 @MainActor
 public final class MessageEditing: ObservableObject {
@@ -29,7 +23,7 @@ public final class MessageEditing: ObservableObject {
   }
 
   public func start(_ message: Components.Schemas.ChatRoomMessage, userId: String) {
-    guard !isSaving, canEditMessage(message, userId: userId) else { return }
+    guard !isSaving, canModifyOwnMessage(message, userId: userId) else { return }
     reset()
     source = message
     draft = message.content

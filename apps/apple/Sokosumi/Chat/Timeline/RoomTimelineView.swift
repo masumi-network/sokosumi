@@ -25,6 +25,11 @@ import SwiftUI
       workspaces.rooms.first { $0.id == roomId }
     }
 
+    private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { try await workspaces.deleteMessage(message, auth: auth) }
+    }
+
     var body: some View {
       VStack(spacing: 0) {
         transcriptBody
@@ -123,7 +128,8 @@ import SwiftUI
                                  onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
-                                 onEdit: canEditMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                                 onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                                 onDelete: deletionAction(for: message),
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in quoteTarget = id },
                                  horizontalInset: 12,

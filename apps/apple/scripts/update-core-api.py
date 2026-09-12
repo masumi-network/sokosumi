@@ -9,7 +9,10 @@ previous = json.loads(target.read_text())
 paths = dict(previous['paths'])
 for selection in sys.argv[2:]:
     path, _, method = selection.partition('#')
-    paths[path] = {method: source['paths'][path][method]} if method else source['paths'][path]
+    if method:
+        paths.setdefault(path, {})[method] = source['paths'][path][method]
+    else:
+        paths[path] = source['paths'][path]
 for path, operations in paths.items():
     paths[path] = {method: source['paths'][path][method] for method in operations}
 components = {}
