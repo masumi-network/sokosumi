@@ -166,6 +166,34 @@ describe("TranscriptViewport", () => {
     expect(handle.current?.scrollToMessage("msg-999")).toBe(false);
   });
 
+  it("a jump after a prepend restore still marks after the delayed retry window", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(<Harness rows={rows(40)} handle={handle} />);
+    await settle(container);
+    const first = mountedIds(container)[0];
+    const target = mountedIds(container).at(-3);
+    if (!first || !target) {
+      throw new Error("expected mounted rows");
+    }
+
+    act(() => {
+      handle.current?.restoreAnchor({ messageId: first, offset: 8 });
+    });
+    let landed: boolean | undefined;
+    act(() => {
+      landed = handle.current?.landOnMessage(target);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    });
+    await settle(container);
+
+    expect(landed).toBe(true);
+    expect(
+      container.querySelector(`[data-message-id="${target}"]`),
+    ).toHaveAttribute("data-search-landed", "true");
+  });
+
   it("keeps row identity when an outbound shell is confirmed", async () => {
     // Same client turn, new message id: one row, so the delivery chrome can
     // transition without a remount.

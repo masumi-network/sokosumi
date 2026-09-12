@@ -42,7 +42,8 @@ const DEFAULT_ROW_HEIGHT_PX = 80;
 /**
  * Virtuoso answers a prepend with a deferred scroll by its own estimate of
  * the new rows, on top of whatever the restore did. The restore is issued
- * again after that window so it has the last word.
+ * again after that window so it has the last word. A later restore, jump, or
+ * unmount clears the pending retry so it cannot scroll to a stale index.
  */
 const RESTORE_AFTER_PREPEND_MS = 100;
 
@@ -150,10 +151,17 @@ export function TranscriptViewport({
   const holdOffBottomRef = useRef(holdOffBottom);
   holdOffBottomRef.current = holdOffBottom;
   const landingRef = useRef(0);
-  // Unmount ends a landing still polling for its row.
+  const restoreTimeoutRef = useRef(0);
+  const cancelRestoreRetry = useCallback(() => {
+    window.clearTimeout(restoreTimeoutRef.current);
+    restoreTimeoutRef.current = 0;
+  }, []);
+  // Unmount ends a landing still polling for its row, and a prepend restore
+  // still waiting to retry.
   useEffect(
     () => () => {
       landingRef.current += 1;
+      window.clearTimeout(restoreTimeoutRef.current);
     },
     [],
   );
@@ -199,8 +207,9 @@ export function TranscriptViewport({
   }, [scroller]);
 
   const scrollToLast = useCallback(() => {
+    cancelRestoreRetry();
     virtuosoRef.current?.scrollToIndex({ index: "LAST", align: "end" });
-  }, []);
+  }, [cancelRestoreRetry]);
 
   useImperativeHandle(
     ref,
@@ -233,6 +242,7 @@ export function TranscriptViewport({
         if (index < 0) {
           return false;
         }
+        cancelRestoreRetry();
         landingRef.current += 1;
         const landing = landingRef.current;
         virtuosoRef.current?.scrollToIndex({ index, align: "center" });
@@ -259,6 +269,7 @@ export function TranscriptViewport({
         if (index < 0) {
           return false;
         }
+        cancelRestoreRetry();
         virtuosoRef.current?.scrollToIndex({
           index,
           align: "center",
@@ -276,14 +287,17 @@ export function TranscriptViewport({
         );
       },
       restoreAnchor: (anchor) => {
-        const index = findTranscriptRowIndex(rowsRef.current, anchor.messageId);
-        if (index < 0) {
-          return;
-        }
-        // A scroll-to-index re-targets itself as the new rows are measured.
-        // Issued now, before paint, and once more after Virtuoso's own
-        // deferred prepend scroll has landed on top of it.
+        cancelRestoreRetry();
+        // Look the row up when the restore runs, not when it is scheduled:
+        // a second prepend in the 100ms window shifts every index.
         const restore = () => {
+          const index = findTranscriptRowIndex(
+            rowsRef.current,
+            anchor.messageId,
+          );
+          if (index < 0) {
+            return;
+          }
           virtuosoRef.current?.scrollToIndex({
             index,
             align: "start",
@@ -291,10 +305,13 @@ export function TranscriptViewport({
           });
         };
         restore();
-        window.setTimeout(restore, RESTORE_AFTER_PREPEND_MS);
+        restoreTimeoutRef.current = window.setTimeout(
+          restore,
+          RESTORE_AFTER_PREPEND_MS,
+        );
       },
     }),
-    [scrollToLast, scroller],
+    [cancelRestoreRetry, scrollToLast, scroller],
   );
 
   if (!scroller) {
