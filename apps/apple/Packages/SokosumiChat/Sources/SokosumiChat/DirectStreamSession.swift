@@ -12,6 +12,7 @@ public final class DirectStreamSession: ObservableObject {
   @Published public private(set) var phase = Phase.idle
   @Published public private(set) var errorMessage: String?
   @Published public private(set) var restoredDraft: String?
+  public private(set) var restoredQuote: Components.Schemas.ChatRoomMessageQuote?
   @Published public private(set) var parentMessageId: String?
   @Published private var response = DirectStreamMessage()
   @Published private var userMessage: Components.Schemas.ChatRoomMessage?
@@ -56,12 +57,14 @@ public final class DirectStreamSession: ObservableObject {
     coworker = roomId == nil ? nil : room?.coworkerMembers.first
     clearOverlay()
     restoredDraft = nil
+    restoredQuote = nil
     errorMessage = nil
     phase = .idle
   }
 
   public func consumeRestoredDraft() {
     restoredDraft = nil
+    restoredQuote = nil
   }
 
   public func restoredDraft(for roomId: String, parentMessageId: String?) -> String? {
@@ -111,18 +114,20 @@ public final class DirectStreamSession: ObservableObject {
   @discardableResult
   public func send(
     _ content: String, client: Client, organizationSlug: String?, parentMessageId: String? = nil,
+    quote: Components.Schemas.ChatRoomMessageQuote? = nil,
     settled: @escaping () async -> Bool, failed: @escaping (Error) -> Void
   ) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId, let sender, !isBusy, draft.canSend else { return false }
     restoredDraft = nil
+    restoredQuote = nil
     self.parentMessageId = parentMessageId
     if let scope {
       retainedParents[scope] = parentMessageId
     }
     clearOverlay()
     let id = UUID().uuidString
-    var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: roomId, content: draft.text, sender: sender))
+    var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: roomId, content: draft.text, quote: quote, sender: sender))
     message.id = "stream:" + id
     message.metadata = nil
     message.parentMessageId = parentMessageId
@@ -130,7 +135,7 @@ public final class DirectStreamSession: ObservableObject {
     phase = .submitted
     run(body: { [service] in
       try await service.startDirectStream(client: client, roomId: roomId, organizationSlug: organizationSlug,
-                                          messageId: id, text: draft.text, parentMessageId: parentMessageId)
+                                          messageId: id, text: draft.text, parentMessageId: parentMessageId, quoteMessageId: quote?.messageId)
     }, settled: settled, failed: failed)
     return true
   }
@@ -175,6 +180,7 @@ public final class DirectStreamSession: ObservableObject {
         if hasResponse {
           await reconcile(token: token, settled: settled)
         } else {
+          restoredQuote = userMessage?.quote
           restoredDraft = userMessage.map { ComposerContent($0.content).text }
           clearOverlay()
         }
@@ -225,7 +231,7 @@ public final class DirectStreamSession: ObservableObject {
     let text = ComposerContent(overlay.content).text
     guard !text.isEmpty else { return nil }
     return persisted.last { message in
-      guard message.parentMessageId == overlay.parentMessageId, !overlayIds.contains(message.id), sameSenderKind(message, overlay) else { return false }
+      guard message.parentMessageId == overlay.parentMessageId, message.quote?.messageId == overlay.quote?.messageId, !overlayIds.contains(message.id), sameSenderKind(message, overlay) else { return false }
       return ComposerContent(message.content).text == text
     }?.id
   }

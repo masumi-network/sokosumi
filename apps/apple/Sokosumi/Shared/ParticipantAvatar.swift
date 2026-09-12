@@ -15,7 +15,7 @@ struct ParticipantAvatar: View {
       .compositingGroup()
       .clipShape(Circle())
       .task(id: "\(imageURL ?? "")-\(size)-\(displayScale)") {
-        let loaded = await loadAvatarCGImage(
+        let loaded = await loadThumbnailCGImage(
           urlString: imageURL,
           pointSize: size,
           scale: displayScale

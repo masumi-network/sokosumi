@@ -11,17 +11,21 @@ import UniformTypeIdentifiers
   struct ChatComposerView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
+    @Binding var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var draft: String
     @State private var filePickerPresented = false
     @State private var drivePickerPresented = false
     @StateObject private var uploads: ComposeUploads
 
     private let savedDraft: SavedComposeDraft
+    private let quoteFocusRequest: String?
     private let roomId: String
     private let parentMessageId: String?
     private let onAccepted: (() -> Void)?
 
-    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, onAccepted: (() -> Void)? = nil) {
+    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, onAccepted: (() -> Void)? = nil) {
+      _pendingQuote = pendingQuote
+      self.quoteFocusRequest = quoteFocusRequest
       self.onAccepted = onAccepted
       self.roomId = roomId
       self.parentMessageId = parentMessageId
@@ -55,6 +59,9 @@ import UniformTypeIdentifiers
 
     var body: some View {
       VStack(alignment: .leading, spacing: 6) {
+        if let pendingQuote {
+          MessageQuoteView(quote: pendingQuote, room: workspaces.rooms.first { $0.id == roomId }, channels: workspaces.composerChannels, dismiss: { self.pendingQuote = nil })
+        }
         ComposerAttachmentsView(uploads: uploads)
         editor
         if preparedContent.isTooLong, !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
@@ -86,6 +93,9 @@ import UniformTypeIdentifiers
       .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
         guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
         draft = savedDraft.restoreFailedSend(text, preserving: draft)
+        if pendingQuote == nil {
+          pendingQuote = workspaces.directStream.restoredQuote
+        }
         Task { @MainActor in
           workspaces.directStream.consumeRestoredDraft()
         }
@@ -99,7 +109,7 @@ import UniformTypeIdentifiers
           draft = text
           savedDraft.save(text)
         }
-      ), submit: sendDraft, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
+      ), submit: sendDraft, focusRequest: quoteFocusRequest, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
       if workspaces.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
         input.attachFromDrive = { drivePickerPresented = true }
@@ -143,9 +153,10 @@ import UniformTypeIdentifiers
       guard canSend else { return false }
       let content = preparedContent.text
       let accepted = parentMessageId == nil
-        ? workspaces.sendMessage(content, auth: auth)
-        : workspaces.sendThreadReply(content, auth: auth)
+        ? workspaces.sendMessage(content, quote: pendingQuote, auth: auth)
+        : workspaces.sendThreadReply(content, quote: pendingQuote, auth: auth)
       guard accepted else { return false }
+      pendingQuote = nil
       draft = ""
       savedDraft.save("")
       uploads.clear()

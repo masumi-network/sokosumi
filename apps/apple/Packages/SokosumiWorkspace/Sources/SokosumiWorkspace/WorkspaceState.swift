@@ -393,13 +393,13 @@ public final class WorkspaceState: ObservableObject {
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
-  public func sendMessage(_ content: String, auth: AuthState) -> Bool {
+  public func sendMessage(_ content: String, quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
-      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self, weak auth] in
+      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, quote: quote, settled: { [weak self, weak auth] in
         guard let self, let auth else { return false }
         return await settleDirectStream(auth: auth, generation: generation)
       }, failed: { [weak self, weak auth] error in
@@ -410,11 +410,12 @@ public final class WorkspaceState: ObservableObject {
     let id = UUID().uuidString
     let slug = selection?.workspace.organizationSlug
     let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
-    let shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
+    var shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
+    shell.quote = quote
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, quoteMessageId: quote?.messageId, organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }
