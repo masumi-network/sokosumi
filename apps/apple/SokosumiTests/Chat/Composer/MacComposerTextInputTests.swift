@@ -517,6 +517,30 @@
       #expect(input.string == "first\nsecond")
     }
 
+    @Test func editingReturnInsertsLineAndCommandReturnSavesWithoutClearing() throws {
+      let input = MacComposerTextInput.InputView()
+      input.submitOnModifier = true
+      input.string = "Original"
+      input.setSelectedRange(NSRange(location: 8, length: 0))
+      var submissions = 0
+      input.submit = { submissions += 1
+        return false
+      }
+      try input.keyDown(with: returnEvent())
+      #expect(submissions == 0)
+      #expect(input.string == "Original\n")
+      try input.keyDown(with: returnEvent(.command))
+      #expect(submissions == 1)
+      #expect(input.string == "Original\n")
+      var cancelled = false
+      input.cancel = { cancelled = true }
+      let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                                 windowNumber: 0, context: nil, characters: "\u{1B}",
+                                                 charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53))
+      input.keyDown(with: escape)
+      #expect(cancelled)
+    }
+
     private func returnEvent(_ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
       try #require(NSEvent.keyEvent(
         with: .keyDown, location: .zero, modifierFlags: modifiers,

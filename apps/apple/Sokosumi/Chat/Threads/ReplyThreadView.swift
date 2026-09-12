@@ -24,6 +24,8 @@ import SwiftUI
                                onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
                                  quoteFocusRequest = UUID().uuidString
                                } : nil,
+                               onEdit: canEditMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
+                               editing: workspaces.messageEditing,
                                onQuoteJump: { quoteTarget = $0 })
                   .id(parent.id)
                 Divider()
@@ -127,6 +129,8 @@ import SwiftUI
                              onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                quoteFocusRequest = UUID().uuidString
                              } : nil,
+                             onEdit: canEditMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                             editing: workspaces.messageEditing,
                              onQuoteJump: { quoteTarget = $0 },
                              streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
             }

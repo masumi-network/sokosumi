@@ -124,6 +124,8 @@ import SwiftUI
                                  onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
+                                 onEdit: canEditMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                                 editing: workspaces.messageEditing,
                                  onQuoteJump: { id in quoteTarget = id },
                                  horizontalInset: 12,
                                  streamReasoning: streamReasoning(for: message),
