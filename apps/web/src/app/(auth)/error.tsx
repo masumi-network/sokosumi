@@ -48,7 +48,7 @@ export default function Error({
             {t("tryAgain")}
           </Button>
           <Button asChild variant="secondary" className="w-full">
-            <Link href="/login">{t("goLogin")}</Link>
+            <Link href="/signin">{t("goLogin")}</Link>
           </Button>
         </CardFooter>
       </Card>

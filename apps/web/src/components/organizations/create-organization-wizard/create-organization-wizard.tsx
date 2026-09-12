@@ -395,7 +395,7 @@ export function CreateOrganizationWizard({
           toast.error(message, {
             action: {
               label: t("Errors.unauthorizedAction"),
-              onClick: () => router.push("/login"),
+              onClick: () => router.push("/signin"),
             },
           });
         } else {

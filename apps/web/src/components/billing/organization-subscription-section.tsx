@@ -109,7 +109,7 @@ export function OrganizationSubscriptionSection({
     isEnterpriseContract && !isEnterpriseConsumable;
 
   const handleOpenLogin = useCallback(() => {
-    router.push("/login");
+    router.push("/signin");
   }, [router]);
 
   const getSubscriptionActionErrorMessage = useCallback(
