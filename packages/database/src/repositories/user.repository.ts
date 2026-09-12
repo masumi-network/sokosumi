@@ -22,7 +22,7 @@ export const userRepository = {
    * Retrieves a user by their unique ID.
    *
    * @param id - The unique identifier of the user.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @param tx - The Prisma transaction client to use.
    * @returns A promise that resolves to the User object if found, or null otherwise.
    */
   getUserById: async (
@@ -36,7 +36,7 @@ export const userRepository = {
    * Get a user by their Stripe customer ID.
    *
    * @param stripeCustomerId - The Stripe customer ID.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns The user if found, null otherwise.
    */
   getUserByStripeCustomerId: async (
@@ -120,7 +120,7 @@ export const userRepository = {
    *
    * @param userId - The unique identifier of the user.
    * @param preferredOrganizationId - The preferred organization ID, or null for the personal workspace.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @param tx - The Prisma transaction client to use.
    * @returns A promise that resolves to the updated User object.
    */
   updatePreferredOrganizationId: async (

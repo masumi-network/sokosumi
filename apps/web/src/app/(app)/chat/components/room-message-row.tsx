@@ -2176,6 +2176,17 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   // exit animation can run.
   const [sheetMounted, setSheetMounted] = useState(false);
   const [deleteDialogMounted, setDeleteDialogMounted] = useState(false);
+  // The hover action pill and the participant hover cards only matter once
+  // the pointer enters the row or focus lands inside it. Until then the row
+  // renders neither, so a 200-row transcript and a jump merge skip six
+  // buttons, a popover root, a dropdown root, and two hover-card roots per
+  // row. The latch never resets; a hovered row keeps its chrome.
+  const [interacted, setInteracted] = useState(false);
+  function markInteracted() {
+    if (!interacted) {
+      setInteracted(true);
+    }
+  }
   function openSheet() {
     setSheetMounted(true);
     setSheetOpen(true);
@@ -2229,6 +2240,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             : "mt-2 min-h-0 pt-1 pb-0.5",
       )}
       {...(showActions ? longPress : {})}
+      onPointerEnter={markInteracted}
+      onFocus={markInteracted}
     >
       {isContinuation ? (
         // Same width as avatar rail so continuation body lines up with header body.
@@ -2265,6 +2278,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           onOpenDirect={onOpenDirectMessage}
           isOpeningDirect={isOpeningDirect}
           isDirectActionBusy={isDirectActionBusy}
+          active={interacted}
         >
           <span
             data-testid="message-sender-avatar"
@@ -2307,6 +2321,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onOpenDirect={onOpenDirectMessage}
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
+              active={interacted}
             >
               <span className="truncate text-base font-semibold md:text-sm">
                 {sender.name}
@@ -2464,23 +2479,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       </div>
       {showActions ? (
         <>
-          <MessageActions
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            onQuote={onQuote}
-            onPin={onPin}
-            onCopy={handleCopy}
-            onEdit={onStartEdit}
-            onDelete={requestDelete}
-            showThreadButton={showThreadButton}
-            showQuoteButton={canQuote}
-            showPinButton={canPin}
-            isPinned={isPinned}
-            showCopyButton={canCopy}
-            showEditButton={canEdit}
-            showDeleteButton={canDelete}
-          />
+          {/* Always mounted, and ahead of the pill in DOM order: on a row
+              whose body has no other tab stop this is the first stop, it
+              mounts the pill, and the next Tab then walks into it. */}
           <button
             type="button"
             className="sr-only"
@@ -2490,6 +2491,25 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           >
             {tChannels("Actions.more")}
           </button>
+          {interacted ? (
+            <MessageActions
+              message={message}
+              onToggleReaction={onToggleReaction}
+              onOpenThread={onOpenThread}
+              onQuote={onQuote}
+              onPin={onPin}
+              onCopy={handleCopy}
+              onEdit={onStartEdit}
+              onDelete={requestDelete}
+              showThreadButton={showThreadButton}
+              showQuoteButton={canQuote}
+              showPinButton={canPin}
+              isPinned={isPinned}
+              showCopyButton={canCopy}
+              showEditButton={canEdit}
+              showDeleteButton={canDelete}
+            />
+          ) : null}
           {sheetMounted ? (
             <TouchMessageActionsSheet
               open={sheetOpen}

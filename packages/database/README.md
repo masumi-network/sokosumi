@@ -138,7 +138,7 @@ import {
   MemberRole,
   workspaceRelationInclude,
 } from "@sokosumi/database";
-import type { JobWithStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 ```
 
 Agent query shapes used by Core:

@@ -23,11 +23,6 @@ export const memberOrderBy = [
   { ...memberUserNameOrderBy },
 ] as const;
 
-export const memberInclude = {
-  ...memberOrganizationInclude,
-  ...memberUserInclude,
-} as const;
-
 export type MemberWithOrganization = Prisma.MemberGetPayload<{
   include: typeof memberOrganizationInclude;
 }>;
@@ -44,7 +39,3 @@ export type MemberWithUser = Prisma.MemberGetPayload<{
 export type MemberWithUserAndLastSeen = MemberWithUser & {
   lastSeenAt: Date | null;
 };
-
-export type MemberWithRelations = Prisma.MemberGetPayload<{
-  include: typeof memberInclude;
-}>;
