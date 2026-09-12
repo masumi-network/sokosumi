@@ -20,6 +20,11 @@
     private var referenceTrigger: ComposerReferenceTrigger?
     private var dismissedReferenceTrigger: ComposerReferenceTrigger?
 
+    func focus() {
+      guard let input else { return }
+      input.window?.makeFirstResponder(input)
+    }
+
     func refreshSuggestions() {
       let trigger = input?.referenceTrigger
       if trigger != referenceTrigger {
