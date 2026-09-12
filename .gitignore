@@ -3,6 +3,7 @@
 # Packages 
 packages/*/dist
 packages/*/node_modules
+apps/cli/dist/
 *.tsbuildinfo
 
 # Turborepo
@@ -59,6 +60,7 @@ lint-report.json
 
 # Subagent-driven-development scratch artifacts (should live under .git/, never tracked)
 /sdd/
+
 
 # Local Claude Code dev-server config (personal, per-machine)
 .claude/launch.json
