@@ -252,6 +252,43 @@ test("fails closed when Linux Secret Service is unavailable", () => {
   assert.equal(store.isSupported, false);
   assert.throws(() => store.write({ authToken: "secret" }), /credential vault/);
 });
+test("fails closed when Linux Secret Service cannot connect over D-Bus", () => {
+  const execFileSync = (): never => {
+    const error = new Error("D-Bus session unavailable") as Error & {
+      status: number;
+      stderr: string;
+    };
+    error.status = 1;
+    error.stderr = "secret-tool: Cannot connect to the D-Bus session bus";
+    throw error;
+  };
+  const store = createCredentialStore({
+    platform: "linux",
+    execFileSync,
+  });
+
+  assert.equal(store.isSupported, false);
+  assert.throws(() => store.write({ authToken: "secret" }), /credential vault/);
+});
+
+test("keeps Linux Secret Service available when only the entry is missing", () => {
+  const execFileSync = (): never => {
+    const error = new Error("secret item missing") as Error & {
+      status: number;
+      stderr: string;
+    };
+    error.status = 1;
+    error.stderr = "secret-tool: No such secret item found";
+    throw error;
+  };
+  const store = createCredentialStore({
+    platform: "linux",
+    execFileSync,
+  });
+
+  assert.equal(store.isSupported, true);
+  assert.equal(store.read(), null);
+});
 
 test("uses the native Windows credential entry", () => {
   let storedPassword: string | null = null;

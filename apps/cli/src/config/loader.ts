@@ -33,6 +33,14 @@ function findPackageRoot(startPath: string): string {
 
 const PACKAGE_ROOT = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
 const ENVIRONMENT_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const LOCAL_ENVIRONMENT_KEYS: Readonly<Record<string, true>> = {
+  SOKOSUMI_API_URL: true,
+  SOKOSUMI_AUTH_URL: true,
+  SOKOSUMI_WEB_URL: true,
+  SOKOSUMI_OAUTH_CLIENT_ID: true,
+  SOKOSUMI_MAINNET_OAUTH_CLIENT_ID: true,
+  SOKOSUMI_PREPROD_OAUTH_CLIENT_ID: true,
+};
 
 function readOptionalFile(pathname: string): string | null {
   try {
@@ -55,6 +63,7 @@ function parseDotEnv(contents: string): Record<string, string> {
     if (separator <= 0) continue;
     const key = assignment.slice(0, separator).trim();
     if (!ENVIRONMENT_KEY.test(key)) continue;
+    if (!Object.hasOwn(LOCAL_ENVIRONMENT_KEYS, key)) continue;
     let value = assignment.slice(separator + 1).trim();
     if (
       value.length >= 2 &&

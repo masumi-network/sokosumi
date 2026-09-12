@@ -1,6 +1,6 @@
 # Sokosumi Developer CLI
 
-Package `sokosumi`; package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+Private workspace package `sokosumi`; package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 
 ## Run
 
@@ -64,29 +64,20 @@ Do not put API keys, OAuth tokens, refresh tokens, or client secrets in this fil
 
 Configuration precedence is flags, process environment, home preferences, local `.env`, then built-in defaults. The CLI reads `.env` from the current directory and `apps/cli/.env` when present. Hosted targets have built-in registered public IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted OAuth uses Core auth at `<selected-api-url>/auth` (custom `authUrl` remains an override). Local `.env`, home config, and environment values remain optional overrides. Set `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, generic `SOKOSUMI_OAUTH_CLIENT_ID`, or pass `--client-id` only when you need a different registered client.
 
-Install the package globally when available:
+## Build from source
+
+npm publication is disabled for this workspace package. Use the source commands above.
+
+To run the built binary directly:
 
 ```bash
-npm install --global sokosumi
-sokosumi auth status --json
+pnpm --filter ./apps/cli build
+node apps/cli/dist/bin/sokosumi.js --help
 ```
-
-For an interactive npm-global `sokosumi` run with no arguments, the CLI checks npm for a newer version before opening Ink. If one exists, it opens an Ink update screen with `Update now` and `Continue without updating`; use arrows and Enter, or `y`/`n`, Esc, `q`, or Ctrl+C. Choosing update runs `npm install --global --ignore-scripts sokosumi@<validated-version>`; after a successful install, the CLI prints a restart message and stops. The check has a short timeout and fails open. Workspace/local installs, headless commands, and noninteractive invocations never check or prompt.
-
-Put a local build on your PATH:
-
-```bash
-cd apps/cli && npm link
-sokosumi
-```
-
-`pnpm link --global` needs `pnpm setup` first (`PNPM_HOME` on PATH).
-
-The npm package is `sokosumi`. Do not publish the sibling `masumi-network/sokosumi-cli` repository as a second product.
 
 
 Local Core (with a registered local OAuth client, if using OAuth):
 
 ```bash
-sokosumi --api-url http://localhost:8787
+pnpm --filter ./apps/cli sokosumi -- --api-url http://localhost:8787
 ```

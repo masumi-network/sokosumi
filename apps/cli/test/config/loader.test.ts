@@ -71,6 +71,80 @@ test("merges local env, home preferences, and explicit environment in order", ()
   }
 });
 
+test("ignores credentials in local dotenv while retaining explicit environment credentials", () => {
+  const fixture = createFixture();
+  try {
+    writeFileSync(
+      join(fixture.packageRoot, ".env"),
+      [
+        "SOKOSUMI_API_URL=https://package.example.test",
+        "SOKOSUMI_API_KEY=package-api-key",
+        "SOKOSUMI_AUTH_TOKEN=package-auth-token",
+        "SOKOSUMI_ACCESS_TOKEN=package-access-token",
+        "SOKOSUMI_REFRESH_TOKEN=package-refresh-token",
+        "SOKOSUMI_OAUTH_CLIENT_SECRET=package-client-secret",
+        "SOKOSUMI_OAUTH_ACCESS_TOKEN=package-oauth-access-token",
+        "SOKOSUMI_OAUTH_REFRESH_TOKEN=package-oauth-refresh-token",
+        "API_KEY=package-api-key-alias",
+        "CLIENT_SECRET=package-client-secret-alias",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(fixture.cwd, ".env"),
+      [
+        "SOKOSUMI_API_URL=https://cwd.example.test",
+        "SOKOSUMI_API_KEY=cwd-api-key",
+        "SOKOSUMI_AUTH_TOKEN=cwd-auth-token",
+        "SOKOSUMI_ACCESS_TOKEN=cwd-access-token",
+        "SOKOSUMI_REFRESH_TOKEN=cwd-refresh-token",
+        "SOKOSUMI_OAUTH_CLIENT_SECRET=cwd-client-secret",
+        "SOKOSUMI_OAUTH_ACCESS_TOKEN=cwd-oauth-access-token",
+        "SOKOSUMI_OAUTH_REFRESH_TOKEN=cwd-oauth-refresh-token",
+        "AUTH_TOKEN=cwd-auth-token-alias",
+        "REFRESH_TOKEN=cwd-refresh-token-alias",
+      ].join("\n"),
+    );
+
+    const dotenvEnvironment = loadCliEnvironment({
+      cwd: fixture.cwd,
+      homeDir: fixture.homeDir,
+      packageRoot: fixture.packageRoot,
+      environment: {},
+    });
+    assert.equal(dotenvEnvironment.SOKOSUMI_API_KEY, undefined);
+
+    const environment = loadCliEnvironment({
+      cwd: fixture.cwd,
+      homeDir: fixture.homeDir,
+      packageRoot: fixture.packageRoot,
+      environment: { SOKOSUMI_API_KEY: "explicit-api-key" },
+    });
+
+    assert.equal(environment.SOKOSUMI_API_URL, "https://cwd.example.test");
+    assert.equal(environment.SOKOSUMI_API_KEY, "explicit-api-key");
+    for (const key of [
+      "SOKOSUMI_AUTH_TOKEN",
+      "SOKOSUMI_ACCESS_TOKEN",
+      "SOKOSUMI_REFRESH_TOKEN",
+      "SOKOSUMI_OAUTH_CLIENT_SECRET",
+      "SOKOSUMI_OAUTH_ACCESS_TOKEN",
+      "SOKOSUMI_OAUTH_REFRESH_TOKEN",
+      "API_KEY",
+      "CLIENT_SECRET",
+      "AUTH_TOKEN",
+      "REFRESH_TOKEN",
+    ]) {
+      assert.equal(
+        environment[key],
+        undefined,
+        `${key} must not load from dotenv`,
+      );
+    }
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("TestV23 hosted OAuth resolves legacy web auth proxy to Core auth", () => {
   const fixture = createFixture();
   try {

@@ -219,3 +219,20 @@ test("TestV47 createApiError redacts credential-shaped keys across casing and ne
     ],
   });
 });
+test("TestV47 redacts dotted and spaced credential separators", () => {
+  const dottedSecret = "dotted-api-key";
+  const spacedSecret = "spaced-refresh-token";
+  const error = createApiError(401, {
+    "API.KEY": dottedSecret,
+    "refresh token": spacedSecret,
+    message: "API.KEY=dotted-api-key REFRESH TOKEN=spaced-refresh-token",
+  }) as Error & { body?: unknown };
+
+  assert.doesNotMatch(error.message, new RegExp(dottedSecret));
+  assert.doesNotMatch(error.message, new RegExp(spacedSecret));
+  assert.deepEqual(error.body, {
+    "API.KEY": "[REDACTED]",
+    "refresh token": "[REDACTED]",
+    message: "API.KEY: [REDACTED] REFRESH TOKEN: [REDACTED]",
+  });
+});

@@ -17,7 +17,7 @@
 - External package versions in `package.json` stay exact and pinned.
 - Hosted OAuth IDs are registered and built in: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`. Hosted clients = public native (`application_type=native`, `token_endpoint_auth_method=none`) with canonical portless redirect `http://127.0.0.1/oauth/callback`; runtime redirect = `http://127.0.0.1:<port>/oauth/callback`, default port `53682` valid under RFC 8252 §7.3. Core auth derives from selected API URL + `/auth`; explicit client IDs remain optional overrides. OAuth tokens, API keys, and client secrets never enter plaintext config files.
 - API-key values never enter process arguments or diagnostic errors.
-- Registered hosted OAuth clients (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) must exist in each hosted Core database with this public-native registration before publishing the CLI.
+- Registered hosted OAuth clients (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) must exist in each hosted Core database before future official distribution relies on these built-in IDs.
 - TUI menus use arrow keys and Enter. Back uses Esc. Quit uses q. Letter aliases do not select menu items.
 - Tests must cover observable behavior, target precedence, secret boundaries, and failure before side effects.
 - Do not hand-edit generated files.
@@ -33,8 +33,7 @@
 - INFERRED: A standard-library `.env` parser is sufficient for the small set of CLI configuration keys and avoids adding a dependency for one file format.
 - VERIFIED: Packaged CLI cannot depend on local `apps/cli/.env`; hosted defaults are registered target IDs (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) and hosted auth derives from selected Core API URL + `/auth`.
 - REPORTED: User reports both mainnet and preprod CLI OAuth succeed, including successful preprod authorization-code token exchange after fixing wrong preprod `BETTER_AUTH_SECRET` that caused JWK token verification failure. Cause and fix are not independently verified in this repository; SOK-1040 tracks the reported Core issue.
-- VERIFIED: `npm view sokosumi@2.1.3 version --json` → `"2.1.3"`; `npm view sokosumi@2.1.3 dist.tarball --json` → `"https://registry.npmjs.org/sokosumi/-/sokosumi-2.1.3.tgz"`; `npm view sokosumi@2.1.3 bin --json` → `{"sokosumi":"dist/bin/sokosumi.js"}`; `npm exec --yes --package sokosumi@2.1.3 -- sokosumi --help` → exit 0, `Sokosumi CLI v2.1.3`; `npm exec --yes --package sokosumi@2.1.3 -- sokosumi auth status --json` → exit 0, `{"authenticated":false,"authMethod":null,"apiKeyAvailable":false,"target":"mainnet","apiUrl":"https://api.sokosumi.com","expiresAt":null}`.
-- REPORTED: User approved bounded npm-global auto-update behavior: eligible interactive no-argument global run only; explicit `y`/`yes` installs validated latest with fixed npm command, then stops for restart; `n` continues; headless/local/noninteractive runs never prompt.
+- REPORTED: On 2026-09-11, user deleted the npm `sokosumi` release/package and deferred publication to the official Masumi Network account. Current CLI scope is source-only.
 - VERIFIED: V47 redaction coverage in `apps/cli/src/error-redaction.ts` and `apps/cli/test/api/http-client.test.ts` recursively removes credential-shaped fields across casing, separators, nesting, and serialized Core errors.
 - VERIFIED: V63 coverage extends redaction to credential-shaped `key=value` pairs inside nested strings, including Core API errors and discover JSON; secret values are absent from rendered/serialized output.
 
@@ -210,33 +209,21 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Keep resource views read-only; job input-request submission remains a headless command/API follow-up.
 - [x] Document that `apps/cli` is canonical and the sibling repository is not a second source.
 - [x] Document the exact non-secret config JSON keys and target-scoped vault behavior.
-- [x] Keep published and workspace package identity `sokosumi`, package path `apps/cli`, and binary `sokosumi`.
+- [x] Keep private workspace package identity sokosumi, package path apps/cli, and binary sokosumi.
 - [x] Update `apps/cli/SPEC.md` task status through the spec workflow after the corresponding behavior was verified.
 
 **Verification:** `pnpm --filter ./apps/cli test && pnpm --filter ./apps/cli typecheck && pnpm --filter ./apps/cli build`.
 
-## Task 7: Bounded npm-global CLI auto-update
+## Task 7: Retired npm-global CLI auto-update
 
-**Files:** Modify `apps/cli/src/cli/update-check.ts` and `apps/cli/bin/sokosumi.ts`; add `apps/cli/test/cli/update-check.test.ts` and extend `apps/cli/test/cli/bin.test.ts`.
+**Correction (2026-09-11):** REPORTED: User deleted the npm sokosumi release/package and deferred publication to the official Masumi Network account. Current CLI scope is source-only.
 
-**Contract:** Interactive npm-global `sokosumi` no-argument run only checks npm latest with a short timeout and fail-open behavior before the TUI. Explicit `y`/`yes` only runs `npm install --global --ignore-scripts sokosumi@<validated-version>` with a safe PATH/home/temp/prefix environment, then stops for restart; `n` continues normally. Headless, local/workspace, and noninteractive paths never check or prompt. No package version bump or publication in this task.
+**Status:** Retired. The source-only CLI does not query the npm registry, spawn a package manager for updates, show an updater prompt, or include updater tests. Future official distribution will define update behavior.
 
-**Steps:**
+**Verification:**
 
-- [x] Gate update check on zero CLI args, interactive stdin/stdout, and npm-global package execution.
-- [x] Fetch npm latest with a short abort timeout; accept only a validated stable version and fail open on timeout, errors, or invalid responses.
-- [x] Show the update prompt before the TUI; only explicit `y`/`yes` invokes the fixed npm install command with the validated version.
-- [x] Stop after successful install with a restart message; keep `n`, other responses, and failed updates on the normal path.
-- [x] Add focused coverage for eligibility, version validation/comparison, timeout/error fail-open behavior, Y/N semantics, exact npm argv, restart stop, and no headless/local prompt.
-
-**Pending verification:**
-
-- [x] Verify interactive no-argument TTY flow with dependency-injected npm-global detection, newer registry response, explicit `y`, exact secure install argv, restart output, and TUI stop; `apps/cli/test/cli/bin.test.ts` and updater/bin coverage report `21` tests, `21` passed, `0` failed.
-- [x] Historical pre-paste updater evidence: `4` update-prompt tests, `4` passed, `0` failed.
-- [x] Verify local/symlinked package, headless/noninteractive, non-TTY, and other command paths do not query or prompt; fixture and JSON command evidence passed in the full CLI suite.
-- [x] Current post-fix updater evidence: `6` update-prompt tests, `6` passed, `0` failed; full CLI count is `156` tests, `156` passed, `0` failed.
-- [ ] Explicit package version bump remains pending; current manifest is `2.1.3`, and no publication was run.
-- [ ] Live published-package smoke remains pending; it requires a newly published package and a real npm-global installation.
+- VERIFIED: The updater source and prompt files, plus their tests, are deleted from the current working tree.
+- VERIFIED: pnpm --dir apps/cli test → 146 tests, 146 passed, 0 failed.
 
 
 ## Task 8: Redesign Ink TUI against sokosumi-tui-v1.html
@@ -286,19 +273,17 @@ export function createHttpClient(options: HttpClientOptions): {
 - [ ] Responsive terminal widths/no horizontal overflow: narrow and wide terminal PTYs adapt the v1 browser viewport matrix without clipped or horizontally scrolling content.
 - [ ] Keyboard transitions: arrows + Enter, Esc back, and q quit work across sign-in, tabs/workspace, list/detail, register, account, and sign-out states.
 - [ ] Real data/no prototype fixtures: dashboard and resource panes use existing Core HTTP services/models; no copied demo data, browser `localStorage`, direct database access, or changed auth/secret boundary; Chats/Channels remain conditional on existing contracts.
-- [x] Full CLI test suite: `156` tests, `156` passed, `0` failed. Updater/bin: `21` tests, `21` passed; update-prompt: `6` tests, `6` passed.
-- [x] Root `pnpm check`: `Checked 3962 files in 1118ms. No fixes applied.`
-- [x] `pnpm --filter ./apps/cli typecheck`.
-- [x] `pnpm --filter ./apps/cli build`; verified built CLI version: `2.1.3`.
-- [ ] `pnpm typecheck` (fails only in unrelated `web#typecheck`; CLI typecheck passed).
-- [x] Built sign-in PTYs exercised at `40x20` and `100x30`.
-- [x] Signed-in Register fixture PTY at `120x40` captured `Register (soon)` and `/ register (soon)` with no overflow.
+- [x] Full CLI test suite: 146 tests, 146 passed, 0 failed.
+- [x] CLI Biome check: Checked 70 files in 36ms. No fixes applied.
+- [x] CLI typecheck.
+- [x] CLI build; verified built CLI version: 2.1.4.
+- [ ] pnpm typecheck (fails only in unrelated web#typecheck; CLI typecheck passed).
+- [x] Built sign-in PTYs exercised at 40x20 and 100x30.
+- [x] Signed-in Register fixture PTY at 120x40 captured Register (soon) and / register (soon) with no overflow.
 - [x] Fixture/JSON evidence: local fixture API flow and headless JSON command checks passed.
-- [x] Confirm no CLI source imports `@sokosumi/database` or writes secrets to `~/.sokosumi/config.json`.
+- [x] Confirm no CLI source imports @sokosumi/database or writes secrets to ~/.sokosumi/config.json.
 - [x] Confirm the sibling repository has no product-source edits.
-- [x] npm pack dry-run: `sokosumi@2.1.3`, `86` entries.
-- [ ] Explicit package version bump remains pending; current package is `2.1.3`.
-- [ ] Live published-package smoke remains pending.
+- [x] Package is private; npm publication and published-package smoke are retired from the current source-only scope.
 - [ ] Hosted OAuth gate remains pending: verify mainnet/preprod clients use public-native registration with canonical `redirect_uris=["http://127.0.0.1/oauth/callback"]`, then complete real authorization-code exchanges; not independently verified here.
 - [ ] Full workspace-flow gate remains pending; broad visual parity, responsive layout, hover/disabled states, and complete keyboard flow coverage remain unverified.
 - [ ] OAuth/release gate: verify native-client registration/path and real authorization-code exchanges using runtime `http://127.0.0.1:53682/oauth/callback`; port `53682` valid under RFC 8252 §7.3, not a SPEC mismatch.

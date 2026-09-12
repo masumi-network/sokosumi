@@ -20,6 +20,11 @@ type ExecFileSyncLike = (
   args: readonly string[],
   options: ExecFileSyncOptions,
 ) => string | Buffer;
+interface ExecFileSyncError {
+  code?: string;
+  status?: number;
+  stderr?: string | Buffer;
+}
 
 type CredentialStoreOptions = {
   platform?: NodeJS.Platform;
@@ -59,6 +64,12 @@ function parseStoredValue<T extends object>(value: string | null): T | null {
   }
   return parsed as T;
 }
+function isMissingSecretItem(error: unknown): boolean {
+  const candidate = error as ExecFileSyncError;
+  if (candidate.status !== 1) return false;
+  const stderr = String(candidate.stderr || "");
+  return /no (?:such )?secret(?: item)?(?: found)?/iu.test(stderr);
+}
 
 function ensureSecretService(
   execFileSync: ExecFileSyncLike,
@@ -73,8 +84,8 @@ function ensureSecretService(
     );
     return true;
   } catch (error) {
-    const candidate = error as { code?: string };
-    return candidate.code !== "ENOENT";
+    const candidate = error as ExecFileSyncError;
+    return candidate.code !== "ENOENT" && isMissingSecretItem(error);
   }
 }
 
@@ -148,8 +159,7 @@ function createLinuxCredentialStore<T extends object>({
         );
         return parseStoredValue<T>(String(output || "").trim());
       } catch (error) {
-        const candidate = error as { status?: number };
-        if (candidate.status === 1) return null;
+        if (isMissingSecretItem(error)) return null;
         throw vaultError("read");
       }
     },
@@ -173,8 +183,7 @@ function createLinuxCredentialStore<T extends object>({
           stdio: ["ignore", "ignore", "pipe"],
         });
       } catch (error) {
-        const candidate = error as { status?: number };
-        if (candidate.status !== 1) throw vaultError("clear");
+        if (!isMissingSecretItem(error)) throw vaultError("clear");
       }
     },
   };

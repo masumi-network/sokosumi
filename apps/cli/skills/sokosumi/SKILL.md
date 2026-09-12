@@ -41,7 +41,7 @@ sokosumi discover --json
 sokosumi agents list --search "code review" --json
 sokosumi agents hire AGENT_ID --input-file ./payload.json --max-credits 25 --json
 sokosumi coworkers list --scope available --search "QUERY" --capability tasks --json
-sokosumi coworkers register --name "Nexus" --base-url "https://nexus.example.com/v1" --capability chat --capability tasks --json
+sokosumi coworkers register --vendor-id VENDOR_ID --name "Nexus" --base-url "https://nexus.example.com/v1" --capability chat --capability tasks --json
 sokosumi tasks create --coworker-id COWORKER_ID --name "Task title" --description "Task brief" --status READY --json
 sokosumi tasks get TASK_ID --json
 sokosumi tasks events TASK_ID --json

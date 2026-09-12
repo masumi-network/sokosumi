@@ -200,6 +200,50 @@ test("parses coworker registration vendor ID", () => {
   ]);
   assert.deepEqual(parsed.options["vendor-id"], "vendor-1");
 });
+test("parses value options inline before and after positionals", () => {
+  const expected = {
+    positionals: ["agents", "list"],
+    options: { name: "Researcher" },
+  };
+
+  assert.deepEqual(
+    parseArgv(["--name=Researcher", "agents", "list"]),
+    expected,
+  );
+  assert.deepEqual(
+    parseArgv(["--name", "Researcher", "agents", "list"]),
+    expected,
+  );
+  assert.deepEqual(
+    parseArgv(["agents", "list", "--name=Researcher"]),
+    expected,
+  );
+  assert.deepEqual(
+    parseArgv(["agents", "list", "--name", "Researcher"]),
+    expected,
+  );
+});
+
+test("rejects missing and empty value options", () => {
+  for (const argv of [["--name"], ["--name="], ["--name", ""]]) {
+    assert.throws(() => parseArgv(argv), /Option --name requires a value/);
+  }
+});
+
+test("rejects inline values for boolean options without echoing them", async () => {
+  const secret = "boolean-inline-secret";
+  const output: string[] = [];
+  await assert.rejects(
+    runCli([`--details=${secret}`, "--json"], {
+      stdout: { write: (value) => output.push(value) },
+    }),
+    /Option --details does not accept a value/,
+  );
+  assert.deepEqual(JSON.parse(output.join("")), {
+    error: "Option --details does not accept a value",
+  });
+  assert.equal(output.join("").includes(secret), false);
+});
 
 test("TestV49 unsupported inline option values are never echoed", async () => {
   const secret = "soko_mainnet_secret";

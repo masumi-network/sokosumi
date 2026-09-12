@@ -28,7 +28,6 @@ import { runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import { runTasksCommand } from "./commands/tasks.js";
 import { CLI_VERSION } from "./metadata.js";
-import type { UpdateCheckDependencies } from "./update-check.js";
 
 interface TextOutput {
   write(value: string): unknown;
@@ -130,7 +129,6 @@ export interface CliDependencies {
   coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
-  updateCheck?: UpdateCheckDependencies;
 }
 
 export interface CliResult {
@@ -271,16 +269,24 @@ export function parseArgv(argv: string[]): ParsedArgv {
       continue;
     }
 
-    const name = token.slice(2).split("=")[0];
+    const optionToken = token.slice(2);
+    const equalsIndex = optionToken.indexOf("=");
+    const name =
+      equalsIndex === -1 ? optionToken : optionToken.slice(0, equalsIndex);
+    const inlineValue =
+      equalsIndex === -1 ? undefined : optionToken.slice(equalsIndex + 1);
     if (BOOLEAN_OPTIONS.has(name)) {
+      if (inlineValue !== undefined) {
+        throw new Error(`Option --${name} does not accept a value`);
+      }
       options[name] = true;
       continue;
     }
     if (!VALUE_OPTIONS.has(name as ValueOptionName)) {
       throw new Error(`Unknown option: --${name}`);
     }
-    const value = argv[index + 1];
-    if (!value || value.startsWith("--")) {
+    const value = inlineValue === undefined ? argv[index + 1] : inlineValue;
+    if (value === undefined || value === "" || value.startsWith("--")) {
       throw new Error(`Option --${name} requires a value`);
     }
     const optionName = name as ValueOptionName;
@@ -299,7 +305,7 @@ export function parseArgv(argv: string[]): ParsedArgv {
     } else {
       optionMap[optionName] = value;
     }
-    index += 1;
+    if (inlineValue === undefined) index += 1;
   }
   return { positionals, options };
 }
@@ -429,25 +435,25 @@ export async function runCli(
     options.preprod || options["api-url"] || env.SOKOSUMI_API_URL,
   );
 
-  if (positionals.length === 0) {
-    const authManager = getManager(config, env, dependencies.authManager);
-    const tuiFn = dependencies.tuiFn || renderStatusApp;
-    return tuiFn({
-      authManager,
-      coreClient: getCoreClient(config, env, dependencies),
-      env,
-      config,
-      clientIdOverride: options["client-id"],
-      targetExplicit,
-      loginFn: dependencies.loginFn,
-      oauthPort:
-        options["oauth-port"] === undefined
-          ? undefined
-          : Number(options["oauth-port"]),
-    });
-  }
-
   try {
+    if (positionals.length === 0) {
+      const authManager = getManager(config, env, dependencies.authManager);
+      const tuiFn = dependencies.tuiFn || renderStatusApp;
+      return await tuiFn({
+        authManager,
+        coreClient: getCoreClient(config, env, dependencies),
+        env,
+        config,
+        clientIdOverride: options["client-id"],
+        targetExplicit,
+        loginFn: dependencies.loginFn,
+        oauthPort:
+          options["oauth-port"] === undefined
+            ? undefined
+            : Number(options["oauth-port"]),
+      });
+    }
+
     const [section, command, positionalId, ...rest] = positionals;
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);

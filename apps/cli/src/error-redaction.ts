@@ -13,7 +13,7 @@ const SENSITIVE_KEYS: Record<string, true> = {
 };
 
 const CREDENTIAL_ASSIGNMENT =
-  /((?:authorization|access[_-]*token|api[_-]*key|auth[_-]*token|client[_-]*secret|password|refresh[_-]*token|secret|token))["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|Bearer\s+\S+|[^\s,;}\]]+)/gi;
+  /((?:authorization|access[\s._-]*token|api[\s._-]*key|auth[\s._-]*token|client[\s._-]*secret|password|refresh[\s._-]*token|secret|token))["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|Bearer\s+\S+|[^\s,;}\]]+)/gi;
 
 function redactString(value: string, knownSecrets: readonly string[]): string {
   let redacted = value;
@@ -36,7 +36,7 @@ export function redactSensitive(
     return Object.fromEntries(
       Object.entries(record).map(([key, item]) => [
         key,
-        SENSITIVE_KEYS[key.replace(/[_-]/g, "").toLowerCase()] === true
+        SENSITIVE_KEYS[key.replace(/[\s._-]/g, "").toLowerCase()] === true
           ? REDACTED
           : redactSensitive(item, knownSecrets),
       ]),
