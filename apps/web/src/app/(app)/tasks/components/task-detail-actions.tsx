@@ -100,7 +100,6 @@ interface TaskDetailActionsLabels {
   confirmArchive: string;
   confirmArchiveDescription: string;
   archiveError: string;
-  markAsReady: string;
   reopenToReady: string;
   reopenToReadyTitle: string;
   reopenToReadyDescription: string;
@@ -108,7 +107,6 @@ interface TaskDetailActionsLabels {
   reopenToReadyCommentPlaceholder: string;
   reopenToReadyCommentRequired: string;
   reopenToReadyConfirm: string;
-  revertToDraft: string;
   cancel: string;
   share: string;
   startWorking: string;
@@ -321,8 +319,7 @@ export function TaskDetailActions({
       "uploadingFiles",
     ),
     removeAttachment: tNewTask("removeAttachment"),
-    submit: tNewTask("saveDraft"),
-    saveAsDraft: tNewTask("saveAsDraft"),
+    submit: tNewTask("createTask"),
     createTask: tNewTask("createTask"),
     scheduleTask: tNewTask("scheduleTask"),
     openSchedule: tNewTask("openSchedule"),
@@ -1059,17 +1056,14 @@ function getTaskStatusActions(
     options.assigneeKind === "human" || options.assigneeKind === "unset";
 
   if (status === TaskStatus.DRAFT) {
-    return [{ label: labels.markAsReady, target: TaskStatus.READY }];
+    return [];
   }
 
   if (status === TaskStatus.READY) {
     if (isHuman) {
-      return [
-        { label: labels.startWorking, target: TaskStatus.RUNNING },
-        { label: labels.revertToDraft, target: TaskStatus.DRAFT },
-      ];
+      return [{ label: labels.startWorking, target: TaskStatus.RUNNING }];
     }
-    return [{ label: labels.revertToDraft, target: TaskStatus.DRAFT }];
+    return [];
   }
 
   if (status === TaskStatus.RUNNING && isHuman) {

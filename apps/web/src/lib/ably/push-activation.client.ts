@@ -198,7 +198,15 @@ async function attempt(
   }
 }
 
-async function dropBrowserPushSubscription(): Promise<void> {
+/**
+ * Drop this browser's Web Push subscription.
+ *
+ * Exported because the account-deletion path needs this half on its own: the
+ * session is gone by the time it runs, so Ably's deactivation cannot mint the
+ * token it needs, while the browser unsubscribe needs no session and is the
+ * step that stops delivery.
+ */
+export async function dropBrowserPushSubscription(): Promise<void> {
   // Read the registration rather than create one: turning push off must not
   // install a worker. A browser that never had one has nothing to drop.
   const registration = await getExistingNotificationServiceWorker();

@@ -1664,7 +1664,6 @@
           "confirmArchive": "Diesen Task archivieren?",
           "confirmArchiveDescription": "Der Task wird in deiner Liste ausgeblendet, inklusive verknüpfter geplanter Läufe. Laufende Läufe müssen zuerst enden oder abgebrochen werden. Er wird nicht dauerhaft aus der Datenbank gelöscht.",
           "archiveError": "Task konnte nicht archiviert werden",
-          "markAsReady": "Als bereit markieren",
           "reopenToReady": "Als Bereit wiedereröffnen",
           "reopenToReadyTitle": "Aufgabe wiedereröffnen",
           "reopenToReadyDescription": "Füge einen Kommentar hinzu, damit dein Coworker weiß, was als Nächstes zu tun ist. Die Aufgabe wird wieder auf Bereit gesetzt.",
@@ -1672,7 +1671,6 @@
           "reopenToReadyCommentPlaceholder": "Beschreibe, was noch zu erledigen ist…",
           "reopenToReadyCommentRequired": "Zum Wiedereröffnen ist ein Kommentar erforderlich",
           "reopenToReadyConfirm": "Als Bereit wiedereröffnen",
-          "revertToDraft": "In Entwurf zurücksetzen",
           "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
@@ -1818,8 +1816,6 @@
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Anhang entfernen",
-        "saveDraft": "Speichern",
-        "saveAsDraft": "Als Entwurf speichern",
         "createTask": "Task erstellen",
         "scheduleTask": "Task planen",
         "openSchedule": "Zeitplan festlegen",
@@ -3807,10 +3803,6 @@
         "invalidInput": "Bitte gib entweder einen Credit-Betrag oder einen Coupon-Code ein",
         "invalidCredits": "Ungültiger Credit-Betrag",
         "invalidCoupon": "Ungültiger Coupon",
-        "couponNotFound": "Coupon nicht gefunden",
-        "couponTypeError": "Coupon-Typ wird nicht unterstützt",
-        "couponCurrencyError": "Währung des Coupons stimmt nicht überein",
-        "promotionCodeNotFound": "Aktionscode nicht gefunden",
         "unauthenticated": "Bitte melde dich an, um fortzufahren",
         "unauthenticatedAction": "Anmelden",
         "unauthorizedOrganization": "Du bist nicht berechtigt, Credits für diese Organisation zu kaufen",
@@ -5260,6 +5252,7 @@
         "close": "Angeheftete Nachrichten schließen",
         "empty": "Noch keine angehefteten Nachrichten",
         "loading": "Angeheftete Nachrichten werden geladen…",
+        "jumping": "Nachricht wird geöffnet…",
         "error": "Angeheftete Nachrichten konnten nicht geladen werden",
         "couldNotLoad": "Nachricht konnte nicht geladen werden",
         "pin": "Nachricht anheften",
@@ -5376,7 +5369,9 @@
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "loadOlder": "Ältere Threads laden",
         "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
+        "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
@@ -6305,7 +6300,8 @@
         "roomMessageGroup": "{authorName} hat in der Gruppe {roomName} geschrieben",
         "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}",
         "roomMessageTitle": "{authorName} im Kanal {roomName}",
-        "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}"
+        "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}",
+        "mentionAll": "Alle"
       }
     }
   },

@@ -8,7 +8,6 @@ describe("resolveRoomAttention", () => {
       resolveRoomAttention({
         unreadCount: 3,
         unreadMentionCount: 0,
-        isActive: false,
       }),
     ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
   });
@@ -18,20 +17,8 @@ describe("resolveRoomAttention", () => {
       resolveRoomAttention({
         unreadCount: 5,
         unreadMentionCount: 2,
-        isActive: false,
       }),
     ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 0 });
-  });
-
-  it("suppresses bold and badge when the room is active", () => {
-    expect(
-      resolveRoomAttention({
-        unreadCount: 5,
-        unreadMentionCount: 2,
-        markedUnread: true,
-        isActive: true,
-      }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
   });
 
   it("bolds forced-unread rooms even when unreadCount is 0", () => {
@@ -40,7 +27,6 @@ describe("resolveRoomAttention", () => {
         unreadCount: 0,
         unreadMentionCount: 0,
         markedUnread: true,
-        isActive: false,
       }),
     ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
   });
@@ -52,7 +38,6 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 2,
         markedUnread: true,
         isMuted: true,
-        isActive: false,
       }),
     ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
   });
@@ -62,7 +47,6 @@ describe("resolveRoomAttention", () => {
       resolveRoomAttention({
         unreadCount: 7,
         unreadMentionCount: 0,
-        isActive: false,
       }),
     ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
   });
@@ -72,7 +56,6 @@ describe("resolveRoomAttention", () => {
       resolveRoomAttention({
         unreadCount: 7,
         unreadMentionCount: 0,
-        isActive: false,
         showUnreadCount: true,
       }),
     ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 7 });
@@ -83,7 +66,6 @@ describe("resolveRoomAttention", () => {
       resolveRoomAttention({
         unreadCount: 0,
         unreadMentionCount: 0,
-        isActive: false,
         showUnreadCount: true,
       }),
     ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
@@ -95,18 +77,6 @@ describe("resolveRoomAttention", () => {
         unreadCount: 12,
         unreadMentionCount: 3,
         isMuted: true,
-        isActive: false,
-        showUnreadCount: true,
-      }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
-  });
-
-  it("suppresses the count on the room the reader has open", () => {
-    expect(
-      resolveRoomAttention({
-        unreadCount: 12,
-        unreadMentionCount: 3,
-        isActive: true,
         showUnreadCount: true,
       }),
     ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
@@ -120,7 +90,6 @@ describe("resolveRoomAttention", () => {
       resolveRoomAttention({
         unreadCount: 9,
         unreadMentionCount: 2,
-        isActive: false,
         showUnreadCount: true,
       }),
     ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 9 });
@@ -132,7 +101,6 @@ describe("resolveRoomAttention", () => {
         unreadCount: 0,
         unreadMentionCount: 0,
         markedUnread: true,
-        isActive: false,
         showUnreadCount: true,
       }),
     ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
@@ -145,19 +113,16 @@ describe("resolveRoomAttention", () => {
     for (const unreadCount of [0, 1, 2, 99, 100, 1234]) {
       for (const markedUnread of [true, false]) {
         for (const isMuted of [true, false]) {
-          for (const isActive of [true, false]) {
-            const attention = resolveRoomAttention({
-              unreadCount,
-              unreadMentionCount: 0,
-              markedUnread,
-              isMuted,
-              isActive,
-              showUnreadCount: true,
-            });
+          const attention = resolveRoomAttention({
+            unreadCount,
+            unreadMentionCount: 0,
+            markedUnread,
+            isMuted,
+            showUnreadCount: true,
+          });
 
-            if (attention.unreadTextCount > 0) {
-              expect(attention.bold).toBe(true);
-            }
+          if (attention.unreadTextCount > 0) {
+            expect(attention.bold).toBe(true);
           }
         }
       }

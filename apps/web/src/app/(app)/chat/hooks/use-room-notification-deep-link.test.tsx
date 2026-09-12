@@ -55,7 +55,7 @@ function params(overrides: Partial<HarnessProps> = {}): HarnessProps {
     highlight: vi.fn(() => false),
     isStillSelectedRoom: vi.fn(() => true),
     invalidateJump: vi.fn(),
-    jumpInRoom: vi.fn(async () => {}),
+    jumpInRoom: vi.fn(async () => true),
     jumpInThread: vi.fn(async () => {}),
     ...overrides,
   };

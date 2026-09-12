@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  memo,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
@@ -118,6 +119,7 @@ import type {
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
@@ -780,13 +782,6 @@ const LONG_PRESS_DELAY_MS = 450;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 12;
 const TOUCH_MESSAGE_SELECT_NONE_CLASS =
   "[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]";
-
-function devicePrefersHover(): boolean {
-  if (typeof window === "undefined") {
-    return true;
-  }
-  return window.matchMedia("(hover: hover)").matches;
-}
 
 function clearDomTextSelection() {
   window.getSelection()?.removeAllRanges();
@@ -2009,7 +2004,7 @@ function MessageMetaFooter({
   );
 }
 
-export function ChatMessageRow({
+export const ChatMessageRow = memo(function ChatMessageRow({
   message,
   coworkersById,
   coworkersBySlug,
@@ -2175,9 +2170,17 @@ export function ChatMessageRow({
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const longPress = useLongPress(() => {
+  // Neither overlay is mounted until first opened. A closed Radix dialog
+  // still costs a root, a portal, and its contexts per row, and a transcript
+  // carries a couple of hundred rows. Once opened it stays mounted so its
+  // exit animation can run.
+  const [sheetMounted, setSheetMounted] = useState(false);
+  const [deleteDialogMounted, setDeleteDialogMounted] = useState(false);
+  function openSheet() {
+    setSheetMounted(true);
     setSheetOpen(true);
-  });
+  }
+  const longPress = useLongPress(openSheet);
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
   const canCopy =
@@ -2197,6 +2200,7 @@ export function ChatMessageRow({
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
+    setDeleteDialogMounted(true);
     setDeleteDialogOpen(true);
   }
 
@@ -2481,33 +2485,35 @@ export function ChatMessageRow({
             type="button"
             className="sr-only"
             onClick={() => {
-              setSheetOpen(true);
+              openSheet();
             }}
           >
             {tChannels("Actions.more")}
           </button>
-          <TouchMessageActionsSheet
-            open={sheetOpen}
-            onOpenChange={setSheetOpen}
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            onQuote={onQuote}
-            onPin={onPin}
-            onCopy={handleCopy}
-            onEdit={onStartEdit}
-            onDelete={requestDelete}
-            showThreadButton={showThreadButton}
-            showQuoteButton={canQuote}
-            showPinButton={canPin}
-            isPinned={isPinned}
-            showCopyButton={canCopy}
-            showEditButton={canEdit}
-            showDeleteButton={canDelete}
-          />
+          {sheetMounted ? (
+            <TouchMessageActionsSheet
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              message={message}
+              onToggleReaction={onToggleReaction}
+              onOpenThread={onOpenThread}
+              onQuote={onQuote}
+              onPin={onPin}
+              onCopy={handleCopy}
+              onEdit={onStartEdit}
+              onDelete={requestDelete}
+              showThreadButton={showThreadButton}
+              showQuoteButton={canQuote}
+              showPinButton={canPin}
+              isPinned={isPinned}
+              showCopyButton={canCopy}
+              showEditButton={canEdit}
+              showDeleteButton={canDelete}
+            />
+          ) : null}
         </>
       ) : null}
-      {canDelete ? (
+      {canDelete && deleteDialogMounted ? (
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -2532,4 +2538,4 @@ export function ChatMessageRow({
       ) : null}
     </article>
   );
-}
+});

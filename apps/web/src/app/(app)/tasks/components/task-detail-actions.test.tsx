@@ -500,7 +500,6 @@ const labels = {
   confirmArchive: "Confirm archive",
   confirmArchiveDescription: "Are you sure?",
   archiveError: "Archive error",
-  markAsReady: "Mark as Ready",
   reopenToReady: "Reopen to Ready",
   reopenToReadyTitle: "Reopen task",
   reopenToReadyDescription:
@@ -509,7 +508,6 @@ const labels = {
   reopenToReadyCommentPlaceholder: "Describe what still needs to be done…",
   reopenToReadyCommentRequired: "A comment is required to reopen this task",
   reopenToReadyConfirm: "Reopen to Ready",
-  revertToDraft: "Revert to Draft",
   cancel: "Cancel",
   share: "Share",
   startWorking: "Start working",
@@ -916,7 +914,9 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockReturnValueOnce(deferred.promise);
 
     renderActions({
-      status: TaskStatus.DRAFT,
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
       organizations: undefined,
     });
 
@@ -924,7 +924,9 @@ describe("TaskDetailActions", () => {
       name: actionsMenuLabel,
     });
     await user.click(actionsButton);
-    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.startWorking }),
+    );
 
     await waitFor(() => {
       expect(actionsButton).toBeDisabled();
@@ -932,7 +934,7 @@ describe("TaskDetailActions", () => {
 
     expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
       taskId: "task-1",
-      desiredStatus: TaskStatus.READY,
+      desiredStatus: TaskStatus.RUNNING,
     });
 
     deferred.resolve(taskStatusSuccess());
@@ -948,17 +950,21 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockResolvedValueOnce(taskStatusSuccess());
 
     renderActions({
-      status: TaskStatus.DRAFT,
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
       organizations: undefined,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.startWorking }),
+    );
 
     await waitFor(() => {
       expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
         taskId: "task-1",
-        desiredStatus: TaskStatus.READY,
+        desiredStatus: TaskStatus.RUNNING,
       });
     });
   });
@@ -970,9 +976,16 @@ describe("TaskDetailActions", () => {
       error: { kind: "calendar_client_upgrade_required" },
     });
 
-    renderActions({ status: TaskStatus.DRAFT, organizations: undefined });
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+      organizations: undefined,
+    });
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.startWorking }),
+    );
 
     await waitFor(() => {
       expect(showCalendarClientUpgradeModalMock).toHaveBeenCalledOnce();
@@ -1079,8 +1092,8 @@ describe("TaskDetailActions", () => {
       screen.getByRole("menuitem", { name: labels.startWorking }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: labels.revertToDraft }),
-    ).toBeInTheDocument();
+      screen.queryByRole("menuitem", { name: "Revert to Draft" }),
+    ).toBeNull();
   });
 
   it("offers pause, wait, and complete for a human running task (SOK-868)", async () => {

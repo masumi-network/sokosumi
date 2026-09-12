@@ -425,6 +425,22 @@ describe("ably-push-sw display", () => {
    * author and the room. Reading a channel message under the group string
    * tells the reader they are in a group they are not in.
    */
+  it("shows the room-wide mention in the reader's language", async () => {
+    const worker = loadServiceWorker({ isChromium: true, locale: "de" });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "bitte @all taggen",
+      }),
+    });
+
+    expect(worker.shown[0]?.options.body).toBe("bitte @Alle taggen");
+  });
+
   it("titles a German room message under the string for its own shape", async () => {
     const worker = loadServiceWorker({ isChromium: true, locale: "de" });
 

@@ -6,16 +6,33 @@ public enum MessageAttachmentKindAttribute: AttributedStringKey {
 }
 
 /// File metadata available in message Markdown; size is not carried on the wire.
-public struct MessageAttachment: Equatable, Sendable {
+public struct MessageAttachment: Hashable, Sendable {
   public enum Kind: Hashable, Sendable { case image, audio, video, file }
+  public enum DocumentPreviewKind: Sendable { case pdf, text, office }
   public let url: URL
   public let filename: String
   public let kind: Kind
 
+  public var documentPreviewExtension: String? {
+    guard kind == .file else { return nil }
+    let supported = ["pdf", "txt", "md", "markdown", "doc", "docx", "ppt", "pptx", "xls", "xlsx"]
+    return [url.pathExtension.lowercased(), (filename as NSString).pathExtension.lowercased()]
+      .first(where: { supported.contains($0) })
+  }
+
+  public var documentPreviewKind: DocumentPreviewKind? {
+    switch documentPreviewExtension {
+    case "pdf": .pdf
+    case "txt", "md", "markdown": .text
+    case "doc", "docx", "ppt", "pptx", "xls", "xlsx": .office
+    default: nil
+    }
+  }
+
   public init?(url: URL, label: String, kindHint: Kind? = nil) {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil else { return nil }
     let ext = url.pathExtension.lowercased()
-    let extensions: Set = ["png", "jpg", "jpeg", "webp", "svg", "gif", "pdf", "txt", "md", "rtf", "csv", "json", "xml", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "tar", "gz", "mp3", "mp4", "wav", "mov"]
+    let extensions: Set = ["png", "jpg", "jpeg", "webp", "svg", "gif", "pdf", "txt", "md", "markdown", "rtf", "csv", "json", "xml", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "tar", "gz", "mp3", "mp4", "wav", "mov"]
     guard kindHint != nil || (url.fragment == nil && (extensions.contains(ext) || url.path.contains("/deliverables/"))) else { return nil }
     self.url = url
     filename = label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? url.lastPathComponent : label
@@ -41,12 +58,15 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
   public var attachment: MessageAttachment?
 
   /// Reuses parsed Markdown links, preserving text attributes and occurrence order.
-  public static func split(_ text: AttributedString) -> [Self] {
+  public static func split(_ text: AttributedString, includeFileAttachments: Bool = true) -> [Self] {
     var result: [Self] = []
     var offset = 0
     for run in text.runs {
       let part = AttributedString(text[run.range])
-      let attachment = run.link.flatMap { MessageAttachment(url: $0, label: String(part.characters), kindHint: run[MessageAttachmentKindAttribute.self]) }
+      var attachment = run.link.flatMap { MessageAttachment(url: $0, label: String(part.characters), kindHint: run[MessageAttachmentKindAttribute.self]) }
+      if !includeFileAttachments, attachment?.kind == .file {
+        attachment = nil
+      }
       if let attachment, let last = result.indices.last, result[last].attachment?.url == attachment.url {
         result[last].text.append(part)
         result[last].attachment = MessageAttachment(url: attachment.url, label: String(result[last].text.characters), kindHint: attachment.kind)
@@ -56,6 +76,18 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
         result.append(Self(id: offset, text: part, attachment: attachment))
       }
       offset += part.characters.count
+    }
+    for index in result.indices where result[index].attachment == nil {
+      if index > 0, result[index - 1].attachment != nil {
+        while result[index].text.characters.first?.isNewline == true {
+          result[index].text.removeSubrange(result[index].text.startIndex ..< result[index].text.characters.index(after: result[index].text.startIndex))
+        }
+      }
+      if index + 1 < result.count, result[index + 1].attachment != nil {
+        while result[index].text.characters.last?.isNewline == true {
+          result[index].text.removeSubrange(result[index].text.characters.index(before: result[index].text.endIndex) ..< result[index].text.endIndex)
+        }
+      }
     }
     return result
   }

@@ -84,7 +84,7 @@ describe("useRoomMessageJumps", () => {
       ok: true,
       value: { messages: [message()], nextCursor: "older" },
     });
-    await jump;
+    await expect(jump).resolves.toBe(false);
 
     expect(options.setMessagesState).not.toHaveBeenCalled();
     expect(options.setOlderNextCursor).not.toHaveBeenCalled();
@@ -94,7 +94,7 @@ describe("useRoomMessageJumps", () => {
     expect(highlightRoomTranscriptMessage).toHaveBeenCalledTimes(1);
     expect(highlightThreadMessage).not.toHaveBeenCalled();
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
-    expect(options.setSearchHoldOffBottom).toHaveBeenLastCalledWith(false);
+    expect(options.setSearchHoldOffBottom).not.toHaveBeenCalled();
   });
 
   it("merges a current room window without marking the timeline historical", async () => {
@@ -102,10 +102,15 @@ describe("useRoomMessageJumps", () => {
       ok: true,
       value: { messages: [message()], nextCursor: "older" },
     });
+    vi.mocked(highlightRoomTranscriptMessage)
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
     const options = params();
     const { result } = renderHook(() => useRoomMessageJumps(options));
 
-    await result.current.handleJumpToMessage("message-1");
+    await expect(result.current.handleJumpToMessage("message-1")).resolves.toBe(
+      true,
+    );
 
     expect(options.setMessagesState).toHaveBeenCalledWith(expect.any(Function));
     expect(options.setOlderNextCursor).toHaveBeenCalledWith("older");

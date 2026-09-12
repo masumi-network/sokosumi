@@ -9,11 +9,6 @@ vi.mock("rehype-raw", () => ({
   default: () => null,
 }));
 
-vi.mock("rehype-highlight", () => ({
-  __esModule: true,
-  default: () => null,
-}));
-
 vi.mock("remark-gfm", () => ({
   __esModule: true,
   default: () => null,
@@ -29,6 +24,8 @@ vi.mock("remark-emoji", () => ({
   default: () => null,
 }));
 
+const reactMarkdownRenders = vi.hoisted(() => vi.fn());
+
 vi.mock("react-markdown", () => ({
   __esModule: true,
   default: ({
@@ -38,6 +35,7 @@ vi.mock("react-markdown", () => ({
     components?: { code?: (props: Record<string, unknown>) => React.ReactNode };
     children?: string;
   }) => {
+    reactMarkdownRenders();
     if (!components?.code) return <>{children}</>;
 
     if (children?.includes("BLOCK_ONLY")) {
@@ -48,7 +46,7 @@ vi.mock("react-markdown", () => ({
             className: "language-js",
             children: (
               <>
-                <span className="hljs-keyword">const</span>
+                <span className="th-keyword">const</span>
                 {" value = 1;"}
               </>
             ),
@@ -89,9 +87,21 @@ describe("Markdown", () => {
     expect(code).not.toHaveClass("bg-muted");
   });
 
+  it("parses once while the source holds, and again when it changes", () => {
+    reactMarkdownRenders.mockClear();
+    const { rerender } = render(<Markdown>{"INLINE_ONLY"}</Markdown>);
+    expect(reactMarkdownRenders).toHaveBeenCalledTimes(1);
+
+    rerender(<Markdown>{"INLINE_ONLY"}</Markdown>);
+    expect(reactMarkdownRenders).toHaveBeenCalledTimes(1);
+
+    rerender(<Markdown>{"INLINE_ONLY changed"}</Markdown>);
+    expect(reactMarkdownRenders).toHaveBeenCalledTimes(2);
+  });
+
   it("renders highlighted block code tokens", () => {
     const { container } = render(<Markdown>{"BLOCK_ONLY"}</Markdown>);
-    const highlightedToken = container.querySelector("pre code .hljs-keyword");
+    const highlightedToken = container.querySelector("pre code .th-keyword");
 
     expect(highlightedToken).toBeInTheDocument();
     expect(highlightedToken).toHaveTextContent("const");

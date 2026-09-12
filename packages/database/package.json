@@ -70,7 +70,6 @@
     "@sokosumi/utils": "workspace:*",
     "neverthrow": "8.2.0",
     "pg": "8.23.0",
-    "pg-pool": "3.14.0",
     "uuid": "14.0.2"
   },
   "devDependencies": {

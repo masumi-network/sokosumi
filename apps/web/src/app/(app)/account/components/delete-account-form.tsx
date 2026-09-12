@@ -34,6 +34,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { dropBrowserPushSubscriptionOnAccountDeletion } from "@/lib/ably/release-push-device.client";
 import {
   IN_FLIGHT_JOB_ERROR_CODE,
   IN_FLIGHT_TASK_ERROR_CODE,
@@ -162,6 +163,9 @@ export function DeleteAccountForm({
         userDeletionBlockerMessage(deleteUserResult.error.code ?? "", t),
       );
     } else {
+      // After the delete, not before it: a deletion the password check blocks
+      // would otherwise turn push off for an account that still exists.
+      await dropBrowserPushSubscriptionOnAccountDeletion();
       toast.success(t("success"));
       router.push("/");
     }

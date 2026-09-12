@@ -16,16 +16,15 @@ describe("countChatRoomsWithUnreadAttention", () => {
     ).toBe(2);
   });
 
-  it("skips the active room", () => {
+  // The tab title summarises the sidebar, and the sidebar bolds the open room
+  // like any other. Opening a room does not read it.
+  it("counts the room the reader has open", () => {
     expect(
-      countChatRoomsWithUnreadAttention(
-        [
-          { id: "a", unreadCount: 2 },
-          { id: "b", unreadCount: 3 },
-        ],
-        { activeRoomId: "a" },
-      ),
-    ).toBe(1);
+      countChatRoomsWithUnreadAttention([
+        { id: "a", unreadCount: 2 },
+        { id: "b", unreadCount: 3 },
+      ]),
+    ).toBe(2);
   });
 
   it("counts forced-unread rooms with unreadCount 0 as one room", () => {
@@ -45,16 +44,13 @@ describe("countChatRoomsWithUnreadAttention", () => {
     ).toBe(1);
   });
 
-  it("skips an active forced-unread room", () => {
+  it("counts an open forced-unread room", () => {
     expect(
-      countChatRoomsWithUnreadAttention(
-        [
-          { id: "a", unreadCount: 0, markedUnread: true },
-          { id: "b", unreadCount: 1 },
-        ],
-        { activeRoomId: "a" },
-      ),
-    ).toBe(1);
+      countChatRoomsWithUnreadAttention([
+        { id: "a", unreadCount: 0, markedUnread: true },
+        { id: "b", unreadCount: 1 },
+      ]),
+    ).toBe(2);
   });
 
   it("skips muted rooms even when they have unread", () => {
