@@ -27,10 +27,10 @@ struct MessageEditingTests {
     #expect(editing.source == nil)
     #expect(editing.draft.isEmpty)
     source.deletedAt = Date()
-    #expect(!canEditMessage(source, userId: "user"))
+    #expect(!canModifyOwnMessage(source, userId: "user"))
     source.deletedAt = nil
     source.id = "stream:turn"
-    #expect(!canEditMessage(source, userId: "user"))
+    #expect(!canModifyOwnMessage(source, userId: "user"))
   }
 
   @Test func validationUsesTrimmedUTF16Length() {

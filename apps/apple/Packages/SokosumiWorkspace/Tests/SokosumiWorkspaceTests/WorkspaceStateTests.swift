@@ -35,10 +35,11 @@ private final class ScriptedTransport: ClientTransport {
   var pausePOST = false
   var pauseStream = false
   var pauseGET = false
+  var pauseDELETE = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
-  private var postReleased = false
+  private var requestReleased = false
   private var postCompleted = false
   private var postCompletionWaiter: CheckedContinuation<Void, Never>?
 
@@ -67,34 +68,34 @@ private final class ScriptedTransport: ClientTransport {
     }
     if pauseDirect, operationID == "post/chats/rooms" {
       let next = responses.removeFirst()
-      if !postReleased {
+      if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
       }
-      postReleased = false
+      requestReleased = false
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
     if pausePOST, operationID == "post/chats/rooms/{id}/messages" {
-      if !postReleased {
+      if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
       }
-      postReleased = false
+      requestReleased = false
       try Task.checkCancellation()
     }
     if pauseStream, operationID == "post/chats/rooms/{id}/stream" || operationID == "get/chats/rooms/{id}/stream/active" {
       let next = responses.removeFirst()
-      if !postReleased {
+      if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
       }
-      postReleased = false
+      requestReleased = false
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET, operationID.hasPrefix("get/"), operationID.contains("/messages") {
+    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/"), operationID.contains("/messages") {
       let next = responses.removeFirst()
-      if !postReleased {
+      if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
       }
-      postReleased = false
+      requestReleased = false
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
@@ -102,8 +103,8 @@ private final class ScriptedTransport: ClientTransport {
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
   }
 
-  func releasePOST() {
-    postReleased = true
+  func releasePausedRequest() {
+    requestReleased = true
     pauseWaiter?.resume()
     pauseWaiter = nil
   }
@@ -204,7 +205,7 @@ struct WorkspaceStateTests {
     } else if action == "leave" {
       state.clearTranscript()
     }
-    transport.releasePOST()
+    transport.releasePausedRequest()
     #expect(try await request.value == (action != "reset"))
     #expect(state.openingDirect == nil)
     await waitForTranscriptIdle(state)
@@ -633,7 +634,7 @@ struct WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     #expect(state.outboundShells.isEmpty)
     #expect(!state.outboundInFlight)
-    transport.releasePOST()
+    transport.releasePausedRequest()
     await transport.waitForPOSTCompletion()
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.isEmpty)
@@ -854,7 +855,7 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
       await Task.yield()
     }
-    transport.releasePOST()
+    transport.releasePausedRequest()
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.isEmpty)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
@@ -954,7 +955,7 @@ struct WorkspaceStateTests {
     #expect(state.outboundShells.count == 2)
     #expect(state.outboundShells[0].content == "first")
     transport.pausePOST = false
-    transport.releasePOST()
+    transport.releasePausedRequest()
     await waitForOutboundIdle(state)
     #expect(state.displayedTranscript.map(\.content) == ["first", "second"])
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 2)
@@ -991,7 +992,7 @@ struct WorkspaceStateTests {
     await state.switchRooms(auth: auth, option: org)
     #expect(state.selectionId == "personal")
     #expect(state.switchError != nil)
-    transport.releasePOST()
+    transport.releasePausedRequest()
     await waitForOutboundIdle(state)
     #expect(!state.outboundInFlight)
     #expect(state.outboundShells.isEmpty)
@@ -1111,7 +1112,7 @@ struct WorkspaceStateTests {
       await Task.yield()
     }
     #expect(state.thread.parent?.content == "Parent edited")
-    transport.releasePOST()
+    transport.releasePausedRequest()
     await state.directStream.task?.value
     #expect(state.thread.parent?.content == "Parent edited")
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count >= 2)
@@ -1140,7 +1141,7 @@ struct WorkspaceStateTests {
     state.loadOlderMessages(auth: auth)
     #expect(state.olderPageTask == nil)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
-    transport.releasePOST()
+    transport.releasePausedRequest()
     await state.directStream.task?.value
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
@@ -1162,10 +1163,10 @@ struct WorkspaceStateTests {
     await waitWhile { prepared.transport.messageGets < 2 }
     prepared.state.thread.close()
     #expect(prepared.state.streamingThreadToOpen?.id == "root")
-    prepared.transport.releasePOST()
+    prepared.transport.releasePausedRequest()
     await waitWhile { prepared.transport.threadGets == 0 }
     prepared.state.openThread(parent, auth: prepared.auth)
-    prepared.transport.releasePOST()
+    prepared.transport.releasePausedRequest()
     await prepared.state.directStream.task?.value
     #expect(prepared.state.thread.parent?.id == "root")
     #expect(prepared.state.directStream.overlayMessages.isEmpty)
@@ -1200,12 +1201,12 @@ struct WorkspaceStateTests {
     await waitWhile { !prepared.transport.operationIDs.contains("get/chats/rooms/{id}/stream/active") }
     #expect(prepared.state.directStream.phase == .resuming)
     #expect(prepared.state.streamingThreadToOpen == nil)
-    prepared.transport.releasePOST()
+    prepared.transport.releasePausedRequest()
     await waitWhile { prepared.transport.messageGets < 3 }
     #expect(prepared.state.streamingThreadToOpen?.id == "root")
-    prepared.transport.releasePOST()
+    prepared.transport.releasePausedRequest()
     await waitWhile { prepared.transport.threadGets == 0 }
-    prepared.transport.releasePOST()
+    prepared.transport.releasePausedRequest()
     await prepared.state.directStream.task?.value
     #expect(prepared.state.thread.parent?.id == "root")
     #expect(prepared.state.displayedThreadReplies.map(\.id) == ["reply"])
@@ -1376,5 +1377,105 @@ extension WorkspaceStateTests {
     state.messageEditing.cancel()
     #expect(conversationUpdates > 0)
     #expect(state.messageEditing.source == nil)
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: [false, true])
+  func deletionPreservesParentAndThreadTombstones(reply: Bool) async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let messageId = "550e8400-e29b-41d4-a716-446655440123"
+    let response = createdMessageBody(id: messageId, roomId: roomId, content: "")
+      .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
+    let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: roomId, content: "Original",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = messageId
+    state.timeline.reset(roomId: roomId)
+    if reply {
+      var parent = source
+      parent.id = "parent"
+      parent.threadReplyCount = 1
+      parent.threadLastReplyAt = Date()
+      state.timeline.messages = [parent]
+      state.thread.open(parent)
+      source.parentMessageId = parent.id
+      state.thread.timeline.messages = [source]
+    } else {
+      state.timeline.messages = [source]
+      state.thread.open(source)
+    }
+    state.messageEditing.start(source, userId: "user_1")
+    try await state.deleteMessage(source, auth: auth)
+    #expect(state.messageEditing.source == nil)
+    #expect(state.thread.parent != nil)
+    if reply {
+      #expect(state.thread.timeline.messages.first?.deletedAt != nil)
+      #expect(state.timeline.messages.first?.content == "Original")
+      #expect(state.timeline.messages.first?.threadReplyCount == 0)
+      #expect(state.thread.parent?.threadReplyCount == 0)
+      #expect(state.thread.parent?.threadLastReplyAt == nil)
+    } else {
+      #expect(state.timeline.messages.first?.deletedAt != nil)
+      #expect(state.thread.parent?.deletedAt != nil)
+    }
+  }
+
+  @Test func failedDeletionLeavesMessageAndDraftIntact() async throws {
+    let (state, auth, _, _) = try ephemeralState([(403, "{\"message\":\"Deletion denied\"}")], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: "room", content: "Original",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = "message"
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    state.messageEditing.start(source, userId: "user_1")
+    state.messageEditing.draft = "Unsaved"
+    await #expect(throws: (any Error).self) { try await state.deleteMessage(source, auth: auth) }
+    #expect(state.timeline.messages.first?.content == "Original")
+    #expect(state.timeline.messages.first?.deletedAt == nil)
+    #expect(state.messageEditing.draft == "Unsaved")
+  }
+
+  @Test(arguments: [false, true])
+  func deletionResponseRespectsRoomGenerationAndRealtimeParent(roomChanged: Bool) async throws {
+    let response = createdMessageBody(id: "reply", roomId: "room", content: "")
+      .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, transport, _) = try ephemeralState([(200, response)], visible: false)
+    var parent = chatRoomMessage(from: .init(clientTurnId: "parent", roomId: "room", content: "Parent",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    parent.id = "parent"
+    parent.threadReplyCount = 2
+    var reply = parent
+    reply.id = "reply"
+    reply.parentMessageId = parent.id
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [parent]
+    state.thread.open(parent)
+    state.thread.timeline.messages = [reply]
+    transport.pauseDELETE = true
+    let deletion = Task { try await state.deleteMessage(reply, auth: auth) }
+    while transport.operationIDs.isEmpty {
+      await Task.yield()
+    }
+    if roomChanged {
+      state.timeline.reset(roomId: "other")
+      state.thread.close()
+    } else {
+      parent.threadReplyCount = 1
+      state.timeline.messages = [parent]
+      state.thread.apply(eventType: .update, message: parent)
+    }
+    transport.releasePausedRequest()
+    try await deletion.value
+    if roomChanged {
+      #expect(state.timeline.messages.isEmpty)
+      #expect(state.thread.parent == nil)
+    } else {
+      #expect(state.timeline.messages.first?.threadReplyCount == 1)
+      #expect(state.thread.parent?.threadReplyCount == 1)
+      #expect(state.thread.timeline.messages.first?.deletedAt != nil)
+    }
   }
 }
