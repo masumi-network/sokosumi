@@ -73,12 +73,8 @@ export function TranscriptBoundaryRow({
       ref={rowRef}
       className="text-muted-foreground my-2 flex flex-col items-center gap-1 text-sm"
     >
-      {status === "failed" ? (
-        <span role="alert" className="text-destructive">
-          {t("Boundary.loadFailed")}
-        </span>
-      ) : null}
-      {/* The whole row is the hit area, so a thumb on the label lands too. */}
+      {/* The whole row is the hit area, so a thumb on the label or on the
+          error text lands too. */}
       <Button
         type="button"
         variant="ghost"
@@ -89,7 +85,11 @@ export function TranscriptBoundaryRow({
         onClick={() => onLoad(cursorMessageId)}
       >
         {isLoading ? <Loader2 className="size-4 animate-spin" /> : null}
-        {isGap && status !== "failed" ? (
+        {status === "failed" ? (
+          <span role="alert" className="text-destructive font-normal">
+            {t("Boundary.loadFailed")}
+          </span>
+        ) : isGap ? (
           <span className="text-muted-foreground font-normal">
             {t("Boundary.missingHere")}
           </span>

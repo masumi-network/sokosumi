@@ -125,7 +125,12 @@ describe("TranscriptBoundaryRow", () => {
 
     expect(observers).toHaveLength(0);
     expect(screen.getByRole("alert")).toHaveTextContent("Boundary.loadFailed");
-    fireEvent.click(screen.getByRole("button", { name: "Boundary.retry" }));
+    // The error text is inside the button, so a tap on it retries as well.
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Boundary.loadFailed Boundary.retry",
+      }),
+    );
 
     expect(onLoad).toHaveBeenCalledExactlyOnceWith("msg-9");
   });
