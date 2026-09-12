@@ -1,3 +1,5 @@
+import { isEditableKeyboardTarget } from "./is-editable-keyboard-target";
+
 /**
  * Soft-keyboard heuristic for iOS Safari / standalone PWA and Android.
  *
@@ -21,23 +23,6 @@ let maxVisualHeightPx = 0;
 export function resetVisualViewportKeyboardBaseline(): void {
   maxLayoutHeightPx = 0;
   maxVisualHeightPx = 0;
-}
-
-export function isEditableKeyboardTarget(
-  target: EventTarget | null | undefined,
-): boolean {
-  if (target == null || typeof target !== "object") {
-    return false;
-  }
-  const el = target as {
-    tagName?: string;
-    isContentEditable?: boolean;
-  };
-  if (el.isContentEditable) {
-    return true;
-  }
-  const tag = el.tagName;
-  return tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT";
 }
 
 export interface VisualViewportKeyboardOpenOptions {

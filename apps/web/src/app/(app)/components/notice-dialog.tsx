@@ -17,7 +17,7 @@ import {
 import { acknowledgeNoticeAction } from "@/lib/actions/notice";
 import type { Notice } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
-import { isVideoUrl } from "@/lib/utils/notice-media";
+import { isVideoUrl } from "@/lib/utils/file-preview";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 
 const Markdown = dynamic(() => import("@/components/markdown"), {
