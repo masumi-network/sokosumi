@@ -696,11 +696,13 @@ describe("chat room arrival count", () => {
   it("sums what each unread row in the room stands for", async () => {
     notificationFindManyMock.mockResolvedValue([
       {
+        id: "counted_row",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ roomName: "General", count: 4 }),
       },
       {
+        id: "uncounted_row",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ authorName: "Alice" }),
@@ -719,13 +721,14 @@ describe("chat room arrival count", () => {
         referenceId: chatInput.referenceId,
         isRead: false,
       },
-      select: { messageParams: true, inApp: true, metadata: true },
+      select: { id: true, messageParams: true, inApp: true, metadata: true },
     });
   });
 
   it("counts a room holding only this arrival as one", async () => {
     notificationFindManyMock.mockResolvedValue([
       {
+        id: "only_row",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ authorName: "Alice" }),
@@ -742,8 +745,14 @@ describe("chat room arrival count", () => {
   /** Params nobody can read still stand for the message that wrote them. */
   it("counts a row whose params will not parse as one message", async () => {
     notificationFindManyMock.mockResolvedValue([
-      { inApp: true, metadata: null, messageParams: "not json" },
       {
+        id: "notification_1",
+        inApp: true,
+        metadata: null,
+        messageParams: "not json",
+      },
+      {
+        id: "notification_2",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ count: "many" }),
@@ -755,6 +764,63 @@ describe("chat room arrival count", () => {
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
     expect(publishedGroupCount()).toBe(2);
+  });
+
+  /**
+   * The count it undercounts by is invisible from outside: a banner saying
+   * four when nine are waiting reads exactly like a banner saying four. So
+   * the row that will not read is what is said, and it is said once per row.
+   */
+  it("reports each row it could not read the count from", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      {
+        id: "arrival_throwing",
+        inApp: true,
+        metadata: null,
+        messageParams: "door code 4417, written raw into the column",
+      },
+      {
+        id: "arrival_bare_number",
+        inApp: true,
+        metadata: null,
+        messageParams: "12",
+      },
+    ]);
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(chatRecord());
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "A notification row will not read: SyntaxError",
+      }),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          rowId: "arrival_throwing",
+          field: "messageParams",
+        }),
+      }),
+    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "A notification row will not read: it is not an object",
+      }),
+      expect.objectContaining({
+        extra: expect.objectContaining({ rowId: "arrival_bare_number" }),
+      }),
+    );
+    // `message` and `stack` are non-enumerable, so serialising the calls
+    // alone would pass whatever the Error was built from.
+    const said = captureExceptionMock.mock.calls
+      .flat()
+      .map((argument) =>
+        argument instanceof Error
+          ? `${argument.message} ${argument.stack}`
+          : JSON.stringify(argument),
+      )
+      .join(" ");
+    expect(said).not.toContain("door code");
   });
 
   it.each([null, "{}", '{"osBannerEligible":"true"}', "invalid json"])(
@@ -772,6 +838,44 @@ describe("chat room arrival count", () => {
       expect(publishedGroupCount()).toBeUndefined();
     },
   );
+
+  /**
+   * The hidden row's own column is read the same way the count is. Parsed in
+   * the loop, a column that will not read threw into the generic catch, which
+   * fires on every publish of every message and names no row. The count it
+   * costs is the same either way: a hidden row that cannot say whether it was
+   * banner-only takes the whole count down with it.
+   */
+  it("names a hidden row whose metadata will not read, once", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      chatRecord(),
+      chatRecord({
+        id: "hidden_unreadable",
+        inApp: false,
+        metadata: "door code 4417, written raw into the column",
+      }),
+    ]);
+
+    await publishNotificationRow(chatRecord(), { inApp: true, osBanner: true });
+    await publishNotificationRow(chatRecord(), { inApp: true, osBanner: true });
+
+    expect(publishedGroupCount()).toBeUndefined();
+    const named = captureExceptionMock.mock.calls.filter(
+      (call) =>
+        (call[1] as { extra?: { rowId?: string } })?.extra?.rowId ===
+        "hidden_unreadable",
+    );
+    expect(named).toHaveLength(1);
+    const said = captureExceptionMock.mock.calls
+      .flat()
+      .map((argument) =>
+        argument instanceof Error
+          ? `${argument.message} ${argument.stack}`
+          : JSON.stringify(argument),
+      )
+      .join(" ");
+    expect(said).not.toContain("door code");
+  });
 
   it("omits the count when a concurrent read leaves no unread rows", async () => {
     notificationFindManyMock.mockResolvedValue([]);
