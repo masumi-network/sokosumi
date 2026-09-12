@@ -609,3 +609,5 @@ Verification: all 446 package tests pass (Chat 329, Workspace 55, Auth 34, Realt
 ![Native quote fixture preview](docs/images/message-quotes.png)
 
 Review follow-ups for #4477: verified the distinct Quote/Reply focus targets and deferred composer focus. Each quote click now requests focus independently of the source ID. Quote snippets refresh when participant/channel catalogs change; accessibility labels describe source navigation; decorative icons are hidden. Quote images scale with text and reuse the shared ImageIO thumbnail loader. macOS app tests, all 329 SokosumiChat tests, strict lint/format, and the shared Workspace iOS 17 cross-build pass. Live keyboard-focus and VoiceOver acceptance remain pending.
+
+Quote height follow-up (#4477): the shared expandable body now applies an exact collapsed height only when content overflows. Short quotes retain their natural text height in the composer and transcript. A native tall-container regression test failed before the fix (45pt extra for one line, 30pt for two) and passes afterward; all macOS app tests and pinned lint/format pass.

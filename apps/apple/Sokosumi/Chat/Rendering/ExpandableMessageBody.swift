@@ -25,7 +25,7 @@ struct ExpandableMessageBody<Content: View>: View {
         } action: { height in
           contentHeight = height
         }
-        .frame(maxHeight: clampHeight && !expanded && collapsedHeight > 0 ? collapsedHeight : nil, alignment: .top)
+        .frame(height: !expanded && overflows ? collapsedHeight : nil, alignment: .top)
         .clipped()
         .contentShape(Rectangle())
       if clampHeight, expanded || overflows {
