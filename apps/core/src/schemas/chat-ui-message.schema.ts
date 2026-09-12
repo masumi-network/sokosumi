@@ -62,9 +62,10 @@ export const chatUiFilePartSchema = z.object({
 });
 
 /**
- * Shared union for typed chat body parts: POST `/v1/chat` requests, persisted
- * conversation messages, and GET `/v1/chat` UI payloads. Extend here only once
- * when adding a new part type.
+ * Shared union for typed chat body parts: POST `/v1/chats/rooms/{id}/stream`
+ * requests, persisted conversation messages, and GET
+ * `/v1/chats/rooms/{id}/stream` UI payloads. Extend here only once when adding a
+ * new part type.
  */
 export const chatMessageContentPartSchema = z.union([
   chatUiFilePartSchema,
@@ -73,9 +74,6 @@ export const chatMessageContentPartSchema = z.union([
   chatUiOutputTextPartSchema,
   chatUiReasoningPartSchema,
 ]);
-
-/** Alias for GET `/v1/chat` and OpenAPI; identical to `chatMessageContentPartSchema`. */
-export const chatUiMessagePartSchema = chatMessageContentPartSchema;
 
 export const chatUiThoughtTimingMetadataSchema = z.object({
   thoughtStartedAtMs: z.number(),
@@ -89,19 +87,20 @@ export const chatUiMessageMetadataSchema = chatUiThoughtTimingMetadataSchema
   });
 
 /**
- * AI SDK `UIMessage`-compatible object returned by GET /v1/chat (`data.messages`).
- * Aligns with OpenAI-style roles and text-shaped content parts.
+ * AI SDK `UIMessage`-compatible object returned by GET
+ * `/v1/chats/rooms/{id}/stream` (`data.messages`). Aligns with OpenAI-style
+ * roles and text-shaped content parts.
  */
 export const chatUiMessageSchema = z
   .object({
     id: z.string(),
     role: z.enum(["user", "assistant", "system"]),
-    parts: z.array(chatUiMessagePartSchema),
+    parts: z.array(chatMessageContentPartSchema),
     metadata: chatUiMessageMetadataSchema.optional(),
   })
   .openapi("ChatUiMessage");
 
-/** `data` payload for GET /v1/chat success responses. */
+/** `data` payload for GET `/v1/chats/rooms/{id}/stream` success responses. */
 export const getChatUiMessagesResponseDataSchema = z
   .object({
     messages: z.array(chatUiMessageSchema),
@@ -131,35 +130,3 @@ export const getRoomChatUiMessagesQuerySchema = z
       }),
   })
   .openapi("GetRoomChatUiMessagesQuery");
-
-export const getChatUiMessagesQuerySchema = z
-  .object({
-    conversationId: z
-      .string()
-      .uuid()
-      .openapi({
-        param: { name: "conversationId", in: "query" },
-        description: "Internal conversation id",
-        example: "550e8400-e29b-41d4-a716-446655440000",
-      }),
-    cursor: z
-      .string()
-      .optional()
-      .openapi({
-        param: { name: "cursor", in: "query" },
-        description:
-          "Cursor for pagination (id of the last message from the previous page).",
-      }),
-    limit: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT)
-      .default(LIMITS.CHAT_UI_MESSAGES_DEFAULT_LIMIT)
-      .openapi({
-        param: { name: "limit", in: "query" },
-        description: `Page size (max ${LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT}). Cursor pagination metadata is always returned for forward compatibility.`,
-        example: LIMITS.CHAT_UI_MESSAGES_DEFAULT_LIMIT,
-      }),
-  })
-  .openapi("GetChatUiMessagesQuery");

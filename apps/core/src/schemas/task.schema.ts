@@ -160,17 +160,6 @@ export const taskEventSchema = z
   })
   .openapi("TaskEvent");
 
-export const taskCommentSchema = z
-  .object({
-    id: z.string().openapi({ example: "com_123" }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
-    text: z.string().openapi({ example: "Looks good." }),
-    userId: z.string().nullish().openapi({ example: "user_123" }),
-    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
-  })
-  .openapi("TaskComment");
-
 const taskCreatorUserSchema = z
   .object({
     type: z.literal("user"),
@@ -375,8 +364,6 @@ export const taskSchema = taskBaseSchema
   .openapi("Task");
 
 export const taskListSchema = z.array(taskListItemSchema);
-
-export const tasksSchema = z.array(taskSchema);
 
 export const createTaskJobRequestSchema = createJobRequestSchema.extend({
   agentId: z.string().openapi({ example: "agent_123" }),

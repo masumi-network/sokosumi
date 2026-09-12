@@ -25,17 +25,6 @@ export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
 export const FREE_CREDIT_REFERENCE_SEGMENT = "free";
 
-interface SplitAmountEvenlyWithRemainderRotationParams {
-  memberIds: string[];
-  remainderOffset?: number;
-  totalAmount: bigint;
-}
-
-interface SplitAmountEvenlyWithRemainderRotationResult {
-  allocations: Array<{ amount: bigint; memberId: string }>;
-  nextRemainderOffset: number;
-}
-
 export function getCreditExpiryDate(baseDate: Date, days: number): Date {
   if (!Number.isFinite(days) || !Number.isInteger(days) || days < 0) {
     throw new Error("Expiry days must be a non-negative integer");
@@ -58,46 +47,6 @@ export function buildOrganizationMemberSubscriptionReferenceId(
   validateReferenceSegment(referenceSuffix, "referenceSuffix");
 
   return `${getOrganizationMemberSubscriptionReferencePrefix(userId)}${referenceSuffix}`;
-}
-
-export function splitAmountEvenlyWithRemainderRotation(
-  params: SplitAmountEvenlyWithRemainderRotationParams,
-): SplitAmountEvenlyWithRemainderRotationResult {
-  if (params.memberIds.length === 0 || params.totalAmount <= 0n) {
-    return {
-      allocations: [],
-      nextRemainderOffset: 0,
-    };
-  }
-
-  const memberCount = params.memberIds.length;
-  const memberCountBigInt = BigInt(memberCount);
-  const rawRemainderOffset = params.remainderOffset ?? 0;
-  const requestedOffset = Number.isFinite(rawRemainderOffset)
-    ? Math.trunc(rawRemainderOffset)
-    : 0;
-  const normalizedOffset =
-    ((requestedOffset % memberCount) + memberCount) % memberCount;
-  const baseAmount = params.totalAmount / memberCountBigInt;
-  const remainder = Number(params.totalAmount % memberCountBigInt);
-
-  const allocationAmounts = Array<bigint>(memberCount).fill(baseAmount);
-  for (let index = 0; index < remainder; index += 1) {
-    const targetIndex = (normalizedOffset + index) % memberCount;
-    allocationAmounts[targetIndex] += 1n;
-  }
-
-  const allocations = params.memberIds
-    .map((memberId, index) => ({
-      memberId,
-      amount: allocationAmounts[index] ?? 0n,
-    }))
-    .filter((allocation) => allocation.amount > 0n);
-
-  return {
-    allocations,
-    nextRemainderOffset: (normalizedOffset + remainder) % memberCount,
-  };
 }
 
 function validateReferenceSegment(segment: string, name: string): void {
