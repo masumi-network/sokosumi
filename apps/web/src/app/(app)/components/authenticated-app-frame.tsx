@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
-import { EmergencyDialog } from "@/components/emergency-dialog";
+import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
