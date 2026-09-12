@@ -177,11 +177,9 @@ describe("performRoomSearchJump", () => {
   });
 
   /**
-   * The parent can sit further back than the loaded page of the transcript.
-   * Loading a window around it would swap the timeline and mark it historical
-   * (`use-room-message-jumps.ts`), which stops every later realtime message
-   * from merging. Not worth it to move a transcript the thread panel is
-   * covering, so the transcript is left where it is.
+   * The parent can sit further back than the loaded ranges of the transcript.
+   * A window around it would be one more fetch to move a transcript the
+   * thread panel is covering, so the transcript is left where it is.
    *
    * Named for the room window rather than for the missing parent, because the
    * missing parent is what `highlightInRoom` swallows and this test cannot see:
