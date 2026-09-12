@@ -621,3 +621,5 @@ Core already exposes PATCH `/chats/rooms/{id}/messages/{messageId}`; the Apple s
 Validation: 334 Chat tests, 56 Workspace tests, macOS app tests, strict SwiftLint/SwiftFormat, and the shared Workspace iOS 17 cross-build pass. Coverage includes ownership/deleted/local eligibility, trimmed UTF-16 validation, room/reply PATCH bodies and scope, failed save/retry, late-response isolation, room/thread reconciliation and native Return/Command-Return/Escape. A native editor fixture was rendered and inspected; live saving against Core remains manual. Existing Xcode cmark/AppIntents build warnings remain.
 
 ![Native message editing fixture](docs/images/message-editing.png)
+
+Editing performance follow-up (#4491): draft changes no longer forward through WorkspaceState to the entire conversation. The coordinator observes only editor source identity; the inline editor retains its direct draft/save/error observation. A regression test measured 26 conversation invalidations for 26 characters before the fix and zero afterward, while all 26 editor updates remained. All 57 Workspace tests pass. Live typing fluidity on the reported conversation still needs confirmation.

@@ -181,9 +181,13 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [messageEditing.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
+    // Rows need editor identity changes; draft and save state are observed by the editor itself.
+    messageEditing.$source.map { $0?.id }.removeDuplicates().dropFirst()
+      .sink { [weak self] _ in self?.objectWillChange.send() }
+      .store(in: &threadObservations)
     outboxObservation = outbox.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }

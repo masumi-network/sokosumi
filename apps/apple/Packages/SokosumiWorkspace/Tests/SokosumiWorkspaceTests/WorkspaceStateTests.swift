@@ -1,3 +1,4 @@
+import Combine
 import CoreAPI
 import Foundation
 import HTTPTypes
@@ -1345,5 +1346,35 @@ extension WorkspaceStateTests {
       #expect(state.thread.parent?.content == "Changed")
     }
     #expect((reply ? state.thread.timeline.messages.first : state.timeline.messages.first)?.editedAt != nil)
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test
+  func editingKeystrokesDoNotInvalidateConversation() throws {
+    let (state, _, _, _) = try ephemeralState([], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: "room", content: "Original",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = "persisted-message"
+    var conversationUpdates = 0
+    var editorUpdates = 0
+    let conversationObservation = state.objectWillChange.sink { conversationUpdates += 1 }
+    let editorObservation = state.messageEditing.objectWillChange.sink { editorUpdates += 1 }
+    defer {
+      conversationObservation.cancel()
+      editorObservation.cancel()
+    }
+    state.messageEditing.start(source, userId: "user_1")
+    #expect(conversationUpdates > 0)
+    conversationUpdates = 0
+    editorUpdates = 0
+    for character in " typing an updated message" {
+      state.messageEditing.draft.append(character)
+    }
+    #expect(editorUpdates == 26)
+    #expect(conversationUpdates == 0)
+    state.messageEditing.cancel()
+    #expect(conversationUpdates > 0)
+    #expect(state.messageEditing.source == nil)
   }
 }
