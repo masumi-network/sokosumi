@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildChatMessagePreview,
+  buildNamedChatMessagePreview,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
@@ -38,6 +39,31 @@ describe("readChatMentionKeys", () => {
   /** The same rule the preview reads by: a time is not a mention. */
   it("reads nothing from text that only looks like a mention", () => {
     expect(readChatMentionKeys("standup @10:30am")).toEqual([]);
+  });
+
+  /**
+   * The markdown marks around a token are gone by the time the preview reads
+   * it, and the token rule ends a key on what follows. Read the raw body and
+   * an italicised mention is no mention, while the preview makes one of it and
+   * takes it out of the sentence for want of a name.
+   */
+  it("reads the key of a mention the sender wrote in italics", () => {
+    const one = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+    const other = "019fc7e4-e4bd-7005-900c-66e44d33f5e5";
+
+    expect(readChatMentionKeys(`ping _@${one}_ not _@${other}_`)).toEqual([
+      one,
+      other,
+    ]);
+    expect(
+      buildChatMessagePreview(
+        `ping _@${one}_ not _@${other}_`,
+        new Map([
+          [one, "Bob"],
+          [other, "Carl"],
+        ]),
+      ),
+    ).toBe("ping @Bob not @Carl");
   });
 });
 
@@ -1292,6 +1318,101 @@ describe("buildChatMessagePreview", () => {
 
     expect([...preview]).toHaveLength(CHAT_MESSAGE_PREVIEW_MAX_LENGTH);
     expect(preview.endsWith("🙂…")).toBe(true);
+  });
+});
+
+describe("buildNamedChatMessagePreview", () => {
+  const UUID = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+
+  /**
+   * The same disagreement the parser fix closes, asked the other way round.
+   * Read raw, an italicised mention is not there to answer for, so this would
+   * hand back a preview the builder then ate the token out of.
+   */
+  it("says nothing for a mention written in italics it cannot name", () => {
+    expect(
+      buildNamedChatMessagePreview(
+        "ping _@019fc7e4-e4bd-7005-900c-66e44d33f5e4_ not",
+      ),
+    ).toBe("");
+  });
+
+  it("reads back a body that mentions nobody", () => {
+    expect(buildNamedChatMessagePreview("ship it")).toBe("ship it");
+  });
+
+  it("reads back a body whose every mention carries a slug", () => {
+    expect(buildNamedChatMessagePreview(`ping @${UUID}:ada now`)).toBe(
+      "ping @ada now",
+    );
+  });
+
+  /** Room-wide, and a word rather than an id, so it stands for itself. */
+  it("reads back the room-wide mention", () => {
+    expect(buildNamedChatMessagePreview("@all stand up")).toBe("@all stand up");
+  });
+
+  it("says nothing when a mention carries no slug and no name", () => {
+    expect(buildNamedChatMessagePreview(`ping @${UUID} now`)).toBe("");
+  });
+
+  /** One unreadable mention is enough to make the sentence say something else. */
+  it("says nothing when only one of two mentions can be named", () => {
+    expect(buildNamedChatMessagePreview(`@${UUID}:ada and @${UUID} now`)).toBe(
+      "",
+    );
+  });
+
+  /** A slug that repeats the key names nobody, so it is not a slug. */
+  it("says nothing for a slug that only repeats the key", () => {
+    expect(buildNamedChatMessagePreview(`ping @${UUID}:${UUID} now`)).toBe("");
+  });
+
+  /**
+   * The names the caller holds are what it is asked, not whether the lookup
+   * worked. A member who left the room, or one whose display name is empty, is
+   * absent from a map that came back perfectly well.
+   */
+  it("says nothing for a mention the map it was given does not name", () => {
+    const other = "019fc7e4-e4bd-7005-900c-66e44d33f5e5";
+
+    expect(
+      buildNamedChatMessagePreview(
+        `ping @${UUID} not @${other}`,
+        new Map([[UUID, "Bob"]]),
+      ),
+    ).toBe("");
+    expect(
+      buildNamedChatMessagePreview(
+        `ping @${UUID} not @${other}`,
+        new Map([
+          [UUID, "Bob"],
+          [other, "Carl"],
+        ]),
+      ),
+    ).toBe("ping @Bob not @Carl");
+  });
+
+  /**
+   * The clean takes fences out but leaves a code span, a quote mark and the
+   * path of an address, so a bare id written in any of them is a mention like
+   * any other here and costs the whole preview. The trade is deliberate: the
+   * builder would drop that token and hand back a sentence saying something
+   * else, and saying nothing is the honest half of that.
+   */
+  it("says nothing for a bare id the sender wrote inside a code span", () => {
+    expect(buildNamedChatMessagePreview(`run \`@${UUID}\` now`)).toBe("");
+    expect(buildNamedChatMessagePreview(`> ping @${UUID}`)).toBe("");
+  });
+
+  /** An empty display name names the reader no better than none at all. */
+  it("says nothing for a member whose name is nothing but spaces", () => {
+    expect(
+      buildNamedChatMessagePreview(
+        `ping @${UUID} now`,
+        new Map([[UUID, "  "]]),
+      ),
+    ).toBe("");
   });
 });
 

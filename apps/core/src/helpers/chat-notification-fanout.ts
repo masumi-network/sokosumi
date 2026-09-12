@@ -1,9 +1,13 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
-import { buildChatMessagePreview } from "@sokosumi/utils";
+import {
+  buildChatMessagePreview,
+  buildNamedChatMessagePreview,
+} from "@sokosumi/utils";
 
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
+import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import {
   createNotification,
@@ -54,41 +58,30 @@ export interface FanOutChatNotificationsParams {
 }
 
 /** How many messages a row is already standing for. */
-function countOn(messageParams: string): number {
-  try {
-    const stored: unknown = JSON.parse(messageParams);
-    const count =
-      typeof stored === "object" && stored !== null && "count" in stored
-        ? (stored as { count: unknown }).count
-        : undefined;
+function countOn(messageParams: string, rowId: string): number {
+  // A row nobody can read the params of is still a row, and it still stands
+  // for the messages that landed on it. One is the answer that undercounts.
+  const stored = readNotificationRowJson(messageParams, rowId, "messageParams");
+  const count = stored && "count" in stored ? stored.count : undefined;
 
-    return typeof count === "number" && Number.isInteger(count) && count >= 1
-      ? count
-      : 1;
-  } catch {
-    // A row nobody can read the params of is still a row, and it still stands
-    // for the messages that landed on it. One is the answer that undercounts.
-    return 1;
-  }
+  return typeof count === "number" && Number.isInteger(count) && count >= 1
+    ? count
+    : 1;
 }
 
 /** The message a row was written for, when it recorded one. */
-function messageIdOn(metadata: string | null): string | null {
+function messageIdOn(metadata: string | null, rowId: string): string | null {
   if (!metadata) {
     return null;
   }
 
-  try {
-    const stored: unknown = JSON.parse(metadata);
-    const messageId =
-      typeof stored === "object" && stored !== null && "messageId" in stored
-        ? (stored as { messageId: unknown }).messageId
-        : undefined;
+  // A row that will not read is answered as one written for some other
+  // message, which is what keeps this message's text off it.
+  const stored = readNotificationRowJson(metadata, rowId, "metadata");
+  const messageId =
+    stored && "messageId" in stored ? stored.messageId : undefined;
 
-    return typeof messageId === "string" ? messageId : null;
-  } catch {
-    return null;
-  }
+  return typeof messageId === "string" ? messageId : null;
 }
 
 /**
@@ -162,7 +155,7 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
 
     // The same message arriving twice. The row already stands for it, and
     // counting it again would say two messages where there was one.
-    if (messageIdOn(unread.metadata) === input.metadata?.messageId) {
+    if (messageIdOn(unread.metadata, unread.id) === input.metadata?.messageId) {
       return;
     }
 
@@ -178,7 +171,7 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
       data: {
         messageParams: JSON.stringify({
           ...input.messageParams,
-          count: countOn(unread.messageParams) + 1,
+          count: countOn(unread.messageParams, unread.id) + 1,
         }),
         metadata:
           input.metadata === undefined || input.metadata === null
@@ -209,6 +202,69 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
 
   // Every attempt lost the write. A row of its own says more than silence.
   await createNotification(input);
+}
+
+/**
+ * What the reader is shown under the author and the room, or nothing.
+ *
+ * A mention nothing can name is taken out of the sentence, and what is left
+ * reads as a whole sentence saying something else: `ping @Bob not @Carl`
+ * becomes `ping not`. So a body carrying one gets no preview at all, which
+ * leaves the reader the line naming the author and the room, as a deleted
+ * message already does.
+ *
+ * Asked of the names this call actually holds rather than of whether the read
+ * worked. A read that threw and a read that came back without this member
+ * cost the reader the same sentence, and the second needs nothing to go
+ * wrong: a member who has left the room reads exactly like one nobody could
+ * look up. A body whose mentions all carry a readable slug says who either
+ * way, and is shown as it is.
+ */
+async function previewOf(
+  params: FanOutChatNotificationsParams,
+): Promise<string> {
+  const mentionNames = await readMentionNames(params);
+
+  return buildNamedChatMessagePreview(
+    params.content,
+    mentionNames ?? undefined,
+  );
+}
+
+/**
+ * The names this message's mentions stand for, or null when the read failed.
+ *
+ * A failed read costs the reader the preview, not the notification. It cannot
+ * cost only the names: the preview takes an unnamed mention token out of the
+ * sentence, so "ping @Bob not @Carl" read with no names becomes "ping not".
+ * The reader is better served by the author-and-room line, which is what an
+ * empty preview gives them, and which a deleted message already gives them.
+ *
+ * This read was once unguarded, and a mention key the soko bot column could
+ * not parse threw here and cost every recipient of that message both their
+ * notification center row and their banner (#4411). The key that did it is
+ * filtered now. The shape that let one read speak for every recipient was
+ * not, and a pool error or a statement timeout reaches this line the same way.
+ */
+async function readMentionNames(
+  params: FanOutChatNotificationsParams,
+): Promise<ReadonlyMap<string, string> | null> {
+  try {
+    return await loadChatMentionNames({
+      roomId: params.roomId,
+      content: params.content,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        roomId: params.roomId,
+        messageId: params.messageId,
+        notificationType: "chat-mention-name",
+      },
+    });
+
+    return null;
+  }
 }
 
 /**
@@ -284,13 +340,7 @@ export async function fanOutChatNotifications(
   const messagePreview =
     message === null || message.deletedAt !== null
       ? ""
-      : buildChatMessagePreview(
-          params.content,
-          await loadChatMentionNames({
-            roomId: params.roomId,
-            content: params.content,
-          }),
-        );
+      : await previewOf(params);
 
   // A direct room is named after who is in it, so its name differs by reader
   // and the stored one is right for nobody. Read once for the whole fan-out.
@@ -382,19 +432,6 @@ export async function fanOutChatNotifications(
   });
 }
 
-/** A row's stored params, or null when the row cannot be read. */
-function paramsOn(messageParams: string): Record<string, unknown> | null {
-  try {
-    const stored: unknown = JSON.parse(messageParams);
-
-    return typeof stored === "object" && stored !== null
-      ? (stored as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * How many times one row is read again after losing its guarded write.
  *
@@ -431,7 +468,7 @@ async function rewriteRow(
   let current = row;
 
   for (let attempt = 0; attempt < REWRITE_ATTEMPTS; attempt += 1) {
-    if (messageIdOn(current.metadata) !== messageId) {
+    if (messageIdOn(current.metadata, current.id) !== messageId) {
       return;
     }
 
@@ -439,7 +476,11 @@ async function rewriteRow(
     // same way `countOn` and `messageIdOn` read a row above. A row carrying
     // no preview is left alone: this takes text back or brings it up to date,
     // and never puts text somewhere it was not.
-    const stored = paramsOn(current.messageParams);
+    const stored = readNotificationRowJson(
+      current.messageParams,
+      current.id,
+      "messageParams",
+    );
     if (typeof stored?.messagePreview !== "string") {
       return;
     }
@@ -536,10 +577,19 @@ async function rewriteRowFromMessage(
         });
         const content =
           message === null || message.deletedAt !== null ? "" : message.content;
+        // Not the named preview the create path builds. An edit must take the
+        // old text off the row, and a rewrite that declined to would leave a
+        // redaction unredacted; one that wiped the row instead could never
+        // fill it again, because a rewrite never puts text on a row that
+        // carries none. So this keeps writing what it always wrote, and a
+        // message whose mention nobody can name still loses that name here.
+        // Closing that needs the rewrite to be allowed to refill a row it
+        // emptied, which is a rule this change does not touch.
         const preview = buildChatMessagePreview(
           content,
           await mentionNamesFor(names, source, content, tx),
         );
+
         await rewriteRow(row, source.messageId, preview, tx);
       });
       return;
