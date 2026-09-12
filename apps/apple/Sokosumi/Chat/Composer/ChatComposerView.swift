@@ -18,12 +18,14 @@ import UniformTypeIdentifiers
     @StateObject private var uploads: ComposeUploads
 
     private let savedDraft: SavedComposeDraft
+    private let quoteFocusRequest: String?
     private let roomId: String
     private let parentMessageId: String?
     private let onAccepted: (() -> Void)?
 
-    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), onAccepted: (() -> Void)? = nil) {
+    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, onAccepted: (() -> Void)? = nil) {
       _pendingQuote = pendingQuote
+      self.quoteFocusRequest = quoteFocusRequest
       self.onAccepted = onAccepted
       self.roomId = roomId
       self.parentMessageId = parentMessageId
@@ -107,7 +109,7 @@ import UniformTypeIdentifiers
           draft = text
           savedDraft.save(text)
         }
-      ), submit: sendDraft, focusRequest: pendingQuote?.messageId, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
+      ), submit: sendDraft, focusRequest: quoteFocusRequest, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
       if workspaces.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
         input.attachFromDrive = { drivePickerPresented = true }

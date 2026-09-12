@@ -12,6 +12,7 @@ import SwiftUI
     @State private var userIsScrolling = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var quoteTarget: String?
+    @State private var quoteFocusRequest: String?
 
     var body: some View {
       if let parent = workspaces.thread.parent {
@@ -20,7 +21,9 @@ import SwiftUI
             ScrollView {
               VStack(alignment: .leading, spacing: 8) {
                 MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                               onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent) } : nil,
+                               onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
+                                 quoteFocusRequest = UUID().uuidString
+                               } : nil,
                                onQuoteJump: { quoteTarget = $0 })
                   .id(parent.id)
                 Divider()
@@ -65,7 +68,7 @@ import SwiftUI
             }
           }
           ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
-                           roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote,
+                           roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
                            onAccepted: { followsLatest = true })
             .id(parent.id)
         }
@@ -121,7 +124,9 @@ import SwiftUI
                              outbound: shell, sentAt: outbox.sentAt[message.id],
                              onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                              onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                             onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message) } : nil,
+                             onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                               quoteFocusRequest = UUID().uuidString
+                             } : nil,
                              onQuoteJump: { quoteTarget = $0 },
                              streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
             }

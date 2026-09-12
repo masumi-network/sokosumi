@@ -17,6 +17,7 @@ import SwiftUI
     @State private var userIsScrolling = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var quoteTarget: String?
+    @State private var quoteFocusRequest: String?
 
     let roomId: String
 
@@ -30,7 +31,7 @@ import SwiftUI
         ChatComposerView(
           userId: workspaces.currentUserId,
           organizationId: workspaces.selection?.workspace.organizationId,
-          roomId: roomId, pendingQuote: $pendingQuote
+          roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
         )
         .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
       }
@@ -120,7 +121,9 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
-                                 onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message) } : nil,
+                                 onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                                   quoteFocusRequest = UUID().uuidString
+                                 } : nil,
                                  onQuoteJump: { id in quoteTarget = id },
                                  horizontalInset: 12,
                                  streamReasoning: streamReasoning(for: message),

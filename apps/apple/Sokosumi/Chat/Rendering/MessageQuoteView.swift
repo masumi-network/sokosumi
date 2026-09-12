@@ -10,16 +10,24 @@ struct MessageQuoteView: View {
   var dismiss: (() -> Void)?
   var jump: ((String) -> Void)?
 
+  private struct RenderInput: Hashable {
+    let source: String
+    let mentions: MessageMentions?
+    let channels: [ComposerChannel]
+  }
+
+  @ScaledMetric(relativeTo: .callout) private var thumbnailSize = 48.0
   @State private var renderedSnippet = AttributedString()
 
   var body: some View {
     HStack(alignment: .top, spacing: 8) {
-      Image(systemName: "quote.opening").foregroundStyle(.secondary)
+      Image(systemName: "quote.opening").foregroundStyle(.secondary).accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 4) {
         if let jump {
           Button(quote.authorName) { jump(quote.messageId) }
             .buttonStyle(.plain)
             .help("Go to quoted message")
+            .accessibilityLabel("Go to message quoted from \(quote.authorName)")
         } else {
           Text(quote.authorName)
         }
@@ -32,10 +40,7 @@ struct MessageQuoteView: View {
           HStack {
             if attachment.mediaKind == .image, let url = URL(string: attachment.url),
                ["https", "http"].contains(url.scheme?.lowercased() ?? "") {
-              AsyncImage(url: url) { image in image.resizable().scaledToFit() } placeholder: {
-                Image(systemName: "photo")
-              }
-              .frame(width: 48, height: 48)
+              QuoteImageThumbnail(url: url, size: thumbnailSize)
             } else {
               Image(systemName: "doc")
             }
@@ -53,7 +58,7 @@ struct MessageQuoteView: View {
     .padding(8)
     .background(.quaternary, in: .rect(cornerRadius: 6))
     .accessibilityElement(children: .contain)
-    .task(id: quote.snippet + (room?.id ?? "")) {
+    .task(id: RenderInput(source: quote.snippet, mentions: room.map(MessageMentions.init), channels: channels)) {
       let source = quote.snippet
       let mentions = room.map(MessageMentions.init)
       let channels = channels
@@ -75,6 +80,31 @@ struct MessageQuoteView: View {
       guard !Task.isCancelled else { return }
       renderedSnippet = text
       renderedSnippet.link = nil
+    }
+  }
+}
+
+private struct QuoteImageThumbnail: View {
+  let url: URL
+  let size: CGFloat
+  @Environment(\.displayScale) private var displayScale
+  @State private var image: CGImage?
+
+  var body: some View {
+    Group {
+      if let image {
+        Image(decorative: image, scale: displayScale).resizable().scaledToFit()
+      } else {
+        Image(systemName: "photo")
+      }
+    }
+    .frame(width: size, height: size)
+    .accessibilityHidden(true)
+    .task(id: "\(url)-\(size)-\(displayScale)") {
+      image = nil
+      let loaded = await loadThumbnailCGImage(urlString: url.absoluteString, pointSize: size, scale: displayScale)
+      guard !Task.isCancelled else { return }
+      image = loaded
     }
   }
 }
