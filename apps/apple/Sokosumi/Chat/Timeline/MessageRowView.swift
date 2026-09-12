@@ -198,6 +198,7 @@ import SwiftUI
               messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
             }
           }
+          .fixedSize()
           .background(.regularMaterial, in: .rect(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
           .onHover { isReplyHovered = $0 }
@@ -268,6 +269,8 @@ import SwiftUI
       Button(action: action) {
         Label(title, systemImage: symbol)
           .font(.caption)
+          .lineLimit(1)
+          .fixedSize()
           .padding(.horizontal, 10)
           .frame(height: replyActionHeight)
           .contentShape(.rect)
