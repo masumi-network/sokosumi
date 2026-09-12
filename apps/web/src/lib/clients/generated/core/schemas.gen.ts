@@ -12717,7 +12717,7 @@ export const PreferredOrganizationSchema = {
                 'null'
             ],
             example: 'org_123',
-            description: 'Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.'
+            description: 'Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.'
         }
     },
     required: [
@@ -18996,42 +18996,43 @@ export const TaskLinkDeletedSchema = {
     ]
 } as const;
 
-export const PutTaskScheduleRequestSchema = {
-    anyOf: [
-        {
-            type: 'object',
-            properties: {
-                operationId: {
-                    type: 'string',
-                    format: 'uuid',
-                    description: 'Idempotency identity for this series edit',
-                    example: '123e4567-e89b-42d3-a456-426614174000'
-                },
-                expectedScheduleRevision: {
-                    type: 'integer',
-                    minimum: 0,
-                    description: 'Schedule revision observed by the caller',
-                    example: 3
-                },
-                discardFutureExceptions: {
-                    type: 'boolean',
-                    enum: [
-                        true
-                    ],
-                    description: 'Confirms that future occurrence exceptions may be canceled',
-                    example: true
-                },
-                schedule: {
-                    $ref: '#/components/schemas/TaskScheduleInput'
-                }
-            },
-            required: [
-                'operationId',
-                'expectedScheduleRevision',
-                'discardFutureExceptions',
-                'schedule'
-            ]
+export const PutCalendarTaskScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this series edit',
+            example: '123e4567-e89b-42d3-a456-426614174000'
         },
+        expectedScheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Schedule revision observed by the caller',
+            example: 3
+        },
+        discardFutureExceptions: {
+            type: 'boolean',
+            enum: [
+                true
+            ],
+            description: 'Confirms that future occurrence exceptions may be canceled',
+            example: true
+        },
+        schedule: {
+            $ref: '#/components/schemas/TaskScheduleInput'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedScheduleRevision',
+        'discardFutureExceptions',
+        'schedule'
+    ]
+} as const;
+
+export const PutTaskScheduleRequestSchema = {
+    oneOf: [
         {
             type: 'object',
             properties: {
@@ -19115,6 +19116,230 @@ export const PutTaskScheduleRequestSchema = {
             ]
         }
     ]
+} as const;
+
+export const TaskScheduleOccurrencePageSchema = {
+    type: 'object',
+    properties: {
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Series revision this page was read at',
+            example: 4
+        },
+        futureExceptionCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Durable future exceptions a full-series edit or removal would cancel, counted across the whole series at this read\'s instant. 0 for a series with no live rule. Clients confirm a destructive discard only when this is above zero.',
+            example: 0
+        },
+        occurrences: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskScheduleOccurrence'
+            }
+        }
+    },
+    required: [
+        'scheduleRevision',
+        'futureExceptionCount',
+        'occurrences'
+    ]
+} as const;
+
+export const TaskScheduleOccurrenceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Ledger row identity, also the pagination tie-breaker',
+            example: '33333333-3333-7333-8333-333333333333'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'PLANNED',
+                'SKIPPED',
+                'CANCELED',
+                'RELEASED'
+            ],
+            example: 'RELEASED'
+        },
+        scheduleVersion: {
+            type: 'integer',
+            description: '1 for legacy display-only projections, 2 for epoch-backed rows',
+            example: 2
+        },
+        epochId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Rule epoch that projected this occurrence, when known'
+        },
+        originalScheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the rule originally projected, when the ledger captured it'
+        },
+        effectiveScheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the occurrence actually holds; the ordering key'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'IANA timezone captured with the rule',
+            example: 'Europe/Berlin'
+        },
+        isMissed: {
+            type: 'boolean',
+            description: 'A planned occurrence whose effective time has passed without a release. Derived server-side so clients never depend on their own clock.',
+            example: false
+        },
+        sourceId: {
+            type: 'string',
+            description: 'Canonical Calendar source identity',
+            example: 'workspace:11111111-1111-7111-8111-111111111111'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Workspace captured as the Calendar source'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE',
+                'PROJECT',
+                'LEGACY_UNKNOWN'
+            ],
+            example: 'WORKSPACE'
+        },
+        sourceProjectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project captured as the Calendar source, when applicable'
+        },
+        sourceAccuracy: {
+            type: 'string',
+            enum: [
+                'EXACT',
+                'INFERRED',
+                'UNKNOWN'
+            ],
+            example: 'EXACT'
+        },
+        timeAccuracy: {
+            type: 'string',
+            enum: [
+                'EXACT',
+                'APPROXIMATE'
+            ],
+            example: 'EXACT'
+        },
+        releasedTask: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskScheduleOccurrenceReleasedTask'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Independent Task this occurrence released, when it did'
+        }
+    },
+    required: [
+        'id',
+        'state',
+        'scheduleVersion',
+        'epochId',
+        'originalScheduledAt',
+        'effectiveScheduledAt',
+        'timezone',
+        'isMissed',
+        'sourceId',
+        'sourceWorkspaceId',
+        'sourceType',
+        'sourceProjectId',
+        'sourceAccuracy',
+        'timeAccuracy',
+        'releasedTask'
+    ]
+} as const;
+
+export const TaskScheduleOccurrenceReleasedTaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tsk_released'
+        },
+        name: {
+            type: 'string',
+            example: 'Prepare release notes'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'QUEUED',
+                'READY',
+                'GRANT_PENDING',
+                'INPUT_REQUIRED',
+                'APPROVAL_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCELED'
+            ],
+            example: 'COMPLETED'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Set when the released Task was archived; it is no longer readable, so the summary is not navigable'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'archivedAt'
+    ]
+} as const;
+
+export const TaskScheduleOccurrenceViewSchema = {
+    type: 'string',
+    enum: [
+        'upcoming',
+        'history'
+    ],
+    default: 'upcoming',
+    description: 'upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending',
+    example: 'upcoming'
 } as const;
 
 export const TaskWorkspaceSchema = {

@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { forwardRef, useImperativeHandle } from "react";
+import { type ComponentProps, forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
@@ -369,6 +369,56 @@ async function selectTaskStatus(
 ) {
   await user.click(screen.getByRole("combobox", { name: "Status" }));
   await user.click(screen.getByRole("option", { name: statusLabel }));
+}
+
+const ACTIVE_SERIES_METADATA = JSON.stringify({
+  version: 2,
+  epochId: "123e4567-e89b-42d3-a456-426614174001",
+  mode: "recurring",
+  createdAt: "2026-06-01T08:00:00.000Z",
+  ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+  timezone: "UTC",
+  expr: "0 9 * * *",
+  endsMode: "never",
+  epochReleaseCount: 0,
+  anchorAt: "2026-06-01T09:00:00.000Z",
+});
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function renderActiveSeriesEdit(
+  props: Partial<ComponentProps<typeof TaskForm>> = {},
+) {
+  return render(
+    <TaskForm
+      mode="edit"
+      showCancel={false}
+      labels={baseLabels}
+      coworkerOptions={coworkerOptions}
+      taskId="task-1"
+      scheduleRevision={4}
+      futureExceptionCount={0}
+      initialValues={{
+        name: "Task name",
+        description: "Initial description",
+        assigneeId: "coworker-1",
+        status: TaskStatus.QUEUED,
+        metadata: ACTIVE_SERIES_METADATA,
+        nextRunAt: "2026-06-25T09:00:00.000Z",
+      }}
+      onSuccess={vi.fn()}
+      {...props}
+    />,
+  );
+}
+
+/** Replaces the live recurring rule with the editor's default one-time rule. */
+async function replaceSchedule(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Set schedule" }));
+  await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+  await user.click(screen.getByRole("button", { name: "Set schedule" }));
+  await user.click(screen.getByRole("button", { name: "save" }));
 }
 
 describe("TaskForm", () => {
@@ -1058,13 +1108,18 @@ describe("TaskForm", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(
+      await screen.findByRole("button", { name: "removeConfirm" }),
+    );
 
-    expect(updateTaskMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        taskId: "task-1",
-        desiredStatus: TaskStatus.DRAFT,
-        schedule: expect.objectContaining({ mode: "none" }),
-      }),
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          desiredStatus: TaskStatus.DRAFT,
+          schedule: expect.objectContaining({ mode: "none" }),
+        }),
+      ),
     );
   });
 
@@ -1153,6 +1208,34 @@ describe("TaskForm", () => {
 
     expect(showCalendarClientUpgradeModalMock).toHaveBeenCalledOnce();
     expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("explains a replayed create attempt instead of opening the upgrade modal", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "idempotency_conflict" },
+    });
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("operationConflict"),
+    );
+    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
   });
 
   it("shows a queued celebration after creating a scheduled task", async () => {
@@ -1501,6 +1584,232 @@ describe("TaskForm", () => {
         desiredStatus: TaskStatus.READY,
       }),
     );
+  });
+
+  it("hides status and project movement while a schedule series is live", () => {
+    renderActiveSeriesEdit({ projectOptions });
+
+    expect(
+      screen.queryByRole("button", { name: "Mark as Ready" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Revert to Draft" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Project" })).toBeNull();
+    // Fields the series does not own stay editable.
+    expect(
+      screen.getByRole("combobox", { name: "Coworker" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sends the observed revision and one operation identity for an active-series edit", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit();
+
+    await replaceSchedule(user);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          hadSchedule: true,
+          expectedScheduleRevision: 4,
+          scheduleOperationId: expect.stringMatching(UUID_PATTERN),
+        }),
+      ),
+    );
+  });
+
+  it("confirms discarding future exceptions before saving a changed series", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit({ futureExceptionCount: 2 });
+
+    await replaceSchedule(user);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(confirmation).toHaveTextContent("discardTitle");
+    expect(updateTaskMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "discardConfirm" }));
+
+    await waitFor(() => expect(updateTaskMock).toHaveBeenCalledOnce());
+  });
+
+  it("saves a changed series without a discard confirmation when nothing would be discarded", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit();
+
+    await replaceSchedule(user);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateTaskMock).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("confirms removing the schedule before saving a series set to none", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit();
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(confirmation).toHaveTextContent("removeTitle");
+    expect(updateTaskMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "removeConfirm" }));
+
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: expect.objectContaining({ mode: "none" }),
+          expectedScheduleRevision: 4,
+        }),
+      ),
+    );
+  });
+
+  it("keeps the form open with actionable copy when the revision is stale", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue({
+      ok: false as const,
+      error: { kind: "schedule_revision_conflict" as const },
+    });
+    renderActiveSeriesEdit();
+
+    await replaceSchedule(user);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("revisionConflict"),
+    );
+    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
+    // The failure must not evict the "what am I about to save" summary.
+    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
+  });
+
+  it("keeps one removal operation identity across a retry", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock
+      .mockResolvedValueOnce({
+        ok: false as const,
+        error: { kind: "schedule_quarantined" as const },
+      })
+      .mockResolvedValueOnce(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit();
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "removeConfirm" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("quarantined"),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "removeConfirm" }));
+
+    await waitFor(() => expect(updateTaskMock).toHaveBeenCalledTimes(2));
+    const [first, second] = updateTaskMock.mock.calls.map(
+      ([input]) => input as { scheduleOperationId?: string },
+    );
+    expect(second.scheduleOperationId).toBe(first.scheduleOperationId);
+  });
+
+  it("refuses a full-series edit while the discarded run count is unknown", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit({ futureExceptionCount: null });
+
+    await replaceSchedule(user);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("unknownCount"),
+    );
+    expect(updateTaskMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
+  });
+
+  it("still saves a field-only edit while the discarded run count is unknown", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit({ futureExceptionCount: null });
+
+    await user.type(screen.getByLabelText("Task name"), " renamed");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Task name renamed",
+          expectedScheduleRevision: 4,
+        }),
+      ),
+    );
+  });
+
+  it("still removes the series through its confirmation while the count is unknown", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit({ futureExceptionCount: null });
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(confirmation).toHaveTextContent("removeTitle");
+
+    await user.click(screen.getByRole("button", { name: "removeConfirm" }));
+
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: expect.objectContaining({ mode: "none" }),
+          expectedScheduleRevision: 4,
+        }),
+      ),
+    );
+  });
+
+  it("refuses a second full-series save after a revision conflict staled the count", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue({
+      ok: false as const,
+      error: { kind: "schedule_revision_conflict" as const },
+    });
+    renderActiveSeriesEdit({ futureExceptionCount: 0 });
+
+    await replaceSchedule(user);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateTaskMock).toHaveBeenCalledOnce());
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("unknownCount"),
+    );
+    expect(updateTaskMock).toHaveBeenCalledOnce();
   });
 
   it("keeps an unassigned task unassigned when saving an unrelated edit", async () => {

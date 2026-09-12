@@ -479,6 +479,149 @@ describe("taskSchedulesSyncService", () => {
           metadata: null,
           nextRunAt: null,
           status: "DRAFT",
+          scheduleRevision: { increment: 1 },
+        },
+      }),
+    );
+  });
+
+  it("increments the schedule revision when a v2 occurrence is released", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-v2-revision" }])
+      .mockResolvedValueOnce([]);
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+        },
+        taskScheduleQuarantine: {
+          upsert: mockTaskScheduleQuarantineUpsert,
+        },
+      }),
+    );
+    mockFindFirst.mockResolvedValue({
+      id: "template-v2-revision",
+      ownerId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174009",
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "never",
+        epochReleaseCount: 0,
+        anchorAt: "2026-06-01T09:00:00.000Z",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    mockTaskCreate.mockResolvedValue({ id: "clone-v2-revision" });
+    mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+
+    await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    const update = mockTaskUpdateMany.mock.calls.at(-1)?.[0];
+    expect(update.data.scheduleRevision).toEqual({ increment: 1 });
+    expect(mockTaskScheduleOccurrenceCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        seriesTaskId: "template-v2-revision",
+        releasedTaskId: "clone-v2-revision",
+        state: "RELEASED",
+      }),
+    });
+    expect(mockTaskScheduleOccurrenceDeleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ state: "PLANNED" }),
+    });
+  });
+
+  it("increments the schedule revision when a one-time schedule is promoted", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-once" }])
+      .mockResolvedValueOnce([]);
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+        },
+        taskScheduleQuarantine: {
+          upsert: mockTaskScheduleQuarantineUpsert,
+        },
+      }),
+    );
+    mockFindFirst.mockResolvedValue({
+      id: "template-once",
+      ownerId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174010",
+        mode: "once",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        sourceRunAt: "2026-06-10T09:00:00.000Z",
+        effectiveRunAt: "2026-06-10T09:00:00.000Z",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result.promoted).toBe(1);
+    expect(mockTaskUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          status: "READY",
+          metadata: null,
+          nextRunAt: null,
+          scheduleRevision: { increment: 1 },
         },
       }),
     );

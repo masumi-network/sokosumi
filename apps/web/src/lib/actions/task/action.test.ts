@@ -37,10 +37,11 @@ const taskServiceMock = {
   getTaskById: vi.fn(),
 };
 const taskScheduleServiceMock = {
-  clearSchedule: vi.fn(),
-  setCalendarSchedule: vi.fn(),
+  removeCalendarSeries: vi.fn(),
+  editCalendarSeries: vi.fn(),
   setSchedule: vi.fn(),
 };
+const OPERATION_ID = "123e4567-e89b-42d3-a456-426614174000";
 const toCoreApiActionErrorMock = vi.fn();
 
 afterEach(() => {
@@ -136,8 +137,8 @@ describe("task link actions", () => {
     taskServiceMock.patchTask.mockReset();
     taskServiceMock.createTaskEvent.mockReset();
     taskServiceMock.getTaskById.mockReset();
-    taskScheduleServiceMock.clearSchedule.mockReset();
-    taskScheduleServiceMock.setCalendarSchedule.mockReset();
+    taskScheduleServiceMock.removeCalendarSeries.mockReset();
+    taskScheduleServiceMock.editCalendarSeries.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
     taskServiceMock.patchTask.mockResolvedValue({});
     taskServiceMock.createTaskEvent.mockResolvedValue({});
@@ -716,14 +717,20 @@ describe("updateTask schedule status", () => {
     vi.clearAllMocks();
     taskServiceMock.patchTask.mockResolvedValue({});
     taskServiceMock.createTaskEvent.mockResolvedValue({});
-    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.removeCalendarSeries.mockReset();
+    taskScheduleServiceMock.editCalendarSeries.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
   });
 
-  it("does not re-queue after clearing a schedule on a queued task", async () => {
-    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+  it("does not re-queue after removing the series on a queued task", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      scheduleRevision: 5,
+    });
+    taskScheduleServiceMock.removeCalendarSeries.mockResolvedValue({
       id: "task-1",
       status: TaskStatus.DRAFT,
+      scheduleRevision: 6,
     });
 
     const { updateTask } = await import("./action");
@@ -738,14 +745,225 @@ describe("updateTask schedule status", () => {
       currentStatus: TaskStatus.QUEUED,
       desiredStatus: TaskStatus.QUEUED,
       hadSchedule: true,
+      expectedScheduleRevision: 4,
+      scheduleOperationId: OPERATION_ID,
       originalSchedule: recurringSchedule,
       schedule: { mode: "none", timezone: "UTC" },
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+    expect(taskScheduleServiceMock.removeCalendarSeries).toHaveBeenCalledWith(
       "task-1",
+      { operationId: OPERATION_ID, expectedScheduleRevision: 4 },
+    );
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.not.objectContaining({
+        expectedScheduleRevision: expect.anything(),
+      }),
     );
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("changes the series first and patches fields with the returned revision", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      scheduleRevision: 6,
+    });
+    taskScheduleServiceMock.editCalendarSeries.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.QUEUED,
+      scheduleRevision: 5,
+    });
+
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Renamed task",
+      description: "Do work",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.QUEUED,
+      hadSchedule: true,
+      expectedScheduleRevision: 4,
+      scheduleOperationId: OPERATION_ID,
+      originalSchedule: recurringSchedule,
+      schedule: { ...recurringSchedule, cron: "0 10 * * *" },
+    });
+
+    expect(taskScheduleServiceMock.editCalendarSeries).toHaveBeenCalledWith(
+      "task-1",
+      { operationId: OPERATION_ID, expectedScheduleRevision: 4 },
+      expect.objectContaining({ expr: "0 10 * * *" }),
+    );
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({
+        name: "Renamed task",
+        expectedScheduleRevision: 5,
+      }),
+    );
+    expect(
+      taskScheduleServiceMock.editCalendarSeries.mock.invocationCallOrder[0],
+    ).toBeLessThan(taskServiceMock.patchTask.mock.invocationCallOrder[0] ?? 0);
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
+  });
+
+  it("replays a lost field-patch response without repeating the patch", async () => {
+    const input = {
+      taskId: "task-1",
+      name: "Renamed task",
+      description: "Do work",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.QUEUED,
+      hadSchedule: true,
+      expectedScheduleRevision: 4,
+      scheduleOperationId: OPERATION_ID,
+      originalSchedule: recurringSchedule,
+      schedule: { ...recurringSchedule, cron: "0 10 * * *" },
+    };
+    taskScheduleServiceMock.editCalendarSeries
+      .mockResolvedValueOnce({
+        id: "task-1",
+        name: "Task",
+        description: "Do work",
+        assigneeId: "coworker-1",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        status: TaskStatus.QUEUED,
+        scheduleRevision: 5,
+      })
+      .mockResolvedValueOnce({
+        id: "task-1",
+        name: "Renamed task",
+        description: "Do work",
+        assigneeId: "coworker-1",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        status: TaskStatus.QUEUED,
+        scheduleRevision: 6,
+      });
+    taskServiceMock.patchTask.mockRejectedValueOnce(
+      new Error("response lost after commit"),
+    );
+
+    const { updateTask } = await import("./action");
+
+    await expect(updateTask(input)).rejects.toThrow(
+      "response lost after commit",
+    );
+    await expect(updateTask(input)).resolves.toEqual({
+      ok: true,
+      value: { taskId: "task-1" },
+    });
+
+    expect(taskScheduleServiceMock.editCalendarSeries).toHaveBeenCalledTimes(2);
+    expect(taskServiceMock.patchTask).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses to invent a revision when Core reports none for a live series", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({ id: "task-1" });
+
+    const { updateTask } = await import("./action");
+
+    await expect(
+      updateTask({
+        taskId: "task-1",
+        name: "Renamed task",
+        description: "Do work",
+        assigneeId: "coworker-1",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        currentStatus: TaskStatus.QUEUED,
+        desiredStatus: TaskStatus.QUEUED,
+        hadSchedule: true,
+        scheduleOperationId: OPERATION_ID,
+        originalSchedule: recurringSchedule,
+        schedule: { ...recurringSchedule, cron: "0 10 * * *" },
+      }),
+    ).rejects.toThrow();
+
+    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
+    expect(taskServiceMock.patchTask).not.toHaveBeenCalled();
+  });
+
+  it("maps a stale revision to an actionable conflict result instead of throwing", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskServiceMock.patchTask.mockRejectedValue(
+      new CoreApiRequestError("The schedule series changed", {
+        status: 409,
+        kind: "schedule_revision_conflict",
+      }),
+    );
+
+    const { updateTask } = await import("./action");
+
+    const result = await updateTask({
+      taskId: "task-1",
+      name: "Renamed task",
+      description: "Do work",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.QUEUED,
+      hadSchedule: true,
+      expectedScheduleRevision: 4,
+      scheduleOperationId: OPERATION_ID,
+      originalSchedule: recurringSchedule,
+      schedule: recurringSchedule,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: "schedule_revision_conflict" },
+    });
+    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
+  });
+
+  it("reports a quarantined series as its own actionable kind", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      scheduleRevision: 5,
+    });
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskScheduleServiceMock.editCalendarSeries.mockRejectedValue(
+      new CoreApiRequestError("This schedule is quarantined", {
+        status: 409,
+        kind: "schedule_quarantined",
+      }),
+    );
+
+    const { updateTask } = await import("./action");
+
+    const result = await updateTask({
+      taskId: "task-1",
+      name: "Renamed task",
+      description: "Do work",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.QUEUED,
+      hadSchedule: true,
+      expectedScheduleRevision: 4,
+      scheduleOperationId: OPERATION_ID,
+      originalSchedule: recurringSchedule,
+      schedule: { ...recurringSchedule, cron: "0 10 * * *" },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: "schedule_quarantined" },
+    });
+    expect(taskServiceMock.patchTask).not.toHaveBeenCalled();
   });
 
   it("does not revert to draft after adding a schedule", async () => {
@@ -849,10 +1067,10 @@ describe("updateTask schedule status", () => {
     });
   });
 
-  it("clears the schedule when reverting a queued task to draft", async () => {
-    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+  it("never removes an unchanged series just because the requested status differs", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",
-      status: TaskStatus.DRAFT,
+      scheduleRevision: 5,
     });
 
     const { updateTask } = await import("./action");
@@ -867,14 +1085,14 @@ describe("updateTask schedule status", () => {
       currentStatus: TaskStatus.QUEUED,
       desiredStatus: TaskStatus.DRAFT,
       hadSchedule: true,
+      expectedScheduleRevision: 4,
+      scheduleOperationId: OPERATION_ID,
       originalSchedule: recurringSchedule,
       schedule: recurringSchedule,
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
-      "task-1",
-    );
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
   });
 });
 
@@ -887,7 +1105,7 @@ describe("setTaskStatusFromDrag", () => {
     vi.clearAllMocks();
     taskServiceMock.getTaskById.mockReset();
     taskServiceMock.createTaskEvent.mockReset();
-    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.removeCalendarSeries.mockReset();
     taskServiceMock.createTaskEvent.mockResolvedValue({});
     toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
       message:
@@ -912,7 +1130,7 @@ describe("setTaskStatusFromDrag", () => {
       desiredStatus: TaskStatus.READY,
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
     expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
       status: TaskStatus.READY,
     });
@@ -959,7 +1177,7 @@ describe("setTaskStatusFromDrag", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("clears the schedule before moving a scheduled queued task to ready", async () => {
+  it("rejects a scheduled Task drag as schedule_active without touching its schedule or status", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({
         id: "task-1",
@@ -968,27 +1186,20 @@ describe("setTaskStatusFromDrag", () => {
         nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
       }),
     );
-    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.DRAFT,
-    });
 
     const { setTaskStatusFromDrag } = await import("./action");
 
-    await setTaskStatusFromDrag({
+    const result = await setTaskStatusFromDrag({
       taskId: "task-1",
       desiredStatus: TaskStatus.READY,
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
-      "task-1",
-    );
-    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
-      status: TaskStatus.READY,
-    });
+    expect(result).toEqual({ ok: false, error: { kind: "schedule_active" } });
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("clears the schedule without re-queuing when reverting a scheduled queued task to draft", async () => {
+  it("rejects a scheduled Task dragged back to draft rather than silently unscheduling it", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({
         id: "task-1",
@@ -997,25 +1208,20 @@ describe("setTaskStatusFromDrag", () => {
         nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
       }),
     );
-    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.DRAFT,
-    });
 
     const { setTaskStatusFromDrag } = await import("./action");
 
-    await setTaskStatusFromDrag({
+    const result = await setTaskStatusFromDrag({
       taskId: "task-1",
       desiredStatus: TaskStatus.DRAFT,
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
-      "task-1",
-    );
+    expect(result).toEqual({ ok: false, error: { kind: "schedule_active" } });
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("clears the schedule when moving a scheduled ready task to draft", async () => {
+  it("rejects moving a scheduled ready task to draft without clearing the series", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({
         id: "task-1",
@@ -1024,37 +1230,25 @@ describe("setTaskStatusFromDrag", () => {
         nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
       }),
     );
-    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.READY,
-    });
 
     const { setTaskStatusFromDrag } = await import("./action");
 
-    await setTaskStatusFromDrag({
+    const result = await setTaskStatusFromDrag({
       taskId: "task-1",
       desiredStatus: TaskStatus.DRAFT,
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
-      "task-1",
-    );
-    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
-      status: TaskStatus.DRAFT,
-    });
+    expect(result).toEqual({ ok: false, error: { kind: "schedule_active" } });
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("returns a client-upgrade result when schedule clearing is gated", async () => {
+  it("maps a Core client-upgrade rejection to its stable result kind", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
-      buildTask({
-        id: "task-1",
-        status: TaskStatus.QUEUED,
-        metadata: scheduledMetadata,
-        nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
-      }),
+      buildTask({ id: "task-1", status: TaskStatus.DRAFT }),
     );
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
-    taskScheduleServiceMock.clearSchedule.mockRejectedValue(
+    taskServiceMock.createTaskEvent.mockRejectedValue(
       new CoreApiRequestError("Reload required", {
         status: 426,
         kind: "calendar_client_upgrade_required",
@@ -1071,7 +1265,6 @@ describe("setTaskStatusFromDrag", () => {
       ok: false,
       error: { kind: "calendar_client_upgrade_required" },
     });
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -1088,7 +1281,7 @@ describe("createTask schedule", () => {
     taskServiceMock.createTask.mockReset();
     taskServiceMock.createTaskEvent.mockReset();
     taskServiceMock.deleteTask.mockReset();
-    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.removeCalendarSeries.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
     taskServiceMock.createTaskEvent.mockResolvedValue({});
   });
@@ -1110,7 +1303,7 @@ describe("createTask schedule", () => {
     });
 
     expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
-    expect(taskScheduleServiceMock.clearSchedule).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
   });
 
   it("applies a schedule when creating a ready task with a schedule", async () => {
@@ -1285,8 +1478,8 @@ describe("Calendar schedule actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskServiceMock.createScheduledTask.mockReset();
-    taskScheduleServiceMock.clearSchedule.mockReset();
-    taskScheduleServiceMock.setCalendarSchedule.mockReset();
+    taskScheduleServiceMock.removeCalendarSeries.mockReset();
+    taskScheduleServiceMock.editCalendarSeries.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
   });
 
@@ -1348,19 +1541,22 @@ describe("Calendar schedule actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
   });
 
-  it("saves an active schedule and revalidates its Calendar routes", async () => {
-    taskScheduleServiceMock.setCalendarSchedule.mockResolvedValue(
+  it("saves an active series with the caller operation and observed revision", async () => {
+    taskScheduleServiceMock.editCalendarSeries.mockResolvedValue(
       buildTask({ id: "task-1", projectId: "project-1" }),
     );
     const { saveCalendarTaskSchedule } = await import("./action");
 
     const result = await saveCalendarTaskSchedule({
       taskId: "task-1",
+      operationId,
+      expectedScheduleRevision: 3,
       schedule: recurringSchedule,
     });
 
-    expect(taskScheduleServiceMock.setCalendarSchedule).toHaveBeenCalledWith(
+    expect(taskScheduleServiceMock.editCalendarSeries).toHaveBeenCalledWith(
       "task-1",
+      { operationId, expectedScheduleRevision: 3 },
       {
         mode: "recurring",
         expr: "0 9 * * *",
@@ -1377,16 +1573,21 @@ describe("Calendar schedule actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
   });
 
-  it("clears a schedule through the existing delete API and revalidates its Calendar routes", async () => {
-    taskScheduleServiceMock.clearSchedule.mockResolvedValue(
+  it("removes a series with its precondition and revalidates its Calendar routes", async () => {
+    taskScheduleServiceMock.removeCalendarSeries.mockResolvedValue(
       buildTask({ id: "task-1", projectId: "project-1" }),
     );
     const { clearTaskSchedule } = await import("./action");
 
-    const result = await clearTaskSchedule({ taskId: "task-1" });
+    const result = await clearTaskSchedule({
+      taskId: "task-1",
+      operationId,
+      expectedScheduleRevision: 3,
+    });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+    expect(taskScheduleServiceMock.removeCalendarSeries).toHaveBeenCalledWith(
       "task-1",
+      { operationId, expectedScheduleRevision: 3 },
     );
     expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
     const { revalidatePath } = await import("next/cache");
@@ -1394,6 +1595,75 @@ describe("Calendar schedule actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/tasks");
     expect(revalidatePath).toHaveBeenCalledWith("/tasks/task-1");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
+  });
+
+  it("maps a removal revision conflict to an actionable result", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskScheduleServiceMock.removeCalendarSeries.mockRejectedValue(
+      new CoreApiRequestError("The schedule series changed", {
+        status: 409,
+        kind: "schedule_revision_conflict",
+      }),
+    );
+    const { clearTaskSchedule } = await import("./action");
+
+    await expect(
+      clearTaskSchedule({
+        taskId: "task-1",
+        operationId,
+        expectedScheduleRevision: 3,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { kind: "schedule_revision_conflict" },
+    });
+  });
+
+  it("maps a reused operation with different semantics to idempotency_conflict", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskScheduleServiceMock.editCalendarSeries.mockRejectedValue(
+      new CoreApiRequestError("Operation already used", {
+        status: 409,
+        kind: "idempotency_conflict",
+      }),
+    );
+    const { saveCalendarTaskSchedule } = await import("./action");
+
+    await expect(
+      saveCalendarTaskSchedule({
+        taskId: "task-1",
+        operationId,
+        expectedScheduleRevision: 3,
+        schedule: recurringSchedule,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { kind: "idempotency_conflict" },
+    });
+  });
+
+  it("requires a UUID operation identity before reaching Core", async () => {
+    const { clearTaskSchedule, saveCalendarTaskSchedule } = await import(
+      "./action"
+    );
+
+    await expect(
+      saveCalendarTaskSchedule({
+        taskId: "task-1",
+        operationId: "not-a-uuid",
+        expectedScheduleRevision: 3,
+        schedule: recurringSchedule,
+      }),
+    ).rejects.toThrow("Operation ID must be a UUID");
+    await expect(
+      clearTaskSchedule({
+        taskId: "task-1",
+        operationId: "not-a-uuid",
+        expectedScheduleRevision: 3,
+      }),
+    ).rejects.toThrow("Operation ID must be a UUID");
+    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
   });
 
   it("rejects inactive or malformed schedule selections before Core", async () => {
@@ -1413,6 +1683,8 @@ describe("Calendar schedule actions", () => {
     await expect(
       saveCalendarTaskSchedule({
         taskId: "task-1",
+        operationId,
+        expectedScheduleRevision: 3,
         schedule: {
           mode: "recurring",
           timezone: "UTC",
@@ -1425,6 +1697,8 @@ describe("Calendar schedule actions", () => {
     await expect(
       saveCalendarTaskSchedule({
         taskId: "task-1",
+        operationId,
+        expectedScheduleRevision: 3,
         schedule: {
           mode: "once",
           timezone: "UTC",

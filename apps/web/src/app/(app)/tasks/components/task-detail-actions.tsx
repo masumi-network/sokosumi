@@ -32,10 +32,7 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  canArchiveParkedTaskForViewer,
-  canArchiveScheduledTaskForViewer,
-} from "@/app/tasks/utils/task-read-only";
+import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   AlertDialog,
@@ -77,6 +74,10 @@ import {
 } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import {
+  type TaskMutationErrorKind,
+  taskScheduleSeriesFeedbackKey,
+} from "@/lib/utils/task-schedule-feedback";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
@@ -177,6 +178,7 @@ export function TaskDetailActions({
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
@@ -215,9 +217,16 @@ export function TaskDetailActions({
   );
 
   const canMutateTask = !isReadOnly;
-  const availableStatusActions = getTaskStatusActions(status, labels, {
-    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
-  });
+  // Status, archive, and workspace move belong to the schedule series while one
+  // is live — Core rejects them with `schedule_active`. Editing fields and
+  // managing relations stay available.
+  const canManageLifecycle = !hasActiveSchedule;
+  const availableStatusActions = canManageLifecycle
+    ? getTaskStatusActions(status, labels, {
+        assigneeKind:
+          assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+      })
+    : [];
   const statusActions = canMutateTask
     ? availableStatusActions
     : canCancel
@@ -233,17 +242,10 @@ export function TaskDetailActions({
     isTaskOwner,
     isOrgOwnerOrAdmin,
   });
-  const canArchiveScheduled = canArchiveScheduledTaskForViewer({
-    forceReadOnly,
-    taskStatus: status,
-    isTaskOwner,
-    taskWorkspaceOrganizationId: currentOrganizationId ?? null,
-    hasActiveSchedule,
-  });
   const canArchiveTask =
-    canArchiveParked ||
-    canArchiveScheduled ||
-    (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
+    canManageLifecycle &&
+    (canArchiveParked ||
+      (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly));
   const isFinalized =
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED ||
@@ -251,6 +253,7 @@ export function TaskDetailActions({
   const canManageRelations = canMutateTask && !isFinalized;
   const canMove =
     canMutateTask &&
+    canManageLifecycle &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
@@ -327,6 +330,20 @@ export function TaskDetailActions({
     ctrl: tNewTask("ctrl"),
   };
 
+  /**
+   * A rejected status write is a state, not a crash: every stable series kind
+   * gets its own localized recovery, and only a stale client gets the reload
+   * modal.
+   */
+  const reportStatusRejection = (kind: TaskMutationErrorKind) => {
+    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
+    if (!feedbackKey) {
+      showCalendarClientUpgradeModal();
+      return;
+    }
+    toast.error(tSeries(feedbackKey), { duration: Infinity });
+  };
+
   const handleStatusToggle = (action: TaskStatusAction) => {
     if (
       action.requiresComment ||
@@ -346,7 +363,7 @@ export function TaskDetailActions({
           desiredStatus: action.target,
         });
         if (!result.ok) {
-          showCalendarClientUpgradeModal();
+          reportStatusRejection(result.error.kind);
           return;
         }
         router.refresh();
@@ -377,7 +394,7 @@ export function TaskDetailActions({
           comment: trimmedComment,
         });
         if (!result.ok) {
-          showCalendarClientUpgradeModal();
+          reportStatusRejection(result.error.kind);
           return;
         }
         setIsReopenDialogOpen(false);

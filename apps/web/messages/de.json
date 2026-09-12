@@ -1512,7 +1512,8 @@
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
         "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
-        "loadJobs": "Jobs konnten nicht geladen werden"
+        "loadJobs": "Jobs konnten nicht geladen werden",
+        "scheduleActive": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne den Zeitplan, bevor du sie verschiebst."
       },
       "Card": {
         "comments": "Kommentare",
@@ -1771,6 +1772,33 @@
           "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
           "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
         },
+        "ScheduleSeries": {
+          "title": "Zeitplan",
+          "calendar": "Kalender",
+          "repeats": "Wiederholung",
+          "timezone": "Zeitzone",
+          "nextRun": "Nächster Lauf",
+          "removed": "Dieser Zeitplan wurde entfernt. Vergangene Läufe bleiben unten erhalten.",
+          "tabsLabel": "Zeitplanläufe",
+          "upcomingTab": "Anstehend",
+          "historyTab": "Verlauf",
+          "upcomingListLabel": "Anstehende Läufe",
+          "historyListLabel": "Vergangene Läufe",
+          "upcomingEmpty": "Keine anstehenden Läufe. Neue Läufe erscheinen hier, sobald der Zeitplan sie einplant.",
+          "upcomingEmptyRemoved": "Keine anstehenden Läufe – dieser Zeitplan wurde entfernt.",
+          "historyEmpty": "Keine vergangenen Läufe. Gestartete, abgebrochene und verpasste Läufe erscheinen hier.",
+          "loadMore": "Mehr laden",
+          "loading": "Wird geladen",
+          "loadMoreError": "Weitere Läufe konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
+          "occurrencesError": "Läufe konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+          "movedFrom": "Verschoben von {original}",
+          "statePlanned": "Geplant",
+          "stateSkipped": "Übersprungen",
+          "stateCanceled": "Abgebrochen",
+          "stateReleased": "Gestartet",
+          "stateMissed": "Verpasst",
+          "archivedRun": "Archiviert"
+        },
         "files": "Dateien",
         "assignee": "Zuständig"
       },
@@ -1873,6 +1901,21 @@
         "title": "Zeitplan",
         "description": "Einmalige oder wiederkehrende Ausführung planen.",
         "clearSchedule": "Zeitplan entfernen",
+        "series": {
+          "discardTitle": "{count, plural, one {# geänderten Lauf} other {# geänderte Läufe}} verwerfen?",
+          "discardDescription": "Wenn du eine neue Regel für die gesamte Serie speicherst, {count, plural, one {wird der verschobene oder übersprungene bevorstehende Lauf abgebrochen} other {werden die # verschobenen oder übersprungenen bevorstehenden Läufe abgebrochen}}. Bereits erfolgte Läufe bleiben erhalten.",
+          "discardCancel": "Aktuellen Zeitplan behalten",
+          "discardConfirm": "Speichern und verwerfen",
+          "removeTitle": "Diesen Zeitplan entfernen?",
+          "removeDescription": "Diese Aufgabe läuft dann nicht mehr nach einem Zeitplan. Bereits erfolgte Läufe bleiben erhalten, bevorstehende Läufe werden abgebrochen. Sie wird auf Entwurf zurückgesetzt.",
+          "removeCancel": "Zeitplan behalten",
+          "removeConfirm": "Zeitplan entfernen",
+          "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
+          "quarantined": "Dieser Zeitplan ist zur Reparatur pausiert und kann nicht geändert werden. Wende dich an den Support, um ihn wiederherzustellen.",
+          "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
+          "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan.",
+          "unknownCount": "Wir konnten nicht prüfen, welche bevorstehenden Läufe eine neue Regel abbrechen würde. Lade die Seite neu, öffne den Zeitplan erneut und versuche es noch einmal."
+        },
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",
@@ -6067,7 +6110,7 @@
         "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
         "clearPending": "Zeitplan wird entfernt…",
         "clearTitle": "Zeitplan entfernen?",
-        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
+        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt. Er wird auf Entwurf zurückgesetzt.",
         "clearCancel": "Abbrechen",
         "clearConfirm": "Zeitplan entfernen"
       },

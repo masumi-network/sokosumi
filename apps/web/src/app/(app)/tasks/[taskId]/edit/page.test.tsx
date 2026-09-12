@@ -15,6 +15,7 @@ const getCoworkerOptionsMock = vi.fn();
 const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
+const readSchedulePreconditionMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
@@ -41,6 +42,11 @@ vi.mock("@/app/tasks/components/task-edit-modal", () => ({
 
 vi.mock("@/app/tasks/utils/agent-names", () => ({
   buildAgentNameById: (...args: unknown[]) => buildAgentNameByIdMock(...args),
+}));
+
+vi.mock("@/app/tasks/utils/task-schedule-precondition", () => ({
+  readTaskScheduleSeriesPrecondition: (...args: unknown[]) =>
+    readSchedulePreconditionMock(...args),
 }));
 
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
@@ -116,6 +122,10 @@ describe("EditTaskPage", () => {
         values ? `${key}:${JSON.stringify(values)}` : key;
       translator.raw = (key: string) => key;
       return translator;
+    });
+    readSchedulePreconditionMock.mockResolvedValue({
+      scheduleRevision: 7,
+      futureExceptionCount: 2,
     });
     getCoworkerOptionsMock.mockReturnValue([
       { value: "cow_123", label: "Coworker" },
@@ -213,6 +223,10 @@ describe("EditTaskPage", () => {
     expect(taskEditModalMock).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: "task_1",
+        // The edit surface carries the precondition for every schedule write
+        // it can make, read from the ledger endpoint on the server.
+        scheduleRevision: 7,
+        futureExceptionCount: 2,
         coworkerOptions: [{ value: "cow_123", label: "Coworker" }],
         projectOptions: [{ id: "project_1", name: "Project" }],
         agentNameById: {

@@ -1,8 +1,14 @@
-import { Channel, NotificationKind, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  NotificationKind,
+  TaskLinkType,
+  TaskStatus,
+} from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
@@ -279,6 +285,7 @@ function createApp(authContext: AuthenticationContext) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_task_events_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
@@ -3255,9 +3262,6 @@ describe("POST /{id}/events", () => {
       task: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
-      taskLink: {
-        findMany: vi.fn().mockResolvedValue([]),
-      },
     };
 
     mockTransaction(tx);
@@ -3288,7 +3292,6 @@ describe("POST /{id}/events", () => {
         },
       }),
     );
-    expect(tx.taskLink?.findMany).toHaveBeenCalled();
     expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
       tx,
       TASK_ID,
@@ -3344,91 +3347,174 @@ describe("POST /{id}/events", () => {
     );
   });
 
-  it("cascades cancel to non-terminal SCHEDULE runs", async () => {
-    requireTaskCancelAccessMock.mockResolvedValue(
-      createTask({ status: TaskStatus.QUEUED }),
-    );
+  describe("active schedule series (SOK-884)", () => {
+    const ACTIVE_SERIES_TASK = {
+      status: TaskStatus.QUEUED,
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "11111111-1111-4111-8111-111111111111",
+        mode: "recurring",
+        createdAt: "2026-09-01T09:00:00.000Z",
+        ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "never",
+        anchorAt: "2026-09-01T09:00:00.000Z",
+        epochReleaseCount: 0,
+      }),
+      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      scheduleRevision: 2,
+    };
 
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi
-          .fn()
-          .mockResolvedValueOnce(
+    function createSeriesApp() {
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+      app.onError(errorHandler);
+      return app;
+    }
+
+    it("rejects canceling a Task whose schedule series is still active", async () => {
+      requireTaskCancelAccessMock.mockResolvedValue(
+        createTask(ACTIVE_SERIES_TASK),
+      );
+      const tx: TransactionMock = {
+        taskEvent: { create: vi.fn() },
+        task: { updateMany: vi.fn() },
+      };
+      mockTransaction(tx);
+
+      const response = await createSeriesApp().request(
+        `http://localhost/${TASK_ID}/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: TaskStatus.CANCELED }),
+        },
+      );
+
+      expect(response.status).toBe(409);
+      expect((await response.json()).kind).toBe("schedule_active");
+      expect(tx.taskEvent.create).not.toHaveBeenCalled();
+      expect(tx.task.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects any generic status change while the schedule series is active", async () => {
+      requireTaskStatusWriteAccessMock.mockResolvedValue(
+        createTask(ACTIVE_SERIES_TASK),
+      );
+      const tx: TransactionMock = {
+        taskEvent: { create: vi.fn() },
+        task: { updateMany: vi.fn() },
+      };
+      mockTransaction(tx);
+
+      const response = await createSeriesApp().request(
+        `http://localhost/${TASK_ID}/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: TaskStatus.READY }),
+        },
+      );
+
+      expect(response.status).toBe(409);
+      expect((await response.json()).kind).toBe("schedule_active");
+      expect(tx.task.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("still accepts a comment while the schedule series is active", async () => {
+      requireTaskCommentAccessMock.mockResolvedValue(
+        createTask(ACTIVE_SERIES_TASK),
+      );
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
             createTaskEvent({
-              id: "evt_parent",
-              status: TaskStatus.CANCELED,
+              status: null,
+              comment: "Series note",
               userId: USER_ID,
               coworkerId: null,
             }),
-          )
-          .mockResolvedValueOnce(
+          ),
+        },
+        task: { updateMany: vi.fn() },
+      };
+      mockTransaction(tx);
+
+      const response = await createSeriesApp().request(
+        `http://localhost/${TASK_ID}/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: "Series note" }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+      expect(tx.taskEvent.create).toHaveBeenCalled();
+    });
+
+    it("never cancels released Tasks linked from the template", async () => {
+      const RELEASED_RUN_ID = "tsk_released_run";
+      requireTaskCancelAccessMock.mockResolvedValue(
+        createTask({ status: TaskStatus.READY }),
+      );
+      // The template still owns a released run that has not reached a terminal
+      // status. Canceling the template must write the template row only —
+      // released Tasks are independent and are never cascaded.
+      const taskLinkFindMany = vi.fn().mockResolvedValue([
+        {
+          type: TaskLinkType.SCHEDULE,
+          sourceTaskId: TASK_ID,
+          targetTaskId: RELEASED_RUN_ID,
+          targetTask: {
+            id: RELEASED_RUN_ID,
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
+          },
+        },
+      ]);
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
             createTaskEvent({
-              id: "evt_child",
               status: TaskStatus.CANCELED,
               userId: USER_ID,
               coworkerId: null,
             }),
           ),
-      },
-      task: {
-        updateMany: vi
-          .fn()
-          .mockResolvedValueOnce({ count: 1 })
-          .mockResolvedValueOnce({ count: 1 }),
-      },
-      taskLink: {
-        findMany: vi.fn().mockResolvedValue([
-          {
-            toTask: {
-              id: "tsk_child",
-              status: TaskStatus.RUNNING,
-              ownerId: USER_ID,
-            },
-          },
-        ]),
-      },
-    };
-
-    mockTransaction(tx);
-
-    const app = createApp({
-      actor: "user",
-      userId: USER_ID,
-      organizationId: null,
-      role: "user",
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: TaskStatus.CANCELED,
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
-    expect(tx.task.updateMany).toHaveBeenCalledTimes(2);
-    expect(tx.task.updateMany).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        where: { id: "tsk_child", status: TaskStatus.RUNNING },
-        data: {
-          status: TaskStatus.CANCELED,
-          metadata: null,
-          nextRunAt: null,
         },
-      }),
-    );
-    expect(publishTaskEventDataMock).toHaveBeenCalledTimes(2);
-    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
-      userId: USER_ID,
-      taskId: TASK_ID,
-      eventType: "task_event",
-    });
-    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
-      userId: USER_ID,
-      taskId: "tsk_child",
-      eventType: "task_event",
+        task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        taskLink: { findMany: taskLinkFindMany },
+      };
+      mockTransaction(tx);
+
+      const response = await createSeriesApp().request(
+        `http://localhost/${TASK_ID}/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: TaskStatus.CANCELED }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+      // The running released run is never looked up, the single status write is
+      // pinned to the template id, and nothing is published for the run.
+      expect(taskLinkFindMany).not.toHaveBeenCalled();
+      expect(tx.task.updateMany).toHaveBeenCalledTimes(1);
+      expect(tx.task.updateMany).toHaveBeenCalledWith({
+        where: { id: TASK_ID, status: TaskStatus.READY },
+        data: { status: TaskStatus.CANCELED, metadata: null, nextRunAt: null },
+      });
+      expect(JSON.stringify(tx.task.updateMany.mock.calls)).not.toContain(
+        RELEASED_RUN_ID,
+      );
+      expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
     });
   });
 

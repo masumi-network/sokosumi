@@ -34,8 +34,6 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
-  type CascadedCancelChild,
-  cascadeCancelNonTerminalScheduleRuns,
   mapTaskEvent,
   taskEventApiInclude,
   validateQueuedRequiresSchedule,
@@ -47,6 +45,7 @@ import {
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -409,6 +408,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (status !== undefined) {
+        // A live series owns the Task's lifecycle. The one generic transition it
+        // still accepts is READY → QUEUED: that keeps the series releasable and
+        // is how a scheduled Task is normalized (SOK-1033). Cancel, archive, and
+        // every other status move must go through the schedule endpoints.
+        if (
+          !(task.status === TaskStatus.READY && status === TaskStatus.QUEUED)
+        ) {
+          assertTaskScheduleInactive(
+            task,
+            "Remove or replace the schedule before changing this Task's status",
+          );
+        }
         validateStatusTransition(task.status, status);
         validateTaskAssigneeAssignment({
           status,
@@ -441,7 +452,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let eventStatus: TaskStatus | null = status ?? null;
       let chargedMasumiPayment = false;
       let pausedForInsufficientBalance = false;
-      let cascadedChildren: CascadedCancelChild[] = [];
 
       if (
         isAgent &&
@@ -544,14 +554,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ) {
           await removeTaskSchedulePlannedOccurrences(tx, taskId);
         }
-
-        if (eventStatus === TaskStatus.CANCELED) {
-          cascadedChildren = await cascadeCancelNonTerminalScheduleRuns({
-            tx,
-            parentTaskId: taskId,
-            actorData,
-          });
-        }
       }
 
       const payment =
@@ -575,7 +577,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
-        cascadedChildTaskIds: cascadedChildren,
       };
     }, "Task changed by a concurrent request. Please retry.").catch((error) => {
       if (
@@ -595,7 +596,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
-      cascadedChildTaskIds,
     } = transactionResult;
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
@@ -726,13 +726,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    const taskIdsToPublish = [
-      { userId, taskId },
-      ...cascadedChildTaskIds.map((child) => ({
-        userId: child.userId,
-        taskId: child.taskId,
-      })),
-    ];
+    const taskIdsToPublish = [{ userId, taskId }];
 
     await Promise.all(
       taskIdsToPublish.map(

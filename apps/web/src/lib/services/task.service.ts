@@ -59,6 +59,12 @@ interface PatchTaskInput {
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   projectId?: string | null;
+  /**
+   * Required by Core while the Task has an active schedule series: field edits
+   * serialize against release under the same revision, and the returned Task
+   * carries the incremented value the following schedule write must send.
+   */
+  expectedScheduleRevision?: number;
 }
 
 interface CreateTaskEventInput {

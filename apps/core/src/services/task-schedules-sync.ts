@@ -119,6 +119,10 @@ function getCloneTaskData(
 }
 
 /**
+ * Every sync write that changes schedule state also increments
+ * `Task.scheduleRevision`, so a release is visible to Calendar clients holding
+ * an older revision.
+ *
  * Claim guard for schedule sync writes: template must still be an unarchived
  * QUEUED schedule whose `nextRunAt` equals the value read at transaction start.
  * Concurrent schedule PUT / clear / cancel / archive must not be overwritten —
@@ -146,6 +150,7 @@ async function clearTemplateSchedule(
       status: TaskStatus.DRAFT,
       metadata: null,
       nextRunAt: null,
+      scheduleRevision: { increment: 1 },
     },
   });
 
@@ -168,6 +173,7 @@ async function promoteOneTimeTask(
       status: TaskStatus.READY,
       metadata: null,
       nextRunAt: null,
+      scheduleRevision: { increment: 1 },
     },
   });
   if (updateResult.count !== 1) {
@@ -584,6 +590,7 @@ async function processDueTask(
         data: {
           metadata: JSON.stringify(metadata),
           nextRunAt,
+          scheduleRevision: { increment: 1 },
         },
       });
       assertTemplateClaimHeld(updateResult.count === 1, clonesCreated);

@@ -239,21 +239,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    {
-      name: "legacy",
-      body: { mode: "once", runAt: "2099-09-24T09:00:00.000Z" },
-    },
-    {
-      name: "operation-aware",
-      body: {
-        operationId: "123e4567-e89b-42d3-a456-426614174000",
-        expectedScheduleRevision: 0,
-        discardFutureExceptions: true,
-        schedule: { mode: "once", runAt: "2099-09-24T09:00:00.000Z" },
-      },
-    },
-  ])("persists $name requests as metadata version 1", async ({ body }) => {
+  it("persists the legacy request as metadata version 1", async () => {
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.DRAFT,
@@ -271,7 +257,10 @@ describe("PUT /tasks/{id}/schedule", () => {
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
       },
     );
 
@@ -443,6 +432,80 @@ describe("PUT /tasks/{id}/schedule", () => {
         schedule: expect.objectContaining({ version: 1, mode: "once" }),
       }),
     );
+  });
+
+  it("increments the schedule revision under the Calendar and Task locks", async () => {
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(lockCalendarScopeMock).toHaveBeenCalled();
+    expect(lockTaskRowsMock).toHaveBeenCalledWith(expect.any(Object), [
+      TASK_ID,
+    ]);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scheduleRevision: { increment: 1 },
+        }),
+      }),
+    );
+  });
+
+  it("keeps accepting the legacy bare schedule body", async () => {
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "recurring",
+          expr: "0 9 * * *",
+          timezone: "UTC",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const update = taskUpdateMock.mock.calls[0]?.[0];
+    expect(JSON.parse(update.data.metadata)).toMatchObject({
+      version: 1,
+      mode: "recurring",
+      expr: "0 9 * * *",
+    });
+    expect(update.data.scheduleRevision).toEqual({ increment: 1 });
+  });
+
+  it("rejects the Calendar series envelope instead of ignoring its preconditions", async () => {
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operationId: "123e4567-e89b-42d3-a456-426614174000",
+          expectedScheduleRevision: 4,
+          discardFutureExceptions: true,
+          schedule: {
+            mode: "recurring",
+            expr: "0 9 * * *",
+            timezone: "UTC",
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("does not overwrite a quarantined schedule", async () => {

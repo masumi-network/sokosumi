@@ -14,6 +14,8 @@ const getCoworkerOptionsMock = vi.fn();
 const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
+const listProjectsMock = vi.fn();
+const readSchedulePreconditionMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
@@ -71,6 +73,18 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: {
     getMine: vi.fn(async () => null),
   },
+}));
+
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    listProjects: (...args: unknown[]) => listProjectsMock(...args),
+    getProjectById: vi.fn(),
+  },
+}));
+
+vi.mock("@/app/tasks/utils/task-schedule-precondition", () => ({
+  readTaskScheduleSeriesPrecondition: (...args: unknown[]) =>
+    readSchedulePreconditionMock(...args),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
@@ -154,5 +168,50 @@ describe("TaskEditModalPage", () => {
     expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
     expect(taskEditModalMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("auto-context-switch")).toBeInTheDocument();
+  });
+
+  it("hands the intercepted edit modal its schedule precondition", async () => {
+    getTaskByIdMock.mockResolvedValue({
+      id: "task_1",
+      name: "Scheduled task",
+      description: "Desc",
+      assigneeId: "cow_123",
+      assigneeSokoBotId: null,
+      status: "QUEUED",
+      metadata: '{"version":2}',
+      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      workspace: { organizationId: "org-current" },
+    });
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-current" },
+    });
+    listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
+    listProjectsMock.mockResolvedValue({
+      projects: [],
+      pagination: { nextCursor: null },
+    });
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    getCoworkerOptionsMock.mockReturnValue([]);
+    buildAgentNameByIdMock.mockReturnValue(new Map());
+    readSchedulePreconditionMock.mockResolvedValue({
+      scheduleRevision: 7,
+      futureExceptionCount: 2,
+    });
+
+    const { default: TaskEditModalPage } = await import("./page");
+
+    render(
+      await TaskEditModalPage({
+        params: Promise.resolve({ taskId: "task_1" }),
+      }),
+    );
+
+    expect(taskEditModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task_1",
+        scheduleRevision: 7,
+        futureExceptionCount: 2,
+      }),
+    );
   });
 });

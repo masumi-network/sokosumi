@@ -98,6 +98,10 @@ import {
 } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
 import {
+  type TaskMutationErrorKind,
+  taskScheduleSeriesFeedbackKey,
+} from "@/lib/utils/task-schedule-feedback";
+import {
   CreateTaskModal,
   CreateTaskModalProvider,
   useCreateTaskModal,
@@ -313,6 +317,7 @@ interface TasksViewProps {
     loadMore: string;
     loading: string;
     dragError: string;
+    scheduleActiveError: string;
     loadMoreError: string;
     loadJobsError: string;
     reopenToReady: TaskReopenToReadyDialogLabels & {
@@ -358,6 +363,25 @@ export function TasksView({
   const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
+  /**
+   * The board already restored the card by the time this runs. Every stable
+   * series kind gets its own recovery — the refused move is named in the
+   * board's own words — and only a stale client gets the reload modal.
+   */
+  const reportDragRejection = (kind: TaskMutationErrorKind) => {
+    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
+    if (!feedbackKey) {
+      showCalendarClientUpgradeModal();
+      return;
+    }
+    toast.error(
+      feedbackKey === "activeSeries"
+        ? labels.scheduleActiveError
+        : tSeries(feedbackKey),
+      { duration: Infinity },
+    );
+  };
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
     [],
   );
@@ -828,7 +852,7 @@ export function TasksView({
         });
         if (!result.ok) {
           rollbackMove();
-          showCalendarClientUpgradeModal();
+          reportDragRejection(result.error.kind);
           return;
         }
         if (
@@ -896,7 +920,7 @@ export function TasksView({
           rollbackBoardReopen(pending);
           setPendingBoardReopen(null);
           setReopenComment("");
-          showCalendarClientUpgradeModal();
+          reportDragRejection(result.error.kind);
           return;
         }
         if (

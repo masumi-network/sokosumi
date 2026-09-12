@@ -27,13 +27,20 @@ import {
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
-import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import {
+  type TaskScheduleSeriesPrecondition,
+  taskScheduleService,
+} from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
   hasTaskScheduleChanged,
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
+import {
+  TASK_MUTATION_ERROR_KINDS,
+  type TaskMutationErrorKind,
+} from "@/lib/utils/task-schedule-feedback";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import { isUuidString } from "@/lib/utils/uuid";
 import {
@@ -74,6 +81,10 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   desiredStatus: TaskStatus;
   schedule?: TaskScheduleSelection;
   hadSchedule?: boolean;
+  /** Series revision the edit form was opened against; required once live. */
+  expectedScheduleRevision?: number;
+  /** Browser-minted identity of this save attempt; reused across retries. */
+  scheduleOperationId?: string;
   originalSchedule?: TaskScheduleSelection;
 }
 
@@ -87,23 +98,24 @@ interface CreateScheduledTaskParameters extends AuthenticatedRequest {
   schedule: TaskScheduleSelection;
 }
 
-interface SaveTaskScheduleParameters extends AuthenticatedRequest {
+interface SaveTaskScheduleParameters
+  extends AuthenticatedRequest,
+    TaskScheduleSeriesPrecondition {
   taskId: string;
   schedule: TaskScheduleSelection;
 }
 
-interface ClearTaskScheduleParameters extends AuthenticatedRequest {
+interface ClearTaskScheduleParameters
+  extends AuthenticatedRequest,
+    TaskScheduleSeriesPrecondition {
   taskId: string;
 }
 
-export interface CalendarClientUpgradeRequiredError {
-  kind: typeof CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED;
+export interface TaskMutationError {
+  kind: TaskMutationErrorKind;
 }
 
-type TaskMutationActionResult<T> = ActionResultDto<
-  T,
-  CalendarClientUpgradeRequiredError
->;
+type TaskMutationActionResult<T> = ActionResultDto<T, TaskMutationError>;
 
 export type CreateTaskResult = TaskMutationActionResult<{
   taskId: string;
@@ -132,22 +144,18 @@ function taskMutationSuccess<T>(value: T): TaskMutationActionResult<T> {
   return toActionResult(ok(value));
 }
 
-function calendarClientUpgradeRequired<T>(): TaskMutationActionResult<T> {
-  return toActionResult(
-    err({
-      kind: CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED,
-    }),
-  );
+function taskMutationFailure<T>(
+  kind: TaskMutationErrorKind,
+): TaskMutationActionResult<T> {
+  return toActionResult(err({ kind }));
 }
 
-function isCalendarClientUpgradeRequired(
-  error: unknown,
-): error is CoreApiRequestError {
-  return (
-    error instanceof CoreApiRequestError &&
-    error.status === 426 &&
-    error.kind === CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED
-  );
+function toTaskMutationErrorKind(error: unknown): TaskMutationErrorKind | null {
+  if (!(error instanceof CoreApiRequestError)) {
+    return null;
+  }
+
+  return TASK_MUTATION_ERROR_KINDS.find((kind) => kind === error.kind) ?? null;
 }
 
 interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
@@ -224,26 +232,62 @@ function rethrowTaskActionError(
   throw new Error(message ?? fallbackMessage);
 }
 
-async function applyTaskSchedule(
+/**
+ * Arms a schedule on a Task that has none. There is no live series to
+ * serialize against yet, so this is the one remaining legacy-contract write;
+ * every change to a live series goes through the revision-safe path below.
+ */
+async function armTaskSchedule(
   taskId: string,
   schedule: TaskScheduleSelection,
-  hadSchedule: boolean,
-): Promise<TaskStatus | null> {
-  if (schedule.mode === "none") {
-    if (hadSchedule) {
-      const task = await taskScheduleService.clearSchedule(taskId);
-      return task.status;
-    }
-    return null;
-  }
+): Promise<Task> {
+  return taskScheduleService.setSchedule(
+    taskId,
+    getActiveScheduleBody(schedule),
+  );
+}
 
-  const body = selectionToApiBody(schedule);
-  if (!body) {
-    throw new Error("Invalid schedule");
-  }
+/**
+ * Applies a change to a live series under the revision the caller observed.
+ * The removal and the replacement are the same user operation from the UI's
+ * point of view, so they share one operation identity.
+ */
+async function applyTaskSeriesChange(
+  taskId: string,
+  schedule: TaskScheduleSelection,
+  precondition: TaskScheduleSeriesPrecondition,
+): Promise<Task> {
+  return schedule.mode === "none"
+    ? await taskScheduleService.removeCalendarSeries(taskId, precondition)
+    : await taskScheduleService.editCalendarSeries(
+        taskId,
+        precondition,
+        getActiveScheduleBody(schedule),
+      );
+}
 
-  const task = await taskScheduleService.setSchedule(taskId, body);
-  return task.status;
+interface EditableTaskFields {
+  name: string;
+  description: string;
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+  assigneeUserId: string | null;
+  projectId?: string | null;
+}
+
+function taskMatchesEditableFields(
+  task: Task,
+  fields: EditableTaskFields,
+): boolean {
+  return (
+    task.name === fields.name &&
+    task.description === fields.description &&
+    task.assigneeId === fields.assigneeId &&
+    task.assigneeSokoBotId === fields.assigneeSokoBotId &&
+    task.assigneeUserId === fields.assigneeUserId &&
+    (typeof fields.projectId === "undefined" ||
+      task.projectId === fields.projectId)
+  );
 }
 
 function resolveUpdateTargetStatus(
@@ -320,6 +364,30 @@ function revalidateCalendarTaskMutationRoutes(task: Task) {
   if (task.projectId) {
     revalidatePath(`/projects/${task.projectId}/calendar`);
   }
+}
+
+/**
+ * A logical user operation owns one UUID, minted in the browser and reused
+ * across retries so Core can replay it. Server actions never mint one — a
+ * fresh identity per invocation would turn every retry into a new operation.
+ */
+function requireOperationId(operationId: string | undefined): string {
+  if (!operationId || !isUuidString(operationId)) {
+    throw new Error("Operation ID must be a UUID");
+  }
+  return operationId;
+}
+
+/**
+ * A live series is only written with a revision Core actually reported. Sending
+ * an invented one would be presented to the user as "someone else changed this
+ * schedule", so a missing revision fails here instead.
+ */
+function requireScheduleRevision(revision: number | undefined): number {
+  if (typeof revision !== "number") {
+    throw new Error("Core returned no scheduleRevision for an active series");
+  }
+  return revision;
 }
 
 function getActiveScheduleBody(schedule: TaskScheduleSelection) {
@@ -472,18 +540,13 @@ async function createTaskFromDescription(input: {
       input.schedule &&
       input.schedule.mode !== "none"
     ) {
-      const statusAfterSchedule = await applyTaskSchedule(
-        task.id,
-        input.schedule,
-        false,
-      );
+      const taskAfterSchedule = await armTaskSchedule(task.id, input.schedule);
       // Create always goes Draft → schedule. Agents that asked for Queued but
       // landed Ready need a follow-up event. Humans keep Ready and save.
       if (
         isAgentAssignee &&
         input.status === TaskStatus.QUEUED &&
-        statusAfterSchedule != null &&
-        statusAfterSchedule !== TaskStatus.QUEUED
+        taskAfterSchedule.status !== TaskStatus.QUEUED
       ) {
         await taskService.createTaskEvent(task.id, {
           status: TaskStatus.QUEUED,
@@ -641,8 +704,9 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
       revalidatePath("/projects");
       return taskMutationSuccess({ taskId: task.id, name: task.name });
     } catch (error) {
-      if (isCalendarClientUpgradeRequired(error)) {
-        return calendarClientUpgradeRequired();
+      const mutationErrorKind = toTaskMutationErrorKind(error);
+      if (mutationErrorKind) {
+        return taskMutationFailure(mutationErrorKind);
       }
       rethrowTaskActionError(
         error,
@@ -670,9 +734,7 @@ export const createScheduledTask = withSession<
     const trimmedAssigneeId = assigneeId?.trim() || null;
     const trimmedAssigneeUserId = assigneeUserId?.trim() || null;
     const trimmedDescription = description?.trim();
-    if (!isUuidString(operationId)) {
-      throw new Error("Operation ID must be a UUID");
-    }
+    requireOperationId(operationId);
     if (
       (!trimmedAssigneeId && !trimmedAssigneeUserId) ||
       (trimmedAssigneeId && trimmedAssigneeUserId)
@@ -701,8 +763,9 @@ export const createScheduledTask = withSession<
       revalidateCalendarTaskMutationRoutes(task);
       return taskMutationSuccess({ taskId: task.id, name: task.name });
     } catch (error) {
-      if (isCalendarClientUpgradeRequired(error)) {
-        return calendarClientUpgradeRequired();
+      const mutationErrorKind = toTaskMutationErrorKind(error);
+      if (mutationErrorKind) {
+        return taskMutationFailure(mutationErrorKind);
       }
       rethrowTaskActionError(
         error,
@@ -716,24 +779,27 @@ export const createScheduledTask = withSession<
 export const saveCalendarTaskSchedule = withSession<
   SaveTaskScheduleParameters,
   SaveTaskScheduleResult
->(async ({ taskId, schedule }) => {
+>(async ({ taskId, operationId, expectedScheduleRevision, schedule }) => {
   const normalizedTaskId = taskId.trim();
   if (!normalizedTaskId) {
     throw new Error("Task required");
   }
+  requireOperationId(operationId);
 
   const scheduleBody = getActiveScheduleBody(schedule);
 
   try {
-    const task = await taskScheduleService.setCalendarSchedule(
+    const task = await taskScheduleService.editCalendarSeries(
       normalizedTaskId,
+      { operationId, expectedScheduleRevision },
       scheduleBody,
     );
     revalidateCalendarTaskMutationRoutes(task);
     return taskMutationSuccess({ taskId: task.id });
   } catch (error) {
-    if (isCalendarClientUpgradeRequired(error)) {
-      return calendarClientUpgradeRequired();
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
     }
     rethrowTaskActionError(
       error,
@@ -746,19 +812,24 @@ export const saveCalendarTaskSchedule = withSession<
 export const clearTaskSchedule = withSession<
   ClearTaskScheduleParameters,
   ClearTaskScheduleResult
->(async ({ taskId }) => {
+>(async ({ taskId, operationId, expectedScheduleRevision }) => {
   const normalizedTaskId = taskId.trim();
   if (!normalizedTaskId) {
     throw new Error("Task required");
   }
+  requireOperationId(operationId);
 
   try {
-    const task = await taskScheduleService.clearSchedule(normalizedTaskId);
+    const task = await taskScheduleService.removeCalendarSeries(
+      normalizedTaskId,
+      { operationId, expectedScheduleRevision },
+    );
     revalidateCalendarTaskMutationRoutes(task);
     return taskMutationSuccess({ taskId: task.id });
   } catch (error) {
-    if (isCalendarClientUpgradeRequired(error)) {
-      return calendarClientUpgradeRequired();
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
     }
     rethrowTaskActionError(
       error,
@@ -781,6 +852,8 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     desiredStatus,
     schedule,
     hadSchedule = false,
+    expectedScheduleRevision,
+    scheduleOperationId,
     originalSchedule,
   }) => {
     const trimmedDescription = description.trim();
@@ -794,20 +867,19 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
 
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
-
       const assigneeWrite = resolveAssigneeWrite(
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,
       );
-      await taskService.patchTask(taskId, {
+      const editableFields: EditableTaskFields = {
         name: trimmedName,
         description: trimmedDescription,
         ...assigneeWrite,
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
-      });
+      };
 
       let statusAfterSchedule = currentStatus;
       let scheduleActiveOnServer = hadSchedule || schedule?.mode !== "none";
@@ -818,40 +890,51 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
           schedule,
           hadSchedule,
         );
-
-      const shouldClearScheduleForStatusChange =
-        !scheduleChanged &&
-        schedule &&
-        schedule.mode !== "none" &&
-        desiredStatus !== TaskStatus.QUEUED &&
-        desiredStatus !== currentStatus;
-
       let scheduleWasMutated = false;
+      let savedTask: Task;
 
-      if (shouldClearScheduleForStatusChange) {
+      if (schedule && scheduleChanged && hadSchedule) {
         scheduleWasMutated = true;
-        const scheduleStatus = await applyTaskSchedule(
-          taskId,
-          { mode: "none", timezone: schedule.timezone },
-          true,
-        );
-        if (scheduleStatus !== null) {
-          statusAfterSchedule = scheduleStatus;
-        }
-        scheduleActiveOnServer = false;
-      }
-
-      if (schedule && scheduleChanged) {
-        scheduleWasMutated = true;
-        const scheduleStatus = await applyTaskSchedule(
+        const taskAfterSchedule = await applyTaskSeriesChange(
           taskId,
           schedule,
-          hadSchedule,
+          {
+            operationId: requireOperationId(scheduleOperationId),
+            expectedScheduleRevision: requireScheduleRevision(
+              expectedScheduleRevision,
+            ),
+          },
         );
-        if (scheduleStatus !== null) {
-          statusAfterSchedule = scheduleStatus;
-        }
+        statusAfterSchedule = taskAfterSchedule.status;
         scheduleActiveOnServer = schedule.mode !== "none";
+
+        // An idempotent replay returns the current Task. If a previous field
+        // patch committed but its response was lost, the retry can finish
+        // without trying to write against the now-advanced revision again.
+        savedTask = taskMatchesEditableFields(taskAfterSchedule, editableFields)
+          ? taskAfterSchedule
+          : await taskService.patchTask(taskId, {
+              ...editableFields,
+              ...(scheduleActiveOnServer
+                ? {
+                    expectedScheduleRevision: requireScheduleRevision(
+                      taskAfterSchedule.scheduleRevision,
+                    ),
+                  }
+                : {}),
+            });
+      } else {
+        savedTask = await taskService.patchTask(taskId, {
+          ...editableFields,
+          ...(hadSchedule ? { expectedScheduleRevision } : {}),
+        });
+
+        if (schedule && scheduleChanged) {
+          scheduleWasMutated = true;
+          savedTask = await armTaskSchedule(taskId, schedule);
+          statusAfterSchedule = savedTask.status;
+          scheduleActiveOnServer = true;
+        }
       }
 
       const isAgentAssignee =
@@ -871,15 +954,21 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         });
       }
 
-      revalidatePath("/tasks");
-      revalidatePath(`/tasks/${taskId}`);
+      if (scheduleWasMutated) {
+        // Already covers both Task routes, plus the Calendar ones.
+        revalidateCalendarTaskMutationRoutes(savedTask);
+      } else {
+        revalidatePath("/tasks");
+        revalidatePath(`/tasks/${taskId}`);
+      }
       if (typeof normalizedProjectId !== "undefined") {
         revalidatePath("/projects");
       }
       return taskMutationSuccess({ taskId });
     } catch (error) {
-      if (isCalendarClientUpgradeRequired(error)) {
-        return calendarClientUpgradeRequired();
+      const mutationErrorKind = toTaskMutationErrorKind(error);
+      if (mutationErrorKind) {
+        return taskMutationFailure(mutationErrorKind);
       }
       rethrowTaskActionError(
         error,
@@ -901,25 +990,18 @@ export const setTaskStatusFromDrag = withSession<
     }
 
     const currentStatus = task.status as TaskStatus;
-    let statusAfterSchedule = currentStatus;
 
-    const shouldClearSchedule =
-      desiredStatus !== TaskStatus.QUEUED &&
-      desiredStatus !== currentStatus &&
-      hasActiveTaskSchedule(task.metadata, task.nextRunAt);
+    if (desiredStatus !== currentStatus) {
+      // A live series owns this Task's status. Dropping it in another column
+      // used to silently unschedule it; the drag is now refused so the user
+      // decides what happens to the series.
+      if (hasActiveTaskSchedule(task.metadata, task.nextRunAt)) {
+        return taskMutationFailure(CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE);
+      }
 
-    if (shouldClearSchedule) {
-      const clearedTask = await taskScheduleService.clearSchedule(taskId);
-      statusAfterSchedule = clearedTask.status as TaskStatus;
-    }
-
-    if (desiredStatus !== statusAfterSchedule) {
       const trimmedComment = comment?.trim();
       if (
-        userTaskStatusTransitionRequiresComment(
-          statusAfterSchedule,
-          desiredStatus,
-        ) &&
+        userTaskStatusTransitionRequiresComment(currentStatus, desiredStatus) &&
         !trimmedComment
       ) {
         throw new Error(
@@ -937,8 +1019,9 @@ export const setTaskStatusFromDrag = withSession<
     revalidatePath(`/tasks/${taskId}`);
     return taskMutationSuccess({ taskId });
   } catch (error) {
-    if (isCalendarClientUpgradeRequired(error)) {
-      return calendarClientUpgradeRequired();
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
     }
     rethrowTaskActionError(
       error,
@@ -1153,8 +1236,9 @@ export const createTaskAndLink = withSession<
       if (createdTask) {
         await archiveCreatedTaskAfterFailure(createdTask.id);
       }
-      if (isCalendarClientUpgradeRequired(error)) {
-        return calendarClientUpgradeRequired();
+      const mutationErrorKind = toTaskMutationErrorKind(error);
+      if (mutationErrorKind) {
+        return taskMutationFailure(mutationErrorKind);
       }
       rethrowTaskActionError(
         error,

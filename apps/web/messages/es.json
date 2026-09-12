@@ -1512,7 +1512,8 @@
         "updateStatus": "No se pudo actualizar el estado del Task",
         "loadMore": "No se pudieron cargar más tareas",
         "loadCreateTask": "No se pudo cargar el formulario de nueva tarea",
-        "loadJobs": "No se pudieron cargar los trabajos"
+        "loadJobs": "No se pudieron cargar los trabajos",
+        "scheduleActive": "Esta tarea se ejecuta según una programación. Cambia o elimina su programación antes de moverla."
       },
       "Card": {
         "comments": "Comentarios",
@@ -1771,6 +1772,33 @@
           "description": "Esta tarea está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor.",
           "descriptionWithCoworker": "{coworkerName} creó esta tarea. Está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor."
         },
+        "ScheduleSeries": {
+          "title": "Programación",
+          "calendar": "Calendario",
+          "repeats": "Se repite",
+          "timezone": "Zona horaria",
+          "nextRun": "Próxima ejecución",
+          "removed": "Esta programación se eliminó. Las ejecuciones pasadas se conservan abajo.",
+          "tabsLabel": "Ejecuciones programadas",
+          "upcomingTab": "Próximas",
+          "historyTab": "Historial",
+          "upcomingListLabel": "Próximas ejecuciones",
+          "historyListLabel": "Ejecuciones pasadas",
+          "upcomingEmpty": "No hay ejecuciones próximas. Las nuevas aparecerán aquí a medida que la programación las proyecte.",
+          "upcomingEmptyRemoved": "No hay ejecuciones próximas: esta programación se eliminó.",
+          "historyEmpty": "No hay ejecuciones pasadas. Aquí aparecerán las lanzadas, canceladas y perdidas.",
+          "loadMore": "Cargar más",
+          "loading": "Cargando",
+          "loadMoreError": "No se pudieron cargar más ejecuciones. Revisa tu conexión e inténtalo de nuevo.",
+          "occurrencesError": "No se pudieron cargar las ejecuciones. Actualiza la página para volver a intentarlo.",
+          "movedFrom": "Movida desde {original}",
+          "statePlanned": "Planificada",
+          "stateSkipped": "Omitida",
+          "stateCanceled": "Cancelada",
+          "stateReleased": "Lanzada",
+          "stateMissed": "Perdida",
+          "archivedRun": "Archivada"
+        },
         "files": "Archivos",
         "assignee": "Responsable"
       },
@@ -1873,6 +1901,21 @@
         "title": "Programación",
         "description": "Planificar una ejecución única o recurrente.",
         "clearSchedule": "Eliminar programación",
+        "series": {
+          "discardTitle": "¿Descartar {count, plural, one {# ejecución modificada} other {# ejecuciones modificadas}}?",
+          "discardDescription": "Guardar una nueva regla para toda la serie cancela {count, plural, one {la próxima ejecución que moviste u omitiste} other {las # próximas ejecuciones que moviste u omitiste}}. Las ejecuciones ya realizadas se conservan.",
+          "discardCancel": "Mantener la programación actual",
+          "discardConfirm": "Guardar y descartar",
+          "removeTitle": "¿Eliminar esta programación?",
+          "removeDescription": "Esta tarea dejará de ejecutarse según una programación. Las ejecuciones ya realizadas se conservan y las próximas se cancelan. Volverá a Borrador.",
+          "removeCancel": "Mantener la programación",
+          "removeConfirm": "Eliminar programación",
+          "revisionConflict": "Esta programación cambió en otro lugar. Recarga la tarea, vuelve a abrir la programación y aplica tu cambio de nuevo.",
+          "quarantined": "Esta programación está en pausa para reparación y no se puede cambiar. Contacta con soporte para restaurarla.",
+          "operationConflict": "Este guardado ya se envió con otros datos. Vuelve a abrir la programación e inténtalo de nuevo.",
+          "activeSeries": "Esta tarea se ejecuta según una programación. Cambia o elimina primero su programación.",
+          "unknownCount": "No pudimos comprobar qué próximas ejecuciones cancelaría una nueva regla. Recarga la página, vuelve a abrir la programación e inténtalo de nuevo."
+        },
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",
@@ -6067,7 +6110,7 @@
         "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
         "clearPending": "Eliminando programación…",
         "clearTitle": "¿Eliminar programación?",
-        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
+        "clearDescription": "Esta tarea dejará de ejecutarse según una programación. Volverá a Borrador.",
         "clearCancel": "Cancelar",
         "clearConfirm": "Eliminar programación"
       },

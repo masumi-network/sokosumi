@@ -360,6 +360,29 @@ export function selectionToApiBody(
   return null;
 }
 
+export interface TaskScheduleOperationIdentity {
+  key: string;
+  operationId: string;
+}
+
+export interface TaskScheduleOperationIdentityRef {
+  current: TaskScheduleOperationIdentity | null;
+}
+
+/** Keeps one browser-minted operation ID across retries of the same rule. */
+export function getTaskScheduleOperationId(
+  selection: TaskScheduleSelection,
+  operation: TaskScheduleOperationIdentityRef,
+): string {
+  const schedule =
+    selection.mode === "none" ? null : selectionToApiBody(selection);
+  const key = schedule ? JSON.stringify(schedule) : "none";
+  if (operation.current?.key !== key) {
+    operation.current = { key, operationId: crypto.randomUUID() };
+  }
+  return operation.current.operationId;
+}
+
 const ONCE_SCHEDULE_LEAD_MS = 5 * 60 * 1000;
 const ONCE_SCHEDULE_RETRY_MS = 60_000;
 const ONCE_SCHEDULE_MAX_ATTEMPTS = 5;

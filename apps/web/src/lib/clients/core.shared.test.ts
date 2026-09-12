@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { createCoreClient } from "@/lib/clients/core.shared";
 import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   getCoworkers as coreGetCoworkers,
   postTasksScheduled as corePostTasksScheduled,
+  putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
   type PostTasksScheduledResponse,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
@@ -14,8 +16,10 @@ vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
   return {
     ...actual,
     deleteAdminInvoice: vi.fn(),
+    deleteTasksByIdSchedule: vi.fn(),
     getCoworkers: vi.fn(),
     postTasksScheduled: vi.fn(),
+    putTasksByIdCalendarSchedule: vi.fn(),
   };
 });
 
@@ -48,6 +52,66 @@ describe("createCoreClient owned coworkers", () => {
       query: { scope: "owned" },
       cache: "no-store",
     });
+  });
+});
+
+describe("createCoreClient revision-safe schedule mutations", () => {
+  const taskResponse = {
+    id: "task-1",
+    createdAt: "2026-08-20T09:00:00.000Z",
+    updatedAt: "2026-08-20T09:00:00.000Z",
+    nextRunAt: null,
+    events: [],
+    jobs: [],
+    share: null,
+    links: [],
+  };
+
+  it("sends the strict Calendar series body", async () => {
+    vi.mocked(corePutTasksByIdCalendarSchedule).mockResolvedValue({
+      data: taskResponse,
+      response: { ok: true, status: 200 } as Response,
+    } as never);
+    const core = createCoreClient(async () => ({}) as Client);
+    const body = {
+      operationId: "123e4567-e89b-42d3-a456-426614174000",
+      expectedScheduleRevision: 3,
+      discardFutureExceptions: true as const,
+      schedule: {
+        mode: "recurring" as const,
+        expr: "0 9 * * *",
+        timezone: "UTC",
+      },
+    };
+
+    await core.putTaskCalendarSchedule("task-1", body);
+
+    expect(corePutTasksByIdCalendarSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { id: "task-1" }, body }),
+    );
+  });
+
+  it("sends the removal preconditions as Idempotency-Key and x-schedule-revision headers", async () => {
+    vi.mocked(coreDeleteTasksByIdSchedule).mockResolvedValue({
+      data: taskResponse,
+      response: { ok: true, status: 200 } as Response,
+    } as never);
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await core.deleteTaskSchedule("task-1", {
+      operationId: "123e4567-e89b-42d3-a456-426614174000",
+      expectedScheduleRevision: 3,
+    });
+
+    expect(coreDeleteTasksByIdSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { id: "task-1" },
+        headers: {
+          "idempotency-key": "123e4567-e89b-42d3-a456-426614174000",
+          "x-schedule-revision": "3",
+        },
+      }),
+    );
   });
 });
 
