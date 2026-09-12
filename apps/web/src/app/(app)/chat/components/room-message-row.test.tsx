@@ -2921,6 +2921,7 @@ describe("ChatMessageRow hover chrome", () => {
     expect(hoverCardTriggers()).toHaveLength(0);
 
     await user.hover(screen.getByRole("article"));
+    expect(screen.queryByText("ada@example.com")).not.toBeInTheDocument();
 
     const [avatarTrigger, nameTrigger] = screen.getAllByRole("button", {
       name: "Ada",
@@ -2932,6 +2933,16 @@ describe("ChatMessageRow hover chrome", () => {
       expect(screen.queryByText("ada@example.com")).not.toBeInTheDocument();
     });
     await user.hover(nameTrigger);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("opens the participant card when the first hover lands on the avatar", async () => {
+    const user = userEvent.setup();
+    renderRow();
+
+    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    await user.hover(avatarTrigger);
+
     expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
   });
 

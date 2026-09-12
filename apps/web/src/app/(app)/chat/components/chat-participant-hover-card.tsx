@@ -8,6 +8,7 @@ import {
   cloneElement,
   isValidElement,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   type Ref,
   useCallback,
   useRef,
@@ -70,6 +71,8 @@ interface TriggerChildProps {
   "aria-label"?: string;
   "aria-hidden"?: boolean | "true" | "false";
   ref?: Ref<HTMLElement>;
+  onPointerEnter?: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerLeave?: (event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 function renderHoverTrigger({
@@ -79,6 +82,8 @@ function renderHoverTrigger({
   style,
   interactive,
   triggerRef,
+  onPointerEnter,
+  onPointerLeave,
 }: {
   profileName: string;
   children: ReactNode;
@@ -86,6 +91,8 @@ function renderHoverTrigger({
   style?: CSSProperties;
   interactive: boolean;
   triggerRef: Ref<HTMLElement>;
+  onPointerEnter?: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerLeave?: (event: ReactPointerEvent<HTMLElement>) => void;
 }) {
   const childItems = Children.toArray(children).filter((child) => {
     if (typeof child === "string" || typeof child === "number") {
@@ -123,6 +130,8 @@ function renderHoverTrigger({
         className,
       ),
       ref: triggerRef,
+      onPointerEnter,
+      onPointerLeave,
     });
   }
 
@@ -135,6 +144,8 @@ function renderHoverTrigger({
           "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none",
           className,
         )}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
       >
         {children}
       </span>
@@ -152,6 +163,8 @@ function renderHoverTrigger({
         "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
     >
       {children}
     </span>
@@ -177,13 +190,15 @@ export function ChatParticipantHoverCard({
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
   // Activation swaps the bare trigger for the Radix one, which remounts the
-  // element and drops focus. The bare trigger's ref cleanup runs before its
-  // node leaves the DOM, so it can still see whether it held focus; the
-  // Radix trigger then takes focus as soon as it attaches, and the card
-  // opens on focus exactly as it does for an always-active card. Reading
-  // activeElement at cleanup rather than tracking blur matters because some
-  // browsers fire blur when a focused node is removed.
+  // element. The bare trigger's ref cleanup runs before its node leaves the
+  // DOM, so it can still see whether it held focus; the Radix trigger then
+  // takes focus as soon as it attaches. Reading activeElement at cleanup
+  // rather than tracking blur matters because some browsers fire blur when
+  // a focused node is removed. The same swap misses pointerenter when the
+  // pointer is already on the trigger, so attach replays pointerover (the
+  // native event React maps to onPointerEnter) and Radix opens as usual.
   const restoreFocus = useRef(false);
+  const hoveredBare = useRef(false);
   const bareTriggerRef = useCallback((node: HTMLElement | null) => {
     if (!node) {
       return;
@@ -192,11 +207,41 @@ export function ChatParticipantHoverCard({
       restoreFocus.current = document.activeElement === node;
     };
   }, []);
+  const rememberBareHover = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.pointerType === "touch") {
+        return;
+      }
+      hoveredBare.current = true;
+    },
+    [],
+  );
+  const forgetBareHover = useCallback(() => {
+    hoveredBare.current = false;
+  }, []);
   const focusOnAttach = useCallback((node: HTMLElement | null) => {
-    if (node && restoreFocus.current) {
+    if (!node) {
+      return;
+    }
+    if (restoreFocus.current) {
       restoreFocus.current = false;
       node.focus();
     }
+    if (!hoveredBare.current) {
+      return;
+    }
+    hoveredBare.current = false;
+    queueMicrotask(() => {
+      if (!node.isConnected) {
+        return;
+      }
+      node.dispatchEvent(
+        new PointerEvent("pointerover", {
+          bubbles: true,
+          pointerType: "mouse",
+        }),
+      );
+    });
   }, []);
 
   if (!profile) {
@@ -211,6 +256,8 @@ export function ChatParticipantHoverCard({
       style,
       interactive,
       triggerRef: bareTriggerRef,
+      onPointerEnter: rememberBareHover,
+      onPointerLeave: forgetBareHover,
     });
   }
 
