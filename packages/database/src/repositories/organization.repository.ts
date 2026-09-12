@@ -16,7 +16,7 @@ export const organizationRepository = {
    * Retrieves a unique organization with its relations based on a unique identifier.
    *
    * @param where - Unique input to identify the organization (e.g., id or slug).
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns The OrganizationWithRelations object if found, otherwise null.
    */
   async getUniqueOrganizationWithRelations(
@@ -33,7 +33,7 @@ export const organizationRepository = {
    * Retrieves an organization with its relations by organization ID.
    *
    * @param id - The ID of the organization.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns The OrganizationWithRelations object if found, otherwise null.
    */
   async getOrganizationWithRelationsById(
@@ -48,7 +48,7 @@ export const organizationRepository = {
    *
    * @param organizationId - The ID of the organization to update.
    * @param data - The update data for the organization.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns The updated OrganizationWithRelations object.
    */
   async updateOrganizationById(
@@ -119,7 +119,7 @@ export const organizationRepository = {
    * Get an organization by its Stripe customer ID.
    *
    * @param stripeCustomerId - The Stripe customer ID.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns The organization if found, null otherwise.
    */
   async getOrganizationByStripeCustomerId(
