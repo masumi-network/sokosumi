@@ -16,6 +16,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
+import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
 const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
   mockIsMobileMedia: vi.fn((): boolean | undefined => false),
@@ -36,15 +37,6 @@ const { mockReplace, mockSearch, mockThreadPanelRows } = vi.hoisted(() => ({
 const { mockSearchHit } = vi.hoisted(() => ({
   mockSearchHit: { current: null as ChatRoomMessage | null },
 }));
-
-// Stable across renders on purpose. A fresh `vi.fn()` per render cannot show
-// which room a hold was taken for, or which jump gave it back, and those are
-// the two things the guards on these calls exist to get right.
-const { mockSuppressStickToBottom, mockReleaseStickToBottomSuppress } =
-  vi.hoisted(() => ({
-    mockSuppressStickToBottom: vi.fn(),
-    mockReleaseStickToBottomSuppress: vi.fn(),
-  }));
 
 vi.mock("@/app/chat/message-actions", () => ({
   getRoomMessageAction: vi.fn(),
@@ -124,18 +116,10 @@ vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
   useClientLocalCalendarReady: () => true,
 }));
 
-vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
-  useStickToBottom: () => ({
-    scrollerRef: { current: null },
-    contentRef: { current: null },
-    contentMinHeight: undefined,
-    scrollToBottom: vi.fn(),
-    pinToBottomAfterOwnSend: vi.fn(),
-    scrollToBottomIfPinned: vi.fn(),
-    suppressStickToBottom: mockSuppressStickToBottom,
-    releaseStickToBottomSuppress: mockReleaseStickToBottomSuppress,
-  }),
-}));
+vi.mock(
+  "@/app/chat/components/transcript-viewport",
+  () => import("./transcript-viewport-stub"),
+);
 
 vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
   readStoredStreamParentMessageId: () => null,
@@ -412,8 +396,8 @@ describe("RoomsClient notification deep link", () => {
     mockThreadPanelRows.current = false;
     mockReplace.mockReset();
     mockSearchHit.current = null;
-    mockSuppressStickToBottom.mockReset();
-    mockReleaseStickToBottomSuppress.mockReset();
+    transcriptViewportSpies.suppressStickToBottom.mockReset();
+    transcriptViewportSpies.releaseStickToBottomSuppress.mockReset();
     vi.mocked(getRoomMessageAction).mockReset();
     vi.mocked(getRoomThreadAction).mockReset();
     vi.mocked(listRoomMessagesAction).mockReset();
@@ -894,7 +878,7 @@ describe("RoomsClient notification deep link", () => {
       />,
     );
     const releasesBeforeTheMove =
-      mockReleaseStickToBottomSuppress.mock.calls.length;
+      transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length;
 
     await act(async () => {
       failParent();
@@ -908,9 +892,9 @@ describe("RoomsClient notification deep link", () => {
     // The thread jump gives up here, which is where it would release the hold
     // it took. That hold was for the room the reader left, so releasing now
     // would drop whatever hold the room they moved to is relying on.
-    expect(mockReleaseStickToBottomSuppress.mock.calls.length).toBe(
-      releasesBeforeTheMove,
-    );
+    expect(
+      transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length,
+    ).toBe(releasesBeforeTheMove);
   });
   /**
    * Every load a jump makes checks the room before it reports a failure, so
@@ -1002,12 +986,14 @@ describe("RoomsClient notification deep link", () => {
 
       // The hold is taken for room-channel before the window is asked for.
       await waitFor(() => {
-        expect(mockSuppressStickToBottom).toHaveBeenCalled();
+        expect(
+          transcriptViewportSpies.suppressStickToBottom,
+        ).toHaveBeenCalled();
       });
 
       leaveRoom(rerender);
       const releasesBeforeTheMove =
-        mockReleaseStickToBottomSuppress.mock.calls.length;
+        transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length;
 
       await act(async () => {
         finishWindow();
@@ -1017,9 +1003,9 @@ describe("RoomsClient notification deep link", () => {
       // The jump finishes for a room nobody is looking at. Releasing now
       // would drop whatever hold room-other is relying on, and a room that
       // has lost its hold cannot be given it back by scrolling.
-      expect(mockReleaseStickToBottomSuppress.mock.calls.length).toBe(
-        releasesBeforeTheMove,
-      );
+      expect(
+        transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length,
+      ).toBe(releasesBeforeTheMove);
     });
 
     it("says nothing when a search hit's own window fails", async () => {
@@ -1209,7 +1195,9 @@ describe("RoomsClient notification deep link", () => {
     expect(getRoomMessageAction).toHaveBeenCalledTimes(1);
     await act(async () => finishWindow());
     await waitFor(() => {
-      expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+      expect(
+        transcriptViewportSpies.releaseStickToBottomSuppress,
+      ).toHaveBeenCalledOnce();
     });
     expect(screen.getByText("latest target")).toBeInTheDocument();
     expect(screen.queryByText("older target")).toBeNull();
@@ -1260,7 +1248,9 @@ describe("RoomsClient notification deep link", () => {
     });
     // The newest jump owns the hold and is the one that gives it back.
     await waitFor(() => {
-      expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+      expect(
+        transcriptViewportSpies.releaseStickToBottomSuppress,
+      ).toHaveBeenCalledOnce();
     });
 
     await act(async () => {
@@ -1273,7 +1263,9 @@ describe("RoomsClient notification deep link", () => {
     expect(screen.queryByText("first window")).toBeNull();
     // The replaced jump must not release either, or a hold the newest jump
     // is still relying on goes with it.
-    expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+    expect(
+      transcriptViewportSpies.releaseStickToBottomSuppress,
+    ).toHaveBeenCalledOnce();
   });
 
   it("still reports a missing thread to the reader who searched for it", async () => {

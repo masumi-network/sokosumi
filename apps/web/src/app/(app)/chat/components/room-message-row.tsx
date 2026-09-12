@@ -108,6 +108,7 @@ import {
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -136,7 +137,6 @@ import {
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
-  scrollToRoomMessageElement,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -326,6 +326,7 @@ function MessageQuoteBlock({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  onJumpToQuotedMessage,
 }: {
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -339,6 +340,7 @@ function MessageQuoteBlock({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
+  onJumpToQuotedMessage?: (messageId: string) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
@@ -354,7 +356,7 @@ function MessageQuoteBlock({
         className="hover:bg-muted/70 focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
-          scrollToRoomMessageElement(quote.messageId);
+          onJumpToQuotedMessage?.(quote.messageId);
         }}
       >
         <div className="text-foreground truncate text-xs font-semibold">
@@ -415,14 +417,29 @@ function MessageUnfurlImage({
   onError: () => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
+  // Reserves the box on a remount, so a row scrolled back into view does not
+  // grow by the image a frame later.
+  const { onLoad, ...size } = useRememberedImageSize(imageUrl);
+  const [loaded, setLoaded] = useState(size.width != null);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={imageUrl}
       alt={t("imageAlt", { title })}
-      className="mt-2 h-auto max-h-48 max-w-full rounded-md"
+      className={cn(
+        "mt-2 max-w-full rounded-md",
+        // Until the first load the box is the cap itself: link previews are
+        // wide, so nearly all of them land there, and the row does not grow
+        // under a reader scrolling past it.
+        loaded ? "h-auto max-h-48" : "h-48",
+      )}
       onError={onError}
+      onLoad={(event) => {
+        onLoad(event);
+        setLoaded(true);
+      }}
+      {...size}
     />
   );
 }
@@ -2027,6 +2044,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
+  onJumpToQuotedMessage,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -2066,6 +2084,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  /** Quote tap: scroll the room transcript to the quoted message. */
+  onJumpToQuotedMessage?: (messageId: string) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -2362,6 +2382,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   canOpenHumanDirect={canOpenHumanDirect}
                   onOpenDirectMessage={onOpenDirectMessage}
                   openingDirectParticipantKey={openingDirectParticipantKey}
+                  onJumpToQuotedMessage={onJumpToQuotedMessage}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (

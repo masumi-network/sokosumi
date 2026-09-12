@@ -8,7 +8,6 @@ import {
 import {
   captureTranscriptScrollAnchor,
   captureVisibleTranscriptScrollAnchor,
-  restoreTranscriptScrollAnchor,
 } from "./transcript-scroll-anchor";
 
 function scrollerWithRow(rowTop: number): {
@@ -54,35 +53,6 @@ afterEach(() => {
 });
 
 describe("transcript scroll anchor", () => {
-  it("scrolls by however far the row moved after rows were inserted above it", () => {
-    const { scroller, row } = scrollerWithRow(140);
-    scroller.scrollTop = 500;
-
-    const anchor = captureTranscriptScrollAnchor(scroller, "msg-9");
-    expect(anchor).toEqual({ messageId: "msg-9", offset: 40 });
-
-    row.getBoundingClientRect = () => ({ top: 940 }) as DOMRect;
-    restoreTranscriptScrollAnchor(
-      scroller,
-      anchor as NonNullable<typeof anchor>,
-    );
-
-    expect(scroller.scrollTop).toBe(1300);
-  });
-
-  it("leaves the scroller alone when the row did not move", () => {
-    const { scroller } = scrollerWithRow(140);
-    scroller.scrollTop = 500;
-
-    const anchor = captureTranscriptScrollAnchor(scroller, "msg-9");
-    restoreTranscriptScrollAnchor(
-      scroller,
-      anchor as NonNullable<typeof anchor>,
-    );
-
-    expect(scroller.scrollTop).toBe(500);
-  });
-
   it("captures nothing for a row the transcript has not rendered", () => {
     const { scroller } = scrollerWithRow(140);
 
@@ -102,6 +72,31 @@ describe("transcript scroll anchor", () => {
     expect(captureTranscriptScrollAnchor(scroller, "msg-90")).toEqual({
       messageId: "msg-90",
       offset: 400,
+    });
+  });
+
+  it("prefers the first fully visible row over one straddling the top edge", () => {
+    // The straddling row is held by its top, so an image landing inside it
+    // would still push the rows below; the fully visible row can be put back.
+    const scroller = scrollerWithRows([
+      { id: "msg-40", top: 60, height: 100 },
+      { id: "msg-41", top: 160 },
+    ]);
+
+    expect(captureVisibleTranscriptScrollAnchor(scroller)).toEqual({
+      messageId: "msg-41",
+      offset: 60,
+    });
+  });
+
+  it("falls back to the straddling row when it fills the viewport alone", () => {
+    const scroller = scrollerWithRows([
+      { id: "msg-40", top: -100, height: 800 },
+    ]);
+
+    expect(captureVisibleTranscriptScrollAnchor(scroller)).toEqual({
+      messageId: "msg-40",
+      offset: -200,
     });
   });
 

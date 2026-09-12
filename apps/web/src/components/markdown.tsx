@@ -1,6 +1,6 @@
 import { linkifyBareDomainsInMarkdown } from "@sokosumi/utils";
 import Link from "next/link";
-import { type ReactNode, useMemo } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkBreaks from "remark-breaks";
@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm";
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
 import { markdownHighlightThemeCss } from "@/components/markdown-highlight-theme";
 import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
+import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import { cn } from "@/lib/utils";
 import { normalizeLooseInlineMarkdown } from "@/lib/utils/composer-markdown-dom";
 import {
@@ -78,6 +79,32 @@ interface MarkdownProps {
   components?: Components;
 }
 
+/**
+ * Sized from its last load, so a row that scrolls back into a virtualized
+ * list does not grow by the image a frame after it mounts.
+ */
+function MarkdownImage({
+  src,
+  alt,
+  ...props
+}: Omit<ComponentPropsWithoutRef<"img">, "src"> & {
+  src?: Blob | string;
+}) {
+  const size = useRememberedImageSize(
+    typeof src === "string" ? src : undefined,
+  );
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={typeof src === "string" ? src : undefined}
+      alt={alt}
+      className="h-auto max-w-full rounded-lg"
+      {...props}
+      {...size}
+    />
+  );
+}
+
 export default function Markdown({
   children,
   className,
@@ -139,15 +166,7 @@ export default function Markdown({
             />
           );
         }
-        return (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            alt={alt}
-            className="h-auto max-w-full rounded-lg"
-            {...props}
-          />
-        );
+        return <MarkdownImage src={src} alt={alt} {...props} />;
       },
       video: ({ children, src, autoPlay: _autoPlay, ...props }) => {
         const srcString =
