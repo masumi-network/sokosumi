@@ -3803,10 +3803,6 @@
         "invalidInput": "Por favor, introduce un importe de Credits o un código de cupón",
         "invalidCredits": "Importe de Credits no válido",
         "invalidCoupon": "Cupón no válido",
-        "couponNotFound": "Cupón no encontrado",
-        "couponTypeError": "Tipo de cupón no compatible",
-        "couponCurrencyError": "La moneda del cupón no coincide",
-        "promotionCodeNotFound": "Código promocional no encontrado",
         "unauthenticated": "Por favor, inicia sesión para continuar",
         "unauthenticatedAction": "Iniciar sesión",
         "unauthorizedOrganization": "No tienes permiso para comprar Credits para esta organización",
@@ -5239,6 +5235,13 @@
       },
       "loadOlder": "Cargar mensajes anteriores",
       "loadingOlder": "Cargando mensajes anteriores…",
+      "Boundary": {
+        "missingHere": "Aquí faltan mensajes",
+        "loadMissing": "Cargar mensajes que faltan",
+        "loadingMissing": "Cargando mensajes que faltan…",
+        "loadFailed": "No se pudieron cargar los mensajes.",
+        "retry": "Reintentar"
+      },
       "roomUnavailable": "Este chat no está disponible o ya no tienes acceso.",
       "archivedChannels": "Archivados",
       "AddLink": {
@@ -5256,6 +5259,7 @@
         "close": "Cerrar mensajes fijados",
         "empty": "Aún no hay mensajes fijados",
         "loading": "Cargando mensajes fijados…",
+        "jumping": "Abriendo el mensaje…",
         "error": "No se pudieron cargar los mensajes fijados",
         "couldNotLoad": "No se pudo cargar el mensaje",
         "pin": "Fijar mensaje",

@@ -79,3 +79,64 @@ import Testing
   #expect(segments[1].attachment?.kind == .file)
   #expect(String(segments[2].text.characters) == "Following text")
 }
+
+@Test func documentPreviewKindsMatchSupportedFiles() throws {
+  for ext in ["txt", "md", "markdown", "TXT", "MD", "MARKDOWN"] {
+    let url = try #require(URL(string: "https://example.com/report.\(ext)?download=1"))
+    let attachment = try #require(MessageAttachment(url: url, label: "Report"))
+    #expect(attachment.documentPreviewKind == .text)
+  }
+  let namedURL = try #require(URL(string: "https://example.com/deliverables/id"))
+  let named = try #require(MessageAttachment(url: namedURL, label: "report.markdown"))
+  #expect(named.documentPreviewKind == .text)
+  let pdfURL = try #require(URL(string: "https://example.com/report.pdf"))
+  let pdf = try #require(MessageAttachment(url: pdfURL, label: "Report"))
+  #expect(pdf.documentPreviewKind == .pdf)
+  for ext in ["zip", "json", "csv"] {
+    let url = try #require(URL(string: "https://example.com/report.\(ext)"))
+    let attachment = try #require(MessageAttachment(url: url, label: "Report"))
+    #expect(attachment.documentPreviewKind == nil)
+  }
+}
+
+@Test func textPreviewKeepsFileLinksInlineAndPreservesParagraphText() throws {
+  let parsed = MessageMarkdown("Read [the PDF](https://example.com/report.pdf) before **continuing**.")
+  let block = try #require(parsed.blocks.first)
+  let segments = MessageAttachmentSegment.split(block.text, includeFileAttachments: false)
+  #expect(segments.count == 1)
+  #expect(segments.first?.text == block.text)
+  #expect(segments.first?.attachment == nil)
+  #expect(segments.first?.text.runs.contains { $0.link != nil } == true)
+}
+
+@Test func markdownFileLinksRoundTripToTextPreview() throws {
+  for ext in ["markdown", "MARKDOWN"] {
+    let parsed = MessageMarkdown("Read [report](https://example.com/report.\(ext)) now.")
+    let block = try #require(parsed.blocks.first)
+    let segments = MessageAttachmentSegment.split(block.text)
+    #expect(segments.count == 3)
+    #expect(segments[1].attachment?.documentPreviewKind == .text)
+  }
+}
+
+@Test func documentPreviewPrefersRecognizedURLKindOverFilename() throws {
+  let textURL = try #require(URL(string: "https://example.com/report.txt"))
+  #expect(MessageAttachment(url: textURL, label: "report.pdf")?.documentPreviewKind == .text)
+  let pdfURL = try #require(URL(string: "https://example.com/report.pdf"))
+  #expect(MessageAttachment(url: pdfURL, label: "report.txt")?.documentPreviewKind == .pdf)
+  let officeURL = try #require(URL(string: "https://example.com/report.docx"))
+  #expect(MessageAttachment(url: officeURL, label: "report.txt")?.documentPreviewKind == .office)
+}
+
+@Test func officeDocumentsUseURLThenFilenameForNativePreview() throws {
+  for ext in ["doc", "docx", "ppt", "pptx", "xls", "xlsx", "DOCX"] {
+    let url = try #require(URL(string: "https://example.com/report.\(ext)"))
+    let attachment = try #require(MessageAttachment(url: url, label: "Report"))
+    #expect(attachment.documentPreviewKind == .office)
+    #expect(attachment.documentPreviewExtension == ext.lowercased())
+  }
+  let url = try #require(URL(string: "https://example.com/deliverables/id"))
+  let attachment = try #require(MessageAttachment(url: url, label: "deck.pptx"))
+  #expect(attachment.documentPreviewKind == .office)
+  #expect(attachment.documentPreviewExtension == "pptx")
+}

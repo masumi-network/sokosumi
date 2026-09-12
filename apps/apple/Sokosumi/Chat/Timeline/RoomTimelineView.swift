@@ -15,6 +15,9 @@ import SwiftUI
     @State private var transcriptWasAwayFromTop = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var userIsScrolling = false
+    @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
+    @State private var quoteTarget: String?
+    @State private var quoteFocusRequest: String?
 
     let roomId: String
 
@@ -28,11 +31,13 @@ import SwiftUI
         ChatComposerView(
           userId: workspaces.currentUserId,
           organizationId: workspaces.selection?.workspace.organizationId,
-          roomId: roomId
+          roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
         )
         .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
       }
       .onChange(of: roomId) { _, _ in
+        pendingQuote = nil
+        quoteTarget = nil
         transcriptWasAwayFromTop = false
         scrollIntent = TimelineScrollIntent()
       }
@@ -116,6 +121,10 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                                 onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                                   quoteFocusRequest = UUID().uuidString
+                                 } : nil,
+                                 onQuoteJump: { id in quoteTarget = id },
                                  horizontalInset: 12,
                                  streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
@@ -132,6 +141,13 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
+        .onChange(of: quoteTarget) { _, target in
+          guard let target else { return }
+          quoteTarget = nil
+          guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else { return }
+          scrollIntent.readOlder()
+          proxy.scrollTo(target, anchor: .center)
+        }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating
         }

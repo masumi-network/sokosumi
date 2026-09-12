@@ -11,7 +11,8 @@ public extension ChatService {
     organizationSlug: String?,
     messageId: String,
     text: String,
-    parentMessageId: String? = nil
+    parentMessageId: String? = nil,
+    quoteMessageId: String? = nil
   ) async throws -> HTTPBody {
     let response = try await client.postChatsRoomsIdStream(.init(
       path: .init(id: roomId),
@@ -22,7 +23,7 @@ public extension ChatService {
           parts: [.init(value2: .init(_type: .text, text: text))],
           id: messageId
         )], id: roomId),
-        value2: .init(parentMessageId: parentMessageId, roomId: roomId)
+        value2: .init(parentMessageId: parentMessageId, roomId: roomId, quote: quoteMessageId.map { .init(messageId: $0) })
       ))
     ))
     switch response {

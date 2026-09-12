@@ -3803,10 +3803,6 @@
         "invalidInput": "Bitte gib entweder einen Credit-Betrag oder einen Coupon-Code ein",
         "invalidCredits": "Ungültiger Credit-Betrag",
         "invalidCoupon": "Ungültiger Coupon",
-        "couponNotFound": "Coupon nicht gefunden",
-        "couponTypeError": "Coupon-Typ wird nicht unterstützt",
-        "couponCurrencyError": "Währung des Coupons stimmt nicht überein",
-        "promotionCodeNotFound": "Aktionscode nicht gefunden",
         "unauthenticated": "Bitte melde dich an, um fortzufahren",
         "unauthenticatedAction": "Anmelden",
         "unauthorizedOrganization": "Du bist nicht berechtigt, Credits für diese Organisation zu kaufen",
@@ -5239,6 +5235,13 @@
       },
       "loadOlder": "Ältere Nachrichten laden",
       "loadingOlder": "Ältere Nachrichten werden geladen…",
+      "Boundary": {
+        "missingHere": "Hier fehlen Nachrichten",
+        "loadMissing": "Fehlende Nachrichten laden",
+        "loadingMissing": "Fehlende Nachrichten werden geladen…",
+        "loadFailed": "Nachrichten konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
       "roomUnavailable": "Dieser Chat ist nicht verfügbar oder du hast keinen Zugriff mehr.",
       "archivedChannels": "Archiviert",
       "AddLink": {
@@ -5256,6 +5259,7 @@
         "close": "Angeheftete Nachrichten schließen",
         "empty": "Noch keine angehefteten Nachrichten",
         "loading": "Angeheftete Nachrichten werden geladen…",
+        "jumping": "Nachricht wird geöffnet…",
         "error": "Angeheftete Nachrichten konnten nicht geladen werden",
         "couldNotLoad": "Nachricht konnte nicht geladen werden",
         "pin": "Nachricht anheften",

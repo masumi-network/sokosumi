@@ -1,9 +1,8 @@
 import Foundation
 import ImageIO
 
-/// Decode a thumbnail at `pointSize * scale` pixels so 20pt faces stay
-/// sharp on Retina. `AsyncImage` tags the bitmap as 1x and looks soft.
-public func loadAvatarCGImage(
+/// Decode a display-sized thumbnail for avatars and attachment previews.
+public func loadThumbnailCGImage(
   urlString: String?,
   pointSize: CGFloat,
   scale: CGFloat
@@ -22,25 +21,25 @@ public func loadAvatarCGImage(
   if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
     return nil
   }
-  return await decodeAvatarThumbnail(data: data, maxPixel: max(pointSize * scale, 1))
+  return await decodeImageThumbnail(data: data, maxPixel: max(pointSize * scale, 1))
 }
 
 /// ImageIO can synchronously wait on its own decoder threads. Keep that work
 /// off the caller's cooperative executor and do not inherit a view task's QoS.
-private let avatarDecodeQueue = DispatchQueue(label: "com.sokosumi.avatar-decode", qos: .utility)
+private let imageDecodeQueue = DispatchQueue(label: "com.sokosumi.image-decode", qos: .utility)
 
-func decodeAvatarThumbnail(data: Data, maxPixel: CGFloat) async -> CGImage? {
+func decodeImageThumbnail(data: Data, maxPixel: CGFloat) async -> CGImage? {
   guard !Task.isCancelled else { return nil }
   let image: CGImage? = await withCheckedContinuation { continuation in
-    avatarDecodeQueue.async(qos: .utility, flags: .enforceQoS) {
-      continuation.resume(returning: avatarThumbnail(data: data, maxPixel: maxPixel))
+    imageDecodeQueue.async(qos: .utility, flags: .enforceQoS) {
+      continuation.resume(returning: imageThumbnail(data: data, maxPixel: maxPixel))
     }
   }
   return Task.isCancelled ? nil : image
 }
 
-private func avatarThumbnail(data: Data, maxPixel: CGFloat) -> CGImage? {
-  dispatchPrecondition(condition: .onQueue(avatarDecodeQueue))
+private func imageThumbnail(data: Data, maxPixel: CGFloat) -> CGImage? {
+  dispatchPrecondition(condition: .onQueue(imageDecodeQueue))
   let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
   guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else {
     return nil
@@ -52,12 +51,4 @@ private func avatarThumbnail(data: Data, maxPixel: CGFloat) -> CGImage? {
     kCGImageSourceShouldCacheImmediately: true
   ]
   return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
-}
-
-public func avatarInitials(from name: String) -> String {
-  let words = name.split(separator: " ")
-  let first = words.first?.first.map(String.init) ?? ""
-  let second = words.dropFirst().first?.first.map(String.init) ?? ""
-  let result = (first + second).uppercased()
-  return result.isEmpty ? "?" : result
 }

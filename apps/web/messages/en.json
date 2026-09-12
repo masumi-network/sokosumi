@@ -3834,10 +3834,6 @@
         "invalidInput": "Please enter either a credit amount or a coupon code",
         "invalidCredits": "Invalid credit amount",
         "invalidCoupon": "Invalid coupon",
-        "couponNotFound": "Coupon not found",
-        "couponTypeError": "Coupon type not supported",
-        "couponCurrencyError": "Coupon currency mismatch",
-        "promotionCodeNotFound": "Promotion code not found",
         "unauthenticated": "Please sign in to continue",
         "unauthenticatedAction": "Sign In",
         "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
@@ -5239,6 +5235,13 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
+      "Boundary": {
+        "missingHere": "Messages are missing here",
+        "loadMissing": "Load missing messages",
+        "loadingMissing": "Loading missing messages…",
+        "loadFailed": "Couldn’t load messages.",
+        "retry": "Try again"
+      },
       "roomUnavailable": "This chat is unavailable or you no longer have access.",
       "archivedChannels": "Archived",
       "AddLink": {
@@ -5256,6 +5259,7 @@
         "close": "Close pinned messages",
         "empty": "No pinned messages yet",
         "loading": "Loading pinned messages…",
+        "jumping": "Opening message…",
         "error": "Could not load pinned messages",
         "couldNotLoad": "Message could not be loaded",
         "pin": "Pin message",

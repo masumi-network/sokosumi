@@ -1,7 +1,7 @@
 "use client";
 
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
-import { Hash, Loader2 } from "lucide-react";
+import { Hash } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -35,6 +35,10 @@ import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-ta
 import DaySeparator from "@/app/chat/components/day-separator";
 import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
 import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
+import {
+  TranscriptBoundaryRow,
+  type TranscriptBoundaryStatus,
+} from "@/app/chat/components/transcript-boundary-row";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
@@ -92,8 +96,26 @@ import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
+import {
+  buildRoomTranscriptRows,
+  emptyRoomTranscript,
+  mergeRoomHeadPage,
+  mergeRoomJumpWindow,
+  mergeRoomOlderPage,
+  ROOM_HISTORY_WINDOW_LIMIT,
+  type RoomTranscript,
+  type RoomTranscriptPage,
+  updateRoomTranscriptMessages,
+  withTranscriptRowNeighbors,
+} from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
+import {
+  captureTranscriptScrollAnchor,
+  captureVisibleTranscriptScrollAnchor,
+  restoreTranscriptScrollAnchor,
+  type TranscriptScrollAnchor,
+} from "@/app/chat/utils/transcript-scroll-anchor";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
@@ -104,7 +126,6 @@ import {
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
-import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
@@ -336,11 +357,30 @@ export function RoomsClient({
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
     null,
   );
-  const [messagesState, setMessagesState] =
-    useState<ChatRoomMessage[]>(messages);
-  const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
-    messagesNextCursor,
+  // Every loaded top-level message plus the ranges they fall in. Rows are
+  // read and updated in place through `messagesState` / `setMessagesState`;
+  // what the transcript knows about missing history changes only when a page
+  // arrives, through the range merges below.
+  const [transcript, setTranscript] = useState<RoomTranscript>(() =>
+    mergeRoomHeadPage(emptyRoomTranscript(), {
+      messages,
+      nextCursor: messagesNextCursor,
+    }),
   );
+  const messagesState = transcript.messages;
+  const setMessagesState = useCallback(
+    (update: SetStateAction<ChatRoomMessage[]>) => {
+      setTranscript((current) =>
+        updateRoomTranscriptMessages(current, (rows) =>
+          typeof update === "function" ? update(rows) : update,
+        ),
+      );
+    },
+    [],
+  );
+  const [boundaryStatus, setBoundaryStatus] = useState<
+    Record<string, TranscriptBoundaryStatus>
+  >({});
   const [deferredHistoryPending, setDeferredHistoryPending] = useState(
     () => messagesPromise != null,
   );
@@ -354,23 +394,32 @@ export function RoomsClient({
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
-  const historicalTimelineRef = useRef(false);
   const historicalThreadRef = useRef(false);
+  // Rows inserted above the viewport would shove the reader's row down by
+  // their height. The anchor taken before the merge puts it back once the
+  // new rows have laid out.
+  const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
+  // Held in a ref as well as in state: the row's tap and its visibility
+  // observer can fire in the same tick, before the loading state renders.
+  const loadingBoundariesRef = useRef<Set<string>>(new Set());
+  const boundaryLoadGenerationRef = useRef(0);
   const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
   // cannot merge room A into room B (or show A under B's header).
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
-    historicalTimelineRef.current = false;
     historicalThreadRef.current = false;
+    setBoundaryStatus({});
+    loadingBoundariesRef.current = new Set();
+    pendingScrollAnchorRef.current = null;
+    boundaryLoadGenerationRef.current += 1;
     // The dialog belongs to the room it was opened for, and must not be
     // handed to the next one.
     setEditChannelOpen(false);
     setSearchHoldOffBottom(false);
     if (messagesPromise != null) {
-      setMessagesState([]);
-      setOlderNextCursor(null);
+      setTranscript(emptyRoomTranscript());
       setMessageLoadFailedState(false);
       setDeferredHistoryPending(true);
     }
@@ -416,13 +465,12 @@ export function RoomsClient({
     : messageLoadFailedState;
 
   const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
-    if (historicalTimelineRef.current) {
-      setDeferredHistoryPending(false);
-      setMessageLoadFailedState(false);
-      return;
-    }
-    setMessagesState((current) => mergeRoomMessages(current, page.messages));
-    setOlderNextCursor(page.nextCursor);
+    setTranscript((current) =>
+      mergeRoomHeadPage(current, {
+        messages: page.messages,
+        nextCursor: page.nextCursor,
+      }),
+    );
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
   }, []);
@@ -525,9 +573,6 @@ export function RoomsClient({
     if (!wasPending || messagesPending) {
       return;
     }
-    if (historicalTimelineRef.current) {
-      return;
-    }
     scrollToBottom();
   }, [messagesPending, scrollToBottom]);
   const syncedRoomIdRef = useRef<string | null>(null);
@@ -541,7 +586,6 @@ export function RoomsClient({
   const [_isReacting, startReactionTransition] = useTransition();
   const [_isRetryingMention, startMentionRetryTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
-  const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
@@ -775,11 +819,7 @@ export function RoomsClient({
       if (!isStillSelectedRoom(roomId)) {
         return false;
       }
-      if (!historicalTimelineRef.current) {
-        setMessagesState((current) =>
-          mergeRoomMessages(current, roomResult.value.messages),
-        );
-      }
+      setTranscript((current) => mergeRoomHeadPage(current, roomResult.value));
       if (threadResult?.ok && threadParentId && !historicalThreadRef.current) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
@@ -992,12 +1032,6 @@ export function RoomsClient({
 
       if (route.mergeIntoRoomTimeline) {
         applyMessagesFlashingOutboundConfirms(setMessagesState, (current) => {
-          if (
-            historicalTimelineRef.current &&
-            !current.some((row) => row.id === message.id)
-          ) {
-            return current;
-          }
           return filterTopLevelChatRoomMessages(
             applyFullChatRoomMessageEvent(current, {
               eventType: event.eventType,
@@ -1066,6 +1100,18 @@ export function RoomsClient({
       topLevelStreamOverlayMessages,
     );
   }, [topLevelRoomMessages, topLevelStreamOverlayMessages]);
+  // Message rows with a boundary row wherever history is missing. Day
+  // separators still read across a gap; continuation chrome does not.
+  const transcriptRows = useMemo(
+    () =>
+      withTranscriptRowNeighbors(
+        buildRoomTranscriptRows(
+          displayMessages,
+          messagesPending ? emptyRoomTranscript() : transcript,
+        ),
+      ),
+    [displayMessages, messagesPending, transcript],
+  );
 
   const threadStreamOverlayMessages = useMemo(() => {
     if (!threadParentMessage) {
@@ -1352,17 +1398,13 @@ export function RoomsClient({
 
     // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
     // merge so client-loaded older pages are not wiped by the latest page.
+    const page = { messages, nextCursor: messagesNextCursor };
     if (isChannelSwitch) {
-      historicalTimelineRef.current = false;
-      setMessagesState(messages);
-      setOlderNextCursor(messagesNextCursor);
-      setMessageLoadFailedState(messageLoadFailed);
-    } else if (!historicalTimelineRef.current) {
-      setMessagesState((current) => mergeRoomMessages(current, messages));
-      setMessageLoadFailedState(messageLoadFailed);
+      setTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
     } else {
-      setMessageLoadFailedState(messageLoadFailed);
+      setTranscript((current) => mergeRoomHeadPage(current, page));
     }
+    setMessageLoadFailedState(messageLoadFailed);
     setThreadParentMessage((current) =>
       current
         ? (messages.find((message) => message.id === current.id) ?? current)
@@ -1416,11 +1458,7 @@ export function RoomsClient({
         return;
       }
       if (result) {
-        if (!historicalTimelineRef.current) {
-          setMessagesState((current) =>
-            mergeRoomMessages(current, result.messages),
-          );
-        }
+        setTranscript((current) => mergeRoomHeadPage(current, result));
         setThreadParentMessage((current) =>
           current
             ? (result.messages.find((message) => message.id === current.id) ??
@@ -1629,6 +1667,10 @@ export function RoomsClient({
     applyPinnedMutation(message.id, !alreadyPinned);
   }
 
+  const applyRoomJumpWindow = useCallback((page: RoomTranscriptPage) => {
+    setTranscript((current) => mergeRoomJumpWindow(current, page));
+  }, []);
+
   const { handleSearchJump, handleJumpToMessage, invalidateJump } =
     useRoomMessageJumps({
       roomId: selectedRoom?.id ?? null,
@@ -1638,9 +1680,7 @@ export function RoomsClient({
       suppressStickToBottom,
       releaseStickToBottomSuppress,
       setSearchHoldOffBottom,
-      setMessagesState,
-      setOlderNextCursor,
-      historicalTimelineRef,
+      mergeRoomJumpWindow: applyRoomJumpWindow,
       historicalThreadRef,
       setThreadMessages,
       setThreadOlderNextCursor,
@@ -1725,28 +1765,80 @@ export function RoomsClient({
     }
   }
 
-  function handleLoadOlderMessages() {
-    if (!selectedRoom || !olderNextCursor || isLoadingOlder) {
+  /**
+   * Load the page directly older than the range that starts at
+   * `cursorMessageId`: the top of the transcript and every gap row alike.
+   * The failure stays on the row, which keeps its retry, rather than in a
+   * toast the reader has to connect back to it.
+   */
+  function handleLoadBoundary(cursorMessageId: string) {
+    if (!selectedRoom || loadingBoundariesRef.current.has(cursorMessageId)) {
       return;
     }
-
     const roomId = selectedRoom.id;
-    const cursor = olderNextCursor;
-    startLoadingOlderTransition(async () => {
-      const result = await listRoomMessagesAction(roomId, { cursor });
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
+    const generation = boundaryLoadGenerationRef.current;
+    loadingBoundariesRef.current.add(cursorMessageId);
+    setBoundaryStatus((current) => ({
+      ...current,
+      [cursorMessageId]: "loading",
+    }));
+    void (async () => {
+      const isCurrentLoad = () =>
+        isStillSelectedRoom(roomId) &&
+        generation === boundaryLoadGenerationRef.current;
+      try {
+        const result = await listRoomMessagesAction(roomId, {
+          cursor: cursorMessageId,
+          limit: ROOM_HISTORY_WINDOW_LIMIT,
+        });
+        if (!isCurrentLoad()) {
+          return;
+        }
+        if (!result.ok) {
+          setBoundaryStatus((current) => ({
+            ...current,
+            [cursorMessageId]: "failed",
+          }));
+          return;
+        }
+        const scroller = scrollerRef.current;
+        pendingScrollAnchorRef.current = scroller
+          ? (captureVisibleTranscriptScrollAnchor(scroller) ??
+            captureTranscriptScrollAnchor(scroller, cursorMessageId))
+          : null;
+        setTranscript((current) =>
+          mergeRoomOlderPage(current, cursorMessageId, result.value),
+        );
+        setBoundaryStatus((current) => {
+          const { [cursorMessageId]: _done, ...rest } = current;
+          return rest;
+        });
+      } catch {
+        // A dropped connection rejects the action itself. The row keeps its
+        // retry rather than spinning until the next reload.
+        if (isCurrentLoad()) {
+          setBoundaryStatus((current) => ({
+            ...current,
+            [cursorMessageId]: "failed",
+          }));
+        }
+      } finally {
+        if (generation === boundaryLoadGenerationRef.current) {
+          loadingBoundariesRef.current.delete(cursorMessageId);
+        }
       }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      setMessagesState((current) =>
-        mergeRoomMessages(current, result.value.messages),
-      );
-      setOlderNextCursor(result.value.nextCursor);
-    });
+    })();
   }
+
+  useLayoutEffect(() => {
+    const anchor = pendingScrollAnchorRef.current;
+    const scroller = scrollerRef.current;
+    if (!anchor || !scroller) {
+      return;
+    }
+    pendingScrollAnchorRef.current = null;
+    restoreTranscriptScrollAnchor(scroller, anchor);
+  }, [transcript]);
 
   function handleLoadOlderThreadMessages() {
     if (
@@ -2077,32 +2169,29 @@ export function RoomsClient({
     });
   }
 
-  const handleRetryOutbound = useCallback(
-    (message: ChatRoomMessage) => {
-      const clientTurnId = readClientTurnId(message);
-      if (!clientTurnId || !selectedRoom) {
-        return;
-      }
-      const isThread = message.parentMessageId != null;
-      const jobsRef = isThread ? classicThreadJobsRef : classicChannelJobsRef;
-      const job = jobsRef.current.get(clientTurnId);
-      if (!job) {
-        return;
-      }
-      if (isThread) {
-        setThreadMessages((current) =>
-          markOutboundMessagePending(current, clientTurnId),
-        );
-        enqueueClassicThreadJob(job);
-        return;
-      }
-      setMessagesState((current) =>
+  function handleRetryOutbound(message: ChatRoomMessage) {
+    const clientTurnId = readClientTurnId(message);
+    if (!clientTurnId || !selectedRoom) {
+      return;
+    }
+    const isThread = message.parentMessageId != null;
+    const jobsRef = isThread ? classicThreadJobsRef : classicChannelJobsRef;
+    const job = jobsRef.current.get(clientTurnId);
+    if (!job) {
+      return;
+    }
+    if (isThread) {
+      setThreadMessages((current) =>
         markOutboundMessagePending(current, clientTurnId),
       );
-      enqueueClassicChannelJob(job);
-    },
-    [selectedRoom],
-  );
+      enqueueClassicThreadJob(job);
+      return;
+    }
+    setMessagesState((current) =>
+      markOutboundMessagePending(current, clientTurnId),
+    );
+    enqueueClassicChannelJob(job);
+  }
 
   const handleRemoveOutbound = useCallback((message: ChatRoomMessage) => {
     const clientTurnId = readClientTurnId(message);
@@ -2127,6 +2216,57 @@ export function RoomsClient({
     setMessagesState((current) => removeOutboundMessage(current, clientTurnId));
   }, []);
 
+  // Transcript rows are memoized. Hand them callbacks whose identity never
+  // changes; each call reads the handler from the latest render, so nothing
+  // here closes over stale room state.
+  const latestMessageHandlers = {
+    handleOpenDirectMessage,
+    handleToggleReaction,
+    handleOpenThreadFromMessage,
+    handleQuoteMessage,
+    handlePinMessage,
+    handleStartEdit,
+    handleDeleteMessage,
+    handleRemoveUnfurl,
+    handleRetryMention,
+    handleRetryOutbound,
+    handleEditDraftChange,
+    handleCancelEdit,
+    handleSaveEdit,
+  };
+  const latestMessageHandlersRef = useRef(latestMessageHandlers);
+  latestMessageHandlersRef.current = latestMessageHandlers;
+  const stableMessageHandlers = useMemo(
+    () => ({
+      onOpenDirectMessage: (profile: ChatParticipantHoverProfile) =>
+        latestMessageHandlersRef.current.handleOpenDirectMessage(profile),
+      onToggleReaction: (message: ChatRoomMessage, emoji: string) =>
+        latestMessageHandlersRef.current.handleToggleReaction(message, emoji),
+      onOpenThread: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleOpenThreadFromMessage(message),
+      onQuote: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleQuoteMessage(message),
+      onPin: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handlePinMessage(message),
+      onStartEdit: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleStartEdit(message),
+      onDelete: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleDeleteMessage(message),
+      onRemoveUnfurl: (message: ChatRoomMessage, url: string) =>
+        latestMessageHandlersRef.current.handleRemoveUnfurl(message, url),
+      onRetryMention: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleRetryMention(message),
+      onRetryOutbound: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleRetryOutbound(message),
+      onEditDraftChange: (draft: string) =>
+        latestMessageHandlersRef.current.handleEditDraftChange(draft),
+      onCancelEdit: () => latestMessageHandlersRef.current.handleCancelEdit(),
+      onSaveEdit: (contentOverride?: string) =>
+        latestMessageHandlersRef.current.handleSaveEdit(contentOverride),
+    }),
+    [],
+  );
+
   const handleChannelBeforeSend = useCallback(
     (_clientMessageId: string) => {
       return selectedRoom != null;
@@ -2138,18 +2278,6 @@ export function RoomsClient({
     async (request: RoomSessionSendRequest): Promise<RoomSessionSendResult> => {
       if (!selectedRoom) return { ok: false };
       const roomId = selectedRoom.id;
-
-      if (historicalTimelineRef.current) {
-        const live = await listRoomMessagesAction(roomId);
-        if (!live.ok) {
-          toast.error(live.error.message);
-        } else if (isStillSelectedRoom(roomId)) {
-          historicalTimelineRef.current = false;
-          setSearchHoldOffBottom(false);
-          setMessagesState(live.value.messages);
-          setOlderNextCursor(live.value.nextCursor);
-        }
-      }
 
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
@@ -2406,34 +2534,25 @@ export function RoomsClient({
             </p>
           </div>
         ) : null}
-        {messagesPending || !olderNextCursor ? null : (
-          <div className="mb-4 flex justify-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={isLoadingOlder}
-              onClick={handleLoadOlderMessages}
-            >
-              {isLoadingOlder ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  {t("loadingOlder")}
-                </>
-              ) : (
-                t("loadOlder")
-              )}
-            </Button>
-          </div>
-        )}
         {showListSkeleton
           ? null
-          : displayMessages.map((message, index) => {
-              const previousMessage = displayMessages[index - 1];
+          : transcriptRows.map((row) => {
+              if (row.kind === "boundary") {
+                return (
+                  <TranscriptBoundaryRow
+                    key={`boundary:${row.cursorMessageId}`}
+                    cursorMessageId={row.cursorMessageId}
+                    isGap={row.isGap}
+                    status={boundaryStatus[row.cursorMessageId] ?? "idle"}
+                    onLoad={handleLoadBoundary}
+                  />
+                );
+              }
+              const { message, previousMessage, dayPreviousMessage } = row;
               const showDaySeparator =
                 localCalendarReady &&
-                (!previousMessage ||
-                  messageDayKey(previousMessage.createdAt) !==
+                (!dayPreviousMessage ||
+                  messageDayKey(dayPreviousMessage.createdAt) !==
                     messageDayKey(message.createdAt));
               const isStreamOverlay = message.id.startsWith("stream:");
               const isThinkingShell =
@@ -2469,9 +2588,11 @@ export function RoomsClient({
                       channelLinks={channelLinks}
                       currentUserId={currentUserId}
                       canOpenHumanDirect={canOpenHumanDirect}
-                      onOpenDirectMessage={handleOpenDirectMessage}
+                      onOpenDirectMessage={
+                        stableMessageHandlers.onOpenDirectMessage
+                      }
                       openingDirectParticipantKey={openingDirectKey}
-                      onToggleReaction={handleToggleReaction}
+                      onToggleReaction={stableMessageHandlers.onToggleReaction}
                       onOpenThread={
                         !isOutboundLocal &&
                         shouldShowChatRoomThreadButton({
@@ -2479,34 +2600,44 @@ export function RoomsClient({
                           isStreamOverlay,
                           isThinkingShell,
                         })
-                          ? handleOpenThreadFromMessage
+                          ? stableMessageHandlers.onOpenThread
                           : undefined
                       }
-                      onQuote={isOutboundLocal ? undefined : handleQuoteMessage}
+                      onQuote={
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onQuote
+                      }
                       onPin={
                         !isDirectRoom && !isOutboundLocal
-                          ? handlePinMessage
+                          ? stableMessageHandlers.onPin
                           : undefined
                       }
                       showPinButton={!isDirectRoom && !isOutboundLocal}
                       isPinned={pinnedMessageIds.has(message.id)}
                       onStartEdit={
-                        isOutboundLocal ? undefined : handleStartEdit
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onStartEdit
                       }
                       onDelete={
-                        isOutboundLocal ? undefined : handleDeleteMessage
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onDelete
                       }
                       onRemoveUnfurl={
-                        isOutboundLocal ? undefined : handleRemoveUnfurl
+                        isOutboundLocal
+                          ? undefined
+                          : stableMessageHandlers.onRemoveUnfurl
                       }
-                      onRetryOutbound={handleRetryOutbound}
+                      onRetryOutbound={stableMessageHandlers.onRetryOutbound}
                       onRetryMention={
                         isCurrentUserMentionerOfFailedShell({
                           shell: message,
                           currentUserId,
                           sourceMessages: mentionRetrySourceMessages,
                         })
-                          ? handleRetryMention
+                          ? stableMessageHandlers.onRetryMention
                           : undefined
                       }
                       onRemoveOutbound={handleRemoveOutbound}
@@ -2517,9 +2648,11 @@ export function RoomsClient({
                           ? editSession.draft
                           : ""
                       }
-                      onEditDraftChange={handleEditDraftChange}
-                      onCancelEdit={handleCancelEdit}
-                      onSaveEdit={handleSaveEdit}
+                      onEditDraftChange={
+                        stableMessageHandlers.onEditDraftChange
+                      }
+                      onCancelEdit={stableMessageHandlers.onCancelEdit}
+                      onSaveEdit={stableMessageHandlers.onSaveEdit}
                       isSavingEdit={
                         isSavingEdit && editSession?.messageId === message.id
                       }
@@ -2631,7 +2764,7 @@ export function RoomsClient({
               onSend={handleChannelSend}
               currentUserId={currentUserId}
               canOpenHumanDirect={canOpenHumanDirect}
-              onOpenDirectMessage={handleOpenDirectMessage}
+              onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
               openingDirectParticipantKey={openingDirectKey}
             />
           }
@@ -2663,25 +2796,25 @@ export function RoomsClient({
                 isSendingReply={
                   isCoworkerStreaming && threadStreamOverlayMessages.length > 0
                 }
-                onRetryOutbound={handleRetryOutbound}
-                onRetryMention={handleRetryMention}
+                onRetryOutbound={stableMessageHandlers.onRetryOutbound}
+                onRetryMention={stableMessageHandlers.onRetryMention}
                 onRemoveOutbound={handleRemoveOutbound}
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadSidePanel}
-                onToggleReaction={handleToggleReaction}
+                onToggleReaction={stableMessageHandlers.onToggleReaction}
                 onQuote={handleQuoteThreadMessage}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={handleOpenDirectMessage}
+                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
-                onStartEdit={handleStartEdit}
-                onDelete={handleDeleteMessage}
-                onRemoveUnfurl={handleRemoveUnfurl}
+                onStartEdit={stableMessageHandlers.onStartEdit}
+                onDelete={stableMessageHandlers.onDelete}
+                onRemoveUnfurl={stableMessageHandlers.onRemoveUnfurl}
                 editSession={editSession}
-                onEditDraftChange={handleEditDraftChange}
-                onCancelEdit={handleCancelEdit}
-                onSaveEdit={handleSaveEdit}
+                onEditDraftChange={stableMessageHandlers.onEditDraftChange}
+                onCancelEdit={stableMessageHandlers.onCancelEdit}
+                onSaveEdit={stableMessageHandlers.onSaveEdit}
                 isSavingEdit={isSavingEdit}
                 pendingQuote={pendingThreadQuote}
                 onClearPendingQuote={() => setPendingThreadQuote(null)}
@@ -2732,15 +2865,13 @@ export function RoomsClient({
                 channelLinks={channelLinks}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={handleOpenDirectMessage}
+                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
                 onIdsLoaded={handlePinnedIdsLoaded}
                 onClose={() => {
                   setPinnedOpen(false);
                 }}
-                onJump={(messageId) => {
-                  void handleJumpToMessage(messageId);
-                }}
+                onJump={handleJumpToMessage}
                 onUnpin={async (messageId) => {
                   const result = await unpinRoomMessageAction(
                     selectedRoom.id,
@@ -2762,6 +2893,7 @@ export function RoomsClient({
                   couldNotLoad: t("PinnedMessages.couldNotLoad"),
                   unpin: t("PinnedMessages.unpin"),
                   loadOlder: t("loadOlder"),
+                  jumping: t("PinnedMessages.jumping"),
                 }}
               />
             ) : showRoomRosterControl && rosterOpen ? (
@@ -2769,7 +2901,7 @@ export function RoomsClient({
                 participants={getRoomParticipantPreviews(selectedRoom)}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirect={handleOpenDirectMessage}
+                onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
                 onClose={() => {
                   setRosterOpen(false);

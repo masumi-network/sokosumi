@@ -59,13 +59,19 @@ import SwiftUI
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
+    var onQuote: (() -> Void)?
+    var onQuoteJump: ((String) -> Void)?
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
     var streamThinking = false
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
-    @FocusState private var replyFocused: Bool
+    @FocusState private var focusedAction: MessageAction?
+
+    private enum MessageAction: Hashable {
+      case quote, reply
+    }
 
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
@@ -105,6 +111,10 @@ import SwiftUI
               .italic()
               .foregroundStyle(.secondary)
           } else {
+            if let quote = message.quote {
+              MessageQuoteView(quote: quote, room: room, channels: channels, jump: onQuoteJump)
+                .id(quote.messageId + quote.snippet)
+            }
             MessageMarkdownView(source: message.content, room: room, channels: channels)
             if isContinuation, message.editedAt != nil {
               Text("Edited").font(.caption).foregroundStyle(.secondary)
@@ -138,42 +148,23 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
+      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil) ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
-        if let onReply, message.deletedAt == nil {
-          Button(action: onReply) {
-            HStack(spacing: 4) {
-              Image(systemName: "text.bubble")
-                .font(.body)
-              Text("Reply")
-                .font(.caption)
+        if message.deletedAt == nil, onReply != nil || onQuote != nil {
+          HStack(spacing: 0) {
+            if let onQuote {
+              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
             }
-            .padding(.horizontal, 10)
-            .frame(height: replyActionHeight)
-            .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
-                        in: .rect(cornerRadius: 8))
-            .contentShape(.rect(cornerRadius: 8))
+            if let onReply {
+              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
+            }
           }
-          .buttonStyle(.borderless)
           .background(.regularMaterial, in: .rect(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
-          .onContinuousHover { phase in
-            let hovering = switch phase {
-            case .active: true
-            case .ended: false
-            }
-            if isReplyHovered != hovering {
-              isReplyHovered = hovering
-            }
-          }
-          .focused($replyFocused)
-          .help("Reply in thread")
-          .accessibilityLabel("Reply in thread")
-          .opacity(isHovered || isReplyHovered || replyFocused ? 1 : 0)
-          .allowsHitTesting(isHovered || isReplyHovered || replyFocused)
+          .onHover { isReplyHovered = $0 }
+          .opacity(isHovered || isReplyHovered || focusedAction != nil ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil)
           .padding(.trailing, horizontalInset)
-          // Move the rendered button by exactly half its height. An alignment
-          // guide inside this conditional overlay does not reposition it.
           .offset(y: -replyActionHeight / 2)
         }
       }
@@ -189,18 +180,37 @@ import SwiftUI
         }
       }
       .contextMenu {
+        if let onQuote {
+          Button("Quote message", systemImage: "quote.opening", action: onQuote)
+        }
         if let onReply, message.deletedAt == nil {
           Button("Reply in thread", systemImage: "bubble.right", action: onReply)
         }
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
+        if let onQuote {
+          Button("Quote message", action: onQuote)
+        }
         if let onReply, message.deletedAt == nil {
           Button("Reply in thread", action: onReply)
         }
       }
       // Sender-group separation is outside the consistently padded hover row.
       .padding(.top, isContinuation ? 0 : 8)
+    }
+
+    private func messageAction(_ title: String, symbol: String, focus: MessageAction, action: @escaping () -> Void) -> some View {
+      Button(action: action) {
+        Label(title, systemImage: symbol)
+          .font(.caption)
+          .padding(.horizontal, 10)
+          .frame(height: replyActionHeight)
+          .contentShape(.rect)
+      }
+      .buttonStyle(.borderless)
+      .focused($focusedAction, equals: focus)
+      .help(title == "Reply" ? "Reply in thread" : "Quote message")
     }
 
     private var pendingSince: Date? {

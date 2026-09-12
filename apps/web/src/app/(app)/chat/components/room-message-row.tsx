@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  memo,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
@@ -2003,7 +2004,7 @@ function MessageMetaFooter({
   );
 }
 
-export function ChatMessageRow({
+export const ChatMessageRow = memo(function ChatMessageRow({
   message,
   coworkersById,
   coworkersBySlug,
@@ -2169,9 +2170,28 @@ export function ChatMessageRow({
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const longPress = useLongPress(() => {
+  // Neither overlay is mounted until first opened. A closed Radix dialog
+  // still costs a root, a portal, and its contexts per row, and a transcript
+  // carries a couple of hundred rows. Once opened it stays mounted so its
+  // exit animation can run.
+  const [sheetMounted, setSheetMounted] = useState(false);
+  const [deleteDialogMounted, setDeleteDialogMounted] = useState(false);
+  // The hover action pill and the participant hover cards only matter once
+  // the pointer enters the row or focus lands inside it. Until then the row
+  // renders neither, so a 200-row transcript and a jump merge skip six
+  // buttons, a popover root, a dropdown root, and two hover-card roots per
+  // row. The latch never resets; a hovered row keeps its chrome.
+  const [interacted, setInteracted] = useState(false);
+  function markInteracted() {
+    if (!interacted) {
+      setInteracted(true);
+    }
+  }
+  function openSheet() {
+    setSheetMounted(true);
     setSheetOpen(true);
-  });
+  }
+  const longPress = useLongPress(openSheet);
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
   const canCopy =
@@ -2191,6 +2211,7 @@ export function ChatMessageRow({
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
+    setDeleteDialogMounted(true);
     setDeleteDialogOpen(true);
   }
 
@@ -2219,6 +2240,8 @@ export function ChatMessageRow({
             : "mt-2 min-h-0 pt-1 pb-0.5",
       )}
       {...(showActions ? longPress : {})}
+      onPointerEnter={markInteracted}
+      onFocus={markInteracted}
     >
       {isContinuation ? (
         // Same width as avatar rail so continuation body lines up with header body.
@@ -2255,6 +2278,7 @@ export function ChatMessageRow({
           onOpenDirect={onOpenDirectMessage}
           isOpeningDirect={isOpeningDirect}
           isDirectActionBusy={isDirectActionBusy}
+          active={interacted}
         >
           <span
             data-testid="message-sender-avatar"
@@ -2297,6 +2321,7 @@ export function ChatMessageRow({
               onOpenDirect={onOpenDirectMessage}
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
+              active={interacted}
             >
               <span className="truncate text-base font-semibold md:text-sm">
                 {sender.name}
@@ -2454,54 +2479,61 @@ export function ChatMessageRow({
       </div>
       {showActions ? (
         <>
-          <MessageActions
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            onQuote={onQuote}
-            onPin={onPin}
-            onCopy={handleCopy}
-            onEdit={onStartEdit}
-            onDelete={requestDelete}
-            showThreadButton={showThreadButton}
-            showQuoteButton={canQuote}
-            showPinButton={canPin}
-            isPinned={isPinned}
-            showCopyButton={canCopy}
-            showEditButton={canEdit}
-            showDeleteButton={canDelete}
-          />
+          {/* Always mounted, and ahead of the pill in DOM order: on a row
+              whose body has no other tab stop this is the first stop, it
+              mounts the pill, and the next Tab then walks into it. */}
           <button
             type="button"
             className="sr-only"
             onClick={() => {
-              setSheetOpen(true);
+              openSheet();
             }}
           >
             {tChannels("Actions.more")}
           </button>
-          <TouchMessageActionsSheet
-            open={sheetOpen}
-            onOpenChange={setSheetOpen}
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            onQuote={onQuote}
-            onPin={onPin}
-            onCopy={handleCopy}
-            onEdit={onStartEdit}
-            onDelete={requestDelete}
-            showThreadButton={showThreadButton}
-            showQuoteButton={canQuote}
-            showPinButton={canPin}
-            isPinned={isPinned}
-            showCopyButton={canCopy}
-            showEditButton={canEdit}
-            showDeleteButton={canDelete}
-          />
+          {interacted ? (
+            <MessageActions
+              message={message}
+              onToggleReaction={onToggleReaction}
+              onOpenThread={onOpenThread}
+              onQuote={onQuote}
+              onPin={onPin}
+              onCopy={handleCopy}
+              onEdit={onStartEdit}
+              onDelete={requestDelete}
+              showThreadButton={showThreadButton}
+              showQuoteButton={canQuote}
+              showPinButton={canPin}
+              isPinned={isPinned}
+              showCopyButton={canCopy}
+              showEditButton={canEdit}
+              showDeleteButton={canDelete}
+            />
+          ) : null}
+          {sheetMounted ? (
+            <TouchMessageActionsSheet
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              message={message}
+              onToggleReaction={onToggleReaction}
+              onOpenThread={onOpenThread}
+              onQuote={onQuote}
+              onPin={onPin}
+              onCopy={handleCopy}
+              onEdit={onStartEdit}
+              onDelete={requestDelete}
+              showThreadButton={showThreadButton}
+              showQuoteButton={canQuote}
+              showPinButton={canPin}
+              isPinned={isPinned}
+              showCopyButton={canCopy}
+              showEditButton={canEdit}
+              showDeleteButton={canDelete}
+            />
+          ) : null}
         </>
       ) : null}
-      {canDelete ? (
+      {canDelete && deleteDialogMounted ? (
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -2526,4 +2558,4 @@ export function ChatMessageRow({
       ) : null}
     </article>
   );
-}
+});

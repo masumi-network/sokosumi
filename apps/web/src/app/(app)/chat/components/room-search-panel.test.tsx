@@ -97,7 +97,7 @@ describe("RoomSearchPanel", () => {
     getChatRoomMessagesMock.mockResolvedValue({ data: [message()] });
   });
 
-  it("shows the search field in the header before the results open", () => {
+  it("opens the results only once there is a query", async () => {
     renderPanel();
 
     expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
@@ -105,8 +105,146 @@ describe("RoomSearchPanel", () => {
 
     openSearch();
 
+    expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
+
+    typeQuery("budget");
+
     expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
-    expect(screen.getByText(labels.idle)).toBeInTheDocument();
+    expect(await screen.findByTestId("room-search-result")).toBeInTheDocument();
+  });
+
+  describe("collapsed icon", () => {
+    function fieldState() {
+      return screen.getByTestId("room-search-field").getAttribute("data-state");
+    }
+
+    it("rests as an icon and grows on focus", () => {
+      renderPanel();
+
+      expect(fieldState()).toBe("collapsed");
+
+      fireEvent.focus(screen.getByTestId("room-search-input"));
+
+      expect(fieldState()).toBe("expanded");
+    });
+
+    it("drops its padding while collapsed so it stays inside the icon box", () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      expect(input).toHaveClass("px-0");
+      expect(input).not.toHaveClass("pl-8");
+
+      fireEvent.focus(input);
+
+      expect(input).toHaveClass("pl-8");
+      expect(input).not.toHaveClass("px-0");
+    });
+
+    it("shrinks back on blur when there is no query", () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      fireEvent.focus(input);
+      fireEvent.blur(input);
+
+      expect(fieldState()).toBe("collapsed");
+    });
+
+    it("stays open while a query is present", async () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      fireEvent.blur(input);
+
+      expect(input).toHaveValue("budget");
+      expect(fieldState()).toBe("expanded");
+    });
+
+    it("grows from the host shortcut", async () => {
+      renderPanel();
+
+      fireEvent.keyDown(window, { key: "f", metaKey: true });
+
+      await waitFor(() => {
+        expect(fieldState()).toBe("expanded");
+      });
+    });
+
+    it("collapses on Escape when the field is empty", async () => {
+      renderPanel();
+      const input = screen.getByTestId("room-search-input");
+
+      fireEvent.keyDown(window, { key: "f", metaKey: true });
+      await waitFor(() => {
+        expect(input).toHaveFocus();
+      });
+
+      fireEvent.keyDown(input, { key: "Escape" });
+
+      expect(input).not.toHaveFocus();
+      expect(fieldState()).toBe("collapsed");
+    });
+
+    it("does not show the idle hint on focus", () => {
+      renderPanel();
+
+      fireEvent.focus(screen.getByTestId("room-search-input"));
+
+      expect(screen.queryByText(labels.idle)).not.toBeInTheDocument();
+    });
+
+    it("does not paint the previous hits after the query is cleared", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      expect(await screen.findByTestId("room-search-result")).toHaveTextContent(
+        "Hello budget review",
+      );
+
+      typeQuery("");
+      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
+
+      getChatRoomMessagesMock.mockClear();
+      typeQuery("other");
+
+      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+      expect(screen.queryByText("Hello budget review")).not.toBeInTheDocument();
+      expect(getChatRoomMessagesMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("shows loading, not the idle hint, while the debounce is pending", () => {
+    renderPanel();
+
+    openSearch();
+    typeQuery("b");
+
+    expect(screen.queryByText(labels.idle)).not.toBeInTheDocument();
+    expect(screen.getByText(labels.loading)).toBeInTheDocument();
+  });
+
+  it("replaces a stale error with loading while the next query is pending", async () => {
+    getChatRoomMessagesMock.mockRejectedValueOnce(new Error("boom"));
+    renderPanel();
+
+    openSearch();
+    typeQuery("budget");
+    await screen.findByText(labels.error);
+
+    typeQuery("budgets");
+
+    expect(screen.queryByText(labels.error)).not.toBeInTheDocument();
+    expect(screen.getByText(labels.loading)).toBeInTheDocument();
   });
 
   it("shows results after a debounced query", async () => {
@@ -203,7 +341,7 @@ describe("RoomSearchPanel", () => {
       );
     });
 
-    it("focuses the field from the host shortcut", async () => {
+    it("focuses the field from the host shortcut without opening results", async () => {
       renderPanel();
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
@@ -211,7 +349,7 @@ describe("RoomSearchPanel", () => {
       await waitFor(() => {
         expect(screen.getByTestId("room-search-input")).toHaveFocus();
       });
-      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
     });
 
     it("ignores the foreign modifier for the platform", () => {
@@ -229,17 +367,20 @@ describe("RoomSearchPanel", () => {
       fireEvent.keyDown(window, { key: "f", ctrlKey: true });
 
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+        expect(screen.getByTestId("room-search-input")).toHaveFocus();
       });
     });
 
-    it("leaves find-in-page alone on a second press inside the field", async () => {
+    it("puts the search away on a second press, without find-in-page", async () => {
       renderPanel();
+      const input = screen.getByTestId("room-search-input");
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-input")).toHaveFocus();
+        expect(input).toHaveFocus();
       });
+      typeQuery("budget");
+      await screen.findByTestId("room-search-result");
 
       const secondPress = new KeyboardEvent("keydown", {
         key: "f",
@@ -249,7 +390,17 @@ describe("RoomSearchPanel", () => {
       });
       window.dispatchEvent(secondPress);
 
-      expect(secondPress.defaultPrevented).toBe(false);
+      expect(secondPress.defaultPrevented).toBe(true);
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
+      });
+      expect(input).not.toHaveFocus();
+      expect(input).toHaveValue("");
+      expect(
+        screen.getByTestId("room-search-field").getAttribute("data-state"),
+      ).toBe("collapsed");
     });
 
     it("moves through results and jumps with Enter", async () => {
@@ -280,8 +431,10 @@ describe("RoomSearchPanel", () => {
 
       fireEvent.keyDown(window, { key: "f", metaKey: true });
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+        expect(screen.getByTestId("room-search-input")).toHaveFocus();
       });
+      typeQuery("budget");
+      await screen.findByTestId("room-search-result");
 
       fireEvent.keyDown(screen.getByTestId("room-search-input"), {
         key: "Escape",
@@ -291,19 +444,18 @@ describe("RoomSearchPanel", () => {
       expect(screen.getByTestId("room-search-input")).toHaveFocus();
     });
 
-    it("reopens from the shortcut after Escape, with the field still focused", async () => {
+    it("reopens the results from the shortcut when a query survived", async () => {
       renderPanel();
 
-      fireEvent.keyDown(window, { key: "f", metaKey: true });
+      openSearch();
+      typeQuery("budget");
+      fireEvent.click(await screen.findByTestId("room-search-result"));
       await waitFor(() => {
-        expect(screen.getByTestId("room-search-input")).toHaveFocus();
+        expect(
+          screen.queryByTestId("room-search-panel"),
+        ).not.toBeInTheDocument();
       });
-
-      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
-        key: "Escape",
-      });
-      expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
-      expect(screen.getByTestId("room-search-input")).toHaveFocus();
+      screen.getByTestId("room-search-input").blur();
 
       const reopen = new KeyboardEvent("keydown", {
         key: "f",
@@ -503,6 +655,21 @@ describe("RoomSearchPanel", () => {
       expect(await screen.findByTestId("room-search-result")).toHaveTextContent(
         "Hello budget review",
       );
+    });
+
+    it("keeps the field mounted when the query is cleared", async () => {
+      renderPanel();
+
+      openSearch();
+      typeQuery("budget");
+      await screen.findByTestId("room-search-result");
+
+      typeQuery("");
+
+      expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
+      expect(screen.getByTestId("room-search-input")).toBeInTheDocument();
+      expect(screen.getByText(labels.idle)).toBeInTheDocument();
+      expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
     });
   });
 });
