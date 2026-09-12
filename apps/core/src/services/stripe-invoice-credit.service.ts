@@ -397,7 +397,6 @@ function buildInvoiceCreditGrants(
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
 ): Promise<void> {
-  // Validate invoice has required data
   if (!invoice.id) {
     return;
   }
@@ -411,28 +410,23 @@ export async function handleInvoicePaidEvent(
     return;
   }
 
-  // Get the Stripe customer ID from the invoice
   const stripeCustomerId =
     typeof invoice.customer === "string"
       ? invoice.customer
       : invoice.customer.id;
 
-  // Look up the user or organization by stripeCustomerId
   let userId: string | null = null;
   let organizationId: string | null = null;
   let purchasedSeats = 1;
 
-  // First, try to find a user with this stripeCustomerId
   const user = await userRepository.getUserByStripeCustomerId(
     stripeCustomerId,
     prisma,
   );
 
   if (user) {
-    // This is a user purchase
     userId = user.id;
   } else {
-    // Try to find an organization with this stripeCustomerId
     const organization =
       await organizationRepository.getOrganizationByStripeCustomerId(
         stripeCustomerId,
