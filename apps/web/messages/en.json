@@ -1797,7 +1797,8 @@
           "stateCanceled": "Canceled",
           "stateReleased": "Released",
           "stateMissed": "Missed",
-          "archivedRun": "Archived"
+          "archivedRun": "Archived",
+          "move": "Move"
         },
         "files": "Files",
         "assignee": "Assignee"
@@ -1914,7 +1915,18 @@
           "quarantined": "This schedule is paused for repair and cannot be changed. Contact support to restore it.",
           "operationConflict": "This save was already sent with different details. Reopen the schedule and try again.",
           "activeSeries": "This task runs on a schedule. Change or remove its schedule first.",
-          "unknownCount": "We could not check which upcoming runs a new rule would cancel. Reload the page, reopen the schedule, and try again."
+          "unknownCount": "We could not check which upcoming runs a new rule would cancel. Reload the page, reopen the schedule, and try again.",
+          "occurrenceLocked": "This occurrence can no longer be moved.",
+          "occurrenceTargetInvalid": "That time is not a valid target."
+        },
+        "occurrenceMove": {
+          "title": "Move occurrence",
+          "description": "Choose a new time for this run.",
+          "label": "New time",
+          "confirm": "Move occurrence",
+          "cancel": "Cancel",
+          "invalid": "Choose a valid date and time.",
+          "error": "Unable to move this occurrence. Please try again."
         },
         "option": {
           "oneTime": "One-time",
@@ -6097,6 +6109,7 @@
       "event": {
         "accessibleName": "{task}, {source}",
         "editSchedule": "Edit schedule",
+        "moveOccurrence": "Move occurrence",
         "openTask": "Open task"
       },
       "create": {

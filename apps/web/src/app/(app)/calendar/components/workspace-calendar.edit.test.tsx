@@ -22,8 +22,22 @@ interface FullCalendarProps {
   dateClick?: (info: { date: Date }) => void;
   dayCellClass?: string;
   editable?: boolean;
+  eventAllow?: (
+    span: Record<string, never>,
+    movingEvent: { id: string } | null,
+  ) => boolean;
   eventContent?: (info: { event: { id: string; title: string } }) => ReactNode;
-  events?: Array<{ id: string; title: string }>;
+  eventDrop?: (info: {
+    event: { id: string; start: Date | null };
+    revert: () => void;
+  }) => void;
+  events?: Array<{
+    id: string;
+    title: string;
+    start: string;
+    startEditable?: boolean;
+    durationEditable?: boolean;
+  }>;
   plugins?: unknown[];
 }
 
@@ -42,8 +56,10 @@ const {
   openCreateTaskModalMock,
   pushMock,
   refreshMock,
+  rescheduleTaskOccurrenceMock,
   saveCalendarTaskScheduleMock,
   taskScheduleSectionMock,
+  toastErrorMock,
 } = vi.hoisted(() => ({
   alertDialogActionMock: vi.fn(),
   alertDialogMock: vi.fn(),
@@ -59,8 +75,10 @@ const {
   openCreateTaskModalMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
+  rescheduleTaskOccurrenceMock: vi.fn(),
   saveCalendarTaskScheduleMock: vi.fn(),
   taskScheduleSectionMock: vi.fn(),
+  toastErrorMock: vi.fn(),
 }));
 
 vi.mock("@fullcalendar/react", () => ({
@@ -137,6 +155,10 @@ vi.mock("next-intl", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { error: (...args: unknown[]) => toastErrorMock(...args) },
 }));
 
 vi.mock("@/app/tasks/components/create-task-modal", () => ({
@@ -231,6 +253,7 @@ vi.mock("@/components/task-schedule-section", () => ({
 
 vi.mock("@/lib/actions/task/action", () => ({
   clearTaskSchedule: clearTaskScheduleMock,
+  rescheduleTaskOccurrence: rescheduleTaskOccurrenceMock,
   saveCalendarTaskSchedule: saveCalendarTaskScheduleMock,
 }));
 
@@ -397,6 +420,10 @@ describe("WorkspaceCalendar editing", () => {
     saveCalendarTaskScheduleMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task-1" },
+    });
+    rescheduleTaskOccurrenceMock.mockResolvedValue({
+      ok: true,
+      value: { taskId: "task-1", scheduleRevision: 4 },
     });
     clearTaskScheduleMock.mockResolvedValue({
       ok: true,
@@ -1446,6 +1473,173 @@ describe("WorkspaceCalendar editing", () => {
     expect(pushMock).toHaveBeenCalledWith(`/tasks/${RELEASED_ITEM.taskId}`);
     expect(getTaskByIdMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("makes only unreleased owned occurrence events draggable", () => {
+    renderCalendar({
+      items: [
+        ITEM,
+        { ...READ_ONLY_ITEM, id: "occurrence-readonly" },
+        RELEASED_ITEM,
+      ],
+    });
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const event = (id: string) =>
+      props.events?.find((candidate) => candidate.id === id);
+    expect(event(ITEM.id)?.startEditable).toBe(true);
+    expect(event("occurrence-readonly")?.startEditable).toBe(false);
+    expect(event(RELEASED_ITEM.id)?.startEditable).toBe(false);
+    expect(
+      props.events?.every((entry) => entry.durationEditable === false),
+    ).toBe(true);
+    expect(props.editable).toBe(false);
+    expect(props.eventAllow?.({}, { id: ITEM.id })).toBe(true);
+    expect(props.eventAllow?.({}, { id: "occurrence-readonly" })).toBe(false);
+    expect(props.eventAllow?.({}, { id: RELEASED_ITEM.id })).toBe(false);
+  });
+
+  it("refuses a drop on an occurrence the caller cannot move", () => {
+    renderCalendar({ items: [READ_ONLY_ITEM] });
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const revert = vi.fn();
+    act(() => {
+      props.eventDrop?.({
+        event: {
+          id: READ_ONLY_ITEM.id,
+          start: new Date("2030-01-03T10:30:00.000Z"),
+        },
+        revert,
+      });
+    });
+
+    expect(revert).toHaveBeenCalledOnce();
+    expect(rescheduleTaskOccurrenceMock).not.toHaveBeenCalled();
+  });
+
+  it("moves a dropped occurrence optimistically and sends its new time", async () => {
+    const request = createDeferred<{
+      ok: true;
+      value: { taskId: string; scheduleRevision: number };
+    }>();
+    rescheduleTaskOccurrenceMock.mockReturnValue(request.promise);
+    renderCalendar();
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const revert = vi.fn();
+    const droppedAt = new Date("2030-01-03T10:30:00.000Z");
+
+    await act(async () => {
+      props.eventDrop?.({
+        event: { id: ITEM.id, start: droppedAt },
+        revert,
+      });
+    });
+
+    expect(rescheduleTaskOccurrenceMock).toHaveBeenCalledWith({
+      taskId: ITEM.taskId,
+      occurrenceId: ITEM.id,
+      operationId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      ),
+      scheduledAt: droppedAt.toISOString(),
+    });
+    const optimistic = (
+      fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps
+    ).events?.find((candidate) => candidate.id === ITEM.id);
+    expect(optimistic?.start).toBe(droppedAt.toISOString());
+    expect(revert).not.toHaveBeenCalled();
+
+    await act(async () => {
+      request.resolve({
+        ok: true,
+        value: { taskId: ITEM.taskId, scheduleRevision: 4 },
+      });
+      await request.promise;
+    });
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+  });
+
+  it("rolls a failed drop back and shows the mapped copy", async () => {
+    rescheduleTaskOccurrenceMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "schedule_occurrence_not_reschedulable" },
+    });
+    renderCalendar();
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const droppedAt = new Date("2030-01-03T10:30:00.000Z");
+    const revert = vi.fn();
+
+    await act(async () => {
+      props.eventDrop?.({
+        event: { id: ITEM.id, start: droppedAt },
+        revert,
+      });
+    });
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("occurrenceLocked", {
+        duration: Infinity,
+      }),
+    );
+    expect(revert).toHaveBeenCalledOnce();
+    const rolledBack = (
+      fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps
+    ).events?.find((candidate) => candidate.id === ITEM.id);
+    expect(rolledBack?.start).toBe(ITEM.scheduledAt.toISOString());
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the route when a drop hits a stale series", async () => {
+    rescheduleTaskOccurrenceMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "schedule_revision_conflict" },
+    });
+    renderCalendar();
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    await act(async () => {
+      props.eventDrop?.({
+        event: { id: ITEM.id, start: new Date("2030-01-03T10:30:00.000Z") },
+        revert: vi.fn(),
+      });
+    });
+
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(toastErrorMock).toHaveBeenCalledWith("revisionConflict", {
+      duration: Infinity,
+    });
+  });
+
+  it("offers Move on a movable occurrence and keeps it off a released one", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ items: [ITEM, RELEASED_ITEM] });
+
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[0],
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.moveOccurrence" }),
+    );
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[1],
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "event.moveOccurrence" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the newest event selection when an earlier event fetch resolves last", async () => {

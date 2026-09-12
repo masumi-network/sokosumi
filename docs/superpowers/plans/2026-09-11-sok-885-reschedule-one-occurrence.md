@@ -104,12 +104,12 @@
 
 ### Steps
 
-- [ ] Make only occurrence events draggable; wire `eventDrop` to the reschedule contract with the observed revision and a stable operation id, with optimistic rollback on every stable kind.
-- [ ] Add a keyboard/mobile "Move occurrence" action on the Calendar event and the Task-detail Upcoming row using the existing date/time picker.
-- [ ] Refresh on `schedule_revision_conflict` / `schedule_cursor_stale`.
-- [ ] Add en/de/es copy with exact key parity.
-- [ ] Run `pnpm --filter web messages:parity && pnpm --filter web typecheck` and the affected component tests.
-- [ ] Commit: `feat(calendar): drag and move one occurrence`
+- [x] Make only occurrence events draggable; wire `eventDrop` to the reschedule contract with the observed revision and a stable operation id, with optimistic rollback on every stable kind.
+- [x] Add a keyboard/mobile "Move occurrence" action on the Calendar event and the Task-detail Upcoming row using the existing date/time picker.
+- [x] Refresh on `schedule_revision_conflict` / `schedule_cursor_stale`.
+- [x] Add en/de/es copy with exact key parity.
+- [x] Run `pnpm --filter web messages:parity && pnpm --filter web typecheck` and the affected component tests.
+- [x] Commit: `feat(calendar): drag and move one occurrence`
 
 ## Final integration and review
 
