@@ -102,7 +102,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // Check if the prefix already has ANY blobs (marker or files)
     const existingBlobs = await list({
       prefix,
       token,
@@ -113,7 +112,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("Folder already exists");
     }
 
-    // Check if a file with the same name exists (without the trailing slash)
     const filePathname = prefix.slice(0, -1);
     try {
       await head(filePathname, { token });

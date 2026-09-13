@@ -55,7 +55,6 @@ export const calculateAgentRatings = async (
     _avg: { rating: true },
   });
 
-  // Convert array to Map for O(1) lookups
   const ratingsMap = new Map(
     ratings.map((rating) => [
       rating.agentId,
@@ -66,7 +65,6 @@ export const calculateAgentRatings = async (
     ]),
   );
 
-  // Initialize all agentIds with default values (for agents with no ratings)
   for (const agentId of agentIds) {
     if (!ratingsMap.has(agentId)) {
       ratingsMap.set(agentId, {
