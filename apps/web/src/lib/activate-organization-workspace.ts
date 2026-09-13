@@ -3,7 +3,7 @@ import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 
 /** Better Auth `ORGANIZATION_ERROR_CODES.USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION`. */
-export const USER_NOT_MEMBER_OF_ORGANIZATION_MESSAGE =
+const USER_NOT_MEMBER_OF_ORGANIZATION_MESSAGE =
   "User is not a member of the organization";
 
 export function isUserNotMemberOfOrganizationError(error: unknown): boolean {
