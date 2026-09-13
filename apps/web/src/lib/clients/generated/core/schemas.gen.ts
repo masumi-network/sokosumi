@@ -19252,7 +19252,15 @@ export const TaskScheduleOccurrenceSchema = {
             example: 'EXACT'
         },
         releasedTask: {
-            $ref: '#/components/schemas/TaskScheduleOccurrenceReleasedTask'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskScheduleOccurrenceReleasedTask'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Independent Task this occurrence released, when it did'
         }
     },
     required: [
@@ -19275,10 +19283,7 @@ export const TaskScheduleOccurrenceSchema = {
 } as const;
 
 export const TaskScheduleOccurrenceReleasedTaskSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -19323,8 +19328,7 @@ export const TaskScheduleOccurrenceReleasedTaskSchema = {
         'name',
         'status',
         'archivedAt'
-    ],
-    description: 'Independent Task this occurrence released, when it did'
+    ]
 } as const;
 
 export const TaskScheduleOccurrenceViewSchema = {

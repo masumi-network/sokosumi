@@ -99,9 +99,13 @@ export const taskScheduleOccurrenceSchema = z
     timeAccuracy: z
       .enum(CalendarTimeAccuracy)
       .openapi({ example: CalendarTimeAccuracy.EXACT }),
-    releasedTask: taskScheduleOccurrenceReleasedTaskSchema.nullable().openapi({
-      description: "Independent Task this occurrence released, when it did",
-    }),
+    // Union-with-null instead of `.nullable()`: `.nullable()` on a named
+    // component makes the generated response transformer dereference null.
+    releasedTask: z
+      .union([taskScheduleOccurrenceReleasedTaskSchema, z.null()])
+      .openapi({
+        description: "Independent Task this occurrence released, when it did",
+      }),
   })
   .openapi("TaskScheduleOccurrence");
 

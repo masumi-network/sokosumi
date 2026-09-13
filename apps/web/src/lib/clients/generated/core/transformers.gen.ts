@@ -2822,7 +2822,9 @@ const taskScheduleOccurrenceSchemaResponseTransformer = (data: any) => {
         data.originalScheduledAt = new Date(data.originalScheduledAt);
     }
     data.effectiveScheduledAt = new Date(data.effectiveScheduledAt);
-    data.releasedTask = taskScheduleOccurrenceReleasedTaskSchemaResponseTransformer(data.releasedTask);
+    if (data.releasedTask) {
+        data.releasedTask = taskScheduleOccurrenceReleasedTaskSchemaResponseTransformer(data.releasedTask);
+    }
     return data;
 };
 
