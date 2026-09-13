@@ -11,8 +11,9 @@
 
 Core hire APIs can run a paid job on an x402 direct-settlement agent:
 call → 402 → node-pay → replay inside Soko's job pipeline, and the HTTP
-response is the result. Web `/agents` does **not** hire (SOK-805:
-Coworkers-only gallery). Listing is already public `GET /v1/agents`
+response is the result. Web `/agents` restored Agent catalog browse
+(ADR-0024) but does **not** hire (SOK-805 remainder / app Hire ban).
+Listing is already public `GET /v1/agents`
 (`kind: "x402"`) from PR 1 — PR 2 **hires those listed agents**. Do not
 flip x402 into `buildAvailableAgentWhereClause` (that predicate stays
 Cardano MIP-003). Escrow paths untouched. Shares with PR 1: CAIP-19
