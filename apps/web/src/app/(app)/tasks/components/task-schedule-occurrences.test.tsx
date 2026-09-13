@@ -66,6 +66,7 @@ function renderOccurrences(
     <NextIntlClientProvider locale="en" messages={messages}>
       <TaskScheduleOccurrences
         taskId="task_1"
+        scheduleRevision={4}
         upcoming={{ occurrences: [], nextCursor: null }}
         history={{ occurrences: [], nextCursor: null }}
         hasActiveSchedule
@@ -491,6 +492,7 @@ describe("TaskScheduleOccurrences", () => {
         operationId: expect.stringMatching(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
         ),
+        expectedScheduleRevision: 4,
         scheduledAt: "2026-09-11T08:30:00.000Z",
       }),
     );

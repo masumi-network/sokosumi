@@ -31,8 +31,20 @@ export interface TaskScheduleOccurrencesPageData {
   nextCursor: string | null;
 }
 
+function appendOccurrencePage(
+  previous: TaskScheduleOccurrencesPageData,
+  occurrences: TaskScheduleOccurrence[],
+  nextCursor: string | null,
+): TaskScheduleOccurrencesPageData {
+  return {
+    occurrences: [...previous.occurrences, ...occurrences],
+    nextCursor,
+  };
+}
+
 interface TaskScheduleOccurrencesProps {
   taskId: string;
+  scheduleRevision: number;
   upcoming: TaskScheduleOccurrencesPageData;
   history: TaskScheduleOccurrencesPageData;
   /** False once the series was removed; its history is still preserved. */
@@ -53,7 +65,11 @@ interface MoveOccurrenceState {
  * rows are history, and Core rejects a move that has no live target.
  */
 function isMovableOccurrence(occurrence: TaskScheduleOccurrence): boolean {
-  return occurrence.state === "PLANNED" && !occurrence.isMissed;
+  return (
+    occurrence.state === "PLANNED" &&
+    !occurrence.isMissed &&
+    (occurrence.scheduleVersion === 2 || occurrence.timezone === null)
+  );
 }
 
 /**
@@ -64,6 +80,7 @@ function isMovableOccurrence(occurrence: TaskScheduleOccurrence): boolean {
  */
 export function TaskScheduleOccurrences({
   taskId,
+  scheduleRevision,
   upcoming,
   history,
   hasActiveSchedule,
@@ -103,14 +120,22 @@ export function TaskScheduleOccurrences({
           return;
         }
 
-        const append = (previous: TaskScheduleOccurrencesPageData) => ({
-          occurrences: [...previous.occurrences, ...result.occurrences],
-          nextCursor: result.nextCursor,
-        });
         if (view === "upcoming") {
-          setUpcomingPage(append);
+          setUpcomingPage((previous) =>
+            appendOccurrencePage(
+              previous,
+              result.occurrences,
+              result.nextCursor,
+            ),
+          );
         } else {
-          setHistoryPage(append);
+          setHistoryPage((previous) =>
+            appendOccurrencePage(
+              previous,
+              result.occurrences,
+              result.nextCursor,
+            ),
+          );
         }
       } catch (error) {
         console.error("Failed to load more task schedule occurrences", {
@@ -172,6 +197,7 @@ export function TaskScheduleOccurrences({
         <MoveOccurrenceDialog
           key={moveState.occurrenceId}
           occurrenceId={moveState.occurrenceId}
+          expectedScheduleRevision={scheduleRevision}
           scheduledAt={moveState.scheduledAt}
           taskId={taskId}
           timeZone={moveState.timeZone}

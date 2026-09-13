@@ -1632,11 +1632,11 @@ describe("rescheduleTaskOccurrence", () => {
     taskScheduleServiceMock.rescheduleOccurrence.mockReset();
   });
 
-  it("reads the observed revision and returns the advanced one", async () => {
+  it("uses the UI-observed revision even when the task read is newer", async () => {
     taskServiceMock.getTaskById.mockResolvedValue({
       id: "task-1",
       projectId: "project-1",
-      scheduleRevision: 3,
+      scheduleRevision: 8,
     });
     taskScheduleServiceMock.rescheduleOccurrence.mockResolvedValue({
       scheduleRevision: 4,
@@ -1648,6 +1648,7 @@ describe("rescheduleTaskOccurrence", () => {
       taskId: "task-1",
       occurrenceId: "occurrence-1",
       operationId,
+      expectedScheduleRevision: 3,
       scheduledAt,
     });
 
@@ -1686,27 +1687,13 @@ describe("rescheduleTaskOccurrence", () => {
         taskId: "task-1",
         occurrenceId: "occurrence-1",
         operationId,
+        expectedScheduleRevision: 3,
         scheduledAt,
       }),
     ).resolves.toEqual({
       ok: false,
       error: { kind: "schedule_occurrence_not_reschedulable" },
     });
-  });
-
-  it("refuses to invent a revision when Core reports none", async () => {
-    taskServiceMock.getTaskById.mockResolvedValue({ id: "task-1" });
-    const { rescheduleTaskOccurrence } = await import("./action");
-
-    await expect(
-      rescheduleTaskOccurrence({
-        taskId: "task-1",
-        occurrenceId: "occurrence-1",
-        operationId,
-        scheduledAt,
-      }),
-    ).rejects.toThrow("Core returned no scheduleRevision for an active series");
-    expect(taskScheduleServiceMock.rescheduleOccurrence).not.toHaveBeenCalled();
   });
 
   it("requires a UUID operation identity before reading the task", async () => {
@@ -1717,6 +1704,7 @@ describe("rescheduleTaskOccurrence", () => {
         taskId: "task-1",
         occurrenceId: "occurrence-1",
         operationId: "not-a-uuid",
+        expectedScheduleRevision: 3,
         scheduledAt,
       }),
     ).rejects.toThrow("Operation ID must be a UUID");

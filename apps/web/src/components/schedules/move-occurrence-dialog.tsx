@@ -27,6 +27,7 @@ import {
 import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 
 interface MoveOccurrenceDialogProps {
+  expectedScheduleRevision: number;
   occurrenceId: string;
   /** Effective time the input is seeded from; sent back as an absolute instant. */
   scheduledAt: Date;
@@ -42,6 +43,7 @@ interface MoveOccurrenceDialogProps {
  * same contract the drop handler uses.
  */
 export function MoveOccurrenceDialog({
+  expectedScheduleRevision,
   occurrenceId,
   scheduledAt,
   taskId,
@@ -82,6 +84,7 @@ export function MoveOccurrenceDialog({
           { mode: "once", timezone: timeZone, oneTimeLocalIso: value },
           operation,
         ),
+        expectedScheduleRevision,
         scheduledAt: target.toISOString(),
       });
 
