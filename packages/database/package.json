@@ -69,8 +69,7 @@
     "@prisma/client": "7.10.0",
     "@sokosumi/utils": "workspace:*",
     "neverthrow": "8.2.0",
-    "pg": "8.23.0",
-    "uuid": "14.0.2"
+    "pg": "8.23.0"
   },
   "devDependencies": {
     "@types/node": "24.13.4",
