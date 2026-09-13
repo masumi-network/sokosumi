@@ -68,6 +68,78 @@ describe("chatRoomMessagesToUiMessages", () => {
     await expect(validateUIMessages({ messages })).resolves.toBeDefined();
   });
 
+  it("rehydrates stored text and file ui parts from metadata", async () => {
+    const messages = chatRoomMessagesToUiMessages([
+      {
+        id: "m1",
+        content: "Please review this file",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              { type: "text", text: "Please review this file" },
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        },
+        createdAt: baseCreatedAt,
+      },
+    ]);
+
+    expect(messages[0]?.parts).toEqual([
+      { type: "text", text: "Please review this file" },
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+
+    await expect(validateUIMessages({ messages })).resolves.toBeDefined();
+  });
+
+  it("rehydrates file-only metadata without a trailing empty text part", async () => {
+    const messages = chatRoomMessagesToUiMessages([
+      {
+        id: "m1",
+        content: "",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        },
+        createdAt: baseCreatedAt,
+      },
+    ]);
+
+    expect(messages[0]?.parts).toEqual([
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+
+    await expect(validateUIMessages({ messages })).resolves.toBeDefined();
+  });
+
   it("strips reasoning metadata from user messages", async () => {
     const messages = chatRoomMessagesToUiMessages([
       {

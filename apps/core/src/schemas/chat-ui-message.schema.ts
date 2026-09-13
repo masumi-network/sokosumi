@@ -21,7 +21,7 @@ export const responsesApiInputTextPartSchema = z
 
 /**
  * AI SDK / UI message parts persisted for chat (reasoning then text in
- * `conversationMessagesToUiMessages`). `type` must be `reasoning` (AI SDK
+ * `chatRoomMessagesToUiMessages`). `type` must be `reasoning` (AI SDK)
  * `ReasoningUIPart`); whitespace around `type` is trimmed on parse so stored
  * values match the allowlist exactly.
  *
