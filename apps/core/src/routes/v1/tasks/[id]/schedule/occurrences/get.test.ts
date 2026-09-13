@@ -30,15 +30,18 @@ const {
   taskFindFirstMock,
   occurrenceCountMock,
   occurrenceFindManyMock,
+  transactionMock,
 } = vi.hoisted(() => ({
   memberFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   occurrenceCountMock: vi.fn(),
   occurrenceFindManyMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
     member: { findFirst: memberFindFirstMock },
     task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: {
@@ -187,6 +190,16 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     });
     occurrenceCountMock.mockResolvedValue(0);
     occurrenceFindManyMock.mockResolvedValue([]);
+    transactionMock.mockImplementation((callback) =>
+      callback({
+        member: { findFirst: memberFindFirstMock },
+        task: { findFirst: taskFindFirstMock },
+        taskScheduleOccurrence: {
+          count: occurrenceCountMock,
+          findMany: occurrenceFindManyMock,
+        },
+      }),
+    );
   });
 
   afterEach(() => {
@@ -253,6 +266,9 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     const response = await createApp().request(request("?view=upcoming"));
 
     expect(response.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "RepeatableRead",
+    });
     const body = await readBody(response);
     expect(body.data).toEqual({
       scheduleRevision: 4,

@@ -7,6 +7,7 @@ const getTaskScheduleOccurrencesMock = vi.fn();
 const putTaskCalendarScheduleMock = vi.fn();
 const putTaskScheduleMock = vi.fn();
 const deleteTaskScheduleMock = vi.fn();
+const rescheduleTaskScheduleOccurrenceMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
@@ -16,6 +17,8 @@ vi.mock("@/lib/clients/core.client", () => ({
       putTaskCalendarScheduleMock(...args),
     putTaskSchedule: (...args: unknown[]) => putTaskScheduleMock(...args),
     deleteTaskSchedule: (...args: unknown[]) => deleteTaskScheduleMock(...args),
+    rescheduleTaskScheduleOccurrence: (...args: unknown[]) =>
+      rescheduleTaskScheduleOccurrenceMock(...args),
   },
 }));
 
@@ -71,6 +74,29 @@ describe("taskScheduleService.listOccurrences", () => {
       futureExceptionCount: 2,
       occurrences: [occurrence],
       nextCursor: "cursor-2",
+    });
+  });
+
+  it("reads the bounded series state used by edit preconditions", async () => {
+    getTaskScheduleOccurrencesMock.mockResolvedValue({
+      data: {
+        scheduleRevision: 4,
+        futureExceptionCount: 2,
+        occurrences: [],
+      },
+      meta: { pagination: { nextCursor: null } },
+    });
+
+    await expect(
+      taskScheduleService.readSeriesState("task_1"),
+    ).resolves.toEqual({
+      scheduleRevision: 4,
+      futureExceptionCount: 2,
+    });
+    expect(getTaskScheduleOccurrencesMock).toHaveBeenCalledWith("task_1", {
+      view: "upcoming",
+      cursor: undefined,
+      limit: 1,
     });
   });
 
@@ -186,5 +212,40 @@ describe("taskScheduleService series mutations", () => {
 
     expect(putTaskScheduleMock).toHaveBeenCalledWith("task_1", recurring);
     expect(putTaskCalendarScheduleMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("taskScheduleService.rescheduleOccurrence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sends the precondition and target and returns the new revision", async () => {
+    rescheduleTaskScheduleOccurrenceMock.mockResolvedValue({
+      data: { scheduleRevision: 5, occurrence },
+    });
+
+    const target = new Date("2026-09-11T09:00:00.000Z");
+
+    const result = await taskScheduleService.rescheduleOccurrence(
+      "task_1",
+      occurrence.id,
+      {
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        expectedScheduleRevision: 4,
+      },
+      target,
+    );
+
+    expect(rescheduleTaskScheduleOccurrenceMock).toHaveBeenCalledWith(
+      "task_1",
+      occurrence.id,
+      {
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        expectedScheduleRevision: 4,
+        scheduledAt: target,
+      },
+    );
+    expect(result).toEqual({ scheduleRevision: 5, occurrence });
   });
 });

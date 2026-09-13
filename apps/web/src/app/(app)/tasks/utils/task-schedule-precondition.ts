@@ -37,14 +37,7 @@ export async function readTaskScheduleSeriesPrecondition(
   }
 
   try {
-    const page = await taskScheduleService.listOccurrences(task.id, {
-      view: "upcoming",
-      limit: 1,
-    });
-    return {
-      scheduleRevision: page.scheduleRevision,
-      futureExceptionCount: page.futureExceptionCount,
-    };
+    return await taskScheduleService.readSeriesState(task.id);
   } catch (error) {
     console.error("Failed to read the schedule series precondition", error);
     return { scheduleRevision: taskRevision, futureExceptionCount: null };

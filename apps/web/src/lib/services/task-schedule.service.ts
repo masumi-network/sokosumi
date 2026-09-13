@@ -26,6 +26,11 @@ export interface TaskScheduleOccurrencesPage {
   nextCursor: string | null;
 }
 
+export interface TaskScheduleSeriesState {
+  scheduleRevision: number;
+  futureExceptionCount: number;
+}
+
 /**
  * One logical user operation: a UUID that survives retries of the same
  * semantic mutation, and the schedule revision that operation was decided on.
@@ -115,10 +120,55 @@ export const taskScheduleService = (() => {
     };
   }
 
+  async function readSeriesState(
+    taskId: string,
+  ): Promise<TaskScheduleSeriesState> {
+    const page = await listOccurrences(taskId, {
+      view: "upcoming",
+      limit: 1,
+    });
+    return {
+      scheduleRevision: page.scheduleRevision,
+      futureExceptionCount: page.futureExceptionCount,
+    };
+  }
+
+  /**
+   * Moves one unreleased occurrence to a new absolute time. Core keeps the
+   * occurrence's original identity and audits the move; the series revision
+   * advances so occurrence cursors refresh.
+   */
+  async function rescheduleOccurrence(
+    taskId: string,
+    occurrenceId: string,
+    precondition: TaskScheduleSeriesPrecondition,
+    scheduledAt: Date,
+  ): Promise<{
+    scheduleRevision: number;
+    occurrence: TaskScheduleOccurrence;
+  }> {
+    const result = await coreClient.rescheduleTaskScheduleOccurrence(
+      taskId,
+      occurrenceId,
+      {
+        operationId: precondition.operationId,
+        expectedScheduleRevision: precondition.expectedScheduleRevision,
+        scheduledAt,
+      },
+    );
+
+    return {
+      scheduleRevision: result.data.scheduleRevision,
+      occurrence: result.data.occurrence,
+    };
+  }
+
   return {
     editCalendarSeries,
     setSchedule,
     removeCalendarSeries,
     listOccurrences,
+    readSeriesState,
+    rescheduleOccurrence,
   };
 })();

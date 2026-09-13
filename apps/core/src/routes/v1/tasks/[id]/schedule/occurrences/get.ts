@@ -209,94 +209,96 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     //
     // The ledger outlives its series: a removed schedule still answers with the
     // preserved history and the Task's current revision.
-    const task = await requireTaskOwnership(userContext, id, prisma);
-    const { scheduleRevision } = task;
-
-    const cursor = requestedCursor
-      ? decodeTaskScheduleOccurrenceCursor(requestedCursor)
-      : null;
-    if (cursor) {
-      requireFreshCursor(cursor, view, scheduleRevision);
-    }
-
     const now = new Date();
-    const viewWhere = buildViewWhere(id, view, now);
-    const direction = view === "upcoming" ? "asc" : "desc";
-    // Every page carries the whole series' exception count, at the same `now`
-    // as the view filter, so the edit surface can decide whether to confirm a
-    // destructive discard without paging the ledger. A series with no live
-    // rule has nothing left to discard.
-    const futureExceptionCount = hasActiveTaskSchedule(
-      task.metadata,
-      task.nextRunAt,
-    )
-      ? await countTaskScheduleFutureExceptions(prisma, id, now)
-      : 0;
-    const [rows, total] = await Promise.all([
-      prisma.taskScheduleOccurrence.findMany({
-        where: cursor
-          ? { ...viewWhere, AND: [buildCursorWhere(cursor, view)] }
-          : viewWhere,
-        take: limit + 1,
-        orderBy: [{ effectiveScheduledAt: direction }, { id: direction }],
-        select: {
-          id: true,
-          state: true,
-          scheduleVersion: true,
-          epochId: true,
-          originalScheduledAt: true,
-          effectiveScheduledAt: true,
-          timezone: true,
-          sourceWorkspaceId: true,
-          sourceType: true,
-          sourceProjectId: true,
-          sourceAccuracy: true,
-          timeAccuracy: true,
-          releasedTask: {
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const task = await requireTaskOwnership(userContext, id, tx);
+        const { scheduleRevision } = task;
+        const cursor = requestedCursor
+          ? decodeTaskScheduleOccurrenceCursor(requestedCursor)
+          : null;
+        if (cursor) {
+          requireFreshCursor(cursor, view, scheduleRevision);
+        }
+
+        const viewWhere = buildViewWhere(id, view, now);
+        const direction = view === "upcoming" ? "asc" : "desc";
+        // Every page carries the whole series' exception count, at the same
+        // snapshot and `now` as the rows, total, and cursor revision.
+        const futureExceptionCount = hasActiveTaskSchedule(
+          task.metadata,
+          task.nextRunAt,
+        )
+          ? await countTaskScheduleFutureExceptions(tx, id, now)
+          : 0;
+        const [rows, total] = await Promise.all([
+          tx.taskScheduleOccurrence.findMany({
+            where: cursor
+              ? { ...viewWhere, AND: [buildCursorWhere(cursor, view)] }
+              : viewWhere,
+            take: limit + 1,
+            orderBy: [{ effectiveScheduledAt: direction }, { id: direction }],
             select: {
               id: true,
-              name: true,
-              status: true,
-              archivedAt: true,
+              state: true,
+              scheduleVersion: true,
+              epochId: true,
+              originalScheduledAt: true,
+              effectiveScheduledAt: true,
+              timezone: true,
+              sourceWorkspaceId: true,
+              sourceType: true,
+              sourceProjectId: true,
+              sourceAccuracy: true,
+              timeAccuracy: true,
+              releasedTask: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                  archivedAt: true,
+                },
+              },
             },
-          },
-        },
-      }),
-      prisma.taskScheduleOccurrence.count({ where: viewWhere }),
-    ]);
+          }),
+          tx.taskScheduleOccurrence.count({ where: viewWhere }),
+        ]);
 
-    const page = rows.slice(0, limit);
-    const pagination = createPaginationMeta(
-      page,
-      total,
-      limit,
-      rows.length > page.length,
-      requestedCursor,
-      (occurrence) =>
-        encodeTaskScheduleOccurrenceCursor({
-          view,
-          scheduleRevision,
-          effectiveScheduledAt: occurrence.effectiveScheduledAt.toISOString(),
-          id: occurrence.id,
-        }),
+        const page = rows.slice(0, limit);
+        return {
+          data: taskScheduleOccurrencePageSchema.parse({
+            scheduleRevision,
+            futureExceptionCount,
+            occurrences: page.map((occurrence) => ({
+              ...occurrence,
+              sourceId: getCalendarSourceId(occurrence),
+              // A planned row whose time has passed never released: history
+              // shows it as a missed run instead of an upcoming one.
+              isMissed:
+                occurrence.state === TaskScheduleOccurrenceState.PLANNED &&
+                occurrence.effectiveScheduledAt < now,
+            })),
+          }),
+          pagination: createPaginationMeta(
+            page,
+            total,
+            limit,
+            rows.length > page.length,
+            requestedCursor,
+            (occurrence) =>
+              encodeTaskScheduleOccurrenceCursor({
+                view,
+                scheduleRevision,
+                effectiveScheduledAt:
+                  occurrence.effectiveScheduledAt.toISOString(),
+                id: occurrence.id,
+              }),
+          ),
+        };
+      },
+      { isolationLevel: "RepeatableRead" },
     );
 
-    return ok(
-      c,
-      taskScheduleOccurrencePageSchema.parse({
-        scheduleRevision,
-        futureExceptionCount,
-        occurrences: page.map((occurrence) => ({
-          ...occurrence,
-          sourceId: getCalendarSourceId(occurrence),
-          // A planned row whose time has passed never released: history shows
-          // it as a missed run instead of an upcoming one.
-          isMissed:
-            occurrence.state === TaskScheduleOccurrenceState.PLANNED &&
-            occurrence.effectiveScheduledAt < now,
-        })),
-      }),
-      pagination,
-    );
+    return ok(c, result.data, result.pagination);
   });
 }

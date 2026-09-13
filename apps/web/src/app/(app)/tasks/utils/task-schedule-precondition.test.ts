@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const listOccurrencesMock = vi.fn();
+const readSeriesStateMock = vi.fn();
 
 vi.mock("@/lib/services/task-schedule.service", () => ({
   taskScheduleService: {
-    listOccurrences: (...args: unknown[]) => listOccurrencesMock(...args),
+    readSeriesState: (...args: unknown[]) => readSeriesStateMock(...args),
   },
 }));
 
@@ -35,31 +35,26 @@ describe("readTaskScheduleSeriesPrecondition", () => {
   });
 
   it("reads the revision and exact exception count of a live series", async () => {
-    listOccurrencesMock.mockResolvedValue({
+    readSeriesStateMock.mockResolvedValue({
       scheduleRevision: 6,
       futureExceptionCount: 3,
-      occurrences: [],
-      nextCursor: null,
     });
 
     await expect(
       readTaskScheduleSeriesPrecondition(buildTask(ACTIVE_SERIES)),
     ).resolves.toEqual({ scheduleRevision: 6, futureExceptionCount: 3 });
-    expect(listOccurrencesMock).toHaveBeenCalledWith("task-1", {
-      view: "upcoming",
-      limit: 1,
-    });
+    expect(readSeriesStateMock).toHaveBeenCalledWith("task-1");
   });
 
   it("skips the ledger read for a Task with no live rule", async () => {
     await expect(
       readTaskScheduleSeriesPrecondition(buildTask()),
     ).resolves.toEqual({ scheduleRevision: 4, futureExceptionCount: 0 });
-    expect(listOccurrencesMock).not.toHaveBeenCalled();
+    expect(readSeriesStateMock).not.toHaveBeenCalled();
   });
 
   it("reports an unknown exception count when the read is refused", async () => {
-    listOccurrencesMock.mockRejectedValue(new Error("beta access required"));
+    readSeriesStateMock.mockRejectedValue(new Error("beta access required"));
 
     await expect(
       readTaskScheduleSeriesPrecondition(buildTask(ACTIVE_SERIES)),
