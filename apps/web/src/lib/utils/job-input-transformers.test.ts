@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeReadonlyInputValues } from "@/lib/utils/job-input-transformers";
+import { mergeReadonlyInputValues } from "./job-input-transformers";
 
 describe("mergeReadonlyInputValues", () => {
   it("returns transformed payload when readonly values are absent", () => {
