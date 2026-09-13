@@ -130,18 +130,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const target = new Date(scheduledAt);
     const now = new Date();
 
-    if (target <= now) {
-      throw unprocessableEntity("scheduledAt must be in the future", {
-        kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID,
-      });
-    }
-    if (target.getTime() >= now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS) {
-      throw unprocessableEntity(
-        "scheduledAt must be inside the schedule projection horizon",
-        { kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID },
-      );
-    }
-
     const requestFingerprint = createTaskScheduleRequestFingerprint({
       action: "reschedule_occurrence",
       taskId: id,
@@ -198,6 +186,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       }
 
+      if (target <= now) {
+        throw unprocessableEntity("scheduledAt must be in the future", {
+          kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID,
+        });
+      }
+      if (target.getTime() >= now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS) {
+        throw unprocessableEntity(
+          "scheduledAt must be inside the schedule projection horizon",
+          { kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID },
+        );
+      }
+
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
         throw conflict(
           "The schedule series changed; reload the Task and retry with its current scheduleRevision",
@@ -215,6 +215,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       if (!occurrence) {
         throw notFound("Schedule occurrence not found");
+      }
+      const scheduleMetadata = parseTaskScheduleMetadata(currentTask.metadata);
+      if (
+        scheduleMetadata?.version === 1 &&
+        scheduleMetadata.mode === "recurring"
+      ) {
+        throw conflict("Legacy recurring occurrences cannot be rescheduled", {
+          kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE,
+        });
       }
       if (
         occurrence.state !== TaskScheduleOccurrenceState.PLANNED ||
@@ -249,7 +258,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      const nextReleaseable = await findNextReleaseableOccurrence(tx, id, now);
+      const nextReleaseable = await findNextReleaseableOccurrence(tx, id);
       const updatedTask = await tx.task.update({
         where: { id },
         data: {

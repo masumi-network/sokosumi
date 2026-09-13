@@ -3033,6 +3033,21 @@ export type DriveFile = {
     uploadedAt: Date;
 };
 
+export type DrivePaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
 export type MoveDriveItemRequest = {
     /**
      * Source pathname (file) or folder path relative to scope root (folder)
@@ -4478,6 +4493,14 @@ export type WorkspaceCalendarItem = {
      * Whether the caller owns this Task and may edit or remove its schedule
      */
     canEditSchedule: boolean;
+    /**
+     * Whether this indexed occurrence can be moved through the revision-safe occurrence contract
+     */
+    canMoveOccurrence: boolean;
+    /**
+     * Schedule revision observed with this occurrence
+     */
+    scheduleRevision: number;
     taskName: string;
     taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
     taskAssigneeId: string | null;
@@ -19929,7 +19952,7 @@ export type GetDriveFilesResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination: PaginationMetadata;
+            pagination: DrivePaginationMetadata;
         };
     };
 };
@@ -38114,17 +38137,17 @@ export type GetTasksByIdScheduleOccurrencesData = {
     };
     query?: {
         /**
-         * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
-         */
-        view?: TaskScheduleOccurrenceView;
-        /**
-         * Opaque cursor from a previous page of the same view. A cursor minted before the schedule revision changed is rejected with kind schedule_cursor_stale.
+         * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
         /**
-         * Number of occurrences to return (max 100)
+         * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+         */
+        view?: TaskScheduleOccurrenceView;
     };
     url: '/tasks/{id}/schedule/occurrences';
 };
@@ -38821,7 +38844,7 @@ export type PostTasksByIdEventsErrors = {
         };
     };
     /**
-     * Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.
+     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_schedule (Queued requested without an active schedule; no pause event in `data`).
      */
     422: {
         error: string;

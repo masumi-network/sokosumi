@@ -326,23 +326,16 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     expect(createMany).not.toHaveBeenCalled();
   });
 
-  it("replaces ordinary projections and preserves a moved durable exception", async () => {
-    const deleteMany = vi.fn().mockResolvedValue({ count: 2 });
+  it("replaces future ordinary projections without selecting overdue work", async () => {
+    const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
     const createMany = vi.fn().mockResolvedValue({ count: 3 });
     const findMany = vi.fn().mockResolvedValue([
       {
-        id: "occ_ordinary_v1",
+        id: "occ_ordinary_future",
         state: "PLANNED",
         scheduleVersion: 1,
         originalScheduledAt: null,
-        effectiveScheduledAt: new Date("2026-05-31T09:00:00.000Z"),
-      },
-      {
-        id: "occ_ordinary_v2",
-        state: "PLANNED",
-        scheduleVersion: 2,
-        originalScheduledAt: new Date("2026-05-31T09:00:00.000Z"),
-        effectiveScheduledAt: new Date("2026-05-31T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-01T09:00:00.000Z"),
       },
       {
         id: "occ_moved_v2",
@@ -374,9 +367,17 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
       now,
     );
 
-    // The moved v2 row is a durable decision and is not deleted or rebuilt.
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          effectiveScheduledAt: { gte: now },
+        }),
+      }),
+    );
+    // The moved v2 row is a durable decision and is not deleted or rebuilt;
+    // overdue ordinary rows are excluded by the query and remain releaseable.
     expect(deleteMany).toHaveBeenCalledWith({
-      where: { id: { in: ["occ_ordinary_v1", "occ_ordinary_v2"] } },
+      where: { id: { in: ["occ_ordinary_future"] } },
     });
     expect(createMany).toHaveBeenCalledWith({
       data: [
@@ -553,9 +554,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 });
 
 describe("findNextReleaseableOccurrence", () => {
-  const NOW = new Date("2026-06-10T00:00:00.000Z");
-
-  it("returns the earliest planned row at or after now", async () => {
+  it("returns the earliest planned row, including overdue work", async () => {
     const findFirst = vi.fn().mockResolvedValue({
       id: "occ_1",
       epochId: "33333333-3333-7333-8333-333333333333",
@@ -567,7 +566,6 @@ describe("findNextReleaseableOccurrence", () => {
       findNextReleaseableOccurrence(
         { taskScheduleOccurrence: { findFirst } },
         "tsk_series",
-        NOW,
       ),
     ).resolves.toEqual({
       id: "occ_1",
@@ -580,7 +578,6 @@ describe("findNextReleaseableOccurrence", () => {
       where: {
         seriesTaskId: "tsk_series",
         state: "PLANNED",
-        effectiveScheduledAt: { gte: NOW },
       },
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
       select: {
@@ -599,7 +596,6 @@ describe("findNextReleaseableOccurrence", () => {
       findNextReleaseableOccurrence(
         { taskScheduleOccurrence: { findFirst } },
         "tsk_series",
-        NOW,
       ),
     ).resolves.toBeNull();
   });

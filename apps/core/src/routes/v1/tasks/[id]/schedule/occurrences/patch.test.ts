@@ -430,19 +430,48 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     expect(occurrenceUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("replays an exact operation without moving again", async () => {
+  it("rejects moving an occurrence from a legacy recurring schedule", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: SCHEDULE_REVISION,
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "recurring",
+        scheduledAt: "2026-06-01T09:00:00.000Z",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      }),
+      nextRunAt: ORIGINAL,
+    });
+
+    const response = await createApp().request(...request(body()));
+
+    expect(response.status).toBe(409);
+    expect(((await response.json()) as { kind?: string }).kind).toBe(
+      "schedule_occurrence_not_reschedulable",
+    );
+    expect(occurrenceUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("replays an exact operation after its target is no longer valid", async () => {
     taskEventFindUniqueMock.mockResolvedValue({
       schedulePayload: {
         requestFingerprint: createTaskScheduleRequestFingerprint({
           action: "reschedule_occurrence",
           taskId: TASK_ID,
           occurrenceId: OCCURRENCE_ID,
-          scheduledAt: TARGET.toISOString(),
+          scheduledAt: NOW.toISOString(),
         }),
       },
     });
 
-    const response = await createApp().request(...request(body()));
+    const response = await createApp().request(
+      ...request(body({ scheduledAt: NOW.toISOString() })),
+    );
     expect(response.status).toBe(200);
     expect(occurrenceUpdateMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();

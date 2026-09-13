@@ -579,7 +579,6 @@ async function processDueTask(
         const nextReleaseable = await findNextReleaseableOccurrence(
           tx,
           template.id,
-          now,
         );
         nextRunAt = nextReleaseable?.effectiveScheduledAt ?? null;
 

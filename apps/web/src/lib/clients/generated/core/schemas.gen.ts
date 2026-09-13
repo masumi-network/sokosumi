@@ -10864,6 +10864,39 @@ export const DriveFileSchema = {
     ]
 } as const;
 
+export const DrivePaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'nextCursor'
+    ]
+} as const;
+
 export const MoveDriveItemRequestSchema = {
     type: 'object',
     properties: {
@@ -14931,6 +14964,17 @@ export const WorkspaceCalendarItemSchema = {
             description: 'Whether the caller owns this Task and may edit or remove its schedule',
             example: true
         },
+        canMoveOccurrence: {
+            type: 'boolean',
+            description: 'Whether this indexed occurrence can be moved through the revision-safe occurrence contract',
+            example: true
+        },
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Schedule revision observed with this occurrence',
+            example: 3
+        },
         taskName: {
             type: 'string',
             example: 'Prepare release notes'
@@ -15043,6 +15087,8 @@ export const WorkspaceCalendarItemSchema = {
         'id',
         'taskId',
         'canEditSchedule',
+        'canMoveOccurrence',
+        'scheduleRevision',
         'taskName',
         'taskStatus',
         'taskAssigneeId',

@@ -181,9 +181,14 @@ export async function createTaskSchedulePlannedOccurrences(
 async function removeOrdinaryPlannedOccurrences(
   tx: TaskScheduleOccurrenceIndexClient,
   seriesTaskId: string,
+  now: Date,
 ): Promise<void> {
   const planned = await tx.taskScheduleOccurrence.findMany({
-    where: { seriesTaskId, state: TaskScheduleOccurrenceState.PLANNED },
+    where: {
+      seriesTaskId,
+      state: TaskScheduleOccurrenceState.PLANNED,
+      effectiveScheduledAt: { gte: now },
+    },
     select: {
       id: true,
       state: true,
@@ -211,7 +216,7 @@ export async function replaceTaskSchedulePlannedOccurrences(
 ): Promise<void> {
   const rows = projectPlannedOccurrenceRows(task, now);
 
-  await removeOrdinaryPlannedOccurrences(tx, task.id);
+  await removeOrdinaryPlannedOccurrences(tx, task.id, now);
   if (rows.length === 0) {
     return;
   }
@@ -239,21 +244,19 @@ interface TaskScheduleOccurrenceNextClient {
 }
 
 /**
- * The earliest occurrence the series still owes a release for: a `PLANNED` row
- * at or after `now`, ignoring skipped and canceled decisions. This is the
- * ledger-driven next run for v2 series, so a moved occurrence pulls the next run
- * to its new time and a skipped one never becomes the next run.
+ * The earliest occurrence the series still owes a release for, including an
+ * overdue row left behind when a scheduler invocation exhausts its budget.
+ * This is the ledger-driven next run for v2 series, so a moved occurrence pulls
+ * the next run to its new time and a skipped one never becomes the next run.
  */
 export async function findNextReleaseableOccurrence(
   tx: TaskScheduleOccurrenceNextClient,
   seriesTaskId: string,
-  now = new Date(),
 ): Promise<TaskScheduleOccurrenceReleaseCandidate | null> {
   return tx.taskScheduleOccurrence.findFirst({
     where: {
       seriesTaskId,
       state: TaskScheduleOccurrenceState.PLANNED,
-      effectiveScheduledAt: { gte: now },
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
     select: {
