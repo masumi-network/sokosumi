@@ -332,6 +332,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     const findMany = vi.fn().mockResolvedValue([
       {
         id: "occ_ordinary_future",
+        epochId: null,
         state: "PLANNED",
         scheduleVersion: 1,
         originalScheduledAt: null,
@@ -339,6 +340,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
       },
       {
         id: "occ_moved_v2",
+        epochId: "22222222-2222-7222-8222-222222222222",
         state: "PLANNED",
         scheduleVersion: 2,
         originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
@@ -400,6 +402,59 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
         }),
         expect.objectContaining({
           effectiveScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
+        }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("preserves the id of an unchanged projected occurrence", async () => {
+    const epochId = "33333333-3333-7333-8333-333333333333";
+    const originalScheduledAt = new Date("2026-06-01T09:00:00.000Z");
+    const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: "00000000-0000-7000-8000-000000000001",
+        epochId,
+        state: "PLANNED",
+        scheduleVersion: 2,
+        originalScheduledAt,
+        effectiveScheduledAt: originalScheduledAt,
+      },
+    ]);
+
+    await replaceTaskSchedulePlannedOccurrences(
+      { taskScheduleOccurrence: { findMany, deleteMany, createMany } },
+      {
+        id: "tsk_v2",
+        workspaceId: WORKSPACE_ID,
+        projectId: PROJECT_ID,
+        schedule: {
+          version: 2,
+          epochId,
+          mode: "recurring",
+          createdAt: "2026-06-01T08:00:00.000Z",
+          ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+          timezone: "UTC",
+          expr: "0 9 * * *",
+          endsMode: "after",
+          targetReleaseCount: 2,
+          anchorAt: "2026-06-01T08:00:00.000Z",
+          epochReleaseCount: 0,
+        },
+        nextRunAt: originalScheduledAt,
+      },
+      new Date("2026-06-01T08:30:00.000Z"),
+    );
+
+    expect(deleteMany).not.toHaveBeenCalled();
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          epochId,
+          originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+          effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
         }),
       ],
       skipDuplicates: true,
