@@ -49,9 +49,9 @@ const {
   fullCalendarMock,
   getProjectCalendarMock,
   getTaskByIdMock,
-  getTaskScheduleOccurrencesMock,
   getWorkspaceCalendarMock,
   interactionPluginMock,
+  loadTaskScheduleSeriesPreconditionMock,
   metadataToSelectionMock,
   openCreateTaskModalMock,
   pushMock,
@@ -68,9 +68,9 @@ const {
   fullCalendarMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
   getTaskByIdMock: vi.fn(),
-  getTaskScheduleOccurrencesMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
   interactionPluginMock: {},
+  loadTaskScheduleSeriesPreconditionMock: vi.fn(),
   metadataToSelectionMock: vi.fn(),
   openCreateTaskModalMock: vi.fn(),
   pushMock: vi.fn(),
@@ -257,11 +257,14 @@ vi.mock("@/lib/actions/task/action", () => ({
   saveCalendarTaskSchedule: saveCalendarTaskScheduleMock,
 }));
 
+vi.mock("@/app/tasks/actions", () => ({
+  loadTaskScheduleSeriesPrecondition: loadTaskScheduleSeriesPreconditionMock,
+}));
+
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getProjectsByIdCalendar: getProjectCalendarMock,
     getTaskById: getTaskByIdMock,
-    getTaskScheduleOccurrences: getTaskScheduleOccurrencesMock,
     getWorkspaceCalendar: getWorkspaceCalendarMock,
   },
 }));
@@ -314,6 +317,7 @@ const SECOND_ITEM: WorkspaceCalendarItem = {
 const READ_ONLY_ITEM: WorkspaceCalendarItem = {
   ...ITEM,
   canEditSchedule: false,
+  canMoveOccurrence: false,
 };
 
 const RELEASED_ITEM: WorkspaceCalendarItem = {
@@ -439,9 +443,9 @@ describe("WorkspaceCalendar editing", () => {
     getTaskByIdMock.mockResolvedValue({
       data: { id: "task-1", metadata: '{"version":2}', scheduleRevision: 3 },
     });
-    getTaskScheduleOccurrencesMock.mockResolvedValue({
-      data: { scheduleRevision: 3, futureExceptionCount: 0, occurrences: [] },
-      meta: { pagination: { nextCursor: null } },
+    loadTaskScheduleSeriesPreconditionMock.mockResolvedValue({
+      scheduleRevision: 3,
+      futureExceptionCount: 0,
     });
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [],
@@ -1014,10 +1018,9 @@ describe("WorkspaceCalendar editing", () => {
         },
       }),
     );
-    expect(getTaskScheduleOccurrencesMock).toHaveBeenCalledWith("task-1", {
-      view: "upcoming",
-      limit: 1,
-    });
+    expect(loadTaskScheduleSeriesPreconditionMock).toHaveBeenCalledWith(
+      "task-1",
+    );
   });
 
   it("does not submit a schedule the user never changed", async () => {
@@ -1037,9 +1040,9 @@ describe("WorkspaceCalendar editing", () => {
 
   it("confirms discarding future exceptions only when the endpoint reports some", async () => {
     const user = userEvent.setup();
-    getTaskScheduleOccurrencesMock.mockResolvedValue({
-      data: { scheduleRevision: 3, futureExceptionCount: 2, occurrences: [] },
-      meta: { pagination: { nextCursor: null } },
+    loadTaskScheduleSeriesPreconditionMock.mockResolvedValue({
+      scheduleRevision: 3,
+      futureExceptionCount: 2,
     });
     renderCalendar();
 
@@ -1063,9 +1066,9 @@ describe("WorkspaceCalendar editing", () => {
 
   it("keeps the current schedule when the discard confirmation is declined", async () => {
     const user = userEvent.setup();
-    getTaskScheduleOccurrencesMock.mockResolvedValue({
-      data: { scheduleRevision: 3, futureExceptionCount: 1, occurrences: [] },
-      meta: { pagination: { nextCursor: null } },
+    loadTaskScheduleSeriesPreconditionMock.mockResolvedValue({
+      scheduleRevision: 3,
+      futureExceptionCount: 1,
     });
     renderCalendar();
 
@@ -1105,7 +1108,9 @@ describe("WorkspaceCalendar editing", () => {
   it("refuses a full-series edit while the discarded run count is unknown", async () => {
     const user = userEvent.setup();
     getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });
-    getTaskScheduleOccurrencesMock.mockRejectedValue(new Error("read failed"));
+    loadTaskScheduleSeriesPreconditionMock.mockRejectedValue(
+      new Error("read failed"),
+    );
     renderCalendar();
 
     await openEditor(user);
@@ -1124,7 +1129,9 @@ describe("WorkspaceCalendar editing", () => {
   it("still removes a series through its confirmation while the count is unknown", async () => {
     const user = userEvent.setup();
     getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });
-    getTaskScheduleOccurrencesMock.mockRejectedValue(new Error("read failed"));
+    loadTaskScheduleSeriesPreconditionMock.mockRejectedValue(
+      new Error("read failed"),
+    );
     renderCalendar();
 
     await openEditor(user);
@@ -1466,8 +1473,9 @@ describe("WorkspaceCalendar editing", () => {
     });
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
-    const event = (id: string) =>
-      props.events?.find((candidate) => candidate.id === id);
+    function event(id: string) {
+      return props.events?.find((candidate) => candidate.id === id);
+    }
     expect(event(ITEM.id)?.startEditable).toBe(true);
     expect(event("occurrence-readonly")?.startEditable).toBe(false);
     expect(event(RELEASED_ITEM.id)?.startEditable).toBe(false);
@@ -1524,6 +1532,7 @@ describe("WorkspaceCalendar editing", () => {
       operationId: expect.stringMatching(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
       ),
+      expectedScheduleRevision: 3,
       scheduledAt: droppedAt.toISOString(),
     });
     const optimistic = (

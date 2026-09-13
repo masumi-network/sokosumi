@@ -48,6 +48,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
+import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
   FilterDropdownMenu,
@@ -254,7 +255,7 @@ function SourceMarker({
  * is history, and a row the caller cannot edit must not be draggable either.
  */
 function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return item.canEditSchedule && item.state !== "RELEASED";
+  return item.canMoveOccurrence;
 }
 
 function CalendarEvent({
@@ -390,6 +391,7 @@ function CalendarView({
         taskId: item.taskId,
         occurrenceId,
         operationId: crypto.randomUUID(),
+        expectedScheduleRevision: item.scheduleRevision,
         scheduledAt: scheduledAt.toISOString(),
       });
 
@@ -998,10 +1000,7 @@ export function WorkspaceCalendar({
    */
   async function readSeriesPrecondition(taskId: string) {
     try {
-      return await coreClient.getTaskScheduleOccurrences(taskId, {
-        view: "upcoming",
-        limit: 1,
-      });
+      return await loadTaskScheduleSeriesPrecondition(taskId);
     } catch (error) {
       console.error("Failed to read the schedule series state", error);
       return null;
@@ -1028,11 +1027,9 @@ export function WorkspaceCalendar({
         requestId,
         task: result.data,
         scheduleRevision:
-          occurrencePage?.data.scheduleRevision ??
-          result.data.scheduleRevision ??
-          0,
+          occurrencePage?.scheduleRevision ?? result.data.scheduleRevision ?? 0,
         futureExceptionCount:
-          occurrencePage?.data.futureExceptionCount ??
+          occurrencePage?.futureExceptionCount ??
           // A Task with no live rule has nothing to discard, so an unread
           // ledger only leaves the count unknown for a series that has one.
           (hasActiveTaskSchedule(result.data.metadata, result.data.nextRunAt)
@@ -1361,6 +1358,7 @@ export function WorkspaceCalendar({
         <MoveOccurrenceDialog
           key={`${moveItem.id}:${moveItem.scheduledAt.toISOString()}`}
           occurrenceId={moveItem.id}
+          expectedScheduleRevision={moveItem.scheduleRevision}
           scheduledAt={moveItem.scheduledAt}
           taskId={moveItem.taskId}
           timeZone={timeZone}
