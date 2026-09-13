@@ -698,7 +698,7 @@ describe("taskSchedulesSyncService", () => {
     });
   });
 
-  it("increments the schedule revision when a one-time schedule is promoted", async () => {
+  it("promotes a moved one-time schedule at its effective wake time", async () => {
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
     );
@@ -743,9 +743,9 @@ describe("taskSchedulesSyncService", () => {
         ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
         timezone: "UTC",
         sourceRunAt: "2026-06-10T09:00:00.000Z",
-        effectiveRunAt: "2026-06-10T09:00:00.000Z",
+        effectiveRunAt: "2026-06-10T12:00:00.000Z",
       }),
-      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+      nextRunAt: new Date("2026-06-10T12:00:00.000Z"),
     });
     mockTaskUpdateMany.mockResolvedValue({ count: 1 });
 

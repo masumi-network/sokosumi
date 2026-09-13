@@ -1,9 +1,14 @@
+import { randomUUID } from "node:crypto";
+
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   TaskScheduleEventKind,
   TaskScheduleOccurrenceState,
 } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  parseTaskScheduleMetadata,
+} from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
@@ -12,6 +17,7 @@ import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { buildTaskScheduleMetadataV2 } from "@/helpers/task-schedule";
 import {
   CALENDAR_OCCURRENCE_HORIZON_MS,
   findNextReleaseableOccurrence,
@@ -42,6 +48,46 @@ const paramsSchema = z.object({
       example: "33333333-3333-7333-8333-333333333333",
     }),
 });
+
+function buildOneTimeScheduleMove(
+  metadataJson: string | null,
+  scheduleVersion: number,
+  target: Date,
+  changedAt: Date,
+) {
+  const current = parseTaskScheduleMetadata(metadataJson);
+  if (current?.mode !== "once") {
+    return null;
+  }
+
+  const metadata =
+    current.version === 2
+      ? { ...current, effectiveRunAt: target.toISOString() }
+      : {
+          ...buildTaskScheduleMetadataV2(
+            { mode: "once", runAt: current.runAt },
+            changedAt,
+            randomUUID(),
+          ),
+          effectiveRunAt: target.toISOString(),
+        };
+  const upgradeOccurrence = current.version === 1 || scheduleVersion === 1;
+
+  return {
+    metadata,
+    occurrenceData: {
+      effectiveScheduledAt: target,
+      ruleSnapshot: metadata,
+      ...(upgradeOccurrence
+        ? {
+            scheduleVersion: 2,
+            epochId: metadata.epochId,
+            timezone: metadata.timezone,
+          }
+        : {}),
+    },
+  };
+}
 
 const route = createRoute({
   method: "patch",
@@ -185,9 +231,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return { scheduleRevision: currentTask.scheduleRevision, occurrence };
       }
 
+      const oneTimeMove = buildOneTimeScheduleMove(
+        currentTask.metadata,
+        occurrence.scheduleVersion,
+        target,
+        now,
+      );
       const updatedOccurrence = await tx.taskScheduleOccurrence.update({
         where: { id: occurrence.id },
-        data: { effectiveScheduledAt: target },
+        data: oneTimeMove?.occurrenceData ?? {
+          effectiveScheduledAt: target,
+        },
         include: {
           releasedTask: {
             select: { id: true, name: true, status: true, archivedAt: true },
@@ -199,6 +253,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedTask = await tx.task.update({
         where: { id },
         data: {
+          ...(oneTimeMove
+            ? { metadata: JSON.stringify(oneTimeMove.metadata) }
+            : {}),
           nextRunAt: nextReleaseable?.effectiveScheduledAt ?? null,
           scheduleRevision: { increment: 1 },
         },

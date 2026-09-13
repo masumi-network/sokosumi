@@ -80,15 +80,48 @@ const OPERATION_ID = "123e4567-e89b-42d3-a456-426614174777";
 const SCHEDULE_REVISION = 4;
 const NOW = new Date("2026-06-10T00:00:00.000Z");
 const TARGET = new Date("2026-06-12T09:00:00.000Z");
+const ORIGINAL = new Date("2026-06-11T09:00:00.000Z");
+const EPOCH_ID = "44444444-4444-7444-8444-444444444444";
+
+const recurringMetadata = {
+  version: 2 as const,
+  epochId: EPOCH_ID,
+  mode: "recurring" as const,
+  createdAt: "2026-06-01T08:00:00.000Z",
+  ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+  timezone: "Europe/Berlin",
+  expr: "0 9 * * *",
+  endsMode: "never" as const,
+  epochReleaseCount: 0,
+  anchorAt: "2026-06-01T09:00:00.000Z",
+};
+
+const onceMetadataV2 = {
+  version: 2 as const,
+  epochId: EPOCH_ID,
+  mode: "once" as const,
+  createdAt: "2026-06-01T08:00:00.000Z",
+  ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+  timezone: "UTC",
+  sourceRunAt: ORIGINAL.toISOString(),
+  effectiveRunAt: ORIGINAL.toISOString(),
+};
+
+const onceMetadataV1 = {
+  version: 1 as const,
+  mode: "once" as const,
+  scheduledAt: ORIGINAL.toISOString(),
+  runAt: ORIGINAL.toISOString(),
+};
 
 function createRow(overrides: Record<string, unknown> = {}) {
   return {
     id: OCCURRENCE_ID,
     state: TaskScheduleOccurrenceState.PLANNED,
     scheduleVersion: 2,
-    epochId: "44444444-4444-7444-8444-444444444444",
-    originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
-    effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+    epochId: EPOCH_ID,
+    originalScheduledAt: ORIGINAL,
+    effectiveScheduledAt: ORIGINAL,
     timezone: "Europe/Berlin",
     sourceWorkspaceId: WORKSPACE_ID,
     sourceType: CalendarSourceType.WORKSPACE,
@@ -178,6 +211,8 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: SCHEDULE_REVISION,
+      metadata: JSON.stringify(recurringMetadata),
+      nextRunAt: ORIGINAL,
     });
     taskEventFindUniqueMock.mockResolvedValue(null);
     occurrenceFindFirstMock.mockResolvedValue(createRow());
@@ -194,8 +229,8 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     taskEventCreateMock.mockResolvedValue({ id: "event_1" });
     findNextReleaseableOccurrenceMock.mockResolvedValue({
       id: OCCURRENCE_ID,
-      epochId: "44444444-4444-7444-8444-444444444444",
-      originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
+      epochId: EPOCH_ID,
+      originalScheduledAt: ORIGINAL,
       effectiveScheduledAt: TARGET,
     });
   });
@@ -248,6 +283,106 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
         scheduleOperationId: OPERATION_ID,
       }),
       select: { id: true },
+    });
+  });
+
+  it("moves a version 2 one-time schedule and updates its effective wake time", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: SCHEDULE_REVISION,
+      metadata: JSON.stringify(onceMetadataV2),
+      nextRunAt: ORIGINAL,
+    });
+    occurrenceFindFirstMock.mockResolvedValue(
+      createRow({ ruleSnapshot: onceMetadataV2 }),
+    );
+
+    const response = await createApp().request(...request(body()));
+
+    expect(response.status).toBe(200);
+    const updatedMetadata = {
+      ...onceMetadataV2,
+      effectiveRunAt: TARGET.toISOString(),
+    };
+    expect(occurrenceUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: OCCURRENCE_ID },
+        data: {
+          effectiveScheduledAt: TARGET,
+          ruleSnapshot: updatedMetadata,
+        },
+      }),
+    );
+    expect(taskUpdateMock).toHaveBeenCalledWith({
+      where: { id: TASK_ID },
+      data: {
+        metadata: expect.any(String),
+        nextRunAt: TARGET,
+        scheduleRevision: { increment: 1 },
+      },
+    });
+    expect(
+      JSON.parse(taskUpdateMock.mock.calls.at(-1)?.[0].data.metadata),
+    ).toEqual(updatedMetadata);
+  });
+
+  it("upgrades a moved version 1 one-time schedule to version 2 atomically", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: SCHEDULE_REVISION,
+      metadata: JSON.stringify(onceMetadataV1),
+      nextRunAt: ORIGINAL,
+    });
+    occurrenceFindFirstMock.mockResolvedValue(
+      createRow({
+        scheduleVersion: 1,
+        epochId: null,
+        timezone: null,
+        ruleSnapshot: onceMetadataV1,
+      }),
+    );
+
+    const response = await createApp().request(...request(body()));
+
+    expect(response.status).toBe(200);
+    const occurrenceUpdate = occurrenceUpdateMock.mock.calls.at(-1)?.[0];
+    const taskUpdate = taskUpdateMock.mock.calls.at(-1)?.[0];
+    const upgradedMetadata = JSON.parse(taskUpdate.data.metadata) as {
+      version: number;
+      epochId: string;
+      mode: string;
+      sourceRunAt: string;
+      effectiveRunAt: string;
+    };
+    expect(upgradedMetadata).toMatchObject({
+      version: 2,
+      mode: "once",
+      sourceRunAt: ORIGINAL.toISOString(),
+      effectiveRunAt: TARGET.toISOString(),
+    });
+    expect(upgradedMetadata.epochId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(occurrenceUpdate.data).toEqual({
+      effectiveScheduledAt: TARGET,
+      scheduleVersion: 2,
+      epochId: upgradedMetadata.epochId,
+      timezone: "UTC",
+      ruleSnapshot: upgradedMetadata,
+    });
+    expect(taskUpdate).toEqual({
+      where: { id: TASK_ID },
+      data: {
+        metadata: JSON.stringify(upgradedMetadata),
+        nextRunAt: TARGET,
+        scheduleRevision: { increment: 1 },
+      },
     });
   });
 

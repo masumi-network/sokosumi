@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` to implement this plan task by task, with a fresh implementer and independent reviewer for each task.
 
-**Goal:** Move one unreleased occurrence of a recurring Task schedule series to a new strictly-future time, idempotently and revision-safely, with the release engine honouring the move.
+**Goal:** Move one unreleased occurrence of a recurring or one-time Task schedule to a new strictly-future time, idempotently and revision-safely, with the release engine honouring the move.
 
 **Architecture:** Extend the SOK-884 occurrence ledger, locks, revision token, and TaskEvent audit. Make the v2 release path read its `nextRunAt` and release targets from the ledger instead of the rule walk, so a moved occurrence releases at its new time and a skipped one never releases.
 
@@ -15,7 +15,7 @@
 - Work test-first: add the failing public-contract test, observe the failure, implement the narrowest behaviour, rerun focused tests.
 - Reuse `Task.scheduleRevision`, schedule v2 metadata/epochs, `TaskScheduleOccurrence`, `TaskEvent.scheduleOperationId`, Calendar/Task locks, and the `schedule_operation` helpers.
 - Do not add a migration, table, enum value, or alternate scheduler. `TaskScheduleEventKind.OCCURRENCE_RESCHEDULED` already exists.
-- Legacy v1 release behaviour must not change.
+- Legacy v1 recurring release behaviour must not change. Moving a v1 one-time schedule atomically upgrades its metadata and existing occurrence row to v2 while preserving occurrence identity and original time.
 - Add stable error kinds in `@sokosumi/utils` and match them in Web without parsing messages.
 - Never hand-edit generated Web client files; regenerate after the Core contract lands.
 
@@ -71,6 +71,7 @@
 - [x] Define the OpenAPI request (`operationId`, `expectedScheduleRevision`, `scheduledAt`) and response (`scheduleRevision`, `occurrence`).
 - [x] Add failing route tests for: interactive human + collaboration + beta gate, ownership/missing occurrence, non-`PLANNED`/due/released rejection (`409 schedule_occurrence_not_reschedulable`), target not strictly future or outside the horizon (`422`), same-time no-op, revision conflict (`409 schedule_revision_conflict`), exact idempotent replay, conflicting identity reuse (`409 idempotency_conflict`), one revision bump, `effectiveScheduledAt` changed while `originalScheduledAt`/epoch identity stay, audit TaskEvent `OCCURRENCE_RESCHEDULED`, and recomputed `nextRunAt`.
 - [x] Implement under `lockCalendarScope` → `lockTaskRows`, reusing `createTaskScheduleRequestFingerprint` and `isTaskScheduleOperationReplay`.
+- [x] Cover recurring behavior unchanged, v2 one-time effective wake-time updates, and atomic v1 one-time conversion to v2.
 - [x] Mount the route beside the occurrence GET in `apps/core/src/routes/v1/tasks/index.ts`.
 - [x] Run `pnpm --filter @sokosumi/core test src/schemas/task-schedule-occurrence-reschedule.schema.test.ts 'src/routes/v1/tasks/[id]/schedule/occurrences/patch.test.ts'`.
 - [x] Run `pnpm --filter @sokosumi/core typecheck`.
@@ -115,4 +116,4 @@
 
 - [ ] `pnpm check`, `pnpm typecheck`, affected suites.
 - [ ] Repository code review against the stack base; fix in-scope findings.
-- [ ] Browser proof on the PR preview: drag an occurrence, confirm it moves and releases at the new time, and that a second move keeps identity.
+- [ ] Browser proof on the PR preview: drag recurring and one-time occurrences, confirm each moves and releases/promotes at the new time, and that a second move keeps identity.
