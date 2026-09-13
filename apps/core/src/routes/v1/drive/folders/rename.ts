@@ -108,7 +108,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // Check if source folder exists (has at least one blob)
     const sourceCheck = await list({
       prefix: oldPrefix,
       token,
@@ -129,7 +128,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("Target folder already exists");
     }
 
-    // Check if a file with that name exists (newPrefix ends with /, check without it)
     try {
       await head(newPrefix.slice(0, -1), { token });
       throw conflict("A file with that name already exists");
