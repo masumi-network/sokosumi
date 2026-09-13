@@ -5,7 +5,7 @@
 ## Package Overview
 
 **Package Name**: `@sokosumi/masumi`
-**Purpose**: Masumi protocol utilities including agent client, hash functions, schemas, types, and Masumi-hosted tool clients
+**Purpose**: Masumi protocol utilities including agent, payment, and registry clients, hash functions, schemas, types, and Masumi-hosted tool clients
 **Runtime**: Node.js 24.x
 **Location**: `packages/masumi/` within the pnpm workspace
 
@@ -45,8 +45,8 @@ const resultHash = hashResult(resultString, purchaserId);
 
 ### Clients Export (`@sokosumi/masumi/clients`)
 
-- **Purpose**: Agent API client
-- **Includes**: `createAgentClient` factory function
+- **Purpose**: Agent, payment, and registry API clients
+- **Includes**: `createAgentClient`, `createPaymentClient`, `createRegistryClient`
 
 ```typescript
 import { createAgentClient } from "@sokosumi/masumi/clients";
@@ -142,6 +142,8 @@ const inputHash = hashInput(JSON.stringify(inputData), purchaserId);
 const resultHash = hashResult(resultString, purchaserId);
 ```
 
+`hashInputDeprecated` is an internal fallback for verifying old input hashes. Keep it; do not delete it. New code uses `hashInput`.
+
 ## Key Conventions
 
 ### Error Handling
@@ -195,7 +197,7 @@ pnpm masumi:test
 - Throw errors from client methods (use `Result` instead)
 - Access agent APIs directly without validation
 - Modify hash algorithms without updating verification
-- Use deprecated `hashInputDeprecated` function
+- Delete `hashInputDeprecated` (internal verification fallback, not a removal item)
 
 ## References
 
