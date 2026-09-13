@@ -25,6 +25,19 @@ describe("isExpectedAuthRequestError", () => {
     ).toBe(true);
   });
 
+  it("matches CoreAuthUnavailableError by name", () => {
+    const error = new Error("Session could not be read");
+    error.name = "CoreAuthUnavailableError";
+
+    expect(isExpectedAuthRequestError(error)).toBe(true);
+  });
+
+  it("matches Core session-read outage messages", () => {
+    expect(
+      isExpectedAuthRequestError(new Error("Session could not be read")),
+    ).toBe(true);
+  });
+
   it("ignores unrelated errors", () => {
     expect(isExpectedAuthRequestError(new Error("Database unavailable"))).toBe(
       false,
@@ -117,6 +130,22 @@ describe("isExpectedAuthSentryEvent", () => {
       }),
     ).toBe(true);
   });
+
+  it("drops CoreAuthUnavailableError events", () => {
+    expect(
+      isExpectedAuthSentryEvent({
+        type: undefined,
+        exception: {
+          values: [
+            {
+              type: "CoreAuthUnavailableError",
+              value: "Session could not be read",
+            },
+          ],
+        },
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("beforeSendServerEvent", () => {
@@ -130,6 +159,25 @@ describe("beforeSendServerEvent", () => {
               {
                 type: "UnAuthenticatedError",
                 value: "User is not authenticated",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null for CoreAuthUnavailableError outage events", () => {
+    expect(
+      beforeSendServerEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "CoreAuthUnavailableError",
+                value: "Session could not be read",
               },
             ],
           },
