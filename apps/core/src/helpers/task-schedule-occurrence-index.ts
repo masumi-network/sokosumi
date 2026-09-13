@@ -61,7 +61,7 @@ interface TaskScheduleOccurrenceCreateClient {
 interface TaskScheduleOccurrenceIndexClient {
   taskScheduleOccurrence: Pick<
     Prisma.TransactionClient["taskScheduleOccurrence"],
-    "createMany" | "deleteMany" | "findMany"
+    "createMany" | "deleteMany" | "findMany" | "updateMany"
   >;
 }
 
@@ -186,17 +186,18 @@ function getOccurrenceProjectionIdentity(
 }
 
 /**
- * Deletes obsolete ordinary projections while retaining rows that still match
- * the current projection. Keeping those rows preserves the occurrence IDs held
- * by open Calendar clients. A moved occurrence is a durable human decision and
- * survives; a skipped row is not `PLANNED`, so it is never in the candidate
- * set at all.
+ * Reconciles stored projections with the current projection: obsolete ordinary
+ * rows are deleted, retained rows keep their IDs and receive the current
+ * Calendar source, and stored identities are returned so the caller can create
+ * missing rows. A moved occurrence is a durable human decision and survives;
+ * a skipped row is not `PLANNED`, so it is never in the candidate set at all.
  */
-async function removeObsoleteOrdinaryPlannedOccurrences(
+async function reconcileExistingPlannedOccurrences(
   tx: TaskScheduleOccurrenceIndexClient,
   seriesTaskId: string,
   now: Date,
   projectedRows: OccurrenceProjectionIdentity[],
+  projectedSource: ReturnType<typeof getOccurrenceSource>,
 ): Promise<Set<string>> {
   const planned = await tx.taskScheduleOccurrence.findMany({
     where: {
@@ -211,6 +212,11 @@ async function removeObsoleteOrdinaryPlannedOccurrences(
       scheduleVersion: true,
       originalScheduledAt: true,
       effectiveScheduledAt: true,
+      sourceWorkspaceId: true,
+      sourceType: true,
+      sourceProjectId: true,
+      sourceAccuracy: true,
+      timeAccuracy: true,
     },
   });
   const projectedIdentities = new Set(
@@ -223,7 +229,7 @@ async function removeObsoleteOrdinaryPlannedOccurrences(
       .map(getOccurrenceProjectionIdentity)
       .filter((identity): identity is string => identity !== null),
   );
-  const ordinaryIds = planned
+  const obsoleteOrdinaryIds = planned
     .filter((row) => {
       if (isDurableScheduleException(row)) {
         return false;
@@ -232,13 +238,31 @@ async function removeObsoleteOrdinaryPlannedOccurrences(
       return identity === null || !projectedIdentities.has(identity);
     })
     .map((row) => row.id);
-  if (ordinaryIds.length === 0) {
-    return existingIdentities;
+  const obsoleteOrdinaryIdSet = new Set(obsoleteOrdinaryIds);
+  const staleSourceIds = planned
+    .filter(
+      (row) =>
+        !obsoleteOrdinaryIdSet.has(row.id) &&
+        (row.sourceWorkspaceId !== projectedSource.sourceWorkspaceId ||
+          row.sourceType !== projectedSource.sourceType ||
+          row.sourceProjectId !== projectedSource.sourceProjectId ||
+          row.sourceAccuracy !== projectedSource.sourceAccuracy ||
+          row.timeAccuracy !== projectedSource.timeAccuracy),
+    )
+    .map((row) => row.id);
+
+  if (staleSourceIds.length > 0) {
+    await tx.taskScheduleOccurrence.updateMany({
+      where: { id: { in: staleSourceIds } },
+      data: projectedSource,
+    });
   }
 
-  await tx.taskScheduleOccurrence.deleteMany({
-    where: { id: { in: ordinaryIds } },
-  });
+  if (obsoleteOrdinaryIds.length > 0) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: { id: { in: obsoleteOrdinaryIds } },
+    });
+  }
   return existingIdentities;
 }
 
@@ -249,11 +273,12 @@ export async function replaceTaskSchedulePlannedOccurrences(
 ): Promise<void> {
   const rows = projectPlannedOccurrenceRows(task, now);
 
-  const existingIdentities = await removeObsoleteOrdinaryPlannedOccurrences(
+  const existingIdentities = await reconcileExistingPlannedOccurrences(
     tx,
     task.id,
     now,
     rows,
+    getOccurrenceSource(task),
   );
   const missingRows = rows.filter((row) => {
     const identity = getOccurrenceProjectionIdentity(row);
