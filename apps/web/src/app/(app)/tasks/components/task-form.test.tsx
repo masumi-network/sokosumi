@@ -1110,13 +1110,16 @@ describe("TaskForm", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "removeConfirm" }));
 
-    expect(updateTaskMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        taskId: "task-1",
-        desiredStatus: TaskStatus.DRAFT,
-        schedule: expect.objectContaining({ mode: "none" }),
-      }),
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          desiredStatus: TaskStatus.DRAFT,
+          schedule: expect.objectContaining({ mode: "none" }),
+        }),
+      ),
     );
   });
 
