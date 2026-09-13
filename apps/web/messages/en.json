@@ -1096,7 +1096,6 @@
       "magicLinkInvalidEmail": "Please enter a valid email address."
     },
     "Words": {
-      "signIn": "Login",
       "signUp": "Register"
     },
     "PasswordToggle": {
