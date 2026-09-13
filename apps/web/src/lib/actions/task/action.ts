@@ -519,7 +519,10 @@ async function createTaskFromDescription(input: {
       input.schedule &&
       input.schedule.mode !== "none"
     ) {
-      const statusAfterSchedule = await armTaskSchedule(task.id, input.schedule);
+      const statusAfterSchedule = await armTaskSchedule(
+        task.id,
+        input.schedule,
+      );
       // Create always goes Draft → schedule. Agents that asked for Queued but
       // landed Ready need a follow-up event. Humans keep Ready and save.
       if (
