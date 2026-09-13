@@ -16,6 +16,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTaskScheduleOccurrences } from "@/app/tasks/actions";
+import { MoveOccurrenceDialog } from "@/components/schedules/move-occurrence-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
@@ -30,8 +31,20 @@ export interface TaskScheduleOccurrencesPageData {
   nextCursor: string | null;
 }
 
+function appendOccurrencePage(
+  previous: TaskScheduleOccurrencesPageData,
+  occurrences: TaskScheduleOccurrence[],
+  nextCursor: string | null,
+): TaskScheduleOccurrencesPageData {
+  return {
+    occurrences: [...previous.occurrences, ...occurrences],
+    nextCursor,
+  };
+}
+
 interface TaskScheduleOccurrencesProps {
   taskId: string;
+  scheduleRevision: number;
   upcoming: TaskScheduleOccurrencesPageData;
   history: TaskScheduleOccurrencesPageData;
   /** False once the series was removed; its history is still preserved. */
@@ -41,6 +54,24 @@ interface TaskScheduleOccurrencesProps {
 type Translate = IntlTranslation<"App.Tasks.Detail.ScheduleSeries">;
 type Format = IntlDateFormatter;
 
+interface MoveOccurrenceState {
+  occurrenceId: string;
+  scheduledAt: Date;
+  timeZone: string;
+}
+
+/**
+ * Only a future planned row can move: released, canceled, skipped, and missed
+ * rows are history, and Core rejects a move that has no live target.
+ */
+function isMovableOccurrence(occurrence: TaskScheduleOccurrence): boolean {
+  return (
+    occurrence.state === "PLANNED" &&
+    !occurrence.isMissed &&
+    (occurrence.scheduleVersion === 2 || occurrence.timezone === null)
+  );
+}
+
 /**
  * The only client state on the schedule surface: which view is open, and the
  * pages loaded past the server-rendered first one. The parent keys this on the
@@ -49,6 +80,7 @@ type Format = IntlDateFormatter;
  */
 export function TaskScheduleOccurrences({
   taskId,
+  scheduleRevision,
   upcoming,
   history,
   hasActiveSchedule,
@@ -59,6 +91,7 @@ export function TaskScheduleOccurrences({
   const [upcomingPage, setUpcomingPage] = useState(upcoming);
   const [historyPage, setHistoryPage] = useState(history);
   const [isPending, startTransition] = useTransition();
+  const [moveState, setMoveState] = useState<MoveOccurrenceState | null>(null);
   // Latched once a stale cursor sends us back to the server. Nothing clears it:
   // the parent's revision key remounts this island with fresh pages.
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -87,14 +120,22 @@ export function TaskScheduleOccurrences({
           return;
         }
 
-        const append = (previous: TaskScheduleOccurrencesPageData) => ({
-          occurrences: [...previous.occurrences, ...result.occurrences],
-          nextCursor: result.nextCursor,
-        });
         if (view === "upcoming") {
-          setUpcomingPage(append);
+          setUpcomingPage((previous) =>
+            appendOccurrencePage(
+              previous,
+              result.occurrences,
+              result.nextCursor,
+            ),
+          );
         } else {
-          setHistoryPage(append);
+          setHistoryPage((previous) =>
+            appendOccurrencePage(
+              previous,
+              result.occurrences,
+              result.nextCursor,
+            ),
+          );
         }
       } catch (error) {
         console.error("Failed to load more task schedule occurrences", {
@@ -107,39 +148,63 @@ export function TaskScheduleOccurrences({
     });
   }
 
+  function handleMoveOccurrence(occurrence: TaskScheduleOccurrence) {
+    setMoveState({
+      occurrenceId: occurrence.id,
+      scheduledAt: occurrence.effectiveScheduledAt,
+      timeZone: occurrence.timezone ?? HYDRATION_STABLE_TIME_ZONE,
+    });
+  }
+
   return (
-    <Tabs defaultValue="upcoming" className="gap-3">
-      <TabsList aria-label={t("tabsLabel")}>
-        <TabsTrigger value="upcoming">{t("upcomingTab")}</TabsTrigger>
-        <TabsTrigger value="history">{t("historyTab")}</TabsTrigger>
-      </TabsList>
+    <>
+      <Tabs defaultValue="upcoming" className="gap-3">
+        <TabsList aria-label={t("tabsLabel")}>
+          <TabsTrigger value="upcoming">{t("upcomingTab")}</TabsTrigger>
+          <TabsTrigger value="history">{t("historyTab")}</TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="upcoming">
-        <OccurrenceList
-          page={upcomingPage}
-          listLabel={t("upcomingListLabel")}
-          emptyLabel={
-            hasActiveSchedule ? t("upcomingEmpty") : t("upcomingEmptyRemoved")
-          }
-          isPending={isBusy}
-          onLoadMore={() => handleLoadMore("upcoming")}
-          t={t}
-          format={format}
-        />
-      </TabsContent>
+        <TabsContent value="upcoming">
+          <OccurrenceList
+            page={upcomingPage}
+            listLabel={t("upcomingListLabel")}
+            emptyLabel={
+              hasActiveSchedule ? t("upcomingEmpty") : t("upcomingEmptyRemoved")
+            }
+            isPending={isBusy}
+            onLoadMore={() => handleLoadMore("upcoming")}
+            onMoveOccurrence={handleMoveOccurrence}
+            t={t}
+            format={format}
+          />
+        </TabsContent>
 
-      <TabsContent value="history">
-        <OccurrenceList
-          page={historyPage}
-          listLabel={t("historyListLabel")}
-          emptyLabel={t("historyEmpty")}
-          isPending={isBusy}
-          onLoadMore={() => handleLoadMore("history")}
-          t={t}
-          format={format}
+        <TabsContent value="history">
+          <OccurrenceList
+            page={historyPage}
+            listLabel={t("historyListLabel")}
+            emptyLabel={t("historyEmpty")}
+            isPending={isBusy}
+            onLoadMore={() => handleLoadMore("history")}
+            onMoveOccurrence={handleMoveOccurrence}
+            t={t}
+            format={format}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {moveState ? (
+        <MoveOccurrenceDialog
+          key={moveState.occurrenceId}
+          occurrenceId={moveState.occurrenceId}
+          expectedScheduleRevision={scheduleRevision}
+          scheduledAt={moveState.scheduledAt}
+          taskId={taskId}
+          timeZone={moveState.timeZone}
+          onClose={() => setMoveState(null)}
         />
-      </TabsContent>
-    </Tabs>
+      ) : null}
+    </>
   );
 }
 
@@ -149,6 +214,7 @@ function OccurrenceList({
   emptyLabel,
   isPending,
   onLoadMore,
+  onMoveOccurrence,
   t,
   format,
 }: {
@@ -157,6 +223,7 @@ function OccurrenceList({
   emptyLabel: string;
   isPending: boolean;
   onLoadMore: () => void;
+  onMoveOccurrence: (occurrence: TaskScheduleOccurrence) => void;
   t: Translate;
   format: Format;
 }) {
@@ -172,6 +239,11 @@ function OccurrenceList({
             <OccurrenceRow
               key={occurrence.id}
               occurrence={occurrence}
+              onMove={
+                isMovableOccurrence(occurrence)
+                  ? () => onMoveOccurrence(occurrence)
+                  : undefined
+              }
               t={t}
               format={format}
             />
@@ -202,10 +274,12 @@ function OccurrenceList({
 
 function OccurrenceRow({
   occurrence,
+  onMove,
   t,
   format,
 }: {
   occurrence: TaskScheduleOccurrence;
+  onMove?: () => void;
   t: Translate;
   format: Format;
 }) {
@@ -247,6 +321,17 @@ function OccurrenceRow({
         <span className="text-muted-foreground text-xs">
           {t("movedFrom", { original: movedFrom })}
         </span>
+      ) : null}
+      {onMove ? (
+        <Button
+          className="ms-auto"
+          size="sm"
+          type="button"
+          variant="outline"
+          onClick={onMove}
+        >
+          {t("move")}
+        </Button>
       ) : null}
       {released ? (
         <span className="ms-auto flex min-w-0 items-center gap-2">

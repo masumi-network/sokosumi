@@ -118,6 +118,7 @@ export async function TaskScheduleSeriesSection({
           // useState from the other view.
           key={`${pages[0].scheduleRevision}:${pages[1].scheduleRevision}`}
           taskId={task.id}
+          scheduleRevision={pages[0].scheduleRevision}
           upcoming={{
             occurrences: pages[0].occurrences,
             nextCursor: pages[0].nextCursor,

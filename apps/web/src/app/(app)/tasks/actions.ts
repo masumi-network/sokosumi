@@ -297,6 +297,17 @@ export type LoadMoreTaskScheduleOccurrencesResult =
     }
   | { status: "stale" };
 
+export interface TaskScheduleSeriesPreconditionResult {
+  scheduleRevision: number;
+  futureExceptionCount: number;
+}
+
+export async function loadTaskScheduleSeriesPrecondition(
+  taskId: string,
+): Promise<TaskScheduleSeriesPreconditionResult> {
+  return await taskScheduleService.readSeriesState(taskId);
+}
+
 export async function loadMoreTaskScheduleOccurrences({
   taskId,
   view,
