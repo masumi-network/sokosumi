@@ -1,6 +1,6 @@
 # Sokosumi
 
-Shared product language for the Sokosumi monorepo (web, core, packages).
+Shared product language for the Sokosumi monorepo (web, core, apple, cli, packages).
 
 ## Language
 
