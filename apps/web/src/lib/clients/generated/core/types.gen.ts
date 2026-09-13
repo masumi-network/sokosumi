@@ -37914,9 +37914,9 @@ export type DeleteTasksByIdScheduleData = {
          */
         'idempotency-key': string;
         /**
-         * Schedule revision observed by the caller, as an entity tag
+         * Schedule revision observed by the caller
          */
-        'if-match': string;
+        'x-sokosumi-schedule-revision': string;
     };
     path: {
         id: string;

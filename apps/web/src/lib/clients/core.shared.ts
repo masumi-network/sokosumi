@@ -3420,8 +3420,8 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   /**
    * Series removal has no body, so its idempotency identity and observed
-   * revision travel as request metadata. Core matches the entity tag exactly,
-   * quotes included.
+   * revision travel as request metadata. A custom revision header avoids
+   * deployment platforms applying HTTP `If-Match` semantics themselves.
    */
   async function deleteTaskSchedule(
     id: string,
@@ -3438,7 +3438,9 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
           headers: {
             "idempotency-key": precondition.operationId,
-            "if-match": `"schedule-revision:${precondition.expectedScheduleRevision}"`,
+            "x-sokosumi-schedule-revision": String(
+              precondition.expectedScheduleRevision,
+            ),
           },
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),

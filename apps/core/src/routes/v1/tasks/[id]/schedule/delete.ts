@@ -28,16 +28,11 @@ const paramsSchema = z.object({
   }),
 });
 
-/**
- * The removal has no body, so its concurrency token travels as an `If-Match`
- * entity tag over the schedule revision. Only this exact form is accepted —
- * `*` and other validators would silently skip the revision check.
- */
-const SCHEDULE_REVISION_ETAG_PATTERN = /^"schedule-revision:(0|[1-9]\d*)"$/;
+const SCHEDULE_REVISION_HEADER_PATTERN = /^(0|[1-9]\d*)$/;
 
 // Hono lower-cases request header names before validation, and zod-to-openapi
 // documents each parameter under its schema key, so these keys are the
-// canonical `Idempotency-Key` / `If-Match` headers in their matched-case form.
+// canonical request headers in their matched-case form.
 const headersSchema = z.object({
   "idempotency-key": z
     .string()
@@ -47,16 +42,16 @@ const headersSchema = z.object({
       description: "Idempotency identity for this series removal",
       example: "123e4567-e89b-42d3-a456-426614174000",
     }),
-  "if-match": z
+  "x-sokosumi-schedule-revision": z
     .string()
     .regex(
-      SCHEDULE_REVISION_ETAG_PATTERN,
-      'If-Match must be "schedule-revision:{n}"',
+      SCHEDULE_REVISION_HEADER_PATTERN,
+      "X-Sokosumi-Schedule-Revision must be a non-negative integer",
     )
     .openapi({
       param: { in: "header" },
-      description: "Schedule revision observed by the caller, as an entity tag",
-      example: '"schedule-revision:3"',
+      description: "Schedule revision observed by the caller",
+      example: "3",
     }),
 });
 
@@ -64,7 +59,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}/schedule",
   description:
-    "Remove a Calendar schedule series. Idempotent per Idempotency-Key and guarded by the If-Match schedule revision.",
+    "Remove a Calendar schedule series. Idempotent per Idempotency-Key and guarded by the observed schedule revision.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -88,12 +83,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // schedule, including the ones the un-gated legacy route still creates.
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
-    const { "idempotency-key": operationId, "if-match": scheduleRevisionETag } =
-      c.req.valid("header");
-    // The header schema already enforced this shape, so the capture is present.
-    const expectedScheduleRevision = Number(
-      SCHEDULE_REVISION_ETAG_PATTERN.exec(scheduleRevisionETag)?.[1],
-    );
+    const {
+      "idempotency-key": operationId,
+      "x-sokosumi-schedule-revision": scheduleRevision,
+    } = c.req.valid("header");
+    const expectedScheduleRevision = Number(scheduleRevision);
     // Removal has one possible outcome per Task, so its identity is the whole
     // request; reusing the key for an edit hashes differently and conflicts.
     const requestFingerprint = createTaskScheduleRequestFingerprint({
