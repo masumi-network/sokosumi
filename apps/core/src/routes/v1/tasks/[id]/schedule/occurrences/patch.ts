@@ -258,7 +258,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      const nextReleaseable = await findNextReleaseableOccurrence(tx, id);
+      const activeEpochId =
+        oneTimeMove?.metadata.epochId ??
+        (scheduleMetadata?.version === 2 ? scheduleMetadata.epochId : null);
+      const nextReleaseable = await findNextReleaseableOccurrence(
+        tx,
+        id,
+        activeEpochId,
+      );
       const updatedTask = await tx.task.update({
         where: { id },
         data: {

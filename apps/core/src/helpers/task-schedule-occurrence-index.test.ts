@@ -566,6 +566,7 @@ describe("findNextReleaseableOccurrence", () => {
       findNextReleaseableOccurrence(
         { taskScheduleOccurrence: { findFirst } },
         "tsk_series",
+        "33333333-3333-7333-8333-333333333333",
       ),
     ).resolves.toEqual({
       id: "occ_1",
@@ -577,6 +578,7 @@ describe("findNextReleaseableOccurrence", () => {
     expect(findFirst).toHaveBeenCalledWith({
       where: {
         seriesTaskId: "tsk_series",
+        epochId: "33333333-3333-7333-8333-333333333333",
         state: "PLANNED",
       },
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
@@ -596,6 +598,7 @@ describe("findNextReleaseableOccurrence", () => {
       findNextReleaseableOccurrence(
         { taskScheduleOccurrence: { findFirst } },
         "tsk_series",
+        null,
       ),
     ).resolves.toBeNull();
   });

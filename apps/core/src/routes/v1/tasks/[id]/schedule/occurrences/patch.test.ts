@@ -457,7 +457,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     expect(occurrenceUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("replays an exact operation after its target is no longer valid", async () => {
+  it("replays an exact operation after a one-time occurrence was promoted", async () => {
     taskEventFindUniqueMock.mockResolvedValue({
       schedulePayload: {
         requestFingerprint: createTaskScheduleRequestFingerprint({
@@ -468,6 +468,18 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
         }),
       },
     });
+    occurrenceFindUniqueOrThrowMock.mockResolvedValue(
+      createRow({
+        state: TaskScheduleOccurrenceState.RELEASED,
+        releasedTaskId: TASK_ID,
+        releasedTask: {
+          id: TASK_ID,
+          name: "Promoted task",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      }),
+    );
 
     const response = await createApp().request(
       ...request(body({ scheduledAt: NOW.toISOString() })),

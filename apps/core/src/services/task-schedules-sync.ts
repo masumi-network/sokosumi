@@ -167,6 +167,7 @@ async function promoteOneTimeTask(
   templateId: string,
   userId: string,
   claimedNextRunAt: Date,
+  epochId: string | null,
 ): Promise<boolean> {
   const updateResult = await tx.task.updateMany({
     where: queuedTemplateClaimWhere(templateId, claimedNextRunAt),
@@ -181,6 +182,23 @@ async function promoteOneTimeTask(
     return false;
   }
 
+  if (epochId) {
+    const released = await tx.taskScheduleOccurrence.updateMany({
+      where: {
+        seriesTaskId: templateId,
+        epochId,
+        state: TaskScheduleOccurrenceState.PLANNED,
+        effectiveScheduledAt: claimedNextRunAt,
+      },
+      data: {
+        state: TaskScheduleOccurrenceState.RELEASED,
+        releasedTaskId: templateId,
+      },
+    });
+    if (released.count !== 1) {
+      throw new Error("One-time schedule occurrence ledger row is missing");
+    }
+  }
   await removeTaskSchedulePlannedOccurrences(tx, templateId);
 
   await tx.taskEvent.create({
@@ -213,9 +231,16 @@ function getUpdatedRecurringMetadata(
   lastRunAt: Date,
 ): Extract<TaskScheduleMetadata, { mode: "recurring" }> {
   if (metadata.version === 2) {
+    const previousSourceAt = metadata.lastProcessedSourceAt
+      ? new Date(metadata.lastProcessedSourceAt)
+      : null;
+    const lastProcessedSourceAt =
+      previousSourceAt && previousSourceAt > lastRunAt
+        ? previousSourceAt
+        : lastRunAt;
     return {
       ...metadata,
-      lastProcessedSourceAt: lastRunAt.toISOString(),
+      lastProcessedSourceAt: lastProcessedSourceAt.toISOString(),
       epochReleaseCount: metadata.epochReleaseCount + 1,
     };
   }
@@ -487,6 +512,7 @@ async function processDueTask(
           template.id,
           template.ownerId,
           claimedNextRunAt,
+          scheduleMetadata.version === 2 ? scheduleMetadata.epochId : null,
         );
         if (!promoted) {
           return { outcome: "skipped", publishEvents: [] };
@@ -579,6 +605,7 @@ async function processDueTask(
         const nextReleaseable = await findNextReleaseableOccurrence(
           tx,
           template.id,
+          scheduleMetadata.epochId,
         );
         nextRunAt = nextReleaseable?.effectiveScheduledAt ?? null;
 

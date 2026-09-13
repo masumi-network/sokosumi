@@ -11,6 +11,7 @@ const mockTaskEventCreate = vi.fn();
 const mockTaskScheduleOccurrenceCreate = vi.fn();
 const mockTaskScheduleOccurrenceDeleteMany = vi.fn();
 const mockTaskScheduleOccurrenceFindMany = vi.fn();
+const mockTaskScheduleOccurrenceUpdateMany = vi.fn();
 const mockTaskScheduleQuarantineUpsert = vi.fn();
 const replaceTaskSchedulePlannedOccurrencesMock = vi.fn();
 const removeTaskSchedulePlannedOccurrencesMock = vi.fn();
@@ -64,6 +65,7 @@ vi.mock("@/lib/db/prisma", () => ({
     taskScheduleOccurrence: {
       create: mockTaskScheduleOccurrenceCreate,
       deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+      updateMany: mockTaskScheduleOccurrenceUpdateMany,
     },
     taskScheduleQuarantine: {
       upsert: mockTaskScheduleQuarantineUpsert,
@@ -85,6 +87,7 @@ describe("taskSchedulesSyncService", () => {
     mockTaskScheduleOccurrenceCreate.mockReset();
     mockTaskScheduleOccurrenceDeleteMany.mockReset();
     mockTaskScheduleOccurrenceFindMany.mockReset();
+    mockTaskScheduleOccurrenceUpdateMany.mockReset();
     mockTaskScheduleQuarantineUpsert.mockReset();
     findNextReleaseableOccurrenceMock.mockReset();
     lockCalendarScopeMock.mockReset();
@@ -95,6 +98,7 @@ describe("taskSchedulesSyncService", () => {
     mockTaskScheduleOccurrenceCreate.mockResolvedValue({ id: "occurrence-1" });
     mockTaskScheduleOccurrenceDeleteMany.mockResolvedValue({ count: 1 });
     mockTaskScheduleOccurrenceFindMany.mockResolvedValue([]);
+    mockTaskScheduleOccurrenceUpdateMany.mockResolvedValue({ count: 1 });
     findNextReleaseableOccurrenceMock.mockResolvedValue(null);
     mockTaskScheduleQuarantineUpsert.mockResolvedValue({ id: "quarantine-1" });
     lockCalendarScopeMock.mockResolvedValue(true);
@@ -141,6 +145,7 @@ describe("taskSchedulesSyncService", () => {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
+          updateMany: mockTaskScheduleOccurrenceUpdateMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -378,6 +383,7 @@ describe("taskSchedulesSyncService", () => {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
+          updateMany: mockTaskScheduleOccurrenceUpdateMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -720,6 +726,7 @@ describe("taskSchedulesSyncService", () => {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
+          updateMany: mockTaskScheduleOccurrenceUpdateMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -756,6 +763,18 @@ describe("taskSchedulesSyncService", () => {
     });
 
     expect(result.promoted).toBe(1);
+    expect(mockTaskScheduleOccurrenceUpdateMany).toHaveBeenCalledWith({
+      where: {
+        seriesTaskId: "template-once",
+        epochId: "123e4567-e89b-42d3-a456-426614174010",
+        state: "PLANNED",
+        effectiveScheduledAt: new Date("2026-06-10T12:00:00.000Z"),
+      },
+      data: {
+        state: "RELEASED",
+        releasedTaskId: "template-once",
+      },
+    });
     expect(mockTaskUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
@@ -768,7 +787,7 @@ describe("taskSchedulesSyncService", () => {
     );
   });
 
-  it("processes version 2 recurring metadata without downgrading it", async () => {
+  it("does not regress the source anchor when a moved older run releases later", async () => {
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
     );
@@ -783,6 +802,7 @@ describe("taskSchedulesSyncService", () => {
       endsMode: "never",
       epochReleaseCount: 0,
       anchorAt: "2026-06-01T09:00:00.000Z",
+      lastProcessedSourceAt: "2026-06-10T09:00:00.000Z",
     });
 
     mockFindMany
@@ -825,7 +845,7 @@ describe("taskSchedulesSyncService", () => {
     mockTaskScheduleOccurrenceFindMany.mockResolvedValueOnce([
       {
         id: "occ-v2",
-        originalScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
+        originalScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
         effectiveScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
       },
     ]);
@@ -858,7 +878,7 @@ describe("taskSchedulesSyncService", () => {
         seriesTaskId: "template-v2",
         releasedTaskId: "clone-v2",
         epochId: "123e4567-e89b-42d3-a456-426614174001",
-        originalScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
+        originalScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
         effectiveScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
         state: "RELEASED",
         sourceAccuracy: "EXACT",
@@ -869,7 +889,7 @@ describe("taskSchedulesSyncService", () => {
       where: {
         seriesTaskId: "template-v2",
         epochId: "123e4567-e89b-42d3-a456-426614174001",
-        originalScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
+        originalScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
         state: "PLANNED",
       },
     });

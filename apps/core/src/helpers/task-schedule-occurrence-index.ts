@@ -252,10 +252,12 @@ interface TaskScheduleOccurrenceNextClient {
 export async function findNextReleaseableOccurrence(
   tx: TaskScheduleOccurrenceNextClient,
   seriesTaskId: string,
+  epochId: string | null,
 ): Promise<TaskScheduleOccurrenceReleaseCandidate | null> {
   return tx.taskScheduleOccurrence.findFirst({
     where: {
       seriesTaskId,
+      epochId,
       state: TaskScheduleOccurrenceState.PLANNED,
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
