@@ -5,15 +5,7 @@ import {
   useQueryState,
 } from "nuqs";
 
-export const GALLERY_AGENT_KINDS = ["all", "cardano", "x402"] as const;
-
-export type GalleryAgentKindFilter = (typeof GALLERY_AGENT_KINDS)[number];
-
-export interface GalleryFilterState {
-  query: string;
-  categories: string[];
-  kind: GalleryAgentKindFilter;
-}
+import { GALLERY_AGENT_KINDS } from "@/lib/agents/gallery-filter";
 
 export default function useGalleryFilter() {
   // Catalog-only search. Coworker gallery keeps the separate `query` param so
