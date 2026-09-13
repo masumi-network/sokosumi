@@ -3302,7 +3302,7 @@ export const putTasksByIdCalendarSchedule = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Remove a Calendar schedule series. Idempotent per Idempotency-Key and guarded by the If-Match schedule revision.
+ * Remove a Calendar schedule series. Idempotent per Idempotency-Key and guarded by the observed schedule revision.
  */
 export const deleteTasksByIdSchedule = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdScheduleData, ThrowOnError>): RequestResult<DeleteTasksByIdScheduleResponses, DeleteTasksByIdScheduleErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdScheduleResponses, DeleteTasksByIdScheduleErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdScheduleResponseTransformer,

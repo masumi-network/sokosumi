@@ -61,7 +61,7 @@ interface TaskScheduleOccurrenceCreateClient {
 interface TaskScheduleOccurrenceIndexClient {
   taskScheduleOccurrence: Pick<
     Prisma.TransactionClient["taskScheduleOccurrence"],
-    "createMany" | "deleteMany" | "findMany"
+    "createMany" | "deleteMany" | "findMany" | "updateMany"
   >;
 }
 
@@ -172,17 +172,33 @@ export async function createTaskSchedulePlannedOccurrences(
   await tx.taskScheduleOccurrence.createMany({ data: rows });
 }
 
+interface OccurrenceProjectionIdentity {
+  epochId: string | null;
+  originalScheduledAt: Date | null;
+}
+
+function getOccurrenceProjectionIdentity(
+  occurrence: OccurrenceProjectionIdentity,
+): string | null {
+  return occurrence.originalScheduledAt
+    ? `${occurrence.epochId ?? "legacy"}:${occurrence.originalScheduledAt.toISOString()}`
+    : null;
+}
+
 /**
- * Deletes only the ordinary projections a re-projection may replace. A moved
- * occurrence (`originalScheduledAt != effectiveScheduledAt`) is a durable human
- * decision and survives; a skipped row is not `PLANNED`, so it is never in the
- * candidate set at all.
+ * Reconciles stored projections with the current projection: obsolete ordinary
+ * rows are deleted, retained rows keep their IDs and receive the current
+ * Calendar source, and stored identities are returned so the caller can create
+ * missing rows. A moved occurrence is a durable human decision and survives;
+ * a skipped row is not `PLANNED`, so it is never in the candidate set at all.
  */
-async function removeOrdinaryPlannedOccurrences(
+async function reconcileExistingPlannedOccurrences(
   tx: TaskScheduleOccurrenceIndexClient,
   seriesTaskId: string,
   now: Date,
-): Promise<void> {
+  projectedRows: OccurrenceProjectionIdentity[],
+  projectedSource: ReturnType<typeof getOccurrenceSource>,
+): Promise<Set<string>> {
   const planned = await tx.taskScheduleOccurrence.findMany({
     where: {
       seriesTaskId,
@@ -191,22 +207,63 @@ async function removeOrdinaryPlannedOccurrences(
     },
     select: {
       id: true,
+      epochId: true,
       state: true,
       scheduleVersion: true,
       originalScheduledAt: true,
       effectiveScheduledAt: true,
+      sourceWorkspaceId: true,
+      sourceType: true,
+      sourceProjectId: true,
+      sourceAccuracy: true,
+      timeAccuracy: true,
     },
   });
-  const ordinaryIds = planned
-    .filter((row) => !isDurableScheduleException(row))
+  const projectedIdentities = new Set(
+    projectedRows
+      .map(getOccurrenceProjectionIdentity)
+      .filter((identity): identity is string => identity !== null),
+  );
+  const existingIdentities = new Set(
+    planned
+      .map(getOccurrenceProjectionIdentity)
+      .filter((identity): identity is string => identity !== null),
+  );
+  const obsoleteOrdinaryIds = planned
+    .filter((row) => {
+      if (isDurableScheduleException(row)) {
+        return false;
+      }
+      const identity = getOccurrenceProjectionIdentity(row);
+      return identity === null || !projectedIdentities.has(identity);
+    })
     .map((row) => row.id);
-  if (ordinaryIds.length === 0) {
-    return;
+  const obsoleteOrdinaryIdSet = new Set(obsoleteOrdinaryIds);
+  const staleSourceIds = planned
+    .filter(
+      (row) =>
+        !obsoleteOrdinaryIdSet.has(row.id) &&
+        (row.sourceWorkspaceId !== projectedSource.sourceWorkspaceId ||
+          row.sourceType !== projectedSource.sourceType ||
+          row.sourceProjectId !== projectedSource.sourceProjectId ||
+          row.sourceAccuracy !== projectedSource.sourceAccuracy ||
+          row.timeAccuracy !== projectedSource.timeAccuracy),
+    )
+    .map((row) => row.id);
+
+  if (staleSourceIds.length > 0) {
+    await tx.taskScheduleOccurrence.updateMany({
+      where: { id: { in: staleSourceIds } },
+      data: projectedSource,
+    });
   }
 
-  await tx.taskScheduleOccurrence.deleteMany({
-    where: { id: { in: ordinaryIds } },
-  });
+  if (obsoleteOrdinaryIds.length > 0) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: { id: { in: obsoleteOrdinaryIds } },
+    });
+  }
+  return existingIdentities;
 }
 
 export async function replaceTaskSchedulePlannedOccurrences(
@@ -216,15 +273,25 @@ export async function replaceTaskSchedulePlannedOccurrences(
 ): Promise<void> {
   const rows = projectPlannedOccurrenceRows(task, now);
 
-  await removeOrdinaryPlannedOccurrences(tx, task.id, now);
-  if (rows.length === 0) {
+  const existingIdentities = await reconcileExistingPlannedOccurrences(
+    tx,
+    task.id,
+    now,
+    rows,
+    getOccurrenceSource(task),
+  );
+  const missingRows = rows.filter((row) => {
+    const identity = getOccurrenceProjectionIdentity(row);
+    return identity === null || !existingIdentities.has(identity);
+  });
+  if (missingRows.length === 0) {
     return;
   }
 
   // A projected time still owned by a moved or skipped exception stays with
   // that row, so the rebuild must not collide with its identity.
   await tx.taskScheduleOccurrence.createMany({
-    data: rows,
+    data: missingRows,
     skipDuplicates: true,
   });
 }
