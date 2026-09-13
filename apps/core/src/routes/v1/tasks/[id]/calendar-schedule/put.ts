@@ -81,7 +81,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { operationId, expectedScheduleRevision, schedule } =
       c.req.valid("json");
-    validateScheduleInput(schedule);
     // The fingerprint describes the outcome the caller asked for. The observed
     // revision is a concurrency token, not part of that outcome, so a retry
     // stays an exact replay after the first attempt advanced the revision.
@@ -134,6 +133,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ),
         });
       }
+      validateScheduleInput(schedule);
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
         throw conflict(
           "The schedule series changed; reload the Task and retry with its current scheduleRevision",

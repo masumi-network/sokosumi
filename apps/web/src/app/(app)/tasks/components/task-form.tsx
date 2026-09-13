@@ -138,7 +138,7 @@ export interface TaskFormLabels {
   status: string;
   statusDescription: string;
   statusDraft: string;
-  statusQueued?: string;
+  statusQueued: string;
   statusReady: string;
   statusLabels?: Record<TaskStatus, string>;
   back: string;
@@ -157,6 +157,8 @@ export interface TaskFormLabels {
   taskCreatedHint?: string;
   goToTask?: string;
   createAnother?: string;
+  untitledTask: string;
+  saveError: string;
 }
 
 interface TaskFormInitialValues {
@@ -813,11 +815,11 @@ export function TaskForm({
           router.prefetch(`/tasks/${createdTask.taskId}`);
           setCreatedTask({
             id: createdTask.taskId,
-            name: createdTask.name.trim() || "Untitled task",
+            name: createdTask.name.trim() || labels.untitledTask,
             status: createdStatus,
             statusLabel:
               createdStatus === "QUEUED"
-                ? (labels.statusQueued ?? "Queued")
+                ? labels.statusQueued
                 : createdStatus === "DRAFT"
                   ? labels.statusDraft
                   : labels.statusReady,
@@ -890,7 +892,7 @@ export function TaskForm({
         toast.error(
           error instanceof Error && error.message === "Invalid schedule"
             ? tSchedule("errors.futureDateTime")
-            : "Failed to save task",
+            : labels.saveError,
         );
       } finally {
         setIsSubmitting(false);
@@ -926,6 +928,8 @@ export function TaskForm({
       labels.statusDraft,
       labels.statusQueued,
       labels.statusReady,
+      labels.saveError,
+      labels.untitledTask,
       tSchedule,
       hasActiveSeries,
       scheduleRevision,

@@ -169,6 +169,8 @@ describe("DELETE /tasks/{id}/schedule", () => {
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
       projectId: null,
+      metadata: JSON.stringify({ version: 1, mode: "once" }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
       scheduleRevision: 4,
     });
     lockCalendarScopeMock.mockResolvedValue(true);
@@ -282,6 +284,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
       projectId: null,
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
       scheduleRevision: 7,
     });
 
@@ -302,6 +305,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
       projectId: null,
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
       scheduleRevision: 7,
     });
 
@@ -312,6 +316,25 @@ describe("DELETE /tasks/{id}/schedule", () => {
       kind: "schedule_revision_conflict",
     });
     expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects removal when the task has no active schedule series", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.READY,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 4,
+    });
+
+    const response = await createApp().request(...removalRequest());
+
+    expect(response.status).toBe(409);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(retireTaskScheduleFutureOccurrencesMock).not.toHaveBeenCalled();
   });
 
   it("clears the series, restores the Draft template, and advances the revision once", async () => {
@@ -333,6 +356,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
       projectId: null,
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
       scheduleRevision: 4,
     });
 

@@ -10,7 +10,6 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
-  CORE_API_ERROR_KINDS,
   makeAgentJobsChannelName,
   makeUserTasksChannelName,
   userTaskStatusTransitionRequiresComment,

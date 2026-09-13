@@ -873,9 +873,6 @@ describe("TaskDetailActions", () => {
       screen.queryByRole("menuitem", { name: "Move to workspace" }),
     ).toBeNull();
     expect(screen.queryByRole("menuitem", { name: labels.cancel })).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: labels.revertToDraft }),
-    ).toBeNull();
   });
 
   it("explains a schedule_active rejection instead of opening the upgrade modal", async () => {

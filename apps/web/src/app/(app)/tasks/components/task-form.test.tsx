@@ -295,6 +295,8 @@ const baseLabels = {
   statusDescription: "Pick status",
   statusDraft: "Draft",
   statusQueued: "Queued",
+  untitledTask: "Untitled task",
+  saveError: "Failed to save task",
   statusReady: "Ready",
   statusLabels: Object.fromEntries(
     TASK_STATUS_DISPLAY_ORDER.map((status) => [
@@ -1215,7 +1217,6 @@ describe("TaskForm", () => {
 
     render(
       <TaskForm
-        variant="modal"
         mode="create"
         showCancel={false}
         labels={baseLabels}

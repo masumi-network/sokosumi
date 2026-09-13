@@ -39,8 +39,15 @@ export function createPaginationMeta<T extends { id: string }>(
   take: number,
   hasMore: boolean,
   cursor: string | undefined,
+  encodeNextCursor?: (item: T) => string,
 ): CursorPaginationMeta {
-  const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
+  const last = data.at(-1);
+  const nextCursor =
+    hasMore && last
+      ? encodeNextCursor
+        ? encodeNextCursor(last)
+        : last.id
+      : null;
 
   return {
     cursor: cursor ?? null,

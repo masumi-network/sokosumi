@@ -1,6 +1,6 @@
 import { Channel, GrantResumeStatus, TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {

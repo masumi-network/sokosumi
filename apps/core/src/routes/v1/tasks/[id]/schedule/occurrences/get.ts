@@ -10,6 +10,10 @@ import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
   CALENDAR_OCCURRENCE_HORIZON_MS,
@@ -193,7 +197,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id } = c.req.valid("param");
-    const { view, cursor: requestedCursor, limit } = c.req.valid("query");
+    const query = c.req.valid("query");
+    const { view } = query;
+    const { cursor: requestedCursor, take: limit } =
+      parseCursorPagination(query);
 
     // Ownership only: this is the read half of the collaboration audience
     // (`requireOwnerUserContext` already rejected non-human actors), without
@@ -259,7 +266,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const page = rows.slice(0, limit);
-    const last = page.at(-1);
+    const pagination = createPaginationMeta(
+      page,
+      total,
+      limit,
+      rows.length > page.length,
+      requestedCursor,
+      (occurrence) =>
+        encodeTaskScheduleOccurrenceCursor({
+          view,
+          scheduleRevision,
+          effectiveScheduledAt: occurrence.effectiveScheduledAt.toISOString(),
+          id: occurrence.id,
+        }),
+    );
 
     return ok(
       c,
@@ -276,20 +296,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             occurrence.effectiveScheduledAt < now,
         })),
       }),
-      {
-        cursor: requestedCursor ?? null,
-        limit,
-        total,
-        nextCursor:
-          rows.length > page.length && last
-            ? encodeTaskScheduleOccurrenceCursor({
-                view,
-                scheduleRevision,
-                effectiveScheduledAt: last.effectiveScheduledAt.toISOString(),
-                id: last.id,
-              })
-            : null,
-      },
+      pagination,
     );
   });
 }

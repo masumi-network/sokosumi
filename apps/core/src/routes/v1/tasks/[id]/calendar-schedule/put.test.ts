@@ -2,6 +2,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { createTaskScheduleRequestFingerprint } from "@/helpers/task-schedule-operation";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPutTaskCalendarSchedule from "./put";
@@ -454,6 +455,30 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: TASK_ID } }),
     );
+  });
+
+  it("replays an exact one-time edit after its target has passed", async () => {
+    const edit = seriesEdit({
+      mode: "once",
+      runAt: "2026-01-01T09:00:00.000Z",
+    });
+    mockCurrentTask(createV2Metadata(), { scheduleRevision: 5 });
+    taskEventFindUniqueMock.mockResolvedValue({
+      schedulePayload: {
+        requestFingerprint: createTaskScheduleRequestFingerprint({
+          action: "update_schedule",
+          taskId: TASK_ID,
+          discardFutureExceptions: true,
+          schedule: { mode: "once", runAt: "2026-01-01T09:00:00.000Z" },
+        }),
+      },
+    });
+
+    const response = await createApp().request(...calendarRequest(edit));
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects reusing one operation identity for a different schedule", async () => {

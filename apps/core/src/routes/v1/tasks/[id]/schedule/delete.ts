@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
@@ -154,6 +154,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "This schedule is quarantined and requires audited operator removal",
           { kind: CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED },
         );
+      }
+      if (!hasActiveTaskSchedule(currentTask.metadata, currentTask.nextRunAt)) {
+        throw conflict("Task does not have an active schedule series");
       }
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
         throw conflict(
