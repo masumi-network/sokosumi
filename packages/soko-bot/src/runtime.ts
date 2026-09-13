@@ -57,17 +57,6 @@ export interface SokoBotTurnGrantClaims extends SokoBotActorContext {
   expiresAt: number;
 }
 
-export interface SokoBotRequestClaims extends SokoBotActorContext {
-  issuer: string;
-  audience: string;
-  subject: string;
-  jwtId: string;
-  sessionId: string;
-  turnId: string;
-  issuedAt: number;
-  expiresAt: number;
-}
-
 export interface RuntimeSessionRef {
   sessionId: string;
   runtimeVersion: string;

@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
-
 import type { Prisma } from "../generated/prisma/client.js";
 import { publicShareInclude } from "../types/public-share.js";
 
@@ -17,7 +15,7 @@ export const publicShareRepository = {
       create: {
         job: { connect: { id: jobId } },
         allowSearchIndexing,
-        token: uuidv4(),
+        token: crypto.randomUUID(),
       },
       update: {
         allowSearchIndexing,
@@ -36,7 +34,7 @@ export const publicShareRepository = {
       create: {
         task: { connect: { id: taskId } },
         allowSearchIndexing,
-        token: uuidv4(),
+        token: crypto.randomUUID(),
       },
       update: {
         allowSearchIndexing,
