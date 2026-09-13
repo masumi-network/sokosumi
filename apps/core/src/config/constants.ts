@@ -81,12 +81,12 @@ export const LIMITS = {
   MAX_PAGINATION_LIMIT: 100,
 
   /**
-   * GET /v1/chat (AI SDK UI history): default page size until the chat UI adds cursor navigation.
-   * Same cap is used when merging server-side history on POST /v1/chat.
+   * GET /v1/chats/rooms/{id}/stream/messages (AI SDK UI history): default page size until the chat UI adds cursor navigation.
+   * Same cap is used when merging server-side history on POST /v1/chats/rooms/{id}/stream.
    */
   CHAT_UI_MESSAGES_DEFAULT_LIMIT: 200,
 
-  /** Maximum messages returned in one GET /v1/chat page (matches current UI expectation). */
+  /** Maximum messages returned in one GET /v1/chats/rooms/{id}/stream/messages page (matches current UI expectation). */
   CHAT_UI_MESSAGES_MAX_LIMIT: 200,
 
   /** Maximum upload size for direct user file uploads (100 MB) */

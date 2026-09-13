@@ -28,7 +28,6 @@ validateEnv();
 initSentry();
 initCoreLogger();
 
-// Build favicon URL - use Vercel URL in production, relative path locally
 const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;
 
 // Main app is exported at the end to combine OpenAPI and auth routes

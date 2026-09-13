@@ -420,7 +420,6 @@ describe("Drive Tasks Routes", () => {
       it("omits PENDING and FAILED TaskFiles from results", async () => {
         requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
 
-        // Return empty for READY TaskFiles
         prismaTaskFileFindManyMock.mockResolvedValue([]);
         prismaTaskFileCountMock.mockResolvedValue(0);
 
