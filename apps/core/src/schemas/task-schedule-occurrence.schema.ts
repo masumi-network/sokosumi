@@ -99,9 +99,13 @@ export const taskScheduleOccurrenceSchema = z
     timeAccuracy: z
       .enum(CalendarTimeAccuracy)
       .openapi({ example: CalendarTimeAccuracy.EXACT }),
-    releasedTask: taskScheduleOccurrenceReleasedTaskSchema.nullable().openapi({
-      description: "Independent Task this occurrence released, when it did",
-    }),
+    // Union-with-null instead of `.nullable()`: `.nullable()` on a named
+    // component makes the generated response transformer dereference null.
+    releasedTask: z
+      .union([taskScheduleOccurrenceReleasedTaskSchema, z.null()])
+      .openapi({
+        description: "Independent Task this occurrence released, when it did",
+      }),
   })
   .openapi("TaskScheduleOccurrence");
 
@@ -123,6 +127,34 @@ export const taskScheduleOccurrencePageSchema = z
     occurrences: z.array(taskScheduleOccurrenceSchema),
   })
   .openapi("TaskScheduleOccurrencePage");
+
+export const rescheduleTaskScheduleOccurrenceRequestSchema = z
+  .object({
+    operationId: z.uuid().openapi({
+      description: "Idempotency identity for this occurrence move",
+      example: "123e4567-e89b-42d3-a456-426614174000",
+    }),
+    expectedScheduleRevision: z.number().int().nonnegative().openapi({
+      description: "Schedule revision observed by the caller",
+      example: 3,
+    }),
+    scheduledAt: dateTimeSchema.openapi({
+      description:
+        "New absolute time for the occurrence. Strictly future and inside the projection horizon.",
+      example: "2026-09-20T09:00:00.000Z",
+    }),
+  })
+  .openapi("RescheduleTaskScheduleOccurrenceRequest");
+
+export const taskScheduleOccurrenceMutationSchema = z
+  .object({
+    scheduleRevision: z.number().int().nonnegative().openapi({
+      description: "Series revision after the move",
+      example: 4,
+    }),
+    occurrence: taskScheduleOccurrenceSchema,
+  })
+  .openapi("TaskScheduleOccurrenceMutation");
 
 export type TaskScheduleOccurrencePage = z.infer<
   typeof taskScheduleOccurrencePageSchema

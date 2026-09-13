@@ -10864,6 +10864,39 @@ export const DriveFileSchema = {
     ]
 } as const;
 
+export const DrivePaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'nextCursor'
+    ]
+} as const;
+
 export const MoveDriveItemRequestSchema = {
     type: 'object',
     properties: {
@@ -14931,6 +14964,17 @@ export const WorkspaceCalendarItemSchema = {
             description: 'Whether the caller owns this Task and may edit or remove its schedule',
             example: true
         },
+        canMoveOccurrence: {
+            type: 'boolean',
+            description: 'Whether this indexed occurrence can be moved through the revision-safe occurrence contract',
+            example: true
+        },
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Schedule revision observed with this occurrence',
+            example: 3
+        },
         taskName: {
             type: 'string',
             example: 'Prepare release notes'
@@ -15043,6 +15087,8 @@ export const WorkspaceCalendarItemSchema = {
         'id',
         'taskId',
         'canEditSchedule',
+        'canMoveOccurrence',
+        'scheduleRevision',
         'taskName',
         'taskStatus',
         'taskAssigneeId',
@@ -19252,7 +19298,15 @@ export const TaskScheduleOccurrenceSchema = {
             example: 'EXACT'
         },
         releasedTask: {
-            $ref: '#/components/schemas/TaskScheduleOccurrenceReleasedTask'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskScheduleOccurrenceReleasedTask'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Independent Task this occurrence released, when it did'
         }
     },
     required: [
@@ -19275,10 +19329,7 @@ export const TaskScheduleOccurrenceSchema = {
 } as const;
 
 export const TaskScheduleOccurrenceReleasedTaskSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -19323,8 +19374,7 @@ export const TaskScheduleOccurrenceReleasedTaskSchema = {
         'name',
         'status',
         'archivedAt'
-    ],
-    description: 'Independent Task this occurrence released, when it did'
+    ]
 } as const;
 
 export const TaskScheduleOccurrenceViewSchema = {
@@ -19336,6 +19386,54 @@ export const TaskScheduleOccurrenceViewSchema = {
     default: 'upcoming',
     description: 'upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending',
     example: 'upcoming'
+} as const;
+
+export const TaskScheduleOccurrenceMutationSchema = {
+    type: 'object',
+    properties: {
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Series revision after the move',
+            example: 4
+        },
+        occurrence: {
+            $ref: '#/components/schemas/TaskScheduleOccurrence'
+        }
+    },
+    required: [
+        'scheduleRevision',
+        'occurrence'
+    ]
+} as const;
+
+export const RescheduleTaskScheduleOccurrenceRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this occurrence move',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedScheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Schedule revision observed by the caller',
+            example: 3
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-09-20T09:00:00.000Z',
+            description: 'New absolute time for the occurrence. Strictly future and inside the projection horizon.'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedScheduleRevision',
+        'scheduledAt'
+    ]
 } as const;
 
 export const TaskWorkspaceSchema = {

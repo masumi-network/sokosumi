@@ -391,6 +391,34 @@ export interface TaskScheduleOccurrenceProjection {
   originalScheduledAt: Date;
 }
 
+/**
+ * The rule occurrence a recurring series has consumed up to. `Task.nextRunAt`
+ * is the ledger's wake time for v2 and is no longer a rule time once an
+ * occurrence is moved, so projection and release advance from this anchor.
+ */
+export function resolveTaskScheduleRuleAnchor(
+  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
+): Date {
+  return new Date(
+    metadata.version === 2
+      ? (metadata.lastProcessedSourceAt ?? metadata.ruleEffectiveFrom)
+      : metadata.scheduledAt,
+  );
+}
+
+/**
+ * The first rule occurrence the series has not consumed yet, derived from the
+ * stored anchor rather than from `Task.nextRunAt`.
+ */
+export function computeNextRuleOccurrence(
+  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
+): Date | null {
+  return computeScheduleNextRun(
+    metadata,
+    resolveTaskScheduleRuleAnchor(metadata),
+  );
+}
+
 function getProjectedRecurringMetadata(
   metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
   scheduledAt: Date,
