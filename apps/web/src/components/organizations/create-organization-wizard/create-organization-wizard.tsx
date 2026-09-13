@@ -612,7 +612,6 @@ export function CreateOrganizationWizard({
           {t("description")}
         </DialogDescription>
 
-        {/* Progress rail + slide counter */}
         <div className="relative flex items-center px-6 py-5 sm:px-8 sm:py-6">
           <div className="absolute inset-x-0 top-0 flex h-[3px] gap-1">
             {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
