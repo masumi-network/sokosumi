@@ -1,14 +1,7 @@
 import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 
-import {
-  imageGenerationFromMessageMetadata,
-  thoughtTimingFromMessageMetadata,
-} from "@/helpers/conversation-message-api-content";
-import {
-  buildConversationContentParts,
-  type PersistedConversationContentPart,
-} from "@/helpers/message-content";
+import { type PersistedConversationContentPart } from "@/helpers/message-content";
 
 /**
  * Coerce assistant body parts to AI SDK `UIMessage` parts:
@@ -57,62 +50,4 @@ export function nonAssistantContentPartsToAiSdkUiParts(
     .map((p) =>
       p.type === "output_text" ? { type: "text" as const, text: p.text } : p,
     ) as UIMessage["parts"];
-}
-
-/** Maps persisted conversation messages to AI SDK `UIMessage` (text + optional reasoning parts). */
-export function conversationMessagesToUiMessages(
-  messages: Array<{
-    id: string;
-    role: string;
-    contentText: string | null | undefined;
-    metadata?: unknown;
-  }>,
-): UIMessage[] {
-  return messages.map((message) => {
-    const validRole: "assistant" | "user" | "system" =
-      message.role === "assistant" ||
-      message.role === "user" ||
-      message.role === "system"
-        ? message.role
-        : "user";
-
-    const rawParts = buildConversationContentParts({
-      contentText: message.contentText,
-      metadata: message.metadata,
-      includeEmptyTextFallback: true,
-    });
-
-    const partsForRole =
-      validRole === "assistant"
-        ? assistantContentPartsToAiSdkUiParts(rawParts)
-        : nonAssistantContentPartsToAiSdkUiParts(rawParts);
-    const parts =
-      partsForRole.length > 0
-        ? partsForRole
-        : ([{ type: "text" as const, text: "" }] satisfies UIMessage["parts"]);
-
-    const timing = thoughtTimingFromMessageMetadata(message.metadata);
-    const isImageGeneration =
-      validRole === "user" &&
-      imageGenerationFromMessageMetadata(message.metadata);
-    const metadata =
-      timing != null || isImageGeneration
-        ? {
-            ...(timing != null
-              ? {
-                  thoughtStartedAtMs: timing.startedAtMs,
-                  thoughtEndedAtMs: timing.endedAtMs,
-                }
-              : {}),
-            ...(isImageGeneration ? { imageGeneration: true } : {}),
-          }
-        : undefined;
-
-    return {
-      id: message.id,
-      role: validRole,
-      parts,
-      ...(metadata != null ? { metadata } : {}),
-    };
-  });
 }
