@@ -1,5 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import {
+  CORE_API_ERROR_KINDS,
+  hasActiveTaskSchedule,
   hasReachedTaskScheduleReleaseTarget,
   isValidTimezone,
   type TaskScheduleMetadata,
@@ -8,7 +10,7 @@ import {
 } from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
-import { badRequest, unprocessableEntity } from "@/helpers/error";
+import { badRequest, conflict, unprocessableEntity } from "@/helpers/error";
 
 import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 
@@ -24,6 +26,22 @@ const SCHEDULABLE_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
 
 export function isSchedulableTaskStatus(status: TaskStatus): boolean {
   return SCHEDULABLE_TASK_STATUSES.has(status);
+}
+
+/**
+ * Guard for generic Task mutations that must not run while a Calendar schedule
+ * series is active: status/cancel/archive and every workspace or project move
+ * path. Series lifecycle belongs to the revision-safe schedule endpoints.
+ */
+export function assertTaskScheduleInactive(
+  task: { metadata: string | null; nextRunAt: Date | null },
+  message: string,
+): void {
+  if (hasActiveTaskSchedule(task.metadata, task.nextRunAt)) {
+    throw conflict(message, {
+      kind: CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE,
+    });
+  }
 }
 
 export function inferLegacyIntervalDaysFromCron(expr: string): number | null {
@@ -288,52 +306,6 @@ export function buildTaskScheduleMetadataV2(
     ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
     anchorAt: input.anchorAt ?? createdAtIso,
     epochReleaseCount: 0,
-  };
-}
-
-export function convertTaskScheduleMetadataV1ToV2(
-  metadata: TaskScheduleMetadataV1,
-  convertedAt: Date,
-  epochId: string,
-  releasedOccurrenceCount: number,
-): TaskScheduleMetadataV2 {
-  const convertedAtIso = convertedAt.toISOString();
-
-  if (metadata.mode === "once") {
-    return {
-      version: 2,
-      epochId,
-      mode: "once",
-      createdAt: convertedAtIso,
-      ruleEffectiveFrom: convertedAtIso,
-      timezone: "UTC",
-      sourceRunAt: metadata.runAt,
-      effectiveRunAt: metadata.runAt,
-    };
-  }
-
-  const releaseCount = Math.max(0, releasedOccurrenceCount);
-  return {
-    version: 2,
-    epochId,
-    mode: "recurring",
-    createdAt: convertedAtIso,
-    ruleEffectiveFrom: convertedAtIso,
-    timezone: metadata.timezone,
-    expr: metadata.expr,
-    endsMode: metadata.endsMode,
-    ...(metadata.endsOn ? { endsOn: metadata.endsOn } : {}),
-    ...(metadata.endsMode === "after" && metadata.occurrences != null
-      ? { targetReleaseCount: metadata.occurrences + releaseCount }
-      : {}),
-    ...(metadata.intervalDays != null
-      ? { intervalDays: metadata.intervalDays }
-      : {}),
-    anchorAt: metadata.anchorAt ?? metadata.scheduledAt,
-    epochReleaseCount: releaseCount,
-    ...(metadata.lastRunAt
-      ? { lastProcessedSourceAt: metadata.lastRunAt }
-      : {}),
   };
 }
 

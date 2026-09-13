@@ -895,6 +895,43 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("rejects moving a Task whose schedule series is still active", async () => {
+    taskFindFirstMock.mockResolvedValue(
+      createTaskRecord({
+        status: TaskStatus.QUEUED,
+        metadata: JSON.stringify({
+          version: 2,
+          epochId: "11111111-1111-4111-8111-111111111111",
+          mode: "recurring",
+          createdAt: "2026-09-01T09:00:00.000Z",
+          ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
+          timezone: "UTC",
+          expr: "0 9 * * *",
+          endsMode: "never",
+          anchorAt: "2026-09-01T09:00:00.000Z",
+          epochReleaseCount: 0,
+        }),
+        nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+      }),
+    );
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("schedule_active");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
     const app = createApp("org_current", {
       actor: "coworker",

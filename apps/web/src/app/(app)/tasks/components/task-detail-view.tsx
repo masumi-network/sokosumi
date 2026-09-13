@@ -16,6 +16,7 @@ import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
+import { TaskScheduleSeriesSection } from "@/app/tasks/components/task-schedule-series-section";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
@@ -68,6 +69,9 @@ type OwnerBotResult = Awaited<ReturnType<typeof sokoBotService.getMine>>;
 type MembersResult = Awaited<
   ReturnType<typeof userService.getMyMembersWithOrganizations>
 >;
+type ProjectResult = Awaited<
+  ReturnType<typeof projectService.getProjectById>
+> | null;
 
 interface TaskDetailViewProps {
   task: Task;
@@ -106,6 +110,9 @@ export async function TaskDetailView({
     ? Promise.resolve(false)
     : hasAssignedOrganizationSeat(task.workspace.organizationId ?? null);
   const translationsPromise = getTranslations("App.Tasks.Detail");
+  const projectPromise = task.projectId
+    ? projectService.getProjectById(task.projectId).catch(() => null)
+    : Promise.resolve(null);
   const linkedTasks = mapVisibleTaskLinks(task.links);
   const parentTask = linkedTasks.find(
     (link) => link.relation === "child" || link.relation === "schedule_series",
@@ -189,11 +196,23 @@ export async function TaskDetailView({
                 forceReadOnly={forceReadOnly}
                 hasAssignedSeatPromise={hasAssignedSeatPromise}
                 sessionPromise={sessionPromise}
+                projectPromise={projectPromise}
               />
             </Suspense>
           </aside>
 
           <div className={TASK_DETAIL_MAIN_CLASS}>
+            <Suspense fallback={null}>
+              <TaskScheduleSeriesSection
+                task={task}
+                workspaceName={
+                  task.organization?.name ?? t("personalWorkspace")
+                }
+                forceReadOnly={forceReadOnly}
+                projectPromise={projectPromise}
+              />
+            </Suspense>
+
             <TaskRelatedTasks
               title={t("linkedTasksTitle")}
               emptyLabel={t("linkedTasksEmpty")}
@@ -382,15 +401,14 @@ async function TaskMetadataSection({
   forceReadOnly,
   hasAssignedSeatPromise,
   sessionPromise,
+  projectPromise,
 }: {
   task: Task;
   forceReadOnly: boolean;
   hasAssignedSeatPromise: Promise<boolean>;
   sessionPromise: Promise<SessionResult>;
+  projectPromise: Promise<ProjectResult>;
 }) {
-  const projectPromise = task.projectId
-    ? projectService.getProjectById(task.projectId).catch(() => null)
-    : Promise.resolve(null);
   const [project, session, hasAssignedSeat, t, tTasks, tStatus, locale] =
     await Promise.all([
       projectPromise,

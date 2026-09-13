@@ -6,6 +6,11 @@ import {
 } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  canonicalTaskScheduleInput,
+  createTaskScheduleRequestFingerprint,
+} from "@/helpers/task-schedule-operation";
+
 import type { CreateScheduledTaskInput } from "./task-schedule-create.service";
 import {
   createScheduledTaskInTransaction,
@@ -178,7 +183,20 @@ describe("createScheduledTaskInTransaction", () => {
         workspaceId: WORKSPACE_ID,
         operationId: OPERATION_ID,
         taskId: "task_123",
-        requestFingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+        requestFingerprint: createTaskScheduleRequestFingerprint({
+          workspaceId: WORKSPACE_ID,
+          source: { type: "project", projectId: PROJECT_ID },
+          assigneeId: "coworker_123",
+          assigneeUserId: undefined,
+          request: {
+            name: "Prepare release notes",
+            description: "Draft the public notes",
+          },
+          schedule: canonicalTaskScheduleInput({
+            mode: "once",
+            runAt: "2099-09-24T09:00:00.000Z",
+          }),
+        }),
       },
     });
   });

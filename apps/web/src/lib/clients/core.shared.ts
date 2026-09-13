@@ -36,6 +36,7 @@ import type {
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
+  GetTasksByIdScheduleOccurrencesData,
   GetTasksData,
   GetTasksSummaryData,
   GetWorkspacesCalendarData,
@@ -78,6 +79,7 @@ import type {
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
+  PutCalendarTaskScheduleRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
@@ -229,6 +231,7 @@ import {
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
+  getTasksByIdScheduleOccurrences as coreGetTasksByIdScheduleOccurrences,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
@@ -3397,7 +3400,7 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   async function putTaskCalendarSchedule(
     id: string,
-    body: PutTaskScheduleRequest,
+    body: PutCalendarTaskScheduleRequest,
   ) {
     return executeCoreOperation(
       getClient,
@@ -3413,17 +3416,49 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function deleteTaskSchedule(id: string) {
+  /**
+   * Series removal has no body, so its idempotency identity and observed
+   * revision travel as request metadata. Core matches the entity tag exactly,
+   * quotes included.
+   */
+  async function deleteTaskSchedule(
+    id: string,
+    precondition: {
+      operationId: string;
+      expectedScheduleRevision: number;
+    },
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteTasksByIdSchedule({
           client,
           path: { id },
+          headers: {
+            "idempotency-key": precondition.operationId,
+            "if-match": `"schedule-revision:${precondition.expectedScheduleRevision}"`,
+          },
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
         }),
       "Failed to clear task schedule",
+    );
+  }
+
+  async function getTaskScheduleOccurrences(
+    id: string,
+    query: GetTasksByIdScheduleOccurrencesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdScheduleOccurrences({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch task schedule occurrences",
     );
   }
 
@@ -5129,6 +5164,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     revokeMyOauthConsent,
     getTaskById,
     getTaskLinks,
+    getTaskScheduleOccurrences,
     getTaskWorkspace,
     getTasks,
     getTasksSummary,

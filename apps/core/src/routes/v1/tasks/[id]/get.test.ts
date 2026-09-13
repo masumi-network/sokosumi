@@ -93,6 +93,7 @@ function createTask(
     } | null;
     linksFrom: unknown[];
     linksTo: unknown[];
+    scheduleRevision: number;
   }>,
 ) {
   const ownerId = overrides?.ownerId ?? "user_123";
@@ -129,6 +130,7 @@ function createTask(
     status: TaskStatus.READY,
     metadata: null,
     nextRunAt: null,
+    scheduleRevision: overrides?.scheduleRevision ?? 0,
     events: [],
     jobs: [],
     workspace: {
@@ -269,6 +271,19 @@ describe("GET /tasks/{id}", () => {
         },
       }),
     });
+  });
+
+  it("exposes the current schedule revision on task detail", async () => {
+    viewerTaskIncludeResult = createTask({ scheduleRevision: 4 });
+
+    const app = createApp();
+    mountGetTaskById(app);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.scheduleRevision).toBe(4);
   });
 
   it("keeps same-workspace peer links visible for a workspace collaborator", async () => {

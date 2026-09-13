@@ -9,6 +9,7 @@ import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { taskFormAssigneeId } from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
+import { readTaskScheduleSeriesPrecondition } from "@/app/tasks/utils/task-schedule-precondition";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
@@ -79,15 +80,18 @@ export default async function EditTaskPage({
   );
   const agentNameById = buildAgentNameById(agents);
 
-  const [tEdit, tStatus] = await Promise.all([
+  const [tEdit, tStatus, schedulePrecondition] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),
     getTranslations("App.Tasks.Filters.statusOptions"),
+    readTaskScheduleSeriesPrecondition(taskResult),
   ]);
 
   return (
     <TaskEditModal
       taskId={taskId}
       title={tEdit("title")}
+      scheduleRevision={schedulePrecondition.scheduleRevision}
+      futureExceptionCount={schedulePrecondition.futureExceptionCount}
       labels={{
         details: tEdit("details"),
         detailsDescription: tEdit("detailsDescription"),
@@ -107,6 +111,9 @@ export default async function EditTaskPage({
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
         statusReady: tEdit("statusReady"),
+        statusQueued: tStatus("QUEUED"),
+        untitledTask: tEdit("untitledTask"),
+        saveError: tEdit("saveError"),
         statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
         back: tEdit("back"),
         uploadFile: tEdit("uploadFile"),

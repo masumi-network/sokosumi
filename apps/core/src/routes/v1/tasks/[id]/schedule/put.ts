@@ -29,10 +29,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import {
-  getTaskScheduleInput,
-  putTaskScheduleRequestSchema,
-} from "@/schemas/task-schedule.schema";
+import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -73,8 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    const schedule = getTaskScheduleInput(body);
+    const schedule = c.req.valid("json");
 
     validateScheduleInput(schedule);
 
@@ -161,6 +157,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             metadata: JSON.stringify(metadata),
             nextRunAt,
+            // Legacy contract keeps its bare body, but every rule write still
+            // advances the concurrency token Calendar clients observe.
+            scheduleRevision: { increment: 1 },
             ...(currentTask.status !==
             (currentTask.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED)
               ? {
