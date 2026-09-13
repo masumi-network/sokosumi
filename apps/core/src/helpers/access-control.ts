@@ -439,14 +439,6 @@ export async function requireTaskAssignableSokoBot(
 // Task collaboration (user ownership or coworker on assigned task)
 // -----------------------------------------------------------------------------
 
-async function requestWorkspaceGrantIndependently(params: {
-  vendorId: string;
-  workspaceId: string;
-  requestedByUserId: string | null;
-}) {
-  return requestWorkspaceGrantCommitted(params);
-}
-
 async function requireGrantedWorkspaceAccessOrRequest(params: {
   vendorId: string;
   workspaceId: string;
@@ -466,13 +458,11 @@ async function requireGrantedWorkspaceAccessOrRequest(params: {
     throwGrantAccessError(grant.status);
   }
 
-  const { grant: grantAfterRequest } = await requestWorkspaceGrantIndependently(
-    {
-      vendorId,
-      workspaceId,
-      requestedByUserId,
-    },
-  );
+  const { grant: grantAfterRequest } = await requestWorkspaceGrantCommitted({
+    vendorId,
+    workspaceId,
+    requestedByUserId,
+  });
 
   if (grantAfterRequest.status === VendorGrantStatus.GRANTED) {
     return;

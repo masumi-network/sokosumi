@@ -15,7 +15,6 @@ import {
   type TaskDetailPayload,
   type TaskListItemWithIncludes,
   type TaskWithIncludes,
-  taskEventApiInclude,
 } from "@/types/task";
 
 import { conflict, unprocessableEntity } from "./error";
@@ -113,8 +112,6 @@ type TaskEventWithOptionalTransaction = Omit<
     amount: bigint;
   } | null;
 };
-
-export { taskEventApiInclude };
 
 type TaskEventForMapping = TaskEventWithOptionalTransaction & {
   user?: { id: string; name: string; image: string | null } | null;

@@ -10,12 +10,13 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { mapTaskEvent, taskEventApiInclude } from "@/helpers/task";
+import { mapTaskEvent } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireSokoBotAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
+import { taskEventApiInclude } from "@/types/task";
 
 const route = createRoute({
   method: "get",

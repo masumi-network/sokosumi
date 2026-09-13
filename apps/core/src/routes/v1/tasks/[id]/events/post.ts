@@ -37,7 +37,6 @@ import {
   type CascadedCancelChild,
   cascadeCancelNonTerminalScheduleRuns,
   mapTaskEvent,
-  taskEventApiInclude,
   validateQueuedRequiresSchedule,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -66,6 +65,7 @@ import {
   createTaskPaymentClaim,
   processTaskPaymentClaim,
 } from "@/services/task-payment-claim.service";
+import { taskEventApiInclude } from "@/types/task";
 
 import { createTaskEventRequestSchema } from "./schema";
 
