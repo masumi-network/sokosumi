@@ -31,6 +31,7 @@ function baseMessage(
     createdAt: new Date("2026-08-06T12:00:00.000Z"),
     deletedAt: null,
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "user",
       user: {

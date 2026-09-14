@@ -519,6 +519,11 @@ export const chatRoomMessageSchema = z
     createdAt: dateTimeSchema,
     deletedAt: dateTimeSchema.nullable(),
     editedAt: dateTimeSchema.nullable(),
+    pinnedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.",
+      example: null,
+    }),
     sender: chatRoomMessageSenderSchema,
     mentions: z.array(chatRoomMessageMentionSchema),
     reactions: z.array(chatRoomMessageReactionSchema),

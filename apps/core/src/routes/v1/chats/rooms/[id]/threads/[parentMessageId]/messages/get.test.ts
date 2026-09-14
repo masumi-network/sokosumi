@@ -100,6 +100,7 @@ function replyMessage() {
     mentionsAsSource: [],
     reactions: [],
     replies: [],
+    pins: [],
     _count: { replies: 0 },
   };
 }
@@ -159,6 +160,7 @@ describe("GET /chats/rooms/{id}/threads/{parentMessageId}/messages", () => {
         roomId: ROOM_ID,
         parentMessageId: PARENT_ID,
         content: "Thread reply",
+        pinnedAt: null,
       }),
     ]);
   });
