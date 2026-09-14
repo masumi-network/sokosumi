@@ -101,7 +101,7 @@
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-compress/SKILL.md",
-      "computedHash": "4a890dbf7bd28b62bafd0c8dc98b70e13df67bc78f3d6d9cfe8841aab337349e"
+      "computedHash": "32557f612fd652d87b9f21f6271ba10c36d6c237c607c88e27f4b79a1da2675e"
     },
     "caveman-discover": {
       "source": "juliusbrussee/caveman",
@@ -416,10 +416,8 @@
     },
     "sentry-cli": {
       "source": "cli.sentry.dev",
-      "sourceUrl": "https://cli.sentry.dev",
       "sourceType": "well-known",
-      "computedHash": "82ab12258160dbe8f8c75aaac945cf750f34d49bedd942fa753b617d94aecd66",
-      "wellKnownDigest": "sha256:f0e5c3fdf1cfe71cefcdff90fd9bc5ab37e0a5f92692ee8579bfbfac275100a0"
+      "computedHash": "50bab2a868dc038b602819f069981e6f7d7fafee8f26e1cc77d8116896c4c21c"
     },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
@@ -496,7 +494,7 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "4289866858fc5314e10ca21584d00c48ddb7e6bc353e262283958f8e4b9bec87"
+      "computedHash": "47a3efd6a45597eeff338b218183d4d67c2b99fa085ca255e970f5370dcd9dbd"
     },
     "using-ably": {
       "source": "ably/agent-skills",

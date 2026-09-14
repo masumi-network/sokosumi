@@ -23,9 +23,7 @@ const LIST_NAME = "FileUploadList";
 const ITEM_NAME = "FileUploadItem";
 const ITEM_PREVIEW_NAME = "FileUploadItemPreview";
 const ITEM_METADATA_NAME = "FileUploadItemMetadata";
-const ITEM_PROGRESS_NAME = "FileUploadItemProgress";
 const ITEM_DELETE_NAME = "FileUploadItemDelete";
-const CLEAR_NAME = "FileUploadClear";
 
 function useLazyRef<T>(fn: () => T) {
   const ref = React.useRef<T | null>(null);
@@ -1185,136 +1183,6 @@ function FileUploadItemMetadata(props: FileUploadItemMetadataProps) {
     </ItemMetadataPrimitive>
   );
 }
-interface FileUploadItemProgressProps
-  extends React.ComponentPropsWithoutRef<"div"> {
-  variant?: "linear" | "circular" | "fill";
-  size?: number;
-  asChild?: boolean;
-  forceMount?: boolean;
-}
-
-function FileUploadItemProgress(props: FileUploadItemProgressProps) {
-  const {
-    variant = "linear",
-    size = 40,
-    asChild,
-    forceMount,
-    className,
-    ...progressProps
-  } = props;
-
-  const itemContext = useFileUploadItemContext(ITEM_PROGRESS_NAME);
-
-  if (!itemContext.fileState) return null;
-
-  const shouldRender = forceMount || itemContext.fileState.progress !== 100;
-
-  if (!shouldRender) return null;
-
-  const ItemProgressPrimitive = asChild ? Slot : "div";
-
-  switch (variant) {
-    case "circular": {
-      const circumference = 2 * Math.PI * ((size - 4) / 2);
-      const strokeDashoffset =
-        circumference - (itemContext.fileState.progress / 100) * circumference;
-
-      return (
-        <ItemProgressPrimitive
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={itemContext.fileState.progress}
-          aria-valuetext={`${itemContext.fileState.progress}%`}
-          aria-labelledby={itemContext.nameId}
-          data-slot="file-upload-progress"
-          {...progressProps}
-          className={cn(
-            "-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2",
-            className,
-          )}
-        >
-          <svg
-            className="-rotate-90 transform"
-            width={size}
-            height={size}
-            viewBox={`0 0 ${size} ${size}`}
-            fill="none"
-            stroke="currentColor"
-          >
-            <circle
-              className="text-primary/20"
-              strokeWidth="2"
-              cx={size / 2}
-              cy={size / 2}
-              r={(size - 4) / 2}
-            />
-            <circle
-              className="text-primary transition-[stroke-dashoffset] duration-300 ease-linear"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              cx={size / 2}
-              cy={size / 2}
-              r={(size - 4) / 2}
-            />
-          </svg>
-        </ItemProgressPrimitive>
-      );
-    }
-
-    case "fill": {
-      const progressPercentage = itemContext.fileState.progress;
-      const topInset = 100 - progressPercentage;
-
-      return (
-        <ItemProgressPrimitive
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progressPercentage}
-          aria-valuetext={`${progressPercentage}%`}
-          aria-labelledby={itemContext.nameId}
-          data-slot="file-upload-progress"
-          {...progressProps}
-          className={cn(
-            "absolute inset-0 bg-primary/50 transition-[clip-path] duration-300 ease-linear",
-            className,
-          )}
-          style={{
-            clipPath: `inset(${topInset}% 0% 0% 0%)`,
-          }}
-        />
-      );
-    }
-
-    default:
-      return (
-        <ItemProgressPrimitive
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={itemContext.fileState.progress}
-          aria-valuetext={`${itemContext.fileState.progress}%`}
-          aria-labelledby={itemContext.nameId}
-          data-slot="file-upload-progress"
-          {...progressProps}
-          className={cn(
-            "relative h-1.5 w-full overflow-hidden rounded-full bg-primary/20",
-            className,
-          )}
-        >
-          <div
-            className="h-full w-full flex-1 bg-primary transition-transform duration-300 ease-linear"
-            style={{
-              transform: `translateX(-${100 - itemContext.fileState.progress}%)`,
-            }}
-          />
-        </ItemProgressPrimitive>
-      );
-  }
-}
 
 interface FileUploadItemDeleteProps
   extends React.ComponentPropsWithoutRef<"button"> {
@@ -1357,57 +1225,6 @@ function FileUploadItemDelete(props: FileUploadItemDeleteProps) {
   );
 }
 
-interface FileUploadClearProps
-  extends React.ComponentPropsWithoutRef<"button"> {
-  forceMount?: boolean;
-  asChild?: boolean;
-}
-
-function FileUploadClear(props: FileUploadClearProps) {
-  const {
-    asChild,
-    forceMount,
-    disabled,
-    onClick: onClickProp,
-    ...clearProps
-  } = props;
-
-  const context = useFileUploadContext(CLEAR_NAME);
-  const store = useStoreContext(CLEAR_NAME);
-  const fileCount = useStore((state) => state.files.size);
-
-  const isDisabled = disabled || context.disabled;
-
-  const onClick = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      onClickProp?.(event);
-
-      if (event.defaultPrevented) return;
-
-      store.dispatch({ type: "CLEAR" });
-    },
-    [store, onClickProp],
-  );
-
-  const shouldRender = forceMount || fileCount > 0;
-
-  if (!shouldRender) return null;
-
-  const ClearPrimitive = asChild ? Slot : "button";
-
-  return (
-    <ClearPrimitive
-      type="button"
-      aria-controls={context.listId}
-      data-slot="file-upload-clear"
-      data-disabled={isDisabled ? "" : undefined}
-      {...clearProps}
-      disabled={isDisabled}
-      onClick={onClick}
-    />
-  );
-}
-
 export {
   FileUploadRoot as FileUpload,
   FileUploadDropzone,
@@ -1416,22 +1233,7 @@ export {
   FileUploadItem,
   FileUploadItemPreview,
   FileUploadItemMetadata,
-  FileUploadItemProgress,
   FileUploadItemDelete,
-  FileUploadClear,
-  //
-  FileUploadRoot as Root,
-  FileUploadDropzone as Dropzone,
-  FileUploadTrigger as Trigger,
-  FileUploadList as List,
-  FileUploadItem as Item,
-  FileUploadItemPreview as ItemPreview,
-  FileUploadItemMetadata as ItemMetadata,
-  FileUploadItemProgress as ItemProgress,
-  FileUploadItemDelete as ItemDelete,
-  FileUploadClear as Clear,
-  //
   useStore as useFileUpload,
-  //
   type FileUploadRootProps as FileUploadProps,
 };

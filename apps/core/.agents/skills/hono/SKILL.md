@@ -1,32 +1,48 @@
 ---
 name: hono
-description: Use when building Hono web applications or when the user asks about Hono APIs, routing, middleware, JSX, validation, testing, or streaming. TRIGGER when code imports from 'hono' or 'hono/*', or user mentions Hono. Use `npx hono request` to test endpoints.
+description: Use when building Hono web applications or when the user asks about Hono APIs, routing, middleware, JSX, validation, testing, or streaming. TRIGGER when code imports from 'hono' or 'hono/*', or user mentions Hono. Use Hono CLI to inspect and test the app.
 ---
 
 # Hono Skill
 
-Build Hono web applications. This skill provides inline API knowledge for AI. Use `npx hono request` to test endpoints. If the `hono-docs` MCP server is configured, prefer its tools for the latest documentation over the inline reference.
+Build Hono web applications. This skill provides inline API knowledge for AI. Use Hono CLI to inspect and test the app.
 
-## Hono CLI Usage
+## Latest Documentation
 
-### Request Testing
-
-Test endpoints without starting an HTTP server. Uses `app.request()` internally.
+For details beyond this inline reference, fetch the latest documentation from https://hono.dev. Get the index of doc pages from `https://hono.dev/llms.txt`, then fetch a page with the `Accept: text/markdown` header to receive it as Markdown:
 
 ```bash
-# GET request
-npx hono request [file] -P /path
-
-# POST request with JSON body
-npx hono request [file] -X POST -P /api/users -d '{"name": "test"}'
+curl -H "Accept: text/markdown" https://hono.dev/docs/helpers/cookie
 ```
 
-**Note:** Do not pass credentials directly in CLI arguments. Use environment variables for sensitive values. `hono request` does not support Cloudflare Workers bindings (KV, D1, R2, etc.). When bindings are required, use `workers-fetch` instead:
+## Hono CLI
+
+Use [Hono CLI](https://github.com/honojs/cli) to inspect and test the app. Install it in the project, then let the CLI explain itself:
+
+<!-- TODO at the 0.2 release: change @hono/cli@next to @hono/cli -->
 
 ```bash
-npx workers-fetch /path
-npx workers-fetch -X POST -H "Content-Type:application/json" -d '{"name":"test"}' /api/users
+npm install -D @hono/cli@next
+npx hono agent-context
 ```
+
+Follow the output. It explains every command (`routes`, `request`, `batch`, `snapshot`, `benchmark`, `optimize`, `ssg`), the JSON output contract, and the workflow.
+
+Notes:
+
+- `hono request` sends a request with `app.request()` — no server needed. Do not pass credentials directly in CLI arguments; use environment variables for sensitive values.
+- For Cloudflare Workers bindings (KV, D1, R2, etc.), use `hono request /path --runtime workerd`. It starts the app with the wrangler config of the project, so the local bindings (`c.env`) are real. wrangler must be installed in the project.
+- For several requests, or a flow that keeps state (POST, then use the returned id), run them in one `hono batch -` call. One JSON object per line; `save` a value and use it as `{{id}}` in later steps. The steps share one app instance. Declare the expected status/body per step with `expect` (body is a deep partial match) and iterate until the summary shows `"failed": 0`:
+
+  ```bash
+  npx hono batch - <<'EOF'
+  {"method":"POST","path":"/users","body":{"name":"Alice"},"save":{"id":".id"},"expect":{"status":201}}
+  {"path":"/users/{{id}}","expect":{"status":200,"body":{"name":"Alice"}}}
+  EOF
+  ```
+
+- Before changing existing routes, capture the current behavior: `npx hono snapshot` prints it as batch JSONL lines (real responses become the `expect`). Keep the lines, make the change, then rerun them with `npx hono batch -` until `"failed": 0`.
+- On a large API, use `npx hono snapshot --status-only` and `npx hono batch - --compact` — same loop, much smaller output. A failed step carries `diff`: fix what it names.
 
 ---
 
@@ -231,11 +247,17 @@ import { timing } from 'hono/timing'
 import { cache } from 'hono/cache'
 import { bearerAuth } from 'hono/bearer-auth'
 import { jwt } from 'hono/jwt'
+import { jwk } from 'hono/jwk'
 import { csrf } from 'hono/csrf'
 import { ipRestriction } from 'hono/ip-restriction'
 import { bodyLimit } from 'hono/body-limit'
+import { timeout } from 'hono/timeout'
 import { requestId } from 'hono/request-id'
 import { methodOverride } from 'hono/method-override'
+import { methodNotAllowed } from 'hono/method-not-allowed'
+import { languageDetector } from 'hono/language'
+import { some, every, except } from 'hono/combine'
+import { contextStorage, getContext } from 'hono/context-storage'
 import { trailingSlash, trimTrailingSlash } from 'hono/trailing-slash'
 
 // Registration
@@ -372,7 +394,7 @@ app.get('/', (c) => {
 
 ### jsxRenderer Middleware
 
-Use `jsxRenderer` middleware for layouts. See `npx hono docs /docs/middleware/builtin/jsx-renderer` for details.
+Use `jsxRenderer` middleware for layouts. For details, see https://hono.dev/docs/middleware/builtin/jsx-renderer
 
 ### Async Components
 
@@ -529,7 +551,7 @@ import { upgradeWebSocket } from 'hono/cloudflare-workers' // or other adapter
 
 Available helpers: Accepts, Adapter, ConnInfo, Cookie, css, Dev, Factory, html, JWT, Proxy, Route, SSG, Streaming, Testing, WebSocket.
 
-For details, use `npx hono docs /docs/helpers/<helper-name>`.
+For details, see `https://hono.dev/docs/helpers/<helper-name>` (fetch with `Accept: text/markdown`).
 
 ### Factory
 
