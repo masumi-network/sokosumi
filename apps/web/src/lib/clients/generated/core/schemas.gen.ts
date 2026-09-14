@@ -19075,41 +19075,7 @@ export const CreateScheduledTaskRequestSchema = {
             format: 'uuid'
         },
         source: {
-            oneOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        type: {
-                            type: 'string',
-                            enum: [
-                                'workspace'
-                            ]
-                        }
-                    },
-                    required: [
-                        'type'
-                    ]
-                },
-                {
-                    type: 'object',
-                    properties: {
-                        type: {
-                            type: 'string',
-                            enum: [
-                                'project'
-                            ]
-                        },
-                        projectId: {
-                            type: 'string',
-                            format: 'uuid'
-                        }
-                    },
-                    required: [
-                        'type',
-                        'projectId'
-                    ]
-                }
-            ]
+            $ref: '#/components/schemas/CalendarTaskScheduleSource'
         },
         name: {
             type: 'string',
@@ -19150,6 +19116,44 @@ export const CreateScheduledTaskRequestSchema = {
     ]
 } as const;
 
+export const CalendarTaskScheduleSourceSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'workspace'
+                    ]
+                }
+            },
+            required: [
+                'type'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'project'
+                    ]
+                },
+                projectId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'type',
+                'projectId'
+            ]
+        }
+    ]
+} as const;
+
 export const UserWritableTaskLinkRelationSchema = {
     type: 'string',
     enum: [
@@ -19175,6 +19179,67 @@ export const TaskLinkDeletedSchema = {
     },
     required: [
         'deleted'
+    ]
+} as const;
+
+export const TaskScheduleSourceMutationSchema = {
+    type: 'object',
+    properties: {
+        previousSource: {
+            $ref: '#/components/schemas/CalendarTaskScheduleSource'
+        },
+        source: {
+            $ref: '#/components/schemas/CalendarTaskScheduleSource'
+        },
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        canceledFutureExceptionCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'previousSource',
+        'source',
+        'scheduleRevision',
+        'canceledFutureExceptionCount'
+    ]
+} as const;
+
+export const PutCalendarTaskScheduleSourceRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this source move',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedScheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Schedule revision observed by the caller',
+            example: 3
+        },
+        discardFutureExceptions: {
+            type: 'boolean',
+            enum: [
+                true
+            ],
+            description: 'Confirms that future occurrence exceptions from the old source may be canceled',
+            example: true
+        },
+        source: {
+            $ref: '#/components/schemas/CalendarTaskScheduleSource'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedScheduleRevision',
+        'discardFutureExceptions',
+        'source'
     ]
 } as const;
 

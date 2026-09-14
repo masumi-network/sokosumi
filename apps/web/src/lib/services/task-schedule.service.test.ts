@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 
 const getTaskScheduleOccurrencesMock = vi.fn();
 const putTaskCalendarScheduleMock = vi.fn();
+const putTaskCalendarSourceMock = vi.fn();
 const putTaskScheduleMock = vi.fn();
 const deleteTaskScheduleMock = vi.fn();
 const mutateTaskScheduleOccurrenceMock = vi.fn();
@@ -15,6 +16,8 @@ vi.mock("@/lib/clients/core.client", () => ({
       getTaskScheduleOccurrencesMock(...args),
     putTaskCalendarSchedule: (...args: unknown[]) =>
       putTaskCalendarScheduleMock(...args),
+    putTaskCalendarSource: (...args: unknown[]) =>
+      putTaskCalendarSourceMock(...args),
     putTaskSchedule: (...args: unknown[]) => putTaskScheduleMock(...args),
     deleteTaskSchedule: (...args: unknown[]) => deleteTaskScheduleMock(...args),
     mutateTaskScheduleOccurrence: (...args: unknown[]) =>
@@ -203,6 +206,33 @@ describe("taskScheduleService series mutations", () => {
       expectedScheduleRevision: 4,
     });
     expect(task).toEqual({ id: "task_1", scheduleRevision: 5 });
+  });
+
+  it("moves a live series with its operation and observed revision", async () => {
+    const mutation = {
+      previousSource: { type: "workspace" as const },
+      source: {
+        type: "project" as const,
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+      scheduleRevision: 5,
+      canceledFutureExceptionCount: 2,
+    };
+    putTaskCalendarSourceMock.mockResolvedValue({ data: mutation });
+
+    const result = await taskScheduleService.moveCalendarSeriesSource(
+      "task_1",
+      { operationId, expectedScheduleRevision: 4 },
+      mutation.source,
+    );
+
+    expect(putTaskCalendarSourceMock).toHaveBeenCalledWith("task_1", {
+      operationId,
+      expectedScheduleRevision: 4,
+      discardFutureExceptions: true,
+      source: mutation.source,
+    });
+    expect(result).toEqual(mutation);
   });
 
   it("keeps the legacy bare schedule write for a Task that has no series yet", async () => {

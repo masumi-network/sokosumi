@@ -1827,7 +1827,15 @@
           "move": "Verschieben",
           "skip": "Überspringen",
           "restore": "Wiederherstellen",
-          "mutationError": "Dieser Lauf konnte nicht geändert werden. Bitte versuche es erneut."
+          "mutationError": "Dieser Lauf konnte nicht geändert werden. Bitte versuche es erneut.",
+          "moveSource": "Kalender wechseln",
+          "moveSourceTitle": "Diesen Zeitplan verschieben?",
+          "moveSourceLabel": "Zielkalender",
+          "moveSourceDescription": "Wähle den Kalender, in dem dieser Zeitplan neue Läufe erstellt. Beim Verschieben werden {count, plural, =0 {keine geänderten anstehenden Läufe} one {# geänderter anstehender Lauf} other {# geänderte anstehende Läufe}} abgebrochen. Vergangene und bereits gestartete Läufe bleiben unverändert.",
+          "moveSourceCancel": "Aktuellen Kalender behalten",
+          "moveSourceConfirm": "Zeitplan verschieben",
+          "moveSourceSuccess": "Der Zeitplan wurde in den neuen Kalender verschoben.",
+          "moveSourceError": "Dieser Zeitplan konnte nicht verschoben werden. Lade die Aufgabe neu und versuche es erneut."
         },
         "files": "Dateien",
         "assignee": "Zuständig"

@@ -1827,7 +1827,15 @@
           "move": "Move",
           "skip": "Skip",
           "restore": "Restore",
-          "mutationError": "Unable to change this run. Please try again."
+          "mutationError": "Unable to change this run. Please try again.",
+          "moveSource": "Move calendar",
+          "moveSourceTitle": "Move this schedule?",
+          "moveSourceLabel": "Destination calendar",
+          "moveSourceDescription": "Choose the calendar this schedule should release into. Moving it cancels {count, plural, =0 {no changed upcoming runs} one {# changed upcoming run} other {# changed upcoming runs}}. Past and released runs stay where they are.",
+          "moveSourceCancel": "Keep current calendar",
+          "moveSourceConfirm": "Move schedule",
+          "moveSourceSuccess": "Schedule moved to its new calendar.",
+          "moveSourceError": "Unable to move this schedule. Refresh the task and try again."
         },
         "files": "Files",
         "assignee": "Assignee"

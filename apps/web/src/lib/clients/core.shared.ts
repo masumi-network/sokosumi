@@ -81,6 +81,7 @@ import type {
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
   PutCalendarTaskScheduleRequest,
+  PutCalendarTaskScheduleSourceRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
@@ -369,6 +370,7 @@ import {
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
+  putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
   putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -3417,6 +3419,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function putTaskCalendarSource(
+    id: string,
+    body: PutCalendarTaskScheduleSourceRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdCalendarSource({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to move Calendar task source",
+    );
+  }
+
   /**
    * Series removal has no body, so its idempotency identity and observed
    * revision travel as request metadata. A custom revision header avoids
@@ -5173,6 +5191,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchTask,
     putJobShare,
     putTaskCalendarSchedule,
+    putTaskCalendarSource,
     putTaskSchedule,
     putTaskShare,
     mutateTaskScheduleOccurrence,

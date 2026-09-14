@@ -39,6 +39,7 @@ const taskServiceMock = {
 const taskScheduleServiceMock = {
   removeCalendarSeries: vi.fn(),
   editCalendarSeries: vi.fn(),
+  moveCalendarSeriesSource: vi.fn(),
   setSchedule: vi.fn(),
   mutateOccurrence: vi.fn(),
 };
@@ -1506,6 +1507,51 @@ describe("Calendar schedule actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/tasks");
     expect(revalidatePath).toHaveBeenCalledWith("/tasks/task-1");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
+  });
+
+  it("moves a series source and revalidates both Project calendars", async () => {
+    taskScheduleServiceMock.moveCalendarSeriesSource.mockResolvedValue({
+      previousSource: { type: "project", projectId: "project-old" },
+      source: { type: "project", projectId: "project-new" },
+      scheduleRevision: 4,
+      canceledFutureExceptionCount: 2,
+    });
+    const { moveCalendarTaskSource } = await import("./action");
+
+    const result = await moveCalendarTaskSource({
+      taskId: "task-1",
+      operationId,
+      expectedScheduleRevision: 3,
+      source: {
+        type: "project",
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+
+    expect(
+      taskScheduleServiceMock.moveCalendarSeriesSource,
+    ).toHaveBeenCalledWith(
+      "task-1",
+      { operationId, expectedScheduleRevision: 3 },
+      {
+        type: "project",
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: { taskId: "task-1", scheduleRevision: 4 },
+    });
+    const { revalidatePath } = await import("next/cache");
+    expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/task-1");
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/projects/project-old/calendar",
+    );
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/projects/project-new/calendar",
+    );
   });
 
   it("maps a removal revision conflict to an actionable result", async () => {

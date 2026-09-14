@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const listOccurrencesMock = vi.fn();
 const occurrencesMock = vi.fn();
+const getWorkspaceCalendarSourcesMock = vi.fn();
+const sourceMoveMock = vi.fn();
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
@@ -23,10 +25,24 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
   },
 }));
 
+vi.mock("@/lib/services/task.service", () => ({
+  taskService: {
+    getWorkspaceCalendarSources: (...args: unknown[]) =>
+      getWorkspaceCalendarSourcesMock(...args),
+  },
+}));
+
 vi.mock("@/app/tasks/components/task-schedule-occurrences", () => ({
   TaskScheduleOccurrences: (props: unknown) => {
     occurrencesMock(props);
     return <p>occurrence tabs</p>;
+  },
+}));
+
+vi.mock("@/app/tasks/components/task-schedule-source-move", () => ({
+  TaskScheduleSourceMove: (props: unknown) => {
+    sourceMoveMock(props);
+    return <button type="button">move source</button>;
   },
 }));
 
@@ -67,7 +83,12 @@ function renderSection(
 }
 
 function page(nextCursor: string | null = null, scheduleRevision = 4) {
-  return { scheduleRevision, occurrences: [], nextCursor };
+  return {
+    scheduleRevision,
+    futureExceptionCount: 2,
+    occurrences: [],
+    nextCursor,
+  };
 }
 
 describe("TaskScheduleSeriesSection", () => {
@@ -75,6 +96,20 @@ describe("TaskScheduleSeriesSection", () => {
     vi.clearAllMocks();
     hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     listOccurrencesMock.mockResolvedValue(page());
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        displayName: "Acme Corp",
+        isSchedulable: true,
+      },
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        displayName: "Launch",
+        isSchedulable: true,
+      },
+    ]);
   });
 
   it("renders the series summary and the occurrence tabs", async () => {
@@ -85,6 +120,14 @@ describe("TaskScheduleSeriesSection", () => {
       "/calendar",
     );
     expect(screen.getByText("occurrence tabs")).toBeInTheDocument();
+    expect(sourceMoveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task_1",
+        currentSourceId: "workspace:workspace-1",
+        scheduleRevision: 4,
+        futureExceptionCount: 2,
+      }),
+    );
   });
 
   it("passes only the page data the tabs read across the boundary", async () => {
