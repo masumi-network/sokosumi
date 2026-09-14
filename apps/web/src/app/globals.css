@@ -15,6 +15,7 @@
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-card-background: var(--card-background);
+  --color-card-background-hover: var(--card-background-hover);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -246,6 +247,13 @@
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
   --card-background: hsla(0, 0%, 98%, 1);
+  /* The hover for a row that sits on --card-background. The step is capped
+     by the text riding on it, not by taste: --muted-foreground is 44% here,
+     which measures 4.727:1 on the resting 98% and 4.521:1 at 96%. The
+     floor is crossed just below that, at 95.8%, so there is no step worth
+     having between 96% and a fill that puts the row's own timestamps and
+     captions under 4.5:1. */
+  --card-background-hover: hsla(0, 0%, 96%, 1);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(263.5, 100%, 50%, 1); /* Sokosumi · Wisteria Purple #6400FF */
@@ -388,6 +396,11 @@
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
   --card-background: hsla(0, 0%, 9%, 1);
+  /* Dark runs the other way. --muted-foreground is 50% and already sits at
+     4.510:1 on the resting 9%, so every lighter fill fails: --accent at 15%
+     measures 3.793:1. The hover goes darker instead, towards the page, which
+     both separates it from the card and lifts the text to 4.810:1. */
+  --card-background-hover: hsla(0, 0%, 6%, 1);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
