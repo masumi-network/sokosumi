@@ -27,7 +27,7 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
   }
 
   public static func catalog(room: Components.Schemas.ChatRoom, currentUserId: String) -> [Self] {
-    let bots = room.sokoBotMembers ?? []
+    let bots = room.sokoBotMembers
     guard room.kind != .direct || room.userMembers.count + room.coworkerMembers.count + bots.count > 2 else { return [] }
     let humans = room.userMembers.filter { $0.id != currentUserId }.map {
       Self(id: $0.id, name: $0.name.isEmpty ? $0.email : $0.name, slug: slug(for: $0.name), kind: .human, image: $0.image, email: $0.email)

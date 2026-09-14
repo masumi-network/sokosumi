@@ -68,10 +68,10 @@ import Testing
   #expect(!MessageMarkdown("hello [site](https://example.com)").containsAttachments)
 }
 
-@Test func attachmentLayoutRemovesBoundaryLineBreaksButPreservesParagraphs() throws {
+@Test func attachmentLayoutRemovesBoundaryLineBreaksButPreservesParagraphs() {
   var text = AttributedString("First line\nSecond line\n\n")
   var link = AttributedString("report.pdf")
-  link.link = try #require(URL(string: "https://example.com/report.pdf"))
+  link.link = URL(string: "https://example.com/report.pdf")
   text.append(link)
   text.append(AttributedString("\n\nFollowing text"))
   let segments = MessageAttachmentSegment.split(text)
