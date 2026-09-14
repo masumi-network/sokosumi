@@ -26,13 +26,13 @@ import {
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
 import {
-  buildCoworkerTaskListAccessFilter,
-  hasGrantedWorkspaceAccess,
-} from "@/helpers/vendor-grants";
-import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
+import {
+  buildCoworkerTaskListAccessFilter,
+  hasGrantedWorkspaceAccess,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,

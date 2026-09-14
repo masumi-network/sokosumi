@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 import type {
   Task,
   TaskListItem,
@@ -37,6 +37,7 @@ function buildTask(
     name: "Test task",
     description: null,
     status,
+    visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: null,
     scheduleRevision: 0,

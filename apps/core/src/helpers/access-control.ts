@@ -880,9 +880,7 @@ export async function requireTaskReadForWorkspace(
       id: taskId,
       archivedAt: null,
       workspaceId,
-      ...(readerUserId
-        ? buildHumanTaskVisibilityWhere(readerUserId)
-        : {}),
+      ...(readerUserId ? buildHumanTaskVisibilityWhere(readerUserId) : {}),
     },
     ...(include ? { include } : {}),
   });

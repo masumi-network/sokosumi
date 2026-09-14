@@ -22,11 +22,11 @@ import {
 } from "@/helpers/openapi";
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
-import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import {

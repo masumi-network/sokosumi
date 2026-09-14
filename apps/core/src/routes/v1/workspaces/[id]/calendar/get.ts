@@ -12,7 +12,6 @@ import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
-import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -20,6 +19,7 @@ import {
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,

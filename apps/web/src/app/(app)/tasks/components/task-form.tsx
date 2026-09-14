@@ -314,9 +314,7 @@ export function TaskForm({
 }: TaskFormProps) {
   const router = useRouter();
   const { data: session } = useSession();
-  const canCreatePrivateTask = Boolean(
-    session?.session.activeOrganizationId,
-  );
+  const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const tSeries = useTranslations("App.Tasks.Schedule.series");

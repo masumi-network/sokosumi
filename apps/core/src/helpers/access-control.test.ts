@@ -38,8 +38,8 @@ import {
   requireTaskReadForWorkspace,
   requireTaskStatusWriteAccess,
 } from "./access-control";
-import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 import { buildHumanTaskVisibilityWhere } from "./task-visibility";
+import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 const {
   getWorkspaceGrantMock,

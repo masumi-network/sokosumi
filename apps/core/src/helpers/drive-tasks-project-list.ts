@@ -1,4 +1,9 @@
-import { TaskFileOrigin, TaskFileStatus, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import {
+  TaskFileOrigin,
+  TaskFileStatus,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
@@ -92,9 +97,7 @@ function buildProjectTaskFilters(params: {
     ? PrismaRaw.sql`AND t."assigneeSokoBotId" = ${params.assigneeSokoBotId}::uuid AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`
     : PrismaRaw.empty;
   const humanVisibilityFilter =
-    params.readerUserId &&
-    !params.coworkerAccess &&
-    !params.assigneeSokoBotId
+    params.readerUserId && !params.coworkerAccess && !params.assigneeSokoBotId
       ? buildHumanTaskVisibilitySql(params.readerUserId)
       : PrismaRaw.empty;
 

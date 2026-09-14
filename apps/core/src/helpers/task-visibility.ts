@@ -84,10 +84,7 @@ export function isPrivateTaskVisibleToCoworker(
   if (task.assigneeId === params.coworkerId) {
     return true;
   }
-  if (
-    task.assigneeId != null &&
-    task.assignee?.vendorId === params.vendorId
-  ) {
+  if (task.assigneeId != null && task.assignee?.vendorId === params.vendorId) {
     return true;
   }
   return false;
