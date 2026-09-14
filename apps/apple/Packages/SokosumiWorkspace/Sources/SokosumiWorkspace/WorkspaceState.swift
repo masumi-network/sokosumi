@@ -77,6 +77,7 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
+  @Published var pendingReactions: Set<ReactionRequest> = []
   public let timeline = RoomTimeline()
   private(set) var transcriptLoadTask: Task<Void, Never>?
   private(set) var olderPageTask: Task<Void, Never>?
