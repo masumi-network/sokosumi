@@ -75,9 +75,12 @@ export function mountSokoBotAvatarRoutes(app: OpenAPIHonoWithAuth): void {
   });
 
   app.openapi(topUpAvatarsRoute, async (c) => {
-    requireUserAuthContext(c.var.authContext);
+    const { userId } = requireUserAuthContext(c.var.authContext);
     const { take, excludeIds } = c.req.valid("json");
-    const avatars = await topUpAvailableAvatars(take, { excludeIds });
+    const avatars = await topUpAvailableAvatars(take, {
+      excludeIds,
+      requestedByUserId: userId,
+    });
     return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
   });
 }
