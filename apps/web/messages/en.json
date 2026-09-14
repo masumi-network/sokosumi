@@ -4,6 +4,9 @@
       "title": "Security check",
       "description": "Complete this check to continue.",
       "error": "Verification could not finish. Check your connection. If the check does not resume, reload this page.",
+      "verificationFailed": "The security check failed. Please try again.",
+      "missingResponse": "Complete the security check and try again.",
+      "requestFailed": "Unable to complete this request. Please try again later.",
       "cancel": "Cancel"
     },
     "EmergencyDialog": {

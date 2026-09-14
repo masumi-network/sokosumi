@@ -10,11 +10,16 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthCaptchaProvider, useAuthCaptcha } from "./auth-captcha-provider";
+import {
+  AuthCaptchaProvider,
+  type CaptchaFetchOptions,
+  useAuthCaptcha,
+} from "./auth-captcha-provider";
 
 let siteKey: string | undefined = "test-site-key";
 let widgetProps: TurnstileProps;
 const result = vi.fn();
+const submitAction = vi.fn(async (options: CaptchaFetchOptions) => options);
 
 vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => ({ NEXT_PUBLIC_TURNSTILE_SITE_KEY: siteKey }),
@@ -35,14 +40,14 @@ vi.mock("@marsidev/react-turnstile", () => ({
 }));
 
 function Consumer() {
-  const requestCaptcha = useAuthCaptcha();
+  const { runWithCaptcha } = useAuthCaptcha();
   const [busy, setBusy] = useState(false);
   return (
     <button
       disabled={busy}
       onClick={async () => {
         setBusy(true);
-        result(await requestCaptcha());
+        result(await runWithCaptcha(submitAction));
         setBusy(false);
       }}
     >
@@ -53,6 +58,7 @@ function Consumer() {
 
 beforeEach(() => {
   result.mockReset();
+  submitAction.mockClear();
   siteKey = "test-site-key";
 });
 
@@ -69,7 +75,11 @@ describe("AuthCaptchaProvider", () => {
     await user.click(screen.getByText("Submit"));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(result).not.toHaveBeenCalled();
+    expect(submitAction).not.toHaveBeenCalled();
     await user.click(screen.getByText("Solve challenge"));
+    expect(submitAction).toHaveBeenCalledExactlyOnceWith({
+      headers: { "x-captcha-response": "single-use-token" },
+    });
     expect(result).toHaveBeenCalledWith({
       headers: { "x-captcha-response": "single-use-token" },
     });
@@ -92,6 +102,7 @@ describe("AuthCaptchaProvider", () => {
     const oldSuccess = widgetProps.onSuccess;
     await user.keyboard("{Escape}");
     expect(result).toHaveBeenCalledWith(null);
+    expect(submitAction).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByText("Submit")).toHaveFocus());
     await user.click(screen.getByText("Submit"));
     act(() => oldSuccess?.("stale-token"));
@@ -111,6 +122,7 @@ describe("AuthCaptchaProvider", () => {
     expect(result).not.toHaveBeenCalled();
     await userEvent.click(screen.getByText("cancel"));
     expect(result).toHaveBeenCalledWith(null);
+    expect(submitAction).not.toHaveBeenCalled();
   });
 
   it.each(["cancel", "Solve challenge"])(
@@ -129,6 +141,7 @@ describe("AuthCaptchaProvider", () => {
       expect(screen.getByRole("alert")).toHaveTextContent("error");
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       expect(result).not.toHaveBeenCalled();
+      expect(submitAction).not.toHaveBeenCalled();
       expect(screen.getByText("cancel")).toBeEnabled();
 
       await act(async () => {
@@ -141,6 +154,7 @@ describe("AuthCaptchaProvider", () => {
           : { headers: { "x-captcha-response": "single-use-token" } },
       );
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(submitAction).toHaveBeenCalledTimes(action === "cancel" ? 0 : 1);
       expect(screen.getByText("Submit")).toBeEnabled();
     },
   );
@@ -154,6 +168,7 @@ describe("AuthCaptchaProvider", () => {
     await userEvent.click(screen.getByText("Submit"));
     unmount();
     await waitFor(() => expect(result).toHaveBeenCalledWith(null));
+    expect(submitAction).not.toHaveBeenCalled();
   });
 
   it("preserves local development without a configured widget", async () => {
@@ -165,6 +180,7 @@ describe("AuthCaptchaProvider", () => {
     );
     await userEvent.click(screen.getByText("Submit"));
     expect(result).toHaveBeenCalledWith({});
+    expect(submitAction).toHaveBeenCalledExactlyOnceWith({});
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

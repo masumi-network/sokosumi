@@ -1,6 +1,7 @@
 "use client";
 
 import { Turnstile } from "@marsidev/react-turnstile";
+import { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
@@ -8,6 +9,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -24,18 +26,50 @@ import {
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
-interface CaptchaFetchOptions {
-  headers?: { "x-captcha-response": string };
+export interface CaptchaFetchOptions {
+  headers?: { [AUTH_CAPTCHA_HEADER]: string };
 }
 
-export type RequestAuthCaptcha = () => Promise<CaptchaFetchOptions | null>;
+type RequestAuthCaptcha = () => Promise<CaptchaFetchOptions | null>;
+
+export interface AuthCaptcha {
+  runWithCaptcha: <T>(
+    action: (options: CaptchaFetchOptions) => Promise<T>,
+  ) => Promise<T | null>;
+  getErrorMessage: (error: { code?: string }, fallback: string) => string;
+}
 
 const AuthCaptchaContext = createContext<RequestAuthCaptcha | null>(null);
 
-export function useAuthCaptcha(): RequestAuthCaptcha {
+export function useAuthCaptcha(): AuthCaptcha {
   const requestCaptcha = useContext(AuthCaptchaContext);
+  const t = useTranslations("Components.AuthCaptcha");
   if (!requestCaptcha) throw new Error("AuthCaptchaProvider is missing");
-  return requestCaptcha;
+
+  return useMemo(
+    () => ({
+      async runWithCaptcha<T>(
+        action: (options: CaptchaFetchOptions) => Promise<T>,
+      ) {
+        const options = await requestCaptcha();
+        if (!options) return null;
+        return action(options);
+      },
+      getErrorMessage(error: { code?: string }, fallback: string) {
+        switch (error.code) {
+          case "VERIFICATION_FAILED":
+            return t("verificationFailed");
+          case "MISSING_RESPONSE":
+            return t("missingResponse");
+          case "UNKNOWN_ERROR":
+            return t("requestFailed");
+          default:
+            return fallback;
+        }
+      },
+    }),
+    [requestCaptcha, t],
+  );
 }
 
 export function AuthCaptchaProvider({ children }: { children: ReactNode }) {
@@ -127,10 +161,14 @@ export function AuthCaptchaProvider({ children }: { children: ReactNode }) {
                 key={challenge}
                 siteKey={siteKey}
                 className="mx-auto"
-                options={{ action: "auth", size: "compact", language: locale }}
+                options={{
+                  action: AUTH_CAPTCHA_ACTION,
+                  size: "compact",
+                  language: locale,
+                }}
                 onSuccess={(token) =>
                   finish(challenge, {
-                    headers: { "x-captcha-response": token },
+                    headers: { [AUTH_CAPTCHA_HEADER]: token },
                   })
                 }
                 onError={() => setFailed(true)}

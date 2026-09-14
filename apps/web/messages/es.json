@@ -4,6 +4,9 @@
       "title": "Comprobación de seguridad",
       "description": "Completa esta comprobación para continuar.",
       "error": "No se pudo completar la verificación. Comprueba tu conexión. Si la comprobación no se reanuda, vuelve a cargar esta página.",
+      "verificationFailed": "La verificación de seguridad falló. Vuelve a intentarlo.",
+      "missingResponse": "Completa la verificación de seguridad y vuelve a intentarlo.",
+      "requestFailed": "No se pudo completar la solicitud. Vuelve a intentarlo más tarde.",
       "cancel": "Cancelar"
     },
     "EmergencyDialog": {

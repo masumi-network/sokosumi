@@ -71,7 +71,7 @@ export default function SocialButtons({
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
-  const requestCaptcha = useAuthCaptcha();
+  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -198,25 +198,29 @@ export default function SocialButtons({
     try {
       // The link lands on the callback page (full page load), which fires the
       // `login` GTM event and then forwards to the return URL.
-      const fetchOptions = await requestCaptcha();
-      if (!fetchOptions) return;
+      await runWithCaptcha(async (fetchOptions) => {
+        const result = await authClient.signIn.magicLink({
+          fetchOptions,
+          email: trimmedEmail,
+          callbackURL: buildAuthCallbackUrl(
+            "/auth/callback/signin",
+            "magic-link",
+            effectiveReturnUrl,
+          ),
+        });
 
-      const result = await authClient.signIn.magicLink({
-        fetchOptions,
-        email: trimmedEmail,
-        callbackURL: buildAuthCallbackUrl(
-          "/auth/callback/signin",
-          "magic-link",
-          effectiveReturnUrl,
-        ),
+        if (result.error) {
+          toast.error(
+            getErrorMessage(
+              result.error,
+              result.error.message ?? t("magicLinkError"),
+            ),
+          );
+          return;
+        }
+
+        setMagicLinkSentTo(trimmedEmail);
       });
-
-      if (result.error) {
-        toast.error(result.error.message ?? t("magicLinkError"));
-        return;
-      }
-
-      setMagicLinkSentTo(trimmedEmail);
     } catch (_error) {
       toast.error(t("magicLinkError"));
     } finally {

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import type { NextRequest } from "next/server";
 
 import {
@@ -58,7 +59,7 @@ export async function proxyLegacyCoreAuthRequest(
   pathSegments: string[],
 ): Promise<Response> {
   const headers = new Headers();
-  for (const name of ["content-type", "x-captcha-response"]) {
+  for (const name of ["content-type", AUTH_CAPTCHA_HEADER]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }

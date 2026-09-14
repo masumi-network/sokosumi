@@ -25,7 +25,7 @@ export default function VerifyEmailButton({
   size = "sm",
 }: VerifyEmailButtonProps) {
   const t = useTranslations("App.EmailVerificationNotice");
-  const requestCaptcha = useAuthCaptcha();
+  const captcha = useAuthCaptcha();
   const [isSending, setIsSending] = useState(false);
 
   const handleClick = async () => {
@@ -42,7 +42,7 @@ export default function VerifyEmailButton({
           sendError: t("sendError"),
           sendSuccess: t("sendSuccess"),
         },
-        requestCaptcha,
+        captcha,
       );
     } finally {
       setIsSending(false);

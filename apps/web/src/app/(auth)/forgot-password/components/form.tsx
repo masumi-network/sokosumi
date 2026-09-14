@@ -23,7 +23,7 @@ export default function ForgotPasswordForm({
   initialEmail,
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
-  const requestCaptcha = useAuthCaptcha();
+  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
@@ -36,22 +36,23 @@ export default function ForgotPasswordForm({
   });
 
   async function handleSubmit(values: ForgotPasswordFormSchemaType) {
-    const fetchOptions = await requestCaptcha();
-    if (!fetchOptions) return;
+    await runWithCaptcha(async (fetchOptions) => {
+      const requestPasswordResetResult = await requestPasswordReset({
+        fetchOptions,
+        email: values.email,
+        redirectTo: getAbsoluteAuthRedirectUrl("/reset-password"),
+      });
 
-    const requestPasswordResetResult = await requestPasswordReset({
-      fetchOptions,
-      email: values.email,
-      redirectTo: getAbsoluteAuthRedirectUrl("/reset-password"),
+      if (requestPasswordResetResult.error) {
+        toast.error(
+          getErrorMessage(requestPasswordResetResult.error, t("error")),
+        );
+        return;
+      }
+
+      toast.success(t("success"));
+      router.push("/signin");
     });
-
-    if (requestPasswordResetResult.error) {
-      toast.error(t("error"));
-      return;
-    }
-
-    toast.success(t("success"));
-    router.push("/signin");
   }
 
   const { isSubmitting } = form.formState;

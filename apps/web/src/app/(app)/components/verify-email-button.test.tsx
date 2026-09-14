@@ -2,16 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import VerifyEmailButton from "@/app/components/verify-email-button";
 import { authClient } from "@/lib/auth/auth.client";
-
-const requestCaptchaMock = vi
-  .fn()
-  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
-vi.mock("@/components/auth-captcha-provider", () => ({
-  useAuthCaptcha: () => requestCaptchaMock,
-}));
+import {
+  captchaErrorMessageMock,
+  captchaFetchOptions,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
@@ -39,9 +36,6 @@ vi.mock("sonner", () => ({
 
 describe("VerifyEmailButton", () => {
   beforeEach(() => {
-    requestCaptchaMock.mockResolvedValue({
-      headers: { "x-captcha-response": "verified-token" },
-    });
     vi.mocked(authClient.sendVerificationEmail).mockReset();
     vi.mocked(toast.success).mockReset();
     vi.mocked(toast.error).mockReset();
@@ -66,7 +60,7 @@ describe("VerifyEmailButton", () => {
     expect(authClient.sendVerificationEmail).toHaveBeenCalledWith({
       email: "user@example.com",
       callbackURL: window.location.href,
-      fetchOptions: { headers: { "x-captcha-response": "verified-token" } },
+      fetchOptions: captchaFetchOptions,
     });
     expect(button).toBeDisabled();
 
@@ -83,6 +77,28 @@ describe("VerifyEmailButton", () => {
     render(<VerifyEmailButton email="user@example.com" label="Verify email" />);
     await userEvent.click(screen.getByRole("button", { name: "Verify email" }));
     expect(authClient.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it("shows translated captcha errors when resending verification email", async () => {
+    const error = {
+      code: "VERIFICATION_FAILED",
+      message: "Captcha verification failed",
+      status: 403,
+      statusText: "Forbidden",
+    };
+    vi.mocked(authClient.sendVerificationEmail).mockResolvedValueOnce({
+      data: null,
+      error,
+    });
+    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
+    render(
+      <VerifyEmailButton email="person@example.com" label="Verify email" />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Verify email" }));
+
+    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
+    expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("shows a fallback error toast when sending verification email throws", async () => {
@@ -102,3 +118,8 @@ describe("VerifyEmailButton", () => {
     });
   });
 });
+
+vi.mock(
+  "@/components/auth-captcha-provider",
+  () => import("@/test/auth-captcha-mock"),
+);

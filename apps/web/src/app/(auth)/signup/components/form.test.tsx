@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import {
   afterAll,
   beforeAll,
@@ -9,6 +10,10 @@ import {
   it,
   vi,
 } from "vitest";
+import {
+  captchaErrorMessageMock,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 import SignUpForm from "./form";
 
@@ -19,13 +24,6 @@ const mockGetSession = vi.fn();
 const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
 
 let mockSearchParams = new URLSearchParams();
-
-const requestCaptchaMock = vi
-  .fn()
-  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
-vi.mock("@/components/auth-captcha-provider", () => ({
-  useAuthCaptcha: () => requestCaptchaMock,
-}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -116,9 +114,6 @@ describe("SignUpForm OAuth workflow", () => {
   });
 
   beforeEach(() => {
-    requestCaptchaMock.mockResolvedValue({
-      headers: { "x-captcha-response": "verified-token" },
-    });
     mockReplace.mockReset();
     mockSignUpEmail.mockReset();
     mockHandleUtmConversion.mockReset();
@@ -151,6 +146,22 @@ describe("SignUpForm OAuth workflow", () => {
     );
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
+
+  it("shows translated captcha errors from Core", async () => {
+    const error = {
+      code: "VERIFICATION_FAILED",
+      message: "Captcha verification failed",
+    };
+    mockSignUpEmail.mockResolvedValueOnce({ data: null, error });
+    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
+    expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
 
   it("does not register when verification is cancelled", async () => {
     requestCaptchaMock.mockResolvedValueOnce(null);
@@ -392,3 +403,8 @@ describe("SignUpForm OAuth workflow", () => {
     expect(spinner).toHaveClass("absolute", "left-4");
   });
 });
+
+vi.mock(
+  "@/components/auth-captcha-provider",
+  () => import("@/test/auth-captcha-mock"),
+);

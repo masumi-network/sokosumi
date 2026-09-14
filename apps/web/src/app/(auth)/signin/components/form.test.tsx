@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import {
   afterAll,
   beforeAll,
@@ -9,6 +10,11 @@ import {
   it,
   vi,
 } from "vitest";
+import {
+  captchaErrorMessageMock,
+  captchaFetchOptions,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 import SignInForm from "./form";
 
@@ -18,13 +24,6 @@ const mockGetSession = vi.fn();
 const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
 
 let mockSearchParams = new URLSearchParams();
-
-const requestCaptchaMock = vi
-  .fn()
-  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
-vi.mock("@/components/auth-captcha-provider", () => ({
-  useAuthCaptcha: () => requestCaptchaMock,
-}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -119,9 +118,6 @@ describe("SignInForm", () => {
   });
 
   beforeEach(() => {
-    requestCaptchaMock.mockReset().mockResolvedValue({
-      headers: { "x-captcha-response": "verified-token" },
-    });
     mockReplace.mockReset();
     mockSignInEmail.mockReset();
     mockGetSession.mockReset();
@@ -219,6 +215,22 @@ describe("SignInForm", () => {
     });
   });
 
+  it("shows translated captcha errors from Core", async () => {
+    const error = {
+      code: "VERIFICATION_FAILED",
+      message: "Captcha verification failed",
+    };
+    mockSignInEmail.mockResolvedValueOnce({ data: null, error });
+    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
+    expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
   it("passes the verified captcha token to credential sign-in", async () => {
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
     render(<SignInForm />);
@@ -228,7 +240,7 @@ describe("SignInForm", () => {
     expect(requestCaptchaMock).toHaveBeenCalledOnce();
     expect(mockSignInEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        fetchOptions: { headers: { "x-captcha-response": "verified-token" } },
+        fetchOptions: captchaFetchOptions,
       }),
     );
   });
@@ -393,3 +405,8 @@ describe("SignInForm", () => {
     expect(spinner).toHaveClass("absolute", "left-4");
   });
 });
+
+vi.mock(
+  "@/components/auth-captcha-provider",
+  () => import("@/test/auth-captcha-mock"),
+);

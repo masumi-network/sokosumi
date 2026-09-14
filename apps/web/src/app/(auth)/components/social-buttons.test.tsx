@@ -7,6 +7,11 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  captchaErrorMessageMock,
+  captchaFetchOptions,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 import SocialButtons from "./social-buttons";
 
@@ -37,13 +42,6 @@ const mockWaitForAuthSession = vi.fn(
 const mockSignInEvent = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
-
-const requestCaptchaMock = vi
-  .fn()
-  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
-vi.mock("@/components/auth-captcha-provider", () => ({
-  useAuthCaptcha: () => requestCaptchaMock,
-}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -161,9 +159,6 @@ vi.mock("react-social-login-buttons", () => ({
 
 describe("SocialButtons", () => {
   beforeEach(() => {
-    requestCaptchaMock.mockReset().mockResolvedValue({
-      headers: { "x-captcha-response": "verified-token" },
-    });
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
     mockPasskeySignIn.mockReset();
@@ -558,7 +553,7 @@ describe("SocialButtons", () => {
 
     await waitFor(() => {
       expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
-        fetchOptions: { headers: { "x-captcha-response": "verified-token" } },
+        fetchOptions: captchaFetchOptions,
         email: "login-user@example.com",
         callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
       });
@@ -590,6 +585,25 @@ describe("SocialButtons", () => {
     expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
     expect(screen.queryByText("magicLinkSuccess")).not.toBeInTheDocument();
     expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  it("shows translated captcha errors for magic-link requests", async () => {
+    const error = {
+      code: "VERIFICATION_FAILED",
+      message: "Captcha verification failed",
+    };
+    mockMagicLinkSignIn.mockResolvedValueOnce({ data: null, error });
+    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
+    const user = userEvent.setup();
+    render(<SocialButtons showMagicLink prefilledEmail="person@example.com" />);
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+
+    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
+    expect(mockToastError).toHaveBeenLastCalledWith("Translated captcha error");
+    expect(screen.queryByText("magicLinkSuccess")).not.toBeInTheDocument();
   });
 
   it("hides the magic-link panel when the trigger is clicked again", async () => {
@@ -694,3 +708,8 @@ describe("SocialButtons", () => {
     expect(mockToastError).toHaveBeenCalledWith("Network failure");
   });
 });
+
+vi.mock(
+  "@/components/auth-captcha-provider",
+  () => import("@/test/auth-captcha-mock"),
+);

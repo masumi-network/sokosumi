@@ -4,7 +4,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { toast } from "sonner";
 
 import type { AccountNotice } from "@/app/components/account-notice-state";
-import type { RequestAuthCaptcha } from "@/components/auth-captcha-provider";
+import type { AuthCaptcha } from "@/components/auth-captcha-provider";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface AccountNoticeEmailMessages {
@@ -15,23 +15,28 @@ interface AccountNoticeEmailMessages {
 export async function sendAccountVerificationEmail(
   email: string,
   messages: AccountNoticeEmailMessages,
-  requestCaptcha: RequestAuthCaptcha,
+  captcha: AuthCaptcha,
 ): Promise<void> {
   try {
-    const fetchOptions = await requestCaptcha();
-    if (!fetchOptions) return;
-    const result = await authClient.sendVerificationEmail({
-      email,
-      fetchOptions,
-      callbackURL: window.location.href,
+    await captcha.runWithCaptcha(async (fetchOptions) => {
+      const result = await authClient.sendVerificationEmail({
+        email,
+        fetchOptions,
+        callbackURL: window.location.href,
+      });
+
+      if (result.error) {
+        toast.error(
+          captcha.getErrorMessage(
+            result.error,
+            result.error.message ?? messages.sendError,
+          ),
+        );
+        return;
+      }
+
+      toast.success(messages.sendSuccess);
     });
-
-    if (result.error) {
-      toast.error(result.error.message ?? messages.sendError);
-      return;
-    }
-
-    toast.success(messages.sendSuccess);
   } catch {
     toast.error(messages.sendError);
   }
@@ -41,7 +46,7 @@ export async function performAccountNoticeAction(
   notice: AccountNotice,
   options: {
     router: AppRouterInstance;
-    requestCaptcha: RequestAuthCaptcha;
+    captcha: AuthCaptcha;
     emailMessages: AccountNoticeEmailMessages;
   },
 ): Promise<void> {
@@ -49,7 +54,7 @@ export async function performAccountNoticeAction(
     await sendAccountVerificationEmail(
       notice.email,
       options.emailMessages,
-      options.requestCaptcha,
+      options.captcha,
     );
     return;
   }

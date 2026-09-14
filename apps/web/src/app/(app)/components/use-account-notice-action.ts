@@ -11,7 +11,7 @@ import { useAccountNotice } from "@/contexts/account-notice-provider";
 export function useAccountNoticeAction() {
   const { notice } = useAccountNotice();
   const router = useRouter();
-  const requestCaptcha = useAuthCaptcha();
+  const captcha = useAuthCaptcha();
   const tEmail = useTranslations("App.EmailVerificationNotice");
 
   const handleAction = useCallback(async () => {
@@ -25,9 +25,9 @@ export function useAccountNoticeAction() {
         sendSuccess: tEmail("sendSuccess"),
       },
       router,
-      requestCaptcha,
+      captcha,
     });
-  }, [notice, router, tEmail, requestCaptcha]);
+  }, [notice, router, tEmail, captcha]);
 
   return { handleAction, notice };
 }
