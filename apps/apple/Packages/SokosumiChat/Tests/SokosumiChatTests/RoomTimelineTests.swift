@@ -175,13 +175,13 @@ struct RoomTimelineTests {
   @Test func scrollIntentPreservesReadingPositionUntilExplicitReturn() {
     var intent = TimelineScrollIntent()
     #expect(intent.followsLatest)
-    intent.userScrolled(distanceFromBottom: 300)
+    intent.userScrolled(isNearBottom: false)
     #expect(!intent.followsLatest)
     intent.followLatest()
     #expect(intent.followsLatest)
     intent.readOlder()
     #expect(!intent.followsLatest)
-    intent.userScrolled(distanceFromBottom: 20)
+    intent.userScrolled(isNearBottom: true)
     #expect(intent.followsLatest)
   }
 

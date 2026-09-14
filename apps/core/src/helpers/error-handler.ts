@@ -176,9 +176,9 @@ export const errorHandler: ErrorHandler = (error, c) => {
     );
   }
 
-  // Better Auth throws plain APIError (not HTTPException). With
-  // enableSessionForAPIKeys, invalid x-api-key on getSession bubbles here as
-  // "Invalid API key." — map to the auth status instead of a fatal 500.
+  // Better Auth throws plain APIError (not HTTPException). A rejected
+  // credential bubbles here carrying its own status, so map that status
+  // instead of reporting a fatal 500.
   if (isAPIError(error)) {
     const status = resolveBetterAuthApiErrorStatus(error.statusCode);
     const message = resolveBetterAuthApiErrorMessage(error);

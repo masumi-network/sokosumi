@@ -3,7 +3,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { composeSystemPrompt, SOKO_BOT_SKILLS } from "@sokosumi/soko-bot";
 import { isNmkrEmail } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-
 import { getEnv } from "@/config/env";
 import {
   badGateway,
@@ -35,7 +34,6 @@ import {
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
-  claimSokoBotAvatarRequestSchema,
   connectSokoBotIntegrationRequestSchema,
   connectSokoBotIntegrationResponseSchema,
   createSokoBotRequestSchema,
@@ -46,12 +44,10 @@ import {
   introduceSokoBotRequestSchema,
   introduceSokoBotResponseSchema,
   judgeSokoBotLabTurnRequestSchema,
-  listSokoBotAvatarsQuerySchema,
   listSokoBotLabRunsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
   simulateSokoBotTaskEventRequestSchema,
   sokoBotActivitySchema,
-  sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
   sokoBotDeletionResultSchema,
   sokoBotInstalledSkillSchema,
@@ -76,18 +72,14 @@ import {
   sokoBotVersionSchema,
   startSokoBotTurnRequestSchema,
   startSokoBotTurnResponseSchema,
-  topUpSokoBotAvatarsRequestSchema,
   updateSokoBotBoardFollowingRequestSchema,
   updateSokoBotProactiveRequestSchema,
   updateSokoBotScheduleRequestSchema,
   updateSokoBotVersionRequestSchema,
 } from "@/schemas/soko-bot.schema";
+import { claimSokoBotAvatarRequestSchema } from "@/schemas/soko-bot-avatar.schema";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
-import {
-  claimAvatar,
-  listAvailableAvatars,
-  topUpAvailableAvatars,
-} from "@/services/soko-bot-avatar.service";
+import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
   introduceSokoBot,
@@ -140,6 +132,7 @@ import {
   listSokoBotVersions,
 } from "@/services/soko-bot-version.service";
 import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
+import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotEventRoutes } from "./events.js";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
@@ -761,75 +754,7 @@ app.openapi(resolveDecisionRoute, async (c) => {
   }
 });
 
-const listAvatarsRoute = createRoute({
-  method: "get",
-  path: "/avatars",
-  operationId: "listSokoBotAvatars",
-  tags: ["Soko Bots"],
-  request: { query: listSokoBotAvatarsQuerySchema },
-  responses: {
-    200: jsonSuccessResponse(
-      z.array(sokoBotAvatarSchema),
-      "Unclaimed mascot avatars to pick from",
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-  },
-});
-
-app.openapi(listAvatarsRoute, async (c) => {
-  requireUserAuthContext(c.var.authContext);
-  const { take, exclude } = c.req.valid("query");
-  const excludeIds = exclude
-    ? exclude
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
-    : [];
-  const avatars = await listAvailableAvatars(take, { excludeIds });
-  return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
-});
-
-/**
- * Generation writes rows and bills FAL, so it is a POST. As a GET it was
- * reachable by a cross-site top-level navigation, which carries the session
- * cookie under `SameSite=Lax`, and was cacheable by intermediaries.
- */
-const topUpAvatarsRoute = createRoute({
-  method: "post",
-  path: "/avatars/top-up",
-  operationId: "topUpSokoBotAvatars",
-  tags: ["Soko Bots"],
-  request: {
-    body: {
-      // Without `required`, @hono/zod-openapi skips body validation entirely
-      // when the request carries no JSON content-type, so `take` would arrive
-      // undefined and Prisma would read the whole pool instead of a page.
-      required: true,
-      content: {
-        "application/json": { schema: topUpSokoBotAvatarsRequestSchema },
-      },
-    },
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      z.array(sokoBotAvatarSchema),
-      "Unclaimed mascot avatars, after filling a short pool",
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    429: jsonErrorResponse("Too Many Requests"),
-  },
-});
-
-app.openapi(topUpAvatarsRoute, async (c) => {
-  const { userId } = requireUserAuthContext(c.var.authContext);
-  const { take, excludeIds } = c.req.valid("json");
-  const avatars = await topUpAvailableAvatars(take, {
-    excludeIds,
-    requestedByUserId: userId,
-  });
-  return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
-});
+mountSokoBotAvatarRoutes(app);
 
 const providerParamSchema = z.object({ provider: z.string().min(1) });
 

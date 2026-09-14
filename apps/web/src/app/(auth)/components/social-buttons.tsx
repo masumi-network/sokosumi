@@ -19,7 +19,7 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { useAuthCaptcha } from "@/components/auth-captcha-provider";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,7 +71,11 @@ export default function SocialButtons({
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
-  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
+  const {
+    widget: captcha,
+    runWithCaptcha,
+    getErrorMessage,
+  } = useAuthCaptcha("magic-link");
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -362,6 +366,7 @@ export default function SocialButtons({
             placeholder={t("magicLinkPlaceholder")}
             aria-label={t("magicLinkInputLabel")}
           />
+          {captcha}
           <Button
             type="submit"
             variant="outline"

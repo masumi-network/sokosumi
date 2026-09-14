@@ -15,13 +15,13 @@ struct ParticipantAvatar: View {
       .compositingGroup()
       .clipShape(Circle())
       .task(id: "\(imageURL ?? "")-\(size)-\(displayScale)") {
-        let loaded = await loadThumbnailCGImage(
+        let loaded = await loadImageThumbnail(
           urlString: imageURL,
           pointSize: size,
           scale: displayScale
         )
         guard !Task.isCancelled else { return }
-        cgImage = loaded
+        cgImage = loaded?.cgImage
       }
   }
 
