@@ -494,7 +494,14 @@ export async function stockAvatarPool(): Promise<{
     where: unclaimedAvatarFilter(),
   });
   if (available >= AVATAR_POOL_FLOOR) return { available, generated: 0 };
-  const generated = await generateAvatars(AVATAR_POOL_FLOOR - available);
+  let generated = 0;
+  try {
+    generated = await generateAvatars(AVATAR_POOL_FLOOR - available);
+  } catch (error) {
+    // A competing top-up can exhaust the reservation retries. The next cron
+    // run can try again; unrelated failures must still reach the sync handler.
+    if (!isRecoverableGenerationFailure(error)) throw error;
+  }
   return { available: available + generated, generated };
 }
 

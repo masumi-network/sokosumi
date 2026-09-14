@@ -280,6 +280,34 @@ describe("Soko Bot avatar pool", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("lets the cron retry on its next run after a reservation conflict", async () => {
+    avatarCountMock.mockResolvedValue(2);
+    serializableTransactionMock.mockRejectedValue(
+      new HTTPException(409, {
+        message: "Another avatar top-up is running. Try again.",
+        cause: { kind: CONCURRENCY_CONFLICT_KIND },
+      }),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(stockAvatarPool()).resolves.toEqual({
+      available: 2,
+      generated: 0,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    new Error("prisma is down"),
+    new HTTPException(409, { message: "Unrelated conflict" }),
+  ])("does not hide other cron failures: %s", async (error) => {
+    avatarCountMock.mockResolvedValue(2);
+    serializableTransactionMock.mockRejectedValue(error);
+
+    await expect(stockAvatarPool()).rejects.toBe(error);
+  });
+
   it("serves the pool when a concurrent top-up wins the race", async () => {
     // A lost serialization race surfaces as a retryable 409. It says nothing
     // about the rows already in the pool, so answering with an error would
