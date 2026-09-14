@@ -37,7 +37,11 @@ export function NotificationToaster() {
             // the accent fill, not the page inverse: this block now sets it to
             // near-black in dark mode, the same value as --background, so the
             // button and its label both disappeared at 1.00:1.
-            "bg-foreground text-background hover:bg-foreground h-8 rounded-md px-3 text-xs font-medium",
+            //
+            // The hover was a /90 fade of the fill. --secondary-hover is the
+            // named hover step for this inverted surface, and it keeps the
+            // label well clear of the floor: 13.58:1 light, 14.44:1 dark.
+            "bg-foreground text-background hover:bg-secondary-hover h-8 rounded-md px-3 text-xs font-medium",
         },
       }}
     />
