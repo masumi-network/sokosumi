@@ -565,15 +565,24 @@ Jobs have associated files (blobs) and links that can be accessed through Prisma
 
 ```typescript
 import prisma from "@/lib/db/prisma";
-import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
-import { linkWithJobIdInclude, flattenLinkJobId } from "@/types/link";
+import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";
 
 // Get files for a job
 const blobs = await prisma.blob.findMany({
   where: { event: { jobId } },
-  include: blobWithJobIdInclude,
+  include: {
+    event: {
+      select: {
+        jobId: true,
+      },
+    },
+  },
 });
-const files = blobs.map(flattenBlobJobId);
+const files = blobs.map((blob) => ({
+  ...blob,
+  jobId: blob.event.jobId,
+  size: blob.size ? Number(blob.size) : null,
+}));
 
 // Get links for a job
 const links = await prisma.link.findMany({
@@ -581,20 +590,6 @@ const links = await prisma.link.findMany({
   include: linkWithJobIdInclude,
 });
 const flattenedLinks = links.map(flattenLinkJobId);
-
-// Get all files for current user
-const userBlobs = await prisma.blob.findMany({
-  where: { userId },
-  include: blobWithJobIdInclude,
-});
-const userFiles = userBlobs.map(flattenBlobJobId);
-
-// Get all links for current user
-const userLinks = await prisma.link.findMany({
-  where: { userId },
-  include: linkWithJobIdInclude,
-});
-const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 ```
 
 **Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
