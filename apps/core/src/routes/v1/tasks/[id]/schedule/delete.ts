@@ -3,7 +3,11 @@ import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
-import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import {
+  lockCalendarScope,
+  lockTaskRows,
+  requireOpenCalendarProject,
+} from "@/helpers/calendar-locks";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -139,6 +143,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ),
         });
       }
+      await requireOpenCalendarProject(
+        tx,
+        currentTask.workspaceId,
+        currentTask.projectId,
+      );
       // Quarantine is reported ahead of the revision so a caller holding a
       // stale revision is not sent to reload and retry into a 409 it cannot
       // resolve by reloading.

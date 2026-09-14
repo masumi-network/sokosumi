@@ -64,6 +64,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/project-closes",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/task-x402-payment-headers-purge",
       "schedule": "30 * * * *"
     },

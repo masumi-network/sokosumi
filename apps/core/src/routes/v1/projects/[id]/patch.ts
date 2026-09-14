@@ -67,7 +67,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const updateData: Prisma.ProjectUpdateManyMutationInput = {};
+    const updateData: Prisma.ProjectUpdateManyMutationInput = {
+      projectRevision: { increment: 1 },
+    };
     if (body.name !== undefined) {
       updateData.name = body.name;
     }

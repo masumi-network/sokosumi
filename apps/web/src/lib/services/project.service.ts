@@ -6,6 +6,9 @@ import type {
   GetProjectsByIdCalendarData,
   JobSummary,
   Project,
+  ProjectCloseRecoveryRequest,
+  ProjectCloseRequest,
+  ProjectCloseStatus,
   ProjectContextMd,
   ProjectDeleted,
   ProjectListItem,
@@ -90,6 +93,21 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function getProjectCloseStatus(
+    projectId: string,
+  ): Promise<ProjectCloseStatus | null> {
+    try {
+      const result = await coreClient.getProjectsByIdClose(projectId);
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   async function getProjectContextMd(
     projectId: string,
   ): Promise<ProjectContextMd | null> {
@@ -161,6 +179,36 @@ export const projectService = (() => {
       throw new Error("Failed to delete project");
     }
 
+    return result.data;
+  }
+
+  async function closeProject(
+    projectId: string,
+    input: ProjectCloseRequest,
+  ): Promise<ProjectCloseStatus> {
+    const result = await coreClient.postProjectsByIdClose(projectId, input);
+    return result.data;
+  }
+
+  async function retryProjectClose(
+    projectId: string,
+    input: ProjectCloseRecoveryRequest,
+  ): Promise<ProjectCloseStatus> {
+    const result = await coreClient.postProjectsByIdCloseRetry(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function cancelProjectCloseOwedWork(
+    projectId: string,
+    input: ProjectCloseRecoveryRequest,
+  ): Promise<ProjectCloseStatus> {
+    const result = await coreClient.postProjectsByIdCloseCancelOwed(
+      projectId,
+      input,
+    );
     return result.data;
   }
 
@@ -262,12 +310,16 @@ export const projectService = (() => {
     getProjectsStats,
     getProjectById,
     getProjectNeedsAttention,
+    getProjectCloseStatus,
     getProjectContextMd,
     getProjectCalendar,
     createProject,
     patchProject,
     removeProjectDesignMd,
     deleteProject,
+    closeProject,
+    retryProjectClose,
+    cancelProjectCloseOwedWork,
     listProjectJobs,
     listProjectTasks,
     addJob,
