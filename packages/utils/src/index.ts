@@ -46,8 +46,10 @@ export {
 } from "./chat-membership-revoked.js";
 export {
   buildChatMessagePreview,
+  buildNamedChatMessagePreview,
   CHAT_MENTION_ALL_KEY,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+  canonicalUuidSpelling,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
 } from "./chat-message-preview.js";

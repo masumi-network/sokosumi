@@ -1,3 +1,4 @@
+import { buildNamedChatMessagePreview } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -39,6 +40,54 @@ beforeEach(() => {
 });
 
 describe("loadChatMentionNames", () => {
+  it.each(["user", "coworker"] as const)(
+    "renders a hyphenless %s UUID using the stored member name",
+    async (kind) => {
+      const findMany =
+        kind === "user" ? userMemberFindManyMock : coworkerMemberFindManyMock;
+      findMany.mockImplementation(async (args) => {
+        const ids: string[] = args.where[`${kind}Id`].in;
+        return ids.includes(ADA_ID)
+          ? [{ [kind]: { id: ADA_ID, name: "Ada" } }]
+          : [];
+      });
+      const content = `ping @${ADA_ID.replaceAll("-", "").toUpperCase()} please`;
+
+      const names = await loadChatMentionNames({ roomId: ROOM_ID, content });
+
+      expect(buildNamedChatMessagePreview(content, names)).toBe(
+        "ping @Ada please",
+      );
+    },
+  );
+
+  it.each(["user", "coworker"] as const)(
+    "prefers the raw all-hex legacy %s ID when both spellings name members",
+    async (kind) => {
+      const legacyId = ADA_ID.replaceAll("-", "").toUpperCase();
+      const findMany =
+        kind === "user" ? userMemberFindManyMock : coworkerMemberFindManyMock;
+      findMany.mockImplementation(async (args) => {
+        const ids: string[] = args.where[`${kind}Id`].in;
+        return [
+          { id: ADA_ID, name: "Canonical Member" },
+          { id: legacyId, name: "Legacy Member" },
+        ]
+          .filter((member) => ids.includes(member.id))
+          .map((member) => ({ [kind]: member }));
+      });
+      const content = `ping @${legacyId} please`;
+
+      const names = await loadChatMentionNames({ roomId: ROOM_ID, content });
+
+      expect(names.get(ADA_ID)).toBe("Canonical Member");
+      expect(names.get(legacyId)).toBe("Legacy Member");
+      expect(buildNamedChatMessagePreview(content, names)).toBe(
+        "ping @Legacy Member please",
+      );
+    },
+  );
+
   it("names the user a message mentions", async () => {
     userMemberFindManyMock.mockResolvedValue([
       { user: { id: ADA_ID, name: "Ada Lovelace" } },
@@ -172,5 +221,22 @@ describe("loadChatMentionNames", () => {
     expect(names.get(ADA_ID)).toBe("Ada Lovelace");
     expect(txUserFindMany).toHaveBeenCalledTimes(1);
     expect(userMemberFindManyMock).not.toHaveBeenCalled();
+  });
+  /**
+   * Postgres parses a uuid written without its hyphens, and the preview names
+   * such a key like any other, so the lookup has to reach the column.
+   */
+  it("keeps a hyphenless uuid key in the soko bot lookup", async () => {
+    const hyphenless = "019FC7E4E4BD7005900C66E44D33F5E4";
+
+    await loadChatMentionNames({
+      roomId: ROOM_ID,
+      content: `@${hyphenless} please`,
+    });
+
+    expect(sokoBotMemberFindManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, sokoBotId: { in: [hyphenless] } },
+      select: { sokoBot: { select: { id: true, name: true } } },
+    });
   });
 });

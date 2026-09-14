@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildChatMessagePreview,
+  buildNamedChatMessagePreview,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
@@ -38,6 +39,31 @@ describe("readChatMentionKeys", () => {
   /** The same rule the preview reads by: a time is not a mention. */
   it("reads nothing from text that only looks like a mention", () => {
     expect(readChatMentionKeys("standup @10:30am")).toEqual([]);
+  });
+
+  /**
+   * The markdown marks around a token are gone by the time the preview reads
+   * it, and the token rule ends a key on what follows. Read the raw body and
+   * an italicised mention is no mention, while the preview makes one of it and
+   * takes it out of the sentence for want of a name.
+   */
+  it("reads the key of a mention the sender wrote in italics", () => {
+    const one = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+    const other = "019fc7e4-e4bd-7005-900c-66e44d33f5e5";
+
+    expect(readChatMentionKeys(`ping _@${one}_ not _@${other}_`)).toEqual([
+      one,
+      other,
+    ]);
+    expect(
+      buildChatMessagePreview(
+        `ping _@${one}_ not _@${other}_`,
+        new Map([
+          [one, "Bob"],
+          [other, "Carl"],
+        ]),
+      ),
+    ).toBe("ping @Bob not @Carl");
   });
 });
 
@@ -1316,5 +1342,154 @@ describe("localizeChatMentionAllPreview", () => {
         "Alle",
       ),
     ).toBe("@allison @all:other email@all.test");
+  });
+});
+
+describe("buildNamedChatMessagePreview", () => {
+  const UUID = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+
+  /**
+   * The same disagreement the parser fix closes, asked the other way round.
+   * Read raw, an italicised mention is not there to answer for, so this would
+   * hand back a preview the builder then ate the token out of.
+   */
+  it("says nothing for a mention written in italics it cannot name", () => {
+    expect(
+      buildNamedChatMessagePreview(
+        "ping _@019fc7e4-e4bd-7005-900c-66e44d33f5e4_ not",
+      ),
+    ).toBe("");
+  });
+
+  it("reads back a body that mentions nobody", () => {
+    expect(buildNamedChatMessagePreview("ship it")).toBe("ship it");
+  });
+
+  it("reads back a body whose every mention carries a slug", () => {
+    expect(buildNamedChatMessagePreview(`ping @${UUID}:ada now`)).toBe(
+      "ping @ada now",
+    );
+  });
+
+  /** Room-wide, and a word rather than an id, so it stands for itself. */
+  it("reads back the room-wide mention", () => {
+    expect(buildNamedChatMessagePreview("@all stand up")).toBe("@all stand up");
+  });
+
+  it("says nothing when a mention carries no slug and no name", () => {
+    expect(buildNamedChatMessagePreview(`ping @${UUID} now`)).toBe("");
+  });
+
+  /** One unreadable mention is enough to make the sentence say something else. */
+  it("says nothing when only one of two mentions can be named", () => {
+    expect(buildNamedChatMessagePreview(`@${UUID}:ada and @${UUID} now`)).toBe(
+      "",
+    );
+  });
+
+  /** A slug that repeats the key names nobody, so it is not a slug. */
+  it("says nothing for a slug that only repeats the key", () => {
+    expect(buildNamedChatMessagePreview(`ping @${UUID}:${UUID} now`)).toBe("");
+  });
+
+  /**
+   * The names the caller holds are what it is asked, not whether the lookup
+   * worked. A member who left the room, or one whose display name is empty, is
+   * absent from a map that came back perfectly well.
+   */
+  it("says nothing for a mention the map it was given does not name", () => {
+    const other = "019fc7e4-e4bd-7005-900c-66e44d33f5e5";
+
+    expect(
+      buildNamedChatMessagePreview(
+        `ping @${UUID} not @${other}`,
+        new Map([[UUID, "Bob"]]),
+      ),
+    ).toBe("");
+    expect(
+      buildNamedChatMessagePreview(
+        `ping @${UUID} not @${other}`,
+        new Map([
+          [UUID, "Bob"],
+          [other, "Carl"],
+        ]),
+      ),
+    ).toBe("ping @Bob not @Carl");
+  });
+
+  /**
+   * The clean takes fences out but leaves a code span, a quote mark and the
+   * path of an address, so a bare id written in any of them is a mention like
+   * any other here and costs the whole preview. The trade is deliberate: the
+   * builder would drop that token and hand back a sentence saying something
+   * else, and saying nothing is the honest half of that.
+   */
+  it("says nothing for a bare id the sender wrote inside a code span", () => {
+    expect(buildNamedChatMessagePreview(`run \`@${UUID}\` now`)).toBe("");
+    expect(buildNamedChatMessagePreview(`> ping @${UUID}`)).toBe("");
+  });
+
+  /** An empty display name names the reader no better than none at all. */
+  it("says nothing for a member whose name is nothing but spaces", () => {
+    expect(
+      buildNamedChatMessagePreview(
+        `ping @${UUID} now`,
+        new Map([[UUID, "  "]]),
+      ),
+    ).toBe("");
+  });
+});
+
+describe("buildChatMessagePreview with a hyphenless mention key", () => {
+  const stored = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+  const names = new Map([[stored, "Soko"]]);
+
+  /** Postgres stores one spelling; a member can write either. */
+  it("names a member mentioned without the hyphens", () => {
+    expect(
+      buildChatMessagePreview("@019fc7e4e4bd7005900c66e44d33f5e4 hi", names),
+    ).toBe("@Soko hi");
+  });
+
+  it("names one written in upper case too", () => {
+    expect(
+      buildChatMessagePreview("@019FC7E4E4BD7005900C66E44D33F5E4 hi", names),
+    ).toBe("@Soko hi");
+  });
+
+  it("still names one written the canonical way", () => {
+    expect(buildChatMessagePreview(`@${stored} hi`, names)).toBe("@Soko hi");
+  });
+
+  /**
+   * A legacy auth id is hyphenless as well, so the key as written is read
+   * first. The test below carries the ordering contract.
+   */
+  it("names a member carrying a hex legacy auth id", () => {
+    const authId = "0123456789abcdef0123456789abcdef";
+
+    expect(
+      buildChatMessagePreview(`@${authId} hi`, new Map([[authId, "Ada"]])),
+    ).toBe("@Ada hi");
+  });
+
+  /**
+   * The two spellings can both name somebody, and then they name different
+   * members. The composer writes a legacy auth id exactly as it is stored, so
+   * the key as written is the one the author meant.
+   */
+  it("prefers the key as written over its uuid spelling", () => {
+    const authId = "0123456789abcdef0123456789abcdef";
+    const sokoBotId = "01234567-89ab-cdef-0123-456789abcdef";
+
+    expect(
+      buildChatMessagePreview(
+        `@${authId} hi`,
+        new Map([
+          [authId, "Ada"],
+          [sokoBotId, "Soko"],
+        ]),
+      ),
+    ).toBe("@Ada hi");
   });
 });

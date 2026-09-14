@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { CHAT_DIRECT_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 
 import { fanOutChatNotifications } from "./chat-notification-fanout";
@@ -31,8 +32,31 @@ export interface EmitChatDirectMessageNotificationsParams {
   recipientUserIds: readonly string[];
 }
 
-/** Emit CHAT notifications for other humans in a direct room. Schedule via waitUntil. */
+/**
+ * Emit CHAT notifications for other humans in a direct room. Schedule via
+ * waitUntil.
+ *
+ * Reports rather than rejects, for the reason the mention emit beside it
+ * does: a caller that has already answered the reader cannot catch this.
+ */
 export async function emitChatDirectMessageNotifications(
+  params: EmitChatDirectMessageNotificationsParams,
+): Promise<void> {
+  try {
+    await emit(params);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "chat_direct_message_notifications" },
+      extra: {
+        roomId: params.roomId,
+        messageId: params.messageId,
+        recipientCount: params.recipientUserIds.length,
+      },
+    });
+  }
+}
+
+async function emit(
   params: EmitChatDirectMessageNotificationsParams,
 ): Promise<void> {
   await fanOutChatNotifications({

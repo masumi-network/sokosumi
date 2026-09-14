@@ -8,7 +8,22 @@ import {
 } from "@/lib/utils/notification-service-worker";
 
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
+import {
+  getPushTeardownVersion,
+  notePushTeardown,
+  queuePushWork,
+} from "./push-work-queue.client";
 import { getAblyRealtimeClient } from "./realtime-singleton.client";
+import {
+  forgetAblyPushRegistration,
+  forgetUnfinishedPushTeardown,
+  hasUnfinishedPushTeardown,
+  notePushTeardownStarted,
+} from "./release-push-device.client";
+
+interface ActivatePushOptions {
+  readerInitiated?: boolean;
+}
 
 /**
  * Turn closed-app push on for this browser (ADR-0022).
@@ -20,13 +35,86 @@ import { getAblyRealtimeClient } from "./realtime-singleton.client";
  * `subscribeDevice` then binds the device to the reader's own notifications
  * channel, which is the channel Core publishes the push payload on.
  */
-export async function activatePush(userId: string): Promise<void> {
+export async function activatePush(
+  userId: string,
+  options?: ActivatePushOptions,
+): Promise<boolean> {
+  // The reader is asking for push on, which answers any teardown this browser
+  // was left in the middle of. Said here rather than after the run, because
+  // what it clears is a note that would otherwise outlast a run this page
+  // does not finish either. A repair does not: nobody pressed anything for
+  // that one, and the note is shared across tabs while the queue is not.
+  const readerInitiated = options?.readerInitiated !== false;
+  if (readerInitiated) {
+    forgetUnfinishedPushTeardown();
+  }
+
+  // The same reader asking twice gets the run already going. A repair on open
+  // and a reader pressing the Push cell a second later are the same request.
+  const teardownVersion = getPushTeardownVersion();
+  if (
+    inFlightActivation?.userId === userId &&
+    inFlightActivation.teardownVersion === teardownVersion
+  ) {
+    return inFlightActivation.work;
+  }
+
+  // A second reader waits rather than joins. Signing in again never reloads
+  // the page, so this module outlives the reader it ran for, and joining
+  // would answer the second reader with the first reader's subscription.
+  const entry = {
+    userId,
+    teardownVersion,
+    work: queuePushWork(() =>
+      runActivation(userId, readerInitiated, teardownVersion),
+    ),
+  };
+  inFlightActivation = entry;
+
+  try {
+    return await entry.work;
+  } finally {
+    // Only when this run is still the one on record. A later reader's
+    // activation is already waiting behind this one, and clearing their entry
+    // would leave them a run of their own queued behind it for nothing.
+    if (inFlightActivation === entry) {
+      inFlightActivation = null;
+    }
+  }
+}
+
+/** The activation running now, and the reader it is running for. */
+let inFlightActivation: {
+  userId: string;
+  teardownVersion: string;
+  work: Promise<boolean>;
+} | null = null;
+
+async function runActivation(
+  userId: string,
+  readerInitiated: boolean,
+  teardownVersion: string,
+): Promise<boolean> {
+  // Capture before queueing. A deletion can finish while this run waits.
+  if (getPushTeardownVersion() !== teardownVersion) {
+    return false;
+  }
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
     const client = getAblyRealtimeClient();
-    await subscribeThisDevice(client, userId);
-    if (await hasWebPushSubscription()) {
-      return;
+    if (repairOvertakenAcrossTabs(readerInitiated)) {
+      return false;
+    }
+    if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
+      return false;
+    }
+
+    const subscribed = await hasWebPushSubscription();
+    if (await abandonedToTeardown(teardownVersion)) {
+      return false;
+    }
+    if (subscribed) {
+      return true;
     }
 
     // `activate()` short-circuits when Ably's own stored state already says
@@ -37,26 +125,90 @@ export async function activatePush(userId: string): Promise<void> {
     // that state and go round once, so the reader never gets a success toast
     // over a browser that gets no pushes.
     await client.push.deactivate();
-    await subscribeThisDevice(client, userId);
+    if (await abandonedToTeardown(teardownVersion)) {
+      return false;
+    }
+    if (repairOvertakenAcrossTabs(readerInitiated)) {
+      return false;
+    }
+    if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
+      return false;
+    }
 
-    if (!(await hasWebPushSubscription())) {
+    const repaired = await hasWebPushSubscription();
+    if (await abandonedToTeardown(teardownVersion)) {
+      return false;
+    }
+    if (!repaired) {
       throw new Error("The browser created no push subscription");
     }
+    return true;
   } finally {
     restorePermissionRequest();
   }
 }
 
 /**
+ * Whether another tab asked for push off while this repair was away.
+ *
+ * The note survives an interrupted teardown after its tab releases the lock.
+ * A repair must leave push off in that case. A press on the Push cell is the
+ * reader asking for push again, so it can clear the note.
+ */
+function repairOvertakenAcrossTabs(readerInitiated: boolean): boolean {
+  return !readerInitiated && hasUnfinishedPushTeardown();
+}
+
+/**
+ * Whether a teardown landed while this activation was away, and undoes it.
+ *
+ * The reader asked for push off after asking for it on, so off is the answer.
+ * What this run left behind is what a teardown would have taken: the
+ * subscription it just made and the identity token the SDK wrote back. Both
+ * go, in that order, because the unsubscribe is the one that stops delivery.
+ *
+ * The Ably device record stays. Deregistering it needs the session that a
+ * deletion has already ended, and Ably prunes a device whose endpoint stops
+ * answering.
+ */
+async function abandonedToTeardown(teardownVersion: string): Promise<boolean> {
+  if (getPushTeardownVersion() === teardownVersion) {
+    return false;
+  }
+
+  // Awaited, not left running. `dropBrowserPushSubscription` reads the
+  // registration and the subscription when it runs rather than when it is
+  // called, so an undo let go of here finishes whenever those two reads
+  // finish: after this run returns, after the queue advances, and possibly
+  // after a later reader has pressed the Push cell and been subscribed. It
+  // would then read that reader's subscription and unsubscribe it, leaving
+  // the cell reading on over a browser that gets nothing. Awaiting costs
+  // only the queue, which serialises this work in any case.
+  try {
+    await dropBrowserPushSubscription();
+  } catch (error) {
+    console.error("Failed to undo an activation a teardown overtook", error);
+  }
+
+  forgetAblyPushRegistration();
+
+  return true;
+}
+
+/**
  * The browser's own request, held while the stand-in answers for it, and how
  * many activations are holding it.
  *
- * Both live at module scope because two activations can overlap: a page can
- * ask for one while another is still running. Saving the
- * previous value per call, the second call would save the first call's
- * stand-in as if it were the browser's own, and the last release would install
- * that stand-in for good. The page could then never prompt again, so a reader
- * who had not answered yet would silently never get push.
+ * Both live at module scope because the stand-in is installed globally.
+ * Saving the previous value per call, a second call while the first still
+ * held it would save the first call's stand-in as if it were the browser's
+ * own, and the last release would install that stand-in for good. The page
+ * could then never prompt again, so a reader who had not answered yet would
+ * silently never get push.
+ *
+ * `activatePush` now runs one activation at a time, so no second call reaches
+ * this. The count stays because the cost of being wrong about that is a
+ * browser that can never prompt again.
  */
 let nativeRequestPermission: typeof Notification.requestPermission | null =
   null;
@@ -113,9 +265,14 @@ function answerPermissionFromStoredValue(): () => void {
 async function subscribeThisDevice(
   client: Ably.Realtime,
   userId: string,
-): Promise<void> {
+  teardownVersion: string,
+): Promise<boolean> {
   await client.push.activate();
+  if (await abandonedToTeardown(teardownVersion)) {
+    return false;
+  }
   await getNotificationsPushChannel(client, userId).subscribeDevice();
+  return !(await abandonedToTeardown(teardownVersion));
 }
 
 /**
@@ -139,13 +296,113 @@ async function subscribeThisDevice(
  * live endpoint nobody meant to keep.
  */
 export async function deactivatePush(userId: string): Promise<void> {
+  // Said before anything is queued, because a repair that has decided to act
+  // has not queued anything yet either. That is what it reads to find out its
+  // subscription is no longer wanted.
+  notePushTeardown();
+
+  // Written to storage as well, for the repair on the page after this one.
+  // The steps below can be cut short by a reload or a closed tab, and what
+  // they leave behind then is a token beside a browser with no subscription:
+  // the shape the repair reads as a subscription that died by itself.
+  notePushTeardownStarted();
+
+  // Nothing may join the activation ahead of this one, because this undoes
+  // it. A reader who turns push back on afterwards is asking for a run of
+  // their own, and joining the earlier one would answer them with a
+  // subscription this teardown then takes away: the cell reads on and the
+  // browser gets nothing.
+  inFlightActivation = null;
+
+  // The caller can time out while the queue retains the browser lock.
+  // Only settlement of the SDK work lets the next activation start.
+  return new Promise<void>((resolve, reject) => {
+    void queuePushWork(() => runDeactivation(userId, reject)).then(
+      resolve,
+      reject,
+    );
+  });
+}
+
+/**
+ * How long the reader waits for a teardown. The queue can outlive this cap.
+ *
+ * `ably@2.28.0` allows each request a 10s timeout on top of 15s of
+ * fallback-host retries (`build/ably.js:790-791`), and the teardown makes two,
+ * so this sits above what a slow answer costs and below what a page lasts.
+ */
+const ABLY_TEARDOWN_TIMEOUT_MS = 40_000;
+
+async function runDeactivation(
+  userId: string,
+  onTimeout: (error: unknown) => void,
+): Promise<void> {
   const failures: unknown[] = [];
 
   await attempt(failures, dropBrowserPushSubscription);
-  await attempt(failures, () => dropAblyPushDevice(failures, userId));
 
+  const ablyWork = attempt(failures, () =>
+    dropAblyPushDevice(failures, userId),
+  );
+  let timedOut = false;
+  await withDeadline(ablyWork, () => {
+    timedOut = true;
+    failures.push(new Error("The Ably push teardown did not answer"));
+  });
+
+  // Said locally as well, because a failed deactivation leaves Ably's token
+  // behind and a browser with the token but no subscription is the shape the
+  // repair on open looks for. A half-failed disable would come back on.
+  //
+  // Kept when the browser subscription is still there, because then the
+  // browser is still being delivered to and the token is what a later
+  // sign-out needs to deregister it. The repair reads the subscription too,
+  // so it leaves such a browser alone either way.
+  //
+  // The browser is asked rather than the step above: a step that threw says
+  // it failed, not that a subscription survived it, and the common failure is
+  // a service worker lookup that found nothing to unsubscribe. Read the other
+  // way round, a browser with no subscription keeps a token the repair on open
+  // then reads as an invitation to turn push back on.
+  if (!(await hasWebPushSubscription())) {
+    forgetAblyPushRegistration();
+  }
+
+  if (timedOut) {
+    onTimeout(failures[0]);
+    // Cleanup above also runs under the lock. Waiting here prevents a late
+    // SDK response from deleting a registration created by a newer request.
+    await ablyWork;
+  }
   if (failures.length > 0) {
     throw failures[0];
+  }
+}
+
+/**
+ * Wait for the work, or stop waiting and say so.
+ *
+ * The timer is cleared on the way out, so work that answers in a second does
+ * not leave a minute of timer behind it.
+ */
+async function withDeadline(
+  work: Promise<unknown>,
+  onDeadline: () => void,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<"deadline">((resolve) => {
+    timer = setTimeout(() => resolve("deadline"), ABLY_TEARDOWN_TIMEOUT_MS);
+  });
+
+  try {
+    if (
+      (await Promise.race([work.then(() => "work" as const), deadline])) ===
+      "deadline"
+    ) {
+      onDeadline();
+    }
+  } finally {
+    clearTimeout(timer);
   }
 }
 

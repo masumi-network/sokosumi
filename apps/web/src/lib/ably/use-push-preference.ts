@@ -313,8 +313,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     }
 
     const { activatePush } = await loadPushActivation();
-    await activatePush(sessionUserId);
-    return true;
+    return activatePush(sessionUserId);
   }, []);
 
   /**
@@ -392,7 +391,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
           // This row asks for one thing, so a refusal fails the whole request
           // and the view says so.
           if (!(await subscribeThisBrowser(sessionUserId))) {
-            throw new Error("The browser refused the notification permission");
+            throw new Error("The browser did not enable push");
           }
           return;
         }
