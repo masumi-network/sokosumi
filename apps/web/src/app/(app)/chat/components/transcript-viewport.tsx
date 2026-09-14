@@ -31,8 +31,9 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
  * shifts everything under it. Mounted while the reader is still reading,
  * that shift is put back before paint; mounted while they scroll toward it,
  * it shows. Below the viewport only the live edge needs a buffer.
+ * 30 / 8 is the old 2400 / 600 px at DEFAULT_ROW_HEIGHT_PX.
  */
-const OVERSCAN_ROWS = { above: 20, below: 6 };
+const OVERSCAN_ROWS = { above: 30, below: 8 };
 
 /** Height assumed for a row until it is measured: a short text row. */
 const DEFAULT_ROW_HEIGHT_PX = 80;
@@ -185,14 +186,18 @@ export function TranscriptViewport({
   > | null>(null);
   const rowsRef = useRef(rows);
   const rowHoldRef = useRef<RowHold | null>(null);
+  // Prepend does not change the last key, so followOnAppend never runs.
+  // A short list at the live edge has the boundary under the top edge;
+  // holding that row would drop the newest off the bottom. Same rule as
+  // before: if we were at the end and nothing holds the view, stay there.
+  const pinToEndAfterRowsChangeRef = useRef(false);
   if (rowsRef.current !== rows) {
-    if (virtualizerRef.current?.scrollElement) {
-      rowHoldRef.current = rowHoldAfterRowsChange(
-        virtualizerRef.current,
-        rowsRef.current,
-        rows,
-      );
-    }
+    const pinToEnd = !hold && atEndRef.current;
+    rowHoldRef.current =
+      !pinToEnd && virtualizerRef.current?.scrollElement
+        ? rowHoldAfterRowsChange(virtualizerRef.current, rowsRef.current, rows)
+        : null;
+    pinToEndAfterRowsChangeRef.current = pinToEnd;
     rowsRef.current = rows;
   }
 
@@ -238,16 +243,23 @@ export function TranscriptViewport({
     if (!scroller || !container) {
       return;
     }
-    const margin =
+    const margin = Math.round(
       container.getBoundingClientRect().top -
-      scroller.getBoundingClientRect().top +
-      scroller.scrollTop;
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop,
+    );
     if (margin !== scrollMargin) {
       setScrollMargin(margin);
       return;
     }
     if (!openedRef.current) {
       openedRef.current = true;
+      pinToEndAfterRowsChangeRef.current = false;
+      virtualizer.scrollToEnd();
+      return;
+    }
+    if (pinToEndAfterRowsChangeRef.current) {
+      pinToEndAfterRowsChangeRef.current = false;
       virtualizer.scrollToEnd();
     }
   });

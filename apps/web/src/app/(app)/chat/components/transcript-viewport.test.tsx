@@ -267,6 +267,10 @@ describe("TranscriptViewport", () => {
     if (!scroller) {
       throw new Error("expected the scroller");
     }
+    act(() => {
+      scroller.scrollTo({ top: 0 });
+    });
+    await settle(container);
     const first = mountedIds(container)[0];
     if (!first) {
       throw new Error("expected mounted rows");
@@ -286,6 +290,23 @@ describe("TranscriptViewport", () => {
 
     expect(scroller.scrollTop).toBeGreaterThan(scrollTopBefore);
     expect(rowTop(first)).toBe(before);
+  });
+
+  it("stays on the newest row when history prepends at the live edge", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const older = rows(60);
+    const newer = rows(68).slice(60);
+    const { container, rerender } = render(
+      <Harness rows={newer} handle={handle} />,
+    );
+    await settle(container);
+
+    rerender(<Harness rows={[...older, ...newer]} handle={handle} />);
+    await settle(container);
+
+    const ids = mountedIds(container);
+    expect(ids).toContain("msg-067");
+    expect(ids).not.toContain("msg-000");
   });
 
   it("holds the first message when the boundary row above it is replaced by the page it loaded", async () => {
