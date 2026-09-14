@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
+import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
+
 /** Recovery read cadence while Ably is healthy (SOK-986 starting policy). */
 export const CHAT_HEALTHY_REFRESH_MS = 60_000;
 
@@ -47,6 +49,11 @@ interface UseChatRefreshSchedulerOptions {
  *   never a parallel one. A queued explicit request stays explicit.
  * - Timer: re-armed after completion, so a slow response never stacks; the
  *   interval is 60 seconds while healthy, `fallbackIntervalMs` otherwise.
+ * - Throttled (SOK-1065): no read starts while the shared per-user throttle
+ *   clock is in the future. A read that would start inside the window is
+ *   recorded as a need and runs once when the window ends. Explicit
+ *   requests defer too — never bypassing the throttle — but keep their
+ *   privilege and fire while backgrounded when the window ends.
  *
  * Returns a stable `requestRefresh` for callers that learned something
  * changed (id envelope, lost continuity, collection invalidation).
@@ -77,6 +84,8 @@ export function useChatRefreshScheduler({
     let needed = false;
     let wasForeground = isChatForeground();
     let timer: number | undefined;
+    let throttleTimer: number | undefined;
+    let throttleExplicit = false;
 
     function schedule() {
       window.clearTimeout(timer);
@@ -91,8 +100,30 @@ export function useChatRefreshScheduler({
       void run();
     }
 
+    function onThrottleEnd() {
+      throttleTimer = undefined;
+      const fireExplicit = throttleExplicit;
+      throttleExplicit = false;
+      // The clock is re-consulted inside `run`, so a throttle that extended
+      // the window past this timer simply defers again.
+      void run(fireExplicit);
+    }
+
     async function run(explicit = false) {
       if (cancelled) return;
+      // Any read that would start inside the throttle window becomes one
+      // coalesced catch-up read at the window's end instead of a
+      // guaranteed-429 request. At most one resume timer runs per reader.
+      const resumeInMs = chatReadThrottleResumeInMs();
+      if (resumeInMs > 0) {
+        if (explicit) {
+          throttleExplicit = true;
+        } else {
+          needed = true;
+        }
+        throttleTimer ??= window.setTimeout(onThrottleEnd, resumeInMs);
+        return;
+      }
       if (!explicit && !isChatForeground()) {
         needed = true;
         return;
@@ -162,6 +193,7 @@ export function useChatRefreshScheduler({
       queued = false;
       queuedExplicit = false;
       window.clearTimeout(timer);
+      window.clearTimeout(throttleTimer);
       window.removeEventListener("focus", onForegroundChange);
       window.removeEventListener("blur", onForegroundChange);
       document.removeEventListener("visibilitychange", onForegroundChange);

@@ -1,4 +1,5 @@
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { parseRetryDelaySeconds } from "@/lib/chat/chat-read-throttle";
 import type { Client } from "@/lib/clients/generated/core/client";
 import {
   attachCoreRequestIdInterceptor,
@@ -16,6 +17,12 @@ export class CoreApiRequestError extends Error {
   kind?: string;
   status?: number;
   requestId?: string;
+  /**
+   * Seconds Core asked the client to wait before retrying, from the
+   * `Retry-After` header with the error body's `retryAfterSeconds` as
+   * fallback. Present only on throttled responses carrying a usable delay.
+   */
+  retryAfterSeconds?: number;
 
   constructor(
     message: string,
@@ -24,6 +31,7 @@ export class CoreApiRequestError extends Error {
       kind?: string;
       status?: number;
       requestId?: string;
+      retryAfterSeconds?: number;
     },
   ) {
     super(message);
@@ -32,6 +40,7 @@ export class CoreApiRequestError extends Error {
     this.kind = options?.kind;
     this.status = options?.status;
     this.requestId = options?.requestId;
+    this.retryAfterSeconds = options?.retryAfterSeconds;
   }
 }
 
@@ -86,6 +95,22 @@ function extractErrorKind(error: unknown): string | undefined {
   return undefined;
 }
 
+function extractRetryAfterSeconds(
+  error: unknown,
+  response?: Response,
+): number | undefined {
+  // The header is authoritative when both are present; Core mirrors the
+  // body's delay into it on every throttled response.
+  return (
+    parseRetryDelaySeconds(response?.headers.get("retry-after")) ??
+    parseRetryDelaySeconds(
+      error && typeof error === "object"
+        ? (error as { retryAfterSeconds?: unknown }).retryAfterSeconds
+        : undefined,
+    )
+  );
+}
+
 export async function executeCoreOperation<TData, TError>(
   getClient: GetCoreClient,
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
@@ -113,6 +138,10 @@ export async function executeCoreOperation<TData, TError>(
         error: result.error,
         response: result.response,
       }),
+      retryAfterSeconds: extractRetryAfterSeconds(
+        result.error,
+        result.response,
+      ),
     });
   }
 
@@ -130,6 +159,10 @@ export async function executeCoreOperation<TData, TError>(
         error: result.error,
         response: result.response,
       }),
+      retryAfterSeconds: extractRetryAfterSeconds(
+        result.error,
+        result.response,
+      ),
     });
   }
 
