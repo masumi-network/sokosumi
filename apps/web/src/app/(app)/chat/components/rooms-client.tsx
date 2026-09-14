@@ -81,6 +81,7 @@ import {
   applyFullChatRoomMessageEvent,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
+  messageWithPreservedPinnedAt,
 } from "@/app/chat/utils/merge-room-messages";
 import {
   confirmOutboundMessage,
@@ -1015,6 +1016,7 @@ export function RoomsClient({
         return;
       }
 
+      const omittedPinnedAt = event.message.pinnedAt === undefined;
       const message = hydrateChatRoomMessageFromRealtime(event.message);
       if (message.roomId !== selectedRoomIdRef.current) {
         return;
@@ -1036,6 +1038,7 @@ export function RoomsClient({
             applyFullChatRoomMessageEvent(current, {
               eventType: event.eventType,
               message,
+              omittedPinnedAt,
             }),
           );
         });
@@ -1044,7 +1047,10 @@ export function RoomsClient({
         if (current?.id !== message.id) {
           return current;
         }
-        return isHardDelete ? null : message;
+        if (isHardDelete) {
+          return null;
+        }
+        return messageWithPreservedPinnedAt(message, current, omittedPinnedAt);
       });
 
       if (route.mergeIntoOpenThread) {
@@ -1058,6 +1064,7 @@ export function RoomsClient({
           return applyFullChatRoomMessageEvent(current, {
             eventType: event.eventType,
             message,
+            omittedPinnedAt,
           });
         });
       }

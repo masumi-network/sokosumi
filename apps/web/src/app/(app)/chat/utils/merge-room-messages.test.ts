@@ -96,6 +96,46 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next).toHaveLength(1);
     expect(next[0]?.deletedAt).not.toBeNull();
   });
+
+  it("keeps existing pinnedAt when a full update omits the field", () => {
+    const pinnedAt = new Date("2026-07-01T13:00:00.000Z");
+    const existing = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      pinnedAt,
+    };
+    const incoming = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "edited"),
+      pinnedAt: null,
+    };
+
+    const next = applyFullChatRoomMessageEvent([existing], {
+      eventType: "update",
+      message: incoming,
+      omittedPinnedAt: true,
+    });
+
+    expect(next[0]?.content).toBe("edited");
+    expect(next[0]?.pinnedAt).toEqual(pinnedAt);
+  });
+
+  it("clears pinnedAt when a full update sends null", () => {
+    const existing = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      pinnedAt: new Date("2026-07-01T13:00:00.000Z"),
+    };
+    const incoming = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "edited"),
+      pinnedAt: null,
+    };
+
+    const next = applyFullChatRoomMessageEvent([existing], {
+      eventType: "update",
+      message: incoming,
+    });
+
+    expect(next[0]?.content).toBe("edited");
+    expect(next[0]?.pinnedAt).toBeNull();
+  });
 });
 
 describe("mergeRoomMessages", () => {

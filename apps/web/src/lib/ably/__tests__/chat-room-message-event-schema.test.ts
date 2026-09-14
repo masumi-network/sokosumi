@@ -157,6 +157,18 @@ describe("chatRoomMessageEventDataSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("accepts a full message DTO that omits pinnedAt", () => {
+    const { pinnedAt: _pinnedAt, ...legacyMessage } = baseMessage;
+    const parsed = chatRoomMessageEventDataSchema.safeParse({
+      eventType: "update",
+      message: legacyMessage,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success && "message" in parsed.data) {
+      expect(parsed.data.message.pinnedAt).toBeUndefined();
+    }
+  });
+
   it("rejects an invalid eventType", () => {
     const parsed = chatRoomMessageEventDataSchema.safeParse({
       eventType: "not_a_real_type",

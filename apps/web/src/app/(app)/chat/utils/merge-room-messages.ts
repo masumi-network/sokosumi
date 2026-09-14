@@ -20,12 +20,31 @@ export function applyFullChatRoomMessageEvent(
   event: {
     eventType: "create" | "update" | "delete";
     message: ChatRoomMessage;
+    /** True when the Ably DTO omitted `pinnedAt` (pre-field Core). */
+    omittedPinnedAt?: boolean;
   },
 ): ChatRoomMessage[] {
-  if (event.eventType === "delete" && event.message.deletedAt == null) {
-    return existing.filter((row) => row.id !== event.message.id);
+  const message = messageWithPreservedPinnedAt(
+    event.message,
+    existing.find((row) => row.id === event.message.id),
+    event.omittedPinnedAt === true,
+  );
+  if (event.eventType === "delete" && message.deletedAt == null) {
+    return existing.filter((row) => row.id !== message.id);
   }
-  return mergeRoomMessages(existing, [event.message]);
+  return mergeRoomMessages(existing, [message]);
+}
+
+/** Keep the loaded pin when an older Core full event does not carry `pinnedAt`. */
+export function messageWithPreservedPinnedAt(
+  incoming: ChatRoomMessage,
+  previous: ChatRoomMessage | undefined,
+  omittedPinnedAt: boolean,
+): ChatRoomMessage {
+  if (!omittedPinnedAt || previous == null) {
+    return incoming;
+  }
+  return { ...incoming, pinnedAt: previous.pinnedAt };
 }
 
 /**
