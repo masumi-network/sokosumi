@@ -576,6 +576,21 @@ describe("useChatRefreshScheduler", () => {
       expect(refresh).toHaveBeenCalledTimes(1);
     });
 
+    it("prefers the header delay over a conflicting body delay", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      throttledFetch(30, 45);
+      await fetchBackgroundJson("/api/chat/rooms", 20_000);
+      mount(refresh, { healthy: false, refreshOnMount: true });
+
+      await act(async () => undefined);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000 - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      // The header won: the read lands at 30s, not at the body's 45s.
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
     it("falls back to a short bounded wait on a bare 429", async () => {
       const refresh = vi.fn().mockResolvedValue(undefined);
       throttledFetch();

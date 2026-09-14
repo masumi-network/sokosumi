@@ -98,6 +98,33 @@ describe("chat read throttle clock", () => {
     );
   });
 
+  it.each([0, -3])(
+    "treats a non-positive delay (%i) as the bounded fallback",
+    (delaySeconds) => {
+      noteChatReadThrottled(delaySeconds);
+      expect(chatReadThrottleResumeInMs()).toBe(
+        CHAT_READ_THROTTLE_FALLBACK_SECONDS * 1000,
+      );
+    },
+  );
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY])(
+    "treats a non-finite delay (%i) as the bounded fallback",
+    (delaySeconds) => {
+      noteChatReadThrottled(delaySeconds);
+      expect(chatReadThrottleResumeInMs()).toBe(
+        CHAT_READ_THROTTLE_FALLBACK_SECONDS * 1000,
+      );
+    },
+  );
+
+  it("does not let a non-finite delay poison the clock", () => {
+    noteChatReadThrottled(Number.NaN);
+    // NaN through Math.max would stick forever; the clock must still arm.
+    noteChatReadThrottled(30);
+    expect(chatReadThrottleResumeInMs()).toBe(30_000);
+  });
+
   it("pins the fallback to seconds: never zero, never minutes", () => {
     expect(CHAT_READ_THROTTLE_FALLBACK_SECONDS).toBeGreaterThan(0);
     expect(CHAT_READ_THROTTLE_FALLBACK_SECONDS).toBeLessThan(60);

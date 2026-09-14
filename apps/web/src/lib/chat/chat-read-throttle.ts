@@ -55,10 +55,19 @@ export function parseRetryDelaySeconds(value: unknown): number | undefined {
  * Notes that a chat background read was throttled. The clock moves to the
  * later of its current value and the newly asked-for deadline, so a second
  * throttle inside the window extends the quiet period instead of letting
- * the client creep forward.
+ * the client creep forward. Any unusable delay — missing, non-finite, or
+ * below one second — arms the bounded fallback wait instead: NaN or
+ * Infinity would poison the clock through `Math.max`, and zero or
+ * negative would silently un-throttle a signaled throttle.
  */
 export function noteChatReadThrottled(delaySeconds?: number): void {
-  const waitMs = (delaySeconds ?? CHAT_READ_THROTTLE_FALLBACK_SECONDS) * 1000;
+  const validDelay =
+    delaySeconds !== undefined &&
+    Number.isFinite(delaySeconds) &&
+    delaySeconds >= 1
+      ? delaySeconds
+      : CHAT_READ_THROTTLE_FALLBACK_SECONDS;
+  const waitMs = validDelay * 1000;
   throttledUntilMs = Math.max(throttledUntilMs, Date.now() + waitMs);
 }
 
