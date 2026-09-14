@@ -80,6 +80,7 @@ const chatRoomMessageFullEventMessageSchema = z
     createdAt: z.string(),
     deletedAt: z.string().nullable(),
     editedAt: z.string().nullable(),
+    pinnedAt: z.string().nullable(),
     sender: z.unknown(),
     mentions: z.array(z.unknown()),
     reactions: z.array(z.unknown()),

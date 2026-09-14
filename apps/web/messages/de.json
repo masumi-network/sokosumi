@@ -5323,6 +5323,7 @@
         "couldNotLoad": "Nachricht konnte nicht geladen werden",
         "pin": "Nachricht anheften",
         "unpin": "Nachricht lösen",
+        "pinned": "Angeheftet",
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",

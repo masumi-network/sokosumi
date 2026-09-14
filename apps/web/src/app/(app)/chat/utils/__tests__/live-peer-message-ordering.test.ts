@@ -18,6 +18,7 @@ function message(
     content,
     createdAt: new Date(createdAt),
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "user",
       user: {

@@ -131,6 +131,7 @@ function parentMessage() {
     mentionsAsSource: [],
     reactions: [],
     replies: [],
+    pins: [],
     _count: { replies: 2 },
   };
 }

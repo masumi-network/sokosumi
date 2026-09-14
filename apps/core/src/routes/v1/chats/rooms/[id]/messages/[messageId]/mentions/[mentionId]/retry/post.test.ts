@@ -143,6 +143,7 @@ const mappedMessage = {
   senderCoworker: null,
   mentionsAsSource: [pendingMention],
   reactions: [],
+  pins: [],
   _count: { replies: 0 },
   replies: [],
 };
