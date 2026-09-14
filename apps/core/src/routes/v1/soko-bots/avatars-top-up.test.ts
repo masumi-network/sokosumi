@@ -135,13 +135,13 @@ describe("Soko Bot avatar top-up", () => {
     });
   });
 
-  it("refuses a take above the page cap", async () => {
+  it("refuses a take above one generation batch", async () => {
     const response = await createApp().request(
       "http://localhost/avatars/top-up",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ take: 13 }),
+        body: JSON.stringify({ take: 12 }),
       },
     );
 
