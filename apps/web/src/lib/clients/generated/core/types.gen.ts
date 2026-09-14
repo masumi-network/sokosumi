@@ -2488,31 +2488,29 @@ export type ChatRoomPinnedMessageListItem = {
         id: string;
         name: string;
     } | null;
-    message: ChatRoomMessage | null;
-};
-
-export type ChatRoomMessage = {
-    id: string;
-    roomId: string;
-    parentMessageId: string | null;
-    content: string;
-    createdAt: Date;
-    deletedAt: Date | null;
-    editedAt: Date | null;
-    sender: ChatRoomMessageSender;
-    mentions: Array<ChatRoomMessageMention>;
-    reactions: Array<ChatRoomMessageReaction>;
-    threadReplyCount: number;
-    threadLastReplyAt: Date | null;
-    metadata: {
-        [key: string]: unknown;
+    message: {
+        id: string;
+        roomId: string;
+        parentMessageId: string | null;
+        content: string;
+        createdAt: Date;
+        deletedAt: Date | null;
+        editedAt: Date | null;
+        sender: ChatRoomMessageSender;
+        mentions: Array<ChatRoomMessageMention>;
+        reactions: Array<ChatRoomMessageReaction>;
+        threadReplyCount: number;
+        threadLastReplyAt: Date | null;
+        metadata: {
+            [key: string]: unknown;
+        } | null;
+        quote: ChatRoomMessageQuote;
+        membership: ChatRoomMessageMembership;
+        /**
+         * Link preview cards scraped from message URLs (absent while pending).
+         */
+        unfurls: Array<ChatRoomMessageUnfurl> | null;
     } | null;
-    quote: ChatRoomMessageQuote;
-    membership: ChatRoomMessageMembership;
-    /**
-     * Link preview cards scraped from message URLs (absent while pending).
-     */
-    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomMessageSender = {
@@ -2692,6 +2690,30 @@ export type ChatRoomThread = {
      * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
      */
     hasLooked: boolean;
+};
+
+export type ChatRoomMessage = {
+    id: string;
+    roomId: string;
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+    deletedAt: Date | null;
+    editedAt: Date | null;
+    sender: ChatRoomMessageSender;
+    mentions: Array<ChatRoomMessageMention>;
+    reactions: Array<ChatRoomMessageReaction>;
+    threadReplyCount: number;
+    threadLastReplyAt: Date | null;
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+    quote: ChatRoomMessageQuote;
+    membership: ChatRoomMessageMembership;
+    /**
+     * Link preview cards scraped from message URLs (absent while pending).
+     */
+    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomThreadsUnreadCount = {
