@@ -106,11 +106,11 @@ const taskSortQuerySchema = z
 
 const taskVisibilityQuerySchema = z
   .enum(TaskVisibility)
-  .default(TaskVisibility.PUBLIC)
+  .optional()
   .openapi({
     param: { name: "visibility", in: "query" },
     description:
-      "Filter by task visibility. Defaults to PUBLIC (product default). PRIVATE still respects the caller visibility predicate.",
+      "Filter by task visibility. Human lists default omitted to PUBLIC. Coworker and Soko Bot lists keep their access helpers unless this is set. PRIVATE still respects the caller visibility predicate.",
     example: TaskVisibility.PUBLIC,
   });
 
@@ -201,6 +201,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       status: statuses,
       visibility,
     } = queryParams;
+    const requestedVisibility = visibility === undefined ? {} : { visibility };
     const statusWhere = buildTaskListStatusWhere({
       statuses,
     });
@@ -250,7 +251,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           {
             archivedAt: null,
             workspaceId: workspaceContext.workspaceId,
-            visibility,
+            ...requestedVisibility,
             AND: [listAccessFilter],
             ...(scope === "owned"
               ? { ownerId: authContext.context.userId }
@@ -267,7 +268,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where = applyTaskListStatusWhere(
           {
             archivedAt: null,
-            visibility,
+            ...requestedVisibility,
             AND: [listAccessFilter],
             ...projectFilter,
             ...searchFilter,
@@ -288,7 +289,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: authContext.workspaceId,
           assigneeSokoBotId: authContext.sokoBotId,
           status: { not: TaskStatus.DRAFT },
-          visibility,
+          ...requestedVisibility,
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
           ...searchFilter,
@@ -302,7 +303,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
-          visibility,
+          visibility: visibility ?? TaskVisibility.PUBLIC,
           AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
           ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
           ...(assigneeId ? { assigneeId } : {}),

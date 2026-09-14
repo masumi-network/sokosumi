@@ -117,7 +117,6 @@ function delegatedCoworkerListWhere(
   return {
     archivedAt: null,
     workspaceId: "22222222-2222-7222-8222-222222222222",
-    visibility: TaskVisibility.PUBLIC,
     AND: [COWORKER_SIBLING_LIST_FILTER],
     ...extra,
   };
@@ -232,7 +231,6 @@ describe("GET /tasks", () => {
           workspaceId: "11111111-1111-7111-8111-111111111111",
           assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
           status: { not: TaskStatus.DRAFT },
-          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
@@ -408,7 +406,6 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          visibility: TaskVisibility.PUBLIC,
           AND: [COWORKER_SIBLING_LIST_FILTER],
           status: {
             in: [TaskStatus.QUEUED],
@@ -529,6 +526,76 @@ describe("GET /tasks", () => {
         where: expect.objectContaining({
           visibility: TaskVisibility.PUBLIC,
         }),
+      }),
+    );
+  });
+
+  it("does not default coworker lists to PUBLIC visibility", async () => {
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          AND: [COWORKER_SIBLING_LIST_FILTER],
+        },
+      }),
+    );
+  });
+
+  it("does not default soko bot lists to PUBLIC visibility", async () => {
+    const response = await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
+      "http://localhost/",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
+          status: { not: TaskStatus.DRAFT },
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
+        },
+      }),
+    );
+  });
+
+  it("applies explicit visibility on coworker lists", async () => {
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
+    const response = await app.request("http://localhost/?visibility=PRIVATE");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          visibility: TaskVisibility.PRIVATE,
+          AND: [COWORKER_SIBLING_LIST_FILTER],
+        },
+      }),
+    );
+  });
+
+  it("applies explicit visibility on soko bot lists", async () => {
+    const response = await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
+      "http://localhost/?visibility=PRIVATE",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
+          status: { not: TaskStatus.DRAFT },
+          visibility: TaskVisibility.PRIVATE,
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
+        },
       }),
     );
   });
