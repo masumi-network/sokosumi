@@ -373,6 +373,7 @@ describe("chat room user auth guards", () => {
               mentionsAsSource: [],
               reactions: [],
               replies: [],
+              pins: [],
               _count: { replies: 0 },
             }),
           },

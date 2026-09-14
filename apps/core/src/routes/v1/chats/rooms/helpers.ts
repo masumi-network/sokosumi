@@ -117,6 +117,8 @@ export const chatRoomMessageInclude = {
     },
     orderBy: { createdAt: "asc" },
   },
+  // Unique per (room, message): at most one row.
+  pins: { select: { pinnedAt: true } },
   // Soft-deleted replies stay in the DB (tombstones) but must not inflate
   // threadReplyCount / threadLastReplyAt — same rule as getChatRoomThreadAggregates.
   replies: {
@@ -561,6 +563,7 @@ export function mapChatRoomMessage(
     createdAt: message.createdAt,
     deletedAt: message.deletedAt ?? null,
     editedAt: isDeleted ? null : (message.editedAt ?? null),
+    pinnedAt: isDeleted ? null : (message.pins[0]?.pinnedAt ?? null),
     sender,
     mentions: isDeleted
       ? []

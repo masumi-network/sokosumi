@@ -31,6 +31,7 @@ function membershipMessage(
     content: "",
     createdAt: new Date("2026-07-01T14:35:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
