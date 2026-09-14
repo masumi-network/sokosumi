@@ -134,6 +134,10 @@ export function useChatRefreshScheduler({
         return;
       }
       window.clearTimeout(timer);
+      // Jittered resume timer can outlive the clock; this start consumes it.
+      window.clearTimeout(throttleTimer);
+      throttleTimer = undefined;
+      throttleExplicit = false;
       inFlight = true;
       needed = false;
       try {

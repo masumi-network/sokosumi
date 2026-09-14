@@ -605,5 +605,24 @@ describe("useChatRefreshScheduler", () => {
       await tick(1);
       expect(refresh).toHaveBeenCalledTimes(1);
     });
+
+    it("does not fire a second catch-up when a read starts in the jitter tail", async () => {
+      vi.spyOn(Math, "random").mockReturnValue(1);
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      const { result } = mount(refresh, { refreshOnMount: true });
+
+      await act(async () => undefined);
+      await tick(30_000);
+      expect(refresh).not.toHaveBeenCalled();
+
+      await act(async () => {
+        result.current();
+      });
+      expect(refresh).toHaveBeenCalledTimes(1);
+
+      await tick(7_500);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
   });
 });
