@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { CoreAuthUnavailableError } from "@/lib/auth/errors";
 import {
   beforeSendServerEvent,
   isExpectedAuthRequestError,
@@ -26,10 +27,9 @@ describe("isExpectedAuthRequestError", () => {
   });
 
   it("matches CoreAuthUnavailableError by name", () => {
-    const error = new Error("Session could not be read");
-    error.name = "CoreAuthUnavailableError";
-
-    expect(isExpectedAuthRequestError(error)).toBe(true);
+    expect(
+      isExpectedAuthRequestError(new CoreAuthUnavailableError("timeout")),
+    ).toBe(true);
   });
 
   it("matches Core session-read outage messages", () => {
