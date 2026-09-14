@@ -2,7 +2,8 @@
 
 ## Resume checkpoint
 
-- Active slice: message pin status (SOK-1066 follow-up), draft [PR #4566](https://github.com/masumi-network/sokosumi/pull/4566), branch `sok-1066-apple-message-pin-status`. Core message `pinnedAt` supplies first-load status independently of pin-list pagination; existing realtime overrides retain precedence. The localized note sits beside the sender/time or above continuation bodies, and deleted rows hide it. Verification below.
+- Active slice: link unfurls (22), branch `codex/apple-chat-next-slice-4566`, based on `origin/main` at `ae1143d39b`. Implemented; local validation complete, draft PR pending.
+- Message pin-status follow-up [#4566](https://github.com/masumi-network/sokosumi/pull/4566) merged. Final checks completed without failures; review follow-up tests deletion through the actual timeline. Deep-link and hover backgrounds share the inner row bounds.
 - Pinned messages (21): [PR #4549](https://github.com/masumi-network/sokosumi/pull/4549) merged on 2026-09-14.
 - User acceptance (2026-09-14): first-load pins and navigation to older messages now work.
 - Complete-line expansion [#4560](https://github.com/masumi-network/sokosumi/pull/4560) merged on 2026-09-14. Final CI passed Xcode build/app tests, all five package suites, lint/format and CodeQL. Heading coverage now uses actual line rectangles at three widths.
@@ -82,7 +83,7 @@ Source links are relative to this file. The shared web service boundary is [chat
 | 19 | Delete eligible messages with confirmation; preserve tombstones, thread context and authorization/error behavior. | 07, 08 | Done — [#4498](https://github.com/masumi-network/sokosumi/pull/4498) | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 20 | Emoji reactions: picker, add/remove, counts, own selection, participant names and server-confirmed updates. | 07 | Done — [#4530](https://github.com/masumi-network/sokosumi/pull/4530) | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [emoji-picker.tsx](<../web/src/components/chat/emoji-picker.tsx>) |
 | 21 | Pinned messages: pin/unpin, list, loading/empty/error, jump to message and realtime updates. | 07 | Done — [#4549](https://github.com/masumi-network/sokosumi/pull/4549) | [pinned-messages-panel.tsx](<../web/src/app/(app)/chat/components/pinned-messages-panel.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
-| 22 | Link unfurls: title/description/image, open link, authorized remove action and errors. | 10 | Todo | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
+| 22 | Link unfurls: title/description/image, open link, authorized remove action and errors. | 10 | Implemented — PR pending | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 23 | Room search: query, result previews/highlights, pagination, jump and context loading, empty/error states. | 04, 10 | Todo | [room-search-panel.tsx](<../web/src/app/(app)/chat/components/room-search-panel.tsx>), [use-room-message-jumps.ts](<../web/src/app/(app)/chat/hooks/use-room-message-jumps.ts>), [room-search-jump.ts](<../web/src/app/(app)/chat/utils/room-search-jump.ts>) |
 | 24 | Thread overview: room thread list, workspace unread threads, previews/counts, open target, mark one/all read. | 07, 08 | Todo | [thread-list-panel.tsx](<../web/src/app/(app)/chat/components/thread-list-panel.tsx>), [unread-threads-panel.tsx](<../web/src/app/(app)/chat/components/unread-threads-panel.tsx>), [thread-overview-unread.ts](<../web/src/app/(app)/chat/utils/thread-overview-unread.ts>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 25 | Message/thread deep links including notifications and quote/search targets: fetch surrounding history, select room/parent, highlight target and handle missing/forbidden targets. | 08, 23 | Todo | [use-message-param-jump.ts](<../web/src/app/(app)/chat/hooks/use-message-param-jump.ts>), [use-room-notification-deep-link.ts](<../web/src/app/(app)/chat/hooks/use-room-notification-deep-link.ts>), [use-room-message-jumps.ts](<../web/src/app/(app)/chat/hooks/use-room-message-jumps.ts>) |
@@ -676,3 +677,19 @@ Verification: macOS app tests (including localization and rendered row fixtures)
 ![Pinned transcript rows, dark appearance](docs/screenshots/message-pin-label-dark.png)
 
 Deep-link highlighting now uses the same inner message-row background as hover, excluding sender-group spacing and day separators. The macOS app suite and Swift lint/format pass after this alignment fix.
+
+
+## Slice 22 — link unfurls: verified scope
+
+Web `room-message-row.tsx` renders previews only when description or image content exists. Cards show optional site name, a two-line title and description, and an image; an image failure hides the image and removes an otherwise empty card. Clicking opens the original URL. Only the current human author's persisted, nondeleted, nonstreaming messages expose removal. Removal keeps the URL in the message body, applies after server success, and displays errors without removing the preview.
+
+Existing Core POST `/chats/rooms/{id}/messages/{messageId}/unfurls/remove` accepts the URL, enforces write access/authorship, serializes concurrent removals, returns the message and publishes an unfurl event. No new contract or dependency is needed. Select this existing operation using `scripts/update-core-api.py`; do not hand-edit generated output.
+
+Reuse candidates: `ChatRoomMessageUnfurl` already exists in CoreAPI; `RealtimeMessagePatch.unfurls` already applies live preview changes. `MessageRowView` is shared by room and thread rendering, so one card view belongs there. Existing attachment `AsyncImage` usage fits preview image loading; do not add an image library. Coordinator mutation patterns provide account/room generation guards and auth error handling. Preserve newer unrelated message fields when applying removal results, and cover failed/concurrent removals, room switches, deleted messages, and room/thread consistency.
+
+Implemented the existing endpoint selection, Chat service operation, coordinator mutation and shared SwiftUI cards for room messages, thread parents and replies. Removal updates only the chosen URL after success, preserving newer content and unrelated previews; failed requests leave previews intact and stale room responses are ignored. Native Links open previews and a small corner button removes them, with a native error alert.
+
+Verification: Xcode build/full app tests and targeted final fixture tests pass; 352 Chat, 70 Workspace, 34 Auth, 27 Realtime and 1 CoreAPI tests pass. Workspace coverage exercises pending state, failure preservation, thread-parent consistency, unchanged message content and room switches. iOS 17 Workspace compilation passes. Light/dark narrow-layout fixtures were rendered and inspected. Live remote image loading, external-link opening and removal against a real message remain manual; no live messages were modified.
+
+![Link previews, light](docs/screenshots/message-unfurls-light.png)
+![Link previews, dark](docs/screenshots/message-unfurls-dark.png)

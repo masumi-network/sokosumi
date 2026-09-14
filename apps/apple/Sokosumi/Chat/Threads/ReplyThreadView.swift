@@ -14,6 +14,11 @@ import SwiftUI
     @State private var quoteTarget: String?
     @State private var quoteFocusRequest: String?
 
+    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
+    }
+
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
@@ -35,6 +40,7 @@ import SwiftUI
                              } : nil,
                              onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
                              onDelete: deletionAction(for: parent),
+                             onRemoveUnfurl: unfurlAction(for: parent),
                              onToggleReaction: reactionAction(for: parent),
                              pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
                              editing: workspaces.messageEditing,
@@ -144,6 +150,7 @@ import SwiftUI
                              } : nil,
                              onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
                              onDelete: deletionAction(for: message),
+                             onRemoveUnfurl: unfurlAction(for: message),
                              onToggleReaction: reactionAction(for: message),
                              pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                              editing: workspaces.messageEditing,

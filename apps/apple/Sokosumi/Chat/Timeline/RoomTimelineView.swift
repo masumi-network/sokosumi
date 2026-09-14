@@ -30,6 +30,11 @@ import SwiftUI
       workspaces.rooms.first { $0.id == roomId }
     }
 
+    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
+    }
+
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
@@ -198,6 +203,7 @@ import SwiftUI
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
                                  onDelete: deletionAction(for: message),
+                                 onRemoveUnfurl: unfurlAction(for: message),
                                  onToggleReaction: reactionAction(for: message),
                                  pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                                  editing: workspaces.messageEditing,
