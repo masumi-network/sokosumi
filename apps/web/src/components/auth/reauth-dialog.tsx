@@ -66,7 +66,12 @@ export function ReauthDialog({
   // "do not keep me signed in" into a persistent cookie.
   const [rememberMe, setRememberMe] = useState(true);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // `fromPassword` keeps the field's invalid marking on the path that owns it.
+  // A failed provider or email attempt must not mark an untouched password.
+  const [error, setError] = useState<{
+    fromPassword: boolean;
+    message: string;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Empty until `useSession` resolves, which is why Confirm stays disabled.
@@ -94,7 +99,7 @@ export function ReauthDialog({
 
     if (!nextOpen) {
       setPassword("");
-      setErrorMessage(null);
+      setError(null);
       setMagicLinkSent(false);
     }
 
@@ -104,7 +109,7 @@ export function ReauthDialog({
   const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
-    setErrorMessage(null);
+    setError(null);
 
     try {
       const result = await authClient.signIn.email({
@@ -114,7 +119,10 @@ export function ReauthDialog({
       });
 
       if (result.error) {
-        setErrorMessage(describeSignInError(result.error));
+        setError({
+          fromPassword: true,
+          message: describeSignInError(result.error),
+        });
         return;
       }
 
@@ -122,7 +130,7 @@ export function ReauthDialog({
       onOpenChange(false);
       onReauthenticated();
     } catch {
-      setErrorMessage(t("passwordError"));
+      setError({ fromPassword: true, message: t("passwordError") });
     } finally {
       setIsSubmitting(false);
     }
@@ -146,7 +154,7 @@ export function ReauthDialog({
 
   const handleMagicLinkSubmit = async () => {
     setIsSubmitting(true);
-    setErrorMessage(null);
+    setError(null);
 
     try {
       const result = await authClient.signIn.magicLink({
@@ -155,13 +163,16 @@ export function ReauthDialog({
       });
 
       if (result.error) {
-        setErrorMessage(result.error.message ?? t("magicLinkError"));
+        setError({
+          fromPassword: false,
+          message: result.error.message ?? t("magicLinkError"),
+        });
         return;
       }
 
       setMagicLinkSent(true);
     } catch {
-      setErrorMessage(t("magicLinkError"));
+      setError({ fromPassword: false, message: t("magicLinkError") });
     } finally {
       setIsSubmitting(false);
     }
@@ -169,7 +180,7 @@ export function ReauthDialog({
 
   const handleSocialSubmit = async (provider: SocialProvider) => {
     setIsSubmitting(true);
-    setErrorMessage(null);
+    setError(null);
 
     try {
       const result = await authClient.signIn.social({
@@ -180,10 +191,13 @@ export function ReauthDialog({
       if (result.error) {
         // No terms branch here: Core's after-hook needs a new session, and
         // `/sign-in/social` mints none. The block surfaces on `/callback`.
-        setErrorMessage(result.error.message ?? t("socialError"));
+        setError({
+          fromPassword: false,
+          message: result.error.message ?? t("socialError"),
+        });
       }
     } catch {
-      setErrorMessage(t("socialError"));
+      setError({ fromPassword: false, message: t("socialError") });
     } finally {
       // A successful start navigates away, so this only matters when it does
       // not: without it the dialog stays locked and cannot be closed.
@@ -204,8 +218,10 @@ export function ReauthDialog({
             <fieldset className="space-y-2" disabled={isSubmitting}>
               <Label htmlFor="reauth-password">{t("passwordLabel")}</Label>
               <Input
-                aria-describedby={errorMessage ? "reauth-error" : undefined}
-                aria-invalid={errorMessage ? true : undefined}
+                aria-describedby={
+                  error?.fromPassword ? "reauth-error" : undefined
+                }
+                aria-invalid={error?.fromPassword ? true : undefined}
                 autoComplete="current-password"
                 data-testid="reauth-field-currentPassword"
                 id="reauth-password"
@@ -288,14 +304,14 @@ export function ReauthDialog({
 
         {hasNoMethod ? <p className="text-sm">{t("noMethod")}</p> : null}
 
-        {errorMessage ? (
+        {error ? (
           // Announced, because submitting leaves focus on the button.
           <p
             className="text-destructive text-sm"
             id="reauth-error"
             role="alert"
           >
-            {errorMessage}
+            {error.message}
           </p>
         ) : null}
       </DialogContent>

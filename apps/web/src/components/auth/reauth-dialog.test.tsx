@@ -143,6 +143,25 @@ describe("ReauthDialog", () => {
     expect(onReauthenticated).not.toHaveBeenCalled();
   });
 
+  it("never marks the password invalid for another path's failure", async () => {
+    mockSignInMagicLink.mockResolvedValue({
+      data: null,
+      error: { message: "Mail is down" },
+    });
+
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Mail is down");
+    // The viewer never typed here, so marking it invalid would blame the
+    // wrong field and send a screen reader to unrelated text.
+    const field = screen.getByTestId("reauth-field-currentPassword");
+    expect(field).not.toHaveAccessibleDescription();
+    expect(field).not.toHaveAttribute("aria-invalid");
+  });
+
   it("leaves for the provider and returns to the same route", async () => {
     renderDialog([googleAccount]);
 
