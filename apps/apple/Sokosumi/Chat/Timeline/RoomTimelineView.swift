@@ -41,59 +41,60 @@ import SwiftUI
     }
 
     var body: some View {
-      VStack(spacing: 0) {
-        transcriptBody
-        ChatComposerView(
-          userId: workspaces.currentUserId,
-          organizationId: workspaces.selection?.workspace.organizationId,
-          roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
-        )
-        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
-      }
-      .toolbar {
-        if room?.kind == .channel {
-          Button("Pinned messages", systemImage: "pin") { showsPins.toggle() }.help("Pinned messages")
+      transcriptBody
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+          ChatComposerView(
+            userId: workspaces.currentUserId,
+            organizationId: workspaces.selection?.workspace.organizationId,
+            roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
+          )
+          .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
         }
-      }
-      .inspector(isPresented: $showsPins) {
-        if let room, room.kind == .channel {
-          PinnedMessagesView(pins: workspaces.pins, room: room,
-                             jump: { try await jumpToMessage($0) }, close: { showsPins = false })
-            .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
+        .toolbar {
+          if room?.kind == .channel {
+            Button("Pinned messages", systemImage: "pin") { showsPins.toggle() }.help("Pinned messages")
+          }
         }
-      }
-      .task(id: roomId) {
-        if room?.kind == .channel {
-          try? await workspaces.loadPins(auth: auth)
+        .inspector(isPresented: $showsPins) {
+          if let room, room.kind == .channel {
+            PinnedMessagesView(pins: workspaces.pins, room: room,
+                               jump: { try await jumpToMessage($0) }, close: { showsPins = false })
+              .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
+          }
         }
-      }
-      .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
-        if !$0 {
-          jumpError = nil
+        .task(id: roomId) {
+          if room?.kind == .channel {
+            try? await workspaces.loadPins(auth: auth)
+          }
         }
-      })) {
-        Button("OK", role: .cancel) {}
-      } message: { Text(jumpError ?? "") }
-      .onChange(of: workspaces.timeline.historicalAnchor) { old, new in
-        if old != nil, new == nil {
-          scrollIntent.followLatest()
+        .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
+          if !$0 {
+            jumpError = nil
+          }
+        })) {
+          Button("OK", role: .cancel) {}
+        } message: { Text(jumpError ?? "") }
+        .onChange(of: workspaces.timeline.historicalAnchor) { old, new in
+          if old != nil, new == nil {
+            scrollIntent.followLatest()
+            highlightedId = nil
+          }
+        }
+        .onDisappear { jumpCompletion?.resume(returning: false)
+          jumpCompletion = nil
+        }
+        .onChange(of: roomId) { _, _ in
+          showsPins = false
           highlightedId = nil
+          jumpCompletion?.resume(returning: false)
+          jumpCompletion = nil
+          pendingQuote = nil
+          quoteTarget = nil
+          scrollTarget = nil
+          transcriptWasAwayFromTop = false
+          scrollIntent = TimelineScrollIntent()
         }
-      }
-      .onDisappear { jumpCompletion?.resume(returning: false)
-        jumpCompletion = nil
-      }
-      .onChange(of: roomId) { _, _ in
-        showsPins = false
-        highlightedId = nil
-        jumpCompletion?.resume(returning: false)
-        jumpCompletion = nil
-        pendingQuote = nil
-        quoteTarget = nil
-        scrollTarget = nil
-        transcriptWasAwayFromTop = false
-        scrollIntent = TimelineScrollIntent()
-      }
     }
 
     @ViewBuilder
@@ -280,7 +281,7 @@ import SwiftUI
           }
         }
         .onScrollGeometryChange(for: [Double].self) { geometry in
-          [geometry.visibleRect.minY, geometry.contentSize.height - geometry.visibleRect.maxY]
+          [geometry.visibleRect.minY, geometry.contentSize.height + geometry.contentInsets.bottom - geometry.visibleRect.maxY]
         } action: { _, geometry in
           if userIsScrolling, workspaces.timeline.historicalAnchor == nil {
             scrollIntent.userScrolled(distanceFromBottom: geometry[1])
