@@ -20,7 +20,6 @@ export function parseCursorPagination(query: {
   limit?: number;
 }): CursorPaginationParams {
   const cursor = query.cursor;
-  // We need to take one more item to determine if there is a next page
   const take = query.limit ?? LIMITS.DEFAULT_PAGINATION_LIMIT;
 
   // Skip 1 if cursor exists (to skip the cursor record itself)
