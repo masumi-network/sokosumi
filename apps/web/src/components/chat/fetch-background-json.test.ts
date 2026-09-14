@@ -18,7 +18,7 @@ function response(
     status,
     headers: new Headers(headers),
     json: async () => body,
-  } as unknown as Response;
+  };
 }
 
 describe("fetchBackgroundJson", () => {
@@ -152,7 +152,7 @@ describe("fetchBackgroundJson", () => {
         json: async () => {
           throw new TypeError("network error");
         },
-      } as unknown as Response)
+      })
       .mockResolvedValueOnce(response(200, { data: ["room-1"] }));
 
     const result = fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS);
@@ -169,7 +169,7 @@ describe("fetchBackgroundJson", () => {
       json: async () => {
         throw new SyntaxError("Unexpected token < in JSON");
       },
-    } as unknown as Response);
+    });
 
     await expect(
       fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS),
@@ -276,7 +276,7 @@ describe("fetchBackgroundJson", () => {
       json: async () => {
         throw new TypeError("network error");
       },
-    } as unknown as Response);
+    });
 
     await expect(
       fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS),

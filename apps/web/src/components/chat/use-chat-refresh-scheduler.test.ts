@@ -382,7 +382,7 @@ describe("useChatRefreshScheduler", () => {
           ),
           json: async () =>
             bodySeconds === undefined ? {} : { retryAfterSeconds: bodySeconds },
-        } as unknown as Response),
+        }),
       );
     }
 
