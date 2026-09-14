@@ -169,6 +169,16 @@ describeDatabase("Project Calendar history deletion guard", () => {
       });
       assert.equal((await deleteProject(historical.id)).length, 0);
 
+      const legacyCascade = await createProject("Legacy erasure cascade");
+      await db.projectEvent.create({
+        data: {
+          projectId: legacyCascade.id,
+          eventKey: `legacy-erasure-${suffix}`,
+          kind: "CLOSE_REQUESTED",
+        },
+      });
+      assert.equal((await deleteProject(legacyCascade.id)).length, 0);
+
       await db.task.deleteMany({ where: { workspaceId } });
       const erasedWorkspace = await db.$queryRaw<Array<{ id: string }>>`
         DELETE FROM "workspace"
@@ -176,8 +186,14 @@ describeDatabase("Project Calendar history deletion guard", () => {
         RETURNING id
       `;
       assert.equal(erasedWorkspace.length, 1);
+      assert.equal(
+        await db.project.count({ where: { id: legacyCascade.id } }),
+        0,
+      );
     } finally {
+      await db.projectEvent.deleteMany({ where: { project: { workspaceId } } });
       await db.task.deleteMany({ where: { workspaceId } });
+      await db.project.deleteMany({ where: { workspaceId } });
       await db.$executeRaw`
         DELETE FROM "workspace"
         WHERE id = ${workspaceId}::uuid
