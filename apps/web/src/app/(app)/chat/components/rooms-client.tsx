@@ -549,9 +549,6 @@ export function RoomsClient({
   const pinToBottomAfterOwnSend = useCallback(() => {
     viewportRef.current?.pinToBottomAfterOwnSend();
   }, []);
-  const scrollToBottomIfPinned = useCallback(() => {
-    viewportRef.current?.scrollToBottomIfPinned();
-  }, []);
   const suppressStickToBottom = useCallback(() => {
     viewportRef.current?.suppressStickToBottom();
   }, []);
@@ -2791,7 +2788,6 @@ export function RoomsClient({
               pendingQuote={pendingQuote}
               onClearPendingQuote={() => setPendingQuote(null)}
               onRestorePendingQuote={setPendingQuote}
-              onChromeResize={scrollToBottomIfPinned}
               // Autofocus only after history settles. Send stays enabled so
               // optimistic posts work during progressive open (merge into list).
               focusOnMount={!messagesPending}

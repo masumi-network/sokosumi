@@ -401,9 +401,6 @@ export function ThreadPanel({
             pendingQuote={pendingQuote}
             onClearPendingQuote={onClearPendingQuote}
             onRestorePendingQuote={onRestorePendingQuote}
-            onChromeResize={() => {
-              viewportRef.current?.scrollToBottomIfPinned();
-            }}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}

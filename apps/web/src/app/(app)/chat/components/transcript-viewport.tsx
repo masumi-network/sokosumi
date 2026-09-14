@@ -55,8 +55,6 @@ export interface TranscriptViewportHandle {
   scrollToBottom: () => void;
   /** Own send: always reveal the new bubble, even after scrolling up. */
   pinToBottomAfterOwnSend: () => void;
-  /** Chrome resize: keep the last row in view only when already there. */
-  scrollToBottomIfPinned: () => void;
   /** A jump is moving the view; stop following new messages until released. */
   suppressStickToBottom: () => void;
   releaseStickToBottomSuppress: () => void;
@@ -183,10 +181,11 @@ export function TranscriptViewport({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
-  // Whether the reader was at the live edge on their last scroll. Read at
-  // scroll time, not when asked: chrome that resizes the scroller moves the
-  // edge away before the caller asks whether to keep it in view.
+  // Whether the reader was near the live edge on their last scroll, and how
+  // far above it they sat. Read at scroll time, not when asked: chrome that
+  // resizes the scroller moves the edge away before anyone asks.
   const atEndRef = useRef(true);
+  const distanceFromEndRef = useRef(0);
   // The same answer as state, for the jump-to-latest control that shows
   // whenever the reader is away from the live edge.
   const [atEnd, setAtEnd] = useState(true);
@@ -202,11 +201,12 @@ export function TranscriptViewport({
   const rowHoldRef = useRef<RowHold | null>(null);
   // Prepend does not change the last key, so followOnAppend never runs.
   // A short list at the live edge has the boundary under the top edge;
-  // holding that row would drop the newest off the bottom. Same rule as
-  // before: if we were at the end and nothing holds the view, stay there.
+  // holding that row would drop the newest off the bottom. Only a view
+  // exactly at the end is put back there: a reader a little above it who
+  // gets a refreshed copy of the same rows would otherwise be snapped down.
   const pinToEndAfterRowsChangeRef = useRef(false);
   if (rowsRef.current !== rows) {
-    const pinToEnd = !hold && atEndRef.current;
+    const pinToEnd = !hold && distanceFromEndRef.current < 1;
     rowHoldRef.current =
       !pinToEnd && virtualizerRef.current?.scrollElement
         ? rowHoldAfterRowsChange(virtualizerRef.current, rowsRef.current, rows)
@@ -247,7 +247,10 @@ export function TranscriptViewport({
       return;
     }
     const record = () => {
-      const isAtEnd = virtualizer.isAtEnd(STICK_TO_BOTTOM_NEAR_PX);
+      const distance =
+        scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
+      distanceFromEndRef.current = distance;
+      const isAtEnd = distance <= STICK_TO_BOTTOM_NEAR_PX;
       atEndRef.current = isAtEnd;
       setAtEnd(isAtEnd);
     };
@@ -255,7 +258,32 @@ export function TranscriptViewport({
     return () => {
       scroller.removeEventListener("scroll", record);
     };
-  }, [scroller, virtualizer]);
+  }, [scroller]);
+
+  // The scroller changes height when the composer grows or shrinks, the
+  // keyboard opens, or the window resizes. The browser keeps the top edge
+  // still through that, which slides the live edge under the composer. A
+  // reader near the end keeps their distance from it instead.
+  useEffect(() => {
+    if (!scroller) {
+      return;
+    }
+    let height = scroller.clientHeight;
+    const observer = new ResizeObserver(() => {
+      if (scroller.clientHeight === height) {
+        return;
+      }
+      height = scroller.clientHeight;
+      if (atEndRef.current) {
+        scroller.scrollTop =
+          scroller.scrollHeight - height - distanceFromEndRef.current;
+      }
+    });
+    observer.observe(scroller);
+    return () => {
+      observer.disconnect();
+    };
+  }, [scroller]);
 
   // Under a hold an append leaves the view where it was with the new row
   // below it, and no scroll event says so. Re-read once the rows change.
@@ -339,11 +367,6 @@ export function TranscriptViewport({
         requestAnimationFrame(() => {
           virtualizer.scrollToEnd();
         });
-      },
-      scrollToBottomIfPinned: () => {
-        if (atEndRef.current) {
-          virtualizer.scrollToEnd();
-        }
       },
       suppressStickToBottom: () => {
         setHeld(true);

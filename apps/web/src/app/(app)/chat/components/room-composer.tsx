@@ -360,7 +360,6 @@ export function RoomComposer({
   allowAttachments = true,
   pendingQuote = null,
   onClearPendingQuote,
-  onChromeResize,
   focusOnMount = false,
   currentUserId,
   canOpenHumanDirect = false,
@@ -396,11 +395,6 @@ export function RoomComposer({
   /** Slack-like dismissible quote chip above the editor. */
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
-  /**
-   * Fired when composer chrome height changes (e.g. format strip toggles)
-   * so the parent can keep the latest message visible above the composer.
-   */
-  onChromeResize?: () => void;
   /** Focus the editor after mount (room/thread open). */
   focusOnMount?: boolean;
   currentUserId?: string;
@@ -427,8 +421,6 @@ export function RoomComposer({
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
-  const onChromeResizeRef = useRef(onChromeResize);
-  onChromeResizeRef.current = onChromeResize;
   const composedContent = buildRoomComposerMessageContent(
     value,
     attachments,
@@ -485,16 +477,6 @@ export function RoomComposer({
     });
     return () => cancelAnimationFrame(frame);
   }, [focusOnMount]);
-
-  // After paint so the format strip / quote chip have height before scroll.
-  useEffect(() => {
-    const notify = onChromeResizeRef.current;
-    if (!notify) return;
-    const frame = requestAnimationFrame(() => {
-      notify();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [formatToolbarOpen, pendingQuote?.messageId]);
 
   useEffect(() => {
     if (!formatToolbarOpen) {
