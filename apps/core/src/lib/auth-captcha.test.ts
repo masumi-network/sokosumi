@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 
-function createTestAuth() {
+function createTestAuth(
+  { secretKey }: { secretKey?: string } = { secretKey: "test-secret" },
+) {
   const sendEmail = vi.fn();
   const auth = betterAuth({
     baseURL: "https://auth.example.com",
@@ -21,7 +23,7 @@ function createTestAuth() {
     emailAndPassword: { enabled: true, sendResetPassword: sendEmail },
     emailVerification: { sendOnSignUp: true, sendVerificationEmail: sendEmail },
     plugins: [
-      createAuthCaptchaPlugin("test-secret"),
+      createAuthCaptchaPlugin(secretKey),
       magicLink({ sendMagicLink: sendEmail }),
     ],
     rateLimit: { enabled: false },
@@ -48,6 +50,16 @@ function createTestAuth() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("auth email abuse protection", () => {
+  it("allows signup without a challenge when no secret is configured", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { post, sendEmail } = createTestAuth({});
+
+    expect((await post("/sign-up/email")).status).toBe(200);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     "/sign-up/email",
     "/sign-in/email",

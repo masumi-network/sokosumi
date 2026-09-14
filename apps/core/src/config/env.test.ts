@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveWebRelatedProjectFallbackHost, validateEnv } from "./env.js";
 
@@ -119,26 +119,28 @@ describe("Soko Bot deployment environment", () => {
 });
 
 describe("Turnstile deployment configuration", () => {
-  it.each(["production", "staging"])(
-    "requires a secret in Node %s",
+  beforeEach(() => {
+    vi.stubEnv("SOKO_BOT_RUNTIME_ADAPTER", "in-process");
+  });
+
+  it.each(["development", "production", "staging"])(
+    "allows an omitted secret in Node %s",
     (nodeEnv) => {
       vi.stubEnv("NODE_ENV", nodeEnv);
       vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
-      expectInvalidEnvironment("TURNSTILE_SECRET_KEY is required");
+      expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
     },
   );
   it.each(["production", "preview"])(
-    "requires a secret on Vercel %s",
+    "allows an omitted secret on Vercel %s",
     (vercelEnv) => {
       vi.stubEnv("VERCEL_ENV", vercelEnv);
       vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
-      expectInvalidEnvironment("TURNSTILE_SECRET_KEY is required");
+      expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
     },
   );
-  it("allows unconfigured local development", () => {
-    vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
-    vi.stubEnv("NODE_ENV", "development");
-    vi.stubEnv("VERCEL_ENV", undefined);
-    expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
+  it("preserves a configured secret", () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "test-secret");
+    expect(validateEnv().TURNSTILE_SECRET_KEY).toBe("test-secret");
   });
 });

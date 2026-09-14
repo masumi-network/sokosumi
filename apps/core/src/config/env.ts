@@ -247,16 +247,6 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
-  if (
-    (value.NODE_ENV === "staging" || isDeployedEnvironment(value)) &&
-    !value.TURNSTILE_SECRET_KEY
-  ) {
-    context.addIssue({
-      code: "custom",
-      path: ["TURNSTILE_SECRET_KEY"],
-      message: "TURNSTILE_SECRET_KEY is required in deployed environments",
-    });
-  }
   if (!value.SOKO_BOT_ENABLED) return;
   // The agent runs inside Core, so enabling it needs no runtime deployment,
   // signing key, or allowlist — only a real adapter in a deployed environment.

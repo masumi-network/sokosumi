@@ -69,14 +69,17 @@ Production and Preview. Both values come from the same Cloudflare Turnstile
 widget. Use Managed mode and allow `sokosumi.com` (which also covers its
 subdomains, including `*.preview.sokosumi.com`). Keep pre-clearance disabled.
 
-Both apps require their key in deployed environments. Deploy Web and Core
-together after configuring the keys. Core enforces verification on signup,
-email sign-in, email address changes, password reset requests, verification resends, and magic-link
-requests, before their email callbacks. Existing database rate limits still
+Core's secret is optional: omitting it disables server-side verification in any
+environment. Web requires its site key in deployed environments. Deploy Web and
+Core together after configuring the keys. With its secret set, Core enforces
+verification on signup, email sign-in, email address changes, password reset
+requests, verification resends, and magic-link requests, before their email
+callbacks. Existing database rate limits still
 apply. OAuth and passkeys are unaffected; Resend still delivers legitimate mail.
 A Cloudflare validation failure or outage blocks these protected requests.
 
-Local development can omit both keys. To exercise the widget locally, use
+For local development without Turnstile, omit both keys so Core skips verification
+and Web skips the widget. To exercise the widget locally, use
 [Cloudflare test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
 in the gitignored app `.env` files, never in Production or Preview. The plugin
 expects the `auth` action; mocked validation tests include that action. Cloudflare

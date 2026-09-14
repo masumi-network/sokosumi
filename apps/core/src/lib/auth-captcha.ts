@@ -1,7 +1,7 @@
 import { captcha } from "better-auth/plugins";
 
 export function createAuthCaptchaPlugin(secretKey: string | undefined) {
-  // Deployed env validation requires a key; only local development can omit it.
+  // Omitting the secret disables server-side verification in any environment.
   if (!secretKey) return { id: "captcha" };
   return captcha({
     provider: "cloudflare-turnstile",
