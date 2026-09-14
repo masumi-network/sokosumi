@@ -47,7 +47,17 @@ export function TaskStatusPillSelectTrigger({
           )}
         >
           {isPending ? (
-            <Loader2 className="size-3 animate-spin" aria-hidden />
+            <Loader2
+              aria-hidden
+              // Same box, colour and stroke as the marker it stands in for.
+              // A 2px stroke erodes optically on the dark fills, which is why
+              // StatusMarker carries 2.25.
+              strokeWidth={2.25}
+              className={cn(
+                "size-3.5 shrink-0 animate-spin motion-reduce:animate-none",
+                role.marker,
+              )}
+            />
           ) : (
             <StatusMarker spec={marker} />
           )}
