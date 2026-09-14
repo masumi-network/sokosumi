@@ -5293,6 +5293,7 @@
       },
       "loadOlder": "Cargar mensajes anteriores",
       "loadingOlder": "Cargando mensajes anteriores…",
+      "jumpToLatest": "Ir a lo más reciente",
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",

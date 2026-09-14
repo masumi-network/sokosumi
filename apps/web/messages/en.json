@@ -5293,6 +5293,7 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
+      "jumpToLatest": "Jump to latest",
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
