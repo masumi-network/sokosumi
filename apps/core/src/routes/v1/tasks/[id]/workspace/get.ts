@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskReadForRouteVars } from "@/helpers/access-control";
+import { requireTaskWorkspaceMapping } from "@/helpers/access-control";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -19,7 +19,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/workspace",
   description:
-    "Resolve a task id to its workspace and organization id. Session user or coworker with authorized context headers.",
+    "Resolve a task id to its workspace and organization id across workspaces the caller can access. Session users need org membership or personal-workspace ownership. Coworkers need authorized context headers plus an assigned-task read.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -47,9 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const task = await requireTaskReadForRouteVars(c.var, id, prisma, {
-      workspace: { select: { organizationId: true } },
-    });
+    const task = await requireTaskWorkspaceMapping(c.var, id, prisma);
 
     return ok(
       c,
