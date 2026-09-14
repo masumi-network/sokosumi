@@ -695,3 +695,9 @@ Verification: Xcode build/full app tests and targeted final fixture tests pass; 
 ![Link previews, dark](docs/screenshots/message-unfurls-dark.png)
 
 Review follow-up: verified friendly removal errors, trimmed image URLs, matched macOS hover/focus visibility (touch platforms retain visibility), and kept pending remove buttons hit-testable with duplicate actions ignored. The request body now has an exact URL assertion. Full app tests, 70 Workspace tests, the friendly-error regression, and Swift lint pass; resting fixtures refreshed. Live hover/focus and pending-click interaction remain manual checks.
+
+### Scrolling performance follow-up — 2026-09-14
+
+Manual scrolling CPU sample (`/tmp/sokosumi-scroll-active.sample`) showed main-thread layout work and substantial background Markdown channel resolution. Channel matching compiled every catalog entry's regex for every block, including text without `#`. Skip that impossible-match path and compute the room/channel catalog once outside each transcript's row loop. Existing channel matching semantics remain unchanged.
+
+Regression command: `swift test --package-path Packages/SokosumiChat --filter ScrollParsingPerformanceTests`. A 100-message/80-channel parsing fixture failed before the fix at 19.208 seconds and passed afterward at 0.027 seconds (one-second regression budget). All 353 Chat tests, macOS app tests, and strict SwiftLint passed. This measures parsing throughput, not frame rate; live scrolling after the fix remains to be confirmed. Image loading/layout behavior is unchanged.

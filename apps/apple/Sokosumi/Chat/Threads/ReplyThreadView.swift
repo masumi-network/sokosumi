@@ -123,6 +123,9 @@ import SwiftUI
            let error = workspaces.directStream.errorMessage {
           Text(error).foregroundStyle(.secondary)
         }
+        let rooms = workspaces.rooms
+        let currentRoom = rooms.first { $0.id == workspaces.transcriptRoomId }
+        let channels = ComposerChannel.catalog(rooms: rooms)
         let messages = workspaces.displayedThreadReplies
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
@@ -141,7 +144,7 @@ import SwiftUI
             if let status = membershipStatusText(message) {
               MembershipStatusRow(text: status)
             } else {
-              MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+              MessageRowView(channels: channels, room: currentRoom, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                              outbound: shell, sentAt: outbox.sentAt[message.id],
                              onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                              onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },

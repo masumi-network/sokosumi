@@ -153,6 +153,9 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
+            let rooms = workspaces.rooms
+            let currentRoom = rooms.first { $0.id == workspaces.transcriptRoomId }
+            let channels = ComposerChannel.catalog(rooms: rooms)
             let messages = workspaces.displayedTranscript
             let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -182,7 +185,7 @@ import SwiftUI
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId },
+                  MessageRowView(channels: channels, room: currentRoom,
                                  message: message,
                                  isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,
@@ -199,7 +202,7 @@ import SwiftUI
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
                                  isHighlighted: highlightedId == message.id,
-                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message),
+                                 isPinned: currentRoom?.kind == .channel && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
                                  onDelete: deletionAction(for: message),
