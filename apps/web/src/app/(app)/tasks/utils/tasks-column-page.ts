@@ -9,7 +9,7 @@ import { getColumnListQueryOptions } from "@/app/tasks/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
 import type { Coworker } from "@/lib/clients/generated/core";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 
 type ColumnCursor = string | null;
@@ -24,6 +24,7 @@ interface GetTasksColumnPageParams {
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
+  visibility: TaskVisibility;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -43,6 +44,7 @@ export async function getTasksColumnPage({
   assigneeUserId,
   status,
   projectId,
+  visibility,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
@@ -62,6 +64,7 @@ export async function getTasksColumnPage({
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,
     projectId: projectId ?? undefined,
+    visibility,
     cursor,
     limit,
   });

@@ -27,6 +27,7 @@ interface ListTasksParams {
   projectId?: string;
   q?: string;
   scope?: "workspace" | "owned";
+  visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
   sort?: "nextRunAt";
@@ -148,6 +149,7 @@ export const taskService = (() => {
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
+      visibility: params.visibility,
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       sort: params.sort,

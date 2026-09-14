@@ -233,6 +233,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     assigneeUserId: activeFilters.assigneeUserId,
     status: activeFilters.status,
     projectId: activeFilters.projectId,
+    visibility: activeFilters.visibility,
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   };
@@ -264,6 +265,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           assigneeUserId: activeFilters.assigneeUserId ?? undefined,
           projectId: activeFilters.projectId ?? undefined,
+          visibility: activeFilters.visibility,
           limit: 1,
         })
       : Promise.resolve({ tasks: [], pagination: null }),
@@ -354,6 +356,9 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             scopeWorkspace: t("Filters.scopeWorkspace"),
             coworkerLabel: t("Filters.coworkerLabel"),
             statusLabel: t("Filters.statusLabel"),
+            visibilityLabel: t("Filters.visibilityLabel"),
+            visibilityPublic: t("Filters.visibilityPublic"),
+            visibilityPrivate: t("Filters.visibilityPrivate"),
             statusOptions: {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
               [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),

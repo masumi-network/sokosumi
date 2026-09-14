@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
+import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskListItemProps {
@@ -63,12 +64,15 @@ export function TaskListItem({
         </div>
 
         <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-          <TaskStatusBadge
-            status={task.status}
-            label={statusLabels?.[task.status]}
-            showDot={task.columnId === "in-progress"}
-            className="w-fit shrink-0 rounded-sm"
-          />
+          <div className="flex items-center gap-1.5">
+            <TaskStatusBadge
+              status={task.status}
+              label={statusLabels?.[task.status]}
+              showDot={task.columnId === "in-progress"}
+              className="w-fit shrink-0 rounded-sm"
+            />
+            <TaskPrivateIndicator visibility={task.visibility} />
+          </div>
           <TaskMetaDetails
             owner={task.owner}
             assignee={task.assignee}

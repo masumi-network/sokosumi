@@ -1556,7 +1556,10 @@
           "COMPLETED": "Completado",
           "FAILED": "Fallido",
           "CANCELED": "Cancelado"
-        }
+        },
+        "visibilityLabel": "Visibilidad",
+        "visibilityPublic": "Público",
+        "visibilityPrivate": "Privado"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Proyecto",

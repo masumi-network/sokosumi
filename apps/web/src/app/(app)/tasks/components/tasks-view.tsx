@@ -288,6 +288,9 @@ interface TasksViewProps {
       scopeWorkspace: string;
       coworkerLabel: string;
       statusLabel: string;
+      visibilityLabel: string;
+      visibilityPublic: string;
+      visibilityPrivate: string;
       statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
@@ -961,6 +964,7 @@ export function TasksView({
           assigneeUserId: routeFilters.assigneeUserId,
           status: routeFilters.status,
           projectId: routeFilters.projectId,
+          visibility: routeFilters.visibility,
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
@@ -998,6 +1002,7 @@ export function TasksView({
       routeFilters.projectId,
       routeFilters.scope,
       routeFilters.status,
+      routeFilters.visibility,
     ],
   );
 
@@ -1019,6 +1024,7 @@ export function TasksView({
         assigneeUserId: routeFilters.assigneeUserId,
         status: routeFilters.status,
         projectId: routeFilters.projectId,
+        visibility: routeFilters.visibility,
       });
       setItems((prev) => appendUniqueTasks(prev, result.tasks));
       const nextCursor = result.nextCursor;
@@ -1041,6 +1047,7 @@ export function TasksView({
     routeFilters.projectId,
     routeFilters.scope,
     routeFilters.status,
+    routeFilters.visibility,
   ]);
 
   const handleViewModeChange = (next: TasksViewMode) => {

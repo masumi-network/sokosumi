@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CircleDashed, Sparkles } from "lucide-react";
+import { Building2, CircleDashed, Eye, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {
@@ -14,7 +14,7 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 interface TasksViewFiltersProps {
@@ -31,6 +31,9 @@ interface TasksViewFiltersProps {
     scopeWorkspace: string;
     coworkerLabel: string;
     statusLabel: string;
+    visibilityLabel: string;
+    visibilityPublic: string;
+    visibilityPrivate: string;
     statusOptions: Record<TaskStatus, string>;
   };
 }
@@ -118,6 +121,28 @@ export function TasksViewFilters({
           },
         ],
       });
+
+      nextSections.push({
+        id: "visibility",
+        label: labels.visibilityLabel,
+        icon: Eye,
+        value: filters.visibility,
+        onChange: (visibility) =>
+          handleFilterChange({
+            visibility:
+              (visibility as TaskVisibility | null) ?? TaskVisibility.PUBLIC,
+          }),
+        options: [
+          {
+            value: TaskVisibility.PUBLIC,
+            label: labels.visibilityPublic,
+          },
+          {
+            value: TaskVisibility.PRIVATE,
+            label: labels.visibilityPrivate,
+          },
+        ],
+      });
     }
 
     nextSections.push({
@@ -193,6 +218,9 @@ export function TasksViewFilters({
     labels.scopeWorkspace,
     labels.statusLabel,
     labels.statusOptions,
+    labels.visibilityLabel,
+    labels.visibilityPrivate,
+    labels.visibilityPublic,
   ]);
 
   return (

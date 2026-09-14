@@ -38126,6 +38126,10 @@ export type GetTasksData = {
          */
         sort?: 'nextRunAt';
         /**
+         * Filter by task visibility. Defaults to PUBLIC (product default). PRIVATE still respects the caller visibility predicate.
+         */
+        visibility?: 'PUBLIC' | 'PRIVATE';
+        /**
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;

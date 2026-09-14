@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma, TaskStatus } from "@sokosumi/database";
+import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -104,6 +104,16 @@ const taskSortQuerySchema = z
     example: "nextRunAt",
   });
 
+const taskVisibilityQuerySchema = z
+  .enum(TaskVisibility)
+  .default(TaskVisibility.PUBLIC)
+  .openapi({
+    param: { name: "visibility", in: "query" },
+    description:
+      "Filter by task visibility. Defaults to PUBLIC (product default). PRIVATE still respects the caller visibility predicate.",
+    example: TaskVisibility.PUBLIC,
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
@@ -111,6 +121,7 @@ const query = z
     scope: taskScopeQuerySchema,
     projectId: projectIdQuerySchema,
     sort: taskSortQuerySchema,
+    visibility: taskVisibilityQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -188,6 +199,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope,
       sort,
       status: statuses,
+      visibility,
     } = queryParams;
     const statusWhere = buildTaskListStatusWhere({
       statuses,
@@ -238,6 +250,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           {
             archivedAt: null,
             workspaceId: workspaceContext.workspaceId,
+            visibility,
             AND: [listAccessFilter],
             ...(scope === "owned"
               ? { ownerId: authContext.context.userId }
@@ -254,6 +267,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where = applyTaskListStatusWhere(
           {
             archivedAt: null,
+            visibility,
             AND: [listAccessFilter],
             ...projectFilter,
             ...searchFilter,
@@ -274,6 +288,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: authContext.workspaceId,
           assigneeSokoBotId: authContext.sokoBotId,
           status: { not: TaskStatus.DRAFT },
+          visibility,
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
           ...searchFilter,
@@ -287,6 +302,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
+          visibility,
           AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
           ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
           ...(assigneeId ? { assigneeId } : {}),
