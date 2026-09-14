@@ -86,3 +86,11 @@ With the retained boundary fix, Release room rich-text layout p95 was 24.298 ms 
 A separate experiment moved the remaining room message/gap reads outside the lazy builder. The fixture compiled and passed (`/tmp/scroll-hoisted-final.log`), but room rich-text layout p95 was 23.309 ms and total step p95 41.365 ms—no meaningful improvement over the repeated baseline. That experiment was discarded. Do not infer that arbitrary local bindings necessarily break laziness from the earlier review note.
 
 The retained code change remains boundary coalescing. Live verification of the user's affected chat is still outstanding, and additional architectural changes require evidence from that scenario. The controlled fixture does not yet reproduce the reported severity reliably.
+
+## Live capture after boundary coalescing
+
+On September 14 at 17:54 CEST, captured the Xcode-launched app (PID 97060) with `sample 97060 15 1 -file /tmp/sokosumi-scroll-live-97060.sample`. A second, older app was running from `/private/tmp/Sokosumi-4571-DerivedData`; it was not sampled. The user confirmed clear visible stutter during the capture in the Xcode-launched app. This establishes that boundary coalescing has not resolved the reported problem.
+
+Of 10,282 main-thread samples, 4,709 ended in the Mach message wait. A traversal counting only the outermost matching stack within each category found 3,561 samples in view layout/render paths and 1,441 in AttributeGraph update paths. These categories overlap and must not be added together. Image-decoding matches on the main thread numbered only two; this capture does not justify blaming main-thread image decoding. Sampling does not provide individual presented-frame times or identify which state mutation started a layout pass.
+
+Next diagnostic target: correlate transcript state changes and rich-body measurement with expensive layout passes. Preserve the complete-line clipping behavior while testing one cause at a time. Separately, CI run `34863501053` reported two failing scrolling-fixture cases without assertion details in the console or an uploaded result bundle; reproduce the full app suite before treating those checks as reliable evidence.
