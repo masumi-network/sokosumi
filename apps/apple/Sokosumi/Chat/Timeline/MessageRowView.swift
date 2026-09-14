@@ -122,6 +122,17 @@ import SwiftUI
       }
     }
 
+    private var pinnedLabel: some View {
+      Label {
+        Text("Pinned", tableName: "ChatPins", comment: "A channel message that is pinned.")
+      } icon: {
+        Image(systemName: "pin.fill")
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .fixedSize()
+    }
+
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
         if isContinuation {
@@ -134,8 +145,8 @@ import SwiftUI
         // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
         // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
-          if isPinned {
-            Label("Pinned", systemImage: "pin.fill").font(.caption).foregroundStyle(.secondary)
+          if isContinuation, isPinned, message.deletedAt == nil {
+            pinnedLabel
           }
           if !isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -151,6 +162,9 @@ import SwiftUI
                 Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
+              }
+              if isPinned, message.deletedAt == nil {
+                pinnedLabel
               }
             }
           }

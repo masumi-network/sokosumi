@@ -1578,6 +1578,32 @@ extension WorkspaceStateTests {
 }
 
 extension WorkspaceStateTests {
+  @Test func messagePinStatusDoesNotDependOnLoadedPinPages() async throws {
+    let body = transcriptMessage(id: "pin", roomId: "room", content: "Pinned")
+      .replacingOccurrences(of: "\"editedAt\":null", with: "\"editedAt\":null,\"pinnedAt\":\"\(timestamp)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [body], nextCursor: nil))
+    ], visible: false)
+    state.timeline.reset(roomId: "room")
+    try await state.timeline.loadPage(.initial, client: #require(state.resolveClient(auth: auth)),
+                                      organizationSlug: nil, generation: state.timeline.generation)
+    var message = try #require(state.timeline.messages.first)
+    #expect(message.pinnedAt != nil)
+    #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
+    #expect(state.pins.items.isEmpty)
+    #expect(state.isPinned(message))
+    state.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: false)
+    #expect(!state.isPinned(message))
+    message.pinnedAt = nil
+    state.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: true)
+    #expect(state.isPinned(message))
+    message.deletedAt = Date()
+    #expect(!state.isPinned(message))
+    state.timeline.reset(roomId: "other")
+    message.deletedAt = nil
+    #expect(!state.isPinned(message))
+  }
+
   @Test func pinMutationsUpdateOnlyAfterSuccess() async throws {
     let (state, auth, transport, _) = try ephemeralState([
       (200, roomsBody(names: ["general"])),
@@ -1588,11 +1614,14 @@ extension WorkspaceStateTests {
     let room = try #require(state.rooms.first)
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
+    var message = chatRoomMessage(from: .init(clientTurnId: "pin", roomId: room.id, content: "Pinned",
+                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    message.id = "message"
     try await state.setPinned(true, messageId: "message", auth: auth)
-    #expect(state.isPinned("message"))
+    #expect(state.isPinned(message))
     #expect(state.rooms.first?.pinnedMessageCount == 1)
     await #expect(throws: (any Error).self) { try await state.setPinned(false, messageId: "message", auth: auth) }
-    #expect(state.isPinned("message"))
+    #expect(state.isPinned(message))
     #expect(!state.isUpdatingPin("message"))
     #expect(transport.operationIDs.last == "delete/chats/rooms/{id}/messages/{messageId}/pin")
   }

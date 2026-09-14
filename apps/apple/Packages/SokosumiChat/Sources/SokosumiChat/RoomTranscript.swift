@@ -54,6 +54,8 @@ public extension ChatService {
       throw try ChatServiceError.unprocessable(statusCode: 422, message: invalid.body.json.message)
     case let .internalServerError(serverError):
       throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+    case let .tooManyRequests(value):
+      throw try ChatServiceError.unprocessable(statusCode: 429, message: value.body.json.message)
     case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }

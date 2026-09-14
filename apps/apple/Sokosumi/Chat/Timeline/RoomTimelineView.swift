@@ -193,7 +193,7 @@ import SwiftUI
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message.id),
+                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
                                  onDelete: deletionAction(for: message),
@@ -307,7 +307,7 @@ import SwiftUI
 
     private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
-      return { try await workspaces.setPinned(!workspaces.isPinned(message.id), messageId: message.id, auth: auth) }
+      return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id, auth: auth) }
     }
 
     private func completeVisibleJump(_ target: String) {
