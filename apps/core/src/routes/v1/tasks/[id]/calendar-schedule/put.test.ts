@@ -57,6 +57,7 @@ vi.mock("@/helpers/access-control", () => ({
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+  requireOpenCalendarProject: vi.fn(),
 }));
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
