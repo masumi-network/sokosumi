@@ -29,6 +29,10 @@ import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
+import {
+  buildHumanTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -270,6 +274,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: authContext.workspaceId,
           assigneeSokoBotId: authContext.sokoBotId,
           status: { not: TaskStatus.DRAFT },
+          AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
           ...searchFilter,
         },
@@ -282,6 +287,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
+          AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
           ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
           ...(assigneeId ? { assigneeId } : {}),
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),

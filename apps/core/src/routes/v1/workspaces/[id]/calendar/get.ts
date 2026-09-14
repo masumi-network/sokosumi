@@ -12,6 +12,7 @@ import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -132,6 +133,9 @@ export async function getCalendarTaskWhere(
   }
 
   if (authContext.actor !== "coworker") {
+    if (authContext.actor === "user") {
+      return buildHumanTaskVisibilityWhere(authContext.userId);
+    }
     return undefined;
   }
 

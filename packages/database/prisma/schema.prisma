@@ -2431,6 +2431,10 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
+  /// Workspace-visible vs creator-private. Set at create; immutable in v1.
+  /// Private is meaningful only in organization workspaces (SOK-1046).
+  visibility TaskVisibility @default(PUBLIC)
+
   /// Marketplace coworker assignee. XOR with assigneeSokoBotId (DB check).
   assigneeId String?
   assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -2502,6 +2506,7 @@ model Task {
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
+  @@index([workspaceId, visibility])
   @@map("task")
 }
 
@@ -2799,6 +2804,11 @@ enum TaskStatus {
   COMPLETED
   FAILED
   CANCELED
+}
+
+enum TaskVisibility {
+  PUBLIC
+  PRIVATE
 }
 
 enum Channel {

@@ -710,6 +710,37 @@ describe("getPublicSharedResourceByToken", () => {
     });
   });
 
+  it("returns null for private shared tasks", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_private_task",
+      taskId: "tsk_private",
+      jobId: null,
+      token: "private-task-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      job: null,
+      task: {
+        id: "tsk_private",
+        visibility: "PRIVATE",
+        archivedAt: null,
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:10:00.000Z"),
+        name: "Private shared task",
+        description: null,
+        status: "READY",
+        assignee: null,
+        jobs: [],
+        files: [],
+        events: [],
+      },
+    });
+
+    await expect(
+      getPublicSharedResourceByToken("private-task-token"),
+    ).resolves.toBeNull();
+  });
+
   it("returns null for archived shared tasks", async () => {
     publicShareFindUniqueMock.mockResolvedValue({
       id: "share_archived_task",

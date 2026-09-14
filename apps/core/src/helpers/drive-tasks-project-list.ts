@@ -1,4 +1,4 @@
-import { TaskFileOrigin, TaskFileStatus, TaskStatus } from "@sokosumi/database";
+import { TaskFileOrigin, TaskFileStatus, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
@@ -51,17 +51,31 @@ function buildCoworkerTaskAccessSql(
   `;
 }
 
+function buildHumanTaskVisibilitySql(userId: string): PrismaRaw.Sql {
+  return PrismaRaw.sql`
+    AND (
+      t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+      OR (
+        t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+        AND t."ownerId" = ${userId}
+      )
+    )
+  `;
+}
+
 function buildProjectTaskFilters(params: {
   workspaceId: string;
   projectId: string | null;
   assigneeId?: string;
   assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
+  readerUserId?: string;
 }): {
   assigneeFilter: PrismaRaw.Sql;
   projectFilter: PrismaRaw.Sql;
   coworkerFilter: PrismaRaw.Sql;
   sokoBotFilter: PrismaRaw.Sql;
+  humanVisibilityFilter: PrismaRaw.Sql;
   baseWhere: PrismaRaw.Sql;
 } {
   const assigneeFilter = params.assigneeId
@@ -77,6 +91,12 @@ function buildProjectTaskFilters(params: {
   const sokoBotFilter = params.assigneeSokoBotId
     ? PrismaRaw.sql`AND t."assigneeSokoBotId" = ${params.assigneeSokoBotId}::uuid AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`
     : PrismaRaw.empty;
+  const humanVisibilityFilter =
+    params.readerUserId &&
+    !params.coworkerAccess &&
+    !params.assigneeSokoBotId
+      ? buildHumanTaskVisibilitySql(params.readerUserId)
+      : PrismaRaw.empty;
 
   const baseWhere = PrismaRaw.sql`
     FROM task t
@@ -96,6 +116,7 @@ function buildProjectTaskFilters(params: {
       ${assigneeFilter}
       ${coworkerFilter}
       ${sokoBotFilter}
+      ${humanVisibilityFilter}
   `;
 
   return {
@@ -103,6 +124,7 @@ function buildProjectTaskFilters(params: {
     projectFilter,
     coworkerFilter,
     sokoBotFilter,
+    humanVisibilityFilter,
     baseWhere,
   };
 }
@@ -147,6 +169,7 @@ export async function fetchProjectTasksPage(params: {
   assigneeId?: string;
   assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
+  readerUserId?: string;
   cursor?: string;
   take: number;
   sort?: DriveListSort | null;

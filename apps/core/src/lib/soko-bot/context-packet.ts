@@ -13,6 +13,7 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { buildCreditsPayload } from "@/helpers/subscription";
+import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 
 const LIMITS = {
@@ -556,7 +557,11 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.task.findMany({
-        where: { workspaceId: input.workspaceId, archivedAt: null },
+        where: {
+          workspaceId: input.workspaceId,
+          archivedAt: null,
+          ...buildSokoBotOwnerTaskVisibilityWhere(input.userId),
+        },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: LIMITS.tasks,
         select: {
@@ -580,6 +585,7 @@ export class ContextPacketBuilder {
               fromTask: {
                 workspaceId: input.workspaceId,
                 archivedAt: null,
+                ...buildSokoBotOwnerTaskVisibilityWhere(input.userId),
               },
             },
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -598,6 +604,7 @@ export class ContextPacketBuilder {
                   fromTask: {
                     workspaceId: input.workspaceId,
                     archivedAt: null,
+                    ...buildSokoBotOwnerTaskVisibilityWhere(input.userId),
                   },
                 },
               },
@@ -715,7 +722,11 @@ export class ContextPacketBuilder {
       billingPromise,
       prisma.project.count({ where: { workspaceId: input.workspaceId } }),
       prisma.task.count({
-        where: { workspaceId: input.workspaceId, archivedAt: null },
+        where: {
+          workspaceId: input.workspaceId,
+          archivedAt: null,
+          ...buildSokoBotOwnerTaskVisibilityWhere(input.userId),
+        },
       }),
       prisma.coworker.count({
         where: {

@@ -5,6 +5,7 @@ import {
   type Task,
   type TaskScheduleEventKind,
   TaskStatus,
+  TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
 import {
@@ -21,7 +22,7 @@ import {
   requireTaskAssignableUser,
   type TaskAssigner,
 } from "@/helpers/access-control";
-import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
+import { badRequest, forbidden, notFound, unprocessableEntity } from "@/helpers/error";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import {
   isGrantDeniedOrRevoked,
@@ -54,6 +55,11 @@ export interface CreateTaskDomainInput {
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   assigneeAuthorization?: TaskAssigner;
+  /**
+   * Organization workspaces only. Personal workspaces must omit / stay PUBLIC.
+   * Immutable after create.
+   */
+  visibility?: "PUBLIC" | "PRIVATE";
   status:
     | typeof TaskStatus.DRAFT
     | typeof TaskStatus.QUEUED
@@ -306,6 +312,17 @@ export async function createTaskForActor(
       ? (input.description ?? null)
       : await input.resolveDescription(tx);
 
+  const visibility =
+    input.visibility === "PRIVATE" && input.organizationId != null
+      ? TaskVisibility.PRIVATE
+      : TaskVisibility.PUBLIC;
+
+  if (input.visibility === "PRIVATE" && input.organizationId == null) {
+    throw badRequest(
+      "Private Tasks are only allowed in organization workspaces",
+    );
+  }
+
   return tx.task.create({
     data: {
       ownerId: input.ownerId,
@@ -319,6 +336,7 @@ export async function createTaskForActor(
       assigneeUserId: input.assigneeUserId ?? null,
       ...creatorFields(input.actor),
       status,
+      visibility,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       metadata: input.schedule ? JSON.stringify(input.schedule.metadata) : null,

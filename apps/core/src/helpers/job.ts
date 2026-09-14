@@ -57,6 +57,7 @@ import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent-cost";
 import { badRequest, notFound, unprocessableEntity } from "./error";
+import { buildHumanParentTaskVisibilityWhere } from "./task-visibility";
 import { getCents } from "./user";
 
 export interface JobContext {
@@ -976,12 +977,29 @@ export async function getUserJobs(
     await requireCoworkerCapability(coworkerId, "tasks", tx);
   }
 
+  const humanParentTaskVisibility =
+    coworkerId || sokoBotId
+      ? []
+      : [
+          {
+            OR: [
+              { taskId: null },
+              {
+                task: {
+                  is: buildHumanParentTaskVisibilityWhere(userContext.userId),
+                },
+              },
+            ],
+          },
+        ];
+
   const where: Prisma.JobWhereInput = {
     AND: [
       {
         workspaceId: workspaceContext.workspaceId,
         ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
       },
+      ...humanParentTaskVisibility,
       ...(agentId ? [{ agentId }] : []),
       ...(projectId !== undefined ? [{ projectId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),

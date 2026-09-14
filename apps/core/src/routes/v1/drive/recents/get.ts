@@ -26,6 +26,7 @@ import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import {
@@ -109,6 +110,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         some: DRIVE_TASK_FILE_WHERE,
       },
     };
+
+    if (
+      !isCoworkerAuthContext(authContext) &&
+      !isSokoBotAuthContext(authContext)
+    ) {
+      baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
+    }
 
     if (isSokoBotAuthContext(authContext)) {
       baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;

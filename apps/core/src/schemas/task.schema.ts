@@ -1,10 +1,10 @@
 import { z } from "@hono/zod-openapi";
-import { Channel, TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
+import { Channel, TaskScheduleEventKind, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
-import { channelSchema, taskStatusSchema } from "@/schemas/domain-enums.schema";
+import { channelSchema, taskStatusSchema, taskVisibilitySchema } from "@/schemas/domain-enums.schema";
 import {
   createJobRequestSchema,
   jobSummariesSchema,
@@ -309,6 +309,11 @@ const taskBaseSchema = z.object({
     example: TaskStatus.READY,
     description:
       "GRANT_PENDING: blocked until vendor workspace access is granted.",
+  }),
+  visibility: taskVisibilitySchema.openapi({
+    example: TaskVisibility.PUBLIC,
+    description:
+      "PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.",
   }),
   grantResumeStatus: z.enum(["DRAFT", "READY"]).nullable().openapi({
     description:

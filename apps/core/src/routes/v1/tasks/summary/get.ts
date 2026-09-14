@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -99,6 +100,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceId: workspaceContext.workspaceId,
     };
     const ownerWhere = scope === "owned" ? { ownerId: userContext.userId } : {};
+    const visibilityWhere = buildHumanTaskVisibilityWhere(userContext.userId);
     const withinWindow = { updatedAt: { gte: sinceDate } };
 
     // Time in progress, reconstructed from status-transition events: each
@@ -109,6 +111,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope === "owned"
         ? PrismaRaw.sql`AND t."ownerId" = ${userContext.userId}`
         : PrismaRaw.empty;
+    const visibilityFilter = PrismaRaw.sql`
+      AND (
+        t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+        OR (
+          t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+          AND t."ownerId" = ${userContext.userId}
+        )
+      )
+    `;
 
     const [completed, awaitingInput, createdByOtherHumans, workedRows] =
       await Promise.all([
@@ -116,6 +127,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           where: {
             ...workspaceWhere,
             ...ownerWhere,
+            ...visibilityWhere,
             status: TaskStatus.COMPLETED,
             // Task has no completedAt column, so the last write stands in for the
             // completion time. A COMPLETED task is terminal, so in practice its
@@ -127,6 +139,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           where: {
             ...workspaceWhere,
             ...ownerWhere,
+            ...visibilityWhere,
             // Point-in-time: "waiting on you right now", so the window does not
             // apply. Something blocked since last month still needs answering.
             status: { in: [...TASK_AWAITING_INPUT_STATUSES] },
@@ -141,6 +154,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 // this narrows to "tasks I own that a teammate created";
                 // under `workspace` it is a no-op.
                 ...ownerWhere,
+                ...visibilityWhere,
                 creatorUserId: { not: userContext.userId },
                 NOT: { creatorUserId: null },
                 createdAt: { gte: sinceDate },
@@ -193,6 +207,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           WHERE t."archivedAt" IS NULL
             AND t."workspaceId" = ${workspaceContext.workspaceId}
             ${ownerFilter}
+            ${visibilityFilter}
             -- Skip tasks that cannot contribute a RUNNING span in/after the
             -- window: still-running, recently written, or with a status event
             -- inside the window. Avoids lateral work over the full archive.

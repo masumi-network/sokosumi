@@ -26,6 +26,7 @@ import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
@@ -232,6 +233,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         some: DRIVE_TASK_FILE_WHERE,
       },
     };
+
+    if (
+      !isCoworkerAuthContext(authContext) &&
+      !isSokoBotAuthContext(authContext)
+    ) {
+      baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
+    }
 
     if (isSokoBotAuthContext(authContext)) {
       baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
@@ -630,6 +638,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? { assigneeSokoBotId: authContext.sokoBotId }
           : {}),
         ...(coworkerAccess ? { coworkerAccess } : {}),
+        ...(!isCoworkerAuthContext(authContext) &&
+        !isSokoBotAuthContext(authContext)
+          ? { readerUserId: userContext.userId }
+          : {}),
         ...(cursor ? { cursor } : {}),
         take,
         sort,

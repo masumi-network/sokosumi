@@ -6,6 +6,7 @@ import {
   type Prisma,
   type Task,
   TaskStatus,
+  TaskVisibility,
   type VendorGrant,
   VendorGrantStatus,
   VendorPermission,
@@ -609,17 +610,30 @@ export function buildCoworkerTaskListAccessFilter(params: {
   vendorId: string;
   hasWorkspaceGrant: boolean;
 }): Prisma.TaskWhereInput {
-  if (params.hasWorkspaceGrant) {
-    return {
-      status: { not: TaskStatus.DRAFT },
-    };
-  }
-
-  return {
+  const baseline: Prisma.TaskWhereInput = {
     status: { not: TaskStatus.DRAFT },
     OR: [
       { assigneeId: params.coworkerId },
       {
+        assigneeId: { not: params.coworkerId },
+        assignee: { vendorId: params.vendorId },
+      },
+    ],
+  };
+
+  if (!params.hasWorkspaceGrant) {
+    return baseline;
+  }
+
+  // GRANTED opens public non-draft workspace Tasks, but not other members'
+  // private Tasks (SOK-1046). Private stays on the baseline vendor-family seam.
+  return {
+    status: { not: TaskStatus.DRAFT },
+    OR: [
+      { visibility: TaskVisibility.PUBLIC },
+      { visibility: TaskVisibility.PRIVATE, assigneeId: params.coworkerId },
+      {
+        visibility: TaskVisibility.PRIVATE,
         assigneeId: { not: params.coworkerId },
         assignee: { vendorId: params.vendorId },
       },
