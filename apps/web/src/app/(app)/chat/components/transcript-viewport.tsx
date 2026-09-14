@@ -275,15 +275,20 @@ export function TranscriptViewport({
       }
       height = scroller.clientHeight;
       if (atEndRef.current) {
-        scroller.scrollTop =
+        const offset =
           scroller.scrollHeight - height - distanceFromEndRef.current;
+        // The virtualizer learns of a scroll from the event a frame later.
+        // A row it measures before then would be compensated against the
+        // old offset and undo this write, so it is told the offset now.
+        virtualizer.scrollOffset = offset;
+        scroller.scrollTop = offset;
       }
     });
     observer.observe(scroller);
     return () => {
       observer.disconnect();
     };
-  }, [scroller]);
+  }, [scroller, virtualizer]);
 
   // Under a hold an append leaves the view where it was with the new row
   // below it, and no scroll event says so. Re-read once the rows change.
