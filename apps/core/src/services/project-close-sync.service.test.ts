@@ -1,4 +1,8 @@
-import { ProjectCloseOperationState, TaskStatus } from "@sokosumi/database";
+import {
+  Prisma,
+  ProjectCloseOperationState,
+  TaskStatus,
+} from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -270,7 +274,7 @@ describe("project close sync", () => {
       },
       data: {
         attempts: 0,
-        failureSummary: null,
+        failureSummary: Prisma.DbNull,
         leasedAt: expect.any(Date),
       },
     });
