@@ -10,6 +10,9 @@ import SwiftUI
     @StateObject private var commands = MacComposerCommands()
     @State private var toolbarVisible = ComposerPreferences().toolbarVisible
     let submit: () -> Bool
+    var focusRequest: String?
+    var cancelEdit: (() -> Void)?
+    var onBlur: (() -> Void)?
     var placeholder = "Message"
     var canSend = true
     var content = ComposerContent("")
@@ -22,7 +25,7 @@ import SwiftUI
 
     var body: some View {
       ComposerLayout {
-        MacComposerTextInput(text: $text, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage)
+        MacComposerTextInput(text: $text, submitOnModifier: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage)
       } formatting: {
         if toolbarVisible {
           ComposerFormatToolbar(commands: commands)
@@ -63,16 +66,32 @@ import SwiftUI
             .foregroundStyle(content.isTooLong ? .red : .secondary)
             .accessibilityLabel("Message length: \(content.count) of \(ComposerContent.maximumLength)")
         }
-        Button("Send", systemImage: "arrow.up") { _ = submit() }
-          .labelStyle(.iconOnly)
-          .buttonStyle(.borderedProminent)
-          .buttonBorderShape(.circle)
-          .disabled(!canSend)
-          .help("Send message")
+        if let cancelEdit {
+          Button("Cancel", action: cancelEdit)
+          Button("Save") { _ = submit() }.buttonStyle(.borderedProminent).disabled(!canSend)
+        } else {
+          Button("Send", systemImage: "arrow.up") { _ = submit() }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.circle)
+            .disabled(!canSend)
+            .help("Send message")
+        }
       }
       .overlay(alignment: .topLeading) {
         if !commands.mentionOptions.isEmpty || !commands.emojiOptions.isEmpty || !commands.channelOptions.isEmpty {
           ComposerSuggestionsView(channels: commands.channelOptions, acceptChannel: commands.acceptChannel, mentions: commands.mentionOptions, emojis: commands.emojiOptions, acceptEmoji: commands.acceptEmoji, selectedID: $commands.selectedSuggestionID, accept: commands.acceptMention)
+        }
+      }
+      .task {
+        if cancelEdit != nil {
+          commands.focusAtEnd()
+        }
+      }
+      .onChange(of: focusRequest) { _, request in
+        guard request != nil else { return }
+        Task { @MainActor in
+          commands.focus()
         }
       }
       .sheet(item: $commands.linkEditor) { editor in

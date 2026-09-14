@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import {
   type Prisma,
@@ -19,6 +19,10 @@ import {
   validateScheduleInput,
 } from "@/helpers/task-schedule";
 import { replaceTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
+import {
+  canonicalTaskScheduleInput,
+  createTaskScheduleRequestFingerprint,
+} from "@/helpers/task-schedule-operation";
 import {
   getWorkspaceGrant,
   throwGrantAccessError,
@@ -71,23 +75,8 @@ function createScheduledTaskRequestFingerprint(
 ): string {
   const projectId =
     input.source.type === "project" ? input.source.projectId : null;
-  const schedule =
-    input.schedule.mode === "once"
-      ? {
-          mode: "once",
-          runAt: input.schedule.runAt,
-        }
-      : {
-          mode: "recurring",
-          expr: input.schedule.expr,
-          timezone: input.schedule.timezone,
-          endsMode: input.schedule.endsMode,
-          endsOn: input.schedule.endsOn ?? null,
-          occurrences: input.schedule.occurrences ?? null,
-          intervalDays: input.schedule.intervalDays ?? null,
-          anchorAt: input.schedule.anchorAt ?? null,
-        };
-  const canonicalPayload = JSON.stringify({
+
+  return createTaskScheduleRequestFingerprint({
     workspaceId: input.workspaceId,
     source: {
       type: projectId ? "project" : "workspace",
@@ -99,10 +88,8 @@ function createScheduledTaskRequestFingerprint(
       name: input.name,
       description: input.description ?? null,
     },
-    schedule,
+    schedule: canonicalTaskScheduleInput(input.schedule),
   });
-
-  return createHash("sha256").update(canonicalPayload, "utf8").digest("hex");
 }
 
 /**

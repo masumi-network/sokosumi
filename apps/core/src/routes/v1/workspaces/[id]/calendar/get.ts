@@ -5,6 +5,8 @@ import {
   TaskScheduleOccurrenceState,
   TaskStatus,
 } from "@sokosumi/database";
+import { parseTaskScheduleMetadata } from "@sokosumi/utils";
+
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
@@ -341,6 +343,7 @@ export async function readWorkspaceCalendar(
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
       select: {
         id: true,
+        scheduleVersion: true,
         seriesTaskId: true,
         originalScheduledAt: true,
         effectiveScheduledAt: true,
@@ -359,6 +362,8 @@ export async function readWorkspaceCalendar(
             status: true,
             assigneeId: true,
             assigneeUserId: true,
+            metadata: true,
+            scheduleRevision: true,
           },
         },
         releasedTask: {
@@ -386,13 +391,21 @@ export async function readWorkspaceCalendar(
         occurrence.releasedTask
           ? occurrence.releasedTask
           : occurrence.seriesTask;
+      const schedule = parseTaskScheduleMetadata(
+        occurrence.seriesTask.metadata,
+      );
+      const canEditSchedule =
+        occurrence.state !== TaskScheduleOccurrenceState.RELEASED &&
+        task.ownerId === userId;
 
       return workspaceCalendarItemSchema.parse({
         id: occurrence.id,
         taskId: task.id,
-        canEditSchedule:
-          occurrence.state !== TaskScheduleOccurrenceState.RELEASED &&
-          task.ownerId === userId,
+        canEditSchedule,
+        canMoveOccurrence:
+          canEditSchedule &&
+          (occurrence.scheduleVersion === 2 || schedule?.mode === "once"),
+        scheduleRevision: occurrence.seriesTask.scheduleRevision,
         taskName: task.name,
         taskStatus: task.status,
         taskAssigneeId: task.assigneeId,

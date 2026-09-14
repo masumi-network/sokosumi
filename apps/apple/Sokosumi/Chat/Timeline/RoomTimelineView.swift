@@ -15,11 +15,19 @@ import SwiftUI
     @State private var transcriptWasAwayFromTop = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var userIsScrolling = false
+    @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
+    @State private var quoteTarget: String?
+    @State private var quoteFocusRequest: String?
 
     let roomId: String
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
+    }
+
+    private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { try await workspaces.deleteMessage(message, auth: auth) }
     }
 
     var body: some View {
@@ -28,11 +36,13 @@ import SwiftUI
         ChatComposerView(
           userId: workspaces.currentUserId,
           organizationId: workspaces.selection?.workspace.organizationId,
-          roomId: roomId
+          roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
         )
         .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
       }
       .onChange(of: roomId) { _, _ in
+        pendingQuote = nil
+        quoteTarget = nil
         transcriptWasAwayFromTop = false
         scrollIntent = TimelineScrollIntent()
       }
@@ -60,12 +70,11 @@ import SwiftUI
     }
 
     private var messageList: some View {
-      // Eager stack so the bottom anchor has real last-row geometry on first
-      // paint. LazyVStack estimated a tall empty clip; scrolling up realized
-      // rows and the blank collapsed. First page is 100 messages.
+      // Realize nearby rows only: laying out every rich message makes each
+      // scroll event expensive. Keep each message unary and anchored by ID.
       ScrollViewReader { proxy in
         ScrollView {
-          VStack(alignment: .leading, spacing: 0) {
+          LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
               Button("Load older messages") {
                 scrollIntent.readOlder()
@@ -116,6 +125,13 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                                 onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                                   quoteFocusRequest = UUID().uuidString
+                                 } : nil,
+                                 onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                                 onDelete: deletionAction(for: message),
+                                 editing: workspaces.messageEditing,
+                                 onQuoteJump: { id in quoteTarget = id },
                                  horizontalInset: 12,
                                  streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
@@ -132,6 +148,13 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
+        .onChange(of: quoteTarget) { _, target in
+          guard let target else { return }
+          quoteTarget = nil
+          guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else { return }
+          scrollIntent.readOlder()
+          proxy.scrollTo(target, anchor: .center)
+        }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating
         }

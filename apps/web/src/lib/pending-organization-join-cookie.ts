@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 export const PENDING_ORGANIZATION_JOIN_COOKIE_NAME =
   "sokosumi_pending_org_join";
 
-export function isUsableJoinToken(token: string): boolean {
+function isUsableJoinToken(token: string): boolean {
   return token.length > 0 && token.length <= 256 && !/\s/.test(token);
 }
 

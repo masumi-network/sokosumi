@@ -42,13 +42,6 @@ export function isAdminAccessRequiredError(
 }
 
 /**
- * The session could not be read, so we do not know whether the user is signed
- * in. Distinct from `UnAuthenticatedError` on purpose: the error boundary
- * redirects that one to /signin, which is the wrong answer for a Core stall -
- * it reads as a logout to a user whose session is fine and throws away what
- * they were doing. This one falls through to the normal retryable error UI.
- */
-/**
  * The outage's counterpart to `UNAUTHENTICATED_ERROR_DIGEST`, and for the same
  * reason: `reason` and the name are gone by the time a deployed browser sees
  * this error, so the boundary had no way to tell a Core stall from a bug and

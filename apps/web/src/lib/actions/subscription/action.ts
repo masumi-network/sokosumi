@@ -21,8 +21,6 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-export type { SubscriptionChangeResult } from "@/lib/auth/subscription.server";
-
 export async function upgradePersonalSubscription({
   plan,
   returnPath,

@@ -8,6 +8,10 @@ import {
   cloneElement,
   isValidElement,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+  type Ref,
+  useCallback,
+  useRef,
 } from "react";
 
 import { AuroraOrb } from "@/components/aurora-orb";
@@ -48,6 +52,13 @@ interface ChatParticipantHoverCardProps {
    * a link/row that already owns activation). Still hoverable.
    */
   interactive?: boolean;
+  /**
+   * When false, only the trigger renders (same element, same focus
+   * semantics) and no hover-card root or content is mounted. Transcript rows
+   * pass this so a row that was never hovered or focused skips two Radix
+   * roots. Defaults to true.
+   */
+  active?: boolean;
   openDelay?: number;
   closeDelay?: number;
 }
@@ -59,6 +70,9 @@ interface TriggerChildProps {
   tabIndex?: number;
   "aria-label"?: string;
   "aria-hidden"?: boolean | "true" | "false";
+  ref?: Ref<HTMLElement>;
+  onPointerEnter?: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerLeave?: (event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 function renderHoverTrigger({
@@ -67,12 +81,18 @@ function renderHoverTrigger({
   className,
   style,
   interactive,
+  triggerRef,
+  onPointerEnter,
+  onPointerLeave,
 }: {
   profileName: string;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
   interactive: boolean;
+  triggerRef: Ref<HTMLElement>;
+  onPointerEnter?: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerLeave?: (event: ReactPointerEvent<HTMLElement>) => void;
 }) {
   const childItems = Children.toArray(children).filter((child) => {
     if (typeof child === "string" || typeof child === "number") {
@@ -109,17 +129,23 @@ function renderHoverTrigger({
         singleChild.props.className,
         className,
       ),
+      ref: triggerRef,
+      onPointerEnter,
+      onPointerLeave,
     });
   }
 
   if (!interactive) {
     return (
       <span
+        ref={triggerRef}
         style={style}
         className={cn(
           "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none",
           className,
         )}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
       >
         {children}
       </span>
@@ -128,6 +154,7 @@ function renderHoverTrigger({
 
   return (
     <span
+      ref={triggerRef}
       role="button"
       tabIndex={0}
       aria-label={profileName}
@@ -136,6 +163,8 @@ function renderHoverTrigger({
         "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
     >
       {children}
     </span>
@@ -155,13 +184,81 @@ export function ChatParticipantHoverCard({
   isOpeningDirect = false,
   isDirectActionBusy = false,
   interactive = true,
+  active = true,
   openDelay = 200,
   closeDelay = 100,
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
+  // Activation swaps the bare trigger for the Radix one, which remounts the
+  // element. The bare trigger's ref cleanup runs before its node leaves the
+  // DOM, so it can still see whether it held focus; the Radix trigger then
+  // takes focus as soon as it attaches. Reading activeElement at cleanup
+  // rather than tracking blur matters because some browsers fire blur when
+  // a focused node is removed. The same swap misses pointerenter when the
+  // pointer is already on the trigger, so attach replays pointerover (the
+  // native event React maps to onPointerEnter) and Radix opens as usual.
+  const restoreFocus = useRef(false);
+  const hoveredBare = useRef(false);
+  const bareTriggerRef = useCallback((node: HTMLElement | null) => {
+    if (!node) {
+      return;
+    }
+    return () => {
+      restoreFocus.current = document.activeElement === node;
+    };
+  }, []);
+  const rememberBareHover = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.pointerType === "touch") {
+        return;
+      }
+      hoveredBare.current = true;
+    },
+    [],
+  );
+  const forgetBareHover = useCallback(() => {
+    hoveredBare.current = false;
+  }, []);
+  const focusOnAttach = useCallback((node: HTMLElement | null) => {
+    if (!node) {
+      return;
+    }
+    if (restoreFocus.current) {
+      restoreFocus.current = false;
+      node.focus();
+    }
+    if (!hoveredBare.current) {
+      return;
+    }
+    hoveredBare.current = false;
+    queueMicrotask(() => {
+      if (!node.isConnected) {
+        return;
+      }
+      node.dispatchEvent(
+        new PointerEvent("pointerover", {
+          bubbles: true,
+          pointerType: "mouse",
+        }),
+      );
+    });
+  }, []);
 
   if (!profile) {
     return children;
+  }
+
+  if (!active) {
+    return renderHoverTrigger({
+      profileName: profile.name,
+      children,
+      className,
+      style,
+      interactive,
+      triggerRef: bareTriggerRef,
+      onPointerEnter: rememberBareHover,
+      onPointerLeave: forgetBareHover,
+    });
   }
 
   const isCoworker = profile.kind === "coworker";
@@ -193,6 +290,7 @@ export function ChatParticipantHoverCard({
           className,
           style,
           interactive,
+          triggerRef: focusOnAttach,
         })}
       </HoverCardTrigger>
       <HoverCardContent

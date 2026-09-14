@@ -261,7 +261,6 @@ export default function RequestRefundButton({
   const formatter = useFormatter();
   const [job, setJob] = useState(initialJob);
 
-  // Check if status has a simple configuration
   const statusConfig = STATUS_CONFIGS[job.status];
   if (statusConfig) {
     const Icon = statusConfig.icon;
@@ -277,7 +276,6 @@ export default function RequestRefundButton({
     );
   }
 
-  // Handle complex interactive states (default case)
   const { title, description } = makeTitleAndDescription(job, t, formatter);
 
   const handleRefundRequest = async (job: PaidJob) => {
@@ -302,7 +300,7 @@ export default function RequestRefundButton({
             action: {
               label: t("Errors.unauthenticatedAction"),
               onClick: () => {
-                router.push(`/login`);
+                router.push(`/signin`);
               },
             },
           });

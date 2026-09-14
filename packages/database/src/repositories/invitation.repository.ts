@@ -14,7 +14,7 @@ export const invitationRepository = {
    * Retrieves a pending invitation by its ID, regardless of expiration.
    *
    * @param id - The invitation ID.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns Promise resolving to the invitation with relations, or null if not found.
    */
   async getPendingInvitationById(

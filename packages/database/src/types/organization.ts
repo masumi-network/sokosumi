@@ -14,12 +14,6 @@ export const organizationMembersCountInclude = {
   },
 } as const;
 
-export const organizationOrderBy = {
-  members: {
-    _count: "desc",
-  },
-} as const;
-
 export const organizationInclude = {
   ...organizationMembersCountInclude,
 } as const;

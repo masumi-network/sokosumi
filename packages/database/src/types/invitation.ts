@@ -22,14 +22,6 @@ export const invitationInclude = {
   ...invitationInviterInclude,
 } as const;
 
-export type InvitationWithOrganization = Prisma.InvitationGetPayload<{
-  include: typeof invitationOrganizationInclude;
-}>;
-
-export type InvitationWithInviter = Prisma.InvitationGetPayload<{
-  include: typeof invitationInviterInclude;
-}>;
-
 export type InvitationWithRelations = Prisma.InvitationGetPayload<{
   include: typeof invitationInclude;
 }>;

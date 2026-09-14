@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-  useRef,
-} from "react";
+import { type RefObject, useRef } from "react";
 import { toast } from "sonner";
 
 import {
@@ -13,21 +8,21 @@ import {
   listRoomMessagesAction,
   listThreadMessagesAction,
 } from "@/app/chat/actions";
-import { mergeRoomMessages } from "@/app/chat/utils/merge-room-messages";
 import {
   createRoomJumpState,
   startRoomJump,
 } from "@/app/chat/utils/room-jump-hold";
-import {
-  highlightRoomTranscriptMessage,
-  highlightThreadMessage,
-} from "@/app/chat/utils/room-message-highlight";
+import { highlightThreadMessage } from "@/app/chat/utils/room-message-highlight";
 import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
 import {
   performRoomSearchJump,
   waitForSearchJumpPaint,
   waitForThreadJumpPaint,
 } from "@/app/chat/utils/room-search-jump";
+import {
+  ROOM_HISTORY_WINDOW_LIMIT,
+  type RoomTranscriptPage,
+} from "@/app/chat/utils/room-transcript-ranges";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
@@ -36,12 +31,20 @@ interface RoomMessageJumpsParams {
   topLevelRoomMessages: ChatRoomMessage[];
   threadParentMessage: ChatRoomMessage | null;
   isStillSelectedRoom: (roomId: string) => boolean;
+  /**
+   * Land on a message in the room transcript and mark it. False when the
+   * transcript has not loaded it, which is the cue to load a window on it.
+   */
+  landOnRoomMessage: (messageId: string) => boolean;
   suppressStickToBottom: () => void;
   releaseStickToBottomSuppress: () => void;
   setSearchHoldOffBottom: (hold: boolean) => void;
-  setMessagesState: Dispatch<SetStateAction<ChatRoomMessage[]>>;
-  setOlderNextCursor: (cursor: string | null) => void;
-  historicalTimelineRef: RefObject<boolean>;
+  /**
+   * Merge a window loaded around a jump target into the transcript as its
+   * own loaded range. The head stays on screen and the room stays live; a
+   * gap row marks whatever sits between the window and the rest.
+   */
+  mergeRoomJumpWindow: (page: RoomTranscriptPage) => void;
   historicalThreadRef: RefObject<boolean>;
   setThreadMessages: (messages: ChatRoomMessage[]) => void;
   setThreadOlderNextCursor: (cursor: string | null) => void;
@@ -53,12 +56,11 @@ export function useRoomMessageJumps({
   topLevelRoomMessages,
   threadParentMessage,
   isStillSelectedRoom,
+  landOnRoomMessage,
   suppressStickToBottom,
   releaseStickToBottomSuppress,
   setSearchHoldOffBottom,
-  setMessagesState,
-  setOlderNextCursor,
-  historicalTimelineRef,
+  mergeRoomJumpWindow,
   historicalThreadRef,
   setThreadMessages,
   setThreadOlderNextCursor,
@@ -68,6 +70,31 @@ export function useRoomMessageJumps({
 
   function invalidateJump() {
     jumpStateRef.current.generation += 1;
+  }
+
+  /**
+   * Load a window around one top-level message and merge it as a range.
+   * Shared by every room-level jump, so a search hit, a pinned message, and a
+   * notification all leave the transcript in the same shape.
+   */
+  async function loadRoomWindow(
+    roomId: string,
+    aroundId: string,
+    isNewestJump: () => boolean,
+  ): Promise<boolean> {
+    const result = await listRoomMessagesAction(roomId, {
+      around: aroundId,
+      limit: ROOM_HISTORY_WINDOW_LIMIT,
+    });
+    if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
+      return false;
+    }
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return false;
+    }
+    mergeRoomJumpWindow(result.value);
+    return true;
   }
 
   async function handleSearchJump(
@@ -112,22 +139,8 @@ export function useRoomMessageJumps({
       highlightInThread: (id) => isNewestJump() && highlightThreadMessage(id),
       afterThreadRender: waitForThreadJumpPaint,
       afterRoomRender: waitForSearchJumpPaint,
-      loadAroundInRoom: async (aroundId) => {
-        const result = await listRoomMessagesAction(roomId, {
-          around: aroundId,
-        });
-        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
-          return false;
-        }
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return false;
-        }
-        historicalTimelineRef.current = true;
-        setMessagesState(result.value.messages);
-        setOlderNextCursor(result.value.nextCursor);
-        return true;
-      },
+      loadAroundInRoom: (aroundId) =>
+        loadRoomWindow(roomId, aroundId, isNewestJump),
       findLoadedParent: (parentId) =>
         topLevelRoomMessages.find((message) => message.id === parentId) ??
         (threadParentMessage?.id === parentId
@@ -180,8 +193,7 @@ export function useRoomMessageJumps({
       // Answers for the transcript alone. An open thread renders its parent
       // too, and taking that copy for a landing would end a jump with the
       // transcript never moved.
-      highlightInRoom: (id) =>
-        isNewestJump() && highlightRoomTranscriptMessage(id),
+      highlightInRoom: (id) => isNewestJump() && landOnRoomMessage(id),
       loadAroundInThread: async (parentId, aroundId) => {
         const result = await listThreadMessagesAction(roomId, parentId, {
           around: aroundId,
@@ -234,36 +246,10 @@ export function useRoomMessageJumps({
       // thread renders its parent as well, so a document-wide lookup would
       // answer from the panel for a message the transcript has not loaded and
       // end the jump with the transcript untouched.
-      highlight: (id) => isNewestJump() && highlightRoomTranscriptMessage(id),
+      highlight: (id) => isNewestJump() && landOnRoomMessage(id),
       holdOffBottom,
       releaseHoldOffBottom,
-      loadAround: async (aroundId) => {
-        const result = await listRoomMessagesAction(roomId, {
-          around: aroundId,
-        });
-        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
-          return false;
-        }
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return false;
-        }
-        // Deliberately not marked historical. The window is merged, not
-        // swapped in, so the head is still on screen and the room still reads
-        // as live. Marking it would make that a lie: while the flag is on
-        // every refetch's merge is dropped, and so is every realtime message
-        // for an id the timeline does not already hold, which is every new
-        // message. It is cleared only by sending a message, switching rooms,
-        // or a reload. It would
-        // also freeze `olderNextCursor` at this window's oldest row, so Load
-        // older would walk further into the past and never fill the gap
-        // between the window and the head.
-        setMessagesState((current) =>
-          mergeRoomMessages(current, result.value.messages),
-        );
-        setOlderNextCursor(result.value.nextCursor);
-        return true;
-      },
+      loadAround: (aroundId) => loadRoomWindow(roomId, aroundId, isNewestJump),
       // `RoomMessageJumpDeps.afterRender` takes no message id, so this waits
       // a fixed few frames for the merged window to settle rather than
       // returning the moment the target exists. The stick-to-bottom observer

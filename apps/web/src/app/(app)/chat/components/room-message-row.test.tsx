@@ -197,6 +197,7 @@ function renderRow({
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
+  onJumpToQuotedMessage,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -222,6 +223,7 @@ function renderRow({
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  onJumpToQuotedMessage?: (messageId: string) => void;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -249,6 +251,7 @@ function renderRow({
       onRetryOutbound={onRetryOutbound}
       onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
+      onJumpToQuotedMessage={onJumpToQuotedMessage}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -265,6 +268,14 @@ function renderRow({
 
 function renderContinuation(message: ChatRoomMessage = userMessage()) {
   renderRow({ message, isContinuation: true });
+}
+
+function hoverPill() {
+  return document.querySelector('[data-message-actions="hover"]');
+}
+
+function hoverCardTriggers() {
+  return document.querySelectorAll('[data-slot="hover-card-trigger"]');
 }
 
 describe("ChatMessageRow", () => {
@@ -574,6 +585,7 @@ describe("ChatMessageRow", () => {
       onPin,
       showPinButton: true,
     });
+    await user.hover(screen.getByRole("article"));
 
     const hoverActions = document.querySelector(
       '[data-message-actions="hover"]',
@@ -599,6 +611,7 @@ describe("ChatMessageRow", () => {
       message: userMessage({ content: "Hover copy body" }),
       onQuote: vi.fn(),
     });
+    await user.hover(screen.getByRole("article"));
 
     const hoverActions = document.querySelector(
       '[data-message-actions="hover"]',
@@ -621,7 +634,8 @@ describe("ChatMessageRow", () => {
     );
   });
 
-  it("hides Copy when the message is deleted", () => {
+  it("hides Copy when the message is deleted", async () => {
+    const user = userEvent.setup();
     renderRow({
       currentUserId: "user-1",
       onDelete: vi.fn(),
@@ -631,6 +645,7 @@ describe("ChatMessageRow", () => {
         deletedAt: new Date("2026-07-02T10:00:00.000Z"),
       }),
     });
+    await user.hover(screen.getByRole("article"));
 
     expect(
       screen.queryByRole("button", { name: "Copy.action" }),
@@ -640,7 +655,8 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides Copy while a coworker message is still thinking", () => {
+  it("hides Copy while a coworker message is still thinking", async () => {
+    const user = userEvent.setup();
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",
@@ -649,6 +665,7 @@ describe("ChatMessageRow", () => {
       }),
       onQuote: vi.fn(),
     });
+    await user.hover(screen.getByRole("article"));
 
     expect(
       screen.queryByRole("button", { name: "Copy.action" }),
@@ -867,20 +884,20 @@ describe("ChatMessageRow", () => {
     expect(article.className).not.toContain("pr-48");
   });
 
-  it("renders quote snapshot from DTO and soft-fails jump when target missing", async () => {
+  it("renders quote snapshot from DTO and hands a jump to the transcript", async () => {
     const user = userEvent.setup();
-    const scrollIntoView = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    const onJumpToQuotedMessage = vi.fn();
 
     renderRow({
       message: userMessage({
         content: "Reply body",
         quote: {
-          messageId: "missing-original",
+          messageId: "quoted-original",
           authorName: "Bob",
           snippet: "Earlier thought",
         },
       }),
+      onJumpToQuotedMessage,
     });
 
     expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -889,7 +906,11 @@ describe("ChatMessageRow", () => {
     await user.click(
       screen.getByRole("button", { name: "Jump to message from Bob" }),
     );
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    // The row does not know which rows the transcript has mounted, so the
+    // transcript owns the scroll.
+    expect(onJumpToQuotedMessage).toHaveBeenCalledExactlyOnceWith(
+      "quoted-original",
+    );
   });
 
   it("shows quote image attachment as inert thumbnail, not a link", () => {
@@ -952,42 +973,36 @@ describe("ChatMessageRow", () => {
 
   it("jumps to original message when quote attachment thumb is clicked", async () => {
     const user = userEvent.setup();
-    const scrollIntoView = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    const onJumpToQuotedMessage = vi.fn();
 
-    const original = document.createElement("article");
-    original.setAttribute("data-message-id", "original-with-thumb");
-    document.body.appendChild(original);
-
-    try {
-      renderRow({
-        message: userMessage({
-          content: "Reply body",
-          quote: {
-            messageId: "original-with-thumb",
-            authorName: "Bob",
-            snippet: "check this shot",
-            attachment: {
-              fileName: "launch.png",
-              url: "https://blob.example/launch.png",
-              mediaKind: "image",
-            },
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-with-thumb",
+          authorName: "Bob",
+          snippet: "check this shot",
+          attachment: {
+            fileName: "launch.png",
+            url: "https://blob.example/launch.png",
+            mediaKind: "image",
           },
-        }),
-      });
+        },
+      }),
+      onJumpToQuotedMessage,
+    });
 
-      const jumpButton = screen.getByRole("button", {
-        name: "Jump to message from Bob",
-      });
-      const thumb = jumpButton.querySelector(
-        'img[src="https://blob.example/launch.png"]',
-      );
-      expect(thumb).toBeTruthy();
-      await user.click(thumb!);
-      expect(scrollIntoView).toHaveBeenCalled();
-    } finally {
-      original.remove();
-    }
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    const thumb = jumpButton.querySelector(
+      'img[src="https://blob.example/launch.png"]',
+    );
+    expect(thumb).toBeTruthy();
+    await user.click(thumb!);
+    expect(onJumpToQuotedMessage).toHaveBeenCalledExactlyOnceWith(
+      "original-with-thumb",
+    );
   });
 
   it("keeps legacy quotes without attachment text-only", () => {
@@ -1416,6 +1431,7 @@ describe("ChatMessageRow", () => {
         onStartEdit={onStartEdit}
       />,
     );
+    await user.hover(screen.getByRole("article"));
 
     expect(
       screen.getByRole("button", { name: "Edit.action" }),
@@ -2011,6 +2027,11 @@ describe("ChatMessageRow", () => {
       "https://cdn.example.com/og.png",
     );
     // Keep intrinsic aspect ratio (do not force w-full + max-h + object-cover).
+    // Until the image loads its box is the cap itself, so a row scrolled
+    // into a virtualized list does not grow under the reader; afterwards it
+    // takes its own size, capped.
+    expect(unfurlImage).toHaveClass("h-48", "max-w-full");
+    fireEvent.load(unfurlImage);
     expect(unfurlImage).toHaveClass("h-auto", "max-h-48", "max-w-full");
     expect(unfurlImage).not.toHaveClass("w-full", "object-cover");
     // Markdown body still present (links stay clickable in body).
@@ -2865,5 +2886,187 @@ describe("ChatMessageRow outbound delivery", () => {
       "aria-label",
       tooLongLabel,
     );
+  });
+});
+
+describe("ChatMessageRow hover chrome", () => {
+  it("mounts the action pill on the first hover and keeps it", async () => {
+    const user = userEvent.setup();
+    renderRow({ onQuote: vi.fn() });
+
+    expect(hoverPill()).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Reactions.add" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Actions.more" }),
+    ).toBeInTheDocument();
+
+    await user.hover(screen.getByRole("article"));
+
+    const pill = hoverPill();
+    expect(pill).toBeInTheDocument();
+    expect(
+      within(pill as HTMLElement).getByRole("button", {
+        name: "Reactions.add",
+      }),
+    ).toBeInTheDocument();
+
+    await user.unhover(screen.getByRole("article"));
+    expect(hoverPill()).toBeInTheDocument();
+  });
+
+  it("mounts the participant hover cards on the first hover", async () => {
+    const user = userEvent.setup();
+    renderRow();
+
+    // Avatar and name keep their trigger semantics before any interaction,
+    // so the tab order through the row does not change. The mount itself has
+    // no role-level observable, so this one assertion reads the trigger slot.
+    expect(screen.getAllByRole("button", { name: "Ada" })).toHaveLength(2);
+    expect(hoverCardTriggers()).toHaveLength(0);
+
+    await user.hover(screen.getByRole("article"));
+    expect(screen.queryByText("ada@example.com")).not.toBeInTheDocument();
+
+    const [avatarTrigger, nameTrigger] = screen.getAllByRole("button", {
+      name: "Ada",
+    });
+    await user.hover(avatarTrigger);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+    await user.unhover(avatarTrigger);
+    await waitFor(() => {
+      expect(screen.queryByText("ada@example.com")).not.toBeInTheDocument();
+    });
+    await user.hover(nameTrigger);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("opens the participant card when the first hover lands on the avatar", async () => {
+    const user = userEvent.setup();
+    renderRow();
+
+    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    await user.hover(avatarTrigger);
+
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("keeps keyboard focus on the avatar while the row mounts its chrome", async () => {
+    const user = userEvent.setup();
+    renderRow({ onQuote: vi.fn() });
+
+    await user.tab();
+
+    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    expect(avatarTrigger).toHaveFocus();
+    expect(hoverPill()).toBeInTheDocument();
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("keeps the chrome across a re-render with a fresh message object", async () => {
+    const user = userEvent.setup();
+    const row = (content: string) => (
+      <ChatMessageRow
+        message={userMessage({ content })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+        onQuote={vi.fn()}
+      />
+    );
+    const { rerender } = render(row("before merge"));
+    await user.hover(screen.getByRole("article"));
+    await user.unhover(screen.getByRole("article"));
+
+    rerender(row("after merge"));
+
+    expect(screen.getByText("after merge")).toBeInTheDocument();
+    expect(hoverPill()).toBeInTheDocument();
+    const [avatarTrigger] = screen.getAllByRole("button", { name: "Ada" });
+    await user.hover(avatarTrigger);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("mounts only the action pill on a continuation row", async () => {
+    const user = userEvent.setup();
+    renderContinuation();
+
+    expect(
+      screen.queryByRole("button", { name: "Ada" }),
+    ).not.toBeInTheDocument();
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Ada" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mounts the chrome when tabbing lands on the more actions button", async () => {
+    const user = userEvent.setup();
+    renderContinuation();
+    const moreActions = screen.getByRole("button", { name: "Actions.more" });
+
+    // Tab through whatever the body exposes until the always-mounted control
+    // has focus; the row must never depend on any other stop existing.
+    for (let step = 0; step < 5 && document.activeElement !== moreActions; ) {
+      await user.tab();
+      step += 1;
+    }
+
+    expect(moreActions).toHaveFocus();
+    expect(hoverPill()).toBeInTheDocument();
+
+    // The pill mounted after the stop that mounted it, so the next Tab must
+    // still walk forward into it rather than leave the row.
+    await user.tab();
+    expect(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Reactions.add",
+      }),
+    ).toHaveFocus();
+  });
+
+  it("renders no pill for a row being edited even after hover", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Hello",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Actions.more" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders no pill for a pending outbound row even after hover", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      currentUserId: "user-1",
+      message: userMessage({
+        id: "pending:turn-1",
+        metadata: {
+          client_message_id: "turn-1",
+          outbound_delivery_status: "pending",
+        },
+      }),
+    });
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Actions.more" }),
+    ).not.toBeInTheDocument();
   });
 });

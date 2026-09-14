@@ -154,10 +154,9 @@ export async function performRoomSearchJump(
       // neither wipes the other, and the reply keeps the one that matters:
       // it is the message the reader was sent to.
       //
-      // A parent further back than the loaded page is left alone. Loading a
-      // window around it swaps the timeline and marks it historical, which
-      // stops every later realtime message from merging, and that is too much
-      // to pay to move a transcript the thread panel is covering.
+      // A parent further back than the loaded ranges is left alone. A window
+      // around it would be one more fetch to move a transcript the thread
+      // panel is covering.
       deps.highlightInRoom(parent.id);
       if (!windowLoaded) {
         deps.releaseHoldOffBottom();

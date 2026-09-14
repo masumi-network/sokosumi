@@ -46,7 +46,7 @@ export default function ForgotPasswordForm({
     }
 
     toast.success(t("success"));
-    router.push("/login");
+    router.push("/signin");
   }
 
   const { isSubmitting } = form.formState;

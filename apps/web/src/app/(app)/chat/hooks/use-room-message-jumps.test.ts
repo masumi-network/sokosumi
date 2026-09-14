@@ -2,10 +2,8 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { listRoomMessagesAction } from "@/app/chat/actions";
-import {
-  highlightRoomTranscriptMessage,
-  highlightThreadMessage,
-} from "@/app/chat/utils/room-message-highlight";
+import { highlightThreadMessage } from "@/app/chat/utils/room-message-highlight";
+import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { useRoomMessageJumps } from "./use-room-message-jumps";
@@ -17,8 +15,11 @@ vi.mock("@/app/chat/actions", () => ({
 }));
 vi.mock("@/app/chat/utils/room-message-highlight", () => ({
   highlightThreadMessage: vi.fn(() => false),
-  highlightRoomTranscriptMessage: vi.fn(() => false),
 }));
+
+// The transcript viewport answers room landings; RoomsClient hands the hook
+// that answer, so the test owns it directly.
+const landOnRoomMessage = vi.fn((_messageId: string) => false);
 
 type Params = Parameters<typeof useRoomMessageJumps>[0];
 
@@ -28,12 +29,11 @@ function params(): Params {
     topLevelRoomMessages: [],
     threadParentMessage: null,
     isStillSelectedRoom: vi.fn(() => true),
+    landOnRoomMessage,
     suppressStickToBottom: vi.fn(),
     releaseStickToBottomSuppress: vi.fn(),
     setSearchHoldOffBottom: vi.fn(),
-    setMessagesState: vi.fn(),
-    setOlderNextCursor: vi.fn(),
-    historicalTimelineRef: { current: false },
+    mergeRoomJumpWindow: vi.fn(),
     historicalThreadRef: { current: false },
     setThreadMessages: vi.fn(),
     setThreadOlderNextCursor: vi.fn(),
@@ -66,6 +66,7 @@ describe("useRoomMessageJumps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(highlightThreadMessage).mockReturnValue(false);
+    landOnRoomMessage.mockReturnValue(false);
   });
 
   it("discards an invalidated room window and releases its hold", async () => {
@@ -86,25 +87,23 @@ describe("useRoomMessageJumps", () => {
     });
     await expect(jump).resolves.toBe(false);
 
-    expect(options.setMessagesState).not.toHaveBeenCalled();
-    expect(options.setOlderNextCursor).not.toHaveBeenCalled();
+    expect(options.mergeRoomJumpWindow).not.toHaveBeenCalled();
     // The room jump lands in the transcript, so it asks the transcript alone:
     // an open thread renders its parent too, and answering from there would
     // end the jump with the transcript untouched.
-    expect(highlightRoomTranscriptMessage).toHaveBeenCalledTimes(1);
+    expect(landOnRoomMessage).toHaveBeenCalledTimes(1);
     expect(highlightThreadMessage).not.toHaveBeenCalled();
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
     expect(options.setSearchHoldOffBottom).not.toHaveBeenCalled();
   });
 
-  it("merges a current room window without marking the timeline historical", async () => {
+  it("merges a small window around the target as a loaded range", async () => {
+    const page = { messages: [message()], nextCursor: "older" };
     vi.mocked(listRoomMessagesAction).mockResolvedValue({
       ok: true,
-      value: { messages: [message()], nextCursor: "older" },
+      value: page,
     });
-    vi.mocked(highlightRoomTranscriptMessage)
-      .mockReturnValueOnce(false)
-      .mockReturnValueOnce(true);
+    landOnRoomMessage.mockReturnValueOnce(false).mockReturnValueOnce(true);
     const options = params();
     const { result } = renderHook(() => useRoomMessageJumps(options));
 
@@ -112,11 +111,34 @@ describe("useRoomMessageJumps", () => {
       true,
     );
 
-    expect(options.setMessagesState).toHaveBeenCalledWith(expect.any(Function));
-    expect(options.setOlderNextCursor).toHaveBeenCalledWith("older");
-    expect(options.historicalTimelineRef.current).toBe(false);
-    expect(highlightRoomTranscriptMessage).toHaveBeenCalledTimes(2);
+    expect(listRoomMessagesAction).toHaveBeenCalledExactlyOnceWith("room-1", {
+      around: "message-1",
+      limit: ROOM_HISTORY_WINDOW_LIMIT,
+    });
+    expect(options.mergeRoomJumpWindow).toHaveBeenCalledExactlyOnceWith(page);
+    expect(landOnRoomMessage).toHaveBeenCalledTimes(2);
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
+  });
+
+  it("merges a search hit's window the same way instead of swapping the timeline", async () => {
+    const hit = message();
+    const page = { messages: [hit], nextCursor: "older" };
+    vi.mocked(listRoomMessagesAction).mockResolvedValue({
+      ok: true,
+      value: page,
+    });
+    landOnRoomMessage.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const options = params();
+    const { result } = renderHook(() => useRoomMessageJumps(options));
+
+    await result.current.handleSearchJump(hit);
+
+    expect(listRoomMessagesAction).toHaveBeenCalledExactlyOnceWith("room-1", {
+      around: hit.id,
+      limit: ROOM_HISTORY_WINDOW_LIMIT,
+    });
+    expect(options.mergeRoomJumpWindow).toHaveBeenCalledExactlyOnceWith(page);
+    expect(options.handleOpenThreadFromMessage).not.toHaveBeenCalled();
   });
 
   it("opens a loaded search parent and releases the hold when its reply is visible", async () => {
@@ -135,6 +157,6 @@ describe("useRoomMessageJumps", () => {
     expect(options.setThreadMessages).not.toHaveBeenCalled();
     // The transcript follows the thread: without this the reader lands on a
     // reply with the room still sitting on the newest message.
-    expect(highlightRoomTranscriptMessage).toHaveBeenCalledWith(parent.id);
+    expect(landOnRoomMessage).toHaveBeenCalledWith(parent.id);
   });
 });

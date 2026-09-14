@@ -123,6 +123,7 @@ public extension ChatService {
     clientMessageId: String,
     parentMessageId: String? = nil,
     mentions: [ComposerMention] = [],
+    quoteMessageId: String? = nil,
     organizationSlug: String?
   ) async throws -> Components.Schemas.ChatRoomMessage {
     let response = try await client.postChatsRoomsIdMessages(
@@ -133,7 +134,7 @@ public extension ChatService {
                           mentionedCoworkerIds: mentions.filter { $0.kind == .coworker }.map(\.id),
                           mentionedSokoBotIds: mentions.filter { $0.kind == .sokoBot }.map(\.id),
                           mentionedUserIds: mentions.filter { $0.kind == .human }.map(\.id),
-                          parentMessageId: parentMessageId, clientMessageId: clientMessageId))
+                          parentMessageId: parentMessageId, quote: quoteMessageId.map { .init(messageId: $0) }, clientMessageId: clientMessageId))
       )
     )
     switch response {

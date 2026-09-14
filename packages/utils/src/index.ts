@@ -117,7 +117,6 @@ export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
 export {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
   type CreditTopUpLookupKey,
-  type CreditTopUpTier,
   getCreditTopUpLookupKeyByCredits,
   getCreditTopUpTotalMinorUnits,
   isPositiveIntegerCredits,
@@ -232,7 +231,6 @@ export {
   hasOfflineAccessOAuthScope,
   OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
-  type OAuthClientGrantType,
 } from "./oauth-scopes.js";
 export {
   isReactJsonFencePrefixCandidate,
@@ -250,7 +248,6 @@ export {
   canRevokeInviteLink,
   evaluateInviteLinkStatus,
   type InviteLinkPresentStatus,
-  type InviteLinkStatus,
 } from "./organization-invite-link.js";
 export {
   buildOrganizationLogoContentHashPathname,
@@ -266,7 +263,6 @@ export {
   buildOrganizationMetadataWithDesignMd,
   buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
-  type OrganizationMetadata,
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
 export {
@@ -289,7 +285,6 @@ export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
   isTaskArchivableStatus,
-  type TaskArchivableStatus,
 } from "./task-archive.js";
 export {
   countSetAssignees,
@@ -304,10 +299,7 @@ export {
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
   removeTaskContextAttachmentLinks,
 } from "./task-context-attachment.js";
-export {
-  isTaskEditableStatus,
-  type TaskEditableStatus,
-} from "./task-editable.js";
+export { isTaskEditableStatus } from "./task-editable.js";
 export {
   buildTaskFilePathname,
   clampTaskFileName,
@@ -327,7 +319,6 @@ export {
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
-  type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
 export { isValidTimezone } from "./timezone.js";
@@ -340,7 +331,6 @@ export {
   buildUserMetadataWithUrl,
   getUserMetadata,
   parseUserMetadata,
-  type UserMetadata,
 } from "./user-metadata.js";
 export {
   getFirstName,

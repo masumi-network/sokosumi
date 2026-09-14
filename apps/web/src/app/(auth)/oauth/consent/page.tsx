@@ -61,14 +61,12 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     );
   }
 
-  // Check if user is authenticated
   const session = await getSession();
 
   if (!session?.session) {
     redirect(redirectQuery ? `/signin?${redirectQuery}` : "/signin");
   }
 
-  // Fetch public client info for display on consent page
   const clientResult = await getOAuthClientPublic(client_id);
 
   if (clientResult.isErr()) {

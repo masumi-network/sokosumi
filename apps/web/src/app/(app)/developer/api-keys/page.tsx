@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { ApiKeysSection } from "@/app/developer/components/api-keys";
+import { ApiKeysSection } from "@/app/developer/components/api-keys/api-keys-section";
 import { DeveloperSectionShell } from "@/app/developer/components/developer-section-shell";
 
 export async function generateMetadata(): Promise<Metadata> {

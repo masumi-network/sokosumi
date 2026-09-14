@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
-import { EmergencyDialog } from "@/components/emergency-dialog";
+import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
@@ -16,6 +16,7 @@ import { userService } from "@/lib/services";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
+import { AccountNoticeToast } from "./account-notice-toast.client";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import AppShellOverlays from "./app-shell-overlays";
 import {
@@ -26,7 +27,6 @@ import {
 import { AuthSessionHydrator } from "./auth-session-hydrator.client";
 import { CoreUnavailableNotice } from "./core-unavailable-notice.client";
 import Header from "./header";
-import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
 import { NewTaskWizardProvider } from "./new-task-wizard-provider";
 import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToaster } from "./notification-toaster.client";
@@ -92,7 +92,7 @@ export default async function AuthenticatedAppFrame({
                 announcementNotices={EMPTY_NOTICES}
               >
                 <NotificationToaster />
-                <LoginAccountNoticeToast />
+                <AccountNoticeToast />
                 <RetiredOnboardingStorageHydrator />
                 <HistorySearchDialogProvider
                   activeOrganizationId={activeOrganizationId}

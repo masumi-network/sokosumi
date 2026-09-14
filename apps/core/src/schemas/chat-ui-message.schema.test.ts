@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { chatRequestMessagePartSchema } from "@/schemas/chat-request.schema";
-
 import {
+  chatMessageContentPartSchema,
   chatUiFilePartSchema,
   chatUiReasoningPartSchema,
 } from "./chat-ui-message.schema";
@@ -110,10 +109,10 @@ describe("chatUiReasoningPartSchema", () => {
   });
 });
 
-describe("chatRequestMessagePartSchema (union)", () => {
+describe("chatMessageContentPartSchema (union)", () => {
   it("rejects ambiguous { text } objects so they are not classified as reasoning", () => {
     expect(() =>
-      chatRequestMessagePartSchema.parse({ text: "hello" }),
+      chatMessageContentPartSchema.parse({ text: "hello" }),
     ).toThrow();
   });
 });

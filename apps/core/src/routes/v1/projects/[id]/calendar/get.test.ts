@@ -110,6 +110,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 function createOccurrence(overrides: Record<string, unknown> = {}) {
   return {
     id: "00000000-0000-7000-8000-000000000001",
+    scheduleVersion: 2,
     seriesTaskId: "task_123",
     originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
     effectiveScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
@@ -123,8 +124,12 @@ function createOccurrence(overrides: Record<string, unknown> = {}) {
     seriesTask: {
       id: "task_123",
       name: "Prepare release notes",
+      ownerId: "user_123",
       status: TaskStatus.QUEUED,
       assigneeId: null,
+      assigneeUserId: null,
+      metadata: JSON.stringify({ version: 2, mode: "recurring" }),
+      scheduleRevision: 3,
     },
     ...overrides,
   };

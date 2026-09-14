@@ -479,6 +479,27 @@ describe("task.service", () => {
     expect(deleted).toEqual(task);
   });
 
+  it("serializes an active-series field edit against the observed schedule revision", async () => {
+    const task = buildTask();
+    coreClientMock.patchTask.mockResolvedValue({
+      data: { ...task, name: "Updated task", scheduleRevision: 5 },
+    });
+
+    const { taskService } = await import("./task.service");
+    const updated = await taskService.patchTask("task-1", {
+      name: "Updated task",
+      expectedScheduleRevision: 4,
+    });
+
+    expect(coreClientMock.patchTask).toHaveBeenCalledWith("task-1", {
+      name: "Updated task",
+      expectedScheduleRevision: 4,
+    });
+    // The incremented revision is the precondition for the schedule write that
+    // follows in the same user operation.
+    expect(updated.scheduleRevision).toBe(5);
+  });
+
   it("forwards scheduled task creation to Core with the caller operation and source", async () => {
     const task = buildTask();
     const input = {

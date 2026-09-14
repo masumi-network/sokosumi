@@ -17,6 +17,10 @@
       "path": "apps/apple"
     },
     {
+      "name": "App: CLI",
+      "path": "apps/cli"
+    },
+    {
       "name": "Package: Database",
       "path": "packages/database"
     },
