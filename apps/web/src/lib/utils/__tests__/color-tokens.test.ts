@@ -78,9 +78,18 @@ const FONT_SIZES = "xs|sm|base|lg|xl|[2-9]xl";
  * a word character next, which a class name never has, so the arbitrary-value
  * branch was unreachable and `bg-primary/[0.04]` — the rule's own headline
  * example — compiled with the guard green.
+ *
+ * The head rejects a preceding `/`, `.` or `-`, which `\b` allows. Without it
+ * a URL path reads as a modifier: `href="/agents/text-to-speech/1"` matches
+ * `text-` then `to-speech` then `/1`. Every path puts a `/` in front of the
+ * segment, so that one character separates the two cases.
+ *
+ * Blind spot: a path with no leading segment (`"text-to-speech/1"`) starts at
+ * a quote, and so does a class list, so a line regex cannot tell them apart.
+ * Nothing in the tree looks like that today.
  */
 const TOKEN_OPACITY = new RegExp(
-  `\\b(?:text-(?!(?:${FONT_SIZES})/)|(?:${COLOR_UTILITIES_NO_TEXT})-)[a-z0-9-]+/(?:\\[[0-9.]+%?\\]|\\d{1,3})(?![\\w.])`,
+  `(?<![\\w/.-])(?:text-(?!(?:${FONT_SIZES})/)|(?:${COLOR_UTILITIES_NO_TEXT})-)[a-z0-9-]+/(?:\\[[0-9.]+%?\\]|\\d{1,3})(?![\\w.])`,
 );
 
 /**
@@ -212,11 +221,24 @@ describe("color tokens", () => {
     const dark = definitions(".dark");
 
     it("defines every bridged token", () => {
+      // `\s*` around the value, not a space: Prettier wraps a bridge whose
+      // two names do not fit on one line, and a single-line pattern reads
+      // those as absent. Two of them are, and both went unchecked.
       const bridges = [
         ...block("@theme inline").matchAll(
-          /^ {2}--color-[a-z0-9-]+: var\((--[a-z0-9-]+)\);/gm,
+          /^ {2}--color-[a-z0-9-]+:\s*var\(\s*(--[a-z0-9-]+)\s*\);/gm,
         ),
       ].map((match) => match[1]);
+
+      // Every `--color-*` in the block is a bridge, so the two counts must
+      // agree. Without this the scan can silently skip a bridge whose shape
+      // the pattern does not cover, and skipping one is how the dangling
+      // bridge shipped in the first place.
+      const declared = [
+        ...block("@theme inline").matchAll(/^ {2}--color-[a-z0-9-]+:/gm),
+      ].length;
+
+      expect(bridges.length, "the bridge scan skipped a bridge").toBe(declared);
 
       const dangling = bridges.filter(
         (token) => !light.has(token) && !dark.has(token),
