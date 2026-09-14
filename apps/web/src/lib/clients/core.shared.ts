@@ -108,7 +108,6 @@ import {
   browseSokoBotSkills as coreBrowseSokoBotSkills,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
-  claimMySokoBotAvatar as coreClaimMySokoBotAvatar,
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
@@ -278,7 +277,6 @@ import {
   listMySokoBotSkills as coreListMySokoBotSkills,
   listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
-  listSokoBotAvatars as coreListSokoBotAvatars,
   listSokoBotVersions as coreListSokoBotVersions,
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
@@ -409,6 +407,7 @@ import {
   executeCoreOperation,
   type GetCoreClient,
 } from "./core.request";
+import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -4097,25 +4096,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function listSokoBotAvatars(query?: {
-    take?: number;
-    exclude?: string;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListSokoBotAvatars({ client, query, cache: "no-store" }),
-      "Failed to fetch Soko Bot avatars",
-    );
-  }
-
-  async function claimMySokoBotAvatar(body: { avatarId: string }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreClaimMySokoBotAvatar({ client, body }),
-      "Failed to update Soko Bot avatar",
-    );
-  }
-
   async function introduceMySokoBot(body: { roomId: string }) {
     return executeCoreOperation(
       getClient,
@@ -5206,8 +5186,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAdminSokoBotAvailability,
     setAdminSokoBotAvailability,
     deleteMySokoBotPermanently,
-    listSokoBotAvatars,
-    claimMySokoBotAvatar,
+    ...createSokoBotAvatarClient(getClient),
     introduceMySokoBot,
     simulateMySokoBotTaskEvent,
     listSokoBotVersions,
