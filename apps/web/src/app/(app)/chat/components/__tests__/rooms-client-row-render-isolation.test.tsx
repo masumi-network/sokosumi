@@ -639,29 +639,6 @@ describe("RoomsClient transcript row render isolation", () => {
     expect(pinnedFlags()).toEqual(["false", "false", "false"]);
   });
 
-  it("keeps the pinned mark when a full realtime update omits pinnedAt", async () => {
-    await mountRoom([
-      message("m1", 1),
-      { ...message("m2", 2), pinnedAt: new Date("2026-07-01T13:00:00.000Z") },
-      message("m3", 3),
-    ]);
-
-    const payload = JSON.parse(
-      JSON.stringify({
-        eventType: "update",
-        message: { ...message("m2", 2), content: "edited on old core" },
-      }),
-    ) as { message: { pinnedAt?: unknown } };
-    delete payload.message.pinnedAt;
-    const event = chatRoomMessageEventDataSchema.parse(payload);
-    await act(async () => {
-      realtimeOptions().onMessage?.(event);
-    });
-
-    expect(screen.getByText("edited on old core")).toBeTruthy();
-    expect(pinnedFlags()).toEqual(["false", "true", "false"]);
-  });
-
   it("saves the current draft after a realtime update to the edited row", async () => {
     vi.mocked(editRoomMessageAction).mockImplementation(
       async (_roomId, messageId, content) => ({

@@ -41,29 +41,6 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
     expect(hydrated.membership).toBeNull();
   });
 
-  it("treats omitted pinnedAt as null", () => {
-    const hydrated = hydrateChatRoomMessageFromRealtime({
-      id: "550e8400-e29b-41d4-a716-446655440000",
-      roomId: "660e8400-e29b-41d4-a716-446655440000",
-      parentMessageId: null,
-      content: "hello",
-      createdAt: "2026-08-03T12:00:00.000Z",
-      deletedAt: null,
-      editedAt: null,
-      sender: { type: "unknown" },
-      mentions: [],
-      reactions: [],
-      threadReplyCount: 0,
-      threadLastReplyAt: null,
-      metadata: null,
-      quote: null,
-      membership: null,
-      unfurls: null,
-    });
-
-    expect(hydrated.pinnedAt).toBeNull();
-  });
-
   it("preserves membership status from realtime payloads", () => {
     const hydrated = hydrateChatRoomMessageFromRealtime({
       id: "550e8400-e29b-41d4-a716-446655440001",

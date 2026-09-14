@@ -24,7 +24,7 @@ export function hydrateChatRoomMessageFromRealtime(
     createdAt: toDate(message.createdAt),
     deletedAt: toNullableDate(message.deletedAt),
     editedAt: toNullableDate(message.editedAt),
-    pinnedAt: toNullableDate(message.pinnedAt ?? null),
+    pinnedAt: toNullableDate(message.pinnedAt),
     sender: message.sender as ChatRoomMessage["sender"],
     mentions: message.mentions as ChatRoomMessage["mentions"],
     reactions: message.reactions as ChatRoomMessage["reactions"],

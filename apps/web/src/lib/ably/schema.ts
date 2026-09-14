@@ -80,11 +80,7 @@ const chatRoomMessageFullEventMessageSchema = z
     createdAt: z.string(),
     deletedAt: z.string().nullable(),
     editedAt: z.string().nullable(),
-    /**
-     * Absent on events from Core that predates this field. Required would
-     * drop every live create/update/delete on a web-first deploy.
-     */
-    pinnedAt: z.string().nullable().optional(),
+    pinnedAt: z.string().nullable(),
     sender: z.unknown(),
     mentions: z.array(z.unknown()),
     reactions: z.array(z.unknown()),
