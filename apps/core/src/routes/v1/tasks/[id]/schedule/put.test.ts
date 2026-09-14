@@ -593,6 +593,11 @@ describe("PUT /tasks/{id}/schedule", () => {
       }),
       expect.any(Date),
     );
+    expect(
+      retireTaskScheduleFutureOccurrencesMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      createTaskSchedulePlannedOccurrencesMock.mock.invocationCallOrder[0],
+    );
     expect(replaceTaskSchedulePlannedOccurrencesMock).not.toHaveBeenCalled();
   });
 
