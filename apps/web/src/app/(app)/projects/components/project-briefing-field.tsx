@@ -95,10 +95,11 @@ export function ProjectBriefingField({
       />
 
       <p
-        className={cn(
-          "text-xs leading-relaxed",
-          targetMet ? "text-muted-foreground" : "text-muted-foreground",
-        )}
+        // Both states read at one weight now. The unmet hint used to be a
+        // /70 fade of this token, which is under the 4.5:1 floor, and there
+        // is no legal step fainter than --muted-foreground to move it to.
+        // The wording is what separates the two states.
+        className="text-muted-foreground text-xs leading-relaxed"
         data-testid="briefing-encouragement"
       >
         {targetMet ? t("encouragementMet") : t("encouragement")}
