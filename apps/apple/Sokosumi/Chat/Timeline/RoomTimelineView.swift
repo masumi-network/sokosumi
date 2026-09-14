@@ -24,6 +24,23 @@ import SwiftUI
     @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var quoteFocusRequest: String?
 
+    @State private var preparedTranscript: PreparedTranscript?
+
+    private var preparationScope: [String] {
+      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)]
+    }
+
+    private var preparationInput: PreparedTranscript.Input {
+      .init(scope: preparationScope,
+            messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
+            channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
+    }
+
+    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
+      guard preparedTranscript?.input.scope == preparationScope else { return [] }
+      return preparedTranscript?.input.messages ?? []
+    }
+
     let roomId: String
 
     private var room: Components.Schemas.ChatRoom? {
@@ -47,6 +64,10 @@ import SwiftUI
 
     var body: some View {
       transcriptBody
+        .task(id: preparationInput) {
+          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+        }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaBar(edge: .bottom, spacing: 0) {
           ChatComposerView(
@@ -118,6 +139,8 @@ import SwiftUI
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+      } else if preparedMessages.isEmpty {
+        ProgressView("Loading messages…").frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         messageList
       }
@@ -126,8 +149,6 @@ import SwiftUI
     private var messageList: some View {
       // Realize nearby rows only: laying out every rich message makes each
       // scroll event expensive. Keep each message unary and anchored by ID.
-      // Keep catalog/room lets out of LazyVStack. Extra lets there wrap
-      // ForEach and force every rich row to layout while scrolling.
       let transcriptRoom = room
       let channels = workspaces.composerChannels
       return ScrollViewReader { proxy in
@@ -157,7 +178,7 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let messages = workspaces.displayedTranscript
+            let messages = preparedMessages
             let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -186,7 +207,7 @@ import SwiftUI
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(channels: channels, room: transcriptRoom,
+                  MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.documents[message.id],
                                  message: message,
                                  isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,
@@ -259,7 +280,7 @@ import SwiftUI
             highlightedId = nil
           }
         }
-        .onChange(of: workspaces.displayedTranscript.last?.id) { _, _ in
+        .onChange(of: preparedMessages.last?.id) { _, _ in
           if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }

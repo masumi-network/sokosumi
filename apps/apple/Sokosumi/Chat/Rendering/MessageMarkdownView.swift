@@ -9,11 +9,12 @@ struct MessageMarkdownView: View {
   let source: String
   var room: Components.Schemas.ChatRoom?
   var channels: [ComposerChannel] = []
+  var preparedDocument: MessageMarkdown?
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
   @State private var selectedProfile: ChatParticipantProfile?
   var body: some View {
-    MessageMarkdownContent(source: source, room: room, channels: channels)
+    MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument)
       .textSelection(.enabled)
       .frame(maxWidth: .infinity, alignment: .leading)
       .environment(\.openURL, OpenURLAction { url in
@@ -39,6 +40,7 @@ private struct MessageMarkdownContent: View {
   let source: String
   var room: Components.Schemas.ChatRoom?
   var channels: [ComposerChannel]
+  var preparedDocument: MessageMarkdown?
   private struct RenderInput: Hashable {
     let source: String
     let mentions: MessageMentions?
@@ -61,7 +63,7 @@ private struct MessageMarkdownContent: View {
     Group {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
-      } else if let document {
+      } else if let document = preparedDocument ?? document {
         ExpandableMessageBody(source: source, clampHeight: !document.containsAttachments) {
           MarkdownBlocksView(blocks: document.blocks)
         }
@@ -72,6 +74,7 @@ private struct MessageMarkdownContent: View {
       }
     }
     .task(id: RenderInput(source: source, mentions: room.map(MessageMentions.init), channels: channels)) {
+      guard preparedDocument == nil else { return }
       let source = source
       let channels = channels
       let mentions = room.map(MessageMentions.init)
