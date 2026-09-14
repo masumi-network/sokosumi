@@ -215,6 +215,19 @@ export function TranscriptViewport({
     rowsRef.current = rows;
   }
 
+  // Where the reader is relative to the live edge, from the scroller itself.
+  // Called on every scroll and every virtualizer change: a scroll the
+  // virtualizer issues can land short without any scroll event (below),
+  // and the flags must not say "away from the end" while the view is on it.
+  const recordDistance = (element: HTMLElement) => {
+    const distance =
+      element.scrollHeight - element.clientHeight - element.scrollTop;
+    distanceFromEndRef.current = distance;
+    const isAtEnd = distance <= STICK_TO_BOTTOM_NEAR_PX;
+    atEndRef.current = isAtEnd;
+    setAtEnd(isAtEnd);
+  };
+
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
     getScrollElement: () => scroller,
@@ -239,6 +252,26 @@ export function TranscriptViewport({
     // measured it: React refuses that flush and warns.
     directDomUpdates: true,
     useFlushSync: false,
+    onChange: (instance) => {
+      const element = instance.scrollElement;
+      if (!element) {
+        return;
+      }
+      // When a row grows while the view is at the end, the virtualizer
+      // scrolls by the growth before the rows below it are moved down, so
+      // the browser clamps that scroll and no scroll event reports it. The
+      // virtualizer then believes it is at the end while the scroller is
+      // short by the growth. The rows are in place by now: finish the scroll.
+      const max = element.scrollHeight - element.clientHeight;
+      if (
+        !instance.isScrolling &&
+        (instance.scrollOffset ?? 0) >= max - 1 &&
+        element.scrollTop < max - 1
+      ) {
+        element.scrollTop = max;
+      }
+      recordDistance(element);
+    },
   });
   virtualizerRef.current = virtualizer;
 
@@ -247,12 +280,7 @@ export function TranscriptViewport({
       return;
     }
     const record = () => {
-      const distance =
-        scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
-      distanceFromEndRef.current = distance;
-      const isAtEnd = distance <= STICK_TO_BOTTOM_NEAR_PX;
-      atEndRef.current = isAtEnd;
-      setAtEnd(isAtEnd);
+      recordDistance(scroller);
     };
     scroller.addEventListener("scroll", record, { passive: true });
     return () => {
@@ -270,18 +298,29 @@ export function TranscriptViewport({
     }
     let height = scroller.clientHeight;
     const observer = new ResizeObserver(() => {
-      if (scroller.clientHeight === height) {
+      const next = scroller.clientHeight;
+      if (next === height) {
         return;
       }
-      height = scroller.clientHeight;
-      if (atEndRef.current) {
-        const offset =
-          scroller.scrollHeight - height - distanceFromEndRef.current;
+      // Where the reader was before the change, from the height before it:
+      // the recorded distance may already have been refreshed by another
+      // observer in this same delivery. A scroller that grew while the view
+      // was at the end had its scroll clamped by the browser already, which
+      // reads as the growth; that reader was at the end.
+      const clamped =
+        next > height && scroller.scrollTop >= scroller.scrollHeight - next - 1;
+      const before = clamped
+        ? 0
+        : scroller.scrollHeight - height - scroller.scrollTop;
+      height = next;
+      if (before <= STICK_TO_BOTTOM_NEAR_PX) {
+        const offset = scroller.scrollHeight - next - before;
         // The virtualizer learns of a scroll from the event a frame later.
         // A row it measures before then would be compensated against the
         // old offset and undo this write, so it is told the offset now.
         virtualizer.scrollOffset = offset;
         scroller.scrollTop = offset;
+        recordDistance(scroller);
       }
     });
     observer.observe(scroller);
