@@ -378,8 +378,13 @@ export async function topUpAvailableAvatars(
   options: { excludeIds?: string[] } = {},
 ): Promise<AvailableAvatar[]> {
   if (getEnv().FAL_KEY) {
-    const where = unclaimedAvatarFilter(options.excludeIds);
-    const available = await prisma.sokoBotAvatar.count({ where });
+    // Count the real pool, not the caller's filtered view of it. Counting
+    // through `excludeIds` let a caller list the pool, hand the ids straight
+    // back, and drive the count to zero, so generation ran on a pool that
+    // needed nothing. FAL bills per image, so that is spend on demand.
+    const available = await prisma.sokoBotAvatar.count({
+      where: unclaimedAvatarFilter(),
+    });
     if (available < take) await generateAvatars(take - available);
   }
   return await listAvailableAvatars(take, options);

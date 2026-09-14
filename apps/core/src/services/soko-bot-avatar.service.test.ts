@@ -145,6 +145,21 @@ describe("Soko Bot avatar pool", () => {
     expect(avatarCountMock).toHaveBeenCalled();
   });
 
+  it("ignores excludeIds when deciding whether to generate", async () => {
+    // A caller can list the pool through the GET and hand the ids straight
+    // back. Counting through that filter drove `available` to zero and bought
+    // FAL images for a pool that needed nothing.
+    avatarCountMock.mockResolvedValue(24);
+
+    await topUpAvailableAvatars(6, {
+      excludeIds: ["a", "b", "c", "d", "e", "f"],
+    });
+
+    expect(avatarCountMock).toHaveBeenCalledWith({
+      where: { claimedBySokoBotId: null },
+    });
+  });
+
   it("never counts or generates on a plain read", async () => {
     // The read is a GET. A GET that bills FAL is reachable cross-site on a
     // top-level navigation, because the session cookie is SameSite=Lax.
