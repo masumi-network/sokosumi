@@ -7,6 +7,7 @@ import {
   isCoworkerAuthContext,
   setAuthContext,
 } from "@/middleware/auth";
+import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
 
 const HEADER_CONTEXT_USER_ID = "x-context-user-id";
 const HEADER_CONTEXT_ORGANIZATION_ID = "x-context-organization-id";
@@ -49,8 +50,9 @@ function readContextHeaders(c: {
  *
  * - If both header pairs are absent (or only whitespace), the request continues unchanged.
  * - Organization header without user header is rejected (400).
- * - The context user must exist (400) and, when an organization is set, be a member
- *   of that organization (400, same rule as organization-scoped user routes).
+ * - The context user must exist and not be under an active ban (400). When an
+ *   organization is set, they must be a member of that organization (400, same
+ *   rule as organization-scoped user routes).
  *
  * Runs after {@link authMiddleware}.
  */
@@ -77,10 +79,12 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true },
+      select: { id: true, ...BEARER_USER_SELECT },
     });
 
-    if (!user) {
+    // Missing, banned, and deleted all fail this predicate. Same message as a
+    // missing row so a ban is not distinguishable from a typo.
+    if (!isActiveUser(user)) {
       throw badRequest("Context user does not exist");
     }
 
