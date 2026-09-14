@@ -116,4 +116,109 @@ describe("useClampedOverflow", () => {
       screen.getByRole("button", { name: "Show more" }),
     ).toBeInTheDocument();
   });
+
+  it("keeps body and quote expansion independent under one transcript", () => {
+    const bodyKey = "body:m1\0hello";
+    const quoteKey = "quote:m1\0m2\0hello";
+    const onBody = vi.fn();
+    const onQuote = vi.fn();
+
+    function Pair({ visible = true }: { visible?: boolean }) {
+      return (
+        <ClampedOverflowProvider>
+          {visible ? (
+            <>
+              <Message resetKey={bodyKey} onRender={onBody} />
+              <Message resetKey={quoteKey} onRender={onQuote} />
+            </>
+          ) : null}
+        </ClampedOverflowProvider>
+      );
+    }
+
+    const { rerender } = render(<Pair />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Show more" })[0]);
+    rerender(<Pair visible={false} />);
+    onBody.mockClear();
+    onQuote.mockClear();
+    rerender(<Pair />);
+
+    expect(onBody.mock.calls[0][0].expanded).toBe(true);
+    expect(onQuote.mock.calls[0][0].expanded).toBe(false);
+    expect(screen.getAllByRole("button")[0]).toHaveTextContent("Show less");
+    expect(screen.getAllByRole("button")[1]).toHaveTextContent("Show more");
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    fireEvent.click(screen.getAllByRole("button")[1]);
+    rerender(<Pair visible={false} />);
+    onBody.mockClear();
+    onQuote.mockClear();
+    rerender(<Pair />);
+
+    expect(onBody.mock.calls[0][0].expanded).toBe(false);
+    expect(onQuote.mock.calls[0][0].expanded).toBe(true);
+  });
+
+  it("measures the restored expanded height on the first commit after remount", () => {
+    const collapsed = 80;
+    const expanded = 400;
+    const measures: number[] = [];
+    const offsetDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "offsetHeight",
+    );
+
+    function Row() {
+      const { expanded: isExpanded, toggleExpanded } =
+        useClampedOverflow("body:m1\0hello");
+      return (
+        <div
+          ref={(node) => {
+            if (node) {
+              measures.push(node.offsetHeight);
+            }
+          }}
+          style={{ height: isExpanded ? expanded : collapsed }}
+        >
+          <button type="button" onClick={toggleExpanded}>
+            {isExpanded ? "Show less" : "Show more"}
+          </button>
+        </div>
+      );
+    }
+
+    function Harness({ visible = true }: { visible?: boolean }) {
+      return (
+        <ClampedOverflowProvider>
+          {visible ? <Row /> : null}
+        </ClampedOverflowProvider>
+      );
+    }
+
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return Number.parseFloat(this.style.height || "0") || 0;
+      },
+    });
+
+    try {
+      const { rerender } = render(<Harness />);
+      fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+      rerender(<Harness visible={false} />);
+      measures.length = 0;
+      rerender(<Harness />);
+      expect(measures[0]).toBe(expanded);
+    } finally {
+      if (offsetDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "offsetHeight",
+          offsetDescriptor,
+        );
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "offsetHeight");
+      }
+    }
+  });
 });
