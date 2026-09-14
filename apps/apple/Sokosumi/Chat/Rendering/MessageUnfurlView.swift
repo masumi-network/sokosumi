@@ -5,7 +5,7 @@ import SwiftUI
 struct MessageUnfurlView: View {
   let preview: Components.Schemas.ChatRoomMessageUnfurl
   var remove: (() async throws -> Void)?
-  @State private var imageFailed = false
+  @State private var failedImageURL: URL?
   @State private var removing = false
   @State private var hovered = false
   @State private var errorMessage: String?
@@ -25,9 +25,9 @@ struct MessageUnfurlView: View {
   }
 
   private var imageURL: URL? {
-    guard !imageFailed else { return nil }
     guard let value = preview.imageUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
-    return URL(string: value)
+    guard let url = URL(string: value), url != failedImageURL else { return nil }
+    return url
   }
 
   var body: some View {
@@ -42,13 +42,10 @@ struct MessageUnfurlView: View {
             Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
           }
           if let imageURL {
-            AsyncImage(url: imageURL) { phase in
-              switch phase {
-              case let .success(image): image.resizable().scaledToFit().frame(maxHeight: 200).clipShape(.rect(cornerRadius: 4))
-              case .failure: Color.clear.frame(height: 0).task { imageFailed = true }
-              default: ProgressView().frame(height: 60)
-              }
+            MessageImageView(url: imageURL, maxSize: CGSize(width: 380, height: 200)) { failedURL in
+              failedImageURL = failedURL
             }
+            .clipShape(.rect(cornerRadius: 4))
           }
         }
         .padding(10)

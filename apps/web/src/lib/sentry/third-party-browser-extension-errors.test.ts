@@ -67,6 +67,29 @@ describe("isBrowserExtensionOnlyStackError", () => {
     ).toBe(true);
   });
 
+  it("matches Urban VPN executors-only stacks after Sentry frame normalization", () => {
+    expect(
+      isBrowserExtensionOnlyStackError(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'M_ID')",
+                stacktrace: {
+                  frames: [
+                    { filename: "app:///executors/200.js" },
+                    { filename: "app:///executors/200.js" },
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("does not match mixed extension and app stacks", () => {
     expect(
       isBrowserExtensionOnlyStackError(
@@ -81,6 +104,46 @@ describe("isBrowserExtensionOnlyStackError", () => {
                     { filename: "app:///_next/static/chunks/app/page.js" },
                   ],
                 },
+              },
+            ],
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not match M_ID errors that also have a first-party frame", () => {
+    expect(
+      isBrowserExtensionOnlyStackError(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'M_ID')",
+                stacktrace: {
+                  frames: [
+                    { filename: "app:///executors/200.js" },
+                    { filename: "app:///_next/static/chunks/app/page.js" },
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not match bare M_ID messages without an executors-only stack", () => {
+    expect(
+      isBrowserExtensionOnlyStackError(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'M_ID')",
               },
             ],
           },

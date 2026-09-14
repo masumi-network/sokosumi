@@ -707,11 +707,11 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
 
   const { session, user } = response;
 
-  // Not every session here was created by signing in. With
-  // `enableSessionForAPIKeys`, an `x-api-key` header makes the api-key plugin
-  // build a session in memory rather than through `internalAdapter`, so the
-  // admin plugin's ban hook never sees it. `getSession` already returns the
-  // ban columns, so this costs no extra query.
+  // Better Auth revokes a user's sessions when it bans or deletes them
+  // (`deleteUserSessions` in both paths), so a stored session normally cannot
+  // outlive either. This is defence in depth for a ban applied any other way,
+  // such as a write straight to the column. `getSession` already returns the
+  // ban columns, so it costs no extra query.
   if (!isActiveUser(user)) {
     throw unauthorized("Invalid, expired or missing session");
   }

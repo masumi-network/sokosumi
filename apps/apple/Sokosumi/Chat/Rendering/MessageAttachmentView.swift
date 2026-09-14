@@ -12,8 +12,7 @@ struct MessageAttachmentView: View {
       switch attachment.kind {
       case .image:
         Button { previewPresented = true } label: {
-          attachmentImage
-            .frame(maxWidth: 640, maxHeight: 360)
+          MessageImageView(url: attachment.url, maxSize: CGSize(width: 640, height: 360))
             .clipShape(.rect(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -69,7 +68,7 @@ struct MessageAttachmentView: View {
           if attachment.kind == .file {
             DocumentAttachmentPreview(attachment: attachment)
           } else {
-            attachmentImage
+            MessageImageView(url: attachment.url, maxSize: CGSize(width: 1600, height: 1000))
           }
         }
         .frame(minWidth: 300, idealWidth: 800, maxWidth: .infinity, minHeight: 200, idealHeight: 560, maxHeight: .infinity)
@@ -78,16 +77,6 @@ struct MessageAttachmentView: View {
       #if os(macOS)
         .frame(minWidth: 640, minHeight: 480)
       #endif
-    }
-  }
-
-  private var attachmentImage: some View {
-    AsyncImage(url: attachment.url) { phase in
-      switch phase {
-      case let .success(image): image.resizable().scaledToFit()
-      case .failure: Label("Preview unavailable", systemImage: "photo")
-      default: ProgressView().frame(width: 160, height: 100)
-      }
     }
   }
 }

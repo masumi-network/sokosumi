@@ -9,24 +9,18 @@ import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
   ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
-  ensureInitialLocalFreeSubscriptionPeriod,
   getCreditExpiryDate,
   grantSignupBonusCredits,
   hasConsumableEnterpriseContract,
 } from "@sokosumi/database/helpers";
-import {
-  memberRepository,
-  workspaceRepository,
-} from "@sokosumi/database/repositories";
+import { memberRepository } from "@sokosumi/database/repositories";
 import {
   renderMagicLinkEmail,
-  renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
-  betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
   getEmailLocale,
   OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
@@ -44,7 +38,6 @@ import {
   magicLink,
   oAuthProxy,
   openAPI,
-  organization,
 } from "better-auth/plugins";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
@@ -57,27 +50,14 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
-import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import {
-  listOrganizationExitChatRoomIdsForAbly,
-  publishOrganizationExitChatRevocation,
-} from "@/helpers/chat-room-organization-exit";
-import {
-  evaluateOrganizationDeletion,
   evaluateUserDeletion,
-  throwIfOrganizationDeletionBlocked,
   throwIfUserDeletionBlocked,
 } from "@/helpers/deletion-evaluate";
 import {
-  applyDesignMdMetadataGuardToOrganizationCreate,
-  applyDesignMdMetadataGuardToOrganizationUpdate,
   applyDesignMdMetadataGuardToUserCreate,
   applyDesignMdMetadataGuardToUserUpdate,
 } from "@/helpers/design-md-metadata-auth";
-import {
-  ensurePersonalWorkspaceForOrganizationMembership,
-  pinPreferredOrganizationIfUnset,
-} from "@/helpers/org-membership-personal-workspace";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { uploadProfileImage } from "@/lib/blob";
@@ -94,6 +74,7 @@ import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import { createAuthOrganizationPlugin } from "./auth-organization";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
@@ -142,83 +123,6 @@ async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
       },
       extra: {
         userId,
-      },
-    });
-  }
-}
-
-async function ensureWorkspaceForCreatedOrganization(organization: {
-  id: string;
-  name: string;
-}): Promise<void> {
-  try {
-    await prisma.$transaction(async (tx) => {
-      await workspaceRepository.upsertOrganizationWorkspace({
-        organizationId: organization.id,
-        tx,
-      });
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        context: "workspace_organization_creation",
-      },
-      extra: {
-        organizationId: organization.id,
-        organizationName: organization.name,
-      },
-    });
-  }
-}
-
-async function ensureStripeCustomerForCreatedOrganization(organization: {
-  id: string;
-  name: string;
-  slug: string;
-}): Promise<void> {
-  await stripeClient.createOrganizationCustomer({
-    organizationId: organization.id,
-    slug: organization.slug,
-    name: organization.name,
-  });
-}
-
-/**
- * Seeds the local free subscription (and its member credit grants) the moment
- * an organization exists. Previously this only happened when Stripe's
- * customer.created webhook arrived, so a freshly created organization had no
- * credits and rejected invitation accepts ("An active organization
- * subscription is required") until the webhook round-trip completed — a race
- * the create-organization wizard hits every time because it invites members
- * seconds after creation. The webhook re-runs the same idempotent ensure
- * later, finding this period and creating nothing.
- */
-async function ensureFreeSubscriptionForCreatedOrganization(organization: {
-  id: string;
-  name: string;
-  createdAt: Date;
-}): Promise<void> {
-  try {
-    await prisma.$transaction(async (tx) => {
-      await ensureInitialLocalFreeSubscriptionPeriod(
-        {
-          createdAt: organization.createdAt,
-          kind: "organization",
-          organizationId: organization.id,
-          stripeCustomerId: null,
-        },
-        tx,
-      );
-    });
-  } catch (error) {
-    // Fail soft: the customer.created webhook still seeds it as a fallback.
-    Sentry.captureException(error, {
-      tags: {
-        context: "organization_free_subscription_seed",
-      },
-      extra: {
-        organizationId: organization.id,
-        organizationName: organization.name,
       },
     });
   }
@@ -286,6 +190,9 @@ export const auth = betterAuth({
       maxAge: env.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
     storeSessionInDatabase: true,
+    // Better Auth defaults this to 24 hours, which lets a day-old session
+    // register a passkey and so mint a new permanent login factor.
+    freshAge: TIME.SESSION_FRESH_AGE,
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -653,157 +560,16 @@ export const auth = betterAuth({
         maxRequests: LIMITS.API_KEY_MAX_REQUESTS_PER_MINUTE,
       },
       enableMetadata: true,
-      enableSessionForAPIKeys: true,
+      // A key must authenticate a request, never become a session. The plugin
+      // mints a synthetic session that looks freshly created, which is enough
+      // for the passkey plugin to register a new passkey. A leaked key would
+      // then buy permanent interactive access that revoking the key cannot
+      // take back. Core reads keys through `verifyApiKey` in the bearer
+      // middleware, so no first-party caller needs the session.
+      enableSessionForAPIKeys: false,
     }),
     jwt({ disableSettingJwtHeader: true }),
-    organization({
-      organizationHooks: {
-        beforeCreateOrganization: async ({ organization, user }) => {
-          await ensurePersonalWorkspaceForOrganizationMembership(user.id);
-          return {
-            data: applyDesignMdMetadataGuardToOrganizationCreate(
-              organization as Record<string, unknown>,
-            ),
-          };
-        },
-        afterCreateOrganization: async ({ organization, user }) => {
-          await ensureWorkspaceForCreatedOrganization(organization);
-          await pinPreferredOrganizationIfUnset(user.id, organization.id);
-          await ensureFreeSubscriptionForCreatedOrganization(organization);
-          void ensureStripeCustomerForCreatedOrganization(organization).catch(
-            (error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "stripe_organization_customer_creation",
-                },
-                extra: {
-                  organizationId: organization.id,
-                  organizationName: organization.name,
-                  organizationSlug: organization.slug,
-                },
-              });
-            },
-          );
-        },
-        beforeUpdateOrganization: async ({ organization, member }) => {
-          return {
-            data: await applyDesignMdMetadataGuardToOrganizationUpdate(
-              organization as Record<string, unknown>,
-              member.organizationId,
-            ),
-          };
-        },
-        beforeAcceptInvitation: async ({ organization, user }) => {
-          await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
-            organizationId: organization.id,
-          });
-        },
-        beforeAddMember: async ({ user, organization }) => {
-          await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
-            organizationId: organization.id,
-          });
-        },
-        afterAcceptInvitation: async ({ organization, user }) => {
-          await upgradeGuestChatRoomMembershipsToMember(
-            user.id,
-            organization.id,
-          );
-        },
-        afterAddMember: async ({ organization, user }) => {
-          await upgradeGuestChatRoomMembershipsToMember(
-            user.id,
-            organization.id,
-          );
-        },
-        // BA leaveOrganization has no remove-member hooks — durable hard-leave
-        // for leave (and for remove) is the member-delete DB trigger. For
-        // remove-member only: snapshot room IDs on the member object BA passes
-        // to both hooks (no module Map), then Ably-revoke after Member is gone.
-        beforeRemoveMember: async ({ organization, user, member }) => {
-          const roomIds = await listOrganizationExitChatRoomIdsForAbly(
-            user.id,
-            organization.id,
-          );
-          // BA reuses the same member object for afterRemoveMember.
-          (
-            member as { organizationExitChatRoomIds?: string[] }
-          ).organizationExitChatRoomIds = roomIds;
-        },
-        afterRemoveMember: async ({ user, member }) => {
-          const roomIds =
-            (member as { organizationExitChatRoomIds?: string[] })
-              .organizationExitChatRoomIds ?? [];
-          await publishOrganizationExitChatRevocation(user.id, {
-            revokedRoomIds: roomIds,
-            statusMessages: [],
-          });
-        },
-        beforeDeleteOrganization: async ({ organization, user }) => {
-          const evaluation = await evaluateOrganizationDeletion(
-            organization.id,
-            user.id,
-            prisma,
-          );
-          throwIfOrganizationDeletionBlocked(evaluation);
-          const organizationCustomer = await prisma.organization.findUnique({
-            where: { id: organization.id },
-            select: { stripeCustomerId: true },
-          });
-          organization.stripeCustomerId =
-            organizationCustomer?.stripeCustomerId ?? null;
-        },
-        afterDeleteOrganization: async ({ organization }) => {
-          waitUntil(
-            deleteStripeCustomerBestEffort({
-              stripeCustomerId: organization.stripeCustomerId,
-              ownerType: "organization",
-              ownerId: organization.id,
-            }),
-          );
-        },
-      },
-      schema: {
-        organization: {
-          additionalFields: betterAuthOrganizationAdditionalFields,
-        },
-      },
-      async sendInvitationEmail(data, request) {
-        const inviteLink = `${webAppBaseUrl}/accept-invitation/${data.id}`;
-        const email = await renderOrganizationInvitationEmail({
-          invitationLink: inviteLink,
-          invitorUsername: data.inviter.user.name,
-          locale: getEmailLocale(request),
-          organizationName: data.organization.name,
-        });
-
-        waitUntil(
-          sendEmail({
-            to: data.email,
-            tag: "invitation-email",
-            subject: email.subject,
-            html: email.html,
-          }).catch((error) => {
-            captureExternalServiceError(error, {
-              label: "organization_invitation_email",
-              sentry: {
-                tags: {
-                  context: "organization_invitation_email",
-                },
-              },
-              extra: {
-                invitationId: data.id,
-                organizationId: data.organization.id,
-              },
-            });
-          }),
-        );
-      },
-      invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
-      cancelPendingInvitationsOnReInvite: true,
-      allowUserToCreateOrganization: true,
-      organizationLimit: LIMITS.ORGANIZATION_LIMIT,
-      invitationExpiresIn: TIME.INVITATION_EXPIRES,
-    }),
+    createAuthOrganizationPlugin(),
     passkey({
       rpID: env.BETTER_AUTH_RP_ID,
       rpName: "Sokosumi",
