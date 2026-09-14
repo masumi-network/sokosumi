@@ -62,22 +62,47 @@ import SwiftUI
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
     var onDelete: (() async throws -> Void)?
+    var onToggleReaction: ((String) async throws -> Void)?
+    var pendingReactionEmoji: Set<String> = []
     var editing: MessageEditing?
     var onQuoteJump: ((String) -> Void)?
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
     var streamThinking = false
+    @State private var showsReactionPicker = false
+    @State private var reactionError: String?
+    @State private var showsReactionError = false
     @State private var confirmsDeletion = false
     @State private var isDeleting = false
     @State private var deletionError: String?
     @State private var showsDeletionError = false
     @State private var isHovered = false
     @State private var isReplyHovered = false
+    @State private var hoveredAction: MessageAction?
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
+    @ScaledMetric(relativeTo: .callout) private var actionIconSize: CGFloat = 16
     @FocusState private var focusedAction: MessageAction?
 
     private enum MessageAction: Hashable {
-      case quote, reply, edit, more
+      case quote, reply, more, react
+    }
+
+    private var reactionAction: ((String) -> Void)? {
+      guard onToggleReaction != nil else { return nil }
+      return { emoji in toggleReaction(emoji) }
+    }
+
+    private func toggleReaction(_ emoji: String) {
+      guard let onToggleReaction else { return }
+      Task { @MainActor in
+        do {
+          try await onToggleReaction(emoji)
+          ReactionEmojiHistory().record(emoji)
+        } catch {
+          reactionError = friendlyMessage(for: error)
+          showsReactionError = true
+        }
+      }
     }
 
     private func deleteMessage() {
@@ -143,6 +168,9 @@ import SwiftUI
               Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
+          if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
+            MessageReactionsView(reactions: message.reactions, pendingEmoji: pendingReactionEmoji, toggle: reactionAction)
+          }
           if let onReply, message.threadReplyCount > 0 {
             Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
               .buttonStyle(.borderless)
@@ -171,41 +199,65 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil) ? Color.primary.opacity(0.04) : .clear)
+      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil) ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
-        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil {
-          HStack(spacing: 0) {
-            if onDelete != nil {
+        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil {
+          HStack(spacing: 2) {
+            if onToggleReaction != nil {
+              messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
+                .popover(isPresented: $showsReactionPicker, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+                  ReactionEmojiPicker { emoji in
+                    showsReactionPicker = false
+                    toggleReaction(emoji)
+                  }
+                }
+            }
+            if let onReply {
+              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
+            }
+            if let onQuote {
+              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
+            }
+            if onEdit != nil || onDelete != nil {
               Menu {
-                Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+                if let onEdit {
+                  Button("Edit message", systemImage: "pencil", action: onEdit)
+                }
+                if onEdit != nil, onDelete != nil {
+                  Divider()
+                }
+                if onDelete != nil {
+                  Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+                }
               } label: {
-                Image(systemName: "ellipsis").frame(width: replyActionHeight, height: replyActionHeight)
+                Image(systemName: "ellipsis")
+                  .font(.callout)
+                  .frame(width: actionIconSize, height: actionIconSize)
               }
-              .menuStyle(.borderlessButton)
+              .menuStyle(.button)
+              .buttonStyle(.plain)
               .menuIndicator(.hidden)
+              .frame(width: replyActionHeight, height: replyActionHeight)
+              .foregroundStyle(hoveredAction == .more ? .primary : .secondary)
+              .background(hoveredAction == .more ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+              .contentShape(.rect)
+              .onHover { hoveredAction = $0 ? .more : nil }
               .focused($focusedAction, equals: .more)
               .disabled(isDeleting)
               .help(isDeleting ? "Deleting message…" : "More message actions")
               .accessibilityLabel("More message actions")
             }
-            if let onEdit {
-              messageAction("Edit", symbol: "pencil", focus: .edit, action: onEdit)
-            }
-            if let onQuote {
-              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
-            }
-            if let onReply {
-              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
-            }
           }
+          .padding(3)
           .fixedSize()
-          .background(.regularMaterial, in: .rect(cornerRadius: 8))
-          .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
+          .background(.regularMaterial, in: .rect(cornerRadius: 9))
+          .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)))
+          .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
           .onHover { isReplyHovered = $0 }
-          .opacity(isHovered || isReplyHovered || focusedAction != nil ? 1 : 0)
-          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil)
+          .opacity(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker)
           .padding(.trailing, horizontalInset)
-          .offset(y: -replyActionHeight / 2)
+          .offset(y: -(replyActionHeight + 6) / 2)
         }
       }
       // Track the complete row, including its action overlay. The toolbar
@@ -219,6 +271,11 @@ import SwiftUI
           isHovered = hovering
         }
       }
+      .alert("Couldn’t update reaction", isPresented: $showsReactionError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(reactionError ?? "Try again.")
+      }
       .alert("Delete message?", isPresented: $confirmsDeletion) {
         Button("Cancel", role: .cancel) {}
         Button("Delete", role: .destructive) { deleteMessage() }
@@ -231,6 +288,9 @@ import SwiftUI
         Text(deletionError ?? "Try again.")
       }
       .contextMenu {
+        if onToggleReaction != nil, message.deletedAt == nil {
+          Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
+        }
         if onDelete != nil, message.deletedAt == nil {
           Button(isDeleting ? "Deleting…" : "Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
             .disabled(isDeleting)
@@ -248,6 +308,9 @@ import SwiftUI
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
+        if onToggleReaction != nil, message.deletedAt == nil {
+          Button("Add reaction") { showsReactionPicker = true }
+        }
         if onDelete != nil, !isDeleting, message.deletedAt == nil {
           Button("Delete message", role: .destructive) { confirmsDeletion = true }
         }
@@ -267,17 +330,26 @@ import SwiftUI
 
     private func messageAction(_ title: String, symbol: String, focus: MessageAction, action: @escaping () -> Void) -> some View {
       Button(action: action) {
-        Label(title, systemImage: symbol)
-          .font(.caption)
-          .lineLimit(1)
-          .fixedSize()
-          .padding(.horizontal, 10)
-          .frame(height: replyActionHeight)
-          .contentShape(.rect)
+        actionLabel(title, symbol: symbol, action: focus)
       }
-      .buttonStyle(.borderless)
+      .buttonStyle(.plain)
+      .onHover { hoveredAction = $0 ? focus : nil }
       .focused($focusedAction, equals: focus)
-      .help(title == "Reply" ? "Reply in thread" : "Quote message")
+      .help(title == "Reply" ? "Reply in thread" : title)
+    }
+
+    private func actionLabel(_ title: String, symbol: String, action: MessageAction) -> some View {
+      HStack(spacing: 5) {
+        Image(systemName: symbol)
+          .font(.callout)
+          .frame(width: actionIconSize, height: actionIconSize)
+        Text(title).font(.callout).lineLimit(1)
+      }
+      .padding(.horizontal, 8)
+      .frame(height: replyActionHeight)
+      .foregroundStyle(hoveredAction == action ? .primary : .secondary)
+      .background(hoveredAction == action ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+      .contentShape(.rect)
     }
 
     private var pendingSince: Date? {

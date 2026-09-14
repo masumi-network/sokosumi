@@ -46,7 +46,7 @@ const createSokoBotSchema = z.object({
 });
 
 const avatarListSchema = z.object({
-  take: z.number().int().min(1).max(12).default(6),
+  take: z.number().int().min(1).max(6).default(6),
   excludeIds: z.array(z.string().uuid()).max(60).default([]),
 });
 
