@@ -871,9 +871,6 @@ importers:
       decimal.js:
         specifier: 10.6.0
         version: 10.6.0
-      namefully:
-        specifier: 2.2.0
-        version: 2.2.0
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -7755,11 +7752,6 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@1.44.0:
-    resolution: {integrity: sha512-2egNApH4hX4j/qdCgRublh88+9u3mEhz9iSlW5ckm4kaQEqZbXbMr0l5u5JZLy8nmWRx2dbHGQkEDYz6C9aCgw==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
   lucide-react@1.45.0:
     resolution: {integrity: sha512-yH1ubCAduho9UR7oJhRXIQXogksRILBiTuZC4/bQIGeB9JOkxMlSuEHyyZpo1Z3S0yWJO2KTSUZbjiNvVxeOUw==}
     peerDependencies:
@@ -8134,9 +8126,6 @@ packages:
   named-placeholders@1.1.6:
     resolution: {integrity: sha512-Tz09sEL2EEuv5fFowm419c1+a/jSMiBjI9gHxVLrVdbUkkNUUfjsVYs9pVZu5oCon/kmRh9TfLEObFtkVxmY0w==}
     engines: {node: '>=8.0.0'}
-
-  namefully@2.2.0:
-    resolution: {integrity: sha512-QKdPdZpxyKrXKrWPuRAfAGK2Qdnqxn2JjK3KiPl6Hw6mTr5VGwwr9A77X21wZwSxzSR3wl9CRWVxZCVfkvDR8A==}
 
   nanoid@3.3.18:
     resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
@@ -11432,7 +11421,7 @@ snapshots:
       immer: 11.1.8
       katex: 0.16.47
       leva: 0.10.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      lucide-react: 1.44.0(react@19.3.0)
+      lucide-react: 1.45.0(react@19.3.0)
       marked: 17.0.6
       mermaid: 11.15.0
       motion: 13.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -17438,10 +17427,6 @@ snapshots:
     dependencies:
       react: 19.3.0
 
-  lucide-react@1.44.0(react@19.3.0):
-    dependencies:
-      react: 19.3.0
-
   lucide-react@1.45.0(react@19.3.0):
     dependencies:
       react: 19.3.0
@@ -18125,8 +18110,6 @@ snapshots:
   named-placeholders@1.1.6:
     dependencies:
       lru.min: 1.1.4
-
-  namefully@2.2.0: {}
 
   nanoid@3.3.18: {}
 

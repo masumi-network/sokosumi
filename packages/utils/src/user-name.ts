@@ -1,13 +1,11 @@
-import { Namefully } from "namefully";
-
 /** Prefer trimmed name; otherwise the full email (account chrome labels). */
 export function resolveAccountDisplayName(name: string, email: string): string {
   return name.trim() || email;
 }
 
 /**
- * Given name only (e.g. greetings). Uses namefully; mononyms supported.
- * Returns undefined when input is blank or unparsable.
+ * Given name only (e.g. greetings). First whitespace-separated token.
+ * Returns undefined when input is blank.
  */
 export function getFirstName(
   name: null | string | undefined,
@@ -17,16 +15,5 @@ export function getFirstName(
     return undefined;
   }
 
-  const parsed =
-    Namefully.tryParse(normalized) ??
-    (() => {
-      try {
-        return new Namefully(normalized, { mono: true });
-      } catch {
-        return undefined;
-      }
-    })();
-
-  const first = parsed?.first.trim();
-  return first || undefined;
+  return normalized.split(" ")[0] || undefined;
 }
