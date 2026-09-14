@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { assertChatMessageReadBudget } from "@/helpers/chat-message-read-budget";
 import { unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -49,7 +50,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/threads",
     description:
-      "List threads in a room. `unread=true` returns every unread thread (Participant-gated `unreadReplyCount`) and ignores `cursor`/`limit`. Otherwise returns unread threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read.",
+      "List threads in a room. `unread=true` returns every unread thread (Participant-gated `unreadReplyCount`) and ignores `cursor`/`limit`. Otherwise returns unread threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -64,6 +65,7 @@ const route = withOrganizationSlugHeaderParameter(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
       422: jsonErrorResponse("Unprocessable Entity"),
+      429: jsonErrorResponse("Chat history read budget exceeded"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -81,6 +83,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
+    // Shared per-user budget across rooms and credentials (SOK-1060).
+    await assertChatMessageReadBudget(userContext.userId);
 
     if (unreadOnly) {
       const items = await listChatRoomThreads(
