@@ -163,6 +163,21 @@ describe("thirdPartyScriptDenyUrls", () => {
       ),
     ).toBe(true);
   });
+
+  it("includes Urban VPN executors scripts", () => {
+    expect(
+      thirdPartyScriptDenyUrls.some((pattern) =>
+        pattern.test("app:///executors/200.js"),
+      ),
+    ).toBe(true);
+    expect(
+      thirdPartyScriptDenyUrls.some((pattern) =>
+        pattern.test(
+          "chrome-extension://abcdefghijklmnopqrstuvwxyzabcdef/executors/200.js",
+        ),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("thirdPartyAnalyticsIgnoreErrors", () => {
@@ -655,6 +670,53 @@ describe("beforeSendClientEvent", () => {
         {},
       ),
     ).toBeNull();
+  });
+
+  it("drops Urban VPN executors-only M_ID failures (SOKOSUMI-S5)", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'M_ID')",
+                stacktrace: {
+                  frames: [
+                    { filename: "app:///executors/200.js" },
+                    { filename: "app:///executors/200.js" },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps M_ID failures that include a first-party frame", () => {
+    const event = {
+      type: undefined,
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Cannot read properties of undefined (reading 'M_ID')",
+            stacktrace: {
+              frames: [
+                { filename: "app:///executors/200.js" },
+                { filename: "app:///_next/static/chunks/app/page.js" },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    expect(beforeSendClientEvent(event, {})).toBe(event);
   });
 
   it("drops generic coworker chat stream surface errors", () => {
