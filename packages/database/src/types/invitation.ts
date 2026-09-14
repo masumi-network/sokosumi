@@ -5,8 +5,6 @@ export const InvitationStatus = {
   ACCEPTED: "accepted",
   REJECTED: "rejected",
   CANCELED: "canceled",
-  // This option is not used in the database, but it is used in the frontend to indicate that the invitation has expired
-  EXPIRED: "expired",
 } as const;
 
 export const invitationOrganizationInclude = {

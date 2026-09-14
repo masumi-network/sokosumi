@@ -18,6 +18,7 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
         startTurn: vi.fn(),
         resolveDecision: vi.fn(),
         createSchedule: vi.fn(),
+        topUpAvatars: vi.fn(),
       },
       revalidatePathMock: vi.fn(),
       MockCoreApiRequestError,
@@ -59,6 +60,7 @@ import {
   createSokoBotScheduleAction,
   resolveSokoBotDecisionAction,
   startSokoBotTurnAction,
+  topUpSokoBotAvatarsAction,
 } from "../action";
 
 describe("soko-bot actions", () => {
@@ -136,5 +138,14 @@ describe("soko-bot actions", () => {
     });
     expect(bad.ok).toBe(false);
     expect(serviceMock.createSchedule).not.toHaveBeenCalled();
+  });
+
+  it("topUpSokoBotAvatarsAction refuses a take above one generation batch", async () => {
+    const bad = await topUpSokoBotAvatarsAction({
+      input: { take: 12, excludeIds: [] },
+    });
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    expect(serviceMock.topUpAvatars).not.toHaveBeenCalled();
   });
 });
