@@ -122,3 +122,16 @@ These observations verify the candidate's historical navigation and width-change
 Remote commit `b5696ec9c` added `.tracking` to user scroll phases and replaced the test's absolute-offset assertion with distance from the bottom. It also inferred reader motion from geometry alone. After integrating that commit, the existing content-growth test failed: growing the bottom row left a 160-point gap (`/tmp/scroll-external-fix-tests.log`). Geometry changes cannot by themselves distinguish media/content growth from a wheel gesture.
 
 Removed the geometry-only inference and its implementation-mirroring unit test, retaining `.tracking` handling and the distance-based fixture correction. The existing growth regression and both scrolling fixtures pass again (`/tmp/scroll-growth-regression-fixed.log`). No tolerance was relaxed. Full app verification and CI are required after this correction.
+
+
+## Unrelated workspace notification probe
+
+The user reports the ScrollPosition candidate is still not perfectly fluid (recording at 18:46 on September 14). All CI checks pass on `ef792dad0` (Apple run `34869814742`); passing those checks does not satisfy the performance acceptance criterion.
+
+An app-hosted diagnostic rendered one `MessageMarkdownView`, allowed its initial layout, then sent ten sidebar `objectWillChange` notifications, 30 ms apart. A temporary main-actor counter in the Markdown body recorded ten evaluations. The zero-update expectation failed (`/tmp/scroll-update-probe.log`). The first method-filtered invocation selected zero tests and is not evidence; the subsequent full `TranscriptScrollingTests` invocation executed the probe.
+
+Separated the existing Markdown rendering and parsing state into a private `MessageMarkdownContent` view within the same file. Workspace/auth observation, channel navigation, participant popovers and open-URL handling remain in the existing outer view. Rendering receives the same source, room and channels as values. The same probe recorded one content-body evaluation (`/tmp/scroll-isolated-markdown-probe.log`). An additional layout pass and 500 ms settling delay still recorded one (`/tmp/scroll-isolated-markdown-settled.log`), so the zero-update expectation remains unproven. This demonstrates reduced body evaluation for the isolated notification scenario, not a frame-rate result or complete isolation.
+
+Removed the temporary counter and probe rather than shipping a false zero-update assertion or a permissive count threshold. Existing rendering and app tests validate behavior; live scrolling and ancestor-driven row invalidation remain open. This change neither replaces the coordinator nor introduces a second rendering path.
+
+Full app tests pass with instrumentation removed (`/tmp/scroll-markdown-isolation-full.log`); strict pinned SwiftLint passes (`/tmp/scroll-markdown-isolation-lint.log`).
