@@ -21,6 +21,7 @@ import SwiftUI
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
+    @State private var scrollTarget: String?
     @State private var quoteFocusRequest: String?
 
     let roomId: String
@@ -89,6 +90,7 @@ import SwiftUI
         jumpCompletion = nil
         pendingQuote = nil
         quoteTarget = nil
+        scrollTarget = nil
         transcriptWasAwayFromTop = false
         scrollIntent = TimelineScrollIntent()
       }
@@ -146,11 +148,26 @@ import SwiftUI
                 .padding(.horizontal, 12)
             }
             let messages = workspaces.displayedTranscript
+            let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
+              let hasGap = gaps.contains(message.id)
               // Unary row: a top-level if (day pill) plus the bubble made the
               // lazy path reserve blank slots. One container per message id.
               VStack(alignment: .leading, spacing: 0) {
+                if hasGap {
+                  Button("Load missing messages") {
+                    Task {
+                      do {
+                        try await workspaces.loadHistoryGap(before: message.id, auth: auth)
+                      } catch { jumpError = friendlyMessage(for: error) }
+                    }
+                  }
+                  .buttonStyle(.link)
+                  .disabled(workspaces.transcriptRefreshing || workspaces.transcriptLoadingOlder)
+                  .frame(maxWidth: .infinity)
+                  .padding(.vertical, 8)
+                }
                 if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
                   DaySeparatorRow(label: label)
                 }
@@ -161,7 +178,7 @@ import SwiftUI
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
                   MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId },
                                  message: message,
-                                 isContinuation: isMessageContinuation(previous: previous, current: message),
+                                 isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,
                                  sentAt: workspaces.outbox.sentAt[message.id],
                                  onRetry: outbound.map { shell in
@@ -193,6 +210,15 @@ import SwiftUI
                 }
               }
               .background(highlightedId == message.id ? Color.accentColor.opacity(0.12) : .clear)
+              .background {
+                if quoteTarget == message.id {
+                  Color.clear.onScrollVisibilityChange(threshold: 0.01) { visible in
+                    if visible {
+                      completeVisibleJump(message.id)
+                    }
+                  }
+                }
+              }
               .id(message.id)
             }
             // Bottom anchor doubles as the trailing breathing room (1pt anchor
@@ -204,22 +230,23 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
+        .scrollPosition(id: $scrollTarget, anchor: .center)
         .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
-          quoteTarget = nil
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
+            quoteTarget = nil
             jumpCompletion?.resume(returning: false)
             jumpCompletion = nil
             return
           }
           scrollIntent.readOlder()
-          proxy.scrollTo(target, anchor: .center)
-          highlightedId = target
-          jumpCompletion?.resume(returning: true)
-          jumpCompletion = nil
+          scrollTarget = target
         }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating
+          if phase == .interacting {
+            highlightedId = nil
+          }
         }
         .onChange(of: workspaces.displayedTranscript.last?.id) { _, _ in
           if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
@@ -232,6 +259,7 @@ import SwiftUI
               Task { @MainActor in
                 do {
                   if try await workspaces.returnToLatest(auth: auth) {
+                    scrollTarget = nil
                     scrollIntent.followLatest()
                     highlightedId = nil
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
@@ -241,6 +269,14 @@ import SwiftUI
             }
             .buttonStyle(.borderedProminent)
             .padding(12)
+          }
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.width } action: { old, new in
+          // Closing Pins widens and reflows rich text. Restore the acknowledged
+          // target after that layout change, until the reader starts scrolling.
+          if old != new, let highlightedId, !userIsScrolling {
+            scrollTarget = highlightedId
+            proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
         .onScrollGeometryChange(for: [Double].self) { geometry in
@@ -273,6 +309,14 @@ import SwiftUI
     private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
       return { try await workspaces.setPinned(!workspaces.isPinned(message.id), messageId: message.id, auth: auth) }
+    }
+
+    private func completeVisibleJump(_ target: String) {
+      guard quoteTarget == target else { return }
+      highlightedId = target
+      quoteTarget = nil
+      jumpCompletion?.resume(returning: true)
+      jumpCompletion = nil
     }
 
     private func jumpToMessage(_ id: String) async throws -> Bool {

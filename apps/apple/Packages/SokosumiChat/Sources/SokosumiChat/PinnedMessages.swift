@@ -13,6 +13,7 @@ public final class PinnedMessages: ObservableObject {
   @Published public private(set) var revision = 0
   public private(set) var roomGeneration = 0
   private var generation = 0
+  private var loadTask: Task<Void, Error>?
 
   public init() {}
 
@@ -27,6 +28,8 @@ public final class PinnedMessages: ObservableObject {
   }
 
   public func invalidate() {
+    loadTask?.cancel()
+    loadTask = nil
     generation += 1
     revision += 1
     isLoading = false
@@ -38,20 +41,35 @@ public final class PinnedMessages: ObservableObject {
   }
 
   public func load(client: Client, organizationSlug: String?, older: Bool = false) async throws {
-    guard let roomId, !isLoading, !older || nextCursor != nil else { return }
+    if let loadTask {
+      try await loadTask.value
+      return
+    }
+    guard let roomId, !older || nextCursor != nil else { return }
     let requestedGeneration = generation
     let cursor = older ? nextCursor : nil
     isLoading = true
     errorMessage = nil
+    let task = Task {
+      try await self.loadPage(client: client, roomId: roomId, organizationSlug: organizationSlug,
+                              cursor: cursor, requestedGeneration: requestedGeneration)
+    }
+    loadTask = task
+    try await task.value
+  }
+
+  private func loadPage(client: Client, roomId: String, organizationSlug: String?, cursor: String?,
+                        requestedGeneration: Int) async throws {
     defer {
       if requestedGeneration == generation {
         isLoading = false
+        loadTask = nil
       }
     }
     do {
       let page = try await ChatService().listPinnedMessages(client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug)
       guard requestedGeneration == generation, !Task.isCancelled else { return }
-      if older {
+      if cursor != nil {
         let known = Set(items.map(\.messageId))
         items += page.items.filter { !known.contains($0.messageId) }
       } else {

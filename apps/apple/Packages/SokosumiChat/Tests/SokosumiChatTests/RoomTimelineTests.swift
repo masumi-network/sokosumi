@@ -185,28 +185,53 @@ struct RoomTimelineTests {
     #expect(intent.followsLatest)
   }
 
-  @Test func historicalJumpReplacesDisconnectedHistoryAndReturnsToLatest() async throws {
+  @Test func historicalJumpKeepsHeadAndFillsGap() async throws {
     let transport = TestTransport([
-      (200, testMessagesPageBody(messages: [row("new", content: "Latest")], nextCursor: "latest-older")),
-      (200, testMessagesPageBody(messages: [row("old", content: "Pinned")], nextCursor: "old-older")),
-      (200, testMessagesPageBody(messages: [row("old", content: "Edited")], nextCursor: "old-older")),
-      (200, testMessagesPageBody(messages: [row("new", content: "Latest")], nextCursor: "latest-older"))
+      (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned")], nextCursor: "a")),
+      (200, testMessagesPageBody(messages: [row("zz", content: "Live")], nextCursor: "zz")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned"), row("m", content: "Between")], nextCursor: "a")),
+      (200, testMessagesPageBody(messages: [row("zz", content: "Live")], nextCursor: "zz"))
     ])
     let timeline = RoomTimeline()
     timeline.reset(roomId: testRoomId)
-    for page in [RoomTimeline.Page.initial, .around("old"), .latest] {
+    for page in [RoomTimeline.Page.initial, .around("a"), .latest] {
       #expect(try await timeline.loadPage(page, client: client(transport), organizationSlug: "acme", generation: timeline.generation))
     }
-    #expect(timeline.messages.map(\.id) == ["old"])
-    #expect(timeline.messages.first?.content == "Edited")
-    #expect(timeline.historicalAnchor == "old")
-    #expect(timeline.cursor == "old-older")
-    #expect(transport.requests[1].request.path?.contains("around=old") == true)
-    #expect(transport.requests[2].request.path?.contains("around=old") == true)
+    #expect(timeline.messages.map(\.id) == ["a", "z", "zz"])
+    #expect(timeline.historyGapMessageIds == ["z", "zz"])
+    #expect(timeline.historicalAnchor == "a")
+    #expect(timeline.cursor == "a")
+    #expect(transport.requests[1].request.path?.contains("around=a") == true)
+    #expect(transport.requests[1].request.path?.contains("limit=30") == true)
+    #expect(transport.requests[2].request.path?.contains("around=") == false)
+    #expect(try await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: "acme", generation: timeline.generation))
+    #expect(timeline.historyGapMessageIds == ["zz"])
+    #expect(timeline.messages.map(\.id) == ["a", "m", "z", "zz"])
     #expect(try await timeline.loadPage(.returnToLatest, client: client(transport), organizationSlug: "acme", generation: timeline.generation))
     #expect(timeline.historicalAnchor == nil)
-    #expect(timeline.messages.map(\.id) == ["new"])
-    #expect(timeline.cursor == "latest-older")
+    #expect(timeline.messages.map(\.id) == ["a", "m", "z", "zz"])
+    #expect(timeline.cursor == "a")
+  }
+
+  @Test func overlappingJumpJoinsRangesAndDeletedGapEdgeMovesToNextRow() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("y", content: "Head"), row("z", content: "Latest")], nextCursor: "y")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Oldest"), row("b", content: "Pinned")], nextCursor: "a")),
+      (200, testMessagesPageBody(messages: [row("b", content: "Pinned"), row("m", content: "Middle"), row("z", content: "Latest")], nextCursor: "b"))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .around("b")] {
+      try await timeline.loadPage(page, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    #expect(timeline.historyGapMessageIds == ["y"])
+    timeline.messages.removeAll { $0.id == "y" }
+    #expect(timeline.historyGapMessageIds == ["z"])
+    try await timeline.loadPage(.around("m"), client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    #expect(timeline.historyGapMessageIds.isEmpty)
+    #expect(timeline.messages.map(\.id) == ["a", "b", "m", "z"])
+    #expect(timeline.cursor == "a")
   }
 
   @Test func unavailableJumpPreservesCurrentWindow() async throws {

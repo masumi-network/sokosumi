@@ -6,7 +6,7 @@ import Foundation
 /// outbound sends and realtime delivery with this timeline.
 @MainActor
 public final class RoomTimeline: ObservableObject {
-  public enum Page: Equatable, Sendable { case initial, older, latest, around(String), returnToLatest }
+  public enum Page: Equatable, Sendable { case initial, older, latest, around(String), boundary(String), returnToLatest }
 
   @Published public private(set) var roomId: String?
   @Published public private(set) var parentMessageId: String?
@@ -25,12 +25,22 @@ public final class RoomTimeline: ObservableObject {
   @Published public private(set) var historicalAnchor: String?
 
   private var activePage: Page?
+  private var historyRanges = RoomHistoryRanges()
+
+  public var historyGapMessageIds: Set<String> {
+    historyRanges.gaps(in: messages)
+  }
+
+  public func followLatest() {
+    historicalAnchor = nil
+  }
 
   public init() {}
 
   public func reset(roomId: String? = nil, parentMessageId: String? = nil) {
     generation += 1
     activePage = nil
+    historyRanges = RoomHistoryRanges()
     historicalAnchor = nil
     self.roomId = roomId
     self.parentMessageId = parentMessageId
@@ -70,7 +80,11 @@ public final class RoomTimeline: ObservableObject {
     generation expectedGeneration: Int
   ) async throws -> Bool {
     guard let roomId, generation == expectedGeneration, activePage == nil else { return false }
-    let requestedCursor = kind == .older ? cursor : nil
+    let requestedCursor: String? = if case let .boundary(id) = kind {
+      id
+    } else {
+      kind == .older ? cursor : nil
+    }
     guard kind != .older || requestedCursor != nil else { return false }
     activePage = kind
     isLoading = kind == .initial
@@ -91,7 +105,7 @@ public final class RoomTimeline: ObservableObject {
       let around: String? = if case let .around(messageId) = kind {
         messageId
       } else {
-        kind == .latest ? historicalAnchor : nil
+        nil
       }
       page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, around: around, organizationSlug: organizationSlug)
     } catch {
@@ -115,21 +129,38 @@ public final class RoomTimeline: ObservableObject {
       guard rows.contains(where: { $0.id == messageId }) else {
         throw ChatServiceError.unprocessable(statusCode: 404, message: "This message is no longer available.")
       }
-      messages = rows
       historicalAnchor = messageId
     } else if kind == .returnToLatest {
-      messages = rows
       historicalAnchor = nil
-    } else {
-      messages = mergeRealtimePage(messages: messages, page: rows)
     }
+    let nextCursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
+    if parentMessageId == nil {
+      mergeRoomHistory(rows, kind: kind, requestedCursor: requestedCursor, nextCursor: nextCursor)
+    } else if kind != .latest {
+      cursor = nextCursor
+    }
+    messages = mergeRealtimePage(messages: messages, page: rows)
     hasLoadedHistory = true
-    if kind != .latest {
-      cursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
-      hasMore = cursor != nil
-    }
+    hasMore = cursor != nil
     errorMessage = nil
     failedPage = nil
+  }
+
+  private func mergeRoomHistory(_ rows: [Components.Schemas.ChatRoomMessage], kind: Page,
+                                requestedCursor: String?, nextCursor: String?) {
+    var contiguousRows = rows
+    if let requestedCursor, let cursorRow = messages.first(where: { $0.id == requestedCursor }),
+       !rows.contains(where: { $0.id == requestedCursor }) {
+      contiguousRows.append(cursorRow)
+    }
+    // Ordinary older loads are contiguous with the oldest range, even when
+    // a server cursor is opaque rather than the boundary message ID.
+    if kind == .older, let first = messages.first, !contiguousRows.contains(where: { $0.id == first.id }) {
+      contiguousRows.append(first)
+    }
+    historyRanges.merge(existing: messages, page: contiguousRows, nextCursor: nextCursor,
+                        reachesPresent: kind == .initial || kind == .latest || kind == .returnToLatest)
+    cursor = historyRanges.oldestCursor
   }
 
   private func fetchPage(
@@ -142,7 +173,7 @@ public final class RoomTimeline: ObservableObject {
       )
     }
     return try await ChatService().listMessages(
-      client: client, roomId: roomId, cursor: cursor, around: around, organizationSlug: organizationSlug
+      client: client, roomId: roomId, cursor: cursor, around: around, limit: around != nil || cursor != nil ? 30 : nil, organizationSlug: organizationSlug
     )
   }
 }

@@ -1,8 +1,53 @@
+import CoreAPI
 import Foundation
+import HTTPTypes
+import OpenAPIRuntime
 import SokosumiChat
 import Testing
 
+private actor PausedPinTransport: ClientTransport {
+  private var waiter: CheckedContinuation<Void, Never>?
+  private var observer: CheckedContinuation<Void, Never>?
+
+  func waitForRequest() async {
+    if waiter != nil {
+      return
+    }
+    await withCheckedContinuation { observer = $0 }
+  }
+
+  func release() {
+    waiter?.resume()
+    waiter = nil
+  }
+
+  func send(_: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID _: String) async throws -> (HTTPResponse, HTTPBody?) {
+    await withCheckedContinuation { waiter = $0
+      observer?.resume()
+      observer = nil
+    }
+    return (HTTPResponse(status: .ok), HTTPBody(#"{"data":[{"messageId":"pin","pinnedAt":"2026-01-01T00:00:00.000Z","pinnedBy":null,"message":null}],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}"#))
+  }
+}
+
 @MainActor struct PinnedMessageTests {
+  @Test func openingPanelDuringCancelledPrefetchStillLoadsPins() async throws {
+    let transport = PausedPinTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let pins = PinnedMessages()
+    pins.reset(roomId: testRoomId)
+    let prefetch = Task { try await pins.load(client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    prefetch.cancel()
+    let panel = Task { try await pins.load(client: client, organizationSlug: nil) }
+    await Task.yield()
+    await transport.release()
+    try await prefetch.value
+    try await panel.value
+    #expect(pins.items.map(\.messageId) == ["pin"])
+    #expect(!pins.isLoading)
+  }
+
   @Test(arguments: [false, true])
   func pinAndUnpinUseScopedEndpoints(organization: Bool) async throws {
     let body = #"{"data":{"messageId":"message","pinnedMessageCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#

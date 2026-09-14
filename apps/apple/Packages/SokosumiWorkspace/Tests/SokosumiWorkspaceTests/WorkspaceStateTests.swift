@@ -1620,7 +1620,7 @@ extension WorkspaceStateTests {
     #expect(!state.isUpdatingPin("message"))
   }
 
-  @Test func historicalWindowDoesNotReadOrAppendLiveMessages() async throws {
+  @Test func historicalWindowRetainsLiveHeadWithoutMarkingRead() async throws {
     let (state, auth, _, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: "room", content: "Old")], nextCursor: nil))
     ], visible: false)
@@ -1630,11 +1630,11 @@ extension WorkspaceStateTests {
     var live = try #require(state.timeline.messages.first)
     live.id = "new"
     state.applyRealtimeMessage(roomId: "room", eventType: .create, message: live)
-    #expect(state.displayedTranscript.map(\.id) == ["old"])
+    #expect(Set(state.displayedTranscript.map(\.id)) == ["old", "new"])
     live.id = "old"
     live.content = "Edited live"
     state.applyRealtimeMessage(roomId: "room", eventType: .update, message: live)
-    #expect(state.displayedTranscript.first?.content == "Edited live")
+    #expect(state.displayedTranscript.first(where: { $0.id == "old" })?.content == "Edited live")
   }
 
   @Test func directSendFromHistoryReturnsToLatestBeforeStreaming() async throws {
@@ -1657,7 +1657,7 @@ extension WorkspaceStateTests {
     #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/messages"))
   }
 
-  @Test func sendingFromHistoryClearsPendingPinsAndReturnsToLatest() async throws {
+  @Test func sendingFromHistoryPreservesLoadedRowsAndPendingPinMutation() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([
       (200, roomsBody(names: ["general"])),
@@ -1679,7 +1679,8 @@ extension WorkspaceStateTests {
     #expect(state.sendMessage("New message", auth: auth))
     #expect(state.timeline.historicalAnchor == nil)
     #expect(state.isUpdatingPin("old"))
-    #expect(state.pins.revision > revision)
+    #expect(state.pins.revision == revision)
+    #expect(state.timeline.messages.map(\.id) == ["old"])
     transport.releasePausedRequest()
     try await unpin.value
     #expect(!state.isUpdatingPin("old"))

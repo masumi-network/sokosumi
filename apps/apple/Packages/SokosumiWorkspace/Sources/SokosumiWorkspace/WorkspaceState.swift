@@ -145,10 +145,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end).
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    if timeline.historicalAnchor != nil {
-      return transcriptMessages
-    }
-    return directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
   }
 
   var transcriptCursor: String? {
@@ -414,14 +411,7 @@ public final class WorkspaceState: ObservableObject {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
-    if timeline.historicalAnchor != nil, let room = rooms.first(where: { $0.id == roomId }) {
-      // A send returns to a continuous latest window; retain the outbox so
-      // HTTP confirmations arriving during that load still merge normally.
-      timeline.reset(roomId: roomId)
-      pins.invalidate()
-      let generation = transcriptGeneration
-      transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
-    }
+    timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
       return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, quote: quote, settled: { [weak self, weak auth] in
@@ -584,9 +574,6 @@ public final class WorkspaceState: ObservableObject {
       sidebarRecovery.requestRefresh()
     }
     guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
-    if timeline.historicalAnchor != nil, !transcriptMessages.contains(where: { $0.id == message.id }) {
-      return
-    }
     let result = applyRealtimeFullEvent(
       messages: transcriptMessages,
       shells: outboundShells,
