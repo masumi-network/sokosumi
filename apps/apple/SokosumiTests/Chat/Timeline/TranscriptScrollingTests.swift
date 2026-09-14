@@ -15,27 +15,16 @@
       URLProtocol.registerClass(ScrollMediaProtocol.self)
       defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
       let completed = ScrollMediaProtocol.completedRequests
-      let state = WorkspaceState()
-      state.timeline.reset(roomId: "fixture")
-      state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-      state.timeline.messages = fixtureMessages(media: media)
-      if thread {
-        let parent = try #require(state.timeline.messages.first)
-        state.thread.open(parent)
-        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-        state.thread.timeline.messages = state.timeline.messages.dropFirst().map { message in
-          var reply = message
-          reply.parentMessageId = parent.id
-          return reply
-        }
-      }
+      let state = try fixtureState(thread: thread, media: media)
+      var visibleIds: [String] = []
       let host = NSHostingView(rootView: Group {
         if thread {
           ReplyThreadView()
         } else {
           RoomTimelineView(roomId: "fixture")
         }
-      }.environmentObject(state).environmentObject(AuthState()))
+      }.onScrollTargetVisibilityChange(idType: String.self, threshold: 0.1) { visibleIds = $0 }
+        .environmentObject(state).environmentObject(AuthState()))
       let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
       window.contentView = host
       window.orderFront(nil)
@@ -54,7 +43,32 @@
       if media {
         #expect(ScrollMediaProtocol.completedRequests > completed)
       }
-      #expect(scroll.contentView.bounds.minY < initialOffset - 400)
+      if thread {
+        #expect(scroll.contentView.bounds.minY < initialOffset - 400)
+      } else {
+        // Lazy row estimates change the document origin. Compare what the
+        // reader sees rather than offsets from two different layouts.
+        let after = try #require(visibleIds.compactMap { Int($0.dropFirst("fixture-".count)) }.max())
+        #expect(after < state.timeline.messages.count - 2)
+      }
+    }
+
+    private func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {
+      let state = WorkspaceState()
+      state.timeline.reset(roomId: "fixture")
+      state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
+      state.timeline.messages = fixtureMessages(media: media)
+      if thread {
+        let parent = try #require(state.timeline.messages.first)
+        state.thread.open(parent)
+        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
+        state.thread.timeline.messages = state.timeline.messages.dropFirst().map { message in
+          var reply = message
+          reply.parentMessageId = parent.id
+          return reply
+        }
+      }
+      return state
     }
 
     private func fixtureMessages(media: Bool) -> [Components.Schemas.ChatRoomMessage] {

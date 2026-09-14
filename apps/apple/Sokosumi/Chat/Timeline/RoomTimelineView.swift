@@ -21,7 +21,7 @@ import SwiftUI
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
-    @State private var scrollTarget: String?
+    @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var quoteFocusRequest: String?
 
     let roomId: String
@@ -96,7 +96,7 @@ import SwiftUI
           jumpCompletion = nil
           pendingQuote = nil
           quoteTarget = nil
-          scrollTarget = nil
+          scrollPosition = ScrollPosition(idType: String.self)
           transcriptWasAwayFromTop = false
           scrollIntent = TimelineScrollIntent()
         }
@@ -241,7 +241,7 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
-        .scrollPosition(id: $scrollTarget, anchor: .center)
+        .scrollPosition($scrollPosition)
         .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
@@ -251,7 +251,7 @@ import SwiftUI
             return
           }
           scrollIntent.readOlder()
-          scrollTarget = target
+          scrollPosition.scrollTo(id: target, anchor: .center)
         }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating
@@ -270,7 +270,7 @@ import SwiftUI
               Task { @MainActor in
                 do {
                   if try await workspaces.returnToLatest(auth: auth) {
-                    scrollTarget = nil
+                    scrollPosition = ScrollPosition(idType: String.self)
                     scrollIntent.followLatest()
                     highlightedId = nil
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
@@ -284,7 +284,7 @@ import SwiftUI
           // Closing Pins widens and reflows rich text. Restore the acknowledged
           // target after that layout change, until the reader starts scrolling.
           if old != new, let highlightedId, !userIsScrolling {
-            scrollTarget = highlightedId
+            scrollPosition.scrollTo(id: highlightedId, anchor: .center)
             proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
