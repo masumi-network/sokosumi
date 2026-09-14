@@ -56,18 +56,3 @@ export function formatDaySeparator(date: Date): string {
   const year = messageDate.getFullYear();
   return `${day}/${month}/${year}`;
 }
-
-/**
- * Check if two dates are on different days
- */
-export function isDifferentDay(
-  date1: Date | undefined,
-  date2: Date | undefined,
-): boolean {
-  if (!date1 || !date2) return false;
-
-  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
-  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
-
-  return d1.getTime() !== d2.getTime();
-}
