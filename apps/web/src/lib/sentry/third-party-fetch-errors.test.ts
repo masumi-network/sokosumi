@@ -85,6 +85,19 @@ describe("isBareTransientNetworkFailure", () => {
     expect(isBareTransientNetworkFailure("Failed to fetch")).toBe(true);
   });
 
+  it("returns true for Ably-quoted Chromium Failed to fetch (SOKOSUMI-S4)", () => {
+    expect(isBareTransientNetworkFailure('"Failed to fetch"')).toBe(true);
+  });
+
+  it("returns true for Ably-quoted Safari Load failed", () => {
+    expect(isBareTransientNetworkFailure('"Load failed"')).toBe(true);
+  });
+
+  it("returns false for unmatched quotes around Failed to fetch", () => {
+    expect(isBareTransientNetworkFailure('"Failed to fetch')).toBe(false);
+    expect(isBareTransientNetworkFailure('Failed to fetch"')).toBe(false);
+  });
+
   it("returns false when a hostname is present", () => {
     expect(
       isBareTransientNetworkFailure(
@@ -305,6 +318,46 @@ describe("beforeSendClientEvent", () => {
               {
                 type: "Error",
                 value: '"NetworkError when attempting to fetch resource."',
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Ably-quoted Chromium Failed to fetch (SOKOSUMI-S4)", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat/rooms/:roomId",
+          exception: {
+            values: [
+              {
+                type: "Error",
+                value: '"Failed to fetch"',
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Ably-quoted Safari Load failed", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat/rooms/:roomId",
+          exception: {
+            values: [
+              {
+                type: "Error",
+                value: '"Load failed"',
               },
             ],
           },

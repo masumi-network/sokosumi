@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
   CHAT_MESSAGE_LIST_ROOM,
+  CHAT_MESSAGE_LIST_THREAD,
 } from "@/app/chat/chat-message-list";
 import {
   CLIENT_MESSAGE_ID_METADATA_KEY,
@@ -68,9 +69,11 @@ function renderRow(row: RoomTranscriptRenderRow) {
 function Harness({
   rows,
   handle,
+  list = CHAT_MESSAGE_LIST_ROOM,
 }: {
   rows: readonly RoomTranscriptRenderRow[];
   handle: React.Ref<TranscriptViewportHandle>;
+  list?: string;
 }) {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   return (
@@ -82,12 +85,13 @@ function Harness({
         data-testid="scroller"
         style={{ overflowY: "auto" }}
       >
-        <div {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: CHAT_MESSAGE_LIST_ROOM }}>
+        <div {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: list }}>
           <TranscriptViewport
             ref={handle}
             scroller={scroller}
             rows={rows}
             renderRow={renderRow}
+            list={list}
             holdOffBottom={false}
           />
         </div>
@@ -164,6 +168,37 @@ describe("TranscriptViewport", () => {
 
     expect(handle.current?.landOnMessage("msg-999")).toBe(false);
     expect(handle.current?.scrollToMessage("msg-999")).toBe(false);
+  });
+
+  it("marks the thread copy, not the room's, when the list is thread", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const room = document.createElement("div");
+    room.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, CHAT_MESSAGE_LIST_ROOM);
+    const roomRow = document.createElement("article");
+    roomRow.setAttribute("data-message-id", "msg-010");
+    room.append(roomRow);
+    document.body.append(room);
+
+    const { container } = render(
+      <Harness
+        rows={rows(20)}
+        handle={handle}
+        list={CHAT_MESSAGE_LIST_THREAD}
+      />,
+    );
+    await settle(container);
+
+    let landed: boolean | undefined;
+    act(() => {
+      landed = handle.current?.landOnMessage("msg-010");
+    });
+    await settle(container);
+
+    expect(landed).toBe(true);
+    expect(
+      container.querySelector(`[data-message-id="msg-010"]`),
+    ).toHaveAttribute("data-search-landed", "true");
+    expect(roomRow.dataset.searchLanded).toBeUndefined();
   });
 
   it("a jump after a prepend restore still marks after the delayed retry window", async () => {

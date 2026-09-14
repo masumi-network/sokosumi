@@ -6,7 +6,7 @@ import {
   CHAT_MESSAGE_LIST_ROOM,
 } from "@/app/chat/chat-message-list";
 import type { TranscriptViewportHandle } from "@/app/chat/components/transcript-viewport";
-import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
+import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import { transcriptRowKey } from "@/app/chat/utils/transcript-viewport-model";
 
@@ -28,28 +28,33 @@ export const transcriptViewportSpies = {
   scrollToBottomIfPinned: vi.fn(),
   suppressStickToBottom: vi.fn(),
   releaseStickToBottomSuppress: vi.fn(),
-  // Answers like the real one: true only for a message the transcript holds,
-  // so the thread-only quote fallback in RoomsClient is reachable here.
-  scrollToMessage: vi.fn(
-    (messageId: string) =>
-      document.querySelector(
-        `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(messageId)}"]`,
-      ) != null,
-  ),
+  // Recording only. Each stub instance answers from its own list so a
+  // thread-only quote fallback is reachable when both viewports are stubbed.
+  scrollToMessage: vi.fn(),
 };
 
 export function TranscriptViewport({
   rows,
   renderRow,
+  list = CHAT_MESSAGE_LIST_ROOM,
   ref,
 }: {
   rows: readonly RoomTranscriptRenderRow[];
   renderRow: (row: RoomTranscriptRenderRow) => ReactNode;
+  list?: string;
   ref: Ref<TranscriptViewportHandle>;
 }) {
   useImperativeHandle(ref, () => ({
     ...transcriptViewportSpies,
-    landOnMessage: (messageId) => highlightRoomTranscriptMessage(messageId),
+    landOnMessage: (messageId) => highlightListMessage(list, messageId),
+    scrollToMessage: (messageId) => {
+      transcriptViewportSpies.scrollToMessage(messageId);
+      return (
+        document.querySelector(
+          `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${list}"] [data-message-id="${CSS.escape(messageId)}"]`,
+        ) != null
+      );
+    },
     captureAnchor: () => null,
     restoreAnchor: () => undefined,
   }));
