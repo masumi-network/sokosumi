@@ -6,7 +6,6 @@ import {
   type Prisma,
   type Task,
   TaskStatus,
-  TaskVisibility,
   type VendorGrant,
   VendorGrantStatus,
   VendorPermission,
@@ -23,6 +22,7 @@ import {
   deletePendingVendorGrantNotifications,
 } from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { buildCoworkerPrivateTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 
 export const VendorPermissionApi = {
@@ -629,15 +629,10 @@ export function buildCoworkerTaskListAccessFilter(params: {
   // private Tasks (SOK-1046). Private stays on the baseline vendor-family seam.
   return {
     status: { not: TaskStatus.DRAFT },
-    OR: [
-      { visibility: TaskVisibility.PUBLIC },
-      { visibility: TaskVisibility.PRIVATE, assigneeId: params.coworkerId },
-      {
-        visibility: TaskVisibility.PRIVATE,
-        assigneeId: { not: params.coworkerId },
-        assignee: { vendorId: params.vendorId },
-      },
-    ],
+    ...buildCoworkerPrivateTaskVisibilityWhere({
+      coworkerId: params.coworkerId,
+      vendorId: params.vendorId,
+    }),
   };
 }
 

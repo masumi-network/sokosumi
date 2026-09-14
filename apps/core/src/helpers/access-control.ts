@@ -156,6 +156,11 @@ export async function requireTaskArchiveAccess(
   const isScheduled = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
   if (isParked) {
+    // Org OWNER/ADMIN may archive public parked Tasks; private remains
+    // owner-only (SOK-1046) — already handled by the owned lookup above.
+    if (task.visibility === TaskVisibility.PRIVATE) {
+      throw notFound("Task not found");
+    }
     await resolveMemberOrganizationById({
       id: organizationId,
       userId: userContext.userId,

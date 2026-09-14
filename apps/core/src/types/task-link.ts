@@ -1,5 +1,8 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
-import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
+import {
+  buildHumanTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import { type AuthenticationContext } from "@/middleware/auth";
 
@@ -85,6 +88,7 @@ function buildVisiblePeerTaskWhere(
         assigneeSokoBotId: authContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
+        AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
       };
     }
     default: {

@@ -22,7 +22,10 @@ import {
 } from "@/helpers/openapi";
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
+import {
+  buildHumanTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
@@ -121,6 +124,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (isSokoBotAuthContext(authContext)) {
       baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
       baseTaskWhere.status = { not: TaskStatus.DRAFT };
+      baseTaskWhere.AND = [
+        buildSokoBotOwnerTaskVisibilityWhere(authContext.userId),
+      ];
     }
 
     if (isCoworkerAuthContext(authContext) && authContext.context) {

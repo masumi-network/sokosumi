@@ -32,27 +32,51 @@ export type FetchProjectTasksPageResult =
       reason: "invalid_cursor";
     };
 
-function buildCoworkerTaskAccessSql(
-  params: CoworkerTaskAccessSqlParams,
+function buildCoworkerVendorFamilySql(
+  coworkerId: string,
+  vendorId: string,
 ): PrismaRaw.Sql {
-  if (params.hasWorkspaceGrant) {
-    return PrismaRaw.sql`AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`;
-  }
-
   return PrismaRaw.sql`
-    AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
-    AND (
-      t."assigneeId" = ${params.coworkerId}
+    (
+      t."assigneeId" = ${coworkerId}
       OR (
-        t."assigneeId" IS DISTINCT FROM ${params.coworkerId}
+        t."assigneeId" IS DISTINCT FROM ${coworkerId}
         AND EXISTS (
           SELECT 1
           FROM coworker c
           WHERE c.id = t."assigneeId"
-            AND c."vendorId" = ${params.vendorId}::uuid
+            AND c."vendorId" = ${vendorId}::uuid
         )
       )
     )
+  `;
+}
+
+function buildCoworkerTaskAccessSql(
+  params: CoworkerTaskAccessSqlParams,
+): PrismaRaw.Sql {
+  const vendorFamily = buildCoworkerVendorFamilySql(
+    params.coworkerId,
+    params.vendorId,
+  );
+
+  if (params.hasWorkspaceGrant) {
+    // GRANTED opens public non-draft Tasks, but private stays on vendor family.
+    return PrismaRaw.sql`
+      AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+      AND (
+        t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+        OR (
+          t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+          AND ${vendorFamily}
+        )
+      )
+    `;
+  }
+
+  return PrismaRaw.sql`
+    AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+    AND ${vendorFamily}
   `;
 }
 
@@ -75,6 +99,7 @@ function buildProjectTaskFilters(params: {
   assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
   readerUserId?: string;
+  sokoBotOwnerUserId?: string;
 }): {
   assigneeFilter: PrismaRaw.Sql;
   projectFilter: PrismaRaw.Sql;
@@ -96,10 +121,14 @@ function buildProjectTaskFilters(params: {
   const sokoBotFilter = params.assigneeSokoBotId
     ? PrismaRaw.sql`AND t."assigneeSokoBotId" = ${params.assigneeSokoBotId}::uuid AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`
     : PrismaRaw.empty;
-  const humanVisibilityFilter =
-    params.readerUserId && !params.coworkerAccess && !params.assigneeSokoBotId
-      ? buildHumanTaskVisibilitySql(params.readerUserId)
-      : PrismaRaw.empty;
+  const visibilityOwnerUserId =
+    params.sokoBotOwnerUserId ??
+    (params.readerUserId && !params.coworkerAccess
+      ? params.readerUserId
+      : undefined);
+  const humanVisibilityFilter = visibilityOwnerUserId
+    ? buildHumanTaskVisibilitySql(visibilityOwnerUserId)
+    : PrismaRaw.empty;
 
   const baseWhere = PrismaRaw.sql`
     FROM task t
@@ -173,6 +202,7 @@ export async function fetchProjectTasksPage(params: {
   assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
   readerUserId?: string;
+  sokoBotOwnerUserId?: string;
   cursor?: string;
   take: number;
   sort?: DriveListSort | null;
