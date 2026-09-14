@@ -55,8 +55,6 @@ export function TranscriptViewport({
         ) != null
       );
     },
-    captureAnchor: () => null,
-    restoreAnchor: () => undefined,
   }));
   return (
     <>
