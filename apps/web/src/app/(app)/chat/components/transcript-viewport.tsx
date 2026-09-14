@@ -17,6 +17,7 @@ import {
 } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
+import { ClampedOverflowProvider } from "@/app/chat/hooks/use-clamped-overflow";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import {
@@ -389,23 +390,25 @@ export function TranscriptViewport({
   }
 
   return (
-    <div ref={attachContainer} className="relative w-full">
-      {virtualizer.getVirtualItems().map((item) => {
-        const row = rows[item.index];
-        if (!row) {
-          return null;
-        }
-        return (
-          <div
-            key={item.key}
-            ref={virtualizer.measureElement}
-            data-index={item.index}
-            className="absolute top-0 left-0 w-full"
-          >
-            {renderRow(row)}
-          </div>
-        );
-      })}
-    </div>
+    <ClampedOverflowProvider>
+      <div ref={attachContainer} className="relative w-full">
+        {virtualizer.getVirtualItems().map((item) => {
+          const row = rows[item.index];
+          if (!row) {
+            return null;
+          }
+          return (
+            <div
+              key={item.key}
+              ref={virtualizer.measureElement}
+              data-index={item.index}
+              className="absolute top-0 left-0 w-full"
+            >
+              {renderRow(row)}
+            </div>
+          );
+        })}
+      </div>
+    </ClampedOverflowProvider>
   );
 }
