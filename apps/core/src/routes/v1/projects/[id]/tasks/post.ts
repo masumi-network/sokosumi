@@ -60,7 +60,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const body = c.req.valid("json");
@@ -97,7 +97,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (task.projectId !== projectId) {
       await prisma.$transaction(async (tx) => {
-        if (!(await lockCalendarScope(tx, workspaceId, [projectId]))) {
+        if (
+          !(await lockCalendarScope(
+            tx,
+            workspaceId,
+            [projectId],
+            userContext.userId,
+          ))
+        ) {
           throw notFound("Project not found");
         }
         if (!(await lockTaskRows(tx, [body.taskId]))) {
