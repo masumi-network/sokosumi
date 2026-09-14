@@ -863,6 +863,9 @@ const chatRoomPinnedMessageListItemSchemaResponseTransformer = (data: any) => {
         if (data.message.editedAt) {
             data.message.editedAt = new Date(data.message.editedAt);
         }
+        if (data.message.pinnedAt) {
+            data.message.pinnedAt = new Date(data.message.pinnedAt);
+        }
         if (data.message.threadLastReplyAt) {
             data.message.threadLastReplyAt = new Date(data.message.threadLastReplyAt);
         }
@@ -980,6 +983,9 @@ const chatRoomMessageSchemaResponseTransformer = (data: any) => {
     }
     if (data.editedAt) {
         data.editedAt = new Date(data.editedAt);
+    }
+    if (data.pinnedAt) {
+        data.pinnedAt = new Date(data.pinnedAt);
     }
     if (data.threadLastReplyAt) {
         data.threadLastReplyAt = new Date(data.threadLastReplyAt);

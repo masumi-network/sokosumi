@@ -118,6 +118,7 @@ export function createResumePendingCoworkerShell({
     content: "",
     createdAt,
     editedAt: null,
+    pinnedAt: null,
     sender: { type: "coworker", coworker },
     mentions: [],
     reactions: [],
@@ -165,6 +166,7 @@ function uiMessageToTransientRoomMessage({
       content,
       createdAt,
       editedAt: null,
+      pinnedAt: null,
       sender: currentUser
         ? { type: "user", user: currentUser }
         : { type: "unknown" },
@@ -187,6 +189,7 @@ function uiMessageToTransientRoomMessage({
     content,
     createdAt,
     editedAt: null,
+    pinnedAt: null,
     sender: coworker ? { type: "coworker", coworker } : { type: "unknown" },
     mentions: [],
     reactions: [],

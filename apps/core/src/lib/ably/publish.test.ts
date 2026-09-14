@@ -329,6 +329,7 @@ describe("publishChatRoomMessageEvent", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: null,
+      pinnedAt: null,
       sender: {
         type: "user" as const,
         user: {
@@ -373,6 +374,7 @@ describe("publishChatRoomMessageEvent", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: null,
+      pinnedAt: null,
       sender: {
         type: "coworker" as const,
         coworker: {

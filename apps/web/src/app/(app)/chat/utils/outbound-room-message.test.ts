@@ -45,6 +45,7 @@ function serverMessage(
     createdAt: new Date("2026-08-12T12:00:00.000Z"),
     deletedAt: null,
     editedAt: null,
+    pinnedAt: null,
     sender: { type: "user", user: senderUser },
     mentions: [],
     reactions: [],
