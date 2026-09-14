@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { type ComponentProps, useState } from "react";
 
 import { sendAccountVerificationEmail } from "@/app/components/account-notice-action";
-import { useAuthCaptcha } from "@/components/auth-captcha-provider";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ export default function VerifyEmailButton({
   size = "sm",
 }: VerifyEmailButtonProps) {
   const t = useTranslations("App.EmailVerificationNotice");
-  const captcha = useAuthCaptcha();
+  const captcha = useAuthCaptcha("verify-email");
   const [isSending, setIsSending] = useState(false);
 
   const handleClick = async () => {
@@ -50,23 +50,26 @@ export default function VerifyEmailButton({
   };
 
   return (
-    <Button
-      type="button"
-      size={size}
-      variant={variant}
-      onClick={() => {
-        void handleClick();
-      }}
-      className={cn(
-        "inline-flex items-center justify-center gap-1.5",
-        className,
-      )}
-      disabled={isSending}
-    >
-      {isSending ? (
-        <Loader2 className="size-4 animate-spin" aria-hidden />
-      ) : null}
-      {label}
-    </Button>
+    <>
+      {captcha.widget}
+      <Button
+        type="button"
+        size={size}
+        variant={variant}
+        onClick={() => {
+          void handleClick();
+        }}
+        className={cn(
+          "inline-flex items-center justify-center gap-1.5",
+          className,
+        )}
+        disabled={isSending}
+      >
+        {isSending ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : null}
+        {label}
+      </Button>
+    </>
   );
 }

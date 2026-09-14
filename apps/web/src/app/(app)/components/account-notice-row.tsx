@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowUpRight,
-  CircleAlert,
-  Loader2,
-} from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import { useAccountNoticeAction } from "@/app/components/use-account-notice-action";
 import { Button } from "@/components/ui/button";
@@ -49,8 +43,8 @@ export function AccountNoticeRow({
 }: AccountNoticeRowProps) {
   const { notice } = useAccountNotice();
   const { handleAction } = useAccountNoticeAction();
-  const [isActionPending, setIsActionPending] = useState(false);
   const tEmail = useTranslations("App.EmailVerificationNotice");
+  const tCenter = useTranslations("Components.NotificationCenter");
   const tCredits = useTranslations("App.LowCreditsNotice");
 
   if (!notice) {
@@ -81,20 +75,8 @@ export function AccountNoticeRow({
   }
 
   const handleMenuSelect = () => {
-    if (isActionPending) {
-      return;
-    }
-
-    void (async () => {
-      setIsActionPending(true);
-
-      try {
-        await handleAction();
-        onActionComplete?.();
-      } finally {
-        setIsActionPending(false);
-      }
-    })();
+    handleAction();
+    onActionComplete?.();
   };
 
   const content = (
@@ -132,11 +114,12 @@ export function AccountNoticeRow({
               styles.action,
             )}
           >
-            {isActionPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : null}
-            {actionLabel}
-            {!isActionPending ? <ArrowUpRight aria-hidden /> : null}
+            {/* The menu cannot host the security check, so it leads to the
+                notifications page where the resend button lives. */}
+            {notice.type === "emailVerification"
+              ? tCenter("view")
+              : actionLabel}
+            <ArrowUpRight aria-hidden />
           </span>
         )}
       </div>
@@ -146,7 +129,6 @@ export function AccountNoticeRow({
   if (variant === "menu") {
     return (
       <DropdownMenuItem
-        disabled={isActionPending}
         className={cn(
           "mx-2 my-1 flex cursor-pointer flex-col items-start gap-3 rounded-lg border p-4 focus:bg-inherit",
           styles.container,

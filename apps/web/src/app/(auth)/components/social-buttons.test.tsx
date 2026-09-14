@@ -709,7 +709,4 @@ describe("SocialButtons", () => {
   });
 });
 
-vi.mock(
-  "@/components/auth-captcha-provider",
-  () => import("@/test/auth-captcha-mock"),
-);
+vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));
