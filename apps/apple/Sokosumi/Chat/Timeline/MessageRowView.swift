@@ -66,6 +66,7 @@ import SwiftUI
     var isUpdatingPin = false
     var onTogglePin: (() async throws -> Void)?
     var onDelete: (() async throws -> Void)?
+    var onRemoveUnfurl: ((String) async throws -> Void)?
     var onToggleReaction: ((String) async throws -> Void)?
     var pendingReactionEmoji: Set<String> = []
     var editing: MessageEditing?
@@ -186,6 +187,12 @@ import SwiftUI
               MessageEditComposer(editing: editing).id(message.id)
             } else {
               MessageMarkdownView(source: message.content, room: room, channels: channels)
+            }
+            if outbound == nil {
+              ForEach(message.unfurls ?? [], id: \.url) { preview in
+                MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+                  .id(preview.url + (preview.imageUrl ?? ""))
+              }
             }
             if isContinuation, message.editedAt != nil {
               Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)

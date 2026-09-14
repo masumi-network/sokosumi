@@ -25,7 +25,6 @@ import { transcriptRowKey } from "@/app/chat/utils/transcript-viewport-model";
 export const transcriptViewportSpies = {
   scrollToBottom: vi.fn(),
   pinToBottomAfterOwnSend: vi.fn(),
-  scrollToBottomIfPinned: vi.fn(),
   suppressStickToBottom: vi.fn(),
   releaseStickToBottomSuppress: vi.fn(),
   // Recording only. Each stub instance answers from its own list so a

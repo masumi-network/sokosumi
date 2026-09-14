@@ -30,6 +30,11 @@ import SwiftUI
       workspaces.rooms.first { $0.id == roomId }
     }
 
+    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
+    }
+
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
@@ -121,7 +126,11 @@ import SwiftUI
     private var messageList: some View {
       // Realize nearby rows only: laying out every rich message makes each
       // scroll event expensive. Keep each message unary and anchored by ID.
-      ScrollViewReader { proxy in
+      // Keep catalog/room lets out of LazyVStack. Extra lets there wrap
+      // ForEach and force every rich row to layout while scrolling.
+      let transcriptRoom = room
+      let channels = workspaces.composerChannels
+      return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
@@ -177,7 +186,7 @@ import SwiftUI
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId },
+                  MessageRowView(channels: channels, room: transcriptRoom,
                                  message: message,
                                  isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,
@@ -198,6 +207,7 @@ import SwiftUI
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
                                  onDelete: deletionAction(for: message),
+                                 onRemoveUnfurl: unfurlAction(for: message),
                                  onToggleReaction: reactionAction(for: message),
                                  pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                                  editing: workspaces.messageEditing,
