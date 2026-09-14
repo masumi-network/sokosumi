@@ -335,9 +335,6 @@
   --status-auth-quinary: hsla(263, 70.0%, 97.5%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 89.0%, 1);
-
-  /* The last of the material family. The glass surfaces below read it with a
-     fallback; the other nine steps had no reader at all. */
 }
 
 .dark {
