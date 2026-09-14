@@ -2,6 +2,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPatchTask from "./[id]/patch";
@@ -37,6 +38,7 @@ const {
     const status = t.status as string | undefined;
     return {
       ...t,
+      visibility: (t.visibility as string | undefined) ?? "PUBLIC",
       grantResumeStatus:
         status === TaskStatus.GRANT_PENDING
           ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)
@@ -374,20 +376,22 @@ describe("task coworker whitelist enforcement", () => {
           linksFrom: expect.objectContaining({
             where: {
               toTask: {
-                is: {
+                is: expect.objectContaining({
                   workspaceId: "22222222-2222-7222-8222-222222222222",
                   archivedAt: null,
-                },
+                  ...buildHumanTaskVisibilityWhere("user_123"),
+                }),
               },
             },
           }),
           linksTo: expect.objectContaining({
             where: {
               fromTask: {
-                is: {
+                is: expect.objectContaining({
                   workspaceId: "22222222-2222-7222-8222-222222222222",
                   archivedAt: null,
-                },
+                  ...buildHumanTaskVisibilityWhere("user_123"),
+                }),
               },
             },
           }),

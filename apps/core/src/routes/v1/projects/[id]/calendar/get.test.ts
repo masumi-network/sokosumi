@@ -6,6 +6,7 @@ import {
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -302,7 +303,7 @@ describe("GET /projects/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          AND: [
+          AND: expect.arrayContaining([
             {
               OR: [
                 {
@@ -320,7 +321,30 @@ describe("GET /projects/{id}/calendar", () => {
                 },
               ],
             },
-          ],
+            {
+              OR: [
+                {
+                  state: TaskScheduleOccurrenceState.PLANNED,
+                  seriesTask: {
+                    is: buildHumanTaskVisibilityWhere("user_123"),
+                  },
+                },
+                {
+                  state: TaskScheduleOccurrenceState.RELEASED,
+                  releasedTask: {
+                    is: buildHumanTaskVisibilityWhere("user_123"),
+                  },
+                },
+                {
+                  state: TaskScheduleOccurrenceState.RELEASED,
+                  releasedTaskId: null,
+                  seriesTask: {
+                    is: buildHumanTaskVisibilityWhere("user_123"),
+                  },
+                },
+              ],
+            },
+          ]),
         }),
       }),
     );
