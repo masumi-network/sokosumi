@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { assertChatMessageReadBudget } from "@/helpers/chat-message-read-budget";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -64,7 +65,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/threads/{parentMessageId}/messages",
     description:
-      "List replies for a thread root. Parent must be a top-level message in the room.",
+      "List replies for a thread root. Parent must be a top-level message in the room. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -79,6 +80,7 @@ const route = withOrganizationSlugHeaderParameter(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Thread not found"),
       422: jsonErrorResponse("Unprocessable Entity"),
+      429: jsonErrorResponse("Chat history read budget exceeded"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -97,6 +99,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     await requireChatRoomUserMembership(id, userContext.userId, prisma);
+    // Shared per-user budget across rooms and credentials (SOK-1060).
+    await assertChatMessageReadBudget(userContext.userId);
 
     const parent = await prisma.chatRoomMessage.findFirst({
       where: {

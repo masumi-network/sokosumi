@@ -770,7 +770,7 @@ export const getChatsRoomsChannelSlugAvailability = <ThrowOnError extends boolea
 });
 
 /**
- * Load persisted room messages as AI SDK UIMessage[] for coworker stream UI hydrate. Uncursored requests return the newest page (reading order); nextCursor walks older history.
+ * Load persisted room messages as AI SDK UIMessage[] for coworker stream UI hydrate. Uncursored requests return the newest page (reading order); nextCursor walks older history. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.
  */
 export const getChatsRoomsByIdStreamMessages = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdStreamMessagesData, ThrowOnError>): RequestResult<GetChatsRoomsByIdStreamMessagesResponses, GetChatsRoomsByIdStreamMessagesErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdStreamMessagesResponses, GetChatsRoomsByIdStreamMessagesErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdStreamMessagesResponseTransformer,
@@ -796,7 +796,7 @@ export const postChatsRoomsByIdStream = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List Pinned messages for a Channel, newest pin first. Directs are rejected.
+ * List Pinned messages for a Channel, newest pin first. Directs are rejected. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.
  */
 export const getChatsRoomsByIdPinnedMessages = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdPinnedMessagesData, ThrowOnError>): RequestResult<GetChatsRoomsByIdPinnedMessagesResponses, GetChatsRoomsByIdPinnedMessagesErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdPinnedMessagesResponses, GetChatsRoomsByIdPinnedMessagesErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdPinnedMessagesResponseTransformer,
@@ -953,7 +953,7 @@ export const postChatsRoomsByIdUnread = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List threads in a room. `unread=true` returns every unread thread (Participant-gated `unreadReplyCount`) and ignores `cursor`/`limit`. Otherwise returns unread threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read.
+ * List threads in a room. `unread=true` returns every unread thread (Participant-gated `unreadReplyCount`) and ignores `cursor`/`limit`. Otherwise returns unread threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.
  */
 export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsResponseTransformer,
@@ -980,7 +980,7 @@ export const postChatsRoomsByIdThreadsRead = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Get one thread summary by root parent message id. 404 when missing, not a root, soft-deleted, or has no replies.
+ * Get one thread summary by root parent message id. 404 when missing, not a root, soft-deleted, or has no replies. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.
  */
 export const getChatsRoomsByIdThreadsByParentMessageId = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsByParentMessageIdData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsByParentMessageIdResponses, GetChatsRoomsByIdThreadsByParentMessageIdErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsByParentMessageIdResponses, GetChatsRoomsByIdThreadsByParentMessageIdErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsByParentMessageIdResponseTransformer,
@@ -989,7 +989,7 @@ export const getChatsRoomsByIdThreadsByParentMessageId = <ThrowOnError extends b
 });
 
 /**
- * List replies for a thread root. Parent must be a top-level message in the room.
+ * List replies for a thread root. Parent must be a top-level message in the room. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.
  */
 export const getChatsRoomsByIdThreadsByParentMessageIdMessages = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsByParentMessageIdMessagesData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsByParentMessageIdMessagesResponses, GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsByParentMessageIdMessagesResponses, GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsByParentMessageIdMessagesResponseTransformer,
@@ -1043,7 +1043,7 @@ export const postChatsRoomsByIdMute = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Get messages for an organization chat room.
+ * Get messages for an organization chat room. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.
  */
 export const getChatsRoomsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdMessagesData, ThrowOnError>): RequestResult<GetChatsRoomsByIdMessagesResponses, GetChatsRoomsByIdMessagesErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdMessagesResponses, GetChatsRoomsByIdMessagesErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdMessagesResponseTransformer,
@@ -1074,7 +1074,7 @@ export const deleteChatsRoomsByIdMessagesByMessageId = <ThrowOnError extends boo
 });
 
 /**
- * Read one message in a room. A caller holding only a message id, such as a notification deep link, reads it here to learn whether the message is a top-level one or a reply, and which thread it belongs to.
+ * Read one message in a room. A caller holding only a message id, such as a notification deep link, reads it here to learn whether the message is a top-level one or a reply, and which thread it belongs to. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.
  */
 export const getChatsRoomsByIdMessagesByMessageId = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdMessagesByMessageIdData, ThrowOnError>): RequestResult<GetChatsRoomsByIdMessagesByMessageIdResponses, GetChatsRoomsByIdMessagesByMessageIdErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdMessagesByMessageIdResponses, GetChatsRoomsByIdMessagesByMessageIdErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdMessagesByMessageIdResponseTransformer,
