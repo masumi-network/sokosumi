@@ -57,9 +57,17 @@
       #expect(!state.thread.timeline.hasMore)
       try await Task.sleep(for: .milliseconds(300))
       host.layoutSubtreeIfNeeded()
+      try await expectStableReadingPosition(host, before: before)
+    }
+
+    private func expectStableReadingPosition(_ host: NSView, before: CGImage) async throws {
       let after = try snapshot(host)
       // Lazy stacks estimate their total height. Compare visible pixels instead of that estimate.
-      let shift = try renderedShift(before: before, after: after)
+      let shift = try await Task.detached { try Self.renderedShift(before: before, after: after) }.value
+      if abs(shift) > 2 {
+        Attachment.record(before, named: "pagination-before")
+        Attachment.record(after, named: "pagination-after")
+      }
       #expect(abs(shift) <= 2, "Prepending replies moved visible text by \(shift) backing pixels.")
     }
 
@@ -82,22 +90,25 @@
       try await Task.sleep(for: .milliseconds(300))
     }
 
-    private func snapshot(_ host: NSView) throws -> NSBitmapImageRep {
+    private func snapshot(_ host: NSView) throws -> CGImage {
       let image = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
       host.cacheDisplay(in: host.bounds, to: image)
-      return image
+      return try #require(image.cgImage)
     }
 
-    private func renderedShift(before: NSBitmapImageRep, after: NSBitmapImageRep) throws -> Int {
-      let first = try #require(before.bitmapData)
-      let second = try #require(after.bitmapData)
-      try #require(before.pixelsWide == after.pixelsWide && before.pixelsHigh == after.pixelsHigh)
+    private nonisolated static func renderedShift(before: CGImage, after: CGImage) throws -> Int {
+      let firstData = try #require(before.dataProvider?.data)
+      let secondData = try #require(after.dataProvider?.data)
+      defer { withExtendedLifetime((firstData, secondData)) {} }
+      let first = try #require(CFDataGetBytePtr(firstData))
+      let second = try #require(CFDataGetBytePtr(secondData))
+      try #require(before.width == after.width && before.height == after.height)
       try #require(before.bitsPerPixel == after.bitsPerPixel && before.bitsPerPixel == 32)
       /// Exclude the changing boundary, composer and hover toolbar; compare the middle replies.
       func difference(_ shift: Int) -> Int {
         var total = 0
-        for row in stride(from: before.pixelsHigh / 4, to: before.pixelsHigh / 2, by: 3) {
-          for column in stride(from: before.pixelsWide / 12, to: before.pixelsWide / 3, by: 4) {
+        for row in stride(from: before.height / 4, to: before.height / 2, by: 3) {
+          for column in stride(from: before.width / 12, to: before.width / 3, by: 4) {
             let firstOffset = row * before.bytesPerRow + column * 4
             let secondOffset = (row + shift) * after.bytesPerRow + column * 4
             for component in 0 ..< 4 {
@@ -140,7 +151,7 @@
 
     private func message(_ index: Int, parent: String?) -> Components.Schemas.ChatRoomMessage {
       var message = chatRoomMessage(from: .init(clientTurnId: "reply-\(index)", roomId: "room", parentMessageId: parent,
-                                                content: "Reply \(index)\nA second line for the pagination fixture.",
+                                                content: "Reply \(index)\n" + String(repeating: "\(index) ", count: 12),
                                                 sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
       message.id = "reply-\(index)"
       message.threadReplyCount = parent == nil ? 59 : 0
