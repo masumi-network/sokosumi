@@ -2,6 +2,18 @@ import Foundation
 
 /// Searchable reaction choices from the same bundled catalog as composer completion.
 public struct ReactionEmoji: Identifiable, Equatable, Sendable {
+  public enum Category: String, CaseIterable, Codable, Sendable {
+    case people
+    case animalsAndNature = "animals_and_nature"
+    case foodAndDrink = "food_and_drink"
+    case activity
+    case travelAndPlaces = "travel_and_places"
+    case objects
+    case symbols
+    case flags
+  }
+
+  public let category: Category
   public let emoji: String
   public let name: String
   private let aliases: [String]
@@ -22,8 +34,11 @@ public struct ReactionEmoji: Identifiable, Equatable, Sendable {
       }
     }
     return namesByEmoji.map { emoji, names in
-      Self(emoji: emoji, name: names[0], aliases: names + names.flatMap { MessageEmoji.reactionKeywords[$0] ?? [] })
-    }.sorted { $0.name < $1.name }
+      Self(category: MessageEmoji.reactionDetails[names[0]]?.category ?? .symbols, emoji: emoji, name: names[0],
+           aliases: names + names.flatMap { MessageEmoji.reactionDetails[$0]?.keywords ?? [] })
+    }.sorted {
+      (MessageEmoji.reactionDetails[$0.name]?.order ?? Int.max) < (MessageEmoji.reactionDetails[$1.name]?.order ?? Int.max)
+    }
   }()
 
   public static func matching(_ query: String) -> [Self] {

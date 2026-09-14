@@ -93,7 +93,10 @@ import SwiftUI
     private func toggleReaction(_ emoji: String) {
       guard let onToggleReaction else { return }
       Task { @MainActor in
-        do { try await onToggleReaction(emoji) } catch {
+        do {
+          try await onToggleReaction(emoji)
+          ReactionEmojiHistory().record(emoji)
+        } catch {
           reactionError = friendlyMessage(for: error)
           showsReactionError = true
         }
@@ -200,6 +203,12 @@ import SwiftUI
           HStack(spacing: 0) {
             if onToggleReaction != nil {
               messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
+                .popover(isPresented: $showsReactionPicker, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+                  ReactionEmojiPicker { emoji in
+                    showsReactionPicker = false
+                    toggleReaction(emoji)
+                  }
+                }
             }
             if onDelete != nil {
               Menu {
@@ -228,8 +237,8 @@ import SwiftUI
           .background(.regularMaterial, in: .rect(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
           .onHover { isReplyHovered = $0 }
-          .opacity(isHovered || isReplyHovered || focusedAction != nil ? 1 : 0)
-          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil)
+          .opacity(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker)
           .padding(.trailing, horizontalInset)
           .offset(y: -replyActionHeight / 2)
         }
@@ -243,12 +252,6 @@ import SwiftUI
         }
         if isHovered != hovering {
           isHovered = hovering
-        }
-      }
-      .popover(isPresented: $showsReactionPicker, attachmentAnchor: .point(.topTrailing), arrowEdge: .top) {
-        ReactionEmojiPicker { emoji in
-          showsReactionPicker = false
-          toggleReaction(emoji)
         }
       }
       .alert("Couldn’t update reaction", isPresented: $showsReactionError) {

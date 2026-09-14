@@ -54,4 +54,22 @@ import Testing
     #expect(deleted.reactions.map(\.emoji) == ["❤️"])
     #expect(deleted.deletedAt != nil)
   }
+
+  @Test func categoriesAndUsageHistorySupportGroupedPicker() throws {
+    #expect(ReactionEmoji.matching("grinning").first { $0.emoji == "😀" }?.category == .people)
+    #expect(ReactionEmoji.matching("pizza").first?.category == .foodAndDrink)
+    #expect(ReactionEmoji.catalog.first { $0.category == .people }?.emoji == "😀")
+    #expect(Set(ReactionEmoji.catalog.map(\.category)) == Set(ReactionEmoji.Category.allCases))
+    let suite = "reaction-history-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let history = ReactionEmojiHistory(defaults: defaults)
+    #expect(history.frequent.isEmpty)
+    history.record("👍")
+    history.record("🎉")
+    history.record("🎉")
+    history.record("not an emoji")
+    #expect(history.frequent.map(\.emoji) == ["🎉", "👍"])
+    #expect(ReactionEmojiHistory(defaults: defaults).frequent.map(\.emoji) == ["🎉", "👍"])
+  }
 }
