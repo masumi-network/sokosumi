@@ -64,7 +64,9 @@ beforeEach(() => {
 describe("healPushSubscription", () => {
   it("re-subscribes a browser that lost its subscription", async () => {
     await expect(healPushSubscription(USER_ID)).resolves.toBe(true);
-    expect(activatePushMock).toHaveBeenCalledWith(USER_ID);
+    expect(activatePushMock).toHaveBeenCalledWith(USER_ID, {
+      readerInitiated: false,
+    });
   });
 
   /** No registration means this browser never turned push on, or turned it
@@ -152,7 +154,9 @@ describe("healPushSubscription during a sign-out", () => {
 
     await expect(healPushSubscription(USER_ID)).resolves.toBe(true);
 
-    expect(activatePushMock).toHaveBeenCalledWith(USER_ID);
+    expect(activatePushMock).toHaveBeenCalledWith(USER_ID, {
+      readerInitiated: false,
+    });
   });
 });
 
