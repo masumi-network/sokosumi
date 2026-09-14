@@ -44,3 +44,18 @@ Extended the existing app-hosted fixture with monotonic timing and serialized ro
 | Reply thread | 12.543 ms | 17.093 ms | 28.574 ms | 37.556 ms |
 
 One run, 30 wheel events per fixture. Total step includes a requested 16 ms sleep; it is not a presented-frame interval. Metrics are emitted into app-container temporary files named `scroll-baseline-<thread>-<pid>.txt`. The fixture has no network media. These results establish a comparison point, not an acceptance threshold or a causal conclusion. App-hosted scroll tests and pinned lint/format pass. Raw output: `/tmp/scroll-audit-baseline-final.log`.
+
+## Extended fixture: delayed images and longer sweep
+
+`TranscriptScrollingTests` now exercises text-only and mixed image-attachment/unfurl histories in both room and thread views. `ScrollMediaProtocol` intercepts only `scroll-fixture.invalid`, returns a generated 2400×1600 PNG after 50 ms, and counts completed requests. Unique URLs prevent an earlier case's image cache from bypassing the load. Each media case asserts a response completed. No production requests or messages are involved.
+
+120 wheel events × 60 pixels replace the short 30-event sweep. A serial Debug run passed all cases (`/tmp/scroll-media-current-tests.log`), with these diagnostic measurements:
+
+| Fixture | Layout p95 | Layout max | Total step p95 | Total step max |
+| --- | --- | --- | --- | --- |
+| Room, rich text | 29.276 ms | 50.644 ms | 47.300 ms | 71.291 ms |
+| Room, mixed media | 10.154 ms | 19.323 ms | 38.110 ms | 44.089 ms |
+| Thread, rich text | 18.403 ms | 23.806 ms | 36.004 ms | 40.312 ms |
+| Thread, mixed media | 10.895 ms | 16.308 ms | 37.419 ms | 48.028 ms |
+
+Media cases intentionally contain shorter text (two paragraphs rather than eight), so the table does not isolate image overhead. The longer sweep reveals more layout cost than the short baseline. All four cases log `<OnScrollGeometryChange Modifier> tried to update multiple times per frame` during setup. This is reproducible evidence worth profiling, but not proof that the warning causes the user's stalls. Next: profile this app-hosted scenario, separate setup from active scrolling, and compare the same geometry callback with semantically coalesced state. The current app still has no performance fix in this branch.

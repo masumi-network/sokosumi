@@ -10,16 +10,15 @@
 
   @Suite(.serialized)
   @MainActor struct TranscriptScrollingTests {
-    @Test(arguments: [false, true])
-    func richHistoryStartsAtBottomAndScrollsUp(thread: Bool) async throws {
+    @Test(arguments: [false, true], [false, true])
+    func richHistoryStartsAtBottomAndScrollsUp(thread: Bool, media: Bool) async throws {
+      URLProtocol.registerClass(ScrollMediaProtocol.self)
+      defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
+      let completed = ScrollMediaProtocol.completedRequests
       let state = WorkspaceState()
       state.timeline.reset(roomId: "fixture")
       state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-      state.timeline.messages = (0 ..< 100).map { index in
-        var message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "fixture", content: "Message \(index): " + String(repeating: "A paragraph with **bold text**, a [link](https://example.com), and inline `code`.\n\n", count: 8), sender: .init(id: "fixture-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
-        message.id = "fixture-\(index)"
-        return message
-      }
+      state.timeline.messages = fixtureMessages(media: media)
       if thread {
         let parent = try #require(state.timeline.messages.first)
         state.thread.open(parent)
@@ -51,17 +50,37 @@
       #expect(scroll.contentInsets.bottom > 0)
       #expect(abs(contentHeight - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)) <= 1)
       #expect(initialOffset > 600)
-      try await measureScroll(scroll, host: host, thread: thread)
+      try await measureScroll(scroll, host: host, thread: thread, media: media)
+      if media {
+        #expect(ScrollMediaProtocol.completedRequests > completed)
+      }
       #expect(scroll.contentView.bounds.minY < initialOffset - 400)
     }
 
-    private func measureScroll(_ scroll: NSScrollView, host: NSView, thread: Bool) async throws {
+    private func fixtureMessages(media: Bool) -> [Components.Schemas.ChatRoomMessage] {
+      let fixtureId = UUID().uuidString
+      return (0 ..< 100).map { index in
+        var message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "fixture", content: "Message \(index): " + String(repeating: "A paragraph with **bold text**, a [link](https://example.com), and inline `code`.\n\n", count: media ? 2 : 8), sender: .init(id: "fixture-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
+        message.id = "fixture-\(index)"
+        if media {
+          let url = "https://scroll-fixture.invalid/\(fixtureId)-image-\(index).png"
+          if index.isMultiple(of: 2) {
+            message.content += "\n\n![Fixture](\(url))"
+          } else {
+            message.unfurls = [.init(url: "https://example.com/article", title: "Fixture preview", description: "Delayed media", imageUrl: url)]
+          }
+        }
+        return message
+      }
+    }
+
+    private func measureScroll(_ scroll: NSScrollView, host: NSView, thread: Bool, media: Bool) async throws {
       let clock = ContinuousClock()
       var layoutDurations: [Duration] = []
       var stepDurations: [Duration] = []
-      for index in 0 ..< 30 {
+      for index in 0 ..< 120 {
         let start = clock.now
-        let scrollEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 20, wheel2: 0, wheel3: 0))
+        let scrollEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 60, wheel2: 0, wheel3: 0))
         scrollEvent.setIntegerValueField(.scrollWheelEventScrollPhase, value: index == 0 ? 1 : 2)
         let event = try #require(NSEvent(cgEvent: scrollEvent))
         scroll.scrollWheel(with: event)
@@ -73,8 +92,10 @@
       // Host event/layout and scheduling costs, not display frame times.
       let layout = layoutDurations.sorted()
       let steps = stepDurations.sorted()
-      let report = "SCROLL_BASELINE thread=\(thread) layout_p95=\(layout[28]) layout_max=\(layout[29]) step_p95=\(steps[28]) step_max=\(steps[29])"
-      let output = FileManager.default.temporaryDirectory.appendingPathComponent("scroll-baseline-\(thread)-\(ProcessInfo.processInfo.processIdentifier).txt")
+      let p95 = (steps.count - 1) * 95 / 100
+      let last = steps.count - 1
+      let report = "SCROLL_BASELINE media=\(media) thread=\(thread) layout_p95=\(layout[p95]) layout_max=\(layout[last]) step_p95=\(steps[p95]) step_max=\(steps[last])"
+      let output = FileManager.default.temporaryDirectory.appendingPathComponent("scroll-baseline-\(media)-\(thread)-\(ProcessInfo.processInfo.processIdentifier).txt")
       try report.write(to: output, atomically: true, encoding: .utf8)
     }
   }
