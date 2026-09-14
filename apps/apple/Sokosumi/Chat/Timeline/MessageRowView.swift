@@ -78,7 +78,9 @@ import SwiftUI
     @State private var showsDeletionError = false
     @State private var isHovered = false
     @State private var isReplyHovered = false
+    @State private var hoveredAction: MessageAction?
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
+    @ScaledMetric(relativeTo: .callout) private var actionIconSize: CGFloat = 16
     @FocusState private var focusedAction: MessageAction?
 
     private enum MessageAction: Hashable {
@@ -200,7 +202,7 @@ import SwiftUI
       .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil) ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
         if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil {
-          HStack(spacing: 0) {
+          HStack(spacing: 2) {
             if onToggleReaction != nil {
               messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
                 .popover(isPresented: $showsReactionPicker, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
@@ -228,24 +230,27 @@ import SwiftUI
                   Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
                 }
               } label: {
-                Image(systemName: "ellipsis").frame(width: replyActionHeight, height: replyActionHeight)
+                actionLabel(nil, symbol: "ellipsis", action: .more)
               }
               .menuStyle(.borderlessButton)
               .menuIndicator(.hidden)
+              .onHover { hoveredAction = $0 ? .more : nil }
               .focused($focusedAction, equals: .more)
               .disabled(isDeleting)
               .help(isDeleting ? "Deleting message…" : "More message actions")
               .accessibilityLabel("More message actions")
             }
           }
+          .padding(3)
           .fixedSize()
-          .background(.regularMaterial, in: .rect(cornerRadius: 8))
-          .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
+          .background(.regularMaterial, in: .rect(cornerRadius: 9))
+          .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)))
+          .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
           .onHover { isReplyHovered = $0 }
           .opacity(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker ? 1 : 0)
           .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker)
           .padding(.trailing, horizontalInset)
-          .offset(y: -replyActionHeight / 2)
+          .offset(y: -(replyActionHeight + 6) / 2)
         }
       }
       // Track the complete row, including its action overlay. The toolbar
@@ -318,17 +323,28 @@ import SwiftUI
 
     private func messageAction(_ title: String, symbol: String, focus: MessageAction, action: @escaping () -> Void) -> some View {
       Button(action: action) {
-        Label(title, systemImage: symbol)
-          .font(.caption)
-          .lineLimit(1)
-          .fixedSize()
-          .padding(.horizontal, 10)
-          .frame(height: replyActionHeight)
-          .contentShape(.rect)
+        actionLabel(title, symbol: symbol, action: focus)
       }
-      .buttonStyle(.borderless)
+      .buttonStyle(.plain)
+      .onHover { hoveredAction = $0 ? focus : nil }
       .focused($focusedAction, equals: focus)
       .help(title == "Reply" ? "Reply in thread" : title)
+    }
+
+    private func actionLabel(_ title: String?, symbol: String, action: MessageAction) -> some View {
+      HStack(spacing: 5) {
+        Image(systemName: symbol)
+          .font(.callout)
+          .frame(width: actionIconSize, height: actionIconSize)
+        if let title {
+          Text(title).font(.callout).lineLimit(1)
+        }
+      }
+      .padding(.horizontal, title == nil ? 6 : 8)
+      .frame(height: replyActionHeight)
+      .foregroundStyle(hoveredAction == action ? .primary : .secondary)
+      .background(hoveredAction == action ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+      .contentShape(.rect)
     }
 
     private var pendingSince: Date? {
