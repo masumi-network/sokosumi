@@ -830,8 +830,8 @@ describe("authMiddleware", () => {
   });
 
   it("returns 401 when the session belongs to a banned user", async () => {
-    // A ban lands after the session row exists, so the session itself stays
-    // valid and only the user state rejects the request.
+    // Better Auth's own ban path revokes the sessions too, so what this
+    // covers is a ban written straight to the column.
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org_session" },
       user: {

@@ -700,10 +700,11 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
 
   const { session, user } = response;
 
-  // A ban or a deletion during the life of a stored session does not revoke
-  // that session, so check the state the request reads rather than the state
-  // at sign-in. `getSession` already returns the ban columns, so this costs
-  // no extra query.
+  // Better Auth revokes a user's sessions when it bans or deletes them
+  // (`deleteUserSessions` in both paths), so a stored session normally cannot
+  // outlive either. This is defence in depth for a ban applied any other way,
+  // such as a write straight to the column. `getSession` already returns the
+  // ban columns, so it costs no extra query.
   if (!isActiveUser(user)) {
     throw unauthorized("Invalid, expired or missing session");
   }
