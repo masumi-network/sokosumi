@@ -6,13 +6,11 @@ import { chatMessageContentPartSchema } from "@/schemas/chat-ui-message.schema";
 export const AI_SDK_CHAT_MESSAGES_REQUIREMENT =
   "Provide non-empty messages, or conversationId with message and trigger submit-message.";
 
-export const chatRequestMessagePartSchema = chatMessageContentPartSchema;
-
 export const chatRequestMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
-  parts: z.array(chatRequestMessagePartSchema).optional(),
+  parts: z.array(chatMessageContentPartSchema).optional(),
   content: z
-    .union([z.string(), z.array(chatRequestMessagePartSchema)])
+    .union([z.string(), z.array(chatMessageContentPartSchema)])
     .optional(),
   metadata: z
     .object({

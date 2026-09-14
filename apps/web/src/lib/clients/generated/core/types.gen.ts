@@ -3033,6 +3033,21 @@ export type DriveFile = {
     uploadedAt: Date;
 };
 
+export type DrivePaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
 export type MoveDriveItemRequest = {
     /**
      * Source pathname (file) or folder path relative to scope root (folder)
@@ -3756,7 +3771,7 @@ export type NotificationPreference = {
 
 export type PreferredOrganization = {
     /**
-     * Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
+     * Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
      */
     organizationId: string | null;
 };
@@ -4478,6 +4493,14 @@ export type WorkspaceCalendarItem = {
      * Whether the caller owns this Task and may edit or remove its schedule
      */
     canEditSchedule: boolean;
+    /**
+     * Whether this indexed occurrence can be moved through the revision-safe occurrence contract
+     */
+    canMoveOccurrence: boolean;
+    /**
+     * Schedule revision observed with this occurrence
+     */
+    scheduleRevision: number;
     taskName: string;
     taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
     taskAssigneeId: string | null;
@@ -5536,7 +5559,7 @@ export type TaskLinkDeleted = {
     deleted: true;
 };
 
-export type PutTaskScheduleRequest = {
+export type PutCalendarTaskScheduleRequest = {
     /**
      * Idempotency identity for this series edit
      */
@@ -5550,7 +5573,9 @@ export type PutTaskScheduleRequest = {
      */
     discardFutureExceptions: true;
     schedule: TaskScheduleInput;
-} | {
+};
+
+export type PutTaskScheduleRequest = {
     mode: 'once';
     /**
      * When the one-time schedule should run
@@ -5583,6 +5608,112 @@ export type PutTaskScheduleRequest = {
      * First run instant for intervalDays schedules (required when intervalDays > 1)
      */
     anchorAt?: Date;
+};
+
+export type TaskScheduleOccurrencePage = {
+    /**
+     * Series revision this page was read at
+     */
+    scheduleRevision: number;
+    /**
+     * Durable future exceptions a full-series edit or removal would cancel, counted across the whole series at this read's instant. 0 for a series with no live rule. Clients confirm a destructive discard only when this is above zero.
+     */
+    futureExceptionCount: number;
+    occurrences: Array<TaskScheduleOccurrence>;
+};
+
+export type TaskScheduleOccurrence = {
+    /**
+     * Ledger row identity, also the pagination tie-breaker
+     */
+    id: string;
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * 1 for legacy display-only projections, 2 for epoch-backed rows
+     */
+    scheduleVersion: number;
+    /**
+     * Rule epoch that projected this occurrence, when known
+     */
+    epochId: string | null;
+    /**
+     * Time the rule originally projected, when the ledger captured it
+     */
+    originalScheduledAt: Date | null;
+    /**
+     * Time the occurrence actually holds; the ordering key
+     */
+    effectiveScheduledAt: Date;
+    /**
+     * IANA timezone captured with the rule
+     */
+    timezone: string | null;
+    /**
+     * A planned occurrence whose effective time has passed without a release. Derived server-side so clients never depend on their own clock.
+     */
+    isMissed: boolean;
+    /**
+     * Canonical Calendar source identity
+     */
+    sourceId: string;
+    /**
+     * Workspace captured as the Calendar source
+     */
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    /**
+     * Project captured as the Calendar source, when applicable
+     */
+    sourceProjectId: string | null;
+    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
+    timeAccuracy: 'EXACT' | 'APPROXIMATE';
+    /**
+     * Independent Task this occurrence released, when it did
+     */
+    releasedTask: TaskScheduleOccurrenceReleasedTask | null;
+};
+
+export type TaskScheduleOccurrenceReleasedTask = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+    /**
+     * Set when the released Task was archived; it is no longer readable, so the summary is not navigable
+     */
+    archivedAt: Date | null;
+};
+
+/**
+ * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+ */
+export const TaskScheduleOccurrenceView = { UPCOMING: 'upcoming', HISTORY: 'history' } as const;
+
+/**
+ * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+ */
+export type TaskScheduleOccurrenceView = typeof TaskScheduleOccurrenceView[keyof typeof TaskScheduleOccurrenceView];
+
+export type TaskScheduleOccurrenceMutation = {
+    /**
+     * Series revision after the move
+     */
+    scheduleRevision: number;
+    occurrence: TaskScheduleOccurrence;
+};
+
+export type RescheduleTaskScheduleOccurrenceRequest = {
+    /**
+     * Idempotency identity for this occurrence move
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    /**
+     * New absolute time for the occurrence. Strictly future and inside the projection horizon.
+     */
+    scheduledAt: Date;
 };
 
 export type TaskWorkspace = {
@@ -17600,7 +17731,7 @@ export type GetChatsRoomsByIdMessagesData = {
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Cursor for pagination (ID of the last message from previous page)
          */
         cursor?: string;
         /**
@@ -19821,7 +19952,7 @@ export type GetDriveFilesResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination: PaginationMetadata;
+            pagination: DrivePaginationMetadata;
         };
     };
 };
@@ -23005,6 +23136,95 @@ export type PatchUsersByIdPreferencesResponses = {
 };
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
+
+export type GetUsersByIdPreferredOrganizationData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferred-organization';
+};
+
+export type GetUsersByIdPreferredOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationError = GetUsersByIdPreferredOrganizationErrors[keyof GetUsersByIdPreferredOrganizationErrors];
+
+export type GetUsersByIdPreferredOrganizationResponses = {
+    /**
+     * The resolved organization selection for workspace restoration
+     */
+    200: {
+        data: PreferredOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationResponse = GetUsersByIdPreferredOrganizationResponses[keyof GetUsersByIdPreferredOrganizationResponses];
 
 export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
@@ -29315,6 +29535,20 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -37458,6 +37692,7 @@ export type PatchTasksByIdData = {
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
+        expectedScheduleRevision?: number;
     };
     path: {
         id: string;
@@ -37558,7 +37793,7 @@ export type PatchTasksByIdResponses = {
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
 
 export type PutTasksByIdCalendarScheduleData = {
-    body?: PutTaskScheduleRequest;
+    body?: PutCalendarTaskScheduleRequest;
     path: {
         id: string;
     };
@@ -37673,6 +37908,16 @@ export type PutTasksByIdCalendarScheduleResponse = PutTasksByIdCalendarScheduleR
 
 export type DeleteTasksByIdScheduleData = {
     body?: never;
+    headers: {
+        /**
+         * Idempotency identity for this series removal
+         */
+        'idempotency-key': string;
+        /**
+         * Schedule revision observed by the caller
+         */
+        'x-sokosumi-schedule-revision': string;
+    };
     path: {
         id: string;
     };
@@ -37727,6 +37972,20 @@ export type DeleteTasksByIdScheduleErrors = {
      * Conflict
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -37870,6 +38129,248 @@ export type PutTasksByIdScheduleResponses = {
 };
 
 export type PutTasksByIdScheduleResponse = PutTasksByIdScheduleResponses[keyof PutTasksByIdScheduleResponses];
+
+export type GetTasksByIdScheduleOccurrencesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+         */
+        view?: TaskScheduleOccurrenceView;
+    };
+    url: '/tasks/{id}/schedule/occurrences';
+};
+
+export type GetTasksByIdScheduleOccurrencesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleOccurrencesError = GetTasksByIdScheduleOccurrencesErrors[keyof GetTasksByIdScheduleOccurrencesErrors];
+
+export type GetTasksByIdScheduleOccurrencesResponses = {
+    /**
+     * Task schedule occurrences
+     */
+    200: {
+        data: TaskScheduleOccurrencePage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleOccurrencesResponse = GetTasksByIdScheduleOccurrencesResponses[keyof GetTasksByIdScheduleOccurrencesResponses];
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdData = {
+    body?: RescheduleTaskScheduleOccurrenceRequest;
+    path: {
+        id: string;
+        occurrenceId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule/occurrences/{occurrenceId}';
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdError = PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors[keyof PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors];
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses = {
+    /**
+     * Schedule occurrence rescheduled
+     */
+    200: {
+        data: TaskScheduleOccurrenceMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponse = PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses[keyof PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;
@@ -38343,7 +38844,7 @@ export type PostTasksByIdEventsErrors = {
         };
     };
     /**
-     * Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.
+     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_schedule (Queued requested without an active schedule; no pause event in `data`).
      */
     422: {
         error: string;

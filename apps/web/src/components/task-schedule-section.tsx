@@ -753,7 +753,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
                 </Select>
               </div>
             </div>
-            {/* Time of day */}
             <div className="w-full space-y-2">
               <Label className="text-base">{t("timeOfDay")}</Label>
               <Input

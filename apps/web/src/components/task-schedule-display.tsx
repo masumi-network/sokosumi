@@ -44,16 +44,7 @@ export function TaskScheduleDisplay({
               ? scheduleMetadata.timezone
               : "UTC",
         }),
-        (key, values) =>
-          t(
-            key as
-              | "option.oneTime"
-              | "option.dailyWithTime"
-              | "option.weeklyWithWeekdayTime"
-              | "option.monthlyWithDayTime"
-              | "option.custom",
-            values as Record<string, string | number | Date>,
-          ),
+        t,
       )
     : null;
 

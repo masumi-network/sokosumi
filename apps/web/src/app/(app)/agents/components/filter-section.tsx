@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
-import useGalleryFilter, {
+import useGalleryFilter from "@/hooks/use-gallery-filter";
+import {
   GALLERY_AGENT_KINDS,
   type GalleryAgentKindFilter,
-} from "@/hooks/use-gallery-filter";
+} from "@/lib/agents/gallery-filter";
 import type { Category } from "@/lib/types/category";
 import { cn } from "@/lib/utils";
 

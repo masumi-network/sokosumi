@@ -469,7 +469,6 @@ export async function handleInvoicePaidEvent(
     env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
   ]);
 
-  // Ensure invoice has line items
   const lineItems = invoice.lines?.data;
   if (!lineItems || lineItems.length === 0) {
     return;

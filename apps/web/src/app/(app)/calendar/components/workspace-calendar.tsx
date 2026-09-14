@@ -1,6 +1,6 @@
 "use client";
 
-import FullCalendar from "@fullcalendar/react";
+import FullCalendar, { type EventDropInfo } from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
 import listPlugin from "@fullcalendar/react/list";
@@ -9,7 +9,11 @@ import timeGridPlugin from "@fullcalendar/react/timegrid";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
-import { isValidTimezone } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  hasActiveTaskSchedule,
+  isValidTimezone,
+} from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
@@ -42,12 +46,15 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
+import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { MoveOccurrenceDialog } from "@/components/schedules/move-occurrence-dialog";
 import { TaskScheduleSection } from "@/components/task-schedule-section";
 import {
   AlertDialog,
@@ -77,6 +84,7 @@ import {
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
+  rescheduleTaskOccurrence,
   saveCalendarTaskSchedule,
 } from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -94,9 +102,15 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import {
+  getTaskScheduleOperationId,
+  hasTaskScheduleChanged,
   metadataToSelection,
   schedulableOnceLocalIso,
 } from "@/lib/utils/task-schedule";
+import {
+  type TaskMutationErrorKind,
+  taskScheduleSeriesFeedbackKey,
+} from "@/lib/utils/task-schedule-feedback";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
@@ -236,15 +250,25 @@ function SourceMarker({
   );
 }
 
+/**
+ * Only an unreleased occurrence the caller owns can be moved. A released row
+ * is history, and a row the caller cannot edit must not be draggable either.
+ */
+function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
+  return item.canMoveOccurrence;
+}
+
 function CalendarEvent({
   item,
   onEditSchedule,
+  onMoveOccurrence,
   onOpenTask,
   showDetails,
   source,
 }: {
   item: WorkspaceCalendarItem;
   onEditSchedule: (taskId: string) => void;
+  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
@@ -294,6 +318,11 @@ function CalendarEvent({
             {t("event.editSchedule")}
           </DropdownMenuItem>
         ) : null}
+        {isMovableCalendarItem(item) ? (
+          <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
+            {t("event.moveOccurrence")}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
           {t("event.openTask")}
         </DropdownMenuItem>
@@ -308,6 +337,7 @@ function CalendarView({
   items,
   onDateClick,
   onEventEdit,
+  onMoveOccurrence,
   onOpenTask,
   sources,
   timeZone,
@@ -318,17 +348,78 @@ function CalendarView({
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
   onEventEdit: (taskId: string) => void;
+  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
 }) {
+  const router = useRouter();
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
+  const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
   const slotHighlightRef = useRef<HTMLDivElement>(null);
+  // Optimistic overlay for an in-flight drop: the event renders at the time it
+  // was dropped at until Core confirms it or the rollback removes it.
+  const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
   const pluginView = {
     month: "dayGridMonth",
     week: "timeGridWeek",
     agenda: "listMonth",
   }[view];
+
+  function clearPendingMove(occurrenceId: string) {
+    setPendingMoves((moves) => {
+      const { [occurrenceId]: _dropped, ...rest } = moves;
+      return rest;
+    });
+  }
+
+  async function handleEventDrop(info: EventDropInfo) {
+    const item = items.find(({ id }) => id === info.event.id);
+    const scheduledAt = info.event.start;
+    if (!item || !scheduledAt || !isMovableCalendarItem(item)) {
+      info.revert();
+      return;
+    }
+
+    const occurrenceId = item.id;
+    setPendingMoves((moves) => ({ ...moves, [occurrenceId]: scheduledAt }));
+
+    try {
+      // Every drop is its own attempt; a retry is a new drag, not a replay.
+      const result = await rescheduleTaskOccurrence({
+        taskId: item.taskId,
+        occurrenceId,
+        operationId: crypto.randomUUID(),
+        expectedScheduleRevision: item.scheduleRevision,
+        scheduledAt: scheduledAt.toISOString(),
+      });
+
+      if (!result.ok) {
+        clearPendingMove(occurrenceId);
+        info.revert();
+        // The series moved on under us, so the rendered events are stale too.
+        if (
+          result.error.kind ===
+            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
+          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
+        ) {
+          router.refresh();
+        }
+        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
+        toast.error(feedbackKey ? tSeries(feedbackKey) : tMove("error"), {
+          duration: Infinity,
+        });
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      clearPendingMove(occurrenceId);
+      info.revert();
+      toast.error(tMove("error"), { duration: Infinity });
+    }
+  }
 
   function hideSlotHighlight() {
     if (slotHighlightRef.current) {
@@ -400,7 +491,10 @@ function CalendarView({
         events={items.map((item) => ({
           id: item.id,
           title: item.taskName,
-          start: item.scheduledAt.toISOString(),
+          start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
+          // Per-event: a released or unowned row is visible but not draggable.
+          startEditable: isMovableCalendarItem(item),
+          durationEditable: false,
         }))}
         timeZone={timeZone}
         allDaySlot={false}
@@ -408,12 +502,21 @@ function CalendarView({
         headerToolbar={false}
         height="auto"
         editable={false}
+        eventDurationEditable={false}
+        eventAllow={(_span, movingEvent) => {
+          const item = movingEvent
+            ? items.find(({ id }) => id === movingEvent.id)
+            : undefined;
+          return Boolean(item && isMovableCalendarItem(item));
+        }}
+        eventDrop={(info) => void handleEventDrop(info)}
         eventContent={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
           return item ? (
             <CalendarEvent
               item={item}
               onEditSchedule={onEventEdit}
+              onMoveOccurrence={onMoveOccurrence}
               onOpenTask={onOpenTask}
               showDetails={view === "agenda"}
               source={sources.find(
@@ -446,30 +549,73 @@ interface CalendarEditDialogProps {
   initialSelection: TaskScheduleSelection;
   onClose: () => void;
   task: Task;
+  /** Revision observed when the editor opened; the mutation precondition. */
+  scheduleRevision: number;
+  /**
+   * Durable future exceptions this edit would cancel, read with the revision,
+   * or `null` when the ledger could not be read.
+   */
+  futureExceptionCount: number | null;
 }
 
 function CalendarEditDialog({
   initialSelection,
   onClose,
   task,
+  scheduleRevision,
+  futureExceptionCount: observedFutureExceptionCount,
 }: CalendarEditDialogProps) {
   const t = useTranslations("App.Calendar");
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const router = useRouter();
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [isClearingSchedule, setIsClearingSchedule] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDiscard, setPendingDiscard] =
+    useState<TaskScheduleSelection | null>(null);
+  // A revision conflict proves the observed count describes a series that has
+  // since moved on, so from then on this editor treats it as unknown.
+  const [isCountStale, setIsCountStale] = useState(false);
+  const futureExceptionCount = isCountStale
+    ? null
+    : observedFutureExceptionCount;
   const clearRequestPending = useRef(false);
+  // One UUID per distinct submitted schedule: a retry of the same rule replays
+  // on Core, while editing the rule again is a new operation.
+  const saveOperation = useRef<{ key: string; operationId: string } | null>(
+    null,
+  );
+  // One UUID for the removal the user is confirming, kept across retries so a
+  // second attempt replays the first rather than racing its own revision bump.
+  const clearOperation = useRef<string | null>(null);
 
-  async function handleSave(schedule: TaskScheduleSelection) {
+  function resolveMutationError(
+    kind: TaskMutationErrorKind,
+    fallback: string,
+  ): string {
+    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
+    return feedbackKey ? tSeries(feedbackKey) : fallback;
+  }
+
+  async function submitSave(schedule: TaskScheduleSelection) {
     setError(null);
     try {
       const result = await saveCalendarTaskSchedule({
         taskId: task.id,
+        operationId: getTaskScheduleOperationId(schedule, saveOperation),
+        expectedScheduleRevision: scheduleRevision,
         schedule,
       });
       if (!result.ok) {
-        setError(t("edit.saveError"));
+        if (
+          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
+        ) {
+          // The series moved on, so the count read with the old revision no
+          // longer describes it. Nothing here may reuse it as "zero".
+          setIsCountStale(true);
+        }
+        setError(resolveMutationError(result.error.kind, t("edit.saveError")));
         return;
       }
 
@@ -478,6 +624,38 @@ function CalendarEditDialog({
     } catch {
       setError(t("edit.saveError"));
     }
+  }
+
+  async function handleSave(schedule: TaskScheduleSelection) {
+    // Core mints a new rule epoch on every full-series edit, so submitting an
+    // untouched rule would churn the audit trail and reset consumed runs.
+    if (!hasTaskScheduleChanged(initialSelection, schedule, true)) {
+      onClose();
+      return;
+    }
+
+    // An unreadable count cannot say what a new rule would cancel, so the edit
+    // is refused instead of discarding silently. Removal states its own
+    // consequence in its confirmation and still proceeds.
+    if (futureExceptionCount === null) {
+      setError(tSeries("unknownCount"));
+      return;
+    }
+
+    if (futureExceptionCount > 0) {
+      setError(null);
+      setPendingDiscard(schedule);
+      return;
+    }
+
+    await submitSave(schedule);
+  }
+
+  async function handleConfirmDiscard() {
+    if (!pendingDiscard) return;
+    const schedule = pendingDiscard;
+    setPendingDiscard(null);
+    await submitSave(schedule);
   }
 
   async function handleClearSchedule(event: MouseEvent<HTMLButtonElement>) {
@@ -491,9 +669,16 @@ function CalendarEditDialog({
     setClearError(null);
     setError(null);
     try {
-      const result = await clearTaskSchedule({ taskId: task.id });
+      clearOperation.current ??= crypto.randomUUID();
+      const result = await clearTaskSchedule({
+        taskId: task.id,
+        operationId: clearOperation.current,
+        expectedScheduleRevision: scheduleRevision,
+      });
       if (!result.ok) {
-        setClearError(t("edit.clearError"));
+        setClearError(
+          resolveMutationError(result.error.kind, t("edit.clearError")),
+        );
         return;
       }
 
@@ -515,6 +700,7 @@ function CalendarEditDialog({
     setClearConfirmationOpen(open);
     if (!open) {
       setClearError(null);
+      clearOperation.current = null;
     }
   }
 
@@ -538,12 +724,42 @@ function CalendarEditDialog({
           onCancel={onClose}
           onClearSchedule={() => {
             setClearError(null);
+            clearOperation.current = crypto.randomUUID();
             setClearConfirmationOpen(true);
           }}
           onSave={handleSave}
           canClearSchedule={initialSelection.mode !== "none"}
           hideHeader
         />
+        {pendingDiscard ? (
+          <AlertDialog
+            open
+            onOpenChange={(open) => !open && setPendingDiscard(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {tSeries("discardTitle", {
+                    count: futureExceptionCount ?? 0,
+                  })}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {tSeries("discardDescription", {
+                    count: futureExceptionCount ?? 0,
+                  })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  {tSeries("discardCancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={() => void handleConfirmDiscard()}>
+                  {tSeries("discardConfirm")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : null}
         <AlertDialog
           open={clearConfirmationOpen}
           onOpenChange={handleClearConfirmationOpenChange}
@@ -591,6 +807,8 @@ interface CalendarEditState {
   initialSelection: TaskScheduleSelection;
   requestId: number;
   task: Task;
+  scheduleRevision: number;
+  futureExceptionCount: number | null;
 }
 
 export function WorkspaceCalendar({
@@ -615,6 +833,7 @@ export function WorkspaceCalendar({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
+  const [moveItem, setMoveItem] = useState<WorkspaceCalendarItem | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const eventRequestId = useRef(0);
@@ -773,12 +992,30 @@ export function WorkspaceCalendar({
     openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
   }
 
+  /**
+   * The ledger read carries both the mutation precondition and the exact number
+   * of future exceptions an edit would discard. It is Calendar-beta gated while
+   * removal deliberately is not, so a failure keeps the Task's own revision —
+   * removal still works — while the count stays unknown rather than zero.
+   */
+  async function readSeriesPrecondition(taskId: string) {
+    try {
+      return await loadTaskScheduleSeriesPrecondition(taskId);
+    } catch (error) {
+      console.error("Failed to read the schedule series state", error);
+      return null;
+    }
+  }
+
   async function handleEventEdit(taskId: string) {
     const requestId = eventRequestId.current + 1;
     eventRequestId.current = requestId;
     setEventLoadError(false);
     try {
-      const result = await coreClient.getTaskById(taskId);
+      const [result, occurrencePage] = await Promise.all([
+        coreClient.getTaskById(taskId),
+        readSeriesPrecondition(taskId),
+      ]);
       if (requestId !== eventRequestId.current) {
         return;
       }
@@ -789,6 +1026,15 @@ export function WorkspaceCalendar({
         ),
         requestId,
         task: result.data,
+        scheduleRevision:
+          occurrencePage?.scheduleRevision ?? result.data.scheduleRevision ?? 0,
+        futureExceptionCount:
+          occurrencePage?.futureExceptionCount ??
+          // A Task with no live rule has nothing to discard, so an unread
+          // ledger only leaves the count unknown for a series that has one.
+          (hasActiveTaskSchedule(result.data.metadata, result.data.nextRunAt)
+            ? null
+            : 0),
       });
     } catch {
       if (requestId === eventRequestId.current) {
@@ -799,6 +1045,10 @@ export function WorkspaceCalendar({
 
   function handleOpenTask(taskId: string) {
     router.push(`/tasks/${taskId}`);
+  }
+
+  function handleMoveOccurrence(item: WorkspaceCalendarItem) {
+    setMoveItem(item);
   }
 
   async function handleLoadMore() {
@@ -1045,6 +1295,7 @@ export function WorkspaceCalendar({
           items={visibleItems}
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onMoveOccurrence={handleMoveOccurrence}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1059,6 +1310,7 @@ export function WorkspaceCalendar({
           items={visibleItems}
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onMoveOccurrence={handleMoveOccurrence}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1098,6 +1350,19 @@ export function WorkspaceCalendar({
             )
           }
           task={editState.task}
+          scheduleRevision={editState.scheduleRevision}
+          futureExceptionCount={editState.futureExceptionCount}
+        />
+      ) : null}
+      {moveItem ? (
+        <MoveOccurrenceDialog
+          key={`${moveItem.id}:${moveItem.scheduledAt.toISOString()}`}
+          occurrenceId={moveItem.id}
+          expectedScheduleRevision={moveItem.scheduleRevision}
+          scheduledAt={moveItem.scheduledAt}
+          taskId={moveItem.taskId}
+          timeZone={timeZone}
+          onClose={() => setMoveItem(null)}
         />
       ) : null}
     </div>

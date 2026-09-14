@@ -124,8 +124,10 @@ function createApp(
 }
 
 function createLedgerOccurrence(overrides: Record<string, unknown> = {}) {
+  const { seriesTask: seriesTaskOverride, ...occurrenceOverrides } = overrides;
   return {
     id: "00000000-0000-7000-8000-000000000001",
+    scheduleVersion: 2,
     seriesTaskId: "tsk_history",
     originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
     effectiveScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
@@ -141,8 +143,14 @@ function createLedgerOccurrence(overrides: Record<string, unknown> = {}) {
       ownerId: "user_123",
       status: TaskStatus.QUEUED,
       assigneeId: null,
+      assigneeUserId: null,
+      metadata: JSON.stringify({ version: 2, mode: "recurring" }),
+      scheduleRevision: 3,
+      ...(seriesTaskOverride && typeof seriesTaskOverride === "object"
+        ? seriesTaskOverride
+        : {}),
     },
-    ...overrides,
+    ...occurrenceOverrides,
   };
 }
 
@@ -198,8 +206,11 @@ describe("GET /workspaces/{id}/calendar", () => {
           taskId: "tsk_history",
           taskName: "Released task",
           canEditSchedule: false,
+          canMoveOccurrence: false,
+          scheduleRevision: 3,
           taskStatus: "QUEUED",
           taskAssigneeId: null,
+          taskAssigneeUserId: null,
           scheduledAt: "2026-06-03T09:00:00.000Z",
           originalScheduledAt: "2026-06-03T09:00:00.000Z",
           state: "RELEASED",
@@ -234,6 +245,9 @@ describe("GET /workspaces/{id}/calendar", () => {
           ownerId: "user_456",
           status: TaskStatus.QUEUED,
           assigneeId: null,
+          assigneeUserId: null,
+          metadata: JSON.stringify({ version: 2, mode: "recurring" }),
+          scheduleRevision: 3,
         },
       }),
     ]);
@@ -251,6 +265,7 @@ describe("GET /workspaces/{id}/calendar", () => {
       expect.objectContaining({
         taskId: "tsk_other",
         canEditSchedule: false,
+        canMoveOccurrence: false,
       }),
     ]);
   });
@@ -273,6 +288,7 @@ describe("GET /workspaces/{id}/calendar", () => {
       expect.objectContaining({
         taskId: "tsk_history",
         canEditSchedule: true,
+        canMoveOccurrence: true,
         state: "PLANNED",
       }),
     ]);
@@ -664,6 +680,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([
       createLedgerOccurrence({
         id: "00000000-0000-7000-8000-000000000010",
+        scheduleVersion: 1,
         state: "PLANNED",
         sourceType: "WORKSPACE",
         sourceProjectId: null,
@@ -672,6 +689,14 @@ describe("GET /workspaces/{id}/calendar", () => {
           name: "Version 1 task",
           status: TaskStatus.QUEUED,
           assigneeId: null,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "recurring",
+            scheduledAt: "2026-06-01T09:00:00.000Z",
+            expr: "0 9 * * *",
+            timezone: "UTC",
+            endsMode: "never",
+          }),
         },
       }),
       createLedgerOccurrence({
@@ -686,6 +711,24 @@ describe("GET /workspaces/{id}/calendar", () => {
           assigneeId: null,
         },
       }),
+      createLedgerOccurrence({
+        id: "00000000-0000-7000-8000-000000000012",
+        scheduleVersion: 1,
+        state: "PLANNED",
+        effectiveScheduledAt: new Date("2026-06-03T11:00:00.000Z"),
+        seriesTask: {
+          id: "tsk_v1_once",
+          name: "Version 1 one-time task",
+          status: TaskStatus.QUEUED,
+          assigneeId: null,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-03T11:00:00.000Z",
+            runAt: "2026-06-03T11:00:00.000Z",
+          }),
+        },
+      }),
     ]);
 
     const response = await requestCalendar(createApp());
@@ -696,14 +739,20 @@ describe("GET /workspaces/{id}/calendar", () => {
       expect.arrayContaining([
         expect.objectContaining({
           taskId: "tsk_v1",
+          canMoveOccurrence: false,
           sourceType: "WORKSPACE",
         }),
         expect.objectContaining({
           taskId: "tsk_v2",
+          canMoveOccurrence: true,
           scheduledAt: "2026-06-03T10:00:00.000Z",
           originalScheduledAt: "2026-06-03T09:00:00.000Z",
           sourceType: "PROJECT",
           sourceProjectId: "22222222-2222-7222-8222-222222222222",
+        }),
+        expect.objectContaining({
+          taskId: "tsk_v1_once",
+          canMoveOccurrence: true,
         }),
       ]),
     );

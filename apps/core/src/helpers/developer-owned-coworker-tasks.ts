@@ -3,12 +3,6 @@ import { notFound } from "@/helpers/error";
 import { buildAccessibleCoworkersWhere } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 
-function buildAccessibleCoworkerRelationWhere(
-  userId: string,
-): Prisma.CoworkerWhereInput {
-  return buildAccessibleCoworkersWhere(userId);
-}
-
 export function buildDeveloperOwnedCoworkerTaskWhere(
   userId: string,
   coworkerId?: string,
@@ -24,7 +18,7 @@ export function buildDeveloperOwnedCoworkerTaskWhere(
     };
   }
 
-  const accessibleCoworkerWhere = buildAccessibleCoworkerRelationWhere(userId);
+  const accessibleCoworkerWhere = buildAccessibleCoworkersWhere(userId);
 
   return {
     ...base,

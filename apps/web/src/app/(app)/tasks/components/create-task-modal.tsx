@@ -359,6 +359,8 @@ export function CreateTaskModal({
             statusDraft: t("statusDraft"),
             statusQueued: t("statusQueued"),
             statusReady: t("statusReady"),
+            untitledTask: t("untitledTask"),
+            saveError: t("saveError"),
             back: t("back"),
             uploadFile: t("uploadFile"),
             uploadFileError: t("uploadFileError"),

@@ -8,7 +8,10 @@ import {
 } from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/utils";
 
-import { iterateTaskScheduleOccurrences } from "@/helpers/task-schedule";
+import {
+  computeNextRuleOccurrence,
+  iterateTaskScheduleOccurrences,
+} from "@/helpers/task-schedule";
 import { quarantineTaskSchedule } from "@/helpers/task-schedule-quarantine";
 import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
 
@@ -48,11 +51,31 @@ interface TaskScheduleOccurrenceDeleteClient {
   >;
 }
 
-interface TaskScheduleOccurrenceIndexClient
-  extends TaskScheduleOccurrenceDeleteClient {
+interface TaskScheduleOccurrenceCreateClient {
   taskScheduleOccurrence: Pick<
     Prisma.TransactionClient["taskScheduleOccurrence"],
-    "createMany" | "deleteMany"
+    "createMany"
+  >;
+}
+
+interface TaskScheduleOccurrenceIndexClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "createMany" | "deleteMany" | "findMany" | "updateMany"
+  >;
+}
+
+interface TaskScheduleOccurrenceRetireClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "findMany" | "updateMany" | "deleteMany"
+  >;
+}
+
+interface TaskScheduleOccurrenceReadClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "findMany"
   >;
 }
 
@@ -88,17 +111,22 @@ export async function removeTaskSchedulePlannedOccurrences(
   });
 }
 
-export async function replaceTaskSchedulePlannedOccurrences(
-  tx: TaskScheduleOccurrenceIndexClient,
+function projectPlannedOccurrenceRows(
   task: TaskScheduleOccurrenceIndexTask,
-  now = new Date(),
-): Promise<void> {
+  now: Date,
+) {
   const horizonEnd = new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS);
+  // For v2 the wake time (`nextRunAt`) is not a rule time once an occurrence is
+  // moved, so the projection walks the rule from its stored anchor instead.
+  const projectionStart =
+    task.schedule.mode === "recurring" && task.schedule.version === 2
+      ? (computeNextRuleOccurrence(task.schedule) ?? task.nextRunAt)
+      : task.nextRunAt;
   const occurrences = Array.from(
     iterateTaskScheduleOccurrences(
       task.id,
       task.schedule,
-      task.nextRunAt,
+      projectionStart,
       now,
       horizonEnd,
       MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES + 1,
@@ -108,28 +136,331 @@ export async function replaceTaskSchedulePlannedOccurrences(
     throw new TaskScheduleOccurrenceLimitError();
   }
 
-  await removeTaskSchedulePlannedOccurrences(tx, task.id);
-  if (occurrences.length === 0) {
+  const source = getOccurrenceSource(task);
+  return occurrences.map((occurrence) => ({
+    seriesTaskId: task.id,
+    epochId: task.schedule.version === 2 ? task.schedule.epochId : null,
+    originalScheduledAt: occurrence.originalScheduledAt,
+    effectiveScheduledAt: occurrence.scheduledAt,
+    state: TaskScheduleOccurrenceState.PLANNED,
+    scheduleVersion: task.schedule.version,
+    ...source,
+    timezone:
+      task.schedule.version === 2 || task.schedule.mode === "recurring"
+        ? task.schedule.timezone
+        : null,
+    ruleSnapshot: task.schedule,
+  }));
+}
+
+/**
+ * Adds the rolling-horizon projection for a schedule epoch without touching
+ * rows that already exist. Series edits pair this with
+ * {@link retireTaskScheduleFutureOccurrences} so past and released history
+ * survives the rule change.
+ */
+export async function createTaskSchedulePlannedOccurrences(
+  tx: TaskScheduleOccurrenceCreateClient,
+  task: TaskScheduleOccurrenceIndexTask,
+  now = new Date(),
+): Promise<void> {
+  const rows = projectPlannedOccurrenceRows(task, now);
+  if (rows.length === 0) {
     return;
   }
 
-  const source = getOccurrenceSource(task);
-  await tx.taskScheduleOccurrence.createMany({
-    data: occurrences.map((occurrence) => ({
-      seriesTaskId: task.id,
-      epochId: task.schedule.version === 2 ? task.schedule.epochId : null,
-      originalScheduledAt: occurrence.originalScheduledAt,
-      effectiveScheduledAt: occurrence.scheduledAt,
+  await tx.taskScheduleOccurrence.createMany({ data: rows });
+}
+
+interface OccurrenceProjectionIdentity {
+  epochId: string | null;
+  originalScheduledAt: Date | null;
+}
+
+function getOccurrenceProjectionIdentity(
+  occurrence: OccurrenceProjectionIdentity,
+): string | null {
+  return occurrence.originalScheduledAt
+    ? `${occurrence.epochId ?? "legacy"}:${occurrence.originalScheduledAt.toISOString()}`
+    : null;
+}
+
+/**
+ * Reconciles stored projections with the current projection: obsolete ordinary
+ * rows are deleted, retained rows keep their IDs and receive the current
+ * Calendar source, and stored identities are returned so the caller can create
+ * missing rows. A moved occurrence is a durable human decision and survives;
+ * a skipped row is not `PLANNED`, so it is never in the candidate set at all.
+ */
+async function reconcileExistingPlannedOccurrences(
+  tx: TaskScheduleOccurrenceIndexClient,
+  seriesTaskId: string,
+  now: Date,
+  projectedRows: OccurrenceProjectionIdentity[],
+  projectedSource: ReturnType<typeof getOccurrenceSource>,
+): Promise<Set<string>> {
+  const planned = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      seriesTaskId,
       state: TaskScheduleOccurrenceState.PLANNED,
-      scheduleVersion: task.schedule.version,
-      ...source,
-      timezone:
-        task.schedule.version === 2 || task.schedule.mode === "recurring"
-          ? task.schedule.timezone
-          : null,
-      ruleSnapshot: task.schedule,
-    })),
+      effectiveScheduledAt: { gte: now },
+    },
+    select: {
+      id: true,
+      epochId: true,
+      state: true,
+      scheduleVersion: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+      sourceWorkspaceId: true,
+      sourceType: true,
+      sourceProjectId: true,
+      sourceAccuracy: true,
+      timeAccuracy: true,
+    },
   });
+  const projectedIdentities = new Set(
+    projectedRows
+      .map(getOccurrenceProjectionIdentity)
+      .filter((identity): identity is string => identity !== null),
+  );
+  const existingIdentities = new Set(
+    planned
+      .map(getOccurrenceProjectionIdentity)
+      .filter((identity): identity is string => identity !== null),
+  );
+  const obsoleteOrdinaryIds = planned
+    .filter((row) => {
+      if (isDurableScheduleException(row)) {
+        return false;
+      }
+      const identity = getOccurrenceProjectionIdentity(row);
+      return identity === null || !projectedIdentities.has(identity);
+    })
+    .map((row) => row.id);
+  const obsoleteOrdinaryIdSet = new Set(obsoleteOrdinaryIds);
+  const staleSourceIds = planned
+    .filter(
+      (row) =>
+        !obsoleteOrdinaryIdSet.has(row.id) &&
+        (row.sourceWorkspaceId !== projectedSource.sourceWorkspaceId ||
+          row.sourceType !== projectedSource.sourceType ||
+          row.sourceProjectId !== projectedSource.sourceProjectId ||
+          row.sourceAccuracy !== projectedSource.sourceAccuracy ||
+          row.timeAccuracy !== projectedSource.timeAccuracy),
+    )
+    .map((row) => row.id);
+
+  if (staleSourceIds.length > 0) {
+    await tx.taskScheduleOccurrence.updateMany({
+      where: { id: { in: staleSourceIds } },
+      data: projectedSource,
+    });
+  }
+
+  if (obsoleteOrdinaryIds.length > 0) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: { id: { in: obsoleteOrdinaryIds } },
+    });
+  }
+  return existingIdentities;
+}
+
+export async function replaceTaskSchedulePlannedOccurrences(
+  tx: TaskScheduleOccurrenceIndexClient,
+  task: TaskScheduleOccurrenceIndexTask,
+  now = new Date(),
+): Promise<void> {
+  const rows = projectPlannedOccurrenceRows(task, now);
+
+  const existingIdentities = await reconcileExistingPlannedOccurrences(
+    tx,
+    task.id,
+    now,
+    rows,
+    getOccurrenceSource(task),
+  );
+  const missingRows = rows.filter((row) => {
+    const identity = getOccurrenceProjectionIdentity(row);
+    return identity === null || !existingIdentities.has(identity);
+  });
+  if (missingRows.length === 0) {
+    return;
+  }
+
+  // A projected time still owned by a moved or skipped exception stays with
+  // that row, so the rebuild must not collide with its identity.
+  await tx.taskScheduleOccurrence.createMany({
+    data: missingRows,
+    skipDuplicates: true,
+  });
+}
+
+export interface TaskScheduleOccurrenceReleaseCandidate {
+  id: string;
+  epochId: string | null;
+  originalScheduledAt: Date | null;
+  effectiveScheduledAt: Date;
+}
+
+interface TaskScheduleOccurrenceNextClient {
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "findFirst"
+  >;
+}
+
+/**
+ * The earliest occurrence the series still owes a release for, including an
+ * overdue row left behind when a scheduler invocation exhausts its budget.
+ * This is the ledger-driven next run for v2 series, so a moved occurrence pulls
+ * the next run to its new time and a skipped one never becomes the next run.
+ */
+export async function findNextReleaseableOccurrence(
+  tx: TaskScheduleOccurrenceNextClient,
+  seriesTaskId: string,
+  epochId: string | null,
+): Promise<TaskScheduleOccurrenceReleaseCandidate | null> {
+  return tx.taskScheduleOccurrence.findFirst({
+    where: {
+      seriesTaskId,
+      epochId,
+      state: TaskScheduleOccurrenceState.PLANNED,
+    },
+    orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      epochId: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
+}
+
+export interface RetiredTaskScheduleOccurrences {
+  canceledCount: number;
+}
+
+function isDurableScheduleException(occurrence: {
+  state: TaskScheduleOccurrenceState;
+  scheduleVersion: number;
+  originalScheduledAt: Date | null;
+  effectiveScheduledAt: Date;
+}): boolean {
+  // A legacy row carries no epoch and the identity check constraint requires
+  // `state = 'PLANNED'` for it, so it can only ever be deleted.
+  if (occurrence.scheduleVersion === 1) {
+    return false;
+  }
+
+  return (
+    occurrence.state === TaskScheduleOccurrenceState.SKIPPED ||
+    (occurrence.originalScheduledAt != null &&
+      occurrence.originalScheduledAt.getTime() !==
+        occurrence.effectiveScheduledAt.getTime())
+  );
+}
+
+function futureScheduleOccurrenceCandidatesWhere(
+  seriesTaskId: string,
+  now: Date,
+): Prisma.TaskScheduleOccurrenceWhereInput {
+  return {
+    seriesTaskId,
+    effectiveScheduledAt: { gte: now },
+    state: {
+      in: [
+        TaskScheduleOccurrenceState.PLANNED,
+        TaskScheduleOccurrenceState.SKIPPED,
+      ],
+    },
+  };
+}
+
+/**
+ * Retires the future half of a series ledger when its rule is replaced or the
+ * series is removed.
+ *
+ * A durable exception — a skipped occurrence, or a planned one a human moved
+ * away from its original time — becomes `CANCELED` so the decision stays
+ * visible in history. Ordinary future projections carry no decision and are
+ * deleted. Released occurrences and everything already in the past are never
+ * touched.
+ *
+ * The candidate read is unbounded on purpose: every series edit and removal
+ * retires the whole future half before projecting again, so at most one live
+ * epoch's projection is ever in this set, and that projection is capped at
+ * {@link MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES} rows inside the
+ * {@link CALENDAR_OCCURRENCE_HORIZON_MS} horizon. A `take` here would silently
+ * strand rows instead of retiring them if that invariant ever broke.
+ */
+export async function retireTaskScheduleFutureOccurrences(
+  tx: TaskScheduleOccurrenceRetireClient,
+  seriesTaskId: string,
+  now = new Date(),
+): Promise<RetiredTaskScheduleOccurrences> {
+  const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
+    where: futureScheduleOccurrenceCandidatesWhere(seriesTaskId, now),
+    select: {
+      id: true,
+      state: true,
+      scheduleVersion: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
+
+  const canceledIds: string[] = [];
+  const deletedIds: string[] = [];
+  for (const occurrence of futureOccurrences) {
+    if (isDurableScheduleException(occurrence)) {
+      canceledIds.push(occurrence.id);
+    } else {
+      deletedIds.push(occurrence.id);
+    }
+  }
+
+  if (canceledIds.length > 0) {
+    await tx.taskScheduleOccurrence.updateMany({
+      where: { id: { in: canceledIds } },
+      data: { state: TaskScheduleOccurrenceState.CANCELED },
+    });
+  }
+  if (deletedIds.length > 0) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: { id: { in: deletedIds } },
+    });
+  }
+
+  return { canceledCount: canceledIds.length };
+}
+
+/**
+ * How many durable exceptions a full-series edit or removal would cancel right
+ * now.
+ *
+ * It reads the same bounded future candidate set as
+ * {@link retireTaskScheduleFutureOccurrences} and applies the same predicate,
+ * so the number a confirmation dialog shows is exactly the number the mutation
+ * would retire — a `count` with its own hand-written predicate could drift
+ * from the retirement rule.
+ */
+export async function countTaskScheduleFutureExceptions(
+  tx: TaskScheduleOccurrenceReadClient,
+  seriesTaskId: string,
+  now = new Date(),
+): Promise<number> {
+  const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
+    where: futureScheduleOccurrenceCandidatesWhere(seriesTaskId, now),
+    select: {
+      state: true,
+      scheduleVersion: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
+
+  return futureOccurrences.filter(isDurableScheduleException).length;
 }
 
 export async function refreshTaskSchedulePlannedOccurrences(

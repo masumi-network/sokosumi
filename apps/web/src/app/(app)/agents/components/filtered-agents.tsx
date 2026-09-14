@@ -9,10 +9,9 @@ import {
   AgentsNotFound,
 } from "@/components/agents";
 import { Skeleton } from "@/components/ui/skeleton";
-import useGalleryFilter, {
-  type GalleryFilterState,
-} from "@/hooks/use-gallery-filter";
+import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
+import type { GalleryFilterState } from "@/lib/agents/gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { filterAgents } from "@/lib/helpers/agent-filter";
 import { groupAgentsByCategory } from "@/lib/helpers/agent-grouping";
