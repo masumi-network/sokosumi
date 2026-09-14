@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active slice: emoji reactions (20). Deleting own messages (19) merged [#4498](https://github.com/masumi-network/sokosumi/pull/4498).
+- Active slice: emoji reactions (20), branch `codex/apple-message-reactions`, based on main after deletion #4498 merged. Reusing the existing Core toggle endpoint, realtime reaction patches and bundled emoji catalog; no API or dependency changes.
 - SOK-1059 investigation PR #4476 was closed unmerged at the user's request. Its test-only changes are not included here. Sampled traffic did not establish an Apple polling bug; API protection is tracked separately in SOK-1060, related to SOK-1059.
 - Text-file viewing [#4470](https://github.com/masumi-network/sokosumi/pull/4470) merged as `56a5243f3f`. Full Apple CI passed at final head `9ae4f875d` (run `34647058920`), including Xcode build/app tests, all packages and lint/format. Live text acceptance remains unconfirmed.
 - PDF viewing [#4469](https://github.com/masumi-network/sokosumi/pull/4469) merged as `c97c47c1a`. Full Apple CI passed at final head `0ae491821` (run `34640292097`), including Xcode build/app tests, all package suites and lint/format. Review follow-up prevents double spacing before text; only a trailing file receives extra bottom padding.
@@ -72,7 +72,7 @@ Source links are relative to this file. The shared web service boundary is [chat
 | 17 | Quote a message in room/reply composer, preview/dismiss, submit quote reference, expand quoted content and jump to source. | 08, 10 | Done — [#4477](https://github.com/masumi-network/sokosumi/pull/4477) | [room-composer.tsx](<../web/src/app/(app)/chat/components/room-composer.tsx>), [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>) |
 | 18 | Edit own eligible messages: prefilled composer, save/cancel, validation, edited timestamp and failure rollback. | 10, 12b | Done — [#4491](https://github.com/masumi-network/sokosumi/pull/4491) | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 19 | Delete eligible messages with confirmation; preserve tombstones, thread context and authorization/error behavior. | 07, 08 | Done — [#4498](https://github.com/masumi-network/sokosumi/pull/4498) | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
-| 20 | Emoji reactions: picker, add/remove, counts, own selection, participant names and optimistic rollback. | 07 | Todo | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [emoji-picker.tsx](<../web/src/components/chat/emoji-picker.tsx>) |
+| 20 | Emoji reactions: picker, add/remove, counts, own selection, participant names and server-confirmed updates. | 07 | In progress | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [emoji-picker.tsx](<../web/src/components/chat/emoji-picker.tsx>) |
 | 21 | Pinned messages: pin/unpin, list, loading/empty/error, jump to message and realtime updates. | 07 | Todo | [pinned-messages-panel.tsx](<../web/src/app/(app)/chat/components/pinned-messages-panel.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 22 | Link unfurls: title/description/image, open link, authorized remove action and errors. | 10 | Todo | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 23 | Room search: query, result previews/highlights, pagination, jump and context loading, empty/error states. | 04, 10 | Todo | [room-search-panel.tsx](<../web/src/app/(app)/chat/components/room-search-panel.tsx>), [use-room-message-jumps.ts](<../web/src/app/(app)/chat/hooks/use-room-message-jumps.ts>), [room-search-jump.ts](<../web/src/app/(app)/chat/utils/room-search-jump.ts>) |
@@ -639,3 +639,18 @@ Verification: 338 Chat, 60 Workspace, 34 Auth, 27 Realtime and 1 CoreAPI tests p
 
 
 Deletion UI acceptance follow-up (#4498): user confirmed deletion works, but the new menu compressed the Edit label onto two lines. The existing toolbar and action labels now keep their intrinsic size, with single-line labels. A native [toolbar fixture](docs/screenshots/message-actions.png) verifies the full action row and half-above-highlight positioning. Temporary forced-hover and capture code were removed.
+
+Reaction behavior decision (2026-09-14): user approved matching current web. Counts update after Core success, with duplicate message/emoji requests blocked while pending; no optimistic mutation or rollback.
+
+
+## Slice 20 — emoji reactions
+
+Room messages, thread parents and replies show reaction counts, the current user's selection and participant-name tooltips. A native searchable SwiftUI popover opens from message actions, context menus and accessibility actions. Selecting an emoji or clicking an existing reaction toggles through Core. Deleted, membership, outbound and streaming placeholder messages cannot be reacted to.
+
+The shared coordinator blocks duplicate message/emoji requests, updates after server success and ignores responses from previous room generations. Failures preserve displayed messages and show an error. HTTP responses merge only the requested emoji, preserving newer content and unrelated reactions. If the same emoji changes while a request is pending, one read of the existing message endpoint reconciles it; intervening updates during that read remain intact. Existing realtime reaction updates continue to synchronize room and thread views.
+
+No Core contract or dependency changes. Selected the existing POST reaction and GET message operations into the generated Apple client. Search keywords reuse the approved emojilib 2.4.0 data; shortcode and emoticon data are unchanged. No web files changed.
+
+Verification: 342 Chat tests, 63 Workspace tests, 34 Auth tests, 27 Realtime tests, 1 CoreAPI test, the macOS app suite and iOS 17 Workspace cross-build pass. Pinned lint and format checks pass. Reversed responses, same-emoji reconciliation, failure preservation, duplicate clicks and generation guards have regression coverage. Native [reaction fixture](docs/screenshots/message-reactions.png) verifies counts, selection and the picker. Temporary capture code was removed; no live reactions were sent. Independent review found two response-ordering bugs, both fixed and re-reviewed without remaining findings. Existing cmark/OpenAPI/AppIntents tooling warnings remain.
+
+Manual acceptance: add and remove a reaction in a room and reply thread, search the picker, hover a count to see participants, and verify a failed request preserves the message. Wait for human merge before slice 21.

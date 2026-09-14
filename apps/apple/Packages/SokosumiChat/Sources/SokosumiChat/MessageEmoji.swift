@@ -17,6 +17,7 @@ enum MessageEmoji {
   }
 
   static let shortcodeNames = shortcodes.keys.sorted()
+  static let reactionKeywords: [String: [String]] = resource("reaction-keywords")
 
   static let composerEmoticons: [(text: String, emoji: String)] = {
     var seen = Set<String>()

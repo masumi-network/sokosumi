@@ -6,6 +6,7 @@ remark-emoji 5.0.2 / node-emoji 2.2.0 pipeline. No JavaScript runtime is bundled
 | Resource | Source | Entries | SHA-256 |
 | --- | --- | --- | --- |
 | shortcodes.json | emojilib 2.4.0 (`emojis.json` name → char) | 1,570 | `3afcba7d834ea2cafe4d4e26082faa769e51b81c61914724f2868c875f25025e` |
+| reaction-keywords.json | emojilib 2.4.0 (search keywords by shortcode) | 1,570 | `3a668a3275d37c528d149ef73d364ff51afb1805f5693ae1e0dbeef608e02db6` |
 | emoticons.json | emoticon 4.1.0 (`index.js` emoji/emoticons) | 29 groups / 322 spellings | `e6ef43a6d7ae89ec74dbcdd2c6122250ae2bac0055ac4e1453bbe8fd8718b25c` |
 
 The corresponding MIT notices are included verbatim as emojilib-LICENSE.txt and

@@ -62,11 +62,16 @@ import SwiftUI
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
     var onDelete: (() async throws -> Void)?
+    var onToggleReaction: ((String) async throws -> Void)?
+    var pendingReactionEmoji: Set<String> = []
     var editing: MessageEditing?
     var onQuoteJump: ((String) -> Void)?
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
     var streamThinking = false
+    @State private var showsReactionPicker = false
+    @State private var reactionError: String?
+    @State private var showsReactionError = false
     @State private var confirmsDeletion = false
     @State private var isDeleting = false
     @State private var deletionError: String?
@@ -77,7 +82,22 @@ import SwiftUI
     @FocusState private var focusedAction: MessageAction?
 
     private enum MessageAction: Hashable {
-      case quote, reply, edit, more
+      case quote, reply, edit, more, react
+    }
+
+    private var reactionAction: ((String) -> Void)? {
+      guard onToggleReaction != nil else { return nil }
+      return { emoji in toggleReaction(emoji) }
+    }
+
+    private func toggleReaction(_ emoji: String) {
+      guard let onToggleReaction else { return }
+      Task { @MainActor in
+        do { try await onToggleReaction(emoji) } catch {
+          reactionError = friendlyMessage(for: error)
+          showsReactionError = true
+        }
+      }
     }
 
     private func deleteMessage() {
@@ -143,6 +163,9 @@ import SwiftUI
               Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
+          if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
+            MessageReactionsView(reactions: message.reactions, pendingEmoji: pendingReactionEmoji, toggle: reactionAction)
+          }
           if let onReply, message.threadReplyCount > 0 {
             Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
               .buttonStyle(.borderless)
@@ -171,10 +194,13 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil) ? Color.primary.opacity(0.04) : .clear)
+      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil) ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
-        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil {
+        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil {
           HStack(spacing: 0) {
+            if onToggleReaction != nil {
+              messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
+            }
             if onDelete != nil {
               Menu {
                 Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
@@ -219,6 +245,17 @@ import SwiftUI
           isHovered = hovering
         }
       }
+      .popover(isPresented: $showsReactionPicker, attachmentAnchor: .point(.topTrailing), arrowEdge: .top) {
+        ReactionEmojiPicker { emoji in
+          showsReactionPicker = false
+          toggleReaction(emoji)
+        }
+      }
+      .alert("Couldn’t update reaction", isPresented: $showsReactionError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(reactionError ?? "Try again.")
+      }
       .alert("Delete message?", isPresented: $confirmsDeletion) {
         Button("Cancel", role: .cancel) {}
         Button("Delete", role: .destructive) { deleteMessage() }
@@ -231,6 +268,9 @@ import SwiftUI
         Text(deletionError ?? "Try again.")
       }
       .contextMenu {
+        if onToggleReaction != nil, message.deletedAt == nil {
+          Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
+        }
         if onDelete != nil, message.deletedAt == nil {
           Button(isDeleting ? "Deleting…" : "Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
             .disabled(isDeleting)
@@ -248,6 +288,9 @@ import SwiftUI
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
+        if onToggleReaction != nil, message.deletedAt == nil {
+          Button("Add reaction") { showsReactionPicker = true }
+        }
         if onDelete != nil, !isDeleting, message.deletedAt == nil {
           Button("Delete message", role: .destructive) { confirmsDeletion = true }
         }
@@ -277,7 +320,7 @@ import SwiftUI
       }
       .buttonStyle(.borderless)
       .focused($focusedAction, equals: focus)
-      .help(title == "Reply" ? "Reply in thread" : "Quote message")
+      .help(title == "Reply" ? "Reply in thread" : title)
     }
 
     private var pendingSince: Date? {

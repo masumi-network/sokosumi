@@ -22,6 +22,7 @@ const output = fileURLToPath(new URL("../Packages/SokosumiChat/Sources/SokosumiC
 mkdirSync(output, { recursive: true });
 for (const [name, value] of [
   ["shortcodes", Object.fromEntries(Object.entries(lib).map(([key, value]) => [key, value.char]))],
+  ["reaction-keywords", Object.fromEntries(Object.entries(lib).map(([key, value]) => [key, value.keywords]))],
   ["emoticons", emoticon.map(({ emoji, emoticons }) => ({ emoji, emoticons }))],
 ]) {
   const data = JSON.stringify(value) + "\n";
