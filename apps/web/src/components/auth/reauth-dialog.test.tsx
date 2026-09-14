@@ -1,0 +1,486 @@
+import type { Account } from "@sokosumi/utils";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ReauthDialog } from "./reauth-dialog";
+
+/** Flipped per test, because an unverified address changes the offer. */
+let emailVerified = true;
+/** True until the session atom resolves, which decides what is on offer. */
+let isPending = false;
+/** Resolved with no session: a 401 or a failed first load reports this. */
+let sessionLost = false;
+let captchaBlocked = false;
+const captchaFetchOptions = {
+  headers: { "x-captcha-response": "reauth-token" },
+};
+
+vi.mock("@/components/auth-captcha", () => ({
+  useAuthCaptcha: (entry: string) => ({
+    widget: <div data-testid={`captcha-${entry}`} />,
+    runWithCaptcha: async (
+      action: (options: typeof captchaFetchOptions) => Promise<unknown>,
+    ) => (captchaBlocked ? null : action(captchaFetchOptions)),
+    getErrorMessage: (error: { code?: string }, fallback: string) =>
+      error.code === "MISSING_RESPONSE" ? "captchaMissing" : fallback,
+  }),
+}));
+
+const { mockDiscardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
+  mockDiscardRetiredAblyRealtimeClient: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/realtime-singleton.client", () => ({
+  discardRetiredAblyRealtimeClient: mockDiscardRetiredAblyRealtimeClient,
+}));
+
+const mockSignInEmail = vi.fn();
+const mockSignInMagicLink = vi.fn();
+const mockSignInSocial = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/account",
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    signIn: {
+      email: (...args: unknown[]) => mockSignInEmail(...args),
+      magicLink: (...args: unknown[]) => mockSignInMagicLink(...args),
+      social: (...args: unknown[]) => mockSignInSocial(...args),
+    },
+  },
+  useSession: () => ({
+    // Null while pending, the way the session atom reports it.
+    data:
+      isPending || sessionLost
+        ? null
+        : { user: { email: "owner@example.com", emailVerified } },
+    isPending,
+  }),
+}));
+
+function account(providerId: string): Account {
+  return {
+    accountId: `${providerId}-account`,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    id: `account-${providerId}`,
+    providerId,
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    userId: "user-1",
+  };
+}
+
+const passwordAccount = account("credential");
+const googleAccount = account("google");
+const microsoftAccount = account("microsoft");
+
+function renderDialog(accounts: Account[]) {
+  const onOpenChange = vi.fn();
+  const onReauthenticated = vi.fn();
+
+  render(
+    <ReauthDialog
+      accounts={accounts}
+      onOpenChange={onOpenChange}
+      onReauthenticated={onReauthenticated}
+      open
+    />,
+  );
+
+  return { onOpenChange, onReauthenticated };
+}
+
+describe("ReauthDialog", () => {
+  beforeEach(() => {
+    emailVerified = true;
+    isPending = false;
+    sessionLost = false;
+    captchaBlocked = false;
+    mockDiscardRetiredAblyRealtimeClient.mockClear();
+    mockSignInEmail.mockReset();
+    mockSignInEmail.mockResolvedValue({ data: {}, error: null });
+    mockSignInMagicLink.mockReset();
+    mockSignInMagicLink.mockResolvedValue({ data: {}, error: null });
+    mockSignInSocial.mockReset();
+    mockSignInSocial.mockResolvedValue({ data: {}, error: null });
+  });
+
+  it("signs in with the password and reports success once", async () => {
+    const { onOpenChange, onReauthenticated } = renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    await waitFor(() => {
+      expect(onReauthenticated).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSignInEmail).toHaveBeenCalledWith({
+      fetchOptions: captchaFetchOptions,
+      email: "owner@example.com",
+      password: "correct horse",
+      rememberMe: true,
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("drops a client the Ably singleton retired for the lost session", async () => {
+    // This path keeps the document, so the retired client would otherwise
+    // outlive the session that retired it and realtime would stay dead.
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    await waitFor(() => {
+      expect(mockDiscardRetiredAblyRealtimeClient).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("carries a cleared Keep me signed in through to the new session", async () => {
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    // Better Auth defaults rememberMe to true, so a new session would
+    // otherwise upgrade a deliberately non-persistent cookie.
+    await user.click(screen.getByRole("checkbox", { name: "rememberMe" }));
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    await waitFor(() => {
+      expect(mockSignInEmail).toHaveBeenCalledWith({
+        fetchOptions: captchaFetchOptions,
+        email: "owner@example.com",
+        password: "correct horse",
+        rememberMe: false,
+      });
+    });
+  });
+
+  it("keeps the dialog open and shows why when the password is wrong", async () => {
+    mockSignInEmail.mockResolvedValue({
+      data: null,
+      error: { message: "Invalid password" },
+    });
+
+    const { onReauthenticated } = renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "wrong",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    // Submitting leaves focus on the button, so the error has to be announced
+    // and tied to the field a screen reader would return to.
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Invalid password");
+    expect(
+      screen.getByTestId("reauth-field-currentPassword"),
+    ).toHaveAccessibleDescription("Invalid password");
+    expect(onReauthenticated).not.toHaveBeenCalled();
+  });
+
+  it("never marks the password invalid for another path's failure", async () => {
+    mockSignInMagicLink.mockResolvedValue({
+      data: null,
+      error: { message: "Mail is down" },
+    });
+
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Mail is down");
+    // The viewer never typed here, so marking it invalid would blame the
+    // wrong field and send a screen reader to unrelated text.
+    const field = screen.getByTestId("reauth-field-currentPassword");
+    expect(field).not.toHaveAccessibleDescription();
+    expect(field).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("leaves for the provider and returns to the same route", async () => {
+    renderDialog([googleAccount]);
+
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "continueWithGoogle" }));
+
+    await waitFor(() => {
+      expect(mockSignInSocial).toHaveBeenCalledWith({
+        callbackURL: expect.stringContaining("/account"),
+        provider: "google",
+      });
+    });
+  });
+
+  it("offers a magic link to a viewer who owns nothing else", async () => {
+    // Better Auth's magic-link sign-up writes no `account` row, so such a
+    // viewer has neither a password nor a provider. Email is all they have.
+    renderDialog([]);
+
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("orEmail")).not.toBeInTheDocument();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    await waitFor(() => {
+      expect(mockSignInMagicLink).toHaveBeenCalledWith({
+        fetchOptions: captchaFetchOptions,
+        callbackURL: expect.stringContaining("/account"),
+        email: "owner@example.com",
+      });
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "magicLinkSent",
+    );
+  });
+
+  it("never offers the link while the address is unproven", async () => {
+    // Better Auth's `revokeUnprovenAccountAccess` deletes every linked account
+    // and revokes every session when an unverified viewer opens a magic link.
+    emailVerified = false;
+    renderDialog([passwordAccount, googleAccount]);
+
+    expect(
+      screen.queryByRole("button", { name: "continueWithEmail" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("orEmail")).not.toBeInTheDocument();
+
+    // The methods that cannot destroy anything stay on offer.
+    expect(
+      screen.getByTestId("reauth-field-currentPassword"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "continueWithGoogle" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says what to do when the unproven viewer owns nothing else", () => {
+    emailVerified = false;
+    renderDialog([]);
+
+    expect(screen.getByText("noMethod")).toBeInTheDocument();
+  });
+
+  it("keeps a resend after sending, for a link opened elsewhere", async () => {
+    renderDialog([]);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    // Opening the mail on a phone leaves this device stale, so the viewer
+    // needs a second link rather than a dead end.
+    const resend = await screen.findByRole("button", { name: "resendEmail" });
+    await user.click(resend);
+
+    await waitFor(() => {
+      expect(mockSignInMagicLink).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("names a terms block instead of blaming the password", async () => {
+    // Core throws this with a code and no message, so the default branch
+    // would tell a viewer their correct password was wrong.
+    mockSignInEmail.mockResolvedValue({
+      data: null,
+      error: { code: "TERMS_NOT_ACCEPTED" },
+    });
+
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "termsNotAccepted",
+    );
+  });
+
+  it("says nothing about methods before the session resolves", () => {
+    // `emailVerified` is unknown while pending, so the viewer would otherwise
+    // be told to verify an address that may already be verified.
+    isPending = true;
+    renderDialog([]);
+
+    expect(screen.queryByText("noMethod")).not.toBeInTheDocument();
+  });
+
+  it("spins instead of looking broken while the session loads", () => {
+    // Confirm needs the address the session carries, so it is disabled until
+    // then. Without the spinner it reads as a dead button.
+    isPending = true;
+    renderDialog([passwordAccount]);
+
+    const confirm = screen.getByRole("button", { name: "confirm" });
+    expect(confirm).toBeDisabled();
+    expect(confirm.querySelector(".animate-spin")).toBeInTheDocument();
+  });
+
+  it("says the session is gone rather than offering what cannot work", () => {
+    // Better Auth reports a 401 as resolved with null data. Every offer needs
+    // the address the session carries, so none of them can work.
+    sessionLost = true;
+    renderDialog([passwordAccount, googleAccount]);
+
+    expect(screen.getByText("sessionLost")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "continueWithGoogle" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("noMethod")).not.toBeInTheDocument();
+  });
+
+  it("shows one button per provider, not one per linked account", () => {
+    // Better Auth is unique on providerId plus accountId, so a viewer can
+    // hold two Google rows.
+    renderDialog([googleAccount, account("google")]);
+
+    expect(
+      screen.getAllByRole("button", { name: "continueWithGoogle" }),
+    ).toHaveLength(1);
+  });
+
+  it("drops a sent-link notice once the password succeeds", async () => {
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    // The link is stale now, so offering to resend it would mislead.
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+  });
+
+  it("names each provider rather than echoing its wire id", () => {
+    renderDialog([googleAccount, microsoftAccount, passwordAccount]);
+
+    expect(
+      screen.getByRole("button", { name: "continueWithGoogle" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "continueWithMicrosoft" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("orSocial")).toBeInTheDocument();
+  });
+
+  it("unlocks the dialog when the social start fails to navigate", async () => {
+    mockSignInSocial.mockResolvedValue({
+      data: null,
+      error: { message: "Provider is down" },
+    });
+
+    renderDialog([googleAccount]);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "continueWithGoogle" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Provider is down")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: "continueWithGoogle" }),
+    ).not.toBeDisabled();
+  });
+  it("renders each email path's challenge", () => {
+    renderDialog([passwordAccount]);
+    expect(screen.getByTestId("captcha-signin")).toBeInTheDocument();
+    expect(screen.getByTestId("captcha-magic-link")).toBeInTheDocument();
+  });
+
+  it.each(["password", "magic-link"])(
+    "does not submit %s when CAPTCHA cannot complete",
+    async (method) => {
+      captchaBlocked = true;
+      const { onReauthenticated, onOpenChange } = renderDialog([
+        passwordAccount,
+      ]);
+      const user = userEvent.setup();
+      if (method === "password") {
+        await user.type(
+          screen.getByTestId("reauth-field-currentPassword"),
+          "correct horse",
+        );
+        await user.click(screen.getByRole("button", { name: "confirm" }));
+      } else {
+        await user.click(
+          screen.getByRole("button", { name: "continueWithEmail" }),
+        );
+      }
+      expect(mockSignInEmail).not.toHaveBeenCalled();
+      expect(mockSignInMagicLink).not.toHaveBeenCalled();
+      expect(onReauthenticated).not.toHaveBeenCalled();
+      expect(onOpenChange).not.toHaveBeenCalled();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      ).not.toBeDisabled();
+    },
+  );
+
+  it.each(["password", "magic-link"])(
+    "names a CAPTCHA rejection on the %s path",
+    async (method) => {
+      const rejection = { data: null, error: { code: "MISSING_RESPONSE" } };
+      mockSignInEmail.mockResolvedValue(rejection);
+      mockSignInMagicLink.mockResolvedValue(rejection);
+      renderDialog([passwordAccount]);
+      const user = userEvent.setup();
+      if (method === "password") {
+        await user.type(
+          screen.getByTestId("reauth-field-currentPassword"),
+          "correct horse",
+        );
+        await user.click(screen.getByRole("button", { name: "confirm" }));
+      } else {
+        await user.click(
+          screen.getByRole("button", { name: "continueWithEmail" }),
+        );
+      }
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "captchaMissing",
+      );
+    },
+  );
+});

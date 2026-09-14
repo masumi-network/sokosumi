@@ -1,10 +1,9 @@
 "use client";
 
-import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { toast } from "sonner";
 
 import type { AccountNotice } from "@/app/components/account-notice-state";
-import type { AuthCaptcha } from "@/components/auth-captcha-provider";
+import type { AuthCaptcha } from "@/components/auth-captcha";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface AccountNoticeEmailMessages {
@@ -42,22 +41,11 @@ export async function sendAccountVerificationEmail(
   }
 }
 
-export async function performAccountNoticeAction(
-  notice: AccountNotice,
-  options: {
-    router: AppRouterInstance;
-    captcha: AuthCaptcha;
-    emailMessages: AccountNoticeEmailMessages;
-  },
-): Promise<void> {
-  if (notice.type === "emailVerification") {
-    await sendAccountVerificationEmail(
-      notice.email,
-      options.emailMessages,
-      options.captcha,
-    );
-    return;
-  }
-
-  options.router.push(notice.path);
+/**
+ * Where a notice leads from surfaces that cannot host the security check
+ * (toast, dropdown menu). Email verification lands on the notifications page,
+ * whose notice card carries the resend button and its inline check.
+ */
+export function getAccountNoticePath(notice: AccountNotice): string {
+  return notice.type === "emailVerification" ? "/notifications" : notice.path;
 }

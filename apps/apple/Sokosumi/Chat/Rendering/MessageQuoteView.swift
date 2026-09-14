@@ -102,9 +102,9 @@ private struct QuoteImageThumbnail: View {
     .accessibilityHidden(true)
     .task(id: "\(url)-\(size)-\(displayScale)") {
       image = nil
-      let loaded = await loadThumbnailCGImage(urlString: url.absoluteString, pointSize: size, scale: displayScale)
+      let loaded = await loadImageThumbnail(urlString: url.absoluteString, pointSize: size, scale: displayScale)
       guard !Task.isCancelled else { return }
-      image = loaded
+      image = loaded?.cgImage
     }
   }
 }
