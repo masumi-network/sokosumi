@@ -185,8 +185,8 @@ public struct TimelineScrollIntent: Equatable, Sendable {
 
   public init() {}
 
-  public mutating func userScrolled(distanceFromBottom: Double) {
-    followsLatest = distanceFromBottom < 200
+  public mutating func userScrolled(isNearBottom: Bool) {
+    followsLatest = isNearBottom
   }
 
   public mutating func beginAutomaticOlderPage(userIsScrolling: Bool, isNearTop: Bool, hasMore: Bool, isLoading: Bool) -> Bool {

@@ -65,12 +65,10 @@ import SwiftUI
             proxy.scrollTo(target, anchor: .center)
           }
           .onScrollPhaseChange { _, phase in userIsScrolling = phase == .interacting || phase == .decelerating }
-          .onScrollGeometryChange(for: Double.self) { geometry in
-            geometry.contentSize.height + geometry.contentInsets.bottom - geometry.visibleRect.maxY
-          } action: { _, distanceFromBottom in
+          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
             if userIsScrolling {
-              followsLatest = distanceFromBottom < 200
-            } else if followsLatest, distanceFromBottom > 1 {
+              followsLatest = edges.nearBottom
+            } else if followsLatest, edges.needsBottomAlignment {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
           }

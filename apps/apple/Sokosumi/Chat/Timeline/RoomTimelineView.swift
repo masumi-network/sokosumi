@@ -288,15 +288,13 @@ import SwiftUI
             proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
-        .onScrollGeometryChange(for: [Double].self) { geometry in
-          [geometry.visibleRect.minY, geometry.contentSize.height + geometry.contentInsets.bottom - geometry.visibleRect.maxY]
-        } action: { _, geometry in
+        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
           if userIsScrolling, workspaces.timeline.historicalAnchor == nil {
-            scrollIntent.userScrolled(distanceFromBottom: geometry[1])
-          } else if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
+            scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+          } else if scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
-          let isNearTop = geometry[0] < 40
+          let isNearTop = edges.nearTop
           if !isNearTop {
             transcriptWasAwayFromTop = true
             return

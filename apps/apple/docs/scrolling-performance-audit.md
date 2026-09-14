@@ -58,4 +58,21 @@ One run, 30 wheel events per fixture. Total step includes a requested 16 ms slee
 | Thread, rich text | 18.403 ms | 23.806 ms | 36.004 ms | 40.312 ms |
 | Thread, mixed media | 10.895 ms | 16.308 ms | 37.419 ms | 48.028 ms |
 
-Media cases intentionally contain shorter text (two paragraphs rather than eight), so the table does not isolate image overhead. The longer sweep reveals more layout cost than the short baseline. All four cases log `<OnScrollGeometryChange Modifier> tried to update multiple times per frame` during setup. This is reproducible evidence worth profiling, but not proof that the warning causes the user's stalls. Next: profile this app-hosted scenario, separate setup from active scrolling, and compare the same geometry callback with semantically coalesced state. The current app still has no performance fix in this branch.
+Media cases intentionally contain shorter text (two paragraphs rather than eight), so the table does not isolate image overhead. The longer sweep reveals more layout cost than the short baseline. All four cases log `<OnScrollGeometryChange Modifier> tried to update multiple times per frame` during setup. This is reproducible evidence worth profiling, but not proof that the warning causes the user's stalls. Next: profile this app-hosted scenario, separate setup from active scrolling, and compare the same geometry callback with semantically coalesced state. The next experiment below targets the geometry-update path.
+
+## First measured change: semantic scroll boundaries
+
+The repeatable fixture CPU sample (`/tmp/scroll-fixture-before.sample`) is dominated by SwiftUI layout and graph updates; application-level Markdown rendering is a small part of sampled main-thread stacks. Snapshot footprint was 336 MB (peak 366 MB), including the test host; do not treat this as a product memory baseline because a subsequent audit corrected a retain cycle in the fixture loader. This does not establish an image-decoding bottleneck on the main thread.
+
+Replaced per-pixel geometry values with `TranscriptScrollEdges`, shared by room and thread views. Its equality changes only at near-top, near-bottom and bottom-alignment boundaries. Room follow-latest also skips redundant scroll commands when already aligned. `TimelineScrollIntent` consumes the semantic near-bottom flag; its obsolete distance-based entry point was replaced, not retained.
+
+The same 120-event Debug fixture passed and no longer emitted the multiple-updates-per-frame warning (`/tmp/scroll-edges-tests.log`). One measured comparison:
+
+| Fixture | Layout p95 before → after | Total step p95 before → after |
+| --- | --- | --- |
+| Room, rich text | 29.276 → 14.739 ms | 47.300 → 34.468 ms |
+| Room, mixed media | 10.154 → 9.339 ms | 38.110 → 35.821 ms |
+| Thread, rich text | 18.403 → 15.735 ms | 36.004 → 32.904 ms |
+| Thread, mixed media | 10.895 → 2.495 ms | 37.419 → 36.222 ms |
+
+These are single-run diagnostic results, not a guaranteed frame-rate improvement. Full app tests (including threshold/equality coverage), 354 Chat tests, iOS 17 Workspace compilation and pinned lint/format pass. Release comparison and live user verification remain pending. No broad observation rewrite, new caching subsystem or image-loader replacement has been justified yet.

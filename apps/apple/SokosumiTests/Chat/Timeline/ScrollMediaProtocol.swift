@@ -21,6 +21,7 @@
 
     override func startLoading() {
       let work = DispatchWorkItem { [self] in
+        defer { pending.withLock { $0 = nil } }
         guard let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
                                              headerFields: ["Content-Type": "image/png"]) else { return }
