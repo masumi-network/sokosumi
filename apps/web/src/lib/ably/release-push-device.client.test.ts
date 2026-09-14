@@ -6,6 +6,7 @@ import {
 } from "./push-work-queue.client";
 import {
   dropBrowserPushSubscriptionOnAccountDeletion,
+  hasUnfinishedPushTeardown,
   notePushTeardownStarted,
   releasePushDeviceOnSignOut,
 } from "./release-push-device.client";
@@ -46,6 +47,32 @@ describe("releasePushDeviceOnSignOut", () => {
    * Web Push needs no session, so a registration left behind keeps rendering
    * the previous reader's chat mentions to whoever uses the browser next.
    */
+  it("persists sign-out before the subscription read can be interrupted", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    let finishRead = (_subscribed: boolean) => {};
+    hasWebPushSubscriptionMock.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishRead = resolve;
+        }),
+    );
+    const release = releasePushDeviceOnSignOut("user_1");
+    const markedBeforeRead = hasUnfinishedPushTeardown();
+    finishRead(false);
+    await release;
+    expect(markedBeforeRead).toBe(true);
+  });
+
+  it("keeps the interrupted marker when subscription lookup fails", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    hasWebPushSubscriptionMock.mockRejectedValueOnce(
+      new Error("lookup failed"),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await releasePushDeviceOnSignOut("user_1");
+    expect(hasUnfinishedPushTeardown()).toBe(true);
+  });
+
   it("drops the registration this browser holds", async () => {
     await releasePushDeviceOnSignOut("user_1");
 
@@ -62,6 +89,7 @@ describe("releasePushDeviceOnSignOut", () => {
     await releasePushDeviceOnSignOut("user_1");
 
     expect(deactivatePushMock).not.toHaveBeenCalled();
+    expect(hasUnfinishedPushTeardown()).toBe(false);
   });
 
   /**

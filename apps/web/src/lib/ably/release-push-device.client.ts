@@ -214,6 +214,7 @@ export async function releasePushDeviceOnSignOut(
     // Cancel work already running in another tab even when this tab reads
     // no subscription or token during that activation's reset.
     notePushTeardown();
+    notePushTeardownStarted();
 
     // Asked before the reads below, because it says whether they can be
     // believed. An activation clears both the subscription and the token
@@ -224,6 +225,7 @@ export async function releasePushDeviceOnSignOut(
       !(await hasWebPushSubscription()) &&
       !hasAblyPushRegistration()
     ) {
+      forgetUnfinishedPushTeardown();
       return;
     }
 
