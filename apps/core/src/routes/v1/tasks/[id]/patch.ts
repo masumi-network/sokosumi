@@ -204,10 +204,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (
-        !(await lockCalendarScope(tx, taskSnapshot.workspaceId, [
-          taskSnapshot.projectId,
-          projectId,
-        ])) ||
+        !(await lockCalendarScope(
+          tx,
+          taskSnapshot.workspaceId,
+          [taskSnapshot.projectId, projectId],
+          userContext.userId,
+        )) ||
         !(await lockTaskRows(tx, [taskSnapshot.id]))
       ) {
         throw conflict("Task changed during update");

@@ -169,8 +169,11 @@ export const projectService = (() => {
     return result.data;
   }
 
-  async function deleteProject(projectId: string): Promise<ProjectDeleted> {
-    const result = await coreClient.deleteProjectsById(projectId);
+  async function deleteProject(
+    projectId: string,
+    operationId: string,
+  ): Promise<ProjectDeleted> {
+    const result = await coreClient.deleteProjectsById(projectId, operationId);
 
     if (!result.data) {
       throw new Error("Failed to delete project");

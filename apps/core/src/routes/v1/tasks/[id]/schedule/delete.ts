@@ -85,6 +85,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    const userContext = resolveUserContext(authContext);
     // Removal requires Task collaboration, but deliberately not Calendar beta
     // access: it is the escape hatch for every schedule, including the ones the
     // un-gated legacy route still creates.
@@ -112,6 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
         existingTask.workspaceId,
         [existingTask.projectId],
+        userContext?.userId,
       );
       if (!scopeLocked || !(await lockTaskRows(tx, [id]))) {
         throw conflict("Task changed during schedule removal");
@@ -224,7 +226,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         task,
         notification: {
           eventId: event.id,
-          actorUserId: resolveUserContext(authContext)?.userId ?? null,
+          actorUserId: userContext?.userId ?? null,
           ownerId: currentTask.ownerId,
           taskName: currentTask.name,
         },

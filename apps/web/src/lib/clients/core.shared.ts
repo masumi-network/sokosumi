@@ -2963,13 +2963,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function deleteProjectsById(id: string) {
+  async function deleteProjectsById(id: string, operationId: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteProjectsById({
           client,
           path: { id },
+          headers: { "idempotency-key": operationId },
         }),
       "Failed to delete project",
     );
