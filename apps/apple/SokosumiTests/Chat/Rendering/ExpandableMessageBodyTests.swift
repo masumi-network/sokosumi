@@ -26,36 +26,8 @@
       #expect(abs(measurement.height - text.fittingSize.height) <= 1)
     }
 
-    @Test
-    func collapsedRichBodyEndsBetweenCompleteLines() async throws {
-      let source = Array(repeating: "### Heading with descenders gy", count: 30).joined(separator: "\n\n")
-      let document = MessageMarkdown(source)
-      let measurement = HeightMeasurement()
-      let body = ExpandableMessageBody(source: source) {
-        MarkdownBlocksView(blocks: document.blocks)
-      }
-      .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measurement.height = $0 }
-      .frame(width: 600, height: 1000, alignment: .top)
-      let host = NSHostingView(rootView: body)
-      host.frame = NSRect(x: 0, y: 0, width: 600, height: 1000)
-      for _ in 0 ..< 10 {
-        host.layoutSubtreeIfNeeded()
-        try await Task.sleep(for: .milliseconds(20))
-      }
-      let heading = NSHostingView(rootView: Text("Heading with descenders gy")
-        .font(.title3).fontWeight(.semibold).fixedSize())
-      let button = NSHostingView(rootView: Button("Show more") {}
-        .buttonStyle(.borderless).font(.caption.weight(.medium)))
-      let visibleHeight = measurement.height - button.fittingSize.height - 4
-      let lineHeight = heading.fittingSize.height
-      let remainder = visibleHeight.truncatingRemainder(dividingBy: lineHeight + 8)
-      #expect(visibleHeight > lineHeight)
-      #expect(visibleHeight < lineHeight * 30)
-      #expect(remainder < 0.5 || remainder >= lineHeight - 0.5,
-              "Collapsed boundary cuts a heading: visible=\(visibleHeight), line=\(lineHeight), remainder=\(remainder)")
-    }
-
     @Test(arguments: [
+      Array(repeating: "### Heading with descenders gy", count: 30).joined(separator: "\n\n"),
       String(repeating: "A paragraph with **bold words**, _emphasis_, descenders gy and a [link](https://example.com).\n\n", count: 30),
       "## Report\n\n" + String(repeating: "- A wrapped list item with enough words to continue onto another line in a narrow window.\n", count: 30),
       "### Code\n\n```swift\n" + String(repeating: "let value = 42\n", count: 30) + "```",
