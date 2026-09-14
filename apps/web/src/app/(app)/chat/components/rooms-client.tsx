@@ -551,8 +551,8 @@ export function RoomsClient({
   // State, not a ref: the viewport needs the element as a prop, and the
   // shell attaches its ref after a same-commit child has already rendered.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
-  // The transcript viewport owns the live-edge pin, jump landings and the
-  // scroll anchor. Reached through a ref so the callbacks handed to rows,
+  // The transcript viewport owns the live-edge pin and jump landings.
+  // Reached through a ref so the callbacks handed to rows,
   // hooks and the composer keep one identity across the room's life.
   const viewportRef = useRef<TranscriptViewportHandle | null>(null);
   const threadViewportRef = useRef<TranscriptViewportHandle | null>(null);

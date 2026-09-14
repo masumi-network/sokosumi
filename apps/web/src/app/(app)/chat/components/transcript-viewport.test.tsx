@@ -1,6 +1,6 @@
 import { act, render } from "@testing-library/react";
 import { createRef, useState } from "react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
@@ -80,6 +80,17 @@ function renderRow(row: RoomTranscriptRenderRow) {
  * scroller's top edge, so the viewport's margin math holds; and the resize
  * observer is made inert so the zero boxes never overwrite any of it.
  */
+const shimmed = ["offsetHeight", "clientHeight", "scrollHeight"] as const;
+const originalDescriptors = shimmed.map(
+  (name) =>
+    [
+      name,
+      Object.getOwnPropertyDescriptor(HTMLElement.prototype, name),
+    ] as const,
+);
+const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+const originalResizeObserver = window.ResizeObserver;
+
 beforeAll(() => {
   Object.defineProperties(HTMLElement.prototype, {
     offsetHeight: {
@@ -108,7 +119,6 @@ beforeAll(() => {
       },
     },
   });
-  const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
   Element.prototype.getBoundingClientRect = function () {
     const rect = originalGetBoundingClientRect.call(this).toJSON();
     const scroller = this.closest<HTMLElement>('[data-testid="scroller"]');
@@ -121,6 +131,18 @@ beforeAll(() => {
   // On the scroller's own window: the virtualizer reads it from there, not
   // from the test's globals.
   window.ResizeObserver = InertResizeObserver;
+});
+
+afterAll(() => {
+  for (const [name, descriptor] of originalDescriptors) {
+    if (descriptor) {
+      Object.defineProperty(HTMLElement.prototype, name, descriptor);
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, name);
+    }
+  }
+  Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  window.ResizeObserver = originalResizeObserver;
 });
 
 /**

@@ -8,6 +8,7 @@ import {
 import {
   type ReactNode,
   type Ref,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -373,18 +374,22 @@ export function TranscriptViewport({
     [list, virtualizer],
   );
 
+  // Stable: an inline callback is detached and reattached on every render,
+  // and the virtualizer rewrites the container's height each time.
+  const attachContainer = useCallback(
+    (node: HTMLDivElement | null) => {
+      containerRef.current = node;
+      virtualizer.containerRef(node);
+    },
+    [virtualizer],
+  );
+
   if (!scroller) {
     return null;
   }
 
   return (
-    <div
-      ref={(node) => {
-        containerRef.current = node;
-        virtualizer.containerRef(node);
-      }}
-      className="relative w-full"
-    >
+    <div ref={attachContainer} className="relative w-full">
       {virtualizer.getVirtualItems().map((item) => {
         const row = rows[item.index];
         if (!row) {
