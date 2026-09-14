@@ -271,10 +271,6 @@
      having between 96% and a fill that puts the row's own timestamps and
      captions under 4.5:1. */
   --card-background-hover: hsla(0, 0%, 96%, 1);
-  /* Translucency with a role. These five keep their alpha on purpose: each
-     one must show what sits behind it, which is the one job a frozen step
-     cannot do. The scrims sit over user media, not over the page, so they
-     hold the same value in both themes. */
   /* Translucency with a role. These keep their alpha on purpose: each one
      must show what sits behind it, which is the one job a frozen step
      cannot do. The scrims and the on-media steps sit over user media, not

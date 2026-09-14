@@ -30,9 +30,9 @@ export function driveRecentsDayItemsClass(viewMode: FilesViewMode): string {
 
 export function driveItemArticleClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "group relative flex items-center gap-2 rounded-lg border border-border bg-overlay p-3 hover:bg-card-background"
+    ? "group bg-background relative flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-card-background"
     : cn(
-        "relative -mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-card-background",
+        "relative -mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-background",
         PROJECTS_LIST_ROW_LAYOUT_CLASS,
       );
 }
