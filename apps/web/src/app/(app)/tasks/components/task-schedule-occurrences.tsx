@@ -302,7 +302,7 @@ function OccurrenceList({
         // below stays reachable rather than dead-ending the view.
         <p className="text-muted-foreground text-sm">{emptyLabel}</p>
       ) : (
-        <ul aria-label={listLabel} className="divide-border/50 divide-y">
+        <ul aria-label={listLabel} className="divide-border divide-y">
           {page.occurrences.map((occurrence) => (
             <OccurrenceRow
               key={occurrence.id}
