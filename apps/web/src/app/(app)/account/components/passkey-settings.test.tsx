@@ -724,6 +724,7 @@ describe("PasskeySettings", () => {
 
     await waitFor(() => {
       expect(mockSignInEmail).toHaveBeenCalledWith({
+        fetchOptions: {},
         email: "passkey-owner@example.com",
         password: "correct horse",
         rememberMe: true,

@@ -11,6 +11,21 @@ let emailVerified = true;
 let isPending = false;
 /** Resolved with no session: a 401 or a failed first load reports this. */
 let sessionLost = false;
+let captchaBlocked = false;
+const captchaFetchOptions = {
+  headers: { "x-captcha-response": "reauth-token" },
+};
+
+vi.mock("@/components/auth-captcha", () => ({
+  useAuthCaptcha: (entry: string) => ({
+    widget: <div data-testid={`captcha-${entry}`} />,
+    runWithCaptcha: async (
+      action: (options: typeof captchaFetchOptions) => Promise<unknown>,
+    ) => (captchaBlocked ? null : action(captchaFetchOptions)),
+    getErrorMessage: (error: { code?: string }, fallback: string) =>
+      error.code === "MISSING_RESPONSE" ? "captchaMissing" : fallback,
+  }),
+}));
 
 const { mockDiscardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
   mockDiscardRetiredAblyRealtimeClient: vi.fn(),
@@ -86,6 +101,7 @@ describe("ReauthDialog", () => {
     emailVerified = true;
     isPending = false;
     sessionLost = false;
+    captchaBlocked = false;
     mockDiscardRetiredAblyRealtimeClient.mockClear();
     mockSignInEmail.mockReset();
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
@@ -109,6 +125,7 @@ describe("ReauthDialog", () => {
       expect(onReauthenticated).toHaveBeenCalledTimes(1);
     });
     expect(mockSignInEmail).toHaveBeenCalledWith({
+      fetchOptions: captchaFetchOptions,
       email: "owner@example.com",
       password: "correct horse",
       rememberMe: true,
@@ -148,6 +165,7 @@ describe("ReauthDialog", () => {
 
     await waitFor(() => {
       expect(mockSignInEmail).toHaveBeenCalledWith({
+        fetchOptions: captchaFetchOptions,
         email: "owner@example.com",
         password: "correct horse",
         rememberMe: false,
@@ -234,6 +252,7 @@ describe("ReauthDialog", () => {
 
     await waitFor(() => {
       expect(mockSignInMagicLink).toHaveBeenCalledWith({
+        fetchOptions: captchaFetchOptions,
         callbackURL: expect.stringContaining("/account"),
         email: "owner@example.com",
       });
@@ -404,4 +423,64 @@ describe("ReauthDialog", () => {
       screen.getByRole("button", { name: "continueWithGoogle" }),
     ).not.toBeDisabled();
   });
+  it("renders each email path's challenge", () => {
+    renderDialog([passwordAccount]);
+    expect(screen.getByTestId("captcha-signin")).toBeInTheDocument();
+    expect(screen.getByTestId("captcha-magic-link")).toBeInTheDocument();
+  });
+
+  it.each(["password", "magic-link"])(
+    "does not submit %s when CAPTCHA cannot complete",
+    async (method) => {
+      captchaBlocked = true;
+      const { onReauthenticated, onOpenChange } = renderDialog([
+        passwordAccount,
+      ]);
+      const user = userEvent.setup();
+      if (method === "password") {
+        await user.type(
+          screen.getByTestId("reauth-field-currentPassword"),
+          "correct horse",
+        );
+        await user.click(screen.getByRole("button", { name: "confirm" }));
+      } else {
+        await user.click(
+          screen.getByRole("button", { name: "continueWithEmail" }),
+        );
+      }
+      expect(mockSignInEmail).not.toHaveBeenCalled();
+      expect(mockSignInMagicLink).not.toHaveBeenCalled();
+      expect(onReauthenticated).not.toHaveBeenCalled();
+      expect(onOpenChange).not.toHaveBeenCalled();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      ).not.toBeDisabled();
+    },
+  );
+
+  it.each(["password", "magic-link"])(
+    "names a CAPTCHA rejection on the %s path",
+    async (method) => {
+      const rejection = { data: null, error: { code: "MISSING_RESPONSE" } };
+      mockSignInEmail.mockResolvedValue(rejection);
+      mockSignInMagicLink.mockResolvedValue(rejection);
+      renderDialog([passwordAccount]);
+      const user = userEvent.setup();
+      if (method === "password") {
+        await user.type(
+          screen.getByTestId("reauth-field-currentPassword"),
+          "correct horse",
+        );
+        await user.click(screen.getByRole("button", { name: "confirm" }));
+      } else {
+        await user.click(
+          screen.getByRole("button", { name: "continueWithEmail" }),
+        );
+      }
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "captchaMissing",
+      );
+    },
+  );
 });

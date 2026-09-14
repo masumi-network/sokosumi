@@ -20,6 +20,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => (key: string) => key,
 }));
 
@@ -129,6 +130,7 @@ describe("DisconnectModal", () => {
 
     await waitFor(() => {
       expect(mockSignInEmail).toHaveBeenCalledWith({
+        fetchOptions: {},
         email: "owner@example.com",
         password: "correct horse",
         rememberMe: true,

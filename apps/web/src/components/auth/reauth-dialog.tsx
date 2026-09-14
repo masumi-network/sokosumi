@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -61,6 +62,8 @@ export function ReauthDialog({
   open,
 }: ReauthDialogProps) {
   const t = useTranslations("Components.ReauthDialog");
+  const passwordCaptcha = useAuthCaptcha("signin");
+  const magicLinkCaptcha = useAuthCaptcha("magic-link");
   const pathname = usePathname();
   const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
@@ -122,16 +125,24 @@ export function ReauthDialog({
     setError(null);
 
     try {
-      const result = await authClient.signIn.email({
-        email,
-        password,
-        rememberMe,
-      });
+      const result = await passwordCaptcha.runWithCaptcha((fetchOptions) =>
+        authClient.signIn.email({
+          fetchOptions,
+          email,
+          password,
+          rememberMe,
+        }),
+      );
+
+      if (!result) return;
 
       if (result.error) {
         setError({
           fromPassword: true,
-          message: describeSignInError(result.error),
+          message: passwordCaptcha.getErrorMessage(
+            result.error,
+            describeSignInError(result.error),
+          ),
         });
         return;
       }
@@ -173,15 +184,23 @@ export function ReauthDialog({
     setError(null);
 
     try {
-      const result = await authClient.signIn.magicLink({
-        email,
-        callbackURL: getAbsoluteAuthRedirectUrl(pathname),
-      });
+      const result = await magicLinkCaptcha.runWithCaptcha((fetchOptions) =>
+        authClient.signIn.magicLink({
+          fetchOptions,
+          email,
+          callbackURL: getAbsoluteAuthRedirectUrl(pathname),
+        }),
+      );
+
+      if (!result) return;
 
       if (result.error) {
         setError({
           fromPassword: false,
-          message: result.error.message ?? t("magicLinkError"),
+          message: magicLinkCaptcha.getErrorMessage(
+            result.error,
+            result.error.message ?? t("magicLinkError"),
+          ),
         });
         return;
       }
@@ -263,6 +282,7 @@ export function ReauthDialog({
                     </Label>
                   </div>
                 </fieldset>
+                {passwordCaptcha.widget}
                 <Button
                   className="w-full"
                   disabled={
@@ -317,6 +337,7 @@ export function ReauthDialog({
                     {t("magicLinkSent", { email })}
                   </p>
                 ) : null}
+                {magicLinkCaptcha.widget}
                 <Button
                   className="w-full"
                   disabled={isSubmitting || email.length === 0}
