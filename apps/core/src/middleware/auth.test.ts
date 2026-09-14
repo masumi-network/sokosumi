@@ -924,8 +924,8 @@ describe("authMiddleware", () => {
   });
 
   it("returns 401 when the session belongs to a banned user", async () => {
-    // `enableSessionForAPIKeys` means an `x-api-key` header produces a session
-    // the admin plugin's ban hook never inspected.
+    // Better Auth's own ban path revokes the sessions too, so what this
+    // covers is a ban written straight to the column.
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org_session" },
       user: {

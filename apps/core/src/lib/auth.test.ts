@@ -1028,6 +1028,18 @@ describe("core auth config", () => {
     expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
   });
 
+  it("keeps a session fresh for fifteen minutes", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ session: { freshAge: number } }]
+    >;
+
+    // Better Auth defaults to 24 hours. Passkey registration and account
+    // unlinking read this value, so a day-old session must not pass.
+    expect(config.session.freshAge).toBe(15 * 60);
+  });
+
   it("registers the Better Auth admin plugin", async () => {
     await import("./auth");
 
@@ -1087,7 +1099,9 @@ describe("core auth config", () => {
         configId: "default",
         references: "user",
         enableMetadata: true,
-        enableSessionForAPIKeys: true,
+        // A key authenticates a request. It must never mint a session, because
+        // that session is fresh enough to register a passkey.
+        enableSessionForAPIKeys: false,
       }),
     );
     expect(jwtPluginMock).toHaveBeenCalledWith({
