@@ -58,7 +58,7 @@ function repairable() {
 beforeEach(() => {
   vi.clearAllMocks();
   repairable();
-  activatePushMock.mockResolvedValue(undefined);
+  activatePushMock.mockResolvedValue(true);
 });
 
 describe("healPushSubscription", () => {
@@ -179,4 +179,9 @@ describe("healPushSubscription after an interrupted teardown", () => {
 
     expect(activatePushMock).not.toHaveBeenCalled();
   });
+});
+
+it("returns false when teardown cancels activation", async () => {
+  activatePushMock.mockResolvedValueOnce(false);
+  await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
 });

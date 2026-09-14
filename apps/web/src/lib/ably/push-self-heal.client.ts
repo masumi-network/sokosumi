@@ -86,9 +86,7 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
       return false;
     }
 
-    await activatePush(userId, { readerInitiated: false });
-
-    return true;
+    return await activatePush(userId, { readerInitiated: false });
   } catch (error) {
     console.error("Failed to restore the push subscription", error);
 

@@ -38,7 +38,7 @@ interface ActivatePushOptions {
 export async function activatePush(
   userId: string,
   options?: ActivatePushOptions,
-): Promise<void> {
+): Promise<boolean> {
   // The reader is asking for push on, which answers any teardown this browser
   // was left in the middle of. Said here rather than after the run, because
   // what it clears is a note that would otherwise outlast a run this page
@@ -72,7 +72,7 @@ export async function activatePush(
   inFlightActivation = entry;
 
   try {
-    await entry.work;
+    return await entry.work;
   } finally {
     // Only when this run is still the one on record. A later reader's
     // activation is already waiting behind this one, and clearing their entry
@@ -87,34 +87,34 @@ export async function activatePush(
 let inFlightActivation: {
   userId: string;
   teardownVersion: string;
-  work: Promise<void>;
+  work: Promise<boolean>;
 } | null = null;
 
 async function runActivation(
   userId: string,
   readerInitiated: boolean,
   teardownVersion: string,
-): Promise<void> {
+): Promise<boolean> {
   // Capture before queueing. A deletion can finish while this run waits.
   if (getPushTeardownVersion() !== teardownVersion) {
-    return;
+    return false;
   }
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
     const client = getAblyRealtimeClient();
     if (repairOvertakenAcrossTabs(readerInitiated)) {
-      return;
+      return false;
     }
     if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
-      return;
+      return false;
     }
 
     const subscribed = await hasWebPushSubscription();
     if (await abandonedToTeardown(teardownVersion)) {
-      return;
+      return false;
     }
     if (subscribed) {
-      return;
+      return true;
     }
 
     // `activate()` short-circuits when Ably's own stored state already says
@@ -126,22 +126,23 @@ async function runActivation(
     // over a browser that gets no pushes.
     await client.push.deactivate();
     if (await abandonedToTeardown(teardownVersion)) {
-      return;
+      return false;
     }
     if (repairOvertakenAcrossTabs(readerInitiated)) {
-      return;
+      return false;
     }
     if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
-      return;
+      return false;
     }
 
     const repaired = await hasWebPushSubscription();
     if (await abandonedToTeardown(teardownVersion)) {
-      return;
+      return false;
     }
     if (!repaired) {
       throw new Error("The browser created no push subscription");
     }
+    return true;
   } finally {
     restorePermissionRequest();
   }

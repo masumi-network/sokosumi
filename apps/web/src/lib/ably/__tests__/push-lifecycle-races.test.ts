@@ -94,7 +94,8 @@ describe("push lifecycle across queued work and tabs", () => {
     const disabling = tabB.deactivatePush("reader");
     await tick();
     pause.resolve();
-    await Promise.all([repairing, disabling]);
+    const [repaired] = await Promise.all([repairing, disabling]);
+    expect(repaired).toBe(false);
     expect(browser.subscribed).toBe(false);
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
@@ -114,7 +115,13 @@ describe("push lifecycle across queued work and tabs", () => {
     const disabling = tabB.deactivatePush("reader");
     const enabling = tabA.activatePush("reader");
     pause.resolve();
-    await Promise.all([repairing, disabling, enabling]);
+    const [repaired, , enabled] = await Promise.all([
+      repairing,
+      disabling,
+      enabling,
+    ]);
+    expect(repaired).toBe(false);
+    expect(enabled).toBe(true);
     expect(browser.subscribed).toBe(true);
     expect(localStorage.getItem(TOKEN_KEY)).toBe("new-token");
   });
@@ -132,7 +139,8 @@ describe("push lifecycle across queued work and tabs", () => {
     );
     await dropBrowserPushSubscriptionOnAccountDeletion();
     pause.resolve();
-    await Promise.all([blocker, activation]);
+    const [, activated] = await Promise.all([blocker, activation]);
+    expect(activated).toBe(false);
     expect(activate).not.toHaveBeenCalled();
     expect(browser.subscribed).toBe(false);
   });
@@ -164,7 +172,7 @@ describe("push lifecycle across queued work and tabs", () => {
         await releasePushDeviceOnSignOut("deleted-reader");
       }
       pause.resolve();
-      await activation;
+      await expect(activation).resolves.toBe(false);
       expect(browser.subscribed).toBe(false);
       expect(subscribeDevice).not.toHaveBeenCalled();
     },
