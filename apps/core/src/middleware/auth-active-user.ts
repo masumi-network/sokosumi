@@ -3,7 +3,8 @@
  *
  * Every bearer path has to run it, because banning or deleting a user only
  * clears their sessions: Better Auth's admin plugin deletes session rows and
- * refuses to create new ones, but it never touches API keys or OAuth tokens.
+ * refuses to create new ones, but it never touches API keys, OAuth tokens,
+ * Soko Bot keys, or coworker `X-Context-User-Id` lookups.
  * Without this check a banned user keeps every bearer credential they held,
  * and a deleted user keeps API keys forever (`Apikey.referenceId` is a plain
  * string with no relation to `User`, so deletion cascades nothing).

@@ -11,8 +11,8 @@ import {
 } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
-import { STICK_TO_BOTTOM_NEAR_PX } from "@/app/chat/hooks/use-stick-to-bottom";
-import { highlightRoomTranscriptMessage } from "@/app/chat/utils/room-message-highlight";
+import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
+import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import {
   captureTranscriptScrollAnchor,
@@ -22,6 +22,7 @@ import {
 import {
   findTranscriptRowIndex,
   firstItemIndexAfterRowsChange,
+  STICK_TO_BOTTOM_NEAR_PX,
   shouldFollowListGrowth,
   TRANSCRIPT_FIRST_ITEM_INDEX_START,
   transcriptRowKey,
@@ -92,19 +93,24 @@ interface TranscriptViewportProps {
   scroller: HTMLElement | null;
   rows: readonly RoomTranscriptRenderRow[];
   renderRow: (row: RoomTranscriptRenderRow) => ReactNode;
+  /**
+   * Which list a landing marks. Room and thread share message ids, so a
+   * document-wide lookup would take the wrong copy.
+   */
+  list?: string;
   /** Search jump: do not follow new messages while landing on an older hit. */
   holdOffBottom: boolean;
   ref: Ref<TranscriptViewportHandle>;
 }
 
 /**
- * The room transcript, mounting only the rows near the viewport.
+ * A transcript, mounting only the rows near the viewport.
  *
  * Virtuoso owns which rows exist and how tall they are; this component owns
- * what the room needs from the list: the live-edge pin, the hold a jump takes
- * on it, landing on a message the reader was sent to, and holding the
- * reader's row still while history loads above it. Remount it (key by room)
- * to open a new room on its newest message.
+ * what the list needs: the live-edge pin, the hold a jump takes on it,
+ * landing on a message the reader was sent to, and holding the reader's row
+ * still while history loads above it. Remount it (key by room or thread
+ * parent) to open on the newest message.
  */
 interface TrackedRows {
   rows: readonly RoomTranscriptRenderRow[];
@@ -115,6 +121,7 @@ export function TranscriptViewport({
   scroller,
   rows,
   renderRow,
+  list = CHAT_MESSAGE_LIST_ROOM,
   holdOffBottom,
   ref,
 }: TranscriptViewportProps) {
@@ -253,7 +260,7 @@ export function TranscriptViewport({
           if (landing !== landingRef.current) {
             return;
           }
-          if (highlightRoomTranscriptMessage(messageId)) {
+          if (highlightListMessage(list, messageId)) {
             return;
           }
           frames += 1;
@@ -311,7 +318,7 @@ export function TranscriptViewport({
         );
       },
     }),
-    [cancelRestoreRetry, scrollToLast, scroller],
+    [cancelRestoreRetry, list, scrollToLast, scroller],
   );
 
   if (!scroller) {

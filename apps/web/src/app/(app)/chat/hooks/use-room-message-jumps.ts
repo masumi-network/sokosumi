@@ -12,7 +12,6 @@ import {
   createRoomJumpState,
   startRoomJump,
 } from "@/app/chat/utils/room-jump-hold";
-import { highlightThreadMessage } from "@/app/chat/utils/room-message-highlight";
 import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
 import {
   performRoomSearchJump,
@@ -36,6 +35,11 @@ interface RoomMessageJumpsParams {
    * transcript has not loaded it, which is the cue to load a window on it.
    */
   landOnRoomMessage: (messageId: string) => boolean;
+  /**
+   * Land on a message in the open thread and mark it. False when the panel
+   * has not loaded it, which is the cue to load a window on it.
+   */
+  landOnThreadMessage: (messageId: string) => boolean;
   suppressStickToBottom: () => void;
   releaseStickToBottomSuppress: () => void;
   setSearchHoldOffBottom: (hold: boolean) => void;
@@ -46,8 +50,14 @@ interface RoomMessageJumpsParams {
    */
   mergeRoomJumpWindow: (page: RoomTranscriptPage) => void;
   historicalThreadRef: RefObject<boolean>;
-  setThreadMessages: (messages: ChatRoomMessage[]) => void;
-  setThreadOlderNextCursor: (cursor: string | null) => void;
+  /**
+   * Swap the open thread onto a jump window. Must drop in-flight older
+   * loads: this path does not go through `loadThreadMessages`.
+   */
+  replaceThreadWindow: (
+    messages: ChatRoomMessage[],
+    nextCursor: string | null,
+  ) => void;
   handleOpenThreadFromMessage: (parent: ChatRoomMessage) => Promise<boolean>;
 }
 
@@ -57,13 +67,13 @@ export function useRoomMessageJumps({
   threadParentMessage,
   isStillSelectedRoom,
   landOnRoomMessage,
+  landOnThreadMessage,
   suppressStickToBottom,
   releaseStickToBottomSuppress,
   setSearchHoldOffBottom,
   mergeRoomJumpWindow,
   historicalThreadRef,
-  setThreadMessages,
-  setThreadOlderNextCursor,
+  replaceThreadWindow,
   handleOpenThreadFromMessage,
 }: RoomMessageJumpsParams) {
   const jumpStateRef = useRef(createRoomJumpState());
@@ -136,7 +146,7 @@ export function useRoomMessageJumps({
       // Scoped to the thread, which is the list this hit lives in: the jump
       // reaches here only for a reply, and a reply is never on the room
       // timeline.
-      highlightInThread: (id) => isNewestJump() && highlightThreadMessage(id),
+      highlightInThread: (id) => isNewestJump() && landOnThreadMessage(id),
       afterThreadRender: waitForThreadJumpPaint,
       afterRoomRender: waitForSearchJumpPaint,
       loadAroundInRoom: (aroundId) =>
@@ -206,8 +216,7 @@ export function useRoomMessageJumps({
           return false;
         }
         historicalThreadRef.current = true;
-        setThreadMessages(result.value.messages);
-        setThreadOlderNextCursor(result.value.nextCursor);
+        replaceThreadWindow(result.value.messages, result.value.nextCursor);
         return true;
       },
     });
