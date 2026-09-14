@@ -34,11 +34,40 @@ vi.mock("next-intl", () => ({
 
 const VIEWPORT_HEIGHT = 600;
 const ROW_HEIGHT = 40;
+/** The scroller's height; a test shrinks it the way a growing composer does. */
+let viewportHeight = VIEWPORT_HEIGHT;
 
-class InertResizeObserver implements ResizeObserver {
-  observe() {}
+/**
+ * Records what is observed so a test can announce a resize of the scroller.
+ * Rows are observed too and never resized here.
+ */
+const resizeObservations: { target: Element; callback: () => void }[] = [];
+class RecordingResizeObserver implements ResizeObserver {
+  constructor(private readonly callback: ResizeObserverCallback) {}
+  observe(target: Element) {
+    resizeObservations.push({
+      target,
+      callback: () => this.callback([], this),
+    });
+  }
   unobserve() {}
   disconnect() {}
+}
+
+function resizeScroller(scroller: HTMLElement, height: number) {
+  viewportHeight = height;
+  // Browser keeps the top edge still, then clamps scrollTop to the new max.
+  const max = Math.max(0, scroller.scrollHeight - height);
+  if (scroller.scrollTop > max) {
+    scroller.scrollTop = max;
+  }
+  act(() => {
+    for (const { target, callback } of resizeObservations) {
+      if (target === scroller) {
+        callback();
+      }
+    }
+  });
 }
 
 function message(index: number): ChatRoomMessage {
@@ -89,9 +118,9 @@ function renderRow(row: RoomTranscriptRenderRow) {
  * happy-dom lays nothing out: every box is zero and nothing resizes. The
  * virtualizer sizes the viewport and each mounting row from offset heights
  * and clamps scrolls to the scroller's scroll height, so those are answered
- * here from fixed heights; the list container reports where it sits relative to the
- * scroller's top edge, so the viewport's margin math holds; and the resize
- * observer is made inert so the zero boxes never overwrite any of it.
+ * here from fixed heights; the list container reports where it sits relative
+ * to the scroller's top edge, so the viewport's margin math holds; and
+ * ResizeObserver is recorded so a test can announce a scroller resize.
  */
 const shimmed = ["offsetHeight", "clientHeight", "scrollHeight"] as const;
 const originalDescriptors = shimmed.map(
@@ -110,7 +139,7 @@ beforeAll(() => {
       configurable: true,
       get(this: HTMLElement) {
         if (this.dataset.testid === "scroller") {
-          return VIEWPORT_HEIGHT;
+          return viewportHeight;
         }
         return this.hasAttribute("data-index") ? ROW_HEIGHT : 0;
       },
@@ -118,7 +147,7 @@ beforeAll(() => {
     clientHeight: {
       configurable: true,
       get(this: HTMLElement) {
-        return this.dataset.testid === "scroller" ? VIEWPORT_HEIGHT : 0;
+        return this.dataset.testid === "scroller" ? viewportHeight : 0;
       },
     },
     // The list container's height, which the virtualizer sets to its total.
@@ -143,7 +172,7 @@ beforeAll(() => {
   };
   // On the scroller's own window: the virtualizer reads it from there, not
   // from the test's globals.
-  window.ResizeObserver = InertResizeObserver;
+  window.ResizeObserver = RecordingResizeObserver;
 });
 
 afterAll(() => {
@@ -188,6 +217,16 @@ function Harness({
   );
 }
 
+function scrollerOf(container: HTMLElement): HTMLElement {
+  const scroller = container.querySelector<HTMLElement>(
+    '[data-testid="scroller"]',
+  );
+  if (!scroller) {
+    throw new Error("expected the scroller");
+  }
+  return scroller;
+}
+
 function mountedIds(container: HTMLElement): string[] {
   return Array.from(container.querySelectorAll("[data-message-id]")).map(
     (row) => row.getAttribute("data-message-id") ?? "",
@@ -211,6 +250,8 @@ async function settle(container: HTMLElement) {
 
 afterEach(() => {
   document.body.innerHTML = "";
+  resizeObservations.length = 0;
+  viewportHeight = VIEWPORT_HEIGHT;
 });
 
 describe("TranscriptViewport", () => {
@@ -375,6 +416,130 @@ describe("TranscriptViewport", () => {
     const ids = mountedIds(container);
     expect(ids).toContain("msg-067");
     expect(ids).not.toContain("msg-000");
+  });
+
+  it("keeps the live edge in view when the scroller shrinks under a growing composer", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(<Harness rows={rows(100)} handle={handle} />);
+    await settle(container);
+    const scroller = scrollerOf(container);
+    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+
+    resizeScroller(scroller, VIEWPORT_HEIGHT - 48);
+    await settle(container);
+
+    expect(scroller.scrollTop).toBe(
+      scroller.scrollHeight - (VIEWPORT_HEIGHT - 48),
+    );
+  });
+
+  it("keeps a reader near the live edge at their distance when the scroller shrinks", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(<Harness rows={rows(100)} handle={handle} />);
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => {
+      scroller.scrollTo({ top: scroller.scrollHeight - VIEWPORT_HEIGHT - 100 });
+    });
+    await settle(container);
+
+    resizeScroller(scroller, VIEWPORT_HEIGHT - 48);
+    await settle(container);
+
+    expect(
+      scroller.scrollHeight - (VIEWPORT_HEIGHT - 48) - scroller.scrollTop,
+    ).toBe(100);
+  });
+
+  it("keeps the live edge in view when the scroller grows under a shrinking composer", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(<Harness rows={rows(100)} handle={handle} />);
+    await settle(container);
+    const scroller = scrollerOf(container);
+    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+
+    resizeScroller(scroller, VIEWPORT_HEIGHT + 48);
+    await settle(container);
+
+    expect(scroller.scrollTop).toBe(
+      scroller.scrollHeight - (VIEWPORT_HEIGHT + 48),
+    );
+  });
+
+  it("keeps a reader near the live edge at their distance when the scroller grows", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(<Harness rows={rows(100)} handle={handle} />);
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => {
+      scroller.scrollTo({ top: scroller.scrollHeight - VIEWPORT_HEIGHT - 100 });
+    });
+    await settle(container);
+
+    resizeScroller(scroller, VIEWPORT_HEIGHT + 48);
+    await settle(container);
+
+    expect(
+      scroller.scrollHeight - (VIEWPORT_HEIGHT + 48) - scroller.scrollTop,
+    ).toBe(100);
+  });
+
+  it("leaves a reader a little above the live edge where they are when the rows are refreshed", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, rerender } = render(
+      <Harness rows={rows(100)} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    const above = scroller.scrollHeight - VIEWPORT_HEIGHT - 100;
+    act(() => {
+      scroller.scrollTo({ top: above });
+    });
+    await settle(container);
+    expect(scroller.scrollTop).toBe(above);
+
+    // A poll returns the same messages as a new array.
+    rerender(<Harness rows={rows(100)} handle={handle} />);
+    await settle(container);
+
+    expect(scroller.scrollTop).toBe(above);
+  });
+
+  it("puts a view exactly at the live edge back there when the rows are refreshed", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, rerender } = render(
+      <Harness rows={rows(100)} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+
+    rerender(<Harness rows={rows(100)} handle={handle} />);
+    await settle(container);
+
+    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+  });
+
+  it("pulls a reader near the live edge down when a new message arrives", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, rerender } = render(
+      <Harness rows={rows(100)} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => {
+      scroller.scrollTo({
+        top: scroller.scrollHeight - VIEWPORT_HEIGHT - 100,
+      });
+    });
+    await settle(container);
+
+    rerender(<Harness rows={rows(101)} handle={handle} />);
+    await settle(container);
+
+    expect(
+      scroller.scrollHeight - VIEWPORT_HEIGHT - scroller.scrollTop,
+    ).toBeLessThan(1);
   });
 
   it("holds the first message when the boundary row above it is replaced by the page it loaded", async () => {
