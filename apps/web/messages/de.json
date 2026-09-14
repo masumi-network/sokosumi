@@ -37,6 +37,7 @@
       "rememberMe": "Angemeldet bleiben",
       "resendEmail": "Link erneut senden",
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
+      "sessionLost": "Deine Sitzung ist beendet. Melde dich auf der Startseite erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
       "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest.",
       "title": "Bestätige, dass du es bist"

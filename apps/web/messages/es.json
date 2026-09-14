@@ -37,6 +37,7 @@
       "rememberMe": "Mantener la sesión iniciada",
       "resendEmail": "Enviar el enlace otra vez",
       "retryPrompt": "Has iniciado sesión de nuevo. Inténtalo otra vez ahora.",
+      "sessionLost": "Tu sesión ha terminado. Inicia sesión de nuevo desde la página de inicio.",
       "socialError": "No hemos podido iniciar ese acceso.",
       "termsNotAccepted": "Acepta los términos actualizados antes de iniciar sesión de nuevo.",
       "title": "Confirma que eres tú"

@@ -9,6 +9,8 @@ import { ReauthDialog } from "./reauth-dialog";
 let emailVerified = true;
 /** True until the session atom resolves, which decides what is on offer. */
 let isPending = false;
+/** Resolved with no session: a 401 or a failed first load reports this. */
+let sessionLost = false;
 
 const { mockDiscardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
   mockDiscardRetiredAblyRealtimeClient: vi.fn(),
@@ -40,9 +42,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
   useSession: () => ({
     // Null while pending, the way the session atom reports it.
-    data: isPending
-      ? null
-      : { user: { email: "owner@example.com", emailVerified } },
+    data:
+      isPending || sessionLost
+        ? null
+        : { user: { email: "owner@example.com", emailVerified } },
     isPending,
   }),
 }));
@@ -82,6 +85,7 @@ describe("ReauthDialog", () => {
   beforeEach(() => {
     emailVerified = true;
     isPending = false;
+    sessionLost = false;
     mockDiscardRetiredAblyRealtimeClient.mockClear();
     mockSignInEmail.mockReset();
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
@@ -322,6 +326,22 @@ describe("ReauthDialog", () => {
     const confirm = screen.getByRole("button", { name: "confirm" });
     expect(confirm).toBeDisabled();
     expect(confirm.querySelector(".animate-spin")).toBeInTheDocument();
+  });
+
+  it("says the session is gone rather than offering what cannot work", () => {
+    // Better Auth reports a 401 as resolved with null data. Every offer needs
+    // the address the session carries, so none of them can work.
+    sessionLost = true;
+    renderDialog([passwordAccount, googleAccount]);
+
+    expect(screen.getByText("sessionLost")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("reauth-field-currentPassword"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "continueWithGoogle" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("noMethod")).not.toBeInTheDocument();
   });
 
   it("shows one button per provider, not one per linked account", () => {

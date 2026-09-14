@@ -95,6 +95,10 @@ export function ReauthDialog({
   // A magic-link sign-up is created verified, so the path stays open to the
   // viewers who own nothing else.
   const canUseMagicLink = session?.user.emailVerified === true;
+  // Better Auth reports a 401 or a failed first load as resolved-but-null, so
+  // this is a third state, not a slow one. Every offer below needs the address
+  // the session carries, and none of them can work without it.
+  const hasLostSession = !isLoadingSession && session == null;
   const hasNoMethod =
     !hasPasswordAccount && socialProviders.length === 0 && !canUseMagicLink;
 
@@ -225,113 +229,125 @@ export function ReauthDialog({
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
-        {hasPasswordAccount ? (
-          <form className="space-y-4" onSubmit={handlePasswordSubmit}>
-            <fieldset className="space-y-2" disabled={isSubmitting}>
-              <Label htmlFor="reauth-password">{t("passwordLabel")}</Label>
-              <Input
-                aria-describedby={
-                  error?.fromPassword ? "reauth-error" : undefined
-                }
-                aria-invalid={error?.fromPassword ? true : undefined}
-                autoComplete="current-password"
-                data-testid="reauth-field-currentPassword"
-                id="reauth-password"
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                type="password"
-                value={password}
-              />
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={rememberMe}
-                  id="reauth-remember-me"
-                  onCheckedChange={(checked) => setRememberMe(checked === true)}
-                />
-                <Label className="font-normal" htmlFor="reauth-remember-me">
-                  {t("rememberMe")}
-                </Label>
-              </div>
-            </fieldset>
-            <Button
-              className="w-full"
-              disabled={
-                isSubmitting || email.length === 0 || password.length === 0
-              }
-              type="submit"
-            >
-              {/* Confirm needs the address the session carries, so it is dead
-                  until that resolves. Spin rather than look broken. */}
-              {isSubmitting || isLoadingSession ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              {t("confirm")}
-            </Button>
-          </form>
-        ) : null}
-
-        {socialProviders.length > 0 ? (
-          <div className="space-y-2">
+        {hasLostSession ? (
+          <p className="text-sm">{t("sessionLost")}</p>
+        ) : (
+          <>
             {hasPasswordAccount ? (
-              <p className="text-muted-foreground text-sm">{t("orSocial")}</p>
+              <form className="space-y-4" onSubmit={handlePasswordSubmit}>
+                <fieldset className="space-y-2" disabled={isSubmitting}>
+                  <Label htmlFor="reauth-password">{t("passwordLabel")}</Label>
+                  <Input
+                    aria-describedby={
+                      error?.fromPassword ? "reauth-error" : undefined
+                    }
+                    aria-invalid={error?.fromPassword ? true : undefined}
+                    autoComplete="current-password"
+                    data-testid="reauth-field-currentPassword"
+                    id="reauth-password"
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                    type="password"
+                    value={password}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={rememberMe}
+                      id="reauth-remember-me"
+                      onCheckedChange={(checked) =>
+                        setRememberMe(checked === true)
+                      }
+                    />
+                    <Label className="font-normal" htmlFor="reauth-remember-me">
+                      {t("rememberMe")}
+                    </Label>
+                  </div>
+                </fieldset>
+                <Button
+                  className="w-full"
+                  disabled={
+                    isSubmitting || email.length === 0 || password.length === 0
+                  }
+                  type="submit"
+                >
+                  {/* Confirm needs the address the session carries, so it is dead
+                    until that resolves. Spin rather than look broken. */}
+                  {isSubmitting || isLoadingSession ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : null}
+                  {t("confirm")}
+                </Button>
+              </form>
             ) : null}
-            {socialProviders.map((provider) => (
-              <Button
-                className="w-full"
-                disabled={isSubmitting}
-                key={provider}
-                onClick={() => handleSocialSubmit(provider)}
-                type="button"
-                variant="outline"
-              >
-                {SOCIAL_PROVIDER_ICONS[provider]}
-                {provider === AccountProvider.GOOGLE
-                  ? t("continueWithGoogle")
-                  : t("continueWithMicrosoft")}
-              </Button>
-            ))}
-          </div>
-        ) : null}
 
-        {canUseMagicLink ? (
-          <div className="space-y-2">
-            {hasPasswordAccount || socialProviders.length > 0 ? (
-              <p className="text-muted-foreground text-sm">{t("orEmail")}</p>
+            {socialProviders.length > 0 ? (
+              <div className="space-y-2">
+                {hasPasswordAccount ? (
+                  <p className="text-muted-foreground text-sm">
+                    {t("orSocial")}
+                  </p>
+                ) : null}
+                {socialProviders.map((provider) => (
+                  <Button
+                    className="w-full"
+                    disabled={isSubmitting}
+                    key={provider}
+                    onClick={() => handleSocialSubmit(provider)}
+                    type="button"
+                    variant="outline"
+                  >
+                    {SOCIAL_PROVIDER_ICONS[provider]}
+                    {provider === AccountProvider.GOOGLE
+                      ? t("continueWithGoogle")
+                      : t("continueWithMicrosoft")}
+                  </Button>
+                ))}
+              </div>
             ) : null}
-            {magicLinkSent ? (
-              <p className="text-sm" role="status">
-                {t("magicLinkSent", { email })}
+
+            {canUseMagicLink ? (
+              <div className="space-y-2">
+                {hasPasswordAccount || socialProviders.length > 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    {t("orEmail")}
+                  </p>
+                ) : null}
+                {magicLinkSent ? (
+                  <p className="text-sm" role="status">
+                    {t("magicLinkSent", { email })}
+                  </p>
+                ) : null}
+                <Button
+                  className="w-full"
+                  disabled={isSubmitting || email.length === 0}
+                  onClick={handleMagicLinkSubmit}
+                  type="button"
+                  variant="outline"
+                >
+                  <Mail />
+                  {magicLinkSent ? t("resendEmail") : t("continueWithEmail")}
+                </Button>
+              </div>
+            ) : null}
+
+            {/* The session decides whether email is on offer, so before it
+              resolves every viewer looks like they own nothing. */}
+            {hasNoMethod && !isLoadingSession ? (
+              <p className="text-sm">{t("noMethod")}</p>
+            ) : null}
+
+            {error ? (
+              // Announced, because submitting leaves focus on the button.
+              <p
+                className="text-destructive text-sm"
+                id="reauth-error"
+                role="alert"
+              >
+                {error.message}
               </p>
             ) : null}
-            <Button
-              className="w-full"
-              disabled={isSubmitting || email.length === 0}
-              onClick={handleMagicLinkSubmit}
-              type="button"
-              variant="outline"
-            >
-              <Mail />
-              {magicLinkSent ? t("resendEmail") : t("continueWithEmail")}
-            </Button>
-          </div>
-        ) : null}
-
-        {/* The session decides whether email is on offer, so before it
-            resolves every viewer looks like they own nothing. */}
-        {hasNoMethod && !isLoadingSession ? (
-          <p className="text-sm">{t("noMethod")}</p>
-        ) : null}
-
-        {error ? (
-          // Announced, because submitting leaves focus on the button.
-          <p
-            className="text-destructive text-sm"
-            id="reauth-error"
-            role="alert"
-          >
-            {error.message}
-          </p>
-        ) : null}
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
