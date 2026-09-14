@@ -6604,6 +6604,11 @@ export const AdminTaskX402RefundConflictResponseSchema = {
             ],
             description: 'already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.'
         },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
+        },
         meta: {
             type: 'object',
             properties: {
@@ -6707,17 +6712,17 @@ export const AdminTaskX402ResolveConflictResponseSchema = {
             ],
             description: 'sign_in_flight and sign_outcome_unresolved include retryAfter and retryAfterSeconds'
         },
-        retryAfter: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-12T10:00:30.000Z',
-            description: 'ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.'
-        },
         retryAfterSeconds: {
             type: 'integer',
             minimum: 0,
             description: 'Whole seconds until retryAfter. Present with retryAfter.',
             example: 25
+        },
+        retryAfter: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-12T10:00:30.000Z',
+            description: 'ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.'
         },
         meta: {
             type: 'object',
@@ -12029,6 +12034,11 @@ export const EnterpriseContractActivationConflictResponseSchema = {
                 'enterprise_activation_blocked'
             ],
             description: 'Machine-readable conflict reason for activation guards'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
         },
         blocker: {
             $ref: '#/components/schemas/EnterpriseContractActivationBlocker'
