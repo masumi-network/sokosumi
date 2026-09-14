@@ -245,7 +245,10 @@ describe("project.service", () => {
     const updated = await projectService.patchProject("project-1", {
       name: "Updated launch plan",
     });
-    const deleted = await projectService.deleteProject("project-1");
+    const deleted = await projectService.deleteProject(
+      "project-1",
+      "123e4567-e89b-42d3-a456-426614174001",
+    );
 
     expect(coreClientMock.postProjects).toHaveBeenCalledWith({
       name: "Launch plan",
@@ -255,7 +258,10 @@ describe("project.service", () => {
     expect(coreClientMock.patchProjectsById).toHaveBeenCalledWith("project-1", {
       name: "Updated launch plan",
     });
-    expect(coreClientMock.deleteProjectsById).toHaveBeenCalledWith("project-1");
+    expect(coreClientMock.deleteProjectsById).toHaveBeenCalledWith(
+      "project-1",
+      "123e4567-e89b-42d3-a456-426614174001",
+    );
     expect(created).toEqual(project);
     expect(updated).toEqual(buildProject({ name: "Updated launch plan" }));
     expect(deleted).toEqual({ id: "project-1", deleted: true });

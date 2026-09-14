@@ -86,9 +86,16 @@ async function mapStatus(
 
 async function requireLockedProject(
   tx: Prisma.TransactionClient,
-  scope: Pick<ProjectCloseScope, "projectId" | "workspaceId">,
+  scope: Pick<ProjectCloseScope, "actorUserId" | "projectId" | "workspaceId">,
 ) {
-  if (!(await lockCalendarScope(tx, scope.workspaceId, [scope.projectId]))) {
+  if (
+    !(await lockCalendarScope(
+      tx,
+      scope.workspaceId,
+      [scope.projectId],
+      scope.actorUserId,
+    ))
+  ) {
     throw notFound("Project not found");
   }
 

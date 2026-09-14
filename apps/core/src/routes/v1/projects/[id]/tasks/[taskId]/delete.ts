@@ -53,7 +53,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, taskId } = c.req.valid("param");
 
@@ -83,7 +83,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireTaskNotParked(task);
 
     await prisma.$transaction(async (tx) => {
-      if (!(await lockCalendarScope(tx, workspaceId, [projectId]))) {
+      if (
+        !(await lockCalendarScope(
+          tx,
+          workspaceId,
+          [projectId],
+          userContext.userId,
+        ))
+      ) {
         throw notFound("Project or task link not found");
       }
       if (!(await lockTaskRows(tx, [taskId]))) {

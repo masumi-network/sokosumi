@@ -24,13 +24,27 @@ const {
   userFindUniqueMock,
   workspaceFindUniqueMock,
   workspaceDeleteMock,
+  eraseWorkspaceCalendarDataMock,
+  lockCalendarErasureUserMock,
 } = vi.hoisted(() => ({
   isLastWorkspaceMock: vi.fn(),
   transactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   workspaceDeleteMock: vi.fn(),
+  eraseWorkspaceCalendarDataMock: vi.fn(),
+  lockCalendarErasureUserMock: vi.fn(),
 }));
+
+vi.mock("@/helpers/calendar-erasure", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/calendar-erasure")>();
+  return {
+    ...actual,
+    eraseWorkspaceCalendarData: eraseWorkspaceCalendarDataMock,
+    lockCalendarErasureUser: lockCalendarErasureUserMock,
+  };
+});
 
 vi.mock("@/helpers/workspace-access", () => ({
   isLastWorkspace: (...args: unknown[]) => isLastWorkspaceMock(...args),
@@ -98,6 +112,8 @@ describe("DELETE /users/{id}/personal-workspace", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    eraseWorkspaceCalendarDataMock.mockResolvedValue(true);
+    lockCalendarErasureUserMock.mockResolvedValue(true);
     TX.user.findUnique.mockResolvedValue({ preferredOrganizationId: "org_1" });
     TX.user.update.mockResolvedValue({ id: "user_123" });
     TX.member.findFirst.mockResolvedValue({ organizationId: "org_1" });
@@ -157,6 +173,11 @@ describe("DELETE /users/{id}/personal-workspace", () => {
       "user_123",
       { type: "personal" },
       TX,
+    );
+    expect(lockCalendarErasureUserMock).toHaveBeenCalledWith(TX, "user_123");
+    expect(eraseWorkspaceCalendarDataMock).toHaveBeenCalledWith(
+      TX,
+      "11111111-1111-7111-8111-111111111111",
     );
     expect(workspaceDeleteMock).toHaveBeenCalledWith({
       where: { id: "11111111-1111-7111-8111-111111111111" },

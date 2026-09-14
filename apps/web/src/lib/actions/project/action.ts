@@ -53,6 +53,7 @@ interface GetProjectContextMdParameters extends AuthenticatedRequest {
 
 interface DeleteProjectParameters extends AuthenticatedRequest {
   projectId: string;
+  operationId: string;
 }
 
 interface CloseProjectParameters extends AuthenticatedRequest {
@@ -120,6 +121,11 @@ const projectCloseSchema = z.object({
   operationId: z.string().uuid(),
   expectedProjectRevision: z.number().int().nonnegative(),
   reason: z.string().trim().min(1).optional(),
+});
+
+const projectDeleteSchema = z.object({
+  projectId: z.string().trim().min(1),
+  operationId: z.string().uuid(),
 });
 
 const projectCloseRecoverySchema = projectCloseSchema.extend({
@@ -290,16 +296,19 @@ export const getProjectContextMd = withSession<
 export const deleteProject = withSession<
   DeleteProjectParameters,
   { projectId: string }
->(async ({ projectId }) => {
-  const normalizedProjectId = projectId.trim();
-  if (!normalizedProjectId) {
-    throw new Error("Project required");
+>(async (input) => {
+  const parsed = projectDeleteSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(
+      parsed.error.issues[0]?.message ?? "Invalid Project deletion request",
+    );
   }
+  const { projectId, operationId } = parsed.data;
 
   try {
-    await projectService.deleteProject(normalizedProjectId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return { projectId: normalizedProjectId };
+    await projectService.deleteProject(projectId, operationId);
+    revalidateProjectMutationRoutes(projectId);
+    return { projectId };
   } catch (error) {
     console.error("Failed to delete project", error);
     throwCoreActionError(error, "Failed to delete project");

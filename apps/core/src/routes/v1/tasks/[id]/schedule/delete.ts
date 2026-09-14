@@ -112,6 +112,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
         existingTask.workspaceId,
         [existingTask.projectId],
+        userContext.userId,
       );
       if (!scopeLocked || !(await lockTaskRows(tx, [id]))) {
         throw conflict("Task changed during schedule removal");

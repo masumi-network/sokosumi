@@ -20,10 +20,12 @@ const {
   chatRoomUpdateMock,
   chatRoomDeleteMock,
   userDeleteManyMock,
+  calendarInvalidationOutboxDeleteManyMock,
   queryRawMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
   captureMessageMock,
+  eraseWorkspaceCalendarDataMock,
 } = vi.hoisted(() => ({
   captureMessageMock: vi.fn(),
   coworkerAssignmentFindManyMock: vi.fn(),
@@ -39,9 +41,15 @@ const {
   chatRoomUpdateMock: vi.fn(),
   chatRoomDeleteMock: vi.fn(),
   userDeleteManyMock: vi.fn(),
+  calendarInvalidationOutboxDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
+  eraseWorkspaceCalendarDataMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-erasure", () => ({
+  eraseWorkspaceCalendarData: eraseWorkspaceCalendarDataMock,
 }));
 
 vi.mock("@/lib/blob", () => ({
@@ -64,7 +72,9 @@ describe("prepareTasksForUserDeletion", () => {
     chatRoomUpdateMock.mockResolvedValue({});
     chatRoomDeleteMock.mockResolvedValue({});
     userDeleteManyMock.mockResolvedValue({ count: 1 });
+    calendarInvalidationOutboxDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock.mockResolvedValue([]);
+    eraseWorkspaceCalendarDataMock.mockResolvedValue(true);
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
       callback({
@@ -96,6 +106,9 @@ describe("prepareTasksForUserDeletion", () => {
         user: {
           deleteMany: userDeleteManyMock,
         },
+        calendarInvalidationOutbox: {
+          deleteMany: calendarInvalidationOutboxDeleteManyMock,
+        },
       }),
     );
   });
@@ -109,21 +122,33 @@ describe("prepareTasksForUserDeletion", () => {
       $transaction: transactionMock,
     } as never);
 
-    expect(queryRawMock).toHaveBeenCalledTimes(3);
+    expect(queryRawMock).toHaveBeenCalledTimes(5);
     const [userLockStrings, ...userLockValues] = queryRawMock.mock.calls[0] as [
       TemplateStringsArray,
       ...unknown[],
     ];
-    const [taskLockStrings, ...taskLockValues] = queryRawMock.mock.calls[1] as [
+    const [workspaceLockStrings, ...workspaceLockValues] = queryRawMock.mock
+      .calls[1] as [TemplateStringsArray, ...unknown[]];
+    const [projectLockStrings, ...projectLockValues] = queryRawMock.mock
+      .calls[2] as [TemplateStringsArray, ...unknown[]];
+    const [taskLockStrings, ...taskLockValues] = queryRawMock.mock.calls[3] as [
       TemplateStringsArray,
       ...unknown[],
     ];
     const [paymentLockStrings, ...paymentLockValues] = queryRawMock.mock
-      .calls[2] as [TemplateStringsArray, ...unknown[]];
+      .calls[4] as [TemplateStringsArray, ...unknown[]];
     expect(userLockStrings.join("?")).toMatch(
       /FROM "user"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
     );
     expect(userLockValues).toEqual(["user_delete"]);
+    expect(workspaceLockStrings.join("?")).toMatch(
+      /FROM "workspace"[\s\S]*FOR UPDATE OF workspace/,
+    );
+    expect(workspaceLockValues).toEqual(["user_delete", "user_delete"]);
+    expect(projectLockStrings.join("?")).toMatch(
+      /FROM "project"[\s\S]*FOR UPDATE OF project/,
+    );
+    expect(projectLockValues).toEqual(["user_delete", "user_delete"]);
     expect(taskLockStrings.join("?")).toMatch(
       /FROM "task"[\s\S]*WHERE "ownerId" = \?[\s\S]*FOR UPDATE/,
     );
@@ -136,10 +161,10 @@ describe("prepareTasksForUserDeletion", () => {
       "user_delete",
       "user_delete",
     ]);
-    expect(queryRawMock.mock.invocationCallOrder[2]).toBeLessThan(
+    expect(queryRawMock.mock.invocationCallOrder[4]).toBeLessThan(
       taskPaymentClaimFindFirstMock.mock.invocationCallOrder[0] ?? Infinity,
     );
-    expect(queryRawMock.mock.invocationCallOrder[2]).toBeLessThan(
+    expect(queryRawMock.mock.invocationCallOrder[4]).toBeLessThan(
       taskX402PaymentDeleteManyMock.mock.invocationCallOrder[0] ?? Infinity,
     );
     // Explicit timeout: the default 5 s budget predates the x402 locks and
@@ -153,8 +178,34 @@ describe("prepareTasksForUserDeletion", () => {
     expect(userDeleteManyMock).toHaveBeenCalledWith({
       where: { id: "user_delete" },
     });
+    expect(calendarInvalidationOutboxDeleteManyMock).toHaveBeenCalledWith({
+      where: { payload: { path: ["userId"], equals: "user_delete" } },
+    });
     expect(taskDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
       userDeleteManyMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("erases Calendar data for the user's personal Workspace", async () => {
+    queryRawMock
+      .mockResolvedValueOnce([{ id: "user_delete" }])
+      .mockResolvedValueOnce([
+        { id: "workspace_personal", userId: "user_delete" },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(eraseWorkspaceCalendarDataMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "workspace_personal",
     );
   });
 

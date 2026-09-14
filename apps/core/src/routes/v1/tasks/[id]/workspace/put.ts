@@ -123,7 +123,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
       for (const scope of calendarScopes) {
         if (
-          !(await lockCalendarScope(tx, scope.workspaceId, scope.projectIds))
+          !(await lockCalendarScope(
+            tx,
+            scope.workspaceId,
+            scope.projectIds,
+            userContext.userId,
+          ))
         ) {
           throw conflict("Task Calendar source changed during workspace move");
         }

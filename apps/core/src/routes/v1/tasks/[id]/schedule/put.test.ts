@@ -511,6 +511,7 @@ describe("PUT /tasks/{id}/schedule", () => {
       expect.any(Object),
       WORKSPACE_ID,
       [null],
+      "user_123",
     );
   });
 
