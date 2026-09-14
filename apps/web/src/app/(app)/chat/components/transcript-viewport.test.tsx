@@ -1,6 +1,14 @@
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { createRef, useState } from "react";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
@@ -19,6 +27,10 @@ import {
   TranscriptViewport,
   type TranscriptViewportHandle,
 } from "./transcript-viewport";
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 const VIEWPORT_HEIGHT = 600;
 const ROW_HEIGHT = 40;
@@ -273,6 +285,39 @@ describe("TranscriptViewport", () => {
       container.querySelector(`[data-message-id="msg-010"]`),
     ).toHaveAttribute("data-search-landed", "true");
     expect(roomRow.dataset.searchLanded).toBeUndefined();
+  });
+
+  it("offers a jump to latest only while the reader is above the live edge", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(<Harness rows={rows(500)} handle={handle} />);
+    await settle(container);
+    const scroller = container.querySelector<HTMLElement>(
+      '[data-testid="scroller"]',
+    );
+    if (!scroller) {
+      throw new Error("expected the scroller");
+    }
+    const jump = () =>
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "jumpToLatest",
+      );
+
+    act(() => {
+      scroller.scrollTo({ top: 0 });
+    });
+    await settle(container);
+    const control = jump();
+    expect(control).toBeDefined();
+    if (!control) {
+      throw new Error("expected the jump control");
+    }
+
+    fireEvent.click(control);
+    await settle(container);
+
+    expect(scroller.scrollTop).toBeGreaterThan(0);
+    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+    expect(jump()).toBeUndefined();
   });
 
   it("keeps the reader's row where it was when history lands above it", async () => {
