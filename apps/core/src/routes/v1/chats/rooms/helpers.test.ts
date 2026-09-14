@@ -588,6 +588,7 @@ describe("mapChatRoomMessage quote", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -621,6 +622,7 @@ describe("mapChatRoomMessage quote", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -658,6 +660,7 @@ describe("mapChatRoomMessage quote", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -698,6 +701,7 @@ describe("mapChatRoomMessage quote", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -735,6 +739,7 @@ describe("mapChatRoomMessage quote", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -773,6 +778,7 @@ describe("mapChatRoomMessage quote", () => {
         },
       ],
       replies: [],
+      pins: [],
       _count: { replies: 2 },
     });
 
@@ -826,6 +832,7 @@ describe("mapChatRoomMessage membership", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -860,6 +867,7 @@ describe("mapChatRoomMessage membership", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -903,6 +911,7 @@ describe("mapChatRoomMessage unfurls", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -945,6 +954,7 @@ describe("mapChatRoomMessage unfurls", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 
@@ -995,6 +1005,7 @@ describe("mapChatRoomMessage unfurls", () => {
       mentionsAsSource: [],
       reactions: [],
       replies: [],
+      pins: [],
       _count: { replies: 0 },
     });
 

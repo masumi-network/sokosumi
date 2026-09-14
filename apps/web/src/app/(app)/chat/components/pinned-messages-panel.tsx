@@ -50,7 +50,6 @@ interface PinnedMessagesPanelProps {
   /** Resolves true once the message is on screen. */
   onJump: (messageId: string) => Promise<boolean>;
   onUnpin: (messageId: string) => Promise<boolean>;
-  onIdsLoaded: (messageIds: readonly string[]) => void;
 }
 
 export function PinnedMessagesHeaderButton({
@@ -96,7 +95,6 @@ export function PinnedMessagesPanel({
   onClose,
   onJump,
   onUnpin,
-  onIdsLoaded,
 }: PinnedMessagesPanelProps) {
   const [items, setItems] = useState<ChatRoomPinnedMessageListItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -142,7 +140,6 @@ export function PinnedMessagesPanel({
         }
         setItems(result.value.items);
         setNextCursor(result.value.nextCursor);
-        onIdsLoaded(result.value.items.map((item) => item.messageId));
         setIsLoading(false);
       })
       .catch(() => {
@@ -156,7 +153,7 @@ export function PinnedMessagesPanel({
     return () => {
       cancelled = true;
     };
-  }, [labels.error, listGeneration, onIdsLoaded, roomId]);
+  }, [labels.error, listGeneration, roomId]);
 
   return (
     <aside
@@ -304,7 +301,6 @@ export function PinnedMessagesPanel({
                   }
                   setItems((current) => [...current, ...result.value.items]);
                   setNextCursor(result.value.nextCursor);
-                  onIdsLoaded(result.value.items.map((item) => item.messageId));
                 } catch {
                   setError(labels.error);
                 } finally {

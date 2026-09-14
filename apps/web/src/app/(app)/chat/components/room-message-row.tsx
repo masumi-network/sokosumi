@@ -28,7 +28,6 @@ import {
   type RefObject,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -39,6 +38,7 @@ import {
   CoworkerLiveThought,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
+import { useClampedOverflow } from "@/app/chat/hooks/use-clamped-overflow";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   extractThoughtStartedAtMs,
@@ -177,6 +177,23 @@ function MessageEditedLabel({ editedAt, className }: MessageEditedLabelProps) {
   );
 }
 
+interface MessagePinnedLabelProps {
+  className?: string;
+}
+
+function MessagePinnedLabel({ className }: MessagePinnedLabelProps) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <span
+      className={cn("text-muted-foreground text-xs leading-none", className)}
+    >
+      <Pin className="me-1 inline size-3 align-[-0.125em]" aria-hidden />
+      {t("PinnedMessages.pinned")}
+    </span>
+  );
+}
+
 /**
  * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
  * matches hydrate; then fills with `formatMessageTime` (SOKOSUMI-A).
@@ -220,38 +237,6 @@ function hasLargeSoloImageAttachment(content: string): boolean {
     (segment) =>
       segment.kind === "files" && isLargeSoloImageFilesSegment(segment),
   );
-}
-
-function useClampedOverflow(resetKey: string) {
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    setExpanded(false);
-  }, [resetKey]);
-
-  useLayoutEffect(() => {
-    const node = contentRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = contentRef.current;
-      if (!el) {
-        return;
-      }
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-    }
-
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [expanded, resetKey]);
-
-  return { expanded, setExpanded, overflows, contentRef };
 }
 
 function MessageQuoteAttachmentThumb({
@@ -314,6 +299,7 @@ function formatWhoReactedLabel(
 }
 
 function MessageQuoteBlock({
+  messageId,
   quote,
   coworkersById,
   coworkersBySlug,
@@ -328,6 +314,7 @@ function MessageQuoteBlock({
   openingDirectParticipantKey,
   onJumpToQuotedMessage,
 }: {
+  messageId: string;
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -343,9 +330,11 @@ function MessageQuoteBlock({
   onJumpToQuotedMessage?: (messageId: string) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
-    `${quote.messageId}\0${quote.snippet}`,
-  );
+  const { expanded, toggleExpanded, overflows, contentRef } =
+    useClampedOverflow({
+      cacheKey: `quote:${messageId}`,
+      resetKey: `${quote.messageId}\0${quote.snippet}`,
+    });
 
   const attachment = quote.attachment ?? null;
 
@@ -396,9 +385,7 @@ function MessageQuoteBlock({
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-0.5 text-xs font-medium outline-none focus-visible:underline"
-          onClick={() => {
-            setExpanded((current) => !current);
-          }}
+          onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
         </button>
@@ -731,9 +718,8 @@ function ChannelMessageBody({
   const jumboEmojiCount = getJumboEmojiCount(content);
   const isJumboEmoji = jumboEmojiCount !== null;
   const skipBodyClamp = hasLargeSoloImageAttachment(content);
-  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
-    `${messageId}\0${content}`,
-  );
+  const { expanded, toggleExpanded, overflows, contentRef } =
+    useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
 
   // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
   if (isJumboEmoji) {
@@ -783,9 +769,7 @@ function ChannelMessageBody({
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
-          onClick={() => {
-            setExpanded((current) => !current);
-          }}
+          onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
         </button>
@@ -2187,6 +2171,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     message.sender.user.id === currentUserId;
   const editedAt = message.editedAt;
   const showEdited = !isDeleted && editedAt != null;
+  const showPinned = !isDeleted && isPinned;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -2329,7 +2314,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
-        {isContinuation ? null : (
+        {isContinuation ? (
+          // No header on a continuation; a trailing cue would sit below long bodies.
+          showPinned ? (
+            <MessagePinnedLabel className="block" />
+          ) : null
+        ) : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
               profile={hoverProfile}
@@ -2359,6 +2349,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             {showEdited && editedAt != null ? (
               <MessageEditedLabel editedAt={editedAt} />
             ) : null}
+            {showPinned ? <MessagePinnedLabel /> : null}
           </div>
         )}
         <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
@@ -2370,6 +2361,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             <>
               {quote ? (
                 <MessageQuoteBlock
+                  messageId={message.id}
                   quote={quote}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}

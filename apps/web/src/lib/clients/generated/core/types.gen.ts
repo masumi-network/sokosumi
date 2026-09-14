@@ -2497,6 +2497,10 @@ export type ChatRoomPinnedMessageListItem = {
         createdAt: Date;
         deletedAt: Date | null;
         editedAt: Date | null;
+        /**
+         * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+         */
+        pinnedAt: Date | null;
         sender: ChatRoomMessageSender;
         mentions: Array<ChatRoomMessageMention>;
         reactions: Array<ChatRoomMessageReaction>;
@@ -2701,6 +2705,10 @@ export type ChatRoomMessage = {
     createdAt: Date;
     deletedAt: Date | null;
     editedAt: Date | null;
+    /**
+     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+     */
+    pinnedAt: Date | null;
     sender: ChatRoomMessageSender;
     mentions: Array<ChatRoomMessageMention>;
     reactions: Array<ChatRoomMessageReaction>;
