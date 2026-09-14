@@ -1824,7 +1824,10 @@
           "stateReleased": "Released",
           "stateMissed": "Missed",
           "archivedRun": "Archived",
-          "move": "Move"
+          "move": "Move",
+          "skip": "Skip",
+          "restore": "Restore",
+          "mutationError": "Unable to change this run. Please try again."
         },
         "files": "Files",
         "assignee": "Assignee"
@@ -1946,7 +1949,7 @@
           "operationConflict": "This save was already sent with different details. Reopen the schedule and try again.",
           "activeSeries": "This task runs on a schedule. Change or remove its schedule first.",
           "unknownCount": "We could not check which upcoming runs a new rule would cancel. Reload the page, reopen the schedule, and try again.",
-          "occurrenceLocked": "This occurrence can no longer be moved.",
+          "occurrenceLocked": "This occurrence can no longer be changed.",
           "occurrenceTargetInvalid": "That time is not a valid target."
         },
         "occurrenceMove": {
@@ -1957,6 +1960,15 @@
           "cancel": "Cancel",
           "invalid": "Choose a valid date and time.",
           "error": "Unable to move this occurrence. Please try again."
+        },
+        "occurrenceRestore": {
+          "title": "Restore occurrence",
+          "description": "Restore this run at its original time, or choose another future time.",
+          "label": "Restored time",
+          "confirm": "Restore occurrence",
+          "cancel": "Cancel",
+          "invalid": "Choose a valid date and time.",
+          "error": "Unable to restore this occurrence. Please try again."
         },
         "option": {
           "oneTime": "One-time",
@@ -6141,8 +6153,12 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
+        "accessibleNameSkipped": "{task}, {source}, skipped",
         "editSchedule": "Edit schedule",
         "moveOccurrence": "Move occurrence",
+        "skipOccurrence": "Skip occurrence",
+        "restoreOccurrence": "Restore occurrence",
+        "mutationError": "Unable to change this occurrence. Please try again.",
         "openTask": "Open task"
       },
       "create": {

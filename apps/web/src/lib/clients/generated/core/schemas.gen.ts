@@ -15100,9 +15100,9 @@ export const WorkspaceCalendarItemSchema = {
             description: 'Whether the caller owns this Task and may edit or remove its schedule',
             example: true
         },
-        canMoveOccurrence: {
+        canMutateOccurrence: {
             type: 'boolean',
-            description: 'Whether this indexed occurrence can be moved through the revision-safe occurrence contract',
+            description: 'Whether this indexed occurrence can be changed through the revision-safe occurrence contract',
             example: true
         },
         scheduleRevision: {
@@ -15223,7 +15223,7 @@ export const WorkspaceCalendarItemSchema = {
         'id',
         'taskId',
         'canEditSchedule',
-        'canMoveOccurrence',
+        'canMutateOccurrence',
         'scheduleRevision',
         'taskName',
         'taskStatus',
@@ -19530,7 +19530,7 @@ export const TaskScheduleOccurrenceMutationSchema = {
         scheduleRevision: {
             type: 'integer',
             minimum: 0,
-            description: 'Series revision after the move',
+            description: 'Series revision after the occurrence mutation',
             example: 4
         },
         occurrence: {
@@ -19543,32 +19543,105 @@ export const TaskScheduleOccurrenceMutationSchema = {
     ]
 } as const;
 
-export const RescheduleTaskScheduleOccurrenceRequestSchema = {
-    type: 'object',
-    properties: {
-        operationId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Idempotency identity for this occurrence move',
-            example: '123e4567-e89b-42d3-a456-426614174000'
+export const MutateTaskScheduleOccurrenceRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                operationId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Idempotency identity for this occurrence mutation',
+                    example: '123e4567-e89b-42d3-a456-426614174000'
+                },
+                expectedScheduleRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'reschedule'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-09-20T09:00:00.000Z',
+                    description: 'New absolute time for the occurrence. Strictly future and inside the projection horizon.'
+                }
+            },
+            required: [
+                'operationId',
+                'expectedScheduleRevision',
+                'action',
+                'scheduledAt'
+            ]
         },
-        expectedScheduleRevision: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Schedule revision observed by the caller',
-            example: 3
+        {
+            type: 'object',
+            properties: {
+                operationId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Idempotency identity for this occurrence mutation',
+                    example: '123e4567-e89b-42d3-a456-426614174000'
+                },
+                expectedScheduleRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'skip'
+                    ]
+                }
+            },
+            required: [
+                'operationId',
+                'expectedScheduleRevision',
+                'action'
+            ]
         },
-        scheduledAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-09-20T09:00:00.000Z',
-            description: 'New absolute time for the occurrence. Strictly future and inside the projection horizon.'
+        {
+            type: 'object',
+            properties: {
+                operationId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Idempotency identity for this occurrence mutation',
+                    example: '123e4567-e89b-42d3-a456-426614174000'
+                },
+                expectedScheduleRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'restore'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-09-20T09:00:00.000Z',
+                    description: 'New absolute time for the occurrence. Strictly future and inside the projection horizon.'
+                }
+            },
+            required: [
+                'operationId',
+                'expectedScheduleRevision',
+                'action'
+            ]
         }
-    },
-    required: [
-        'operationId',
-        'expectedScheduleRevision',
-        'scheduledAt'
     ]
 } as const;
 

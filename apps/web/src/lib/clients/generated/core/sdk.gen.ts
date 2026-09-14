@@ -3343,7 +3343,7 @@ export const getTasksByIdScheduleOccurrences = <ThrowOnError extends boolean = f
 });
 
 /**
- * Move one unreleased schedule occurrence to a new time. Idempotent per operationId and guarded by the observed schedule revision.
+ * Reschedule, skip, or restore one unreleased schedule occurrence. Idempotent per operationId and guarded by the observed schedule revision.
  */
 export const patchTasksByIdScheduleOccurrencesByOccurrenceId = <ThrowOnError extends boolean = false>(options: Options<PatchTasksByIdScheduleOccurrencesByOccurrenceIdData, ThrowOnError>): RequestResult<PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses, PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses, PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors, ThrowOnError>({
     responseTransformer: patchTasksByIdScheduleOccurrencesByOccurrenceIdResponseTransformer,

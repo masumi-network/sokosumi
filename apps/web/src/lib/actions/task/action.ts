@@ -111,14 +111,34 @@ interface ClearTaskScheduleParameters
   taskId: string;
 }
 
-interface RescheduleTaskOccurrenceParameters
+interface TaskOccurrenceMutationBase
   extends AuthenticatedRequest,
     TaskScheduleSeriesPrecondition {
   taskId: string;
   occurrenceId: string;
+}
+
+interface RescheduleTaskOccurrenceParameters
+  extends TaskOccurrenceMutationBase {
+  action: "reschedule";
   /** Absolute UTC instant the occurrence moves to, as an ISO string. */
   scheduledAt: string;
 }
+
+interface SkipTaskOccurrenceParameters extends TaskOccurrenceMutationBase {
+  action: "skip";
+}
+
+interface RestoreTaskOccurrenceParameters extends TaskOccurrenceMutationBase {
+  action: "restore";
+  /** Omit to restore the occurrence to its original projected time. */
+  scheduledAt?: string;
+}
+
+type MutateTaskOccurrenceParameters =
+  | RescheduleTaskOccurrenceParameters
+  | SkipTaskOccurrenceParameters
+  | RestoreTaskOccurrenceParameters;
 
 interface TaskMutationError {
   kind: TaskMutationErrorKind;
@@ -142,7 +162,7 @@ type SaveTaskScheduleResult = TaskMutationActionResult<{
 type ClearTaskScheduleResult = TaskMutationActionResult<{
   taskId: string;
 }>;
-type RescheduleTaskOccurrenceResult = TaskMutationActionResult<{
+type MutateTaskOccurrenceResult = TaskMutationActionResult<{
   taskId: string;
   scheduleRevision: number;
 }>;
@@ -835,60 +855,66 @@ export const clearTaskSchedule = withSession<
   }
 });
 
-export const rescheduleTaskOccurrence = withSession<
-  RescheduleTaskOccurrenceParameters,
-  RescheduleTaskOccurrenceResult
->(
-  async ({
-    taskId,
-    occurrenceId,
-    scheduledAt,
-    operationId,
-    expectedScheduleRevision,
-  }) => {
-    const normalizedTaskId = taskId.trim();
-    const normalizedOccurrenceId = occurrenceId.trim();
-    if (!normalizedTaskId) {
-      throw new Error("Task required");
-    }
-    if (!normalizedOccurrenceId) {
-      throw new Error("Occurrence required");
-    }
-    requireOperationId(operationId);
+export const mutateTaskOccurrence = withSession<
+  MutateTaskOccurrenceParameters,
+  MutateTaskOccurrenceResult
+>(async (parameters) => {
+  const { taskId, occurrenceId, operationId, expectedScheduleRevision } =
+    parameters;
+  const normalizedTaskId = taskId.trim();
+  const normalizedOccurrenceId = occurrenceId.trim();
+  if (!normalizedTaskId) {
+    throw new Error("Task required");
+  }
+  if (!normalizedOccurrenceId) {
+    throw new Error("Occurrence required");
+  }
+  requireOperationId(operationId);
 
-    try {
-      const task = await taskService.getTaskById(normalizedTaskId);
-      if (!task) {
-        throw new Error("Task not found");
-      }
-
-      const result = await taskScheduleService.rescheduleOccurrence(
-        normalizedTaskId,
-        normalizedOccurrenceId,
-        {
-          operationId,
-          expectedScheduleRevision,
-        },
-        new Date(scheduledAt),
-      );
-      revalidateCalendarTaskMutationRoutes(task);
-      return taskMutationSuccess({
-        taskId: normalizedTaskId,
-        scheduleRevision: result.scheduleRevision,
-      });
-    } catch (error) {
-      const mutationErrorKind = toTaskMutationErrorKind(error);
-      if (mutationErrorKind) {
-        return taskMutationFailure(mutationErrorKind);
-      }
-      rethrowTaskActionError(
-        error,
-        "Failed to move task occurrence",
-        "Failed to move task occurrence",
-      );
+  try {
+    const task = await taskService.getTaskById(normalizedTaskId);
+    if (!task) {
+      throw new Error("Task not found");
     }
-  },
-);
+
+    const mutation =
+      parameters.action === "reschedule"
+        ? {
+            action: parameters.action,
+            scheduledAt: new Date(parameters.scheduledAt),
+          }
+        : parameters.action === "restore" && parameters.scheduledAt
+          ? {
+              action: parameters.action,
+              scheduledAt: new Date(parameters.scheduledAt),
+            }
+          : { action: parameters.action };
+    const result = await taskScheduleService.mutateOccurrence(
+      normalizedTaskId,
+      normalizedOccurrenceId,
+      {
+        operationId,
+        expectedScheduleRevision,
+        ...mutation,
+      },
+    );
+    revalidateCalendarTaskMutationRoutes(task);
+    return taskMutationSuccess({
+      taskId: normalizedTaskId,
+      scheduleRevision: result.scheduleRevision,
+    });
+  } catch (error) {
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to change task occurrence",
+      "Failed to change task occurrence",
+    );
+  }
+});
 
 export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
   async ({

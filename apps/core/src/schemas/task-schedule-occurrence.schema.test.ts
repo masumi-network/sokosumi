@@ -8,6 +8,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+  mutateTaskScheduleOccurrenceRequestSchema,
   taskScheduleOccurrencePageSchema,
   taskScheduleOccurrenceQuerySchema,
   taskScheduleOccurrenceSchema,
@@ -193,5 +194,50 @@ describe("taskScheduleOccurrencePageSchema", () => {
         occurrences: [],
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("mutateTaskScheduleOccurrenceRequestSchema", () => {
+  const precondition = {
+    operationId: "123e4567-e89b-42d3-a456-426614174000",
+    expectedScheduleRevision: 3,
+  };
+
+  it("accepts reschedule, skip, and restore mutations", () => {
+    expect(
+      mutateTaskScheduleOccurrenceRequestSchema.parse({
+        ...precondition,
+        action: "reschedule",
+        scheduledAt: "2026-09-20T09:00:00.000Z",
+      }),
+    ).toMatchObject({ action: "reschedule" });
+    expect(
+      mutateTaskScheduleOccurrenceRequestSchema.parse({
+        ...precondition,
+        action: "skip",
+      }),
+    ).toEqual({ ...precondition, action: "skip" });
+    expect(
+      mutateTaskScheduleOccurrenceRequestSchema.parse({
+        ...precondition,
+        action: "restore",
+        scheduledAt: "2026-09-21T09:00:00.000Z",
+      }),
+    ).toMatchObject({ action: "restore" });
+  });
+
+  it("requires a target only when rescheduling", () => {
+    expect(
+      mutateTaskScheduleOccurrenceRequestSchema.safeParse({
+        ...precondition,
+        action: "reschedule",
+      }).success,
+    ).toBe(false);
+    expect(
+      mutateTaskScheduleOccurrenceRequestSchema.safeParse({
+        ...precondition,
+        action: "restore",
+      }).success,
+    ).toBe(true);
   });
 });

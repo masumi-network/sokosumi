@@ -11,6 +11,7 @@ import type { TaskScheduleMetadata } from "@sokosumi/utils";
 import {
   computeNextRuleOccurrence,
   iterateTaskScheduleOccurrences,
+  resolveTaskScheduleRuleAnchor,
 } from "@/helpers/task-schedule";
 import { quarantineTaskSchedule } from "@/helpers/task-schedule-quarantine";
 import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
@@ -172,6 +173,64 @@ export async function createTaskSchedulePlannedOccurrences(
   await tx.taskScheduleOccurrence.createMany({ data: rows });
 }
 
+async function projectPlannedOccurrenceRowsWithSkippedCapacity(
+  tx: TaskScheduleOccurrenceIndexClient,
+  task: TaskScheduleOccurrenceIndexTask,
+  now: Date,
+) {
+  if (
+    task.schedule.version !== 2 ||
+    task.schedule.mode !== "recurring" ||
+    task.schedule.endsMode !== "after" ||
+    task.schedule.targetReleaseCount == null
+  ) {
+    return projectPlannedOccurrenceRows(task, now);
+  }
+
+  const ruleAnchor = resolveTaskScheduleRuleAnchor(task.schedule);
+  const skipped = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      seriesTaskId: task.id,
+      epochId: task.schedule.epochId,
+      state: TaskScheduleOccurrenceState.SKIPPED,
+      originalScheduledAt: { gt: ruleAnchor },
+    },
+    select: { originalScheduledAt: true },
+  });
+  const skippedOriginalTimes = new Set(
+    skipped.flatMap((occurrence) =>
+      occurrence.originalScheduledAt
+        ? [occurrence.originalScheduledAt.toISOString()]
+        : [],
+    ),
+  );
+  let projectionSchedule = task.schedule;
+  let nextRuleOccurrence = computeNextRuleOccurrence(projectionSchedule);
+  while (
+    nextRuleOccurrence &&
+    nextRuleOccurrence < now &&
+    skippedOriginalTimes.delete(nextRuleOccurrence.toISOString())
+  ) {
+    projectionSchedule = {
+      ...projectionSchedule,
+      lastProcessedSourceAt: nextRuleOccurrence.toISOString(),
+    };
+    nextRuleOccurrence = computeNextRuleOccurrence(projectionSchedule);
+  }
+
+  return projectPlannedOccurrenceRows(
+    {
+      ...task,
+      schedule: {
+        ...projectionSchedule,
+        targetReleaseCount:
+          task.schedule.targetReleaseCount + skippedOriginalTimes.size,
+      },
+    },
+    now,
+  ).map((row) => ({ ...row, ruleSnapshot: task.schedule }));
+}
+
 interface OccurrenceProjectionIdentity {
   epochId: string | null;
   originalScheduledAt: Date | null;
@@ -271,8 +330,21 @@ export async function replaceTaskSchedulePlannedOccurrences(
   task: TaskScheduleOccurrenceIndexTask,
   now = new Date(),
 ): Promise<void> {
-  const rows = projectPlannedOccurrenceRows(task, now);
+  const rows = await projectPlannedOccurrenceRowsWithSkippedCapacity(
+    tx,
+    task,
+    now,
+  );
 
+  await replaceTaskSchedulePlannedOccurrenceRows(tx, task, now, rows);
+}
+
+async function replaceTaskSchedulePlannedOccurrenceRows(
+  tx: TaskScheduleOccurrenceIndexClient,
+  task: TaskScheduleOccurrenceIndexTask,
+  now: Date,
+  rows: ReturnType<typeof projectPlannedOccurrenceRows>,
+): Promise<void> {
   const existingIdentities = await reconcileExistingPlannedOccurrences(
     tx,
     task.id,
