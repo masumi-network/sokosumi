@@ -93,6 +93,7 @@ import {
 import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.service";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
+import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
@@ -600,6 +601,7 @@ export const auth = betterAuth({
     additionalFields: betterAuthUserAdditionalFields,
   },
   plugins: [
+    createAuthCaptchaPlugin(env.TURNSTILE_SECRET_KEY),
     magicLink({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes

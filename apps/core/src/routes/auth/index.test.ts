@@ -43,6 +43,28 @@ describe("auth router oauth issuer metadata", () => {
     );
   });
 
+  it("allows the captcha header in browser preflight requests", async () => {
+    const { default: app } = await import("./index.js");
+    const response = await app.request(
+      "https://core.sokosumi.com/sign-up/email",
+      {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://app.sokosumi.com",
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type,x-captcha-response",
+        },
+      },
+    );
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-headers")).toContain(
+      "x-captcha-response",
+    );
+    expect(response.headers.get("access-control-allow-credentials")).toBe(
+      "true",
+    );
+  });
+
   it("serves oauth authorization server metadata before the auth catch-all", async () => {
     const { default: app } = await import("./index.js");
 
