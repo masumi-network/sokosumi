@@ -4,6 +4,8 @@
 let pushWork: Promise<unknown> = Promise.resolve();
 let pending = 0;
 let teardowns = 0;
+const PUSH_WORK_LOCK = "sokosumi.push.work";
+const PUSH_TEARDOWN_VERSION_KEY = "sokosumi.push.teardownVersion";
 
 /**
  * Run this after whatever is already changing this browser's push state.
@@ -26,8 +28,8 @@ export function queuePushWork<T>(work: () => Promise<T>): Promise<T> {
   // reason to whatever it calls, and the work here answers for the reader's
   // request rather than for the run before it.
   const next = pushWork.then(
-    () => work(),
-    () => work(),
+    () => withPushLock(work),
+    () => withPushLock(work),
   );
   const settled = next.then(
     () => {},
@@ -68,7 +70,7 @@ export function isPushWorkPending(): boolean {
 }
 
 /**
- * That the reader has asked for push off since the page loaded, counted.
+ * The local and shared versions of the last request to turn push off.
  *
  * An unattended repair decides to act from what it reads, then waits on a
  * dynamic import before it can queue anything. A sign-out inside that window
@@ -77,11 +79,29 @@ export function isPushWorkPending(): boolean {
  * already been asked for. Reading this before and after the wait is how the
  * repair notices it is no longer wanted.
  */
-export function countPushTeardowns(): number {
-  return teardowns;
+export function getPushTeardownVersion(): string {
+  try {
+    return `${teardowns}:${localStorage.getItem(PUSH_TEARDOWN_VERSION_KEY) ?? ""}`;
+  } catch {
+    return `${teardowns}:storage-unavailable`;
+  }
 }
 
 /** Say that push is being turned off, before the teardown is queued. */
 export function notePushTeardown(): void {
   teardowns += 1;
+  try {
+    // Unique across tabs, including simultaneous requests. Completion does
+    // not remove this value: work already waiting must still see the opt-out.
+    localStorage.setItem(PUSH_TEARDOWN_VERSION_KEY, crypto.randomUUID());
+  } catch {
+    // The local counter still cancels this tab's work when storage is blocked.
+  }
+}
+
+function withPushLock<T>(work: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request(PUSH_WORK_LOCK, work);
+  }
+  return work();
 }

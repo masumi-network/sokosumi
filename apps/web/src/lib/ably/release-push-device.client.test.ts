@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { countPushTeardowns, queuePushWork } from "./push-work-queue.client";
+import {
+  getPushTeardownVersion,
+  queuePushWork,
+} from "./push-work-queue.client";
 import {
   dropBrowserPushSubscriptionOnAccountDeletion,
   notePushTeardownStarted,
@@ -286,11 +289,11 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
    * that is gone.
    */
   it("counts the teardown, which a repair already past its read reads", async () => {
-    const before = countPushTeardowns();
+    const before = getPushTeardownVersion();
 
     await dropBrowserPushSubscriptionOnAccountDeletion();
 
-    expect(countPushTeardowns()).toBe(before + 1);
+    expect(getPushTeardownVersion()).not.toBe(before);
   });
 
   /**

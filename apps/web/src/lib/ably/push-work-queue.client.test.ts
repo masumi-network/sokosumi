@@ -8,7 +8,7 @@ function tick(): Promise<void> {
 }
 
 import {
-  countPushTeardowns,
+  getPushTeardownVersion,
   isPushWorkPending,
   notePushTeardown,
   queuePushWork,
@@ -95,12 +95,12 @@ describe("queuePushWork", () => {
   });
 });
 
-describe("countPushTeardowns", () => {
+describe("getPushTeardownVersion", () => {
   it("counts each time push is turned off", () => {
-    const before = countPushTeardowns();
+    const before = getPushTeardownVersion();
 
     notePushTeardown();
 
-    expect(countPushTeardowns()).toBe(before + 1);
+    expect(getPushTeardownVersion()).not.toBe(before);
   });
 });

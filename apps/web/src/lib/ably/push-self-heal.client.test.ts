@@ -6,7 +6,7 @@ const {
   getBrowserNotificationPermissionMock,
   hasAblyPushRegistrationMock,
   activatePushMock,
-  countPushTeardownsMock,
+  getPushTeardownVersionMock,
   hasUnfinishedPushTeardownMock,
 } = vi.hoisted(() => ({
   isPushSupportedMock: vi.fn(),
@@ -14,7 +14,7 @@ const {
   getBrowserNotificationPermissionMock: vi.fn(),
   hasAblyPushRegistrationMock: vi.fn(),
   activatePushMock: vi.fn(),
-  countPushTeardownsMock: vi.fn(),
+  getPushTeardownVersionMock: vi.fn(),
   hasUnfinishedPushTeardownMock: vi.fn(),
 }));
 
@@ -34,7 +34,7 @@ vi.mock("./release-push-device.client", () => ({
 }));
 
 vi.mock("./push-work-queue.client", () => ({
-  countPushTeardowns: () => countPushTeardownsMock(),
+  getPushTeardownVersion: () => getPushTeardownVersionMock(),
 }));
 
 vi.mock("./push-activation.client", () => ({
@@ -51,7 +51,7 @@ function repairable() {
   getBrowserNotificationPermissionMock.mockReturnValue("granted");
   hasAblyPushRegistrationMock.mockReturnValue(true);
   hasWebPushSubscriptionMock.mockResolvedValue(false);
-  countPushTeardownsMock.mockReturnValue(0);
+  getPushTeardownVersionMock.mockReturnValue(0);
   hasUnfinishedPushTeardownMock.mockReturnValue(false);
 }
 
@@ -123,7 +123,7 @@ describe("healPushSubscription during a sign-out", () => {
    */
   it("gives up on a browser that was torn down while it loaded", async () => {
     repairable();
-    countPushTeardownsMock.mockReturnValueOnce(0).mockReturnValueOnce(1);
+    getPushTeardownVersionMock.mockReturnValueOnce(0).mockReturnValueOnce(1);
 
     await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
 

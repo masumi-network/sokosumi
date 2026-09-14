@@ -9,7 +9,7 @@ import {
 
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 import {
-  countPushTeardowns,
+  getPushTeardownVersion,
   notePushTeardown,
   queuePushWork,
 } from "./push-work-queue.client";
@@ -51,7 +51,11 @@ export async function activatePush(
 
   // The same reader asking twice gets the run already going. A repair on open
   // and a reader pressing the Push cell a second later are the same request.
-  if (inFlightActivation?.userId === userId) {
+  const teardownVersion = getPushTeardownVersion();
+  if (
+    inFlightActivation?.userId === userId &&
+    inFlightActivation.teardownVersion === teardownVersion
+  ) {
     return inFlightActivation.work;
   }
 
@@ -60,7 +64,10 @@ export async function activatePush(
   // would answer the second reader with the first reader's subscription.
   const entry = {
     userId,
-    work: queuePushWork(() => runActivation(userId, readerInitiated)),
+    teardownVersion,
+    work: queuePushWork(() =>
+      runActivation(userId, readerInitiated, teardownVersion),
+    ),
   };
   inFlightActivation = entry;
 
@@ -77,37 +84,36 @@ export async function activatePush(
 }
 
 /** The activation running now, and the reader it is running for. */
-let inFlightActivation: { userId: string; work: Promise<void> } | null = null;
+let inFlightActivation: {
+  userId: string;
+  teardownVersion: string;
+  work: Promise<void>;
+} | null = null;
 
 async function runActivation(
   userId: string,
   readerInitiated: boolean,
+  teardownVersion: string,
 ): Promise<void> {
-  // Read before anything, and asked again after every step that leaves the
-  // machine. A teardown can land in the middle of this: the sign-out waits
-  // its turn in the queue, but an account deletion cannot afford to and runs
-  // straight through. Either way the token this run writes would be written
-  // after the teardown forgot it, and `client.push.activate()` does not need
-  // a live Sokosumi session to get that far. It registers on the Ably token
-  // the client already holds, minted with no ttl and so good for Ably's
-  // default hour (`create-token-request.ts`), and the SDK writes the identity
-  // token back from its own state machine (`ably@2.28.0 build/push.js:840`).
-  // Without this read, a deletion racing an activation ends with the browser
-  // subscribed, an Ably device on the deleted reader's channel, and the token
-  // back in storage.
-  const teardownsAtStart = countPushTeardowns();
+  // Capture before queueing. A deletion can finish while this run waits.
+  if (getPushTeardownVersion() !== teardownVersion) {
+    return;
+  }
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
     const client = getAblyRealtimeClient();
     if (repairOvertakenAcrossTabs(readerInitiated)) {
       return;
     }
-    await subscribeThisDevice(client, userId);
-    if (await abandonedToTeardown(teardownsAtStart)) {
+    if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
       return;
     }
 
-    if (await hasWebPushSubscription()) {
+    const subscribed = await hasWebPushSubscription();
+    if (await abandonedToTeardown(teardownVersion)) {
+      return;
+    }
+    if (subscribed) {
       return;
     }
 
@@ -119,15 +125,21 @@ async function runActivation(
     // that state and go round once, so the reader never gets a success toast
     // over a browser that gets no pushes.
     await client.push.deactivate();
+    if (await abandonedToTeardown(teardownVersion)) {
+      return;
+    }
     if (repairOvertakenAcrossTabs(readerInitiated)) {
       return;
     }
-    await subscribeThisDevice(client, userId);
-    if (await abandonedToTeardown(teardownsAtStart)) {
+    if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
       return;
     }
 
-    if (!(await hasWebPushSubscription())) {
+    const repaired = await hasWebPushSubscription();
+    if (await abandonedToTeardown(teardownVersion)) {
+      return;
+    }
+    if (!repaired) {
       throw new Error("The browser created no push subscription");
     }
   } finally {
@@ -138,11 +150,9 @@ async function runActivation(
 /**
  * Whether another tab asked for push off while this repair was away.
  *
- * The note is shared across every tab of this origin, and the queue is not.
- * A teardown in another tab can write it after this repair decided to act,
- * and subscribing then would turn push back on for a reader who asked it
- * off. A press on the Push cell is the reader saying the opposite, so it
- * still goes through.
+ * The note survives an interrupted teardown after its tab releases the lock.
+ * A repair must leave push off in that case. A press on the Push cell is the
+ * reader asking for push again, so it can clear the note.
  */
 function repairOvertakenAcrossTabs(readerInitiated: boolean): boolean {
   return !readerInitiated && hasUnfinishedPushTeardown();
@@ -160,8 +170,8 @@ function repairOvertakenAcrossTabs(readerInitiated: boolean): boolean {
  * deletion has already ended, and Ably prunes a device whose endpoint stops
  * answering.
  */
-async function abandonedToTeardown(teardownsAtStart: number): Promise<boolean> {
-  if (countPushTeardowns() === teardownsAtStart) {
+async function abandonedToTeardown(teardownVersion: string): Promise<boolean> {
+  if (getPushTeardownVersion() === teardownVersion) {
     return false;
   }
 
@@ -254,9 +264,14 @@ function answerPermissionFromStoredValue(): () => void {
 async function subscribeThisDevice(
   client: Ably.Realtime,
   userId: string,
-): Promise<void> {
+  teardownVersion: string,
+): Promise<boolean> {
   await client.push.activate();
+  if (await abandonedToTeardown(teardownVersion)) {
+    return false;
+  }
   await getNotificationsPushChannel(client, userId).subscribeDevice();
+  return !(await abandonedToTeardown(teardownVersion));
 }
 
 /**
@@ -298,11 +313,18 @@ export async function deactivatePush(userId: string): Promise<void> {
   // browser gets nothing.
   inFlightActivation = null;
 
-  return queuePushWork(() => runDeactivation(userId));
+  // The caller can time out while the queue retains the browser lock.
+  // Only settlement of the SDK work lets the next activation start.
+  return new Promise<void>((resolve, reject) => {
+    void queuePushWork(() => runDeactivation(userId, reject)).then(
+      resolve,
+      reject,
+    );
+  });
 }
 
 /**
- * How long the Ably half of a teardown is waited for.
+ * How long the reader waits for a teardown. The queue can outlive this cap.
  *
  * `ably@2.28.0` allows each request a 10s timeout on top of 15s of
  * fallback-host retries (`build/ably.js:790-791`), and the teardown makes two,
@@ -310,24 +332,22 @@ export async function deactivatePush(userId: string): Promise<void> {
  */
 const ABLY_TEARDOWN_TIMEOUT_MS = 40_000;
 
-async function runDeactivation(userId: string): Promise<void> {
+async function runDeactivation(
+  userId: string,
+  onTimeout: (error: unknown) => void,
+): Promise<void> {
   const failures: unknown[] = [];
 
   await attempt(failures, dropBrowserPushSubscription);
 
-  // Ably gets a deadline of its own, because what comes after it must happen.
-  // A rejection is recorded and moves on, but a hang is not: two REST calls
-  // with the SDK's own retry budget can outlive the page, and the token below
-  // would then never be forgotten. Waited out rather than cut short wherever
-  // Ably answers at all; the call is left running, and a deregistration that
-  // lands late lands anyway. Recorded as a failure because the reader is told
-  // the teardown is done, and an abandoned one is not done.
-  await withDeadline(
-    attempt(failures, () => dropAblyPushDevice(failures, userId)),
-    () => {
-      failures.push(new Error("The Ably push teardown did not answer"));
-    },
+  const ablyWork = attempt(failures, () =>
+    dropAblyPushDevice(failures, userId),
   );
+  let timedOut = false;
+  await withDeadline(ablyWork, () => {
+    timedOut = true;
+    failures.push(new Error("The Ably push teardown did not answer"));
+  });
 
   // Said locally as well, because a failed deactivation leaves Ably's token
   // behind and a browser with the token but no subscription is the shape the
@@ -347,6 +367,12 @@ async function runDeactivation(userId: string): Promise<void> {
     forgetAblyPushRegistration();
   }
 
+  if (timedOut) {
+    onTimeout(failures[0]);
+    // Cleanup above also runs under the lock. Waiting here prevents a late
+    // SDK response from deleting a registration created by a newer request.
+    await ablyWork;
+  }
   if (failures.length > 0) {
     throw failures[0];
   }

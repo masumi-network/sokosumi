@@ -75,11 +75,9 @@ export function forgetAblyPushRegistration(): void {
  *
  * Cleared by a deliberate activation as well, because that is the reader
  * saying the opposite. Nothing else clears it: an interrupted disable should
- * go on reading as off. Storage is shared by every tab of this origin, while
- * the ordering that protects a teardown is per tab, so an activation in one
- * tab answers a note another tab wrote. Usually that is the reader asking for
- * push on, which is the answer either way. The repair asks for it too, and
- * nobody pressed anything for that one.
+ * go on reading as off. Storage is shared by every tab of this origin. A
+ * deliberate activation can answer a note left by a closed tab, whose browser
+ * lock has been released. An automatic repair must leave that note alone.
  */
 const PUSH_TEARDOWN_STARTED_KEY = "sokosumi.push.teardownStarted";
 
@@ -212,6 +210,10 @@ export async function releasePushDeviceOnSignOut(
     if (!userId || !isPushSupported()) {
       return;
     }
+
+    // Cancel work already running in another tab even when this tab reads
+    // no subscription or token during that activation's reset.
+    notePushTeardown();
 
     // Asked before the reads below, because it says whether they can be
     // believed. An activation clears both the subscription and the token

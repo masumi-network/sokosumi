@@ -70,7 +70,7 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
 }));
 
 import { activatePush, deactivatePush } from "./push-activation.client";
-import { notePushTeardown } from "./push-work-queue.client";
+import { notePushTeardown, queuePushWork } from "./push-work-queue.client";
 
 describe("deactivatePush", () => {
   let browserSubscribed = true;
@@ -185,7 +185,12 @@ describe("deactivatePush", () => {
       "ably.push.deviceIdentityToken",
       JSON.stringify({ value: JSON.stringify("tok_1") }),
     );
-    deactivateMock.mockReturnValue(new Promise(() => {}));
+    let finishTeardown = () => {};
+    deactivateMock.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishTeardown = resolve;
+      }),
+    );
 
     const teardown = deactivatePush("user_1");
     const settled = expect(teardown).rejects.toThrow(
@@ -193,8 +198,13 @@ describe("deactivatePush", () => {
     );
     await vi.advanceTimersByTimeAsync(40_000);
     await settled;
+    const forgottenAtDeadline = localStorage.getItem(
+      "ably.push.deviceIdentityToken",
+    );
+    finishTeardown();
+    await queuePushWork(async () => {});
 
-    expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
+    expect(forgottenAtDeadline).toBeNull();
   });
 
   /**
@@ -583,7 +593,7 @@ describe("activatePush", () => {
 
     expect(unsubscribeMock).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
-    expect(subscribeDeviceMock).toHaveBeenCalledTimes(1);
+    expect(subscribeDeviceMock).not.toHaveBeenCalled();
   });
 
   /**

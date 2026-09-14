@@ -6,7 +6,7 @@ import {
   isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 
-import { countPushTeardowns } from "./push-work-queue.client";
+import { getPushTeardownVersion } from "./push-work-queue.client";
 import {
   hasAblyPushRegistration,
   hasUnfinishedPushTeardown,
@@ -55,7 +55,7 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
     // Read first of all, before anything this function waits on. Every wait
     // below is a window a sign-out can land in, and the reads around them say
     // nothing about it: the token is still there until the teardown clears it.
-    const teardownsBefore = countPushTeardowns();
+    const teardownVersion = getPushTeardownVersion();
 
     if (
       !isPushSupported() ||
@@ -81,7 +81,7 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
     // note again before it subscribes.
     if (
       hasUnfinishedPushTeardown() ||
-      countPushTeardowns() !== teardownsBefore
+      getPushTeardownVersion() !== teardownVersion
     ) {
       return false;
     }
