@@ -83,16 +83,13 @@ describe("status enum drift guard", () => {
     });
   });
 
-  it("database InvitationStatus keeps persisted statuses plus frontend-only EXPIRED", () => {
-    const { EXPIRED: _expired, ...persistedStatuses } = InvitationStatus;
-
-    expect(persistedStatuses).toEqual({
+  it("database InvitationStatus keeps persisted statuses", () => {
+    expect({ ...InvitationStatus }).toEqual({
       PENDING: "pending",
       ACCEPTED: "accepted",
       REJECTED: "rejected",
       CANCELED: "canceled",
     });
-    expect(InvitationStatus.EXPIRED).toBe("expired");
   });
 
   it("SokosumiJobStatus keeps its canonical lowercase string values", () => {
