@@ -3378,7 +3378,7 @@ export const putTasksByIdShare = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Resolve a task id to its workspace and organization id. Session user or coworker with authorized context headers.
+ * Resolve a task id to its workspace and organization id across workspaces the caller can access. Session users need org membership or personal-workspace ownership. Coworkers need authorized context headers plus an assigned-task read.
  */
 export const getTasksByIdWorkspace = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdWorkspaceData, ThrowOnError>): RequestResult<GetTasksByIdWorkspaceResponses, GetTasksByIdWorkspaceErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdWorkspaceResponses, GetTasksByIdWorkspaceErrors, ThrowOnError>({
     responseTransformer: getTasksByIdWorkspaceResponseTransformer,

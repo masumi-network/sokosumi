@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 
 import { put } from "@vercel/blob";
+import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -13,6 +14,10 @@ import {
 } from "@/helpers/error";
 import { buildSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
 import prisma from "@/lib/db/prisma";
+import {
+  CONCURRENCY_CONFLICT_KIND,
+  serializableTransaction,
+} from "@/lib/db/transaction";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 
 /**
@@ -172,8 +177,11 @@ export function buildAvatarPrompt(input: {
 }
 
 /** Deterministic draw plan: never repeats a (subject, background, seed) triple. */
-export async function nextAvatarDraws(count: number) {
-  const existing = await prisma.sokoBotAvatar.findMany({
+export async function nextAvatarDraws(
+  count: number,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+) {
+  const existing = await client.sokoBotAvatar.findMany({
     select: { subject: true, background: true, seed: true },
   });
   const used = new Set(
@@ -255,6 +263,10 @@ export async function persistAvatarImage(
     token: env.BLOB_READ_WRITE_TOKEN,
     addRandomSuffix: false,
     allowOverwrite: true,
+    // Bounded like the two fetches above. Without it this is the one step of a
+    // fill with no time limit, and a hung upload outliving the sweep cutoff
+    // would have its own reservation deleted from under it.
+    abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
   });
   return blob.url;
 }
@@ -262,24 +274,141 @@ export async function persistAvatarImage(
 /** Draw `count` new unique avatars into the pool. Returns how many were added. */
 type AvatarDraw = Awaited<ReturnType<typeof nextAvatarDraws>>[number];
 
-async function drawAvatar(
-  draw: AvatarDraw,
+/** A draw this run owns, and the empty row holding it. */
+interface AvatarReservation {
+  id: string;
+  draw: AvatarDraw;
+}
+
+/** Thrown when the caller has no hourly allowance left. Nothing is billed. */
+export class AvatarGenerationCappedError extends Error {}
+
+/**
+ * Claim draws under the caller's hourly allowance, in one atomic step.
+ *
+ * Counting and inserting have to be the same operation. As two statements,
+ * concurrent requests all read the same count, all pass, and each then buys a
+ * full batch: the cap bounded a serial loop and not a burst. Reserving alone
+ * does not fix that either, because the count still happens first.
+ *
+ * Serializable is the repo's answer for this (see `serializableTransaction`,
+ * used for credit consumption). Paid image generation is credit consumption.
+ * Postgres aborts the losers of a race, the helper retries them with backoff,
+ * and each retry re-reads a count that now includes the winner's rows.
+ *
+ * Nothing here touches the network. The images are bought after this returns,
+ * so the transaction never waits on FAL.
+ */
+async function reserveDraws(
+  count: number,
   requestedByUserId: string | null,
-): Promise<void> {
+): Promise<AvatarReservation[]> {
+  return await serializableTransaction(async (tx) => {
+    const draws = await nextAvatarDraws(count, tx);
+    if (draws.length === 0) return [];
+
+    let allowed = draws.length;
+    if (requestedByUserId) {
+      const recent = await tx.sokoBotAvatar.count({
+        where: {
+          requestedByUserId,
+          createdAt: { gte: new Date(Date.now() - GENERATION_WINDOW_MS) },
+        },
+      });
+      const remaining = LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - recent;
+      if (remaining <= 0) throw new AvatarGenerationCappedError();
+      // Shrink to fit rather than only asking "are you under the cap". That
+      // question passes a user sitting at 23 and then buys a full page of 6.
+      allowed = Math.min(allowed, remaining);
+    }
+
+    const reservations: AvatarReservation[] = [];
+    for (const draw of draws.slice(0, allowed)) {
+      // Sequential on purpose: Prisma does not support concurrent queries on
+      // one interactive transaction client.
+      const row = await tx.sokoBotAvatar.create({
+        data: {
+          subject: draw.subject.subject,
+          background: draw.background.name,
+          seed: draw.seed,
+          model: AVATAR_MODEL,
+          // Filled in once the image exists. `reservedAt` keeps the row out of
+          // every read until then, so nobody sees or claims a blank avatar.
+          imageUrl: "",
+          requestedByUserId,
+          reservedAt: new Date(),
+        },
+        select: { id: true },
+      });
+      reservations.push({ id: row.id, draw });
+    }
+    return reservations;
+  }, "Another avatar top-up is running. Try again.");
+}
+
+/** Buy the image for a reservation and publish the row. */
+async function fillReservation(reservation: AvatarReservation): Promise<void> {
+  const { draw } = reservation;
   const sourceUrl = await generateImage(buildAvatarPrompt(draw), draw.seed);
   const key = `${draw.subject.subject.replaceAll(" ", "-")}-${draw.seed}`;
   const imageUrl = await persistAvatarImage(sourceUrl, key);
-  await prisma.sokoBotAvatar.create({
-    data: {
-      subject: draw.subject.subject,
-      background: draw.background.name,
-      seed: draw.seed,
-      model: AVATAR_MODEL,
-      imageUrl,
-      sourceUrl,
-      requestedByUserId,
-    },
+  // Clearing `reservedAt` is what publishes the row.
+  await prisma.sokoBotAvatar.update({
+    where: { id: reservation.id },
+    data: { imageUrl, sourceUrl, reservedAt: null },
   });
+}
+
+/**
+ * Give back reservations this run never spent on.
+ *
+ * Only for draws whose image was never requested. A reservation whose FAL call
+ * may have run stays, because it represents money and the cap should see it
+ * until it ages out of the window.
+ */
+async function releaseReservations(
+  reservations: AvatarReservation[],
+): Promise<void> {
+  if (reservations.length === 0) return;
+  try {
+    await prisma.sokoBotAvatar.deleteMany({
+      where: { id: { in: reservations.map((one) => one.id) } },
+    });
+  } catch (error) {
+    // Giving slots back is a courtesy, not the outcome the caller waited for.
+    // This runs while handling a failure the caller is meant to survive, and
+    // the same blip that broke the run can break the delete, so letting it
+    // throw would turn a degraded read into a 500. The cron sweep is the
+    // backstop: these rows carry `reservedAt` and age out on their own.
+    console.warn("Soko Bot avatar reservations could not be released", {
+      count: reservations.length,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
+/** Reads `kind` off an HTTPException cause without trusting its shape. */
+function httpExceptionKind(cause: unknown): string | undefined {
+  if (typeof cause !== "object" || cause === null || !("kind" in cause)) {
+    return undefined;
+  }
+  const { kind } = cause;
+  return typeof kind === "string" ? kind : undefined;
+}
+
+/**
+ * Generation failures that say nothing about the existing pool: the caller's
+ * hourly allowance is spent, or a concurrent top-up won the serialization
+ * race. In both cases the rows already in the pool are still perfectly
+ * readable, so the caller should get them rather than an error.
+ */
+function isRecoverableGenerationFailure(error: unknown): boolean {
+  if (error instanceof AvatarGenerationCappedError) return true;
+  return (
+    error instanceof HTTPException &&
+    error.status === 409 &&
+    httpExceptionKind(error.cause) === CONCURRENCY_CONFLICT_KIND
+  );
 }
 
 /**
@@ -292,38 +421,43 @@ export async function generateAvatars(
   count: number,
   requestedByUserId: string | null = null,
 ): Promise<number> {
-  const draws = await nextAvatarDraws(Math.min(count, MAX_TOP_UP_PER_CALL));
-  if (draws.length === 0) return 0;
+  const reservations = await reserveDraws(
+    Math.min(count, MAX_TOP_UP_PER_CALL),
+    requestedByUserId,
+  );
+  if (reservations.length === 0) return 0;
 
-  // Draw one before committing to the rest. fal bills for an image whether or
+  // Fill one before committing to the rest. fal bills for an image whether or
   // not we manage to store it, so a misconfigured blob token would otherwise
   // buy six images every cron run, for ever, while the pool never fills and
   // nothing louder than a warning is written.
-  const [probe, ...rest] = draws;
+  const [probe, ...rest] = reservations;
   try {
-    await drawAvatar(probe, requestedByUserId);
+    await fillReservation(probe);
   } catch (error) {
     console.error("Soko Bot avatar generation failed; skipping this run", {
-      attempted: draws.length,
+      attempted: reservations.length,
       error: error instanceof Error ? error.message : "unknown",
     });
+    // The probe may have been billed, so its row stays and counts. The rest
+    // were never attempted, so hand their draws and their allowance back.
+    await releaseReservations(rest);
     return 0;
   }
   if (rest.length === 0) return 1;
 
-  const results = await Promise.allSettled(
-    rest.map((draw) => drawAvatar(draw, requestedByUserId)),
-  );
-  const failed = results.filter((result) => result.status === "rejected");
-  for (const failure of failed) {
+  const results = await Promise.allSettled(rest.map(fillReservation));
+  let generated = 1;
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      generated += 1;
+      continue;
+    }
     console.warn("Soko Bot avatar generation failed", {
-      error:
-        failure.status === "rejected" && failure.reason instanceof Error
-          ? failure.reason.message
-          : "unknown",
+      error: result.reason instanceof Error ? result.reason.message : "unknown",
     });
   }
-  return 1 + (results.length - failed.length);
+  return generated;
 }
 
 export interface AvailableAvatar {
@@ -345,6 +479,10 @@ export async function stockAvatarPool(): Promise<{
   available: number;
   generated: number;
 }> {
+  // Ahead of both gates below. Sweeping buys nothing and writes no images, and
+  // a dead reservation hides its draw from every future run, so leaving it
+  // behind a disabled flag means it is never cleaned up at all.
+  await sweepStaleReservations();
   if (!getEnv().FAL_KEY) return { available: 0, generated: 0 };
   // "Disable Soko Bot" has to mean no paid model calls of any kind. Avatar
   // generation is the one that has nothing to do with turns, so the turn gate
@@ -353,52 +491,58 @@ export async function stockAvatarPool(): Promise<{
     return { available: 0, generated: 0 };
   }
   const available = await prisma.sokoBotAvatar.count({
-    where: { claimedBySokoBotId: null },
+    where: unclaimedAvatarFilter(),
   });
   if (available >= AVATAR_POOL_FLOOR) return { available, generated: 0 };
-  const generated = await generateAvatars(AVATAR_POOL_FLOOR - available);
+  let generated = 0;
+  try {
+    generated = await generateAvatars(AVATAR_POOL_FLOOR - available);
+  } catch (error) {
+    // A competing top-up can exhaust the reservation retries. The next cron
+    // run can try again; unrelated failures must still reach the sync handler.
+    if (!isRecoverableGenerationFailure(error)) throw error;
+  }
   return { available: available + generated, generated };
+}
+
+/**
+ * Delete reservations whose run never finished.
+ *
+ * A process killed between claiming a draw and storing its image leaves a row
+ * that can never be filled, and it holds that (subject, background, seed)
+ * against every future run. The cutoff is past the generation timeout, so a
+ * reservation still in flight is never swept out from under its own run.
+ *
+ * Stale rows are kept for a full window on purpose: they represent FAL spend
+ * and the hourly cap should see them until they age out of it.
+ */
+async function sweepStaleReservations(now: Date = new Date()): Promise<void> {
+  const cutoff = new Date(now.getTime() - GENERATION_WINDOW_MS);
+  await prisma.sokoBotAvatar.deleteMany({
+    // Aged off `createdAt`, which the cap also reads, so the two windows are
+    // the same clock and cancel exactly. `reservedAt` comes from the Core
+    // process, so ageing off it would let a lagging instance sweep a row
+    // before it leaves the cap window and hand that allowance back early.
+    where: { reservedAt: { not: null }, createdAt: { lt: cutoff } },
+  });
 }
 
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
 
-/**
- * How many more paid images this user may cause right now.
- *
- * The pool check alone is not a limit. It only asks whether the pool is short,
- * so a caller who empties the pool can keep it short and keep buying images.
- * This counts what the user actually caused, which is the thing FAL bills for.
- *
- * Rows the pool cron wrote carry a null `requestedByUserId` and are excluded,
- * so background refills never consume anyone's hourly allowance.
- *
- * Returns the remaining allowance so the caller can shrink the batch to fit.
- * A plain "are you under the cap" check would let a user at 23 start a batch of
- * 6 and finish at 29, over a cap documented as 24.
- */
-async function remainingAvatarGenerationAllowance(
-  requestedByUserId: string,
-  now: Date = new Date(),
-): Promise<number> {
-  const recentCount = await prisma.sokoBotAvatar.count({
-    where: {
-      requestedByUserId,
-      createdAt: { gte: new Date(now.getTime() - GENERATION_WINDOW_MS) },
-    },
-  });
-  const remaining = LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - recentCount;
-  if (remaining <= 0) {
-    throw tooManyRequests(
-      `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} mascot images per hour. Try again later.`,
-      { kind: "avatar_generation_rate_limited" },
-    );
-  }
-  return remaining;
+/** The 429 for a caller who has spent their hourly allowance. */
+function avatarGenerationCapped() {
+  return tooManyRequests(
+    `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} mascot images per hour. Try again later.`,
+    { kind: "avatar_generation_rate_limited" },
+  );
 }
 
 function unclaimedAvatarFilter(excludeIds?: string[]) {
   return {
     claimedBySokoBotId: null,
+    // A reserved row has no image yet. Counting it as available would let the
+    // pool look full while every slot in it is still in flight.
+    reservedAt: null,
     ...(excludeIds?.length ? { id: { notIn: excludeIds } } : {}),
   };
 }
@@ -440,16 +584,27 @@ export async function topUpAvailableAvatars(
       where: unclaimedAvatarFilter(),
     });
     if (available < take) {
-      // Only once the pool is actually short, so a user at their cap can still
-      // read a full pool. Reads are free; the cap guards the paid call below.
-      let wanted = take - available;
-      if (options.requestedByUserId) {
-        const remaining = await remainingAvatarGenerationAllowance(
-          options.requestedByUserId,
+      // The cron is the usual sweeper, but Vercel runs crons on production
+      // only, and this route exists precisely because preview has no cron. A
+      // reservation whose run died there would otherwise hold its draw and
+      // the user's allowance until somebody deployed to production.
+      await sweepStaleReservations();
+      try {
+        await generateAvatars(
+          take - available,
+          options.requestedByUserId ?? null,
         );
-        wanted = Math.min(wanted, remaining);
+      } catch (error) {
+        if (!isRecoverableGenerationFailure(error)) throw error;
+        // Neither a spent allowance nor a lost race says anything about what
+        // the pool already holds, and reads are free. Serve what is there and
+        // surface the failure only when that turns out to be nothing.
+        const fallback = await listAvailableAvatars(take, options);
+        if (fallback.length > 0) return fallback;
+        throw error instanceof AvatarGenerationCappedError
+          ? avatarGenerationCapped()
+          : error;
       }
-      await generateAvatars(wanted, options.requestedByUserId ?? null);
     }
   }
   return await listAvailableAvatars(take, options);
@@ -468,9 +623,17 @@ export async function claimAvatar(
   const run = async (tx: Prisma.TransactionClient) => {
     const avatar = await tx.sokoBotAvatar.findUnique({
       where: { id: avatarId },
-      select: { id: true, imageUrl: true, claimedBySokoBotId: true },
+      select: {
+        id: true,
+        imageUrl: true,
+        claimedBySokoBotId: true,
+        reservedAt: true,
+      },
     });
     if (!avatar) throw notFound("Avatar not found");
+    // Its image is still in flight, so claiming it would set the bot's avatar
+    // to an empty URL that nothing ever fills in.
+    if (avatar.reservedAt) throw notFound("Avatar not found");
     if (avatar.claimedBySokoBotId && avatar.claimedBySokoBotId !== sokoBotId) {
       throw unprocessableEntity("This avatar was just taken by another bot");
     }

@@ -70,6 +70,9 @@ export function mountSokoBotAvatarRoutes(app: OpenAPIHonoWithAuth): void {
         "Unclaimed mascot avatars, after filling a short pool",
       ),
       401: jsonErrorResponse("Unauthorized"),
+      // Reserving a generation slot runs in a Serializable transaction, so a
+      // concurrent top-up can lose the race and be worth retrying verbatim.
+      409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Unprocessable Entity"),
       429: jsonErrorResponse("Too Many Requests"),
     },
