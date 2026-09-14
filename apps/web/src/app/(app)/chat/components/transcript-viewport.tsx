@@ -190,13 +190,12 @@ export function TranscriptViewport({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
-  // Whether the reader was near the live edge on their last scroll, and how
-  // far above it they sat. Read at scroll time, not when asked: chrome that
-  // resizes the scroller moves the edge away before anyone asks.
-  const atEndRef = useRef(true);
+  // How far above the live edge the reader sat at the last scroll or
+  // virtualizer change. Read then, not when asked: chrome that resizes the
+  // scroller moves the edge away before anyone asks.
   const distanceFromEndRef = useRef(0);
-  // The same answer as state, for the jump-to-latest control that shows
-  // whenever the reader is away from the live edge.
+  // Whether that is near the edge, as state for the jump-to-latest control
+  // that shows whenever the reader is away from it.
   const [atEnd, setAtEnd] = useState(true);
 
   // The previous render's instance, for the look at the old rows below. The
@@ -232,9 +231,7 @@ export function TranscriptViewport({
     const distance =
       element.scrollHeight - element.clientHeight - element.scrollTop;
     distanceFromEndRef.current = distance;
-    const isAtEnd = distance <= STICK_TO_BOTTOM_NEAR_PX;
-    atEndRef.current = isAtEnd;
-    setAtEnd(isAtEnd);
+    setAtEnd(distance <= STICK_TO_BOTTOM_NEAR_PX);
   };
 
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
@@ -341,15 +338,6 @@ export function TranscriptViewport({
       observer.disconnect();
     };
   }, [scroller, virtualizer]);
-
-  // Under a hold an append leaves the view where it was with the new row
-  // below it, and no scroll event says so. Re-read once the rows change.
-  // Without a hold the append pulls the view down, which does scroll.
-  useEffect(() => {
-    if (hold) {
-      setAtEnd(virtualizer.isAtEnd(STICK_TO_BOTTOM_NEAR_PX));
-    }
-  }, [hold, rows, virtualizer]);
 
   // Every render: the container moves whenever a short list grows toward
   // the scroller's height, and the state guard makes a settled margin free.
