@@ -82,7 +82,7 @@ import SwiftUI
     @FocusState private var focusedAction: MessageAction?
 
     private enum MessageAction: Hashable {
-      case quote, reply, edit, more, react
+      case quote, reply, more, react
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -210,9 +210,23 @@ import SwiftUI
                   }
                 }
             }
-            if onDelete != nil {
+            if let onReply {
+              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
+            }
+            if let onQuote {
+              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
+            }
+            if onEdit != nil || onDelete != nil {
               Menu {
-                Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+                if let onEdit {
+                  Button("Edit message", systemImage: "pencil", action: onEdit)
+                }
+                if onEdit != nil, onDelete != nil {
+                  Divider()
+                }
+                if onDelete != nil {
+                  Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+                }
               } label: {
                 Image(systemName: "ellipsis").frame(width: replyActionHeight, height: replyActionHeight)
               }
@@ -222,15 +236,6 @@ import SwiftUI
               .disabled(isDeleting)
               .help(isDeleting ? "Deleting message…" : "More message actions")
               .accessibilityLabel("More message actions")
-            }
-            if let onEdit {
-              messageAction("Edit", symbol: "pencil", focus: .edit, action: onEdit)
-            }
-            if let onQuote {
-              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
-            }
-            if let onReply {
-              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
             }
           }
           .fixedSize()
