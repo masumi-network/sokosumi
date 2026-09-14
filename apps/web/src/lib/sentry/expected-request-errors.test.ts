@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { CoreAuthUnavailableError } from "@/lib/auth/errors";
 import {
   beforeSendServerEvent,
   isExpectedAuthRequestError,
@@ -22,6 +23,18 @@ describe("isExpectedAuthRequestError", () => {
       isExpectedAuthRequestError(
         new Error("Invalid, expired or missing session"),
       ),
+    ).toBe(true);
+  });
+
+  it("matches CoreAuthUnavailableError by name", () => {
+    expect(
+      isExpectedAuthRequestError(new CoreAuthUnavailableError("timeout")),
+    ).toBe(true);
+  });
+
+  it("matches Core session-read outage messages", () => {
+    expect(
+      isExpectedAuthRequestError(new Error("Session could not be read")),
     ).toBe(true);
   });
 
@@ -117,6 +130,22 @@ describe("isExpectedAuthSentryEvent", () => {
       }),
     ).toBe(true);
   });
+
+  it("drops CoreAuthUnavailableError events", () => {
+    expect(
+      isExpectedAuthSentryEvent({
+        type: undefined,
+        exception: {
+          values: [
+            {
+              type: "CoreAuthUnavailableError",
+              value: "Session could not be read",
+            },
+          ],
+        },
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("beforeSendServerEvent", () => {
@@ -130,6 +159,25 @@ describe("beforeSendServerEvent", () => {
               {
                 type: "UnAuthenticatedError",
                 value: "User is not authenticated",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null for CoreAuthUnavailableError outage events", () => {
+    expect(
+      beforeSendServerEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "CoreAuthUnavailableError",
+                value: "Session could not be read",
               },
             ],
           },
