@@ -113,7 +113,6 @@ import {
 } from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
-import type { TranscriptScrollAnchor } from "@/app/chat/utils/transcript-scroll-anchor";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
@@ -393,13 +392,6 @@ export function RoomsClient({
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
   const historicalThreadRef = useRef(false);
-  // Rows inserted above the viewport would shove the reader's row down by
-  // their height. The anchor taken before the merge puts it back once the
-  // new rows have laid out.
-  const pendingScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(null);
-  const pendingThreadScrollAnchorRef = useRef<TranscriptScrollAnchor | null>(
-    null,
-  );
   // Held in a ref as well as in state: the row's tap and its visibility
   // observer can fire in the same tick, before the loading state renders.
   const loadingBoundariesRef = useRef<Set<string>>(new Set());
@@ -413,8 +405,6 @@ export function RoomsClient({
     historicalThreadRef.current = false;
     setBoundaryStatus({});
     loadingBoundariesRef.current = new Set();
-    pendingScrollAnchorRef.current = null;
-    pendingThreadScrollAnchorRef.current = null;
     boundaryLoadGenerationRef.current += 1;
     // The dialog belongs to the room it was opened for, and must not be
     // handed to the next one.
@@ -1848,8 +1838,6 @@ export function RoomsClient({
           }));
           return;
         }
-        pendingScrollAnchorRef.current =
-          viewportRef.current?.captureAnchor(cursorMessageId) ?? null;
         setTranscript((current) =>
           mergeRoomOlderPage(current, cursorMessageId, result.value),
         );
@@ -1874,24 +1862,6 @@ export function RoomsClient({
     })();
   }
 
-  useLayoutEffect(() => {
-    const anchor = pendingScrollAnchorRef.current;
-    if (!anchor) {
-      return;
-    }
-    pendingScrollAnchorRef.current = null;
-    viewportRef.current?.restoreAnchor(anchor);
-  }, [transcript]);
-
-  useLayoutEffect(() => {
-    const anchor = pendingThreadScrollAnchorRef.current;
-    if (!anchor) {
-      return;
-    }
-    pendingThreadScrollAnchorRef.current = null;
-    threadViewportRef.current?.restoreAnchor(anchor);
-  }, [threadMessages]);
-
   /**
    * Older thread page. Failure stays on the boundary row (retry, no
    * auto-load) the way a room gap does, not in a toast.
@@ -1909,7 +1879,6 @@ export function RoomsClient({
     const roomId = selectedRoom.id;
     const parentMessageId = threadParentMessage.id;
     const cursor = threadOlderNextCursor;
-    const fallbackMessageId = displayThreadMessages[0]?.id ?? parentMessageId;
     const generation = threadLoadGenerationRef.current;
     threadOlderLoadRef.current = true;
     setThreadOlderLoadStatus("loading");
@@ -1928,8 +1897,6 @@ export function RoomsClient({
           setThreadOlderLoadStatus("failed");
           return;
         }
-        pendingThreadScrollAnchorRef.current =
-          threadViewportRef.current?.captureAnchor(fallbackMessageId) ?? null;
         setThreadMessages((current) =>
           mergeRoomMessages(current, result.value.messages),
         );
@@ -2621,8 +2588,8 @@ export function RoomsClient({
       const isOutboundLocal = isOutboundLocalMessage(message);
       return (
         // flow-root on both wrappers: a row's vertical margins must stay
-        // inside the box Virtuoso measures. Collapsed through, they land
-        // outside the item and the list ends up taller than Virtuoso thinks.
+        // inside the box the virtualizer measures. Collapsed through, they
+        // land outside the item and the list ends up taller than it thinks.
         <div className="min-w-0 flow-root">
           {showDaySeparator ? (
             <DaySeparator
