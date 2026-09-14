@@ -50,6 +50,7 @@ function message(index: number): ChatRoomMessage {
     createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)),
     deletedAt: null,
     editedAt: null,
+    pinnedAt: null,
     sender: { type: "unknown" },
     mentions: [],
     reactions: [],

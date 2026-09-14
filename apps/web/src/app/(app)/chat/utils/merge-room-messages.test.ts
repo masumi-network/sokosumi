@@ -20,6 +20,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     content,
     createdAt: new Date(createdAt),
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "user",
       user: {

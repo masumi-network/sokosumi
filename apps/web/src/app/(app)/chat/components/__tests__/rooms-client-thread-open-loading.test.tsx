@@ -275,6 +275,7 @@ function parentMessage(): ChatRoomMessage {
     content: "Parent with replies",
     createdAt: new Date("2026-07-01T12:01:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
