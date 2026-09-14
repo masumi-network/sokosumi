@@ -313,6 +313,17 @@ describe("ReauthDialog", () => {
     expect(screen.queryByText("noMethod")).not.toBeInTheDocument();
   });
 
+  it("spins instead of looking broken while the session loads", () => {
+    // Confirm needs the address the session carries, so it is disabled until
+    // then. Without the spinner it reads as a dead button.
+    isPending = true;
+    renderDialog([passwordAccount]);
+
+    const confirm = screen.getByRole("button", { name: "confirm" });
+    expect(confirm).toBeDisabled();
+    expect(confirm.querySelector(".animate-spin")).toBeInTheDocument();
+  });
+
   it("shows one button per provider, not one per linked account", () => {
     // Better Auth is unique on providerId plus accountId, so a viewer can
     // hold two Google rows.

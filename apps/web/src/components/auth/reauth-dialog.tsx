@@ -260,7 +260,9 @@ export function ReauthDialog({
               }
               type="submit"
             >
-              {isSubmitting ? (
+              {/* Confirm needs the address the session carries, so it is dead
+                  until that resolves. Spin rather than look broken. */}
+              {isSubmitting || isLoadingSession ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : null}
               {t("confirm")}
