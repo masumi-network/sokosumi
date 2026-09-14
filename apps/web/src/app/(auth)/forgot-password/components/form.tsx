@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { forgotPasswordFormData } from "@/auth/forgot-password/data";
+import { useAuthCaptcha } from "@/components/auth-captcha-provider";
 import { requestPasswordReset } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import {
@@ -23,6 +23,7 @@ export default function ForgotPasswordForm({
   initialEmail,
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
+  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
@@ -35,18 +36,23 @@ export default function ForgotPasswordForm({
   });
 
   async function handleSubmit(values: ForgotPasswordFormSchemaType) {
-    const requestPasswordResetResult = await requestPasswordReset({
-      email: values.email,
-      redirectTo: getAbsoluteAuthRedirectUrl("/reset-password"),
+    await runWithCaptcha(async (fetchOptions) => {
+      const requestPasswordResetResult = await requestPasswordReset({
+        fetchOptions,
+        email: values.email,
+        redirectTo: getAbsoluteAuthRedirectUrl("/reset-password"),
+      });
+
+      if (requestPasswordResetResult.error) {
+        toast.error(
+          getErrorMessage(requestPasswordResetResult.error, t("error")),
+        );
+        return;
+      }
+
+      toast.success(t("success"));
+      router.push("/signin");
     });
-
-    if (requestPasswordResetResult.error) {
-      toast.error(t("error"));
-      return;
-    }
-
-    toast.success(t("success"));
-    router.push("/signin");
   }
 
   const { isSubmitting } = form.formState;

@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import {
   afterAll,
   beforeAll,
@@ -9,6 +10,11 @@ import {
   it,
   vi,
 } from "vitest";
+import {
+  captchaErrorMessageMock,
+  captchaFetchOptions,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 import SignInForm from "./form";
 
@@ -209,6 +215,51 @@ describe("SignInForm", () => {
     });
   });
 
+  it("shows translated captcha errors from Core", async () => {
+    const error = {
+      code: "VERIFICATION_FAILED",
+      message: "Captcha verification failed",
+    };
+    mockSignInEmail.mockResolvedValueOnce({ data: null, error });
+    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
+    expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("passes the verified captcha token to credential sign-in", async () => {
+    mockSignInEmail.mockResolvedValue({ data: {}, error: null });
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    expect(requestCaptchaMock).toHaveBeenCalledOnce();
+    expect(mockSignInEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fetchOptions: captchaFetchOptions,
+      }),
+    );
+  });
+
+  it("releases submit without signing in when the captcha is cancelled", async () => {
+    requestCaptchaMock.mockResolvedValueOnce(null);
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    expect(requestCaptchaMock).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "submit" })).toBeEnabled(),
+    );
+    expect(mockSignInEmail).not.toHaveBeenCalled();
+    expect(mockWaitForAuthSession).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
   it("passes unwrapped session data to waitForAuthSession after credential login", async () => {
     mockSignInEmail.mockResolvedValue({
       data: {},
@@ -354,3 +405,8 @@ describe("SignInForm", () => {
     expect(spinner).toHaveClass("absolute", "left-4");
   });
 });
+
+vi.mock(
+  "@/components/auth-captcha-provider",
+  () => import("@/test/auth-captcha-mock"),
+);
