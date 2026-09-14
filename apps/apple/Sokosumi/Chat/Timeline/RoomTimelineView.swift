@@ -254,9 +254,9 @@ import SwiftUI
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
         }
-        .overlay(alignment: .bottomTrailing) {
+        .overlay(alignment: .bottom) {
           if !scrollIntent.followsLatest || workspaces.timeline.historicalAnchor != nil {
-            Button("Latest messages", systemImage: "arrow.down") {
+            JumpToLatestButton {
               Task { @MainActor in
                 do {
                   if try await workspaces.returnToLatest(auth: auth) {
@@ -268,8 +268,6 @@ import SwiftUI
                 } catch { jumpError = friendlyMessage(for: error) }
               }
             }
-            .buttonStyle(.borderedProminent)
-            .padding(12)
           }
         }
         .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.width } action: { old, new in
