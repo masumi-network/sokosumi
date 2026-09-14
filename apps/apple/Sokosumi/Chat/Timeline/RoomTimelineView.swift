@@ -261,7 +261,13 @@ import SwiftUI
           .scrollTargetLayout()
           .padding(.top, 8)
         }
-        .defaultScrollAnchor(.bottom)
+        .task {
+          // Position after the lazy list mounts. A default initial bottom
+          // anchor can leave the viewport unrealized on macOS 27.
+          guard workspaces.timeline.historicalAnchor == nil, quoteTarget == nil else { return }
+          proxy.scrollTo("timeline-bottom", anchor: .bottom)
+        }
+        .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
         .scrollPosition($scrollPosition)
         .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
