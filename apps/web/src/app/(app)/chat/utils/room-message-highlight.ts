@@ -84,41 +84,34 @@ function landOnMessageIn(list: Element | null, messageId: string): boolean {
 }
 
 /**
- * Land on a message in the open thread. False when the thread does not hold
- * it, which is the caller's cue to load a window around it.
+ * Land on a message in the named list. False when that list does not hold it.
  *
- * Scoped to the panel, like its transcript twin: both lists render a thread's
- * parent, and which copy a jump lands on must not rest on where the panel sits
- * in the document.
+ * Room and thread share message ids (a thread's parent is in both), so which
+ * copy a jump marks must be the list the caller named, not whichever copy
+ * comes first in the document.
  */
-export function highlightThreadMessage(messageId: string): boolean {
+export function highlightListMessage(list: string, messageId: string): boolean {
   if (typeof document === "undefined") {
     return false;
   }
   return landOnMessageIn(
-    document.querySelector(
-      `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_THREAD}"]`,
-    ),
+    document.querySelector(`[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${list}"]`),
     messageId,
   );
 }
 
 /**
+ * Land on a message in the open thread. False when the thread does not hold
+ * it, which is the caller's cue to load a window around it.
+ */
+export function highlightThreadMessage(messageId: string): boolean {
+  return highlightListMessage(CHAT_MESSAGE_LIST_THREAD, messageId);
+}
+
+/**
  * Land on a message in the room transcript. False when the message is not in
  * the loaded page.
- *
- * Scoped to the transcript rather than the document, because a thread reply's
- * parent is rendered inside the open thread panel as well, and an unscoped
- * lookup finds whichever copy comes first in the document.
  */
 export function highlightRoomTranscriptMessage(messageId: string): boolean {
-  if (typeof document === "undefined") {
-    return false;
-  }
-  return landOnMessageIn(
-    document.querySelector(
-      `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"]`,
-    ),
-    messageId,
-  );
+  return highlightListMessage(CHAT_MESSAGE_LIST_ROOM, messageId);
 }
