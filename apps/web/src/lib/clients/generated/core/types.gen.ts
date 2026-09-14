@@ -34966,6 +34966,7 @@ export type TopUpSokoBotAvatarsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34980,6 +34981,7 @@ export type TopUpSokoBotAvatarsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34994,6 +34996,7 @@ export type TopUpSokoBotAvatarsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35008,6 +35011,7 @@ export type TopUpSokoBotAvatarsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
