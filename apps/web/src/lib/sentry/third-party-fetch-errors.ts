@@ -57,10 +57,12 @@ const transientFetchFailurePattern =
 
 /**
  * Safari on iOS reports aborted RSC/fetch work as bare `Load failed` with no
- * hostname and no stack (SOKOSUMI-18 on `/chat`).
+ * hostname and no stack (SOKOSUMI-18 on `/chat`). Chromium's equivalent is
+ * `Failed to fetch`. Ably authCallback passes `error.message` as a string, so
+ * Ably wraps it as ErrorInfo 40170 with quotes around the message (SOKOSUMI-S4).
  */
 const bareTransientNetworkFailurePattern =
-  /^(?:TypeError: )?(?:Load failed|Failed to fetch)$/;
+  /^(?:TypeError: )?("?)(?:Load failed|Failed to fetch)\1$/;
 
 /**
  * Firefox and some WebKit builds report offline or aborted fetches as a bare
