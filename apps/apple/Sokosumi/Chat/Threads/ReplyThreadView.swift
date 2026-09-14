@@ -8,6 +8,24 @@ import SwiftUI
   struct ReplyThreadView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
+    @State private var preparedTranscript: PreparedTranscript?
+
+    private var preparationScope: [String] {
+      [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)]
+    }
+
+    private var preparationInput: PreparedTranscript.Input {
+      let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+      return .init(scope: preparationScope,
+                   messages: (workspaces.thread.parent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
+                   mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
+    }
+
+    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
+      guard preparedTranscript?.input.scope == preparationScope else { return [] }
+      return preparedTranscript?.input.messages ?? []
+    }
+
     @State private var followsLatest = true
     @State private var userIsScrolling = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
@@ -30,13 +48,21 @@ import SwiftUI
     }
 
     var body: some View {
-      if let parent = workspaces.thread.parent {
+      content
+        .task(id: preparationInput) {
+          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+      if let parent = preparedMessages.first {
         let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
         let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-              MessageRowView(channels: channels, room: currentRoom, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+              MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.documents[parent.id], message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                              onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
                                quoteFocusRequest = UUID().uuidString
                              } : nil,
@@ -57,6 +83,7 @@ import SwiftUI
             .padding(.top)
           }
           .defaultScrollAnchor(.bottom, for: .initialOffset)
+          .defaultScrollAnchor(.bottom, for: .sizeChanges)
           .onChange(of: quoteTarget) { _, target in
             guard let target else { return }
             quoteTarget = nil
@@ -64,17 +91,17 @@ import SwiftUI
             followsLatest = false
             proxy.scrollTo(target, anchor: .center)
           }
-          .onScrollPhaseChange { _, phase in userIsScrolling = phase == .interacting || phase == .decelerating }
-          .onScrollGeometryChange(for: Double.self) { geometry in
-            geometry.contentSize.height + geometry.contentInsets.bottom - geometry.visibleRect.maxY
-          } action: { _, distanceFromBottom in
+          .onScrollPhaseChange { _, phase in
+            userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          }
+          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
             if userIsScrolling {
-              followsLatest = distanceFromBottom < 200
-            } else if followsLatest, distanceFromBottom > 1 {
+              followsLatest = edges.nearBottom
+            } else if followsLatest, edges.needsBottomAlignment {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
           }
-          .onChange(of: workspaces.displayedThreadReplies.last?.id) { _, _ in
+          .onChange(of: preparedMessages.last?.id) { _, _ in
             if followsLatest {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
@@ -99,6 +126,8 @@ import SwiftUI
         .onChange(of: parent.id) { _, _ in pendingQuote = nil
           quoteTarget = nil
         }
+      } else {
+        ProgressView("Loading replies…").frame(maxWidth: .infinity, maxHeight: .infinity)
       }
     }
 
@@ -125,7 +154,7 @@ import SwiftUI
            let error = workspaces.directStream.errorMessage {
           Text(error).foregroundStyle(.secondary)
         }
-        let messages = workspaces.displayedThreadReplies
+        let messages = Array(preparedMessages.dropFirst())
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }
@@ -152,7 +181,7 @@ import SwiftUI
           if let status = membershipStatusText(message) {
             MembershipStatusRow(text: status)
           } else {
-            MessageRowView(channels: channels, room: room, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
                            onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                            onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },

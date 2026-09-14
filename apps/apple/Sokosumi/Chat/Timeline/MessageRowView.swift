@@ -52,6 +52,7 @@ import SwiftUI
 
     var channels: [ComposerChannel] = []
     var room: Components.Schemas.ChatRoom?
+    var preparedDocument: MessageMarkdown?
     let message: Components.Schemas.ChatRoomMessage
     let isContinuation: Bool
     let outbound: OutboundShell?
@@ -186,7 +187,7 @@ import SwiftUI
             if let editing, editing.source?.id == message.id {
               MessageEditComposer(editing: editing).id(message.id)
             } else {
-              MessageMarkdownView(source: message.content, room: room, channels: channels)
+              MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
             if outbound == nil {
               ForEach(message.unfurls ?? [], id: \.url) { preview in
