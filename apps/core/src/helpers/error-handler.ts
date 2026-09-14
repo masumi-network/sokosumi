@@ -5,7 +5,7 @@ import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
-import { recordCoreRequestError } from "@/lib/evlog";
+import { recordCoreRequestError, tryUseLogger } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { matchedRouteTemplate } from "@/lib/route-template";
 
@@ -136,6 +136,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
         ? (error.cause as {
             extensions?: Record<string, unknown>;
             kind?: string;
+            retryAfterSeconds?: number;
           })
         : undefined;
 
@@ -146,16 +147,33 @@ export const errorHandler: ErrorHandler = (error, c) => {
         : typeof extensions.kind === "string"
           ? extensions.kind
           : undefined;
+    const retryAfterSeconds =
+      typeof cause?.retryAfterSeconds === "number" &&
+      cause.retryAfterSeconds >= 0
+        ? Math.ceil(cause.retryAfterSeconds)
+        : undefined;
+    const isThrottled = retryAfterSeconds !== undefined;
+
+    if (isThrottled) {
+      tryUseLogger()?.set({
+        rateLimit: { kind: kind ?? getErrorName(status), retryAfterSeconds },
+      });
+    }
 
     const errorResponse = {
       error: getErrorName(status),
       message: error.message,
       ...(kind ? { kind } : {}),
+      ...(isThrottled ? { retryAfterSeconds } : {}),
       ...extensions,
       meta,
     };
 
-    return c.json(errorResponse, status);
+    return c.json(
+      errorResponse,
+      status,
+      isThrottled ? { "Retry-After": String(retryAfterSeconds) } : undefined,
+    );
   }
 
   // Better Auth throws plain APIError (not HTTPException). With
