@@ -289,4 +289,37 @@ describe("emitChatMentionNotifications", () => {
       createNotificationMock.mock.calls[0]?.[0].messageParams,
     ).not.toHaveProperty("isDirect");
   });
+
+  /**
+   * Scheduled through `waitUntil` after the reader has been answered, so a
+   * rejection has no caller left to catch it and arrives as an unhandled one
+   * that names nothing (#4411).
+   */
+  it("reports a failed fan-out instead of rejecting", async () => {
+    const failure = new Error("fan-out failed");
+    membershipFindManyMock.mockRejectedValueOnce(failure);
+
+    await expect(
+      emitChatMentionNotifications({
+        roomId: ROOM_ID,
+        roomName: "Engineering",
+        roomShape: "channel",
+        organizationId: null,
+        messageId: MESSAGE_ID,
+        content: "ship it",
+        authorUserId: AUTHOR_ID,
+        authorName: "Ada",
+        mentionedUserIds: [MENTIONED_ID],
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      tags: { context: "chat_mention_notifications" },
+      extra: {
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+        mentionedCount: 1,
+      },
+    });
+  });
 });
