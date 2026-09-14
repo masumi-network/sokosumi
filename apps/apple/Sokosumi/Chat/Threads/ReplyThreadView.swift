@@ -31,10 +31,12 @@ import SwiftUI
 
     var body: some View {
       if let parent = workspaces.thread.parent {
+        let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+        let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-              MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+              MessageRowView(channels: channels, room: currentRoom, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                              onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
                                quoteFocusRequest = UUID().uuidString
                              } : nil,
@@ -48,7 +50,7 @@ import SwiftUI
                 .id(parent.id)
               Divider()
               Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
-              replies
+              replies(channels: channels, room: currentRoom)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .padding(.horizontal)
@@ -100,7 +102,7 @@ import SwiftUI
       }
     }
 
-    @ViewBuilder private var replies: some View {
+    @ViewBuilder private func replies(channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
       let timeline = workspaces.thread.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
@@ -123,9 +125,6 @@ import SwiftUI
            let error = workspaces.directStream.errorMessage {
           Text(error).foregroundStyle(.secondary)
         }
-        let rooms = workspaces.rooms
-        let currentRoom = rooms.first { $0.id == workspaces.transcriptRoomId }
-        let channels = ComposerChannel.catalog(rooms: rooms)
         let messages = workspaces.displayedThreadReplies
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
@@ -144,7 +143,7 @@ import SwiftUI
             if let status = membershipStatusText(message) {
               MembershipStatusRow(text: status)
             } else {
-              MessageRowView(channels: channels, room: currentRoom, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+              MessageRowView(channels: channels, room: room, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                              outbound: shell, sentAt: outbox.sentAt[message.id],
                              onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                              onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },

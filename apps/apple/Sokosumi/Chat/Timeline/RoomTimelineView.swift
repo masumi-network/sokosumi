@@ -126,7 +126,11 @@ import SwiftUI
     private var messageList: some View {
       // Realize nearby rows only: laying out every rich message makes each
       // scroll event expensive. Keep each message unary and anchored by ID.
-      ScrollViewReader { proxy in
+      // Keep catalog/room lets out of LazyVStack. Extra lets there wrap
+      // ForEach and force every rich row to layout while scrolling.
+      let transcriptRoom = room
+      let channels = workspaces.composerChannels
+      return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
@@ -153,9 +157,6 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let rooms = workspaces.rooms
-            let currentRoom = rooms.first { $0.id == workspaces.transcriptRoomId }
-            let channels = ComposerChannel.catalog(rooms: rooms)
             let messages = workspaces.displayedTranscript
             let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -185,7 +186,7 @@ import SwiftUI
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(channels: channels, room: currentRoom,
+                  MessageRowView(channels: channels, room: transcriptRoom,
                                  message: message,
                                  isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,
@@ -202,7 +203,7 @@ import SwiftUI
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
                                  isHighlighted: highlightedId == message.id,
-                                 isPinned: currentRoom?.kind == .channel && workspaces.isPinned(message),
+                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
                                  onDelete: deletionAction(for: message),
