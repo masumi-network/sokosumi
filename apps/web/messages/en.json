@@ -37,7 +37,7 @@
       "rememberMe": "Keep me signed in",
       "resendEmail": "Send the link again",
       "retryPrompt": "You are signed in again. Try that again now.",
-      "sessionLost": "Your session has ended. Sign in again from the start page.",
+      "sessionLost": "Open the sign-in page and sign in again.",
       "socialError": "We could not start that sign-in.",
       "termsNotAccepted": "Accept the updated terms before signing in again.",
       "title": "Confirm it is you"
