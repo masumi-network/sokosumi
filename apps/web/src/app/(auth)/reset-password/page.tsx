@@ -24,7 +24,7 @@ export default async function ResetPasswordPage({
   const { token } = await searchParams;
 
   if (!token) {
-    redirect("/login");
+    redirect("/signin");
   }
 
   return (

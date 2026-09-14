@@ -9,6 +9,7 @@ import { type ReactNode, useState } from "react";
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import {
   Tooltip,
@@ -66,6 +67,9 @@ function FileChipMiniPreviewTrigger({
   );
   const extension = getExtensionFromUrl(fileName ?? url);
   const useLargeImage = variant === "large" && isImage;
+  // The large preview sizes itself from the bytes; remembered, a remount in
+  // a virtualized list reserves the box instead of growing a frame later.
+  const largeImageSize = useRememberedImageSize(useLargeImage ? url : undefined);
 
   if (isImage) {
     if (useLargeImage) {
@@ -80,7 +84,8 @@ function FileChipMiniPreviewTrigger({
           <img
             src={url}
             alt={resolvedFileName}
-            className="max-h-80 w-full max-w-full object-contain object-center"
+            className="h-auto max-h-80 w-full max-w-full object-contain object-center"
+            {...largeImageSize}
           />
         </button>
       );

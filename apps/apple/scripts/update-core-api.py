@@ -1,4 +1,4 @@
-"""Extract the Apple client's existing operations plus requested paths from Core OpenAPI."""
+"""Extract the Apple client's existing operations plus requested paths (optionally path#method) from Core OpenAPI."""
 import json
 import sys
 from pathlib import Path
@@ -7,8 +7,12 @@ source = json.loads(Path(sys.argv[1]).read_text())
 target = Path(__file__).resolve().parents[1] / 'Packages/CoreAPI/Sources/CoreAPI/openapi.json'
 previous = json.loads(target.read_text())
 paths = dict(previous['paths'])
-for path in sys.argv[2:]:
-    paths[path] = source['paths'][path]
+for selection in sys.argv[2:]:
+    path, _, method = selection.partition('#')
+    if method:
+        paths.setdefault(path, {})[method] = source['paths'][path][method]
+    else:
+        paths[path] = source['paths'][path]
 for path, operations in paths.items():
     paths[path] = {method: source['paths'][path][method] for method in operations}
 components = {}

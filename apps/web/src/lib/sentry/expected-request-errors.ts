@@ -4,6 +4,8 @@ const INVALID_SESSION_MESSAGE = /invalid, expired or missing session/i;
 
 const UNAUTHENTICATED_MESSAGE = /^user is not authenticated$/i;
 
+const CORE_AUTH_UNAVAILABLE_MESSAGE = /^session could not be read$/i;
+
 const NEXT_ROUTER_HOOKS_MISMATCH =
   /rendered more hooks than during the previous render/i;
 
@@ -134,13 +136,15 @@ export function isExpectedBusinessSentryEvent(event: ErrorEvent): boolean {
 }
 
 export function isExpectedAuthRequestError(error: unknown): boolean {
-  if (getThrownErrorName(error) === "UnAuthenticatedError") {
+  const name = getThrownErrorName(error);
+  if (name === "UnAuthenticatedError" || name === "CoreAuthUnavailableError") {
     return true;
   }
 
   const message = getThrownErrorMessage(error);
   return (
     UNAUTHENTICATED_MESSAGE.test(message) ||
+    CORE_AUTH_UNAVAILABLE_MESSAGE.test(message) ||
     INVALID_SESSION_MESSAGE.test(message)
   );
 }
@@ -175,7 +179,7 @@ export function isExpectedAuthSentryEvent(event: ErrorEvent): boolean {
   const message = getEventErrorMessage(event);
   const type = getEventErrorType(event);
 
-  if (type === "UnAuthenticatedError") {
+  if (type === "UnAuthenticatedError" || type === "CoreAuthUnavailableError") {
     return true;
   }
 
@@ -185,6 +189,7 @@ export function isExpectedAuthSentryEvent(event: ErrorEvent): boolean {
 
   return (
     UNAUTHENTICATED_MESSAGE.test(message) ||
+    CORE_AUTH_UNAVAILABLE_MESSAGE.test(message) ||
     INVALID_SESSION_MESSAGE.test(message)
   );
 }

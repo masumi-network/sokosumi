@@ -118,7 +118,6 @@ function ProvideInputForm({
       queryClient.invalidateQueries({ queryKey: getJobQueryKey(jobId) }),
   });
 
-  // Handle group clear - the generic form manages accumulated values internally
   const handleGroupClear = useCallback(
     (groupIndex: number, formReset: () => void) => {
       formReset();
@@ -132,7 +131,6 @@ function ProvideInputForm({
     [inputs],
   );
 
-  // Custom footer for flat form
   const renderFlatFooter = useCallback(
     (props: FormFooterProps) => {
       const { isSubmitting: formIsSubmitting, isValid, reset } = props;
@@ -168,7 +166,6 @@ function ProvideInputForm({
     [isSubmitting, t, tForm, isMobile, os],
   );
 
-  // Custom footer for grouped form
   const renderGroupFooter = useCallback(
     (props: FormFooterProps, isLast: boolean, groupIndex: number) => {
       const {
@@ -231,7 +228,6 @@ function ProvideInputForm({
     [isSubmitting, t, tForm, isMobile, os, inputs.goBack, handleGroupClear],
   );
 
-  // Render grouped form if schema has groups
   if (inputs.isGrouped && inputs.groups) {
     return (
       <JobInputsGroupedForm
@@ -252,7 +248,6 @@ function ProvideInputForm({
     );
   }
 
-  // Render flat form for non-grouped schemas
   return (
     <JobInputsFlatForm
       flatInputs={inputs.flatInputs}

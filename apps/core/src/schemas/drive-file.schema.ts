@@ -420,7 +420,6 @@ export const moveDriveItemRequestSchema = z
           return false;
         }
       }
-      // Validate targetFolderPath (can be empty for root)
       const normalizedTarget = normalizeDriveFolderPath(data.targetFolderPath);
       const targetValidationError = validateDriveFolderPath(normalizedTarget);
       if (targetValidationError) {

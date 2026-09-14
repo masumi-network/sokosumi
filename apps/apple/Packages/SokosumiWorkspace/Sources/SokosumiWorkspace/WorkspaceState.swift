@@ -16,6 +16,7 @@ public final class WorkspaceState: ObservableObject {
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
   public let thread = ThreadSession()
+  public let messageEditing = MessageEditing()
   public let directStream = DirectStreamSession()
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
@@ -183,6 +184,10 @@ public final class WorkspaceState: ObservableObject {
     for publisher in [thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
+    // Rows need editor identity changes; draft and save state are observed by the editor itself.
+    messageEditing.$source.map { $0?.id }.removeDuplicates().dropFirst()
+      .sink { [weak self] _ in self?.objectWillChange.send() }
+      .store(in: &threadObservations)
     outboxObservation = outbox.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -307,6 +312,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    messageEditing.reset()
     directStream.reset()
     thread.close()
     transcriptRealtimeHealthy = false
@@ -326,6 +332,7 @@ public final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    messageEditing.reset()
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy

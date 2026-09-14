@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode, Ref } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
@@ -31,9 +31,9 @@ export const ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME =
 
 /**
  * Native overflow scroller only — do **not** add `flex flex-col` here.
- * Content uses `min-h-full` / pixel minHeight for short-transcript justify-end.
- * A flex column scroller + min-height child clamps scrollHeight to clientHeight
- * so the list cannot scroll up (tall transcripts unreadable).
+ * Content uses `min-h-full` for short-transcript justify-end. A flex column
+ * scroller + min-height child clamps scrollHeight to clientHeight so the list
+ * cannot scroll up (tall transcripts unreadable).
  */
 export const ROOM_SHELL_SCROLLER_CLASSNAME = CHAT_MESSAGE_LIST_SCROLLER_CLASS;
 
@@ -50,8 +50,6 @@ interface RoomShellLayoutProps {
    */
   wrapColumn?: (columnBody: ReactNode) => ReactNode;
   listScrollerRef?: Ref<HTMLDivElement | null>;
-  listContentRef?: Ref<HTMLDivElement | null>;
-  listContentStyle?: CSSProperties;
   listContent: ReactNode;
   composer: ReactNode;
   /**
@@ -74,8 +72,6 @@ export function RoomShellLayout({
   reserveDesktopHeader = true,
   wrapColumn,
   listScrollerRef,
-  listContentRef,
-  listContentStyle,
   listContent,
   composer,
   mainEnd = null,
@@ -94,13 +90,11 @@ export function RoomShellLayout({
       {header}
       <div ref={listScrollerRef} className={ROOM_SHELL_SCROLLER_CLASSNAME}>
         <div
-          ref={listContentRef}
           // Scopes the jump-highlight spotlight in globals.css to this list,
           // and names it so a lookup can tell it from the thread's copy of the
           // same message ids.
           data-chat-message-list={CHAT_MESSAGE_LIST_ROOM}
           className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}
-          style={listContentStyle}
         >
           {listContent}
         </div>

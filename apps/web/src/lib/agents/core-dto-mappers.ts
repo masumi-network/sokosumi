@@ -38,7 +38,7 @@ export function mapCoreMyAgentReview(
   };
 }
 
-export function mapCoreCategoryToCategory(category: CoreCategory): Category {
+function mapCoreCategoryToCategory(category: CoreCategory): Category {
   return {
     slug: category.slug,
     name: category.name,

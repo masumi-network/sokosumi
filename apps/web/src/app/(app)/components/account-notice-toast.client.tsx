@@ -15,7 +15,7 @@ function getAccountNoticeSessionStorageKey(sessionId: string): string {
   return `accountNoticeShown-${sessionId}`;
 }
 
-export function LoginAccountNoticeToast() {
+export function AccountNoticeToast() {
   const { notice, sessionId } = useAccountNotice();
   const copy = useAccountNoticeCopy();
   const { handleAction } = useAccountNoticeAction();

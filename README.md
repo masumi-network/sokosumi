@@ -1,6 +1,6 @@
 # Sokosumi Monorepo
 
-Sokosumi is a marketplace platform. This monorepo is the web app, the Core API, and shared packages.
+Sokosumi is a marketplace platform. This monorepo is the web app, the Core API, native Apple apps, the developer CLI, and shared packages.
 
 ## Project Structure
 

@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { DEVELOPER_DEFAULT_HREF } from "@/app/components/sidebar/components/developer-menu-config";
 import { DeveloperSectionContentSkeleton } from "@/app/developer/components/developer-loading-view";
 import { DeveloperSectionShell } from "@/app/developer/components/developer-section-shell";
-import { DeveloperVendorsSection } from "@/app/developer/components/vendors";
+import { DeveloperVendorsSection } from "@/app/developer/components/vendors/developer-vendors-section";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 
 export async function generateMetadata(): Promise<Metadata> {

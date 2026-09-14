@@ -77,34 +77,45 @@ export const taskScheduleInputSchema = z
   ])
   .openapi("TaskScheduleInput");
 
-const operationAwareTaskScheduleRequestSchema = z.object({
-  operationId: z.string().uuid().openapi({
-    description: "Idempotency identity for this series edit",
-    example: "123e4567-e89b-42d3-a456-426614174000",
-  }),
-  expectedScheduleRevision: z.number().int().nonnegative().openapi({
-    description: "Schedule revision observed by the caller",
-    example: 3,
-  }),
-  discardFutureExceptions: z.literal(true).openapi({
-    description: "Confirms that future occurrence exceptions may be canceled",
-    example: true,
-  }),
-  schedule: taskScheduleInputSchema,
-});
+/**
+ * The Calendar series contract: every full-series edit carries its own
+ * idempotency identity, the revision it observed, and an explicit confirmation
+ * that future occurrence exceptions may be discarded. The legacy
+ * `PUT /tasks/{id}/schedule` body is deliberately not accepted here.
+ */
+export const putCalendarTaskScheduleRequestSchema = z
+  .object({
+    operationId: z.string().uuid().openapi({
+      description: "Idempotency identity for this series edit",
+      example: "123e4567-e89b-42d3-a456-426614174000",
+    }),
+    expectedScheduleRevision: z.number().int().nonnegative().openapi({
+      description: "Schedule revision observed by the caller",
+      example: 3,
+    }),
+    discardFutureExceptions: z.literal(true).openapi({
+      description: "Confirms that future occurrence exceptions may be canceled",
+      example: true,
+    }),
+    schedule: taskScheduleInputSchema,
+  })
+  .openapi("PutCalendarTaskScheduleRequest");
 
-export const putTaskScheduleRequestSchema = z
-  .union([operationAwareTaskScheduleRequestSchema, taskScheduleInputSchema])
-  .openapi("PutTaskScheduleRequest");
+/**
+ * Legacy `PUT /tasks/{id}/schedule` body. The revision-safe Calendar envelope
+ * belongs exclusively to `/calendar-schedule`; accepting it here would discard
+ * its preconditions while appearing to honor them.
+ */
+export const putTaskScheduleRequestSchema = taskScheduleInputSchema.openapi(
+  "PutTaskScheduleRequest",
+);
 
 export type TaskScheduleInput = z.infer<typeof taskScheduleInputSchema>;
+
+export type PutCalendarTaskScheduleRequest = z.infer<
+  typeof putCalendarTaskScheduleRequestSchema
+>;
 
 export type PutTaskScheduleRequest = z.infer<
   typeof putTaskScheduleRequestSchema
 >;
-
-export function getTaskScheduleInput(
-  request: PutTaskScheduleRequest,
-): TaskScheduleInput {
-  return "schedule" in request ? request.schedule : request;
-}

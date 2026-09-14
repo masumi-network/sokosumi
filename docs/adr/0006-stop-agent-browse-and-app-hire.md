@@ -1,4 +1,4 @@
-# Stop marketplace Agent browse and app Hire; Jobs live at `/jobs/{jobId}`
+# Ban app marketplace Hire; Jobs live at `/jobs/{jobId}`
 
 - Status: Partially superseded by [ADR-0024](./0024-restore-agent-catalog-browse-without-app-hire.md). The app Hire ban remains in force; only the “stop agent browse” decision is superseded.
 

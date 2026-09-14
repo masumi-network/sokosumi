@@ -73,6 +73,18 @@ export type TranslateFn = (
   values?: Record<string, unknown>,
 ) => string;
 
+/** The `App.Tasks.Schedule` keys {@link formatScheduleTitle} can ask for. */
+export type ScheduleTitleTranslationKey = `option.${ScheduleTitleInfo["key"]}`;
+
+/**
+ * Narrow enough that a next-intl translator satisfies it directly, so callers
+ * do not have to widen their key type with a cast.
+ */
+export type ScheduleTitleTranslateFn = (
+  key: ScheduleTitleTranslationKey,
+  values?: Record<string, string | number | Date>,
+) => string;
+
 type TaskScheduleDateTimeFormatOptions = {
   month?: "short";
   day?: "numeric";
@@ -129,7 +141,7 @@ export function formatTaskScheduleSelectionLabel(
 
 export function formatScheduleTitle(
   info: ScheduleTitleInfo,
-  t: TranslateFn,
+  t: ScheduleTitleTranslateFn,
 ): string {
   switch (info.key) {
     case "oneTime":

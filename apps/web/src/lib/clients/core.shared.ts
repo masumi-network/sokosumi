@@ -36,6 +36,7 @@ import type {
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
+  GetTasksByIdScheduleOccurrencesData,
   GetTasksData,
   GetTasksSummaryData,
   GetWorkspacesCalendarData,
@@ -78,6 +79,7 @@ import type {
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
+  PutCalendarTaskScheduleRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
@@ -85,6 +87,7 @@ import type {
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
+  RescheduleTaskScheduleOccurrenceRequest,
   ResolveAdminTaskX402PaymentData,
   ResolveSokoBotDecisionRequest,
   SokoBotLabIngestRequest,
@@ -229,6 +232,7 @@ import {
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
+  getTasksByIdScheduleOccurrences as coreGetTasksByIdScheduleOccurrences,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
@@ -292,6 +296,7 @@ import {
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
+  patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
   patchVendor as corePatchVendor,
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -3397,7 +3402,7 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   async function putTaskCalendarSchedule(
     id: string,
-    body: PutTaskScheduleRequest,
+    body: PutCalendarTaskScheduleRequest,
   ) {
     return executeCoreOperation(
       getClient,
@@ -3413,17 +3418,69 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function deleteTaskSchedule(id: string) {
+  /**
+   * Series removal has no body, so its idempotency identity and observed
+   * revision travel as request metadata. A custom revision header avoids
+   * deployment platforms applying HTTP `If-Match` semantics themselves.
+   */
+  async function deleteTaskSchedule(
+    id: string,
+    precondition: {
+      operationId: string;
+      expectedScheduleRevision: number;
+    },
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteTasksByIdSchedule({
           client,
           path: { id },
+          headers: {
+            "idempotency-key": precondition.operationId,
+            "x-sokosumi-schedule-revision": String(
+              precondition.expectedScheduleRevision,
+            ),
+          },
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
         }),
       "Failed to clear task schedule",
+    );
+  }
+
+  async function getTaskScheduleOccurrences(
+    id: string,
+    query: GetTasksByIdScheduleOccurrencesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdScheduleOccurrences({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch task schedule occurrences",
+    );
+  }
+
+  async function rescheduleTaskScheduleOccurrence(
+    id: string,
+    occurrenceId: string,
+    body: RescheduleTaskScheduleOccurrenceRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchTasksByIdScheduleOccurrencesByOccurrenceId({
+          client,
+          path: { id, occurrenceId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to reschedule task schedule occurrence",
     );
   }
 
@@ -5129,6 +5186,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     revokeMyOauthConsent,
     getTaskById,
     getTaskLinks,
+    getTaskScheduleOccurrences,
     getTaskWorkspace,
     getTasks,
     getTasksSummary,
@@ -5137,6 +5195,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     putTaskCalendarSchedule,
     putTaskSchedule,
     putTaskShare,
+    rescheduleTaskScheduleOccurrence,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,

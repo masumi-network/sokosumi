@@ -2,17 +2,15 @@ import { z } from "@hono/zod-openapi";
 
 import { chatMessageContentPartSchema } from "@/schemas/chat-ui-message.schema";
 
-/** Used by Zod and POST /v1/chat (defense in depth) when `messages` is missing or empty. */
+/** Used by Zod and POST /v1/chats/rooms/{id}/stream (defense in depth) when `messages` is missing or empty. */
 export const AI_SDK_CHAT_MESSAGES_REQUIREMENT =
   "Provide non-empty messages, or conversationId with message and trigger submit-message.";
 
-export const chatRequestMessagePartSchema = chatMessageContentPartSchema;
-
 export const chatRequestMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
-  parts: z.array(chatRequestMessagePartSchema).optional(),
+  parts: z.array(chatMessageContentPartSchema).optional(),
   content: z
-    .union([z.string(), z.array(chatRequestMessagePartSchema)])
+    .union([z.string(), z.array(chatMessageContentPartSchema)])
     .optional(),
   metadata: z
     .object({
@@ -23,7 +21,7 @@ export const chatRequestMessageSchema = z.object({
   id: z.string().optional(),
 });
 
-/** POST /v1/chat: messages[] or message + conversationId + trigger submit-message. */
+/** POST /v1/chats/rooms/{id}/stream: messages[] or message + conversationId + trigger submit-message. */
 export const aiSdkChatRequestSchema = z
   .object({
     messages: z.array(chatRequestMessageSchema).optional(),

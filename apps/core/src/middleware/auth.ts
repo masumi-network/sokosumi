@@ -482,6 +482,7 @@ async function verifyAgentApiKey(
           userId: true,
           workspaceId: true,
           workspace: { select: { organizationId: true } },
+          user: { select: BEARER_USER_SELECT },
         },
       },
     },
@@ -521,6 +522,12 @@ async function verifyAgentApiKey(
     !apiKey.sokoBot.archivedAt &&
     !apiKey.sokoBot.deletedAt
   ) {
+    // Banning the owner does not revoke the bot key. requireUserContext then
+    // maps this actor to that owner, so the check has to live here.
+    if (!isActiveUser(apiKey.sokoBot.user)) {
+      return false;
+    }
+
     setAuthContext(c, {
       isAuthenticated: true,
       authContext: {

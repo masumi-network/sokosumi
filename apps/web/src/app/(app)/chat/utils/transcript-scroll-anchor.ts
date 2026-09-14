@@ -1,7 +1,4 @@
-import {
-  CHAT_MESSAGE_LIST_ATTRIBUTE,
-  CHAT_MESSAGE_LIST_ROOM,
-} from "@/app/chat/chat-message-list";
+import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 
 export interface TranscriptScrollAnchor {
   messageId: string;
@@ -14,7 +11,7 @@ function findTranscriptRow(
   messageId: string,
 ): HTMLElement | null {
   return scroller.querySelector<HTMLElement>(
-    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(messageId)}"]`,
+    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] [data-message-id="${CSS.escape(messageId)}"]`,
   );
 }
 
@@ -42,14 +39,21 @@ export function captureTranscriptScrollAnchor(
  * jump the gap sits under the window; anchoring the cursor (the first row of
  * the range below) would scroll that cursor back into place and shove the
  * highlighted jump target off screen.
+ *
+ * The first row fully below the top edge, when there is one. A row that
+ * straddles the edge is held by its top, so anything that grows inside it (an
+ * image landing) still pushes the rows below it; the first fully visible row
+ * moves with that growth and can be put back. The straddling row is the
+ * anchor only when it fills the viewport on its own.
  */
 export function captureVisibleTranscriptScrollAnchor(
   scroller: HTMLElement,
 ): TranscriptScrollAnchor | null {
   const scrollerRect = scroller.getBoundingClientRect();
   const rows = scroller.querySelectorAll<HTMLElement>(
-    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id]`,
+    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] [data-message-id]`,
   );
+  let straddling: TranscriptScrollAnchor | null = null;
   for (const row of rows) {
     const rect = row.getBoundingClientRect();
     if (rect.bottom <= scrollerRect.top) {
@@ -62,31 +66,11 @@ export function captureVisibleTranscriptScrollAnchor(
     if (!messageId) {
       continue;
     }
-    return {
-      messageId,
-      offset: rect.top - scrollerRect.top,
-    };
+    const anchor = { messageId, offset: rect.top - scrollerRect.top };
+    if (rect.top >= scrollerRect.top) {
+      return anchor;
+    }
+    straddling ??= anchor;
   }
-  return null;
-}
-
-/**
- * Put the anchored row back where it was. Done by hand rather than left to
- * `overflow-anchor`, which Safari does not implement, so a boundary load on
- * an iPhone would otherwise shove the transcript under the reader's thumb.
- */
-export function restoreTranscriptScrollAnchor(
-  scroller: HTMLElement,
-  anchor: TranscriptScrollAnchor,
-): void {
-  const row = findTranscriptRow(scroller, anchor.messageId);
-  if (!row) {
-    return;
-  }
-  const offset =
-    row.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-  const drift = offset - anchor.offset;
-  if (drift !== 0) {
-    scroller.scrollTop += drift;
-  }
+  return straddling;
 }

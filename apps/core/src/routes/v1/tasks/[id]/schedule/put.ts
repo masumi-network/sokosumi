@@ -22,17 +22,16 @@ import {
   validateScheduleInput,
 } from "@/helpers/task-schedule";
 import {
+  createTaskSchedulePlannedOccurrences,
   replaceTaskSchedulePlannedOccurrences,
+  retireTaskScheduleFutureOccurrences,
   TaskScheduleOccurrenceLimitError,
 } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import {
-  getTaskScheduleInput,
-  putTaskScheduleRequestSchema,
-} from "@/schemas/task-schedule.schema";
+import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -73,8 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    const schedule = getTaskScheduleInput(body);
+    const schedule = c.req.valid("json");
 
     validateScheduleInput(schedule);
 
@@ -161,6 +159,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             metadata: JSON.stringify(metadata),
             nextRunAt,
+            // Legacy contract keeps its bare body, but every rule write still
+            // advances the concurrency token Calendar clients observe.
+            scheduleRevision: { increment: 1 },
             ...(currentTask.status !==
             (currentTask.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED)
               ? {
@@ -175,13 +176,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             currentTask.workspaceId,
           ),
         });
-        await replaceTaskSchedulePlannedOccurrences(tx, {
+        const indexTask = {
           id,
           workspaceId: currentTask.workspaceId,
           projectId: currentTask.projectId,
           schedule: metadata,
           nextRunAt,
-        });
+        };
+        if (
+          persistedMetadata?.version === 2 &&
+          metadata.version === 2 &&
+          metadata.epochId !== persistedMetadata.epochId
+        ) {
+          // Same pair as PUT /calendar-schedule: future exceptions belong to
+          // the epoch that defined them, so the old epoch's future half is
+          // retired before the new epoch is projected.
+          await retireTaskScheduleFutureOccurrences(tx, id, scheduledAt);
+          await createTaskSchedulePlannedOccurrences(
+            tx,
+            indexTask,
+            scheduledAt,
+          );
+        } else {
+          await replaceTaskSchedulePlannedOccurrences(tx, indexTask);
+        }
         return task;
       })
       .catch((error: unknown) => {

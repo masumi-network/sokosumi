@@ -18,6 +18,6 @@ Sokosumi’s first native client is an Apple Xcode workspace at `apps/apple`: sh
 
 - No `package.json` under `apps/apple` until a spec needs one. `pnpm-workspace.yaml` is `apps/*`; an empty npm package would join turbo by accident (same rule as `apps/cli`).
 - Xcode is outside turbo/Biome. Generate Swift clients from Core `openapi.json`; do not import `@sokosumi/database` or Prisma.
-- Mac v1 is sign-in, workspace, room list, one room transcript, composer, history pagination, live Ably, unread on opened rooms. Coworker stream, Soko Bot, files, mentions polish, and OS push wait.
+- Chat parity lives in [`apps/apple/PARITY.md`](../../apps/apple/PARITY.md); this ADR is the platform decision. Still out: iOS target, APNs.
 - ADR 0023 still holds for web. A Mac/iOS `UserNotifications` / APNs renderer is a new decision when that slice starts.
 - Product intent: [`apps/apple/VISION.md`](../../apps/apple/VISION.md).

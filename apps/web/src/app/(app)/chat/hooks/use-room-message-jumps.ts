@@ -12,10 +12,6 @@ import {
   createRoomJumpState,
   startRoomJump,
 } from "@/app/chat/utils/room-jump-hold";
-import {
-  highlightRoomTranscriptMessage,
-  highlightThreadMessage,
-} from "@/app/chat/utils/room-message-highlight";
 import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
 import {
   performRoomSearchJump,
@@ -34,6 +30,16 @@ interface RoomMessageJumpsParams {
   topLevelRoomMessages: ChatRoomMessage[];
   threadParentMessage: ChatRoomMessage | null;
   isStillSelectedRoom: (roomId: string) => boolean;
+  /**
+   * Land on a message in the room transcript and mark it. False when the
+   * transcript has not loaded it, which is the cue to load a window on it.
+   */
+  landOnRoomMessage: (messageId: string) => boolean;
+  /**
+   * Land on a message in the open thread and mark it. False when the panel
+   * has not loaded it, which is the cue to load a window on it.
+   */
+  landOnThreadMessage: (messageId: string) => boolean;
   suppressStickToBottom: () => void;
   releaseStickToBottomSuppress: () => void;
   setSearchHoldOffBottom: (hold: boolean) => void;
@@ -44,8 +50,14 @@ interface RoomMessageJumpsParams {
    */
   mergeRoomJumpWindow: (page: RoomTranscriptPage) => void;
   historicalThreadRef: RefObject<boolean>;
-  setThreadMessages: (messages: ChatRoomMessage[]) => void;
-  setThreadOlderNextCursor: (cursor: string | null) => void;
+  /**
+   * Swap the open thread onto a jump window. Must drop in-flight older
+   * loads: this path does not go through `loadThreadMessages`.
+   */
+  replaceThreadWindow: (
+    messages: ChatRoomMessage[],
+    nextCursor: string | null,
+  ) => void;
   handleOpenThreadFromMessage: (parent: ChatRoomMessage) => Promise<boolean>;
 }
 
@@ -54,13 +66,14 @@ export function useRoomMessageJumps({
   topLevelRoomMessages,
   threadParentMessage,
   isStillSelectedRoom,
+  landOnRoomMessage,
+  landOnThreadMessage,
   suppressStickToBottom,
   releaseStickToBottomSuppress,
   setSearchHoldOffBottom,
   mergeRoomJumpWindow,
   historicalThreadRef,
-  setThreadMessages,
-  setThreadOlderNextCursor,
+  replaceThreadWindow,
   handleOpenThreadFromMessage,
 }: RoomMessageJumpsParams) {
   const jumpStateRef = useRef(createRoomJumpState());
@@ -133,7 +146,7 @@ export function useRoomMessageJumps({
       // Scoped to the thread, which is the list this hit lives in: the jump
       // reaches here only for a reply, and a reply is never on the room
       // timeline.
-      highlightInThread: (id) => isNewestJump() && highlightThreadMessage(id),
+      highlightInThread: (id) => isNewestJump() && landOnThreadMessage(id),
       afterThreadRender: waitForThreadJumpPaint,
       afterRoomRender: waitForSearchJumpPaint,
       loadAroundInRoom: (aroundId) =>
@@ -190,8 +203,7 @@ export function useRoomMessageJumps({
       // Answers for the transcript alone. An open thread renders its parent
       // too, and taking that copy for a landing would end a jump with the
       // transcript never moved.
-      highlightInRoom: (id) =>
-        isNewestJump() && highlightRoomTranscriptMessage(id),
+      highlightInRoom: (id) => isNewestJump() && landOnRoomMessage(id),
       loadAroundInThread: async (parentId, aroundId) => {
         const result = await listThreadMessagesAction(roomId, parentId, {
           around: aroundId,
@@ -204,8 +216,7 @@ export function useRoomMessageJumps({
           return false;
         }
         historicalThreadRef.current = true;
-        setThreadMessages(result.value.messages);
-        setThreadOlderNextCursor(result.value.nextCursor);
+        replaceThreadWindow(result.value.messages, result.value.nextCursor);
         return true;
       },
     });
@@ -244,7 +255,7 @@ export function useRoomMessageJumps({
       // thread renders its parent as well, so a document-wide lookup would
       // answer from the panel for a message the transcript has not loaded and
       // end the jump with the transcript untouched.
-      highlight: (id) => isNewestJump() && highlightRoomTranscriptMessage(id),
+      highlight: (id) => isNewestJump() && landOnRoomMessage(id),
       holdOffBottom,
       releaseHoldOffBottom,
       loadAround: (aroundId) => loadRoomWindow(roomId, aroundId, isNewestJump),

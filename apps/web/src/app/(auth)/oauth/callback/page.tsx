@@ -50,7 +50,6 @@ export default function OAuthCallbackPage() {
   const errorDescription = searchParams.get("error_description");
 
   useEffect(() => {
-    // Check for OAuth error in URL
     if (oauthError) {
       setError(
         errorDescription || oauthError || t("errors.authorizationFailed"),
@@ -173,7 +172,6 @@ export default function OAuthCallbackPage() {
     }
   }
 
-  // Show error if OAuth error in URL
   if (oauthError) {
     return (
       <div className="container mx-auto max-w-2xl py-8">
@@ -203,7 +201,6 @@ export default function OAuthCallbackPage() {
     );
   }
 
-  // Show success if we have a token response
   if (tokenResponse?.access_token) {
     const { showApiAccessWarning, showRefreshWarning } =
       getOAuthCallbackTokenWarnings(tokenResponse);
@@ -303,7 +300,6 @@ export default function OAuthCallbackPage() {
     );
   }
 
-  // Show form to exchange code
   return (
     <div className="container mx-auto max-w-2xl py-8">
       <Card>

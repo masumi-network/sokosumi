@@ -49,6 +49,12 @@
       "skillPath": ".agents/skills/next-upgrade/SKILL.md",
       "computedHash": "e3aeb1f9e8a68d24df0c1c2e3c8ab97ede09a7251a2c76988318d02254346979"
     },
+    "react-virtuoso": {
+      "source": "petyosi/react-virtuoso",
+      "sourceType": "github",
+      "skillPath": "skills/react-virtuoso/SKILL.md",
+      "computedHash": "fa036735aafc07c94ea0f8acdf0236d8029c9844aab08580f1e47001bedcc75c"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

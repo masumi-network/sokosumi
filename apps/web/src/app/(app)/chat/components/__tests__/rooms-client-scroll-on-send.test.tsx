@@ -14,18 +14,14 @@ import type {
   RoomSessionSendResult,
 } from "../room-session-composer";
 import { RoomsClient } from "../rooms-client";
+import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
-const {
-  pinToBottomAfterOwnSend,
-  scrollToBottomIfPinned,
-  sendStreamMessage,
-  sendRoomMessageAction,
-} = vi.hoisted(() => ({
-  pinToBottomAfterOwnSend: vi.fn(),
-  scrollToBottomIfPinned: vi.fn(),
+const { sendStreamMessage, sendRoomMessageAction } = vi.hoisted(() => ({
   sendStreamMessage: vi.fn((): boolean => true),
   sendRoomMessageAction: vi.fn(),
 }));
+const { pinToBottomAfterOwnSend, scrollToBottomIfPinned } =
+  transcriptViewportSpies;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -86,18 +82,10 @@ vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
   useClientLocalCalendarReady: () => true,
 }));
 
-vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
-  useStickToBottom: () => ({
-    scrollerRef: { current: null },
-    contentRef: { current: null },
-    contentMinHeight: undefined,
-    scrollToBottom: vi.fn(),
-    pinToBottomAfterOwnSend,
-    scrollToBottomIfPinned,
-    suppressStickToBottom: vi.fn(),
-    releaseStickToBottomSuppress: vi.fn(),
-  }),
-}));
+vi.mock(
+  "@/app/chat/components/transcript-viewport",
+  () => import("./transcript-viewport-stub"),
+);
 
 vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
   readStoredStreamParentMessageId: () => null,

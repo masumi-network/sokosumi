@@ -6,6 +6,10 @@
   /// Isolates native marked-text handling and character-picker presentation.
   struct MacComposerTextInput: NSViewRepresentable {
     @Binding var text: String
+    @Environment(\.isEnabled) private var isEnabled
+    var submitOnModifier = false
+    var cancel: (() -> Void)?
+    var onBlur: (() -> Void)?
     let submit: () -> Bool
     var placeholder = "Message"
     var emojiPickerRequest = 0
@@ -46,6 +50,9 @@
       input.suggestionKeyHandler = { [weak commands] key in commands?.handleSuggestionKey(key) ?? false }
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
+      input.submitOnModifier = submitOnModifier
+      input.cancel = cancel
+      input.isEditable = isEnabled
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
@@ -60,6 +67,9 @@
       context.coordinator.parent = self
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
+      input.submitOnModifier = submitOnModifier
+      input.cancel = cancel
+      input.isEditable = isEnabled
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
@@ -136,6 +146,8 @@
       }
 
       func textDidEndEditing(_: Notification) {
+        let onBlur = parent.onBlur
+        Task { @MainActor in onBlur?() }
         Task { @MainActor [weak commands = parent.commands] in commands?.dismissSuggestions() }
       }
 
@@ -149,6 +161,8 @@
       private var preservesRawDraft = false
       private(set) var serializedDraft = ""
       var submit: () -> Bool = { false }
+      var submitOnModifier = false
+      var cancel: (() -> Void)?
       var openLinkEditor: (() -> Void)?
       var formattingDidChange: (() -> Void)?
       var channels: [ComposerChannel] = []
@@ -443,11 +457,17 @@
            suggestionKeyHandler?(event.keyCode) == true {
           return
         }
+        if event.keyCode == 53, !hasMarkedText(), let cancel {
+          cancel()
+          return
+        }
         guard isReturn, !hasMarkedText() else {
           super.keyDown(with: event)
           return
         }
-        if !event.modifierFlags.isDisjoint(with: [.shift, .command, .control]) {
+        let modified = !event.modifierFlags.isDisjoint(with: [.shift, .command, .control])
+        let submits = submitOnModifier ? event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) : !modified
+        if !submits {
           if let edit = ComposerBlockText.exitingQuote(attributedString(), selection: selectedRange()), !preservesRawDraft {
             breakUndoCoalescing()
             replaceFormatting(MacComposerAttributedText.styled(edit.replacement), range: edit.range)

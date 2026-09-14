@@ -3,22 +3,25 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
   CHAT_MESSAGE_LIST_ROOM,
+  CHAT_MESSAGE_LIST_THREAD,
 } from "@/app/chat/chat-message-list";
 
 import {
   captureTranscriptScrollAnchor,
   captureVisibleTranscriptScrollAnchor,
-  restoreTranscriptScrollAnchor,
 } from "./transcript-scroll-anchor";
 
-function scrollerWithRow(rowTop: number): {
+function scrollerWithRow(
+  rowTop: number,
+  listName: string = CHAT_MESSAGE_LIST_ROOM,
+): {
   scroller: HTMLElement;
   row: HTMLElement;
 } {
   const scroller = document.createElement("div");
   scroller.getBoundingClientRect = () => ({ top: 100, bottom: 400 }) as DOMRect;
   const list = document.createElement("div");
-  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, CHAT_MESSAGE_LIST_ROOM);
+  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, listName);
   const row = document.createElement("article");
   row.setAttribute("data-message-id", "msg-9");
   row.getBoundingClientRect = () =>
@@ -31,11 +34,12 @@ function scrollerWithRow(rowTop: number): {
 
 function scrollerWithRows(
   rows: Array<{ id: string; top: number; height?: number }>,
+  listName: string = CHAT_MESSAGE_LIST_ROOM,
 ): HTMLElement {
   const scroller = document.createElement("div");
   scroller.getBoundingClientRect = () => ({ top: 100, bottom: 400 }) as DOMRect;
   const list = document.createElement("div");
-  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, CHAT_MESSAGE_LIST_ROOM);
+  list.setAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE, listName);
   for (const spec of rows) {
     const height = spec.height ?? 40;
     const row = document.createElement("article");
@@ -54,35 +58,6 @@ afterEach(() => {
 });
 
 describe("transcript scroll anchor", () => {
-  it("scrolls by however far the row moved after rows were inserted above it", () => {
-    const { scroller, row } = scrollerWithRow(140);
-    scroller.scrollTop = 500;
-
-    const anchor = captureTranscriptScrollAnchor(scroller, "msg-9");
-    expect(anchor).toEqual({ messageId: "msg-9", offset: 40 });
-
-    row.getBoundingClientRect = () => ({ top: 940 }) as DOMRect;
-    restoreTranscriptScrollAnchor(
-      scroller,
-      anchor as NonNullable<typeof anchor>,
-    );
-
-    expect(scroller.scrollTop).toBe(1300);
-  });
-
-  it("leaves the scroller alone when the row did not move", () => {
-    const { scroller } = scrollerWithRow(140);
-    scroller.scrollTop = 500;
-
-    const anchor = captureTranscriptScrollAnchor(scroller, "msg-9");
-    restoreTranscriptScrollAnchor(
-      scroller,
-      anchor as NonNullable<typeof anchor>,
-    );
-
-    expect(scroller.scrollTop).toBe(500);
-  });
-
   it("captures nothing for a row the transcript has not rendered", () => {
     const { scroller } = scrollerWithRow(140);
 
@@ -105,9 +80,50 @@ describe("transcript scroll anchor", () => {
     });
   });
 
+  it("prefers the first fully visible row over one straddling the top edge", () => {
+    // The straddling row is held by its top, so an image landing inside it
+    // would still push the rows below; the fully visible row can be put back.
+    const scroller = scrollerWithRows([
+      { id: "msg-40", top: 60, height: 100 },
+      { id: "msg-41", top: 160 },
+    ]);
+
+    expect(captureVisibleTranscriptScrollAnchor(scroller)).toEqual({
+      messageId: "msg-41",
+      offset: 60,
+    });
+  });
+
+  it("falls back to the straddling row when it fills the viewport alone", () => {
+    const scroller = scrollerWithRows([
+      { id: "msg-40", top: -100, height: 800 },
+    ]);
+
+    expect(captureVisibleTranscriptScrollAnchor(scroller)).toEqual({
+      messageId: "msg-40",
+      offset: -200,
+    });
+  });
+
   it("captures nothing when every row sits outside the viewport", () => {
     const scroller = scrollerWithRows([{ id: "msg-50", top: 40, height: 20 }]);
 
     expect(captureVisibleTranscriptScrollAnchor(scroller)).toBeNull();
+  });
+
+  it("anchors a thread list the same way as the room transcript", () => {
+    const scroller = scrollerWithRows(
+      [{ id: "msg-9", top: 140 }],
+      CHAT_MESSAGE_LIST_THREAD,
+    );
+
+    expect(captureTranscriptScrollAnchor(scroller, "msg-9")).toEqual({
+      messageId: "msg-9",
+      offset: 40,
+    });
+    expect(captureVisibleTranscriptScrollAnchor(scroller)).toEqual({
+      messageId: "msg-9",
+      offset: 40,
+    });
   });
 });

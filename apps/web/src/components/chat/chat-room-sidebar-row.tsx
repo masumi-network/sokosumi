@@ -103,6 +103,10 @@ interface ChatRoomSidebarRowProps {
  * `resolveRoomAttention` only ever reports a count above zero together with
  * `bold`, so there is no unbolded state to render and no prop to thread.
  * `room-attention.test.ts` pins that.
+ *
+ * `whitespace-nowrap` holds the middot and the digits together. The label is
+ * one string with a space in it, so without this the two can land on separate
+ * lines wherever the count stops being an unshrinkable flex item.
  */
 function RoomUnreadCount({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomUnread");
@@ -117,7 +121,7 @@ function RoomUnreadCount({ count }: { count: number }) {
   // `aria-label` here can be dropped and the row announces a bare number beside
   // the badge's bare number. Real text carries it instead.
   return (
-    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold tabular-nums">
+    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold whitespace-nowrap tabular-nums">
       <span aria-hidden="true">{`· ${roomCountLabel(count)}`}</span>
       <span className="sr-only">
         {capped
@@ -312,8 +316,10 @@ export function ChatRoomSidebarRow({
       <span className="min-w-0 flex-1">
         {/* The count rides the end of the name, not the row's right rail, so it
             reads as belonging to this room rather than to the row's controls.
-            The name keeps `min-w-0` so it truncates first and the count stays. */}
-        <span className="flex min-w-0 items-baseline gap-1.5">
+            The name keeps `min-w-0` so it truncates first and the count stays.
+            `flex-nowrap` states that one-line rule instead of leaning on the
+            flex default, so the count cannot drop under the name (SOK-1062). */}
+        <span className="flex min-w-0 flex-nowrap items-baseline gap-1.5">
           <span
             className={cn(
               "min-w-0 truncate",

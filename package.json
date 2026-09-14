@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.4.1",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
@@ -15,7 +15,6 @@
     "portless:url": "node scripts/local-env/portless-dev.mjs url",
     "build": "turbo run build",
     "web:build": "pnpm --filter web build",
-    "generate:core": "pnpm --filter web generate:core",
     "core:build": "pnpm --filter core build",
     "database:build": "pnpm --filter @sokosumi/database build",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",

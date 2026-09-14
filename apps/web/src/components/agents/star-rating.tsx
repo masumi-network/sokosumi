@@ -32,7 +32,6 @@ export function StarRating({
     lg: "gap-1",
   };
 
-  // Calculate star fills based on average rating
   const fullStars = Math.floor(averageRating);
   const partialFillPercent = (averageRating % 1) * 100;
   const hasPartialStar = partialFillPercent > 0;
@@ -40,22 +39,18 @@ export function StarRating({
 
   const starFills: number[] = [];
 
-  // Add full stars
   for (let i = 0; i < fullStars; i++) {
     starFills.push(100);
   }
 
-  // Add partial star if needed
   if (hasPartialStar) {
     starFills.push(partialFillPercent);
   }
 
-  // Add empty stars
   for (let i = 0; i < emptyStars; i++) {
     starFills.push(0);
   }
 
-  // If totalRatings is not provided, show only stars
   if (totalRatings === undefined) {
     return (
       <div className={cn("flex items-center", gapClasses[size], className)}>
@@ -66,24 +61,20 @@ export function StarRating({
     );
   }
 
-  // Full rating display with text and count
   return (
     <div className={cn("flex items-center gap-1", className)}>
-      {/* Rating number - only show if showRatingNumber is true */}
       {showRatingNumber && (
         <span className={cn("font-medium", textSizeClasses[size])}>
           {averageRating.toFixed(1)}
         </span>
       )}
 
-      {/* Stars */}
       <div className={cn("flex items-center", gapClasses[size])}>
         {starFills.map((fillPercentage, index) => (
           <StarIcon key={index} fillPercentage={fillPercentage} size={size} />
         ))}
       </div>
 
-      {/* Total count */}
       <span className={cn("text-muted-foreground", textSizeClasses[size])}>
         {"("}
         {totalRatings}

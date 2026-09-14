@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { GalleryFilterState } from "@/hooks/use-gallery-filter";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
+import type { GalleryFilterState } from "@/lib/agents/gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 
 import { filterAgents } from "../agent-filter";

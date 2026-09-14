@@ -14,16 +14,24 @@ import SwiftUI
     @State private var quoteTarget: String?
     @State private var quoteFocusRequest: String?
 
+    private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { try await workspaces.deleteMessage(message, auth: auth) }
+    }
+
     var body: some View {
       if let parent = workspaces.thread.parent {
         VStack(spacing: 0) {
           ScrollViewReader { proxy in
             ScrollView {
-              VStack(alignment: .leading, spacing: 8) {
+              LazyVStack(alignment: .leading, spacing: 8) {
                 MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                                onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
                                  quoteFocusRequest = UUID().uuidString
                                } : nil,
+                               onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
+                               onDelete: deletionAction(for: parent),
+                               editing: workspaces.messageEditing,
                                onQuoteJump: { quoteTarget = $0 })
                   .id(parent.id)
                 Divider()
@@ -127,6 +135,9 @@ import SwiftUI
                              onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                quoteFocusRequest = UUID().uuidString
                              } : nil,
+                             onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                             onDelete: deletionAction(for: message),
+                             editing: workspaces.messageEditing,
                              onQuoteJump: { quoteTarget = $0 },
                              streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
             }
