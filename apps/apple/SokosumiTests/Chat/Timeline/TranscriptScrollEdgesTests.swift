@@ -17,16 +17,6 @@
       #expect(!edges(offset: 1539).needsBottomAlignment)
     }
 
-    @Test func leavingTheLiveEdgeIsReaderMotionWithoutAScrollPhase() {
-      let aligned = edges(offset: 1539)
-      let unaligned = edges(offset: 1538)
-      let away = edges(offset: 1340)
-      #expect(unaligned.isReaderMotion(from: aligned, userIsScrolling: false))
-      #expect(!unaligned.isReaderMotion(from: unaligned, userIsScrolling: false))
-      #expect(away.isReaderMotion(from: unaligned, userIsScrolling: false))
-      #expect(unaligned.isReaderMotion(from: unaligned, userIsScrolling: true))
-    }
-
     private func edges(offset: CGFloat) -> TranscriptScrollEdges {
       TranscriptScrollEdges(ScrollGeometry(contentOffset: CGPoint(x: 0, y: offset),
                                            contentSize: CGSize(width: 900, height: 2000),

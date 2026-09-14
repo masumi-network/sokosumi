@@ -68,8 +68,8 @@ import SwiftUI
           .onScrollPhaseChange { _, phase in
             userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
           }
-          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { old, edges in
-            if edges.isReaderMotion(from: old, userIsScrolling: userIsScrolling) {
+          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
+            if userIsScrolling {
               followsLatest = edges.nearBottom
             } else if followsLatest, edges.needsBottomAlignment {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
