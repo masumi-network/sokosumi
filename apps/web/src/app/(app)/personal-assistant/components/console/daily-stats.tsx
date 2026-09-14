@@ -89,7 +89,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
                     width={barWidth}
                     height={background}
                     rx={1}
-                    className="fill-primary"
+                    className="fill-primary-tertiary"
                   />
                   <rect
                     x={x}
