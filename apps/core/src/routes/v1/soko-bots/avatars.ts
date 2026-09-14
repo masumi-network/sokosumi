@@ -71,6 +71,7 @@ export function mountSokoBotAvatarRoutes(app: OpenAPIHonoWithAuth): void {
       ),
       401: jsonErrorResponse("Unauthorized"),
       422: jsonErrorResponse("Unprocessable Entity"),
+      429: jsonErrorResponse("Too Many Requests"),
     },
   });
 

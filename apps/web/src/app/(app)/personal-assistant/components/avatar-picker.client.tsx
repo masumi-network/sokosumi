@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { topUpSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
 import type { SokoBotAvatar } from "@/lib/clients/generated/core";
+import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 import {
@@ -44,7 +45,15 @@ export function AvatarPicker({
         input: { take: PAGE_SIZE, excludeIds: requestedExcludeIds },
       });
       if (!result.ok) {
-        toast.error(t("loadError"));
+        toast.error(
+          result.error.code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
+            ? t("rateLimited")
+            : t("loadError"),
+        );
+        // Stop the skeletons. Hitting the hourly cap is an expected answer,
+        // not a pending one, and tiles that pulse for ever under the toast
+        // read as "still loading".
+        setLoaded(true);
         return;
       }
       // The pool is finite; when a fresh set comes back short, start over.

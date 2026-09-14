@@ -34987,6 +34987,20 @@ export type TopUpSokoBotAvatarsErrors = {
             method: string;
         };
     };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSokoBotAvatarsErrors];

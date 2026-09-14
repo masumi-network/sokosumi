@@ -51,6 +51,7 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 
 import { CommonErrorCode } from "@/lib/actions/errors";
 import {
+  SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOT_ROUTE,
 } from "@/lib/soko-bot/constants";
@@ -85,6 +86,32 @@ describe("soko-bot actions", () => {
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.error.code).toBe(CommonErrorCode.BAD_INPUT);
     expect(serviceMock.createOrUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("topUpSokoBotAvatarsAction maps Core 429 to the rate-limited code", async () => {
+    // The picker shows a different sentence for this one: a spent allowance is
+    // a wait, not a breakage, and "could not load" tells the user to retry now.
+    serviceMock.topUpAvatars.mockRejectedValue(
+      new MockCoreApiRequestError("Too many pictures requested", 429),
+    );
+    const result = await topUpSokoBotAvatarsAction({ input: { take: 6 } });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE);
+    }
+  });
+
+  it("topUpSokoBotAvatarsAction leaves other Core failures generic", async () => {
+    // Pins the mapping to 429 alone. Without this, mapping every status to the
+    // rate-limit code would still pass the test above.
+    serviceMock.topUpAvatars.mockRejectedValue(
+      new MockCoreApiRequestError("Boom", 500),
+    );
+    const result = await topUpSokoBotAvatarsAction({ input: { take: 6 } });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
+    }
   });
 
   it("startSokoBotTurnAction maps Core 409 to the busy error code", async () => {
