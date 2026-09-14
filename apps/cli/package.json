@@ -1,0 +1,38 @@
+{
+  "name": "sokosumi",
+  "version": "2.1.4",
+  "private": true,
+  "description": "Developer CLI for Sokosumi Coworker builders",
+  "type": "module",
+  "license": "MIT",
+  "author": "Masumi Network",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/masumi-network/sokosumi.git"
+  },
+  "homepage": "https://github.com/masumi-network/sokosumi/tree/main/apps/cli",
+  "bin": {
+    "sokosumi": "dist/bin/sokosumi.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "sokosumi": "pnpm build && node dist/bin/sokosumi.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test \"test/**/*.test.ts\"",
+    "test:ci": "tsx --test \"test/**/*.test.ts\""
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "2.0.0",
+    "ink": "4.4.1",
+    "react": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/react": "19.3.0",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}
