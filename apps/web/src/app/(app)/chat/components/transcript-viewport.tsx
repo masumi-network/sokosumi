@@ -44,6 +44,15 @@ const OVERSCAN_ROWS = { above: 30, below: 8 };
 const DEFAULT_ROW_HEIGHT_PX = 80;
 
 /**
+ * Finish a virtualizer scroll the browser clamped because a row grew
+ * before the rows below it moved. Larger than any one row we expect to
+ * measure in a single frame (the old 2400px overscan-above window). A
+ * bigger DOM gap is a reader who left the end with a stale offset, not
+ * growth — do not snap them back.
+ */
+const CLAMPED_SCROLL_FINISH_MAX_PX = 2400;
+
+/**
  * How many frames a landing waits for its row to mount after the scroll.
  * The virtualizer re-issues a scroll while rows above the target are still
  * being measured, so the wait covers that.
@@ -261,12 +270,16 @@ export function TranscriptViewport({
       // scrolls by the growth before the rows below it are moved down, so
       // the browser clamps that scroll and no scroll event reports it. The
       // virtualizer then believes it is at the end while the scroller is
-      // short by the growth. The rows are in place by now: finish the scroll.
+      // short by the growth. The rows are in place by now: finish the
+      // scroll only when the gap is growth-sized. Any larger mismatch is
+      // a reader who left the end with a stale offset.
       const max = element.scrollHeight - element.clientHeight;
+      const shortBy = max - element.scrollTop;
       if (
         !instance.isScrolling &&
         (instance.scrollOffset ?? 0) >= max - 1 &&
-        element.scrollTop < max - 1
+        shortBy > 1 &&
+        shortBy <= CLAMPED_SCROLL_FINISH_MAX_PX
       ) {
         element.scrollTop = max;
       }
