@@ -15,6 +15,7 @@
   ],
   "globalPassThroughEnv": [
     "BETTER_AUTH_SECRET",
+    "TURNSTILE_SECRET_KEY",
     "APP_SIGNING_SECRET",
     "RESEND_API_KEY",
     "RESEND_FROM_EMAIL",

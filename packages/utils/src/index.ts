@@ -9,6 +9,7 @@ export {
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
+export { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "./auth-captcha.js";
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
