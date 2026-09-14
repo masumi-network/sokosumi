@@ -40,7 +40,7 @@ function hasPaymentWindowExpired(
  * @param job - An object containing an `events` array.
  * @returns The latest event, or `undefined` if the events array is empty.
  */
-export function getLatestJobEvent(job: {
+function getLatestJobEvent(job: {
   events: readonly JobEventForStatusCompute[];
 }): JobEventForStatusCompute | undefined {
   return job.events.at(0);
@@ -319,7 +319,7 @@ function getInitiatedEvent(
   return lastEvent;
 }
 
-export function getInput(job: JobWithEvents): string | null {
+function getInput(job: JobWithEvents): string | null {
   const initiatedEvent = getInitiatedEvent(job);
   return initiatedEvent?.input?.input ?? null;
 }
