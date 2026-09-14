@@ -28,7 +28,6 @@ import {
   type RefObject,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -39,6 +38,7 @@ import {
   CoworkerLiveThought,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
+import { useClampedOverflow } from "@/app/chat/hooks/use-clamped-overflow";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   extractThoughtStartedAtMs,
@@ -239,38 +239,6 @@ function hasLargeSoloImageAttachment(content: string): boolean {
   );
 }
 
-function useClampedOverflow(resetKey: string) {
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    setExpanded(false);
-  }, [resetKey]);
-
-  useLayoutEffect(() => {
-    const node = contentRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = contentRef.current;
-      if (!el) {
-        return;
-      }
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-    }
-
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [expanded, resetKey]);
-
-  return { expanded, setExpanded, overflows, contentRef };
-}
-
 function MessageQuoteAttachmentThumb({
   attachment,
 }: {
@@ -331,6 +299,7 @@ function formatWhoReactedLabel(
 }
 
 function MessageQuoteBlock({
+  messageId,
   quote,
   coworkersById,
   coworkersBySlug,
@@ -345,6 +314,7 @@ function MessageQuoteBlock({
   openingDirectParticipantKey,
   onJumpToQuotedMessage,
 }: {
+  messageId: string;
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -360,9 +330,11 @@ function MessageQuoteBlock({
   onJumpToQuotedMessage?: (messageId: string) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
-    `${quote.messageId}\0${quote.snippet}`,
-  );
+  const { expanded, toggleExpanded, overflows, contentRef } =
+    useClampedOverflow({
+      cacheKey: `quote:${messageId}`,
+      resetKey: `${quote.messageId}\0${quote.snippet}`,
+    });
 
   const attachment = quote.attachment ?? null;
 
@@ -413,9 +385,7 @@ function MessageQuoteBlock({
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-0.5 text-xs font-medium outline-none focus-visible:underline"
-          onClick={() => {
-            setExpanded((current) => !current);
-          }}
+          onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
         </button>
@@ -748,9 +718,8 @@ function ChannelMessageBody({
   const jumboEmojiCount = getJumboEmojiCount(content);
   const isJumboEmoji = jumboEmojiCount !== null;
   const skipBodyClamp = hasLargeSoloImageAttachment(content);
-  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
-    `${messageId}\0${content}`,
-  );
+  const { expanded, toggleExpanded, overflows, contentRef } =
+    useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
 
   // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
   if (isJumboEmoji) {
@@ -800,9 +769,7 @@ function ChannelMessageBody({
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
-          onClick={() => {
-            setExpanded((current) => !current);
-          }}
+          onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
         </button>
@@ -2394,6 +2361,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             <>
               {quote ? (
                 <MessageQuoteBlock
+                  messageId={message.id}
                   quote={quote}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}
