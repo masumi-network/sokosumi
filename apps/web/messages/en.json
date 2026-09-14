@@ -5293,6 +5293,7 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
+      "jumpToLatest": "Jump to latest",
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
@@ -5882,7 +5883,6 @@
           "workingHint": "Wait for this turn or stop it before sending more",
           "send": "Send",
           "stop": "Stop",
-          "jumpToLatest": "Jump to latest",
           "hints": {
             "0": "Try: what's the status of my open Tasks?",
             "1": "Try: delegate a research brief to a Coworker",

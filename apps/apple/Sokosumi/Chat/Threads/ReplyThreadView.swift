@@ -71,13 +71,12 @@ import SwiftUI
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
           }
-          .overlay(alignment: .bottomTrailing) {
+          .overlay(alignment: .bottom) {
             if !followsLatest {
-              Button("Latest reply", systemImage: "arrow.down") {
+              JumpToLatestButton {
                 followsLatest = true
                 proxy.scrollTo("thread-bottom", anchor: .bottom)
               }
-              .padding()
             }
           }
         }
