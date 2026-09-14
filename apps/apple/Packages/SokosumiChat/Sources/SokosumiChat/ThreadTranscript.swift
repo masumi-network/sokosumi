@@ -21,6 +21,8 @@ public extension ChatService {
     case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
     case let .unprocessableContent(value): throw try ChatServiceError.unprocessable(statusCode: 422, message: value.body.json.message)
     case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .tooManyRequests(value):
+      throw try ChatServiceError.unprocessable(statusCode: 429, message: value.body.json.message)
     case let .undocumented(code, payload): throw await unprocessableError(statusCode: code, payload: payload)
     }
   }

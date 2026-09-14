@@ -20,8 +20,7 @@ const { sendStreamMessage, sendRoomMessageAction } = vi.hoisted(() => ({
   sendStreamMessage: vi.fn((): boolean => true),
   sendRoomMessageAction: vi.fn(),
 }));
-const { pinToBottomAfterOwnSend, scrollToBottomIfPinned } =
-  transcriptViewportSpies;
+const { pinToBottomAfterOwnSend } = transcriptViewportSpies;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -138,12 +137,10 @@ vi.mock("../room-file-drop-zone", () => ({
 vi.mock("../room-session-composer", () => ({
   RoomSessionComposer: ({
     ref,
-    onChromeResize,
     onBeforeSend,
     onSend,
   }: {
     ref?: Ref<RoomComposerHandle>;
-    onChromeResize?: () => void;
     onBeforeSend?: (clientMessageId: string) => boolean;
     onSend?: (
       request: RoomSessionSendRequest,
@@ -155,13 +152,6 @@ vi.mock("../room-session-composer", () => ({
     }));
     return (
       <>
-        <button
-          type="button"
-          data-testid="chrome-resize"
-          onClick={onChromeResize}
-        >
-          chrome-resize
-        </button>
         <button
           type="button"
           data-testid="send-message"
@@ -341,6 +331,7 @@ function sentMessage(roomId: string): ChatRoomMessage {
     content: "hello",
     createdAt: new Date("2026-07-01T12:01:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
@@ -391,7 +382,6 @@ function renderRoomsClient(room: ChatRoom) {
 describe("RoomsClient scroll on own send", () => {
   beforeEach(() => {
     pinToBottomAfterOwnSend.mockClear();
-    scrollToBottomIfPinned.mockClear();
     sendStreamMessage.mockReset();
     sendStreamMessage.mockReturnValue(true);
     sendRoomMessageAction.mockReset();
@@ -456,17 +446,6 @@ describe("RoomsClient scroll on own send", () => {
     });
 
     expect(sendStreamMessage).toHaveBeenCalled();
-    expect(pinToBottomAfterOwnSend).not.toHaveBeenCalled();
-  });
-
-  it("uses scrollToBottomIfPinned for chrome resize", () => {
-    renderRoomsClient(channelRoom());
-
-    act(() => {
-      screen.getByTestId("chrome-resize").click();
-    });
-
-    expect(scrollToBottomIfPinned).toHaveBeenCalled();
     expect(pinToBottomAfterOwnSend).not.toHaveBeenCalled();
   });
 

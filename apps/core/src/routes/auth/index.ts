@@ -2,6 +2,7 @@ import {
   oauthProviderAuthServerMetadata,
   oauthProviderOpenIdConfigMetadata,
 } from "@better-auth/oauth-provider";
+import { AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
@@ -20,7 +21,7 @@ app.use(
   "*",
   cors({
     origin: (origin) => resolveCorsAllowOrigin(origin),
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", AUTH_CAPTCHA_HEADER],
     allowMethods: ["POST", "GET", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: TIME.CORS_MAX_AGE,

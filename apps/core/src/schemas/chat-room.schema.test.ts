@@ -1,3 +1,4 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
@@ -7,6 +8,8 @@ import { describe, expect, it } from "vitest";
 import {
   chatRoomAccessSchema,
   chatRoomDiscoverabilitySchema,
+  chatRoomMessageSchema,
+  chatRoomPinnedMessageListItemSchema,
   chatRoomSchema,
   createChatRoomMessageRequestSchema,
   createChatRoomRequestSchema,
@@ -269,4 +272,50 @@ describe("updateChatRoomMessageRequestSchema", () => {
       CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
     );
   });
+});
+
+describe("pinned message OpenAPI", () => {
+  it.each([true, false])(
+    "keeps nullability local regardless of registration order (%s)",
+    (pinsFirst) => {
+      const app = new OpenAPIHono();
+      const schemas = pinsFirst
+        ? [chatRoomPinnedMessageListItemSchema, chatRoomMessageSchema]
+        : [chatRoomMessageSchema, chatRoomPinnedMessageListItemSchema];
+      for (const schema of schemas)
+        app.openAPIRegistry.register(
+          schema === chatRoomPinnedMessageListItemSchema
+            ? "ChatRoomPinnedMessageListItem"
+            : "ChatRoomMessage",
+          schema,
+        );
+      const document = app.getOpenAPI31Document({
+        openapi: "3.1.0",
+        info: { title: "Test", version: "1" },
+      });
+      expect(document.components?.schemas?.ChatRoomMessage).toMatchObject({
+        type: "object",
+      });
+      expect(
+        document.components?.schemas?.ChatRoomPinnedMessageListItem,
+      ).toMatchObject({
+        required: expect.arrayContaining(["message"]),
+        properties: {
+          message: {
+            type: ["object", "null"],
+            properties: { content: { type: "string" } },
+          },
+        },
+      });
+      expect(
+        chatRoomPinnedMessageListItemSchema.shape.message.safeParse(null)
+          .success,
+      ).toBe(true);
+      expect(chatRoomMessageSchema.safeParse(null).success).toBe(false);
+      expect(
+        chatRoomPinnedMessageListItemSchema.shape.message.safeParse(undefined)
+          .success,
+      ).toBe(false);
+    },
+  );
 });

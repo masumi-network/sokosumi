@@ -1,5 +1,14 @@
 {
   "Components": {
+    "AuthCaptcha": {
+      "title": "Sicherheitsprüfung",
+      "description": "Schließe diese Prüfung ab, um fortzufahren.",
+      "error": "Die Prüfung konnte nicht abgeschlossen werden. Prüfe deine Verbindung. Falls die Prüfung nicht fortgesetzt wird, lade diese Seite neu.",
+      "verificationFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuche es erneut.",
+      "missingResponse": "Schließe die Sicherheitsprüfung ab und versuche es erneut.",
+      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
+      "cancel": "Abbrechen"
+    },
     "EmergencyDialog": {
       "title": "Notfallwartung",
       "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",
@@ -5293,6 +5302,7 @@
       },
       "loadOlder": "Ältere Nachrichten laden",
       "loadingOlder": "Ältere Nachrichten werden geladen…",
+      "jumpToLatest": "Zu den neuesten Nachrichten",
       "Boundary": {
         "missingHere": "Hier fehlen Nachrichten",
         "loadMissing": "Fehlende Nachrichten laden",
@@ -5322,6 +5332,7 @@
         "couldNotLoad": "Nachricht konnte nicht geladen werden",
         "pin": "Nachricht anheften",
         "unpin": "Nachricht lösen",
+        "pinned": "Angeheftet",
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
@@ -5882,7 +5893,6 @@
           "workingHint": "Warte auf diesen Durchlauf oder stoppe ihn, bevor du mehr sendest",
           "send": "Senden",
           "stop": "Stoppen",
-          "jumpToLatest": "Zum Neuesten",
           "hints": {
             "0": "Versuch: Wie ist der Stand meiner offenen Tasks?",
             "1": "Versuch: Delegiere ein Research-Briefing an einen Coworker",

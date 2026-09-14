@@ -519,6 +519,11 @@ export const chatRoomMessageSchema = z
     createdAt: dateTimeSchema,
     deletedAt: dateTimeSchema.nullable(),
     editedAt: dateTimeSchema.nullable(),
+    pinnedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.",
+      example: null,
+    }),
     sender: chatRoomMessageSenderSchema,
     mentions: z.array(chatRoomMessageMentionSchema),
     reactions: z.array(chatRoomMessageReactionSchema),
@@ -544,9 +549,9 @@ export const chatRoomPinnedMessageListItemSchema = z
         name: z.string(),
       })
       .nullable(),
-    // Do not chain `.nullable()` onto chatRoomMessageSchema — that poisons
-    // the OpenAPI ChatRoomMessage component with null.
-    message: z.union([chatRoomMessageSchema, z.null()]),
+    // Reuse the fields without making the named ChatRoomMessage nullable.
+    // A nullable object also avoids standalone null schemas in generated clients.
+    message: z.object(chatRoomMessageSchema.shape).nullable(),
   })
   .openapi("ChatRoomPinnedMessageListItem");
 

@@ -6,7 +6,7 @@
 
 Handoff-ready specs: [PR1-SPEC.md](PR1-SPEC.md) and [PR2-SPEC.md](PR2-SPEC.md).
 [ADR 0001](../../adr/0001-x402-evm-payment-rail.md) Accepted. Node gaps
-resolved in [NODE-QUESTIONS.md](NODE-QUESTIONS.md). Charting tickets and
+resolved there. Charting tickets and
 research notes are spent and removed. `TaskX402Payment` shipped on main.
 
 Two specs: **(1) Bazaar coworker payment surface** — public
@@ -35,7 +35,6 @@ implementation is a separate effort fed by its spec.
   charge-then-sign, refund policy, readiness.
 - [PR2-SPEC.md](PR2-SPEC.md) — `paymentRail` discriminator, `JobX402Payment`,
   hire flow.
-- [NODE-QUESTIONS.md](NODE-QUESTIONS.md) — resolved node/registry gaps.
 
 ## Out of scope
 

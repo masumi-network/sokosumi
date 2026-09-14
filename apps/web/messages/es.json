@@ -1,5 +1,14 @@
 {
   "Components": {
+    "AuthCaptcha": {
+      "title": "Comprobación de seguridad",
+      "description": "Completa esta comprobación para continuar.",
+      "error": "No se pudo completar la verificación. Comprueba tu conexión. Si la comprobación no se reanuda, vuelve a cargar esta página.",
+      "verificationFailed": "La verificación de seguridad falló. Vuelve a intentarlo.",
+      "missingResponse": "Completa la verificación de seguridad y vuelve a intentarlo.",
+      "requestFailed": "No se pudo completar la solicitud. Vuelve a intentarlo más tarde.",
+      "cancel": "Cancelar"
+    },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
       "description": "Actualmente experimentamos problemas con la ejecución de jobs debido a fallos técnicos de uno de nuestros proveedores externos. No te preocupes, todo volverá a la normalidad pronto.",
@@ -5293,6 +5302,7 @@
       },
       "loadOlder": "Cargar mensajes anteriores",
       "loadingOlder": "Cargando mensajes anteriores…",
+      "jumpToLatest": "Ir a los mensajes más recientes",
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",
@@ -5322,6 +5332,7 @@
         "couldNotLoad": "No se pudo cargar el mensaje",
         "pin": "Fijar mensaje",
         "unpin": "Desfijar mensaje",
+        "pinned": "Fijado",
         "messageRequired": "El mensaje es obligatorio.",
         "roomRequired": "La sala es obligatoria.",
         "pinError": "No se pudo fijar el mensaje.",
@@ -5882,7 +5893,6 @@
           "workingHint": "Espera a este turno o detenlo antes de enviar más",
           "send": "Enviar",
           "stop": "Detener",
-          "jumpToLatest": "Ir al último",
           "hints": {
             "0": "Prueba: ¿cuál es el estado de mis Tasks abiertas?",
             "1": "Prueba: delega un informe de investigación a un Coworker",

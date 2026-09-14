@@ -10,8 +10,7 @@
 > (`docs/wayfinder/x402-evm/`). The refund-policy blocker below is resolved,
 > and the payment-record model is settled as a sibling of PR 1's
 > `TaskX402Payment`. The node behaviors the pinned spec did not guarantee are
-> now **confirmed** against masumi-payment-service `main`
-> (`docs/wayfinder/x402-evm/NODE-QUESTIONS.md` `## Answers`) and folded into
+> now **confirmed** against masumi-payment-service `main` and folded into
 > the body below; nothing external gates the PR 2 build. The only node-side
 > work still outstanding is the future settlement-observation surface, called
 > out as explicitly-future below.
@@ -356,7 +355,7 @@ on a single job:
   low-priority nicety, not a correctness gap — paginate-and-match suffices
   (ticket 011).
 - The credit-refund product decision is **resolved** (above), and the
-  ticket-011 node confirmations have landed (`NODE-QUESTIONS.md` `## Answers`)
+  ticket-011 node confirmations have landed in this ADR
   — nothing external gates the build. Engineering can proceed to the PR 2 spec
   and implementation; the only remaining node-side work is the future
   settlement-observation surface, which does not gate the initial ship.

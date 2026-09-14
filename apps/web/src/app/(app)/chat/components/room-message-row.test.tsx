@@ -141,6 +141,7 @@ function userMessage(
     content: "Hello",
     createdAt: new Date("2026-07-01T14:35:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
@@ -208,8 +209,10 @@ function renderRow({
   coworkersById = new Map(),
   usersById,
   reserveHoverActionGutter,
+  isPinned,
 }: {
   message?: ChatRoomMessage;
+  isPinned?: boolean;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
   reserveHoverActionGutter?: boolean;
@@ -262,6 +265,7 @@ function renderRow({
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
       reserveHoverActionGutter={reserveHoverActionGutter}
+      isPinned={isPinned}
     />,
   );
 }
@@ -1514,6 +1518,55 @@ describe("ChatMessageRow", () => {
     expect(label.parentElement).not.toHaveAttribute("aria-label");
     expect(screen.getByText(/^Edited /)).toHaveClass("sr-only");
     expect(screen.getByRole("time").parentElement).toContainElement(label);
+  });
+
+  it("puts the pinned note next to the timestamp on a pinned message", () => {
+    renderRow({ isPinned: true });
+
+    const label = screen.getByText("PinnedMessages.pinned");
+    expect(screen.getByRole("time").parentElement).toContainElement(label);
+    expect(label.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("puts the pinned note above the body on a pinned continuation", () => {
+    renderRow({
+      isContinuation: true,
+      isPinned: true,
+      message: userMessage({ content: "Follow-up" }),
+    });
+
+    const label = screen.getByText("PinnedMessages.pinned");
+    const body = screen.getByText("Follow-up");
+    expect(
+      label.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("shows the pinned note and the edited cue together", () => {
+    renderRow({
+      isPinned: true,
+      message: userMessage({ editedAt: new Date("2026-07-01T15:00:00.000Z") }),
+    });
+
+    const header = screen.getByRole("time").parentElement;
+    expect(header).toContainElement(screen.getByText("Edit.edited"));
+    expect(header).toContainElement(screen.getByText("PinnedMessages.pinned"));
+  });
+
+  it("shows no pinned note on a deleted message", () => {
+    renderRow({
+      isPinned: true,
+      message: userMessage({ deletedAt: new Date("2026-07-01T15:00:00.000Z") }),
+    });
+
+    expect(screen.getByText("Message.deleted")).toBeInTheDocument();
+    expect(screen.queryByText("PinnedMessages.pinned")).not.toBeInTheDocument();
+  });
+
+  it("shows no pinned note on an unpinned message", () => {
+    renderRow({ isPinned: false });
+
+    expect(screen.queryByText("PinnedMessages.pinned")).not.toBeInTheDocument();
   });
 
   it("appends the edited cue after continuation body text, not above a quote", () => {

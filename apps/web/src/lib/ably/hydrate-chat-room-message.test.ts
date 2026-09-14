@@ -12,6 +12,7 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: "2026-08-03T12:05:00.000Z",
+      pinnedAt: "2026-08-03T12:10:00.000Z",
       sender: {
         type: "user",
         user: {
@@ -34,6 +35,7 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
 
     expect(hydrated.createdAt).toEqual(new Date("2026-08-03T12:00:00.000Z"));
     expect(hydrated.editedAt).toEqual(new Date("2026-08-03T12:05:00.000Z"));
+    expect(hydrated.pinnedAt).toEqual(new Date("2026-08-03T12:10:00.000Z"));
     expect(hydrated.deletedAt).toBeNull();
     expect(hydrated.threadLastReplyAt).toBeNull();
     expect(hydrated.membership).toBeNull();
@@ -48,6 +50,7 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: null,
+      pinnedAt: null,
       sender: { type: "unknown" },
       mentions: [],
       reactions: [],
@@ -91,6 +94,7 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: null,
+      pinnedAt: null,
       sender: {
         type: "user",
         user: {
@@ -123,6 +127,7 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: null,
+      pinnedAt: null,
       sender: {
         type: "user",
         user: {

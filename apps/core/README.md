@@ -61,6 +61,36 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 
 `PORT` defaults to `8787`. See `.env.example` and `env.ts` for the full list (webhooks, OpenRouter keys, cron, blob storage, etc.).
 
+### Turnstile protection for authentication email
+
+Set `TURNSTILE_SECRET_KEY` as a sensitive environment variable on each Core
+Vercel project, and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` on its Web project, for
+Production and Preview. Both values come from the same Cloudflare Turnstile
+widget. Use Managed mode and allow `sokosumi.com` (which also covers its
+subdomains, including `*.preview.sokosumi.com`). Keep pre-clearance disabled.
+
+Core's secret is optional: omitting it disables server-side verification in any
+environment. Web requires its site key in deployed environments. Deploy Web and
+Core together after configuring the keys. With its secret set, Core enforces
+verification on signup, email sign-in, email address changes, password reset
+requests, verification resends, and magic-link requests, before their email
+callbacks. Existing database rate limits still
+apply. OAuth and passkeys are unaffected; Resend still delivers legitimate mail.
+A Cloudflare validation failure or outage blocks these protected requests.
+
+For local development without Turnstile, omit both keys so Core skips verification
+and Web skips the widget. To exercise the widget locally, use
+[Cloudflare test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
+in the gitignored app `.env` files, never in Production or Preview. The plugin
+expects the `auth` action; mocked validation tests include that action. Cloudflare
+always-pass test secrets return a fixed `test` action, so they intentionally fail
+this action check. Use a local widget/hostname for a full successful live test.
+
+The failure state below was verified with Cloudflare's always-fail test keys;
+no email was sent. The test-only badge does not appear with real widget keys.
+
+![Turnstile failure state during signup](../../docs/screenshots/auth-turnstile.png)
+
 ### URLs: web app, Core, and Vercel Preview
 
 | Variable | Purpose |

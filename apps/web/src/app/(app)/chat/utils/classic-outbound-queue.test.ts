@@ -38,6 +38,7 @@ function message(id: string): ChatRoomMessage {
     createdAt: new Date(),
     deletedAt: null,
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "user",
       user: {

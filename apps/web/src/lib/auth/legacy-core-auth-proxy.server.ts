@@ -1,5 +1,6 @@
 import "server-only";
 
+import { AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import type { NextRequest } from "next/server";
 
 import {
@@ -57,7 +58,11 @@ export async function proxyLegacyCoreAuthRequest(
   request: NextRequest,
   pathSegments: string[],
 ): Promise<Response> {
-  const contentType = request.headers.get("content-type");
+  const headers = new Headers();
+  for (const name of ["content-type", AUTH_CAPTCHA_HEADER]) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
   const coreResponse = await fetchCoreAuth(
     buildLegacyCoreAuthUrl(request, pathSegments),
     {
@@ -66,7 +71,7 @@ export async function proxyLegacyCoreAuthRequest(
         request.method === "GET" || request.method === "HEAD"
           ? undefined
           : await request.arrayBuffer(),
-      headers: contentType ? { "Content-Type": contentType } : undefined,
+      headers,
     },
   );
 

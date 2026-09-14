@@ -1,5 +1,14 @@
 {
   "Components": {
+    "AuthCaptcha": {
+      "title": "Security check",
+      "description": "Complete this check to continue.",
+      "error": "Verification could not finish. Check your connection. If the check does not resume, reload this page.",
+      "verificationFailed": "The security check failed. Please try again.",
+      "missingResponse": "Complete the security check and try again.",
+      "requestFailed": "Unable to complete this request. Please try again later.",
+      "cancel": "Cancel"
+    },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
       "description": "We currently encounter issues with the execution of jobs due to technical issues with one of our third party providers. Don't worry everything will be back to normal in a bit.",
@@ -5293,6 +5302,7 @@
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
+      "jumpToLatest": "Jump to latest",
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
@@ -5322,6 +5332,7 @@
         "couldNotLoad": "Message could not be loaded",
         "pin": "Pin message",
         "unpin": "Unpin message",
+        "pinned": "Pinned",
         "messageRequired": "Message is required.",
         "roomRequired": "Room is required.",
         "pinError": "Could not pin message.",
@@ -5882,7 +5893,6 @@
           "workingHint": "Wait for this turn or stop it before sending more",
           "send": "Send",
           "stop": "Stop",
-          "jumpToLatest": "Jump to latest",
           "hints": {
             "0": "Try: what's the status of my open Tasks?",
             "1": "Try: delegate a research brief to a Coworker",

@@ -142,6 +142,7 @@ function baseMessage(overrides: Record<string, unknown> = {}) {
     senderCoworker: null,
     mentionsAsSource: [],
     reactions: [],
+    pins: [],
     _count: { replies: 0 },
     replies: [],
     ...overrides,

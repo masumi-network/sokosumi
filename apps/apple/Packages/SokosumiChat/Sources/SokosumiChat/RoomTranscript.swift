@@ -29,13 +29,14 @@ public extension ChatService {
     client: Client,
     roomId: String,
     cursor: String? = nil,
+    around: String? = nil,
     limit: Int? = nil,
     organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
     let response = try await client.getChatsRoomsIdMessages(
       .init(
         path: .init(id: roomId),
-        query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit),
+        query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit, around: around),
         headers: .init(xOrganizationSlug: organizationSlug)
       )
     )
@@ -53,6 +54,8 @@ public extension ChatService {
       throw try ChatServiceError.unprocessable(statusCode: 422, message: invalid.body.json.message)
     case let .internalServerError(serverError):
       throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+    case let .tooManyRequests(value):
+      throw try ChatServiceError.unprocessable(statusCode: 429, message: value.body.json.message)
     case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }

@@ -61,7 +61,12 @@ import SwiftUI
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
+    var isHighlighted = false
+    var isPinned = false
+    var isUpdatingPin = false
+    var onTogglePin: (() async throws -> Void)?
     var onDelete: (() async throws -> Void)?
+    var onRemoveUnfurl: ((String) async throws -> Void)?
     var onToggleReaction: ((String) async throws -> Void)?
     var pendingReactionEmoji: Set<String> = []
     var editing: MessageEditing?
@@ -70,6 +75,8 @@ import SwiftUI
     var streamReasoning: String?
     var streamThinking = false
     @State private var showsReactionPicker = false
+    @State private var pinError: String?
+    @State private var showsPinError = false
     @State private var reactionError: String?
     @State private var showsReactionError = false
     @State private var confirmsDeletion = false
@@ -117,6 +124,17 @@ import SwiftUI
       }
     }
 
+    private var pinnedLabel: some View {
+      Label {
+        Text("Pinned", tableName: "ChatPins", comment: "A channel message that is pinned.")
+      } icon: {
+        Image(systemName: "pin.fill")
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .fixedSize()
+    }
+
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
         if isContinuation {
@@ -129,6 +147,9 @@ import SwiftUI
         // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
         // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
+          if isContinuation, isPinned, message.deletedAt == nil {
+            pinnedLabel
+          }
           if !isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
               ParticipantProfileButton(sender: message.sender) {
@@ -143,6 +164,9 @@ import SwiftUI
                 Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
+              }
+              if isPinned, message.deletedAt == nil {
+                pinnedLabel
               }
             }
           }
@@ -163,6 +187,12 @@ import SwiftUI
               MessageEditComposer(editing: editing).id(message.id)
             } else {
               MessageMarkdownView(source: message.content, room: room, channels: channels)
+            }
+            if outbound == nil {
+              ForEach(message.unfurls ?? [], id: \.url) { preview in
+                MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+                  .id(preview.url + (preview.imageUrl ?? ""))
+              }
             }
             if isContinuation, message.editedAt != nil {
               Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
@@ -199,9 +229,15 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil) ? Color.primary.opacity(0.04) : .clear)
+      .background {
+        if isHighlighted {
+          Color.accentColor.opacity(0.12)
+        } else if isHovered || isReplyHovered, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+          Color.primary.opacity(0.04)
+        }
+      }
       .overlay(alignment: .topTrailing) {
-        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil {
+        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
           HStack(spacing: 2) {
             if onToggleReaction != nil {
               messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
@@ -218,8 +254,12 @@ import SwiftUI
             if let onQuote {
               messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
             }
-            if onEdit != nil || onDelete != nil {
+            if onEdit != nil || onDelete != nil || onTogglePin != nil {
               Menu {
+                if onTogglePin != nil {
+                  pinButton
+                }
+
                 if let onEdit {
                   Button("Edit message", systemImage: "pencil", action: onEdit)
                 }
@@ -271,6 +311,9 @@ import SwiftUI
           isHovered = hovering
         }
       }
+      .alert("Couldn’t update pin", isPresented: $showsPinError) {
+        Button("OK", role: .cancel) {}
+      } message: { Text(pinError ?? "Try again.") }
       .alert("Couldn’t update reaction", isPresented: $showsReactionError) {
         Button("OK", role: .cancel) {}
       } message: {
@@ -288,6 +331,9 @@ import SwiftUI
         Text(deletionError ?? "Try again.")
       }
       .contextMenu {
+        if onTogglePin != nil {
+          pinButton
+        }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
         }
@@ -354,6 +400,19 @@ import SwiftUI
 
     private var pendingSince: Date? {
       outbound?.status == .pending ? outbound?.createdAt : nil
+    }
+
+    private var pinButton: some View {
+      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin") {
+        Task { @MainActor in
+          do {
+            try await onTogglePin?()
+          } catch { pinError = friendlyMessage(for: error)
+            showsPinError = true
+          }
+        }
+      }
+      .disabled(isUpdatingPin)
     }
 
     private var avatarView: some View {

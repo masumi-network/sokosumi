@@ -37,6 +37,7 @@ private final class ScriptedTransport: ClientTransport {
   var pauseGET = false
   var pauseDELETE = false
   var pauseReaction = false
+  var pauseUnfurl = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
@@ -91,7 +92,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions"), operationID.contains("/messages") {
+    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove"), operationID.contains("/messages") {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -1574,5 +1575,194 @@ extension WorkspaceStateTests {
     #expect(transport.operationIDs.last == "get/chats/rooms/{id}/messages/{messageId}")
     #expect(state.timeline.messages.first?.reactions.first?.count == 2)
     #expect(state.timeline.messages.first?.content == "Current")
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test func messagePinStatusDoesNotDependOnLoadedPinPages() async throws {
+    let body = transcriptMessage(id: "pin", roomId: "room", content: "Pinned")
+      .replacingOccurrences(of: "\"editedAt\":null", with: "\"editedAt\":null,\"pinnedAt\":\"\(timestamp)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [body], nextCursor: nil))
+    ], visible: false)
+    state.timeline.reset(roomId: "room")
+    try await state.timeline.loadPage(.initial, client: #require(state.resolveClient(auth: auth)),
+                                      organizationSlug: nil, generation: state.timeline.generation)
+    var message = try #require(state.timeline.messages.first)
+    #expect(message.pinnedAt != nil)
+    #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
+    #expect(state.pins.items.isEmpty)
+    #expect(state.isPinned(message))
+    state.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: false)
+    #expect(!state.isPinned(message))
+    message.pinnedAt = nil
+    state.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: true)
+    #expect(state.isPinned(message))
+    state.applyRealtimeEnvelope(.init(eventType: .delete, messageId: message.id, roomId: "room"))
+    let deletedMessage = try #require(state.timeline.messages.first)
+    #expect(deletedMessage.deletedAt != nil)
+    #expect(!state.isPinned(deletedMessage))
+    #expect(state.pins.items.isEmpty)
+    state.timeline.reset(roomId: "other")
+    #expect(!state.isPinned(message))
+  }
+
+  @Test func pinMutationsUpdateOnlyAfterSuccess() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, roomsBody(names: ["general"])),
+      (200, #"{"data":{"messageId":"message","pinnedMessageCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
+      (403, #"{"message":"Denied"}"#)
+    ], visible: false)
+    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
+    let room = try #require(state.rooms.first)
+    state.timeline.reset(roomId: room.id)
+    state.pins.reset(roomId: room.id)
+    var message = chatRoomMessage(from: .init(clientTurnId: "pin", roomId: room.id, content: "Pinned",
+                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    message.id = "message"
+    try await state.setPinned(true, messageId: "message", auth: auth)
+    #expect(state.isPinned(message))
+    #expect(state.rooms.first?.pinnedMessageCount == 1)
+    await #expect(throws: (any Error).self) { try await state.setPinned(false, messageId: "message", auth: auth) }
+    #expect(state.isPinned(message))
+    #expect(!state.isUpdatingPin("message"))
+    #expect(transport.operationIDs.last == "delete/chats/rooms/{id}/messages/{messageId}/pin")
+  }
+
+  @Test func oldPinMutationCannotUpdateNewRoom() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, roomsBody(names: ["general"])),
+      (200, #"{"data":{"messageId":"message","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#)
+    ], visible: false)
+    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
+    let room = try #require(state.rooms.first)
+    state.timeline.reset(roomId: room.id)
+    state.pins.reset(roomId: room.id)
+    transport.pauseDELETE = true
+    let request = Task { try await state.setPinned(false, messageId: "message", auth: auth) }
+    while transport.operationIDs.count < 2 {
+      await Task.yield()
+    }
+    #expect(state.isUpdatingPin("message"))
+    state.clearTranscript()
+    state.timeline.reset(roomId: "other")
+    transport.releasePausedRequest()
+    try await request.value
+    #expect(state.timeline.pinOverrides.isEmpty)
+    #expect(!state.isUpdatingPin("message"))
+  }
+
+  @Test func historicalWindowRetainsLiveHeadWithoutMarkingRead() async throws {
+    let (state, auth, _, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: "room", content: "Old")], nextCursor: nil))
+    ], visible: false)
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("old", auth: auth))
+    #expect(!state.roomHistoryReadable)
+    var live = try #require(state.timeline.messages.first)
+    live.id = "new"
+    state.applyRealtimeMessage(roomId: "room", eventType: .create, message: live)
+    #expect(Set(state.displayedTranscript.map(\.id)) == ["old", "new"])
+    live.id = "old"
+    live.content = "Edited live"
+    state.applyRealtimeMessage(roomId: "room", eventType: .update, message: live)
+    #expect(state.displayedTranscript.first(where: { $0.id == "old" })?.content == "Edited live")
+  }
+
+  @Test func directSendFromHistoryReturnsToLatestBeforeStreaming() async throws {
+    let room = coworkerDirect(roomId: "room")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: room.id, content: "Old")], nextCursor: nil)),
+      (500, #"{"message":"Unavailable"}"#),
+      (500, #"{"message":"Unavailable"}"#)
+    ], visible: false)
+    state.rooms = [room]
+    state.timeline.reset(roomId: room.id)
+    state.directStream.reset(room: room)
+    #expect(try await state.jumpToMessage("old", auth: auth))
+    #expect(state.sendMessage("New message", auth: auth))
+    #expect(state.timeline.historicalAnchor == nil)
+    #expect(state.directStream.isBusy)
+    #expect(state.outboundShells.isEmpty)
+    await waitForTranscriptIdle(state)
+    await state.directStream.task?.value
+    #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/messages"))
+  }
+
+  @Test func sendingFromHistoryPreservesLoadedRowsAndPendingPinMutation() async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: roomId, content: "Old")], nextCursor: nil)),
+      (200, #"{"data":{"messageId":"old","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
+      (500, #"{"message":"Unavailable"}"#),
+      (500, #"{"message":"Unavailable"}"#)
+    ], visible: false)
+    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
+    state.timeline.reset(roomId: roomId)
+    state.pins.reset(roomId: roomId)
+    #expect(try await state.jumpToMessage("old", auth: auth))
+    transport.pauseDELETE = true
+    let unpin = Task { try await state.setPinned(false, messageId: "old", auth: auth) }
+    while transport.operationIDs.count < 3 {
+      await Task.yield()
+    }
+    let revision = state.pins.revision
+    #expect(state.sendMessage("New message", auth: auth))
+    #expect(state.timeline.historicalAnchor == nil)
+    #expect(state.isUpdatingPin("old"))
+    #expect(state.pins.revision == revision)
+    #expect(state.timeline.messages.map(\.id) == ["old"])
+    transport.releasePausedRequest()
+    try await unpin.value
+    #expect(!state.isUpdatingPin("old"))
+    await waitForTranscriptIdle(state)
+    await waitForOutboundIdle(state)
+    #expect(state.outboundShells.first?.content == "New message")
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: ["success", "failure", "switch"])
+  func unfurlRemovalPreservesCurrentMessage(outcome: String) async throws {
+    let response = transcriptMessage(id: "message", roomId: "room", content: "Old content")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
+      (200, roomsBody(names: [])),
+      (outcome == "failure" ? 403 : 200, outcome == "failure" ? #"{"message":"Denied"}"# : "{\"data\":\(response),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}")
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.timeline.reset(roomId: "room")
+    var message = chatRoomMessage(from: .init(clientTurnId: "preview", roomId: "room", content: "New edit https://example.com", sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .offline)))
+    message.id = "message"
+    message.unfurls = [.init(url: "https://example.com", title: "Example", description: "Preview")]
+    state.timeline.messages = [message]
+    #expect(state.thread.open(message))
+    transport.pauseUnfurl = true
+    let request = Task { try await state.removeUnfurl(message, url: "https://example.com", auth: auth) }
+    while transport.operationIDs.last != "post/chats/rooms/{id}/messages/{messageId}/unfurls/remove" {
+      await Task.yield()
+    }
+    #expect(state.timeline.messages.first?.unfurls?.count == 1)
+    if outcome == "switch" {
+      state.timeline.reset(roomId: "other")
+    }
+    transport.releasePausedRequest()
+    if outcome == "failure" {
+      await #expect(throws: (any Error).self) { try await request.value }
+    } else {
+      try await request.value
+    }
+    let requestBody = try #require(transport.bodies.last)
+    #expect(try JSONDecoder().decode([String: String].self, from: requestBody) == ["url": "https://example.com"])
+    if outcome == "switch" {
+      #expect(state.timeline.messages.isEmpty)
+    } else {
+      #expect(state.timeline.messages.first?.content == message.content)
+      #expect(state.timeline.messages.first?.unfurls?.count == (outcome == "failure" ? 1 : 0))
+      #expect(state.thread.parent?.unfurls?.count == (outcome == "failure" ? 1 : 0))
+    }
   }
 }
