@@ -7,6 +7,8 @@ import { ReauthDialog } from "./reauth-dialog";
 
 /** Flipped per test, because an unverified address changes the offer. */
 let emailVerified = true;
+/** True until the session atom resolves, which decides what is on offer. */
+let isPending = false;
 
 const mockSignInEmail = vi.fn();
 const mockSignInMagicLink = vi.fn();
@@ -30,6 +32,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
   useSession: () => ({
     data: { user: { email: "owner@example.com", emailVerified } },
+    isPending,
   }),
 }));
 
@@ -67,6 +70,7 @@ function renderDialog(accounts: Account[]) {
 describe("ReauthDialog", () => {
   beforeEach(() => {
     emailVerified = true;
+    isPending = false;
     mockSignInEmail.mockReset();
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
     mockSignInMagicLink.mockReset();
@@ -269,6 +273,44 @@ describe("ReauthDialog", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "termsNotAccepted",
     );
+  });
+
+  it("says nothing about methods before the session resolves", () => {
+    // `emailVerified` is unknown while pending, so the viewer would otherwise
+    // be told to verify an address that may already be verified.
+    isPending = true;
+    renderDialog([]);
+
+    expect(screen.queryByText("noMethod")).not.toBeInTheDocument();
+  });
+
+  it("shows one button per provider, not one per linked account", () => {
+    // Better Auth is unique on providerId plus accountId, so a viewer can
+    // hold two Google rows.
+    renderDialog([googleAccount, account("google")]);
+
+    expect(
+      screen.getAllByRole("button", { name: "continueWithGoogle" }),
+    ).toHaveLength(1);
+  });
+
+  it("drops a sent-link notice once the password succeeds", async () => {
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    // The link is stale now, so offering to resend it would mislead.
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
   });
 
   it("names each provider rather than echoing its wire id", () => {

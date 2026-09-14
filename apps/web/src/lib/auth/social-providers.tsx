@@ -15,9 +15,3 @@ export const SOCIAL_PROVIDER_ICONS: Record<SocialProvider, ReactNode> = {
   [AccountProvider.GOOGLE]: <GoogleIcon />,
   [AccountProvider.MICROSOFT]: <MicrosoftIcon />,
 };
-
-export function isSocialProvider(
-  providerId: string,
-): providerId is SocialProvider {
-  return SOCIAL_PROVIDERS.some((provider) => provider === providerId);
-}

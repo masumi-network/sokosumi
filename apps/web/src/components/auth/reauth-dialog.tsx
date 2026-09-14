@@ -21,8 +21,8 @@ import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import {
-  isSocialProvider,
   SOCIAL_PROVIDER_ICONS,
+  SOCIAL_PROVIDERS,
   type SocialProvider,
 } from "@/lib/auth/social-providers";
 import { AccountProvider } from "@/lib/auth/types";
@@ -59,7 +59,7 @@ export function ReauthDialog({
 }: ReauthDialogProps) {
   const t = useTranslations("Components.ReauthDialog");
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
   // Better Auth defaults this to true. Signing in again mints a new session,
   // so without the same choice the dialog would quietly turn a viewer's
@@ -79,9 +79,12 @@ export function ReauthDialog({
   const hasPasswordAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
   );
-  const socialProviders = accounts
-    .map((account) => account.providerId)
-    .filter(isSocialProvider);
+  // Read from the provider table rather than from the rows: Better Auth is
+  // unique on providerId plus accountId, so two Google links are legal and
+  // mapping the rows would render the same button twice under one React key.
+  const socialProviders = SOCIAL_PROVIDERS.filter((provider) =>
+    accounts.some((account) => account.providerId === provider),
+  );
   // Opening a magic link while the address is unproven makes Better Auth
   // delete every linked account and revoke every session
   // (`revokeUnprovenAccountAccess`). Core does not require verification, so
@@ -127,6 +130,9 @@ export function ReauthDialog({
       }
 
       setPassword("");
+      // A link may have been sent before the viewer chose the password
+      // instead. Leaving the notice up would offer a stale link next time.
+      setMagicLinkSent(false);
       onOpenChange(false);
       onReauthenticated();
     } catch {
@@ -302,7 +308,11 @@ export function ReauthDialog({
           </div>
         ) : null}
 
-        {hasNoMethod ? <p className="text-sm">{t("noMethod")}</p> : null}
+        {/* The session decides whether email is on offer, so before it
+            resolves every viewer looks like they own nothing. */}
+        {hasNoMethod && !isLoadingSession ? (
+          <p className="text-sm">{t("noMethod")}</p>
+        ) : null}
 
         {error ? (
           // Announced, because submitting leaves focus on the button.
