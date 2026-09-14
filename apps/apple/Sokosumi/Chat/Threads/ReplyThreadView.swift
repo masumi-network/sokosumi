@@ -14,6 +14,11 @@ import SwiftUI
     @State private var quoteTarget: String?
     @State private var quoteFocusRequest: String?
 
+    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
+    }
+
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
@@ -26,15 +31,18 @@ import SwiftUI
 
     var body: some View {
       if let parent = workspaces.thread.parent {
+        let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+        let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-              MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+              MessageRowView(channels: channels, room: currentRoom, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                              onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
                                quoteFocusRequest = UUID().uuidString
                              } : nil,
                              onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
                              onDelete: deletionAction(for: parent),
+                             onRemoveUnfurl: unfurlAction(for: parent),
                              onToggleReaction: reactionAction(for: parent),
                              pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
                              editing: workspaces.messageEditing,
@@ -42,7 +50,7 @@ import SwiftUI
                 .id(parent.id)
               Divider()
               Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
-              replies
+              replies(channels: channels, room: currentRoom)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .padding(.horizontal)
@@ -94,7 +102,7 @@ import SwiftUI
       }
     }
 
-    @ViewBuilder private var replies: some View {
+    @ViewBuilder private func replies(channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
       let timeline = workspaces.thread.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
@@ -121,38 +129,47 @@ import SwiftUI
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }
-        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-          let previous = index > 0 ? messages[index - 1] : nil
-          let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
-          let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
-          let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
-          let outbox = workspaces.thread.outbox
-          let shell = outbox.shells.first { $0.id == message.id }
-          VStack(alignment: .leading, spacing: 0) {
-            if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
-              DaySeparatorRow(label: label)
-            }
-            if let status = membershipStatusText(message) {
-              MembershipStatusRow(text: status)
-            } else {
-              MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
-                             outbound: shell, sentAt: outbox.sentAt[message.id],
-                             onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
-                             onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                             onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
-                               quoteFocusRequest = UUID().uuidString
-                             } : nil,
-                             onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                             onDelete: deletionAction(for: message),
-                             onToggleReaction: reactionAction(for: message),
-                             pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
-                             editing: workspaces.messageEditing,
-                             onQuoteJump: { quoteTarget = $0 },
-                             streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
-            }
+        replyRows(messages: messages, channels: channels, room: room)
+      }
+    }
+
+    private func replyRows(
+      messages: [Components.Schemas.ChatRoomMessage],
+      channels: [ComposerChannel],
+      room: Components.Schemas.ChatRoom?
+    ) -> some View {
+      ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+        let previous = index > 0 ? messages[index - 1] : nil
+        let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
+        let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
+        let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
+        let outbox = workspaces.thread.outbox
+        let shell = outbox.shells.first { $0.id == message.id }
+        VStack(alignment: .leading, spacing: 0) {
+          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+            DaySeparatorRow(label: label)
           }
-          .id(message.id)
+          if let status = membershipStatusText(message) {
+            MembershipStatusRow(text: status)
+          } else {
+            MessageRowView(channels: channels, room: room, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+                           outbound: shell, sentAt: outbox.sentAt[message.id],
+                           onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
+                           onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
+                           onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                             quoteFocusRequest = UUID().uuidString
+                           } : nil,
+                           onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                           onDelete: deletionAction(for: message),
+                           onRemoveUnfurl: unfurlAction(for: message),
+                           onToggleReaction: reactionAction(for: message),
+                           pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
+                           editing: workspaces.messageEditing,
+                           onQuoteJump: { quoteTarget = $0 },
+                           streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
+          }
         }
+        .id(message.id)
       }
     }
   }
