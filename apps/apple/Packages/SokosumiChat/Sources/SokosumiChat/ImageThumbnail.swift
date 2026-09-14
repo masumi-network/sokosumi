@@ -1,12 +1,25 @@
 import Foundation
 import ImageIO
 
-/// Decode a display-sized thumbnail for avatars and attachment previews.
-public func loadThumbnailCGImage(
+public enum LoadedImage: Sendable {
+  case thumbnail(CGImage)
+  /// Preserve formats supported by the native image view but not ImageIO (for example SVG).
+  case source(Data)
+
+  public var cgImage: CGImage? {
+    if case let .thumbnail(image) = self {
+      return image
+    }
+    return nil
+  }
+}
+
+/// Decode a display-sized thumbnail, retaining the source for native-only formats.
+public func loadImageThumbnail(
   urlString: String?,
   pointSize: CGFloat,
   scale: CGFloat
-) async -> CGImage? {
+) async -> LoadedImage? {
   guard let urlString, let url = URL(string: urlString) else { return nil }
   let data: Data
   let response: URLResponse
@@ -21,7 +34,12 @@ public func loadThumbnailCGImage(
   if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
     return nil
   }
-  return await decodeImageThumbnail(data: data, maxPixel: max(pointSize * scale, 1))
+  let image = await decodeImageThumbnail(data: data, maxPixel: max(pointSize * scale, 1))
+  guard !Task.isCancelled else { return nil }
+  if let image {
+    return .thumbnail(image)
+  }
+  return .source(data)
 }
 
 /// ImageIO can synchronously wait on its own decoder threads. Keep that work
