@@ -2,7 +2,7 @@ import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 
-export interface AgentCategoryGroup {
+interface AgentCategoryGroup {
   categorySlug: string | null;
   categoryName: string;
   categoryIcon?: string;

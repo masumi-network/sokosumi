@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { validateUIMessages } from "ai";
 
 import { LIMITS } from "@/config/constants";
+import { assertChatMessageReadBudget } from "@/helpers/chat-message-read-budget";
 import { chatRoomMessagesToUiMessages } from "@/helpers/chat-room-messages-to-ui-messages";
 import { badRequest, internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -38,7 +39,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/stream/messages",
     description:
-      "Load persisted room messages as AI SDK UIMessage[] for coworker stream UI hydrate. Uncursored requests return the newest page (reading order); nextCursor walks older history.",
+      "Load persisted room messages as AI SDK UIMessage[] for coworker stream UI hydrate. Uncursored requests return the newest page (reading order); nextCursor walks older history. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -74,6 +75,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       404: jsonErrorResponse("Room not found"),
       422: jsonErrorResponse("Unprocessable Entity"),
+      429: jsonErrorResponse("Chat history read budget exceeded"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -98,6 +100,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const takePlusOne = take + 1;
 
       await requireChatRoomUserMembership(roomId, userContext.userId, prisma);
+      // Shared per-user budget across rooms and credentials (SOK-1060).
+      await assertChatMessageReadBudget(userContext.userId);
 
       const where = {
         roomId,

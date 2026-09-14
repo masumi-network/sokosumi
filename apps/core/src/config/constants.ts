@@ -30,6 +30,27 @@ export const LIMITS = {
   /** Maximum API key requests per minute */
   API_KEY_MAX_REQUESTS_PER_MINUTE: 100,
 
+  /**
+   * Chat history reads one user may burst across all rooms and credentials
+   * (SOK-1060). Covers fast room switching, pagination and reconnect
+   * recovery; sustained polling drains it in seconds and then throttles.
+   * Sized from documented client cadence (see REFILL): 30 absorbs a
+   * multi-room reconnect storm no healthy client produces at once.
+   */
+  CHAT_MESSAGE_READ_BURST: 30,
+
+  /**
+   * Sustained chat history reads per second per user (SOK-1060). Healthy
+   * clients read ~1/min per data set over Ably (web
+   * `CHAT_HEALTHY_REFRESH_MS`, Apple 60 s healthy timer); degraded fallback
+   * polls at 3 s for the open room only (web `ROOM_MESSAGE_FALLBACK_MS`,
+   * Apple fallback interval) and 15 s elsewhere — a fully degraded
+   * two-device user stays near ~60/min. Sustained multi-room polling above
+   * that (the SOK-1060 sample ran ~142/min) throttles once the burst
+   * drains.
+   */
+  CHAT_MESSAGE_READ_REFILL_PER_SECOND: 1,
+
   /** Maximum organization invitations per organization */
   ORGANIZATION_INVITATION_LIMIT: 100,
 
