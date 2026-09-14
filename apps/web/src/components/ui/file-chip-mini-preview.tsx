@@ -35,7 +35,7 @@ export interface FileChipMiniPreviewProps {
 }
 
 const previewTriggerClassName =
-  "group bg-card-background hover:bg-card-background focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
+  "group bg-card-background hover:bg-card-background-hover focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
 
 const largeImageTriggerClassName =
   "min-w-0 max-h-80 w-full max-w-full shrink";
