@@ -61,14 +61,14 @@ private struct MessageMarkdownContent: View {
     Group {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
-      } else {
-        ExpandableMessageBody(source: source, clampHeight: document.map { !$0.containsAttachments } ?? true) {
-          if let document {
-            MarkdownBlocksView(blocks: document.blocks)
-          } else {
-            Text(source)
-          }
+      } else if let document {
+        ExpandableMessageBody(source: source, clampHeight: !document.containsAttachments) {
+          MarkdownBlocksView(blocks: document.blocks)
         }
+      } else {
+        ProgressView()
+          .controlSize(.small)
+          .accessibilityLabel("Loading message")
       }
     }
     .task(id: RenderInput(source: source, mentions: room.map(MessageMentions.init), channels: channels)) {

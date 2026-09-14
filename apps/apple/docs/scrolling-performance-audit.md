@@ -135,3 +135,43 @@ Separated the existing Markdown rendering and parsing state into a private `Mess
 Removed the temporary counter and probe rather than shipping a false zero-update assertion or a permissive count threshold. Existing rendering and app tests validate behavior; live scrolling and ancestor-driven row invalidation remain open. This change neither replaces the coordinator nor introduces a second rendering path.
 
 Full app tests pass with instrumentation removed (`/tmp/scroll-markdown-isolation-full.log`); strict pinned SwiftLint passes (`/tmp/scroll-markdown-isolation-lint.log`).
+
+
+## Rich text layout isolation (September 14, after renderer separation)
+
+User feedback on the signed `d0e112bb8` build: better, but not perfect. Signed build passed (`/tmp/scroll-isolated-signed.log`); running app PID was 30900. Apple CI run `34871651308` completed successfully. A 31-second attached SwiftUI Instruments capture was saved at `/tmp/sokosumi-render-isolation-live.trace`, but UI scroll actions failed with `noWindowsAvailable` or left scrollbar value 1. It is not scrolling evidence. The trace contains a 413 ms microhang during automation, which cannot be attributed to the reported scrolling problem.
+
+Sequential Debug fixture experiments below use the same 120-event serial room/thread tests. Figures are synchronous host-layout p95 in milliseconds, not presented-frame times. All runs passed the existing scrolling assertions. Text-only rows contain eight Markdown paragraphs; media rows contain two paragraphs, so comparisons across those categories are not causal.
+
+| Candidate | Room text | Thread text | Room media | Thread media |
+| --- | ---: | ---: | ---: | ---: |
+| Formatted baseline (`34018`) | 16.320 | 19.395 | 7.580 | 5.578 |
+| One plain Text for text-only documents (`35045`) | 0.171 | 1.079 | 4.099 | 1.669 |
+| Restored formatted renderer (`36084`) | 14.686 | 19.258 | 9.092 | 6.911 |
+| Plain strings, original block hierarchy (`36471`) | 11.703 | 17.543 | 3.466 | 7.164 |
+| Original formatting, no line-layout preference reader (`37811`) | 16.842 | 18.343 | 5.001 | 5.477 |
+| Original formatting, text selection disabled (`40907`) | 11.970 | 2.810 | 6.324 | 1.054 |
+| Direct Text for single-segment paragraphs (`41521`) | 16.694 | 17.110 | 8.245 | 9.972 |
+
+Logs are `/tmp/scroll-rich-comparison-baseline.log`, `/tmp/scroll-plain-comparison.log`, `/tmp/scroll-rich-comparison-restored.log`, `/tmp/scroll-plain-blocks-comparison.log`, `/tmp/scroll-no-line-preference-comparison.log`, `/tmp/scroll-selection-disabled-comparison.log`, and `/tmp/scroll-direct-paragraph-comparison.log`. Matching `*-metrics.txt` files retain the exact timings and test-process filenames.
+
+The one-Text experiment retained Markdown parsing and `ExpandableMessageBody`, but joined text-only block strings with double newlines. It removed inline attributes and changed paragraph spacing/row heights, so it isolates a broad display-path difference, not a drop-in replacement. Restoring the original renderer restored the higher cost. Removing inline attributes alone while retaining block hierarchy remained slow. Removing the line-preference reader or a single stack/ForEach wrapper did not improve room cost. Disabling selection improved thread measurements much more than room measurements; that result requires a repeated control before attributing the difference to selection alone.
+
+Every experiment is reverted. Preserve selection, all formatting, paragraph spacing and complete-line truncation. Next: compare one attributed text layout against the existing multi-block hierarchy using equivalent content and account for row-height differences; correlate costs with actual lazy-row layout. Do not ship the plain-text substitution, disabled selection or removed cutoff measurement as a performance fix.
+
+
+## Initial render transition isolation
+
+A single attributed Text for paragraph-only documents retained bold/link attributes and measured room text layout p95 0.118 ms, thread text 6.591 ms (`/tmp/scroll-single-attributed-comparison.log`, process 42192). Paragraph spacing still differed, so it remains a diagnostic only.
+
+A stronger experiment retained the entire original multi-block renderer, inline styling, text selection and complete-line cutoff. It temporarily computed the document immediately rather than starting with raw Text and replacing it from `.task`. Room text layout p95 was 0.082 ms and thread text 0.157 ms (`/tmp/scroll-no-render-transition-comparison.log`, process 42724). Room/thread media layout p95 was 0.089/0.378 ms. Restoring the asynchronous initial replacement brought text layout back to 17.155/23.351 ms (`/tmp/scroll-transition-restored-comparison.log`, process 44076). All fixture assertions passed. This is stronger evidence for repeated initial presentation changes than the earlier broad attribution to block count alone.
+
+The immediate-render experiment is reverted: it moved parsing onto the UI executor and is not the intended production fix. It also changes when work happens relative to the fixture's initial settling interval; the synchronous layout metric alone cannot prove total startup/frame cost. The next implementation should prepare presentation data off the UI executor before exposing rows, preserving the existing formatting and avoiding one raw-text-to-block transition per newly visible row. Validate first-render latency, scrolling, streaming updates, cancellation, stale room switches and mention/channel refresh before claiming the problem resolved.
+
+### Native loading placeholder
+
+Replaced the initial raw-source Text with a small native ProgressView, outside ExpandableMessageBody. The existing formatted document remains visible while an edit or stream update prepares. Cancellation still prevents an obsolete task from publishing. No parser, dependency, or Core contract changes.
+
+The seven parameterized room/thread scrolling and content-growth cases pass (`/tmp/scroll-loading-placeholder.log`). Pinned formatting and strict lint pass for the changed renderer. This is a presentation improvement, not a scrolling performance fix: PID 47557 measured layout p95 of 24.130 ms (room text), 14.561 ms (thread text), 13.287 ms (room media), and 10.985 ms (thread media). The initial placeholder-to-block transition still requires layout. Preparing documents before publishing transcript rows remains the next performance step. Live appearance is not yet verified.
+
+Full app suite also passes (`/tmp/scroll-placeholder-full.log`). Review of the patch confirms the existing task cancellation guard and retained document state are unchanged.
