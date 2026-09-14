@@ -639,7 +639,7 @@ export function RoomComposer({
         onSubmit={onSubmit}
         withOuterPadding={false}
         withSafeAreaPadding
-        className="px-3 md:px-5"
+        className="-mt-3 px-3 md:px-5"
         attachments={attachments}
         onRemoveAttachment={(attachment) =>
           removeAttachment({

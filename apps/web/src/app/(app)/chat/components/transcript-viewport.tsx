@@ -460,7 +460,7 @@ export function TranscriptViewport({
           from the transcript, and the control hangs above it, pinned over
           the bottom of the scroller while the reader is anywhere above. */}
       {atEnd ? null : (
-        <div className="pointer-events-none sticky bottom-3 z-10 h-0">
+        <div className="pointer-events-none sticky bottom-6 z-10 h-0">
           <Button
             type="button"
             variant="outline"
