@@ -19,7 +19,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { authClient, useSession } from "@/lib/auth/auth.client";
-import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
+import {
+  discardRetiredAblyRealtimeClientAfterSignIn,
+  getAbsoluteAuthRedirectUrl,
+} from "@/lib/auth/auth.utils";
 import {
   SOCIAL_PROVIDER_ICONS,
   SOCIAL_PROVIDERS,
@@ -133,6 +136,9 @@ export function ReauthDialog({
       // A link may have been sent before the viewer chose the password
       // instead. Leaving the notice up would offer a stale link next time.
       setMagicLinkSent(false);
+      // This path keeps the document, so a client the Ably singleton retired
+      // for the lost session would outlive the session that lost it.
+      discardRetiredAblyRealtimeClientAfterSignIn();
       onOpenChange(false);
       onReauthenticated();
     } catch {

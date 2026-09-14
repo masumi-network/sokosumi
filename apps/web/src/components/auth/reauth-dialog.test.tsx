@@ -10,6 +10,14 @@ let emailVerified = true;
 /** True until the session atom resolves, which decides what is on offer. */
 let isPending = false;
 
+const { mockDiscardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
+  mockDiscardRetiredAblyRealtimeClient: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/realtime-singleton.client", () => ({
+  discardRetiredAblyRealtimeClient: mockDiscardRetiredAblyRealtimeClient,
+}));
+
 const mockSignInEmail = vi.fn();
 const mockSignInMagicLink = vi.fn();
 const mockSignInSocial = vi.fn();
@@ -74,6 +82,7 @@ describe("ReauthDialog", () => {
   beforeEach(() => {
     emailVerified = true;
     isPending = false;
+    mockDiscardRetiredAblyRealtimeClient.mockClear();
     mockSignInEmail.mockReset();
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
     mockSignInMagicLink.mockReset();
@@ -101,6 +110,23 @@ describe("ReauthDialog", () => {
       rememberMe: true,
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("drops a client the Ably singleton retired for the lost session", async () => {
+    // This path keeps the document, so the retired client would otherwise
+    // outlive the session that retired it and realtime would stay dead.
+    renderDialog([passwordAccount]);
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("reauth-field-currentPassword"),
+      "correct horse",
+    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
+
+    await waitFor(() => {
+      expect(mockDiscardRetiredAblyRealtimeClient).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("carries a cleared Keep me signed in through to the new session", async () => {

@@ -70,11 +70,14 @@ export function createAuthSessionGetter<TSession>(
 }
 
 /**
- * Every sign-in path - password, passkey, sign-up, the social callback - waits
- * for the session here and then navigates with `router.replace`, so the
- * document survives the sign-in. A client the Ably singleton retired for a lost
- * session is kept in `globalThis` on purpose and would survive with it, leaving
- * the newly signed-in user with dead realtime until a manual reload.
+ * No sign-in in this app replaces the document. The ones that navigate use
+ * `router.replace`, and re-authentication does not navigate at all, so a client
+ * the Ably singleton retired for a lost session stays in `globalThis` and
+ * leaves the newly signed-in user with dead realtime until a manual reload.
+ *
+ * Call this from every path that ends with a new session: `waitForAuthSession`
+ * covers the ones that then redirect, and the re-authentication dialog calls it
+ * directly, because it has nothing to wait for and nowhere to go.
  *
  * Dynamic, and deliberately not awaited: this module is imported by server
  * routes and server pages too, and the Ably SDK must stay out of every bundle
@@ -82,7 +85,7 @@ export function createAuthSessionGetter<TSession>(
  * the next reload, which is what already happened, so it must not break a
  * sign-in.
  */
-function discardRetiredAblyRealtimeClientAfterSignIn(): void {
+export function discardRetiredAblyRealtimeClientAfterSignIn(): void {
   if (typeof window === "undefined") {
     return;
   }
