@@ -54,8 +54,13 @@ export function getAgentStatusDotColorClass(status: AgentJobStatus) {
       return "bg-semantic-destructive";
     case AgentJobStatus.AWAITING_INPUT:
       return "bg-semantic-warning";
+    // Both waiting states sit on the warning ramp, and the label is what
+    // separates them. The dot used to read --risk-high while the border read
+    // the warning ramp, so one state drew from two hues. --risk-high also
+    // belongs to the ordered EU risk ladder, where a future retune of the
+    // tiers would have silently moved a payment badge.
     case AgentJobStatus.AWAITING_PAYMENT:
-      return "bg-risk-high";
+      return "bg-semantic-warning";
     case AgentJobStatus.RUNNING:
     case AgentJobStatus.INITIATED:
       return "bg-status-running";
