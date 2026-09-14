@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-route";
-import { conflict, serviceUnavailable } from "./error";
+import { conflict, serviceUnavailable, tooManyRequests } from "./error";
 import { errorHandler } from "./error-handler";
 
 const { captureExceptionMock, captureExternalServiceErrorMock } = vi.hoisted(
@@ -347,5 +347,37 @@ describe("errorHandler", () => {
     expect(response.status).toBe(500);
     expect(seenError).toEqual(expect.any(Error));
     expect(seenError?.message).toBe("boom");
+  });
+
+  it("sets Retry-After header and body delay for throttled errors", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw tooManyRequests("Slow down", {
+        kind: "message_read_budget_exceeded",
+        retryAfterSeconds: 7,
+      });
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("7");
+    const body = await response.json();
+    expect(body.kind).toBe("message_read_budget_exceeded");
+    expect(body.retryAfterSeconds).toBe(7);
+  });
+
+  it("omits Retry-After when no retry delay is set", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw tooManyRequests("Slow down");
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeNull();
+    const body = await response.json();
+    expect(body.retryAfterSeconds).toBeUndefined();
   });
 });
