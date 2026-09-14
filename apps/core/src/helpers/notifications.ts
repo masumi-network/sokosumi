@@ -158,9 +158,10 @@ async function chatRoomArrivals(
         // reports on every publish of every message and never says which row
         // it was. The answer is unchanged: a hidden row that cannot say
         // whether it was banner-only takes the count down with it either way.
-        const metadata = row.metadata
-          ? readNotificationRowJson(row.metadata, row.id, "metadata")
-          : null;
+        const metadata =
+          row.metadata !== null
+            ? readNotificationRowJson(row.metadata, row.id, "metadata")
+            : null;
         // Hidden rows can be banner-only or fully silenced. Old rows do not
         // record that choice, so their combined count cannot be recovered.
         if (
@@ -222,13 +223,14 @@ export async function publishNotificationRow(
       notification.id,
       "messageParams",
     );
-    const metadata = notification.metadata
-      ? readNotificationRowJson(
-          notification.metadata,
-          notification.id,
-          "metadata",
-        )
-      : null;
+    const metadata =
+      notification.metadata !== null
+        ? readNotificationRowJson(
+            notification.metadata,
+            notification.id,
+            "metadata",
+          )
+        : null;
 
     // Nothing is published for a row whose columns will not read, which is
     // what the throw did. A tab holding this row keeps what it has, and the
@@ -236,7 +238,7 @@ export async function publishNotificationRow(
     // carries no metadata at all is not that case and publishes as before.
     if (
       messageParams === null ||
-      (notification.metadata && metadata === null)
+      (notification.metadata !== null && metadata === null)
     ) {
       return;
     }

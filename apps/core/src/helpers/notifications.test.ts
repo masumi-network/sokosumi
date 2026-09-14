@@ -846,6 +846,38 @@ describe("chat room arrival count", () => {
    * costs is the same either way: a hidden row that cannot say whether it was
    * banner-only takes the whole count down with it.
    */
+  it.each([false, true])(
+    "diagnoses empty metadata on a hidden counting row: %s",
+    async (hidden) => {
+      const damaged = chatRecord({
+        id: hidden ? "empty_hidden_metadata" : "empty_published_metadata",
+        metadata: "",
+        inApp: !hidden,
+      });
+      notificationFindManyMock.mockResolvedValue(hidden ? [damaged] : []);
+      const published = hidden ? chatRecord() : damaged;
+      await publishNotificationRow(published, { inApp: true, osBanner: true });
+      await publishNotificationRow(published, { inApp: true, osBanner: true });
+      expect(captureExceptionMock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          message: "A notification row will not read: SyntaxError",
+        }),
+        expect.objectContaining({
+          extra: expect.objectContaining({
+            rowId: damaged.id,
+            field: "metadata",
+          }),
+        }),
+      );
+      if (hidden) {
+        expect(publishNotificationEventMock).toHaveBeenCalledTimes(2);
+        expect(publishedGroupCount()).toBeUndefined();
+      } else {
+        expect(publishNotificationEventMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("names a hidden row whose metadata will not read, once", async () => {
     notificationFindManyMock.mockResolvedValue([
       chatRecord(),
