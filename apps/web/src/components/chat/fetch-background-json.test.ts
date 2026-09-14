@@ -1,15 +1,24 @@
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetChatReadThrottleForTests } from "@/lib/chat/chat-read-throttle";
+
 import { fetchBackgroundJson } from "./fetch-background-json";
+import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 const TIMEOUT_MS = 20_000;
 
-function response(status: number, body: unknown = {}) {
+function response(
+  status: number,
+  body: unknown = {},
+  headers: Record<string, string> = {},
+) {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers(headers),
     json: async () => body,
-  } as unknown as Response;
+  };
 }
 
 describe("fetchBackgroundJson", () => {
@@ -22,11 +31,13 @@ describe("fetchBackgroundJson", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
+    resetChatReadThrottleForTests();
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    resetChatReadThrottleForTests();
   });
 
   it("returns the payload on the first success", async () => {
@@ -141,7 +152,7 @@ describe("fetchBackgroundJson", () => {
         json: async () => {
           throw new TypeError("network error");
         },
-      } as unknown as Response)
+      })
       .mockResolvedValueOnce(response(200, { data: ["room-1"] }));
 
     const result = fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS);
@@ -158,7 +169,7 @@ describe("fetchBackgroundJson", () => {
       json: async () => {
         throw new SyntaxError("Unexpected token < in JSON");
       },
-    } as unknown as Response);
+    });
 
     await expect(
       fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS),
@@ -210,5 +221,91 @@ describe("fetchBackgroundJson", () => {
 
     await expect(result).resolves.toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("resolves null with a single attempt on a 429, never a stall retry", async () => {
+    fetchMock.mockResolvedValue(
+      response(
+        429,
+        {
+          error: "Chat rooms unavailable",
+          kind: "message_read_budget_exceeded",
+          retryAfterSeconds: 30,
+        },
+        { "retry-after": "30" },
+      ),
+    );
+
+    const result = fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(result).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("resolves null on a 429 whose body carries the delay alone", async () => {
+    fetchMock.mockResolvedValue(
+      response(429, {
+        error: "Chat rooms unavailable",
+        kind: "message_read_budget_exceeded",
+        retryAfterSeconds: 45,
+      }),
+    );
+
+    await expect(
+      fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS),
+    ).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("resolves null on a bare 429 instead of retrying it as a stall", async () => {
+    fetchMock.mockResolvedValue(response(429, {}));
+
+    const result = fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(result).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("still resolves null when the 429 body never arrives", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+      json: async () => {
+        throw new TypeError("network error");
+      },
+    });
+
+    await expect(
+      fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS),
+    ).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("arms the shared clock on a 429, quieting a consulting scheduler", async () => {
+    // The arming is observable only through a consulting reader: a scheduler
+    // whose explicit request lands inside the window must not read at once.
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const { result, unmount } = renderHook(() =>
+      useChatRefreshScheduler({
+        key: "room-1",
+        refresh,
+        healthy: false,
+        fallbackIntervalMs: 3_000,
+      }),
+    );
+    fetchMock.mockResolvedValue(response(429, {}, { "retry-after": "30" }));
+
+    await expect(
+      fetchBackgroundJson("/api/chat/rooms", TIMEOUT_MS),
+    ).resolves.toBeNull();
+    await act(async () => {
+      result.current();
+    });
+    expect(refresh).not.toHaveBeenCalled();
+
+    unmount();
   });
 });

@@ -5,6 +5,11 @@
  * first, so "null" can arrive up to four seconds later than the first attempt.
  */
 
+import {
+  noteChatReadThrottled,
+  parseRetryDelaySeconds,
+} from "@/lib/chat/chat-read-throttle";
+
 /**
  * Spaced retries for a stall: a 503 from the route, or a request that never
  * completed at all. Both mean Core could not be asked, which is "ask again",
@@ -89,6 +94,29 @@ export async function fetchBackgroundJson(
           redirect: "error",
           signal: attemptController.signal,
         });
+
+        // A throttle is an answer with a schedule, not a stall: arm the
+        // shared backoff clock and resolve null with no in-window retry
+        // (SOK-1065). The header is authoritative, so the body is read only
+        // when it is missing. A body that never arrives still throttles —
+        // it must not fall through to the stall retry below.
+        if (response.status === 429) {
+          let delaySeconds = parseRetryDelaySeconds(
+            response.headers.get("retry-after"),
+          );
+          if (delaySeconds === undefined) {
+            try {
+              const body = (await response.json()) as {
+                retryAfterSeconds?: unknown;
+              } | null;
+              delaySeconds = parseRetryDelaySeconds(body?.retryAfterSeconds);
+            } catch {
+              // Header and fallback stand.
+            }
+          }
+          noteChatReadThrottled(delaySeconds);
+          return null;
+        }
 
         // The body is read under the same attempt ceiling as the headers. A
         // route that answers and then stalls mid-body is the same stall, and
