@@ -56,7 +56,7 @@ export function LiveMemberPresenceDot({
 /**
  * Resolve live presence for labels (hover card, aria) without mounting a dot.
  */
-export function useLiveMemberPresence(
+function useLiveMemberPresence(
   userId: string,
   options?: {
     isCoworker?: boolean;

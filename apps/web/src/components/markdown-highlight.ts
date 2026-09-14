@@ -2,7 +2,7 @@
 const MAX_QUERY_LENGTH = 256;
 const REGEX_CACHE_SIZE = 50;
 
-export interface HighlightOptions {
+interface HighlightOptions {
   term?: string | undefined;
 }
 
