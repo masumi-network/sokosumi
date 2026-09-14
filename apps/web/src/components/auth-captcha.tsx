@@ -41,24 +41,56 @@ const ANALYTICS_EVENT = "Security Check";
 // script does not read as a hang.
 const TOKEN_WAIT_MS = 8_000;
 
+async function waitForCaptchaToken(
+  getWidget: () => TurnstileInstance | null,
+  timeoutMs: number,
+): Promise<string | null> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const widget = getWidget();
+    if (widget) {
+      const remaining = Math.max(1, deadline - Date.now());
+      return widget.getResponsePromise(remaining).catch(() => null);
+    }
+    if (Date.now() >= deadline) return null;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
   const siteKey = getEnvPublicConfig().NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const t = useTranslations("Components.AuthCaptcha");
   const locale = useLocale();
   const { resolvedTheme } = useTheme();
-  // next-themes knows the theme on the client before hydration but not on
-  // the server; render the widget only once hydrated so both agree.
+  // next-themes hydrates after the first client paint. Mounting with theme
+  // "auto" and then switching to light/dark remounts Turnstile and drops the
+  // pre-fetched token. Skip the server paint so hydration matches.
   const isClient = useIsClient();
+  const widgetTheme =
+    resolvedTheme === "dark" || resolvedTheme === "light"
+      ? resolvedTheme
+      : undefined;
   const widgetRef = useRef<TurnstileInstance | null>(null);
-  const failed = useRef(false);
+  const loadFailed = useRef(false);
   const interactive = useRef(false);
-  const [loadError, setLoadError] = useState(false);
+  const shownRef = useRef(false);
+  const [alert, setAlert] = useState<"load" | "missing" | null>(null);
   // Two checks can share a page (password form plus magic-link row).
   const id = useId();
   // Turnstile keeps the widget on screen once it has asked for interaction
   // (including its solved state) until the next reset. Track that so the
   // hidden widget takes no room in the caller's layout.
   const [shown, setShown] = useState(false);
+
+  const revealWidget = useCallback(() => {
+    shownRef.current = true;
+    setShown(true);
+  }, []);
+
+  const hideWidget = useCallback(() => {
+    shownRef.current = false;
+    setShown(false);
+  }, []);
 
   const report = useCallback(
     (step: "interactive" | "solved" | "failed" | "load_error") => {
@@ -67,25 +99,42 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
     [entry],
   );
 
-  const handleFailure = useCallback(() => {
-    failed.current = true;
-    setShown(true);
-    report("failed");
+  const handleScriptError = useCallback(() => {
+    loadFailed.current = true;
+    setAlert("load");
+    report("load_error");
   }, [report]);
+
+  const handleWidgetError = useCallback(() => {
+    report("failed");
+    revealWidget();
+    widgetRef.current?.reset();
+  }, [report, revealWidget]);
 
   const runWithCaptcha = useCallback(
     async <T,>(action: (options: CaptchaFetchOptions) => Promise<T>) => {
       // Omitting the public site key skips the check during local development.
       if (!siteKey) return action({});
-      setLoadError(false);
-      const token = failed.current
-        ? null
-        : await widgetRef.current
-            ?.getResponsePromise(TOKEN_WAIT_MS)
-            .catch(() => null);
+      if (loadFailed.current) {
+        setAlert("load");
+        return null;
+      }
+      setAlert(null);
+      const token = await waitForCaptchaToken(
+        () => widgetRef.current,
+        TOKEN_WAIT_MS,
+      );
+      if (loadFailed.current) {
+        setAlert("load");
+        return null;
+      }
       if (!token) {
-        setLoadError(true);
-        report("load_error");
+        if (shownRef.current || interactive.current) {
+          setAlert("missing");
+        } else {
+          setAlert("load");
+          report("load_error");
+        }
         return null;
       }
       try {
@@ -93,10 +142,10 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
       } finally {
         // Tokens are single-use; start verifying the next one right away.
         widgetRef.current?.reset();
-        setShown(false);
+        hideWidget();
       }
     },
-    [siteKey, report],
+    [siteKey, report, hideWidget],
   );
 
   const getErrorMessage = useCallback(
@@ -116,7 +165,7 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
   );
 
   const widget =
-    siteKey && isClient ? (
+    siteKey && isClient && widgetTheme ? (
       <>
         <div className={cn(!shown && "absolute size-0 overflow-hidden")}>
           <Turnstile
@@ -128,32 +177,34 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
               appearance: "interaction-only",
               size: "flexible",
               language: locale,
-              theme:
-                resolvedTheme === "dark" || resolvedTheme === "light"
-                  ? resolvedTheme
-                  : "auto",
+              theme: widgetTheme,
             }}
             onBeforeInteractive={() => {
               interactive.current = true;
-              setShown(true);
+              revealWidget();
               report("interactive");
             }}
             onSuccess={() => {
-              failed.current = false;
+              loadFailed.current = false;
+              setAlert(null);
               if (!interactive.current) return;
               interactive.current = false;
               report("solved");
             }}
-            onError={handleFailure}
-            onUnsupported={handleFailure}
-            scriptOptions={{ onError: handleFailure }}
+            onExpire={() => {
+              widgetRef.current?.reset();
+              hideWidget();
+            }}
+            onError={handleWidgetError}
+            onUnsupported={handleWidgetError}
+            scriptOptions={{ onError: handleScriptError }}
           />
         </div>
-        {loadError && (
+        {alert ? (
           <p role="alert" className="text-destructive text-sm">
-            {t("error")}
+            {t(alert === "load" ? "error" : "missingResponse")}
           </p>
-        )}
+        ) : null}
       </>
     ) : null;
 

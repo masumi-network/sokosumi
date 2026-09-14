@@ -155,14 +155,16 @@ describe("useAuthCaptcha", () => {
     const user = userEvent.setup();
     render(<Consumer entry="signup" />);
     act(() => widgetProps?.scriptOptions?.onError?.());
-    await user.click(screen.getByText("Submit"));
     expect(screen.getByRole("alert")).toHaveTextContent("error");
-    expect(submitAction).not.toHaveBeenCalled();
-    expect(result).toHaveBeenCalledWith(null);
+    expect(track).toHaveBeenCalledTimes(1);
     expect(track).toHaveBeenCalledWith("Security Check", {
       entry: "signup",
       step: "load_error",
     });
+    await user.click(screen.getByText("Submit"));
+    expect(submitAction).not.toHaveBeenCalled();
+    expect(result).toHaveBeenCalledWith(null);
+    expect(track).toHaveBeenCalledTimes(1);
     await user.click(screen.getByText("Solve challenge"));
     await user.click(screen.getByText("Submit"));
     expect(submitAction).toHaveBeenCalledExactlyOnceWith(verifiedOptions);
@@ -182,6 +184,50 @@ describe("useAuthCaptcha", () => {
     expect(result).toHaveBeenCalledWith(null);
     expect(submitAction).not.toHaveBeenCalled();
     expect(screen.getByText("Submit")).toBeEnabled();
+  });
+
+  it("asks the visitor to finish the check instead of blaming a blocker after an unsolved timeout", async () => {
+    vi.useFakeTimers();
+    render(<Consumer />);
+    act(() => widgetProps?.onBeforeInteractive?.());
+    await act(async () => {
+      screen.getByText("Submit").click();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(8_500));
+    expect(screen.getByRole("alert")).toHaveTextContent("missingResponse");
+    expect(result).toHaveBeenCalledWith(null);
+    expect(submitAction).not.toHaveBeenCalled();
+    expect(track).not.toHaveBeenCalledWith("Security Check", {
+      entry: "signin",
+      step: "load_error",
+    });
+  });
+
+  it("keeps a widget error retryable instead of treating it as a load failure", async () => {
+    const user = userEvent.setup();
+    render(<Consumer />);
+    act(() => widgetProps?.onBeforeInteractive?.());
+    act(() => widgetProps?.onError?.("110200"));
+    expect(track).toHaveBeenCalledWith("Security Check", {
+      entry: "signin",
+      step: "failed",
+    });
+    expect(reset).toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(screen.getByText("Submit"));
+    expect(submitAction).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(screen.getByText("Solve challenge"));
+    await waitFor(() =>
+      expect(submitAction).toHaveBeenCalledExactlyOnceWith(verifiedOptions),
+    );
+  });
+
+  it("resets the widget when the token expires so submit waits for a fresh one", () => {
+    render(<Consumer />);
+    act(() => widgetProps?.onSuccess?.("stale-token"));
+    act(() => widgetProps?.onExpire?.("stale-token"));
+    expect(reset).toHaveBeenCalledOnce();
   });
 
   it("tracks interactive challenges and their outcome", async () => {
@@ -217,10 +263,14 @@ describe("useAuthCaptcha", () => {
     expect(box).toHaveClass("absolute", "size-0", "overflow-hidden");
   });
 
-  it("lets Turnstile follow the system theme while next-themes is unresolved", () => {
+  it("does not mount Turnstile until next-themes has resolved, then keeps that theme", () => {
     resolvedTheme = undefined;
-    render(<Consumer />);
-    expect(widgetProps?.options?.theme).toBe("auto");
+    const { rerender } = render(<Consumer />);
+    expect(widgetProps).toBeUndefined();
+    expect(screen.queryByText("Solve challenge")).not.toBeInTheDocument();
+    resolvedTheme = "light";
+    rerender(<Consumer />);
+    expect(widgetProps?.options?.theme).toBe("light");
   });
 
   it("renders nothing on the server so hydration matches", () => {
