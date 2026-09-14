@@ -177,6 +177,23 @@ function MessageEditedLabel({ editedAt, className }: MessageEditedLabelProps) {
   );
 }
 
+interface MessagePinnedLabelProps {
+  className?: string;
+}
+
+function MessagePinnedLabel({ className }: MessagePinnedLabelProps) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <span
+      className={cn("text-muted-foreground text-xs leading-none", className)}
+    >
+      <Pin className="me-1 inline size-3 align-[-0.125em]" aria-hidden />
+      {t("PinnedMessages.pinned")}
+    </span>
+  );
+}
+
 /**
  * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
  * matches hydrate; then fills with `formatMessageTime` (SOKOSUMI-A).
@@ -2154,6 +2171,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     message.sender.user.id === currentUserId;
   const editedAt = message.editedAt;
   const showEdited = !isDeleted && editedAt != null;
+  const showPinned = !isDeleted && isPinned;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -2296,7 +2314,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
-        {isContinuation ? null : (
+        {isContinuation ? (
+          // No header on a continuation; a trailing cue would sit below long bodies.
+          showPinned ? (
+            <MessagePinnedLabel className="block" />
+          ) : null
+        ) : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
               profile={hoverProfile}
@@ -2326,6 +2349,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             {showEdited && editedAt != null ? (
               <MessageEditedLabel editedAt={editedAt} />
             ) : null}
+            {showPinned ? <MessagePinnedLabel /> : null}
           </div>
         )}
         <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
