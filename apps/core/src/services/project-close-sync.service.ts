@@ -508,24 +508,28 @@ async function processClaimedProjectClose(
         },
       });
       if (!operation) return { kind: "lost" as const };
-      if (
-        !(await lockCalendarScope(tx, operation.project.workspaceId, [
-          operation.projectId,
-        ]))
-      ) {
-        return { kind: "lost" as const };
-      }
-      await updateOwnedProjectClose(tx, claimed, { leasedAt: new Date() });
 
-      const task = await tx.task.findFirst({
+      const candidateTask = await tx.task.findFirst({
         where: activeProjectScheduleWhere(
           operation.projectId,
           operation.seriesCursor,
         ),
         orderBy: { id: "asc" },
-        select: { id: true },
+        select: { id: true, ownerId: true },
       });
-      if (!task) {
+      if (
+        !(await lockCalendarScope(
+          tx,
+          operation.project.workspaceId,
+          [operation.projectId],
+          candidateTask?.ownerId,
+        ))
+      ) {
+        return { kind: "lost" as const };
+      }
+      await updateOwnedProjectClose(tx, claimed, { leasedAt: new Date() });
+
+      if (!candidateTask) {
         const eventId = await finalizeProjectClose(tx, {
           operationId: operation.id,
           leaseToken: claimed.leaseToken,
@@ -545,10 +549,10 @@ async function processClaimedProjectClose(
         operationId: operation.id,
         projectId: operation.projectId,
         cutoffAt: operation.cutoffAt,
-        taskId: task.id,
+        taskId: candidateTask.id,
       });
       await updateOwnedProjectClose(tx, claimed, {
-        ...(resolved ? { seriesCursor: task.id } : {}),
+        ...(resolved ? { seriesCursor: candidateTask.id } : {}),
         attempts: 0,
         failureSummary: null,
         leasedAt: new Date(),

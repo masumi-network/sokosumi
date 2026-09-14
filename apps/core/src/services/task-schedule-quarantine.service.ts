@@ -187,10 +187,14 @@ async function lockAndReloadQuarantine(
   quarantine: Prisma.TaskScheduleQuarantineGetPayload<{
     select: typeof QUARANTINE_OPERATION_SELECT;
   }>,
+  operatorId: string,
 ) {
-  const scopeLocked = await lockCalendarScope(tx, quarantine.task.workspaceId, [
-    quarantine.task.projectId,
-  ]);
+  const scopeLocked = await lockCalendarScope(
+    tx,
+    quarantine.task.workspaceId,
+    [quarantine.task.projectId],
+    operatorId,
+  );
   if (!scopeLocked || !(await lockTaskRows(tx, [quarantine.taskId]))) {
     return null;
   }
@@ -250,7 +254,11 @@ export async function repairTaskScheduleQuarantine(
       if (!quarantine) {
         return err({ kind: "not_found" });
       }
-      const lockedQuarantine = await lockAndReloadQuarantine(tx, quarantine);
+      const lockedQuarantine = await lockAndReloadQuarantine(
+        tx,
+        quarantine,
+        input.operatorId,
+      );
       if (!lockedQuarantine) {
         return err({ kind: "not_found" });
       }
@@ -378,7 +386,11 @@ export async function removeTaskScheduleQuarantine(
       if (!quarantine) {
         return err({ kind: "not_found" });
       }
-      const lockedQuarantine = await lockAndReloadQuarantine(tx, quarantine);
+      const lockedQuarantine = await lockAndReloadQuarantine(
+        tx,
+        quarantine,
+        input.operatorId,
+      );
       if (!lockedQuarantine) {
         return err({ kind: "not_found" });
       }

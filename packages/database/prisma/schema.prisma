@@ -64,6 +64,7 @@ model User {
   calendarOccurrencesActed TaskScheduleOccurrence[] @relation("TaskScheduleOccurrenceActor")
   projectCloseOperations   ProjectCloseOperation[]  @relation("ProjectCloseOperationActor")
   projectEventsActed       ProjectEvent[]           @relation("ProjectEventActor")
+  projectDeletionTombstones ProjectDeletionTombstone[] @relation("ProjectDeletionTombstoneActor")
 
   // Chat display preferences. Not delivery: these change what the reader sees,
   // never which notifications are created or sent.
@@ -276,6 +277,7 @@ model Workspace {
   projects                 Project[]
   scheduleOccurrences      TaskScheduleOccurrence[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
+  projectDeletionTombstones ProjectDeletionTombstone[]
   notifications            Notification[]
   vendorGrants             VendorGrant[]
   coworkerWorkspaceAccess  CoworkerWorkspaceAccess[]
@@ -2806,6 +2808,27 @@ model CalendarInvalidationOutbox {
   @@index([workspaceId, calendarRevision])
   @@index([projectId, calendarRevision])
   @@map("calendar_invalidation_outbox")
+}
+
+/// Durable replay record for Project deletion. It intentionally has no Project
+/// relation because the deleted Project row is the outcome being remembered.
+model ProjectDeletionTombstone {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  deletedAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  projectId  String @db.Uuid
+  operationId String @db.Uuid
+
+  actorUserId String?
+  actorUser   User?   @relation("ProjectDeletionTombstoneActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, operationId])
+  @@unique([workspaceId, projectId])
+  @@index([actorUserId])
+  @@map("project_deletion_tombstone")
 }
 
 /// At most one row per unordered task pair (any direction or `TaskLinkType`).
