@@ -93,6 +93,7 @@ import ProjectCalendarPage from "./page";
 
 const PROJECT = {
   id: "project-1",
+  workspaceId: "workspace-1",
   name: "Launch plan",
   logo: null,
   websiteUrl: null,
@@ -106,7 +107,9 @@ describe("ProjectCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
-    getSessionMock.mockResolvedValue({ user: { email: "ada@example.com" } });
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1", email: "ada@example.com" },
+    });
     getProjectByIdMock.mockResolvedValue(PROJECT);
     getProjectCalendarMock.mockResolvedValue({
       items: [],
@@ -187,6 +190,7 @@ describe("ProjectCalendarPage", () => {
     expect(shell).toHaveClass("mx-auto", "w-full", "max-w-7xl", "py-6");
     expect(shell).not.toHaveClass("max-w-6xl");
     const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      currentUserId?: string;
       lockedProjectId?: string;
       projectId?: string;
       sources: Array<{
@@ -194,8 +198,11 @@ describe("ProjectCalendarPage", () => {
         sourceId: string;
         sourceType: string;
       }>;
+      workspaceId?: string;
     };
+    expect(calendarProps.currentUserId).toBe("user-1");
     expect(calendarProps.lockedProjectId).toBe(PROJECT.id);
+    expect(calendarProps.workspaceId).toBe(PROJECT.workspaceId);
     expect(calendarProps).not.toHaveProperty("projectId");
     expect(calendarProps.sources).toEqual([
       expect.objectContaining({

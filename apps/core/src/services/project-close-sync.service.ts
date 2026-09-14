@@ -8,8 +8,12 @@ import {
   TaskStatus,
 } from "@sokosumi/database";
 import { parseTaskScheduleMetadata } from "@sokosumi/utils";
-
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import {
+  notifyProjectCloseTransition,
+  retryMissingProjectCloseNotifications,
+} from "@/helpers/project-close-notifications";
 import { isSchedulableTaskStatus } from "@/helpers/task-schedule";
 import { retireTaskScheduleFutureOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import {
@@ -394,7 +398,7 @@ async function finalizeProjectClose(
     projectId: string;
     cutoffAt: Date;
   },
-): Promise<boolean> {
+): Promise<string | null> {
   const remaining = await tx.task.findFirst({
     where: activeProjectScheduleWhere(input.projectId),
     orderBy: { id: "asc" },
@@ -406,7 +410,7 @@ async function finalizeProjectClose(
       { id: input.operationId, leaseToken: input.leaseToken },
       { seriesCursor: null, leasedAt: new Date() },
     );
-    return false;
+    return null;
   }
 
   const owed = await tx.taskScheduleOccurrence.findFirst({
@@ -464,7 +468,7 @@ async function finalizeProjectClose(
       failureSummary: null,
     },
   );
-  await tx.projectEvent.create({
+  const event = await tx.projectEvent.create({
     data: {
       projectId: input.projectId,
       closeOperationId: input.operationId,
@@ -472,8 +476,9 @@ async function finalizeProjectClose(
       kind: "CLOSE_FINALIZED",
       payload: { completedAt: completedAt.toISOString() },
     },
+    select: { id: true },
   });
-  return true;
+  return event.id;
 }
 
 async function processClaimedProjectClose(
@@ -521,14 +526,18 @@ async function processClaimedProjectClose(
         select: { id: true },
       });
       if (!task) {
-        const closed = await finalizeProjectClose(tx, {
+        const eventId = await finalizeProjectClose(tx, {
           operationId: operation.id,
           leaseToken: claimed.leaseToken,
           projectId: operation.projectId,
           cutoffAt: operation.cutoffAt,
         });
-        return closed
-          ? { kind: "closed" as const }
+        return eventId
+          ? {
+              kind: "closed" as const,
+              eventId,
+              workspaceId: operation.project.workspaceId,
+            }
           : { kind: "restart" as const };
       }
 
@@ -544,15 +553,23 @@ async function processClaimedProjectClose(
         failureSummary: null,
         leasedAt: new Date(),
       });
-      return { kind: "processed" as const };
+      return {
+        kind: "processed" as const,
+        workspaceId: operation.project.workspaceId,
+      };
     });
 
     if (outcome.kind === "lost") break;
     if (outcome.kind === "closed") {
+      await Promise.all([
+        notifyProjectCloseTransition(outcome.eventId),
+        deliverCalendarInvalidationsNow(outcome.workspaceId),
+      ]);
       return { processedSeries, closed: true };
     }
     if (outcome.kind === "restart") continue;
     processedSeries += 1;
+    await deliverCalendarInvalidationsNow(outcome.workspaceId);
   }
 
   await prisma.projectCloseOperation.updateMany({
@@ -611,7 +628,7 @@ async function recordProjectCloseFailure(
       },
     });
     if (updated.count !== 1) return false;
-    await tx.projectEvent.create({
+    const event = await tx.projectEvent.create({
       data: {
         projectId: current.projectId,
         closeOperationId: claimed.id,
@@ -619,10 +636,14 @@ async function recordProjectCloseFailure(
         kind: "BATCH_FAILED",
         payload: { attempts, failed, ...failureSummary },
       },
+      select: { id: true },
     });
-    return true;
+    return event.id;
   });
   if (!recorded) return false;
+  if (failed) {
+    await notifyProjectCloseTransition(recorded);
+  }
   console.error("Project close batch failed", {
     closeOperationId: claimed.id,
     seriesTaskId,
@@ -635,6 +656,8 @@ export const projectCloseSyncService = {
   async syncProjectCloses(
     options: ProjectCloseSyncExecutionOptions,
   ): Promise<ProjectCloseSyncResult> {
+    await retryMissingProjectCloseNotifications(options);
+
     const result: ProjectCloseSyncResult = {
       claimed: 0,
       processedSeries: 0,

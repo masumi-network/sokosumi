@@ -12953,6 +12953,7 @@ export const NotificationPreferenceSchema = {
                 'TASK_ATTENTION',
                 'TASK_COMPLETED',
                 'TASK_UPDATE',
+                'PROJECT_UPDATE',
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
@@ -16433,7 +16434,8 @@ export const NotificationKindSchema = {
         'TASK',
         'BILLING',
         'SYSTEM',
-        'CHAT'
+        'CHAT',
+        'PROJECT'
     ],
     description: 'Notification source domain',
     example: 'JOB'
@@ -21305,6 +21307,56 @@ export const WorkspaceCalendarSourceSchema = {
         'paletteToken',
         'isSchedulable'
     ]
+} as const;
+
+export const CalendarIdentityLabelsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/CalendarIdentityLabel'
+    }
+} as const;
+
+export const CalendarIdentityLabelSchema = {
+    type: 'object',
+    properties: {
+        ref: {
+            type: 'string'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'current_member',
+                'former_member',
+                'unknown'
+            ]
+        },
+        label: {
+            type: 'string'
+        }
+    },
+    required: [
+        'ref',
+        'state'
+    ]
+} as const;
+
+export const CalendarIdentityLabelsRequestSchema = {
+    type: 'object',
+    properties: {
+        refs: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 255
+            },
+            maxItems: 50
+        }
+    },
+    required: [
+        'refs'
+    ],
+    additionalProperties: false
 } as const;
 
 export const WorkspaceOrganizationSchema = {

@@ -67,6 +67,16 @@ describe("getNotificationHref", () => {
     ).toBe("/tasks/task-1");
   });
 
+  it("returns project href", () => {
+    expect(
+      getNotificationHref({
+        kind: "PROJECT",
+        referenceId: "project/one",
+        metadata: null,
+      }),
+    ).toBe("/projects/project%2Fone");
+  });
+
   it("deep-links CHAT notifications to the message", () => {
     expect(
       getNotificationHref({

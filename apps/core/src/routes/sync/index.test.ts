@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acquireLockMock,
   syncCardanoV2RailReadinessMock,
+  syncCalendarInvalidationsMock,
   syncEnterpriseContractRenewalMock,
   syncFreeSubscriptionRenewalMock,
   releaseLockMock,
@@ -23,6 +24,7 @@ const {
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
+  syncCalendarInvalidationsMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -142,6 +144,12 @@ vi.mock("@/services/project-close-sync.service", () => ({
   },
 }));
 
+vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
+  calendarInvalidationOutboxService: {
+    syncInvalidations: syncCalendarInvalidationsMock,
+  },
+}));
+
 vi.mock("@/services/task-schedule-reconciliation.service", () => ({
   taskScheduleReconciliationService: {
     reconcileScheduleHistory: reconcileScheduleHistoryMock,
@@ -228,6 +236,11 @@ describe("sync routes", () => {
       claimed: 0,
       processedSeries: 0,
       closed: 0,
+      failed: 0,
+    });
+    syncCalendarInvalidationsMock.mockResolvedValue({
+      claimed: 0,
+      published: 0,
       failed: 0,
     });
     reconcileScheduleHistoryMock.mockResolvedValue({
@@ -346,12 +359,19 @@ describe("sync routes", () => {
     expect(reconcileScheduleHistoryMock).toHaveBeenCalledWith({
       shouldContinue: expect.any(Function),
     });
+    expect(syncCalendarInvalidationsMock).toHaveBeenCalledWith({
+      newestFirst: true,
+      shouldContinue: expect.any(Function),
+    });
     expect(syncDueTaskSchedulesMock.mock.invocationCallOrder[0]).toBeLessThan(
       validateActiveSchedulesMock.mock.invocationCallOrder[0],
     );
     expect(
       validateActiveSchedulesMock.mock.invocationCallOrder[0],
     ).toBeLessThan(reconcileScheduleHistoryMock.mock.invocationCallOrder[0]);
+    expect(
+      reconcileScheduleHistoryMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(syncCalendarInvalidationsMock.mock.invocationCallOrder[0]);
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
@@ -367,6 +387,22 @@ describe("sync routes", () => {
     expect(syncProjectClosesMock).toHaveBeenCalledWith({
       abortSignal: expect.any(AbortSignal),
       deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+  });
+
+  it("runs the durable Calendar invalidation publisher", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/calendar-invalidations",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncCalendarInvalidationsMock).toHaveBeenCalledWith({
       shouldContinue: expect.any(Function),
     });
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
