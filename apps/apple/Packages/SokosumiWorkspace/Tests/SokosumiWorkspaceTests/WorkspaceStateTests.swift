@@ -1755,6 +1755,8 @@ extension WorkspaceStateTests {
     } else {
       try await request.value
     }
+    let requestBody = try #require(transport.bodies.last)
+    #expect(try JSONDecoder().decode([String: String].self, from: requestBody) == ["url": "https://example.com"])
     if outcome == "switch" {
       #expect(state.timeline.messages.isEmpty)
     } else {

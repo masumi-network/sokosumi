@@ -9,6 +9,16 @@ struct MessageUnfurlView: View {
   @State private var removing = false
   @State private var hovered = false
   @State private var errorMessage: String?
+  @FocusState private var linkFocused: Bool
+  @FocusState private var removeFocused: Bool
+
+  private var showsRemove: Bool {
+    #if os(macOS)
+      hovered || linkFocused || removeFocused || removing
+    #else
+      true
+    #endif
+  }
 
   private var description: String {
     preview.description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -16,7 +26,8 @@ struct MessageUnfurlView: View {
 
   private var imageURL: URL? {
     guard !imageFailed else { return nil }
-    return preview.imageUrl.flatMap(URL.init(string:))
+    guard let value = preview.imageUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+    return URL(string: value)
   }
 
   var body: some View {
@@ -48,10 +59,12 @@ struct MessageUnfurlView: View {
         .contentShape(.rect)
       }
       .buttonStyle(.plain)
+      .focused($linkFocused)
       .accessibilityLabel("Open link: \(preview.title)")
       .overlay(alignment: .topTrailing) {
         if let remove {
           Button {
+            guard !removing else { return }
             removing = true
             Task { @MainActor in
               defer { removing = false }
@@ -64,7 +77,9 @@ struct MessageUnfurlView: View {
           .controlSize(.mini)
           .buttonBorderShape(.circle)
           .offset(x: 8, y: -8)
-          .disabled(removing)
+          .focused($removeFocused)
+          .opacity(showsRemove ? (removing ? 0.5 : 1) : 0)
+          .allowsHitTesting(showsRemove)
           .help("Remove preview")
           .accessibilityLabel("Remove preview: \(preview.title)")
         }

@@ -693,3 +693,5 @@ Verification: Xcode build/full app tests and targeted final fixture tests pass; 
 
 ![Link previews, light](docs/screenshots/message-unfurls-light.png)
 ![Link previews, dark](docs/screenshots/message-unfurls-dark.png)
+
+Review follow-up: verified friendly removal errors, trimmed image URLs, matched macOS hover/focus visibility (touch platforms retain visibility), and kept pending remove buttons hit-testable with duplicate actions ignored. The request body now has an exact URL assertion. Full app tests, 70 Workspace tests, the friendly-error regression, and Swift lint pass; resting fixtures refreshed. Live hover/focus and pending-click interaction remain manual checks.
