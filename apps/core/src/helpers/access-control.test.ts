@@ -36,6 +36,7 @@ import {
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
   requireTaskStatusWriteAccess,
+  requireTaskWorkspaceMapping,
 } from "./access-control";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
@@ -866,6 +867,142 @@ describe("requireTaskReadForRouteVars", () => {
     };
 
     await requireTaskReadForRouteVars(vars, "tsk_123", tx);
+  });
+});
+
+describe("requireTaskWorkspaceMapping", () => {
+  beforeEach(() => {
+    resolveMemberOrganizationByIdMock.mockReset();
+  });
+
+  it("maps a task in another workspace when the session user is an org member", async () => {
+    const tx = createTransactionClient();
+    const otherWorkspaceId = "22222222-2222-7222-8222-222222222222";
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      name: "Quarterly report",
+      ownerId: "user_owner",
+      workspaceId: otherWorkspaceId,
+      workspace: { organizationId: "org_other" },
+    } as never);
+    resolveMemberOrganizationByIdMock.mockResolvedValue({ id: "org_other" });
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskWorkspaceMapping(vars, "tsk_other", tx),
+    ).resolves.toMatchObject({
+      name: "Quarterly report",
+      workspaceId: otherWorkspaceId,
+      workspace: { organizationId: "org_other" },
+    });
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      select: {
+        name: true,
+        ownerId: true,
+        workspaceId: true,
+        workspace: { select: { organizationId: true } },
+      },
+      where: {
+        id: "tsk_other",
+        archivedAt: null,
+      },
+    });
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
+      id: "org_other",
+      userId: "user_123",
+      tx,
+    });
+  });
+
+  it("allows the personal-workspace owner without an organization", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      name: "Personal task",
+      ownerId: "user_123",
+      workspaceId,
+      workspace: { organizationId: null },
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: {
+        ...userAuthContext,
+        organizationId: null,
+      },
+      workspaceContext: {
+        workspaceId,
+        userId: "user_123",
+        organizationId: null,
+      },
+    };
+
+    await expect(
+      requireTaskWorkspaceMapping(vars, "tsk_personal", tx),
+    ).resolves.toMatchObject({
+      name: "Personal task",
+      workspace: { organizationId: null },
+    });
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a personal-workspace mapping for a non-owner", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      name: "Personal task",
+      ownerId: "user_owner",
+      workspaceId,
+      workspace: { organizationId: null },
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskWorkspaceMapping(vars, "tsk_personal", tx),
+    ).rejects.toThrow("You do not have access to this task");
+  });
+
+  it("keeps coworker mapping on the assigned-task read gate", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_123",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskWorkspaceMapping(vars, "tsk_other", tx),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "tsk_other",
+          workspaceId,
+        }),
+      }),
+    );
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 });
 

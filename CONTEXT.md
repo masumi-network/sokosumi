@@ -128,6 +128,12 @@ _Avoid_: Topbar, shell (unless meaning the loading frame)
 The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point. It only lists workspaces the user actually has. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
 
+### Account access
+
+**Security check**:
+The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
+_Avoid_: Captcha, Turnstile (in product copy), bot check
+
 ### Workspaces
 
 **Personal workspace**:

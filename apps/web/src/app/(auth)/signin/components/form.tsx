@@ -11,7 +11,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
-import { useAuthCaptcha } from "@/components/auth-captcha-provider";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient, signIn } from "@/lib/auth/auth.client";
 import {
@@ -41,7 +41,11 @@ export default function SignInForm({
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
+  const {
+    widget: captcha,
+    runWithCaptcha,
+    getErrorMessage,
+  } = useAuthCaptcha("signin");
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -167,6 +171,7 @@ export default function SignInForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
+        {captcha}
         <div className="relative">
           {isLastUsedEmailLogin && (
             <span

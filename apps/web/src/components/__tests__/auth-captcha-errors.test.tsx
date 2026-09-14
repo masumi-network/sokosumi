@@ -2,10 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  AuthCaptchaProvider,
-  useAuthCaptcha,
-} from "@/components/auth-captcha-provider";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
@@ -13,11 +10,12 @@ import es from "@/messages/es.json";
 vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => ({}),
 }));
+vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 
 const catalogs = { en, de, es };
 
 function ErrorMessage({ code, message }: { code: string; message?: string }) {
-  const { getErrorMessage } = useAuthCaptcha();
+  const { getErrorMessage } = useAuthCaptcha("signin");
   return <p>{getErrorMessage({ code }, message ?? "Fallback error")}</p>;
 }
 
@@ -31,9 +29,7 @@ describe.each(["en", "de", "es"] as const)("captcha errors in %s", (locale) => {
     (code, key) => {
       render(
         <NextIntlClientProvider locale={locale} messages={catalogs[locale]}>
-          <AuthCaptchaProvider>
-            <ErrorMessage code={code} message="Server English error" />
-          </AuthCaptchaProvider>
+          <ErrorMessage code={code} message="Server English error" />
         </NextIntlClientProvider>,
       );
       expect(
@@ -51,9 +47,7 @@ it.each(["Existing error", undefined])(
   (message) => {
     render(
       <NextIntlClientProvider locale="en" messages={en}>
-        <AuthCaptchaProvider>
-          <ErrorMessage code="INVALID_EMAIL_OR_PASSWORD" message={message} />
-        </AuthCaptchaProvider>
+        <ErrorMessage code="INVALID_EMAIL_OR_PASSWORD" message={message} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByText(message ?? "Fallback error")).toBeInTheDocument();

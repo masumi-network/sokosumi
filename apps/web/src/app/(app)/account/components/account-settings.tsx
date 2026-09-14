@@ -80,7 +80,14 @@ export function AccountSettings({
           )}
         </div>
         <div className="md:col-span-2">
-          <PasskeySettings />
+          {/* Only adding needs the linked accounts, because only adding can
+              hit Core's freshness gate and the gate offers the methods those
+              accounts name. Removing a passkey must keep working when that
+              read fails: a stolen device is exactly when it matters. */}
+          <PasskeySettings
+            accounts={accounts}
+            canAddPasskey={!credentialAccountsLoadError}
+          />
         </div>
       </div>
 

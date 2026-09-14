@@ -135,6 +135,35 @@ describe("Soko Bot avatar top-up", () => {
     });
   });
 
+  it("keeps the extracted routes behind the availability gate", async () => {
+    getSokoBotAvailabilityMock.mockResolvedValue({ disabled: true });
+    const response = await createApp().request(
+      "http://localhost/avatars/top-up",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(503);
+    expect(topUpAvailableAvatarsMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the extracted routes behind the verified beta gate", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      email: "picker@nmkr.io",
+      emailVerified: false,
+    });
+    const response = await createApp().request(
+      "http://localhost/avatars/top-up",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(404);
+    expect(topUpAvailableAvatarsMock).not.toHaveBeenCalled();
+  });
+
   it("refuses a take above one generation batch", async () => {
     const response = await createApp().request(
       "http://localhost/avatars/top-up",

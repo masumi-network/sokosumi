@@ -9,9 +9,38 @@ struct MessageMarkdownView: View {
   let source: String
   var room: Components.Schemas.ChatRoom?
   var channels: [ComposerChannel] = []
+  var preparedDocument: MessageMarkdown?
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
   @State private var selectedProfile: ChatParticipantProfile?
+  var body: some View {
+    MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument)
+      .textSelection(.enabled)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .environment(\.openURL, OpenURLAction { url in
+        if url.scheme == "sokosumi-channel" {
+          if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
+            Task { @MainActor in
+              workspaces.selectRoom(id, auth: auth)
+            }
+          }
+          return .handled
+        }
+        guard url.scheme == "sokosumi-participant" else { return .systemAction }
+        if let room {
+          selectedProfile = ChatParticipantProfile.resolving(url, in: room)
+        }
+        return .handled
+      })
+      .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
+  }
+}
+
+private struct MessageMarkdownContent: View {
+  let source: String
+  var room: Components.Schemas.ChatRoom?
+  var channels: [ComposerChannel]
+  var preparedDocument: MessageMarkdown?
   private struct RenderInput: Hashable {
     let source: String
     let mentions: MessageMentions?
@@ -34,35 +63,18 @@ struct MessageMarkdownView: View {
     Group {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
-      } else {
-        ExpandableMessageBody(source: source, clampHeight: document.map { !$0.containsAttachments } ?? true) {
-          if let document {
-            MarkdownBlocksView(blocks: document.blocks)
-          } else {
-            Text(source)
-          }
+      } else if let document = preparedDocument ?? document {
+        ExpandableMessageBody(source: source, clampHeight: !document.containsAttachments) {
+          MarkdownBlocksView(blocks: document.blocks)
         }
+      } else {
+        ProgressView()
+          .controlSize(.small)
+          .accessibilityLabel("Loading message")
       }
     }
-    .textSelection(.enabled)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .environment(\.openURL, OpenURLAction { url in
-      if url.scheme == "sokosumi-channel" {
-        if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
-          Task { @MainActor in
-            workspaces.selectRoom(id, auth: auth)
-          }
-        }
-        return .handled
-      }
-      guard url.scheme == "sokosumi-participant" else { return .systemAction }
-      if let room {
-        selectedProfile = ChatParticipantProfile.resolving(url, in: room)
-      }
-      return .handled
-    })
-    .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
     .task(id: RenderInput(source: source, mentions: room.map(MessageMentions.init), channels: channels)) {
+      guard preparedDocument == nil else { return }
       let source = source
       let channels = channels
       let mentions = room.map(MessageMentions.init)

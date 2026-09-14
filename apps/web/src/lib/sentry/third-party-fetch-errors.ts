@@ -83,10 +83,11 @@ export const bareNetworkErrorIgnoreErrors: RegExp[] = [
   firefoxFetchNetworkErrorPattern,
 ];
 
-/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13, SOKOSUMI-JB). */
+/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13, SOKOSUMI-JB, SOKOSUMI-S5). */
 export const thirdPartyScriptDenyUrls: RegExp[] = [
   /hook\.js/i,
   /injected\.js/i,
+  /\/executors\/\d+\.js/i,
   /cardano\.bundle\.js/i,
 ];
 
