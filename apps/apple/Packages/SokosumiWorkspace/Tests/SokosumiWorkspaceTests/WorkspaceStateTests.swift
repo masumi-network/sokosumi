@@ -1597,10 +1597,12 @@ extension WorkspaceStateTests {
     message.pinnedAt = nil
     state.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: true)
     #expect(state.isPinned(message))
-    message.deletedAt = Date()
-    #expect(!state.isPinned(message))
+    state.applyRealtimeEnvelope(.init(eventType: .delete, messageId: message.id, roomId: "room"))
+    let deletedMessage = try #require(state.timeline.messages.first)
+    #expect(deletedMessage.deletedAt != nil)
+    #expect(!state.isPinned(deletedMessage))
+    #expect(state.pins.items.isEmpty)
     state.timeline.reset(roomId: "other")
-    message.deletedAt = nil
     #expect(!state.isPinned(message))
   }
 
