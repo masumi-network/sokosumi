@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
@@ -124,6 +124,7 @@ function createTaskApi(projectId: string | null = null) {
     name: "Updated Task",
     description: null,
     status: TaskStatus.DRAFT,
+    visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: null,
     grantResumeStatus: null,

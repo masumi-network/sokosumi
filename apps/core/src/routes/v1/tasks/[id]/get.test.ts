@@ -1,5 +1,7 @@
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskLinkType, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   buildCoworkerAuthorizedTaskWhere,
   buildCoworkerSiblingTaskListFilter,
@@ -128,6 +130,7 @@ function createTask(
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
+    visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: null,
     scheduleRevision: overrides?.scheduleRevision ?? 0,
@@ -208,16 +211,18 @@ describe("GET /tasks/{id}", () => {
         id: "tsk_a",
         archivedAt: null,
         workspaceId: testWorkspaceId,
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
       include: expect.objectContaining({
         share: true,
         linksFrom: {
           where: {
             toTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
           include: {
@@ -243,10 +248,11 @@ describe("GET /tasks/{id}", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
           include: {
@@ -333,15 +339,17 @@ describe("GET /tasks/{id}", () => {
         id: "tsk_a",
         archivedAt: null,
         workspaceId: testWorkspaceId,
+        ...buildHumanTaskVisibilityWhere("user_456"),
       },
       include: expect.objectContaining({
         linksFrom: {
           where: {
             toTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_456"),
+              }),
             },
           },
           include: expect.any(Object),
@@ -350,10 +358,11 @@ describe("GET /tasks/{id}", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_456"),
+              }),
             },
           },
           include: expect.any(Object),
@@ -608,6 +617,7 @@ describe("GET /tasks/{id}", () => {
           id: "tsk_a",
           archivedAt: null,
           workspaceId: testWorkspaceId,
+          ...buildHumanTaskVisibilityWhere("user_456"),
         },
       }),
     );

@@ -1,8 +1,9 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler.js";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -104,6 +105,7 @@ interface TaskRecord {
   name: string;
   description: string | null;
   status: TaskStatus;
+  visibility: TaskVisibility;
   metadata: string | null;
   nextRunAt: Date | null;
 }
@@ -140,6 +142,7 @@ function createTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,
+    visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: null,
     ...overrides,
@@ -201,6 +204,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,
+    visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: null,
     credits: 0,
@@ -436,20 +440,22 @@ describe("PUT /tasks/{id}/workspace", () => {
         linksFrom: expect.objectContaining({
           where: {
             toTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
         }),
         linksTo: expect.objectContaining({
           where: {
             fromTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
         }),
@@ -873,20 +879,22 @@ describe("PUT /tasks/{id}/workspace", () => {
         linksFrom: expect.objectContaining({
           where: {
             toTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
         }),
         linksTo: expect.objectContaining({
           where: {
             fromTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
         }),

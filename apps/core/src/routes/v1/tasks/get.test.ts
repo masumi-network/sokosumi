@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -88,6 +88,15 @@ const DELEGATED_WORKSPACE_CONTEXT = {
 } satisfies WorkspaceVariables["workspaceContext"];
 
 const DELEGATED_VENDOR_ID = "01960001-0001-7001-8001-000000000001";
+
+const HUMAN_TASK_VISIBILITY_AND = [
+  {
+    OR: [
+      { visibility: TaskVisibility.PUBLIC },
+      { visibility: TaskVisibility.PRIVATE, ownerId: "user_123" },
+    ],
+  },
+] as const;
 
 const COWORKER_SIBLING_LIST_FILTER = {
   status: { not: TaskStatus.DRAFT },
@@ -199,6 +208,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           status: {
             in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
           },
@@ -220,6 +230,7 @@ describe("GET /tasks", () => {
           workspaceId: "11111111-1111-7111-8111-111111111111",
           assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
           status: { not: TaskStatus.DRAFT },
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
     );
@@ -236,6 +247,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           name: {
             contains: "review",
             mode: "insensitive",
@@ -256,6 +268,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
     );
@@ -271,6 +284,7 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
     );
@@ -290,6 +304,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId,
         },
       }),
@@ -307,6 +322,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId: null,
         },
       }),
