@@ -1,9 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
-import {
-  buildChatMessagePreview,
-  buildNamedChatMessagePreview,
-} from "@sokosumi/utils";
+import { buildNamedChatMessagePreview } from "@sokosumi/utils";
 
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
@@ -577,15 +574,9 @@ async function rewriteRowFromMessage(
         });
         const content =
           message === null || message.deletedAt !== null ? "" : message.content;
-        // Not the named preview the create path builds. An edit must take the
-        // old text off the row, and a rewrite that declined to would leave a
-        // redaction unredacted; one that wiped the row instead could never
-        // fill it again, because a rewrite never puts text on a row that
-        // carries none. So this keeps writing what it always wrote, and a
-        // message whose mention nobody can name still loses that name here.
-        // Closing that needs the rewrite to be allowed to refill a row it
-        // emptied, which is a rule this change does not touch.
-        const preview = buildChatMessagePreview(
+        // Remove ambiguous edited text. Once removed, this row stays without
+        // a preview, following the same rule as every other rewrite.
+        const preview = buildNamedChatMessagePreview(
           content,
           await mentionNamesFor(names, source, content, tx),
         );

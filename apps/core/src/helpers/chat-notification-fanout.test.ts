@@ -947,6 +947,32 @@ describe("rewriteChatNotificationPreviews", () => {
    * are read on that client too. Reading them on another would step outside
    * the lock this rewrite took.
    */
+  it.each([undefined, "  "])(
+    "removes an edited preview with an unnamed mention: %s",
+    async (name) => {
+      notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+      const id = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+      loadChatMentionNamesMock.mockResolvedValue(
+        name === undefined ? new Map() : new Map([[id, name]]),
+      );
+      messageSays(`ping @${id} not`);
+      await rewriteChatNotificationPreviews({
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+      });
+      const updated = paramsWrittenTo(0);
+      expect(updated).toEqual({ authorName: "Ada", roomName: "general" });
+      notificationUpdateManyMock.mockClear();
+      notificationFindManyMock.mockResolvedValue([storedRow(updated)]);
+      messageSays("safe later edit");
+      await rewriteChatNotificationPreviews({
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+      });
+      expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("shows a mention as a name on a row it rewrites", async () => {
     notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
     loadChatMentionNamesMock.mockResolvedValue(
