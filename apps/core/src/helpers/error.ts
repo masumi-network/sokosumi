@@ -8,6 +8,8 @@ export interface HTTPExceptionMetadata {
   kind?: string;
   reportToSentry?: boolean;
   extensions?: Record<string, unknown>;
+  /** Seconds clients should wait before retrying; sent as `Retry-After`. */
+  retryAfterSeconds?: number;
 }
 
 /**
@@ -27,6 +29,17 @@ export const errorResponseSchema = z.object({
    * Omitted when no kind has been assigned to the error.
    */
   kind: z.string().optional().openapi({ example: "organization_not_found" }),
+
+  /**
+   * Seconds the client should wait before retrying. Present only on
+   * throttled responses; mirrors the `Retry-After` header.
+   */
+  retryAfterSeconds: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .openapi({ example: 7 }),
 
   /** Metadata about the request and response */
   meta: z.object({

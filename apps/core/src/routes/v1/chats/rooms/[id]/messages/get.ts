@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
+import { assertChatMessageReadBudget } from "@/helpers/chat-message-read-budget";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -81,7 +82,8 @@ const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
     path: "/{id}/messages",
-    description: "Get messages for an organization chat room.",
+    description:
+      "Get messages for an organization chat room. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -96,6 +98,7 @@ const route = withOrganizationSlugHeaderParameter(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
       422: jsonErrorResponse("Unprocessable Entity"),
+      429: jsonErrorResponse("Chat history read budget exceeded"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -120,6 +123,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // the default client is fine; Promise.all inside interactive txs is not
     // (#2559).
     await requireChatRoomUserMembership(id, userContext.userId, prisma);
+    // Shared per-user budget across rooms and credentials (SOK-1060). Runs
+    // after authorization so 401/403/404 keep their status, before the reads
+    // so throttled requests cost no database load.
+    await assertChatMessageReadBudget(userContext.userId);
 
     if (aroundId) {
       const target = await prisma.chatRoomMessage.findFirst({
