@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active slice: composer viewport edge, branch `codex/apple-message-clipping`. Remove the shared composer’s outer top padding so room and reply-thread transcripts clip at its visible top edge. Signed macOS build, pinned SwiftFormat/strict SwiftLint and both existing transcript scrolling tests pass. The rebuilt app was visually inspected at rest; live scroll automation did not move the window, so the reaction-chip cutoff during scrolling remains a manual check.
+- Active slice: composer viewport edge, branch `codex/apple-message-clipping`, draft [PR #4554](https://github.com/masumi-network/sokosumi/pull/4554). Remove the shared composer’s outer top padding so room and reply-thread transcripts clip at its visible top edge. Signed macOS build, pinned SwiftFormat/strict SwiftLint and the complete macOS app test suite (including room/thread scrolling) pass. The rebuilt app was visually inspected at rest; live scroll automation did not move the window, so the reaction-chip cutoff during scrolling remains a manual check.
 - Pinned messages (21): [PR #4549](https://github.com/masumi-network/sokosumi/pull/4549) merged on 2026-09-14.
 - User acceptance (2026-09-14): first-load pins and navigation to older messages now work.
 - Next follow-up after the composer-edge fix merges: fix the partially clipped last text line immediately above “Show more” in collapsed messages. Inspect `Sokosumi/Chat/Rendering/ExpandableMessageBody.swift` against the latest web expansion behavior; ensure the collapsed boundary leaves complete, readable text lines and clear spacing before the control. Verify long paragraphs/lists, window resizing, expansion/collapse, and room/thread rendering. This is queued work, not part of the pin-navigation fix.
