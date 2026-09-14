@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { useAuthCaptcha } from "@/components/auth-captcha-provider";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,7 +33,11 @@ import { type EmailFormType, emailFormSchema } from "@/lib/schemas";
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");
   const router = useRouter();
-  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
+  const {
+    widget: captcha,
+    runWithCaptcha,
+    getErrorMessage,
+  } = useAuthCaptcha("change-email");
 
   const form = useForm<EmailFormType>({
     resolver: zodResolver(
@@ -92,7 +96,8 @@ export function EmailForm() {
                 )}
               />
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col gap-4">
+              {captcha}
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

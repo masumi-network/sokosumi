@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { forgotPasswordFormData } from "@/auth/forgot-password/data";
-import { useAuthCaptcha } from "@/components/auth-captcha-provider";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import { requestPasswordReset } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import {
@@ -23,7 +23,11 @@ export default function ForgotPasswordForm({
   initialEmail,
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
-  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
+  const {
+    widget: captcha,
+    runWithCaptcha,
+    getErrorMessage,
+  } = useAuthCaptcha("forgot-password");
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
@@ -64,6 +68,7 @@ export default function ForgotPasswordForm({
       namespace="Auth.Pages.ForgotPassword.Form"
       onSubmit={handleSubmit}
     >
+      {captcha}
       <SubmitButton isSubmitting={isSubmitting} label={t("reset_password")} />
     </AuthForm>
   );

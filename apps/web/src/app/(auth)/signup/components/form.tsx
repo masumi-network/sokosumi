@@ -11,7 +11,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/signup/data";
-import { useAuthCaptcha } from "@/components/auth-captcha-provider";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import { AuthErrorCode } from "@/lib/actions";
 import { handleUtmConversion } from "@/lib/actions/auth";
 import { authClient, signUp } from "@/lib/auth/auth.client";
@@ -39,7 +39,11 @@ export default function SignUpForm({
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const registerFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
+  const {
+    widget: captcha,
+    runWithCaptcha,
+    getErrorMessage,
+  } = useAuthCaptcha("signup");
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -155,6 +159,7 @@ export default function SignUpForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
+        {captcha}
         <SubmitButton
           isSubmitting={isPending}
           spinnerPosition="start"
