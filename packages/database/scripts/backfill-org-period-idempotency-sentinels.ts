@@ -93,14 +93,11 @@ async function main(): Promise<void> {
         debug,
         organizationId,
       });
-      if (coverage.isErr()) {
+      if (coverage.uncoveredReferenceIds.length > 0) {
         console.error(
-          `Coverage assert failed: uncovered=${coverage.error.uncoveredReferenceIds.length} unparseable=${coverage.error.unparseable}`,
+          `Coverage assert failed: uncovered=${coverage.uncoveredReferenceIds.length} unparseable=${coverage.unparseable}`,
         );
-        for (const referenceId of coverage.error.uncoveredReferenceIds.slice(
-          0,
-          20,
-        )) {
+        for (const referenceId of coverage.uncoveredReferenceIds.slice(0, 20)) {
           console.error(`  uncovered ${referenceId}`);
         }
         process.exitCode = 1;
@@ -108,11 +105,11 @@ async function main(): Promise<void> {
         console.log(
           "Coverage assert passed for parseable leftover member period fingerprints.",
         );
-        if (coverage.value.unparseable > 0) {
+        if (coverage.unparseable > 0) {
           console.warn(
-            `Warning: ${coverage.value.unparseable} leftover member: period row(s) are unparseable and were not fingerprinted. They stay in place (delete skips them). Triage with --verbose.`,
+            `Warning: ${coverage.unparseable} leftover member: period row(s) are unparseable and were not fingerprinted. They stay in place (delete skips them). Triage with --verbose.`,
           );
-          for (const referenceId of coverage.value.unparseableReferenceIds.slice(
+          for (const referenceId of coverage.unparseableReferenceIds.slice(
             0,
             20,
           )) {

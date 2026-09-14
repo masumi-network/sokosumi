@@ -1,5 +1,3 @@
-import { err, ok, type Result } from "neverthrow";
-
 import {
   CreditBucketReferenceType,
   Prisma,
@@ -55,13 +53,8 @@ export interface TombstoneDeleteResult {
   skippedUnparseable: number;
 }
 
-export interface SentinelCoverageFailure {
+export interface SentinelCoverageResult {
   uncoveredReferenceIds: string[];
-  unparseable: number;
-  unparseableReferenceIds: string[];
-}
-
-export interface SentinelCoverageOk {
   unparseable: number;
   unparseableReferenceIds: string[];
 }
@@ -109,52 +102,52 @@ function sentinelExpiresAt(expiresAt: Date | null): Date {
 export function parseMemberPeriodReferenceId(
   referenceId: string,
   organizationId: string,
-): Result<ParsedMemberPeriodLeftover, "unparseable"> {
+): ParsedMemberPeriodLeftover | null {
   if (
     !referenceId.startsWith(ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX)
   ) {
-    return err("unparseable");
+    return null;
   }
 
   if (referenceId.includes(LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS)) {
     const match = MEMBER_LOCAL_FREE_REF.exec(referenceId);
     if (!match) {
-      return err("unparseable");
+      return null;
     }
     const [, refOrganizationId, periodEndIso] = match;
     if (!refOrganizationId || !periodEndIso) {
-      return err("unparseable");
+      return null;
     }
     if (refOrganizationId !== organizationId) {
-      return err("unparseable");
+      return null;
     }
     const periodEnd = new Date(periodEndIso);
     if (
       Number.isNaN(periodEnd.getTime()) ||
       periodEnd.toISOString() !== periodEndIso
     ) {
-      return err("unparseable");
+      return null;
     }
-    return ok({
+    return {
       fingerprint: periodEndIso,
       kind: "local_free_subscription",
       orgReferenceId: buildLocalFreeOrganizationSubscriptionReferenceId(
         organizationId,
         periodEnd,
       ),
-    });
+    };
   }
 
   const invoiceMatch = MEMBER_INVOICE_SUBSCRIPTION_REF.exec(referenceId);
   if (!invoiceMatch) {
-    return err("unparseable");
+    return null;
   }
   const [, invoiceId] = invoiceMatch;
   if (!invoiceId || invoiceId === "local-free") {
-    return err("unparseable");
+    return null;
   }
 
-  return ok({
+  return {
     fingerprint: invoiceId,
     kind: "invoice_subscription",
     orgReferenceId: buildOrganizationInvoiceCreditReferenceId(
@@ -162,7 +155,7 @@ export function parseMemberPeriodReferenceId(
       invoiceId,
       "subscription",
     ),
-  });
+  };
 }
 
 const leftoverMemberPeriodWhereSql = Prisma.sql`
@@ -231,7 +224,7 @@ export async function collectOrgPeriodSentinelSpecs(
       leftover.referenceId,
       leftover.organizationId,
     );
-    if (parsed.isErr()) {
+    if (!parsed) {
       unparseableReferenceIds.push(leftover.referenceId);
       debug?.(
         `collect: unparseable leftover id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} remaining=${leftover.remaining.toString()}`,
@@ -239,23 +232,23 @@ export async function collectOrgPeriodSentinelSpecs(
       continue;
     }
 
-    if (byReferenceId.has(parsed.value.orgReferenceId)) {
+    if (byReferenceId.has(parsed.orgReferenceId)) {
       debug?.(
-        `collect: dedupe skip leftover id=${leftover.id} already covered by fingerprint=${parsed.value.orgReferenceId}`,
+        `collect: dedupe skip leftover id=${leftover.id} already covered by fingerprint=${parsed.orgReferenceId}`,
       );
       continue;
     }
 
-    byReferenceId.set(parsed.value.orgReferenceId, {
+    byReferenceId.set(parsed.orgReferenceId, {
       activatesAt: leftover.activatesAt,
       expiresAt: leftover.expiresAt,
-      kind: parsed.value.kind,
+      kind: parsed.kind,
       organizationId: leftover.organizationId,
-      referenceId: parsed.value.orgReferenceId,
+      referenceId: parsed.orgReferenceId,
       sourceBucketId: leftover.id,
     });
     debug?.(
-      `collect: fingerprint kind=${parsed.value.kind} organizationId=${leftover.organizationId} referenceId=${parsed.value.orgReferenceId} sourceBucketId=${leftover.id}`,
+      `collect: fingerprint kind=${parsed.kind} organizationId=${leftover.organizationId} referenceId=${parsed.orgReferenceId} sourceBucketId=${leftover.id}`,
     );
   }
 
@@ -503,7 +496,7 @@ export async function backfillOrgPeriodIdempotencySentinels(
 export async function assertSentinelsCoverLeftoverMemberPeriods(
   prisma: PrismaClient | Prisma.TransactionClient,
   params: { debug?: SentinelDebugLog; organizationId?: string } = {},
-): Promise<Result<SentinelCoverageOk, SentinelCoverageFailure>> {
+): Promise<SentinelCoverageResult> {
   const debug = params.debug;
   const { specs, unparseable, unparseableReferenceIds } =
     await collectOrgPeriodSentinelSpecs(prisma, {
@@ -534,17 +527,17 @@ export async function assertSentinelsCoverLeftoverMemberPeriods(
     debug?.(
       `coverage: failed uncovered=${uncoveredReferenceIds.length} unparseable=${unparseable}`,
     );
-    return err({
-      uncoveredReferenceIds,
-      unparseable,
-      unparseableReferenceIds,
-    });
+  } else {
+    debug?.(
+      `coverage: passed distinctFingerprints=${specs.length} unparseable=${unparseable}`,
+    );
   }
 
-  debug?.(
-    `coverage: passed distinctFingerprints=${specs.length} unparseable=${unparseable}`,
-  );
-  return ok({ unparseable, unparseableReferenceIds });
+  return {
+    uncoveredReferenceIds,
+    unparseable,
+    unparseableReferenceIds,
+  };
 }
 
 export async function deleteCoveredMemberPeriodTombstones(
@@ -587,7 +580,7 @@ export async function deleteCoveredMemberPeriodTombstones(
       leftover.referenceId,
       leftover.organizationId,
     );
-    if (parsed.isErr()) {
+    if (!parsed) {
       skippedUnparseable += 1;
       debug?.(
         `delete: skip unparseable id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId}`,
@@ -598,7 +591,7 @@ export async function deleteCoveredMemberPeriodTombstones(
     rem0Parseable.push({
       id: leftover.id,
       organizationId: leftover.organizationId,
-      orgReferenceId: parsed.value.orgReferenceId,
+      orgReferenceId: parsed.orgReferenceId,
       referenceId: leftover.referenceId,
     });
   }
