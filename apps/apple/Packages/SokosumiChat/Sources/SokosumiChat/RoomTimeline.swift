@@ -6,7 +6,7 @@ import Foundation
 /// outbound sends and realtime delivery with this timeline.
 @MainActor
 public final class RoomTimeline: ObservableObject {
-  public enum Page: Sendable { case initial, older, latest }
+  public enum Page: Equatable, Sendable { case initial, older, latest, around(String), returnToLatest }
 
   @Published public private(set) var roomId: String?
   @Published public private(set) var parentMessageId: String?
@@ -22,6 +22,8 @@ public final class RoomTimeline: ObservableObject {
   public private(set) var cursor: String?
   public private(set) var generation = 0
 
+  @Published public private(set) var historicalAnchor: String?
+
   private var activePage: Page?
 
   public init() {}
@@ -29,6 +31,7 @@ public final class RoomTimeline: ObservableObject {
   public func reset(roomId: String? = nil, parentMessageId: String? = nil) {
     generation += 1
     activePage = nil
+    historicalAnchor = nil
     self.roomId = roomId
     self.parentMessageId = parentMessageId
     messages = []
@@ -72,7 +75,7 @@ public final class RoomTimeline: ObservableObject {
     activePage = kind
     isLoading = kind == .initial
     isLoadingOlder = kind == .older
-    isRefreshing = kind == .latest
+    isRefreshing = kind != .initial && kind != .older
     errorMessage = nil
     defer {
       if generation == expectedGeneration {
@@ -85,7 +88,12 @@ public final class RoomTimeline: ObservableObject {
     guard !Task.isCancelled else { return false }
     let page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?)
     do {
-      page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, organizationSlug: organizationSlug)
+      let around: String? = if case let .around(messageId) = kind {
+        messageId
+      } else {
+        kind == .latest ? historicalAnchor : nil
+      }
+      page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, around: around, organizationSlug: organizationSlug)
     } catch {
       if generation == expectedGeneration, !Task.isCancelled {
         failedPage = kind
@@ -94,23 +102,38 @@ public final class RoomTimeline: ObservableObject {
       throw error
     }
     guard generation == expectedGeneration, !Task.isCancelled else { return false }
-    if kind == .initial {
-      hasLoadedHistory = true
+    try applyPage(page, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
+    return true
+  }
+
+  private func applyPage(
+    _ page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?),
+    kind: Page, roomId: String, requestedCursor: String?
+  ) throws {
+    let rows = page.messages.filter { $0.roomId == roomId && $0.parentMessageId == parentMessageId }
+    if case let .around(messageId) = kind {
+      guard rows.contains(where: { $0.id == messageId }) else {
+        throw ChatServiceError.unprocessable(statusCode: 404, message: "This message is no longer available.")
+      }
+      messages = rows
+      historicalAnchor = messageId
+    } else if kind == .returnToLatest {
+      messages = rows
+      historicalAnchor = nil
+    } else {
+      messages = mergeRealtimePage(messages: messages, page: rows)
     }
-    messages = mergeRealtimePage(messages: messages, page: page.messages.filter {
-      $0.roomId == roomId && $0.parentMessageId == parentMessageId
-    })
+    hasLoadedHistory = true
     if kind != .latest {
       cursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
       hasMore = cursor != nil
     }
     errorMessage = nil
     failedPage = nil
-    return true
   }
 
   private func fetchPage(
-    client: Client, roomId: String, cursor: String?, organizationSlug: String?
+    client: Client, roomId: String, cursor: String?, around: String?, organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
     if let parentMessageId {
       return try await ChatService().listThreadMessages(
@@ -119,7 +142,7 @@ public final class RoomTimeline: ObservableObject {
       )
     }
     return try await ChatService().listMessages(
-      client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug
+      client: client, roomId: roomId, cursor: cursor, around: around, organizationSlug: organizationSlug
     )
   }
 }

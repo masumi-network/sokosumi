@@ -184,4 +184,45 @@ struct RoomTimelineTests {
     intent.userScrolled(distanceFromBottom: 20)
     #expect(intent.followsLatest)
   }
+
+  @Test func historicalJumpReplacesDisconnectedHistoryAndReturnsToLatest() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("new", content: "Latest")], nextCursor: "latest-older")),
+      (200, testMessagesPageBody(messages: [row("old", content: "Pinned")], nextCursor: "old-older")),
+      (200, testMessagesPageBody(messages: [row("old", content: "Edited")], nextCursor: "old-older")),
+      (200, testMessagesPageBody(messages: [row("new", content: "Latest")], nextCursor: "latest-older"))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .around("old"), .latest] {
+      #expect(try await timeline.loadPage(page, client: client(transport), organizationSlug: "acme", generation: timeline.generation))
+    }
+    #expect(timeline.messages.map(\.id) == ["old"])
+    #expect(timeline.messages.first?.content == "Edited")
+    #expect(timeline.historicalAnchor == "old")
+    #expect(timeline.cursor == "old-older")
+    #expect(transport.requests[1].request.path?.contains("around=old") == true)
+    #expect(transport.requests[2].request.path?.contains("around=old") == true)
+    #expect(try await timeline.loadPage(.returnToLatest, client: client(transport), organizationSlug: "acme", generation: timeline.generation))
+    #expect(timeline.historicalAnchor == nil)
+    #expect(timeline.messages.map(\.id) == ["new"])
+    #expect(timeline.cursor == "latest-older")
+  }
+
+  @Test func unavailableJumpPreservesCurrentWindow() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("new", content: "Latest")], nextCursor: "cursor")),
+      (200, testMessagesPageBody(messages: [], nextCursor: nil))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    try await timeline.loadPage(.initial, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    await #expect(throws: (any Error).self) {
+      try await timeline.loadPage(.around("missing"), client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    #expect(timeline.messages.map(\.id) == ["new"])
+    #expect(timeline.cursor == "cursor")
+    #expect(timeline.historicalAnchor == nil)
+    #expect(!timeline.isRefreshing)
+  }
 }

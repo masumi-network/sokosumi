@@ -16,6 +16,10 @@ import SwiftUI
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var userIsScrolling = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
+    @State private var showsPins = false
+    @State private var highlightedId: String?
+    @State private var jumpError: String?
+    @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
     @State private var quoteFocusRequest: String?
 
@@ -45,7 +49,44 @@ import SwiftUI
         )
         .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
       }
+      .toolbar {
+        if room?.kind == .channel {
+          Button("Pinned messages", systemImage: "pin") { showsPins.toggle() }.help("Pinned messages")
+        }
+      }
+      .inspector(isPresented: $showsPins) {
+        if let room, room.kind == .channel {
+          PinnedMessagesView(pins: workspaces.pins, room: room,
+                             jump: { try await jumpToMessage($0) }, close: { showsPins = false })
+            .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
+        }
+      }
+      .task(id: roomId) {
+        if room?.kind == .channel {
+          try? await workspaces.loadPins(auth: auth)
+        }
+      }
+      .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
+        if !$0 {
+          jumpError = nil
+        }
+      })) {
+        Button("OK", role: .cancel) {}
+      } message: { Text(jumpError ?? "") }
+      .onChange(of: workspaces.timeline.historicalAnchor) { old, new in
+        if old != nil, new == nil {
+          scrollIntent.followLatest()
+          highlightedId = nil
+        }
+      }
+      .onDisappear { jumpCompletion?.resume(returning: false)
+        jumpCompletion = nil
+      }
       .onChange(of: roomId) { _, _ in
+        showsPins = false
+        highlightedId = nil
+        jumpCompletion?.resume(returning: false)
+        jumpCompletion = nil
         pendingQuote = nil
         quoteTarget = nil
         transcriptWasAwayFromTop = false
@@ -134,16 +175,24 @@ import SwiftUI
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message.id),
+                                 isUpdatingPin: workspaces.isUpdatingPin(message.id),
+                                 onTogglePin: pinAction(for: message),
                                  onDelete: deletionAction(for: message),
                                  onToggleReaction: reactionAction(for: message),
                                  pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                                  editing: workspaces.messageEditing,
-                                 onQuoteJump: { id in quoteTarget = id },
+                                 onQuoteJump: { id in Task {
+                                   do {
+                                     _ = try await jumpToMessage(id)
+                                   } catch { jumpError = friendlyMessage(for: error) }
+                                 } },
                                  horizontalInset: 12,
                                  streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
                 }
               }
+              .background(highlightedId == message.id ? Color.accentColor.opacity(0.12) : .clear)
               .id(message.id)
             }
             // Bottom anchor doubles as the trailing breathing room (1pt anchor
@@ -155,26 +204,40 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
-        .onChange(of: quoteTarget) { _, target in
+        .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
           quoteTarget = nil
-          guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else { return }
+          guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
+            jumpCompletion?.resume(returning: false)
+            jumpCompletion = nil
+            return
+          }
           scrollIntent.readOlder()
           proxy.scrollTo(target, anchor: .center)
+          highlightedId = target
+          jumpCompletion?.resume(returning: true)
+          jumpCompletion = nil
         }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating
         }
         .onChange(of: workspaces.displayedTranscript.last?.id) { _, _ in
-          if scrollIntent.followsLatest {
+          if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
         }
         .overlay(alignment: .bottomTrailing) {
-          if !scrollIntent.followsLatest {
+          if !scrollIntent.followsLatest || workspaces.timeline.historicalAnchor != nil {
             Button("Latest messages", systemImage: "arrow.down") {
-              scrollIntent.followLatest()
-              proxy.scrollTo("timeline-bottom", anchor: .bottom)
+              Task { @MainActor in
+                do {
+                  if try await workspaces.returnToLatest(auth: auth) {
+                    scrollIntent.followLatest()
+                    highlightedId = nil
+                    proxy.scrollTo("timeline-bottom", anchor: .bottom)
+                  }
+                } catch { jumpError = friendlyMessage(for: error) }
+              }
             }
             .buttonStyle(.borderedProminent)
             .padding(12)
@@ -183,9 +246,9 @@ import SwiftUI
         .onScrollGeometryChange(for: [Double].self) { geometry in
           [geometry.visibleRect.minY, geometry.contentSize.height - geometry.visibleRect.maxY]
         } action: { _, geometry in
-          if userIsScrolling {
+          if userIsScrolling, workspaces.timeline.historicalAnchor == nil {
             scrollIntent.userScrolled(distanceFromBottom: geometry[1])
-          } else if scrollIntent.followsLatest {
+          } else if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
           let isNearTop = geometry[0] < 40
@@ -204,6 +267,22 @@ import SwiftUI
             workspaces.loadOlderMessages(auth: auth)
           }
         }
+      }
+    }
+
+    private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
+      return { try await workspaces.setPinned(!workspaces.isPinned(message.id), messageId: message.id, auth: auth) }
+    }
+
+    private func jumpToMessage(_ id: String) async throws -> Bool {
+      let expectedRoom = roomId
+      scrollIntent.readOlder()
+      guard try await workspaces.jumpToMessage(id, auth: auth), workspaces.transcriptRoomId == expectedRoom else { return false }
+      jumpCompletion?.resume(returning: false)
+      return await withCheckedContinuation { completion in
+        jumpCompletion = completion
+        quoteTarget = id
       }
     }
 
