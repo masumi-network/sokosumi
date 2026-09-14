@@ -12,14 +12,16 @@ interface DisclosureState {
 }
 
 function Message({
+  cacheKey = "body:message-1",
   resetKey,
   onRender,
 }: {
+  cacheKey?: string;
   resetKey: string;
   onRender?: (state: DisclosureState) => void;
 }) {
   const { expanded, toggleExpanded, overflows, contentRef } =
-    useClampedOverflow(resetKey);
+    useClampedOverflow({ cacheKey, resetKey });
   onRender?.({ expanded, overflows });
   return (
     <div>
@@ -33,7 +35,7 @@ function Message({
 
 function Transcript({
   visible = true,
-  resetKey = "message-1\0original",
+  resetKey = "original",
   onRender,
 }: {
   visible?: boolean;
@@ -102,13 +104,28 @@ describe("useClampedOverflow", () => {
     expect(onRender.mock.calls[0][0].overflows).toBe(false);
   });
 
-  it("collapses changed content and keeps separate transcripts independent", () => {
-    const first = render(<Transcript />);
+  it("collapses edited content even when it changes back to the original text", () => {
+    const onRender = vi.fn();
+    const { rerender } = render(<Transcript onRender={onRender} />);
     fireEvent.click(screen.getByRole("button", { name: "Show more" }));
-    first.rerender(<Transcript resetKey="message-1\0edited" />);
+    rerender(<Transcript resetKey="edited" />);
     expect(
       screen.getByRole("button", { name: "Show more" }),
     ).toBeInTheDocument();
+    onRender.mockClear();
+    rerender(<Transcript onRender={onRender} />);
+
+    expect(onRender.mock.calls[0][0].expanded).toBe(false);
+    rerender(<Transcript visible={false} />);
+    rerender(<Transcript />);
+    expect(
+      screen.getByRole("button", { name: "Show more" }),
+    ).toBeInTheDocument();
+  });
+
+  it("resets expansion after a transcript unmounts", () => {
+    const first = render(<Transcript />);
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
     first.unmount();
 
     render(<Transcript />);
@@ -117,9 +134,32 @@ describe("useClampedOverflow", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the same message independent in two live transcripts", () => {
+    const onFirst = vi.fn();
+    const onSecond = vi.fn();
+    function Pair({ visible = true }: { visible?: boolean }) {
+      return (
+        <>
+          <Transcript visible={visible} onRender={onFirst} />
+          <Transcript visible={visible} onRender={onSecond} />
+        </>
+      );
+    }
+
+    const { rerender } = render(<Pair />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Show more" })[0]);
+    rerender(<Pair visible={false} />);
+    onFirst.mockClear();
+    onSecond.mockClear();
+    rerender(<Pair />);
+
+    expect(onFirst.mock.calls[0][0].expanded).toBe(true);
+    expect(onSecond.mock.calls[0][0].expanded).toBe(false);
+  });
+
   it("keeps body and quote expansion independent under one transcript", () => {
-    const bodyKey = "body:m1\0hello";
-    const quoteKey = "quote:m1\0m2\0hello";
+    const bodyKey = "body:m1";
+    const quoteKey = "quote:m1";
     const onBody = vi.fn();
     const onQuote = vi.fn();
 
@@ -128,8 +168,12 @@ describe("useClampedOverflow", () => {
         <ClampedOverflowProvider>
           {visible ? (
             <>
-              <Message resetKey={bodyKey} onRender={onBody} />
-              <Message resetKey={quoteKey} onRender={onQuote} />
+              <Message cacheKey={bodyKey} resetKey="hello" onRender={onBody} />
+              <Message
+                cacheKey={quoteKey}
+                resetKey="hello"
+                onRender={onQuote}
+              />
             </>
           ) : null}
         </ClampedOverflowProvider>
@@ -169,8 +213,10 @@ describe("useClampedOverflow", () => {
     );
 
     function Row() {
-      const { expanded: isExpanded, toggleExpanded } =
-        useClampedOverflow("body:m1\0hello");
+      const { expanded: isExpanded, toggleExpanded } = useClampedOverflow({
+        cacheKey: "body:m1",
+        resetKey: "hello",
+      });
       return (
         <div
           ref={(node) => {

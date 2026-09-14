@@ -314,9 +314,10 @@ function MessageQuoteBlock({
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, toggleExpanded, overflows, contentRef } =
-    useClampedOverflow(
-      `quote:${messageId}\0${quote.messageId}\0${quote.snippet}`,
-    );
+    useClampedOverflow({
+      cacheKey: `quote:${messageId}`,
+      resetKey: `${quote.messageId}\0${quote.snippet}`,
+    });
 
   const attachment = quote.attachment ?? null;
 
@@ -701,7 +702,7 @@ function ChannelMessageBody({
   const isJumboEmoji = jumboEmojiCount !== null;
   const skipBodyClamp = hasLargeSoloImageAttachment(content);
   const { expanded, toggleExpanded, overflows, contentRef } =
-    useClampedOverflow(`body:${messageId}\0${content}`);
+    useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
 
   // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
   if (isJumboEmoji) {

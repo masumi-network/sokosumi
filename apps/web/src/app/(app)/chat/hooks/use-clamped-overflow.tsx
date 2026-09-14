@@ -10,6 +10,7 @@ import {
 } from "react";
 
 interface ClampedOverflowState {
+  cacheKey: string;
   resetKey: string;
   expanded: boolean;
   overflows: boolean;
@@ -28,16 +29,25 @@ export function ClampedOverflowProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useClampedOverflow(resetKey: string) {
+export function useClampedOverflow({
+  cacheKey,
+  resetKey,
+}: {
+  cacheKey: string;
+  resetKey: string;
+}) {
   const states = useContext(ClampedOverflowContext);
   // Restore before the virtualizer measures the mounting row.
-  const remembered = states?.get(resetKey) ?? {
-    resetKey,
-    expanded: false,
-    overflows: false,
-  };
+  const cached = states?.get(cacheKey);
+  const remembered =
+    cached?.resetKey === resetKey
+      ? cached
+      : { cacheKey, resetKey, expanded: false, overflows: false };
   const [state, setState] = useState(remembered);
-  const current = state.resetKey === resetKey ? state : remembered;
+  const current =
+    state.cacheKey === cacheKey && state.resetKey === resetKey
+      ? state
+      : remembered;
   if (current !== state) {
     setState(current);
   }
@@ -45,10 +55,14 @@ export function useClampedOverflow(resetKey: string) {
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   function toggleExpanded() {
-    const next = { ...current, expanded: !expanded };
-    states?.set(resetKey, next);
-    setState(next);
+    setState((previous) => ({ ...previous, expanded: !previous.expanded }));
   }
+
+  // Keep only the latest version per body or quote, including when no text
+  // element is mounted (for example, a message containing only jumbo emoji).
+  useLayoutEffect(() => {
+    states?.set(cacheKey, current);
+  }, [cacheKey, current, states]);
 
   useLayoutEffect(() => {
     const node = contentRef.current;
@@ -62,12 +76,10 @@ export function useClampedOverflow(resetKey: string) {
         return;
       }
       const overflows = el.scrollHeight > el.clientHeight + 1;
-      const next = { resetKey, expanded: false, overflows };
-      states?.set(resetKey, next);
       setState((previous) =>
-        previous.resetKey === resetKey && previous.overflows === overflows
+        previous.overflows === overflows
           ? previous
-          : next,
+          : { ...previous, overflows },
       );
     }
 
@@ -75,7 +87,7 @@ export function useClampedOverflow(resetKey: string) {
     const observer = new ResizeObserver(measureOverflow);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [expanded, resetKey, states]);
+  }, [cacheKey, expanded, resetKey]);
 
   return { expanded, toggleExpanded, overflows, contentRef };
 }
