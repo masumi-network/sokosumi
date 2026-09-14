@@ -643,30 +643,6 @@ export const adminSokoBotVersionMigrationResultSchema = z
   })
   .openapi("AdminSokoBotVersionMigrationResult");
 
-export const sokoBotAvatarSchema = z
-  .object({
-    id: z.string().uuid(),
-    imageUrl: z.string(),
-    subject: z.string(),
-    background: z.string(),
-  })
-  .openapi("SokoBotAvatar");
-
-export const listSokoBotAvatarsQuerySchema = z.object({
-  take: z.coerce.number().int().min(1).max(12).default(6),
-  /** Comma-separated avatar ids already shown; ask for a fresh set. */
-  exclude: z.string().max(1_000).optional(),
-  /**
-   * Fill the pool first when it is short. Only the creation picker sets this:
-   * the caller is waiting on purpose there. Decorative reads leave it off so a
-   * page render never waits on image generation.
-   */
-  topUp: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
-});
-
 export const sokoBotVersionSchema = z
   .object({
     id: z.string(),
@@ -1069,10 +1045,6 @@ export const introduceSokoBotRequestSchema = z
 export const introduceSokoBotResponseSchema = z
   .object({ messageId: z.string().uuid() })
   .openapi("IntroduceSokoBotResponse");
-
-export const claimSokoBotAvatarRequestSchema = z
-  .object({ avatarId: z.string().uuid() })
-  .openapi("ClaimSokoBotAvatarRequest");
 
 export const sokoBotDeletionResultSchema = z
   .object({
