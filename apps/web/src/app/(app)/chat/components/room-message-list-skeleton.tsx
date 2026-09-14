@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils";
 /**
  * Outer padding for room message list content (skeleton + live).
  * Instant loading and progressive shell must share this exactly.
- * The bottom padding covers the composer's rounded corners, which the list
- * scrolls under (the composer's `-mt-3`), plus the last message's clearance.
+ * The bottom padding is the last message's clearance above the composer
+ * box; the scroller fades content out across it (see the scroller class).
  */
 export const ROOM_MESSAGE_LIST_CONTENT_CLASSNAME =
-  "flex min-h-full min-w-0 w-full flex-col justify-end px-5 pt-6 pb-5 md:pb-6";
+  "flex min-h-full min-w-0 w-full flex-col justify-end px-5 pt-6 pb-2 md:pb-3";
 
 interface MessageSkeletonRow {
   /** Author name bone width. */
