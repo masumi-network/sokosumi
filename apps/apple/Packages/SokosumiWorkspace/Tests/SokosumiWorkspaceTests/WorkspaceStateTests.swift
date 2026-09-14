@@ -37,6 +37,7 @@ private final class ScriptedTransport: ClientTransport {
   var pauseGET = false
   var pauseDELETE = false
   var pauseReaction = false
+  var pauseUnfurl = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
@@ -91,7 +92,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions"), operationID.contains("/messages") {
+    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove"), operationID.contains("/messages") {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -1718,5 +1719,50 @@ extension WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.first?.content == "New message")
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: ["success", "failure", "switch"])
+  func unfurlRemovalPreservesCurrentMessage(outcome: String) async throws {
+    let response = transcriptMessage(id: "message", roomId: "room", content: "Old content")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
+      (200, roomsBody(names: [])),
+      (outcome == "failure" ? 403 : 200, outcome == "failure" ? #"{"message":"Denied"}"# : "{\"data\":\(response),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}")
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.timeline.reset(roomId: "room")
+    var message = chatRoomMessage(from: .init(clientTurnId: "preview", roomId: "room", content: "New edit https://example.com", sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .offline)))
+    message.id = "message"
+    message.unfurls = [.init(url: "https://example.com", title: "Example", description: "Preview")]
+    state.timeline.messages = [message]
+    #expect(state.thread.open(message))
+    transport.pauseUnfurl = true
+    let request = Task { try await state.removeUnfurl(message, url: "https://example.com", auth: auth) }
+    while transport.operationIDs.last != "post/chats/rooms/{id}/messages/{messageId}/unfurls/remove" {
+      await Task.yield()
+    }
+    #expect(state.timeline.messages.first?.unfurls?.count == 1)
+    if outcome == "switch" {
+      state.timeline.reset(roomId: "other")
+    }
+    transport.releasePausedRequest()
+    if outcome == "failure" {
+      await #expect(throws: (any Error).self) { try await request.value }
+    } else {
+      try await request.value
+    }
+    let requestBody = try #require(transport.bodies.last)
+    #expect(try JSONDecoder().decode([String: String].self, from: requestBody) == ["url": "https://example.com"])
+    if outcome == "switch" {
+      #expect(state.timeline.messages.isEmpty)
+    } else {
+      #expect(state.timeline.messages.first?.content == message.content)
+      #expect(state.timeline.messages.first?.unfurls?.count == (outcome == "failure" ? 1 : 0))
+      #expect(state.thread.parent?.unfurls?.count == (outcome == "failure" ? 1 : 0))
+    }
   }
 }
