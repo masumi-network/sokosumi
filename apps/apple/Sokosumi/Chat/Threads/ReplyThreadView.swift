@@ -26,7 +26,11 @@ import SwiftUI
       return preparedTranscript?.input.messages ?? []
     }
 
-    @State private var followsLatest = true
+    // Remove the page boundary together with prepared replies, including empty final pages.
+    @State private var preparedHasMore = false
+    @State private var scrollIntent = TimelineScrollIntent()
+    @State private var olderBoundaryVisible = false
+    @State private var visibleMessageID: String?
     @State private var userIsScrolling = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var quoteTarget: String?
@@ -49,9 +53,22 @@ import SwiftUI
 
     var body: some View {
       content
+        .onChange(of: preparationScope) { _, _ in
+          scrollIntent = TimelineScrollIntent()
+          olderBoundaryVisible = false
+          visibleMessageID = nil
+          userIsScrolling = false
+        }
+        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
+          if preparedTranscript?.input == preparationInput {
+            preparedHasMore = hasMore
+          }
+        }
         .task(id: preparationInput) {
+          let hasMore = workspaces.thread.timeline.hasMore
           guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
           preparedTranscript = prepared
+          preparedHasMore = hasMore
         }
     }
 
@@ -79,37 +96,40 @@ import SwiftUI
               replies(channels: channels, room: currentRoom)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
+            .scrollTargetLayout()
             .padding(.horizontal)
             .padding(.top)
           }
+          .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
-          .defaultScrollAnchor(.bottom, for: .sizeChanges)
+          .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
           .onChange(of: quoteTarget) { _, target in
             guard let target else { return }
             quoteTarget = nil
             guard parent.id == target || workspaces.displayedThreadReplies.contains(where: { $0.id == target }) else { return }
-            followsLatest = false
+            scrollIntent.readOlder()
             proxy.scrollTo(target, anchor: .center)
           }
           .onScrollPhaseChange { _, phase in
             userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+            loadOlderRepliesAutomatically()
           }
           .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
             if userIsScrolling {
-              followsLatest = edges.nearBottom
-            } else if followsLatest, edges.needsBottomAlignment {
+              scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+            } else if scrollIntent.followsLatest, edges.needsBottomAlignment {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
           }
           .onChange(of: preparedMessages.last?.id) { _, _ in
-            if followsLatest {
+            if scrollIntent.followsLatest {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
           }
           .overlay(alignment: .bottom) {
-            if !followsLatest {
+            if !scrollIntent.followsLatest {
               JumpToLatestButton {
-                followsLatest = true
+                scrollIntent.followLatest()
                 proxy.scrollTo("thread-bottom", anchor: .bottom)
               }
             }
@@ -119,7 +139,7 @@ import SwiftUI
         .safeAreaBar(edge: .bottom, spacing: 0) {
           ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
                            roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
-                           onAccepted: { followsLatest = true })
+                           onAccepted: { scrollIntent.followLatest() })
             .id(parent.id)
         }
         .navigationTitle("Thread")
@@ -131,20 +151,40 @@ import SwiftUI
       }
     }
 
+    private func loadOlderRepliesAutomatically() {
+      let timeline = workspaces.thread.timeline
+      guard timeline.errorMessage == nil, workspaces.thread.loadTask == nil,
+            scrollIntent.beginAutomaticOlderPage(
+              userIsScrolling: userIsScrolling,
+              isNearTop: olderBoundaryVisible,
+              hasMore: timeline.hasMore,
+              isLoading: timeline.isLoading || timeline.isLoadingOlder || workspaces.directStream.isBusy
+            ) else { return }
+      olderBoundaryVisible = false
+      let generation = timeline.generation
+      Task { @MainActor in
+        guard timeline.generation == generation, workspaces.thread.loadTask == nil else { return }
+        workspaces.loadThreadPage(.older, auth: auth)
+      }
+    }
+
     @ViewBuilder private func replies(channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
       let timeline = workspaces.thread.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
       } else {
-        if timeline.hasMore {
+        if preparedHasMore {
           Button("Load older replies") {
-            followsLatest = false
+            scrollIntent.readOlder()
             workspaces.loadThreadPage(.older, auth: auth)
           }
           .disabled(timeline.isLoadingOlder || workspaces.directStream.isBusy)
-        }
-        if timeline.isLoadingOlder {
-          ProgressView()
+          .opacity(timeline.isLoadingOlder ? 0 : 1)
+          .overlay {
+            if timeline.isLoadingOlder {
+              ProgressView().controlSize(.small)
+            }
+          }
         }
         if let error = timeline.errorMessage {
           Text(error).foregroundStyle(.secondary)
@@ -199,6 +239,11 @@ import SwiftUI
           }
         }
         .id(message.id)
+        .onScrollVisibilityChange(threshold: 0.1) { visible in
+          guard index == 0 else { return }
+          olderBoundaryVisible = visible
+          loadOlderRepliesAutomatically()
+        }
       }
     }
   }
