@@ -409,7 +409,7 @@ function OfferThumb({
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-ring-halo outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 interface OfferCardProps {
   offer: CoworkerOffer;
