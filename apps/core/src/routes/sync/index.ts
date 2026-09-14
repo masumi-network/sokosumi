@@ -2,6 +2,7 @@ import { Hono } from "hono";
 
 import mountGetAgentsSync from "./agents/get.js";
 import mountGetAgentsSummarySync from "./agents-summary/get.js";
+import mountGetCalendarInvalidationsSync from "./calendar-invalidations/get.js";
 import mountGetChatRoomGuestInvitationsExpireSync from "./chat-room-guest-invitations-expire/get.js";
 import mountGetEnterpriseContractsRenewalSync from "./enterprise-contracts-renewal/get.js";
 import mountGetFreeSubscriptionsRenewalSync from "./free-subscriptions-renewal/get.js";
@@ -23,6 +24,7 @@ const app = new Hono();
 
 mountGetAgentsSync(app);
 mountGetAgentsSummarySync(app);
+mountGetCalendarInvalidationsSync(app);
 mountGetChatRoomGuestInvitationsExpireSync(app);
 mountGetEnterpriseContractsRenewalSync(app);
 mountGetFreeSubscriptionsRenewalSync(app);

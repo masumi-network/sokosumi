@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -60,6 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         websiteUrl: body.websiteUrl ?? null,
       },
     });
+    await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
 
     if (briefing && filesToken) {
       const briefingUrl = await uploadProjectBriefingFile(
@@ -74,7 +76,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
     }
-
     return created(c, mapProjectForApi(project));
   });
 }

@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { LIMITS } from "@/config/constants";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -177,6 +178,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { id: taskId },
       include: taskInclude,
     });
+    await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
 
     return created(c, taskSchema.parse(mapTask(task, c.var.authContext)));
   });

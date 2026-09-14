@@ -18,6 +18,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   mapTaskMock,
   markTaskArchivedReadMock,
   prismaTransactionMock,
@@ -25,6 +26,7 @@ const {
   requireTaskArchiveAccessMock,
 } = vi.hoisted(() => ({
   markTaskArchivedReadMock: vi.fn(),
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireTaskArchiveAccessMock: vi.fn(),
   removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
@@ -163,6 +165,10 @@ const {
 
 vi.mock("@/helpers/task-notifications", () => ({
   markTaskArchivedRead: markTaskArchivedReadMock,
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -336,6 +342,9 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      "22222222-2222-7222-8222-222222222222",
+    );
     expect(updateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

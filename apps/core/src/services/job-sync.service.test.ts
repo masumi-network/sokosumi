@@ -1743,6 +1743,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: "user_1",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       kind: NotificationKind.JOB,
       referenceId: "job_1",
       eventId: "event_2",
@@ -2584,6 +2585,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: "user_1",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       kind: NotificationKind.JOB,
       referenceId: "job_1",
       eventId: "event_2",
