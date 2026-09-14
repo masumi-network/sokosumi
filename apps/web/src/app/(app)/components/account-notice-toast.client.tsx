@@ -60,10 +60,8 @@ export function AccountNoticeToast() {
       action: {
         label: t("view"),
         onClick: () => {
-          void (async () => {
-            await handleAction();
-            toast.dismiss(ACCOUNT_NOTICE_TOAST_ID);
-          })();
+          handleAction();
+          toast.dismiss(ACCOUNT_NOTICE_TOAST_ID);
         },
       },
     });
