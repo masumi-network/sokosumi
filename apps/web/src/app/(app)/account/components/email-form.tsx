@@ -95,9 +95,9 @@ export function EmailForm() {
                   </FormItem>
                 )}
               />
-              {captcha}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col gap-4">
+              {captcha}
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

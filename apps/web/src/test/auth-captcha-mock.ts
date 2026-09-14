@@ -10,14 +10,12 @@ import type {
 export const requestCaptchaMock =
   vi.fn<() => Promise<CaptchaFetchOptions | null>>();
 export const captchaErrorMessageMock = vi.fn<AuthCaptcha["getErrorMessage"]>();
-export const captchaEntries: AuthCaptchaEntry[] = [];
 
 export const captchaFetchOptions: CaptchaFetchOptions = {
   headers: { [AUTH_CAPTCHA_HEADER]: "verified-token" },
 };
 
-export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
-  captchaEntries.push(entry);
+export function useAuthCaptcha(_entry: AuthCaptchaEntry): AuthCaptcha {
   return {
     widget: null,
     async runWithCaptcha(action) {
@@ -29,7 +27,6 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
 }
 
 beforeEach(() => {
-  captchaEntries.length = 0;
   requestCaptchaMock.mockReset().mockResolvedValue(captchaFetchOptions);
   captchaErrorMessageMock
     .mockReset()

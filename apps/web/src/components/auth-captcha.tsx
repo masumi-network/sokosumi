@@ -5,14 +5,7 @@ import { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import {
-  type ReactNode,
-  useCallback,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useId, useRef, useState } from "react";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import useIsClient from "@/hooks/use-is-client";
@@ -164,8 +157,5 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
       </>
     ) : null;
 
-  return useMemo(
-    () => ({ widget, runWithCaptcha, getErrorMessage }),
-    [widget, runWithCaptcha, getErrorMessage],
-  );
+  return { widget, runWithCaptcha, getErrorMessage };
 }

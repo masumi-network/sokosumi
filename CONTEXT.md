@@ -131,7 +131,7 @@ _Avoid_: Profile menu (unless a separate account menu is introduced), notificati
 ### Account access
 
 **Security check**:
-The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change). Usually invisible; it only asks for interaction when the visitor looks automated. Not applied to OAuth sign-in.
+The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
 
 ### Workspaces
