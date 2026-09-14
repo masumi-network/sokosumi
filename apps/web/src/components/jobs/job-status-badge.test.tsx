@@ -38,6 +38,23 @@ describe("JobStatusBadge", () => {
     ).toBeInTheDocument();
   });
 
+  /**
+   * The compact variant has no fill behind it, so the glyph cannot wear
+   * `marker`, which is the colour of the label ON the fill. For the failure
+   * role that label is near-white and measured 1.06:1 on --card-background.
+   * COMPLETED cannot catch this, because its marker and its surface colour
+   * are the same token; only a solid-fill role can.
+   */
+  it("colours the compact failure mark against the surface, not the fill", () => {
+    const { container } = render(
+      <JobStatusBadge status={SokosumiJobStatus.FAILED} variant="dot" />,
+    );
+
+    const glyph = container.querySelector("svg");
+    expect(glyph).toHaveClass("text-semantic-destructive-solid");
+    expect(glyph).not.toHaveClass("text-semantic-destructive-foreground");
+  });
+
   it("applies the attention ramp to the input-required icon", () => {
     const { container } = render(
       <JobStatusBadge status={SokosumiJobStatus.INPUT_REQUIRED} />,
