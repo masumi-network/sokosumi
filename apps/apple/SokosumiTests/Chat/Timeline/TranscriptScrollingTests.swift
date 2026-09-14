@@ -16,15 +16,13 @@
       defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
       let completed = ScrollMediaProtocol.completedRequests
       let state = try fixtureState(thread: thread, media: media)
-      var visibleIds: [String] = []
       let host = NSHostingView(rootView: Group {
         if thread {
           ReplyThreadView()
         } else {
           RoomTimelineView(roomId: "fixture")
         }
-      }.onScrollTargetVisibilityChange(idType: String.self, threshold: 0.1) { visibleIds = $0 }
-        .environmentObject(state).environmentObject(AuthState()))
+      }.environmentObject(state).environmentObject(AuthState()))
       let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
       window.contentView = host
       window.orderFront(nil)
@@ -35,22 +33,22 @@
       }
       let scroll = try #require(scrollViews(host).max(by: { $0.frame.height < $1.frame.height }))
       let initialOffset = scroll.contentView.bounds.minY
-      let contentHeight = try #require(scroll.documentView?.frame.height)
       #expect(scroll.contentInsets.bottom > 0)
-      #expect(abs(contentHeight - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)) <= 1)
+      #expect(abs(distanceFromBottom(scroll)) <= 1)
       #expect(initialOffset > 600)
       try await measureScroll(scroll, host: host, thread: thread, media: media)
       if media {
         #expect(ScrollMediaProtocol.completedRequests > completed)
       }
-      if thread {
-        #expect(scroll.contentView.bounds.minY < initialOffset - 400)
-      } else {
-        // Lazy row estimates change the document origin. Compare what the
-        // reader sees rather than offsets from two different layouts.
-        let after = try #require(visibleIds.compactMap { Int($0.dropFirst("fixture-".count)) }.max())
-        #expect(after < state.timeline.messages.count - 2)
-      }
+      // Lazy row estimates rewrite document height, so absolute minY can
+      // grow while the reader moves up (CI: 18186 vs initial-400 of 7957).
+      // Keep the 400pt bar as distance from the bottom edge.
+      #expect(distanceFromBottom(scroll) > 400)
+    }
+
+    private func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {
+      let height = scroll.documentView?.frame.height ?? 0
+      return height - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)
     }
 
     private func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {

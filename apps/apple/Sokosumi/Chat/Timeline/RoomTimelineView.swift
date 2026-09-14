@@ -254,8 +254,8 @@ import SwiftUI
           scrollPosition.scrollTo(id: target, anchor: .center)
         }
         .onScrollPhaseChange { _, phase in
-          userIsScrolling = phase == .interacting || phase == .decelerating
-          if phase == .interacting {
+          userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          if phase == .interacting || phase == .tracking {
             highlightedId = nil
           }
         }
@@ -288,8 +288,9 @@ import SwiftUI
             proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
-        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
-          if userIsScrolling, workspaces.timeline.historicalAnchor == nil {
+        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { old, edges in
+          if workspaces.timeline.historicalAnchor == nil,
+             edges.isReaderMotion(from: old, userIsScrolling: userIsScrolling) {
             scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
           } else if scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)

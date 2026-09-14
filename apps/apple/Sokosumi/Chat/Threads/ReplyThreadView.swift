@@ -57,6 +57,7 @@ import SwiftUI
             .padding(.top)
           }
           .defaultScrollAnchor(.bottom, for: .initialOffset)
+          .defaultScrollAnchor(.bottom, for: .sizeChanges)
           .onChange(of: quoteTarget) { _, target in
             guard let target else { return }
             quoteTarget = nil
@@ -64,9 +65,11 @@ import SwiftUI
             followsLatest = false
             proxy.scrollTo(target, anchor: .center)
           }
-          .onScrollPhaseChange { _, phase in userIsScrolling = phase == .interacting || phase == .decelerating }
-          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
-            if userIsScrolling {
+          .onScrollPhaseChange { _, phase in
+            userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          }
+          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { old, edges in
+            if edges.isReaderMotion(from: old, userIsScrolling: userIsScrolling) {
               followsLatest = edges.nearBottom
             } else if followsLatest, edges.needsBottomAlignment {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
