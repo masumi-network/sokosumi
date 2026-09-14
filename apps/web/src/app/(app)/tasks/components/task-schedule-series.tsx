@@ -49,7 +49,7 @@ export function TaskScheduleSeries({
 }: TaskScheduleSeriesProps) {
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {labels.title}
       </h2>
 
