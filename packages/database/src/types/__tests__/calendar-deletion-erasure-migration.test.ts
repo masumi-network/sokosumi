@@ -35,7 +35,7 @@ describe("Calendar deletion and erasure migration", () => {
     );
   });
 
-  it("guards Calendar history for every Project without bypasses", () => {
+  it("guards direct Project deletion without broad bypasses", () => {
     expect(migration).toContain(
       "CREATE OR REPLACE FUNCTION prevent_project_delete_with_calendar_history()",
     );
@@ -46,6 +46,9 @@ describe("Calendar deletion and erasure migration", () => {
     expect(migration).toContain('FROM "project_event"');
     expect(migration).not.toContain("@nmkr.io");
     expect(migration).not.toContain("pg_trigger_depth");
+    expect(migration).toMatch(
+      /IF NOT EXISTS \([\s\S]*?FROM "workspace" AS workspace_row[\s\S]*?workspace_row\.id = OLD\."workspaceId"[\s\S]*?RETURN OLD;/,
+    );
   });
 
   it("publishes Project deletion invalidation only after deletion succeeds", () => {

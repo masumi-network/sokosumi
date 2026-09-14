@@ -35,6 +35,19 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Migrations precede application rollout. Older Core instances erase an
+  -- account or organization by deleting its Workspace and relying on the FK
+  -- cascade. At this point the parent row is already gone; allow only that
+  -- cascade so the guard cannot leave an orphaned Project. A direct Project
+  -- delete still has a live Workspace parent and remains guarded below.
+  IF NOT EXISTS (
+    SELECT 1
+    FROM "workspace" AS workspace_row
+    WHERE workspace_row.id = OLD."workspaceId"
+  ) THEN
+    RETURN OLD;
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM "task" AS task_row
