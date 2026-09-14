@@ -26,10 +26,10 @@
       "computedHash": "c7218333381fa335b8a912bd55b3bb58b5b567a174f9e1d8b41940ff82f1a6b6"
     },
     "hono": {
-      "source": "yusukebe/hono-skill",
+      "source": "honojs/skills",
       "sourceType": "github",
       "skillPath": "skills/hono/SKILL.md",
-      "computedHash": "220e5e1b12bbaeec49ec362b6e2262d77632d0536e9758bba9acbbc323fef990"
+      "computedHash": "2b2d642a6698cf1767d7a65f8beb4aceb078033d5afc5838c08da6d683fc333d"
     },
     "organization-best-practices": {
       "source": "better-auth/skills",
@@ -47,7 +47,7 @@
       "source": "resend/resend-skills",
       "sourceType": "github",
       "skillPath": "skills/resend/SKILL.md",
-      "computedHash": "fb0fb1c7f666081e8ba654387d9cc86c86f8a72b152f82ce6e526ba48067ea38"
+      "computedHash": "49e48cc8d42af643ffcab6596085a70d0085117dfb1c09891188ddb02d8688a7"
     },
     "two-factor-authentication-best-practices": {
       "source": "better-auth/skills",
