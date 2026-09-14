@@ -32,7 +32,7 @@ export default function CancelCard({ className }: CancelCardProps) {
             </Button>
           </DialogClose>
         </div>
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-semantic-destructive-quinary">
+        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-semantic-destructive-quaternary">
           <XCircle className="size-6 text-semantic-destructive" />
         </div>
         <CardTitle>{t("title")}</CardTitle>
