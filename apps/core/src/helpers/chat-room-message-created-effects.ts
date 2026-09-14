@@ -152,6 +152,10 @@ export async function invalidateChatRoomMessageReaders(
     });
   } catch (error) {
     console.error("Failed to invalidate chat room message readers", error);
+    Sentry.captureException(error, {
+      tags: { context: "chat_room_reader_invalidation" },
+      extra: { roomId: params.roomId },
+    });
   }
 }
 

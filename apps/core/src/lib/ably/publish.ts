@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
@@ -405,6 +406,10 @@ export async function publishChatRoomsChanged({
               entry.channel,
               entry.error,
             );
+            Sentry.captureException(entry.error, {
+              tags: { context: "chat_rooms_changed" },
+              extra: { roomId, channel: entry.channel },
+            });
           }
         }
       }),
@@ -415,9 +420,17 @@ export async function publishChatRoomsChanged({
           "Failed to publish chat rooms changed batch",
           outcome.reason,
         );
+        Sentry.captureException(outcome.reason, {
+          tags: { context: "chat_rooms_changed" },
+          extra: { roomId },
+        });
       }
     }
   } catch (error) {
     console.error("Failed to publish chat rooms changed", error);
+    Sentry.captureException(error, {
+      tags: { context: "chat_rooms_changed" },
+      extra: { roomId },
+    });
   }
 }

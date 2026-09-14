@@ -63,7 +63,10 @@ import * as Sentry from "@sentry/node";
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 
-import { emitChatRoomMessageCreatedEffects } from "./chat-room-message-created-effects";
+import {
+  emitChatRoomMessageCreatedEffects,
+  invalidateChatRoomMessageReaders,
+} from "./chat-room-message-created-effects";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
@@ -412,4 +415,18 @@ describe("emitChatRoomMessageCreatedEffects", () => {
       collections: ["active"],
     });
   });
+});
+
+it("reports a reader lookup failure without rejecting invalidation", async () => {
+  const error = new Error("reader lookup failed");
+  membershipFindManyMock.mockRejectedValueOnce(error);
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  await expect(
+    invalidateChatRoomMessageReaders({ roomId: ROOM_ID }),
+  ).resolves.toBeUndefined();
+  expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+    tags: { context: "chat_room_reader_invalidation" },
+    extra: { roomId: ROOM_ID },
+  });
+  log.mockRestore();
 });
