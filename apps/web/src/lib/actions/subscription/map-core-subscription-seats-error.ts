@@ -27,7 +27,7 @@ const ORGANIZATION_SUBSCRIPTION_ADMIN_REQUIRED_MESSAGE =
  * Unrecognized Core errors return `undefined` so the caller can fall back to
  * `toCoreApiActionError` (401, 5xx, etc.).
  */
-export function mapCoreSubscriptionSeatsWriteError(
+function mapCoreSubscriptionSeatsWriteError(
   error: unknown,
 ): APIError | undefined {
   if (!(error instanceof CoreApiRequestError)) {

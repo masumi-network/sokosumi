@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { assertChatMessageReadBudget } from "@/helpers/chat-message-read-budget";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -36,7 +37,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/threads/{parentMessageId}",
     description:
-      "Get one thread summary by root parent message id. 404 when missing, not a root, soft-deleted, or has no replies.",
+      "Get one thread summary by root parent message id. 404 when missing, not a root, soft-deleted, or has no replies. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -46,6 +47,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Thread not found"),
+      429: jsonErrorResponse("Chat history read budget exceeded"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -61,6 +63,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
+    // Shared per-user budget across rooms and credentials (SOK-1060).
+    await assertChatMessageReadBudget(userContext.userId);
     const thread = await getChatRoomThread(
       room.id,
       userContext.userId,

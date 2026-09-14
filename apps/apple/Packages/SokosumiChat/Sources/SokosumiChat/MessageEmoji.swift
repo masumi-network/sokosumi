@@ -17,6 +17,13 @@ enum MessageEmoji {
   }
 
   static let shortcodeNames = shortcodes.keys.sorted()
+  struct ReactionDetails: Decodable {
+    let keywords: [String]
+    let category: ReactionEmoji.Category
+    let order: Int
+  }
+
+  static let reactionDetails: [String: ReactionDetails] = resource("reaction-catalog")
 
   static let composerEmoticons: [(text: String, emoji: String)] = {
     var seen = Set<String>()

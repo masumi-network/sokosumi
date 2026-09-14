@@ -6604,6 +6604,11 @@ export const AdminTaskX402RefundConflictResponseSchema = {
             ],
             description: 'already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.'
         },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
+        },
         meta: {
             type: 'object',
             properties: {
@@ -6707,17 +6712,17 @@ export const AdminTaskX402ResolveConflictResponseSchema = {
             ],
             description: 'sign_in_flight and sign_outcome_unresolved include retryAfter and retryAfterSeconds'
         },
-        retryAfter: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-12T10:00:30.000Z',
-            description: 'ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.'
-        },
         retryAfterSeconds: {
             type: 'integer',
             minimum: 0,
             description: 'Whole seconds until retryAfter. Present with retryAfter.',
             example: 25
+        },
+        retryAfter: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-12T10:00:30.000Z',
+            description: 'ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.'
         },
         meta: {
             type: 'object',
@@ -9125,13 +9130,119 @@ export const ChatRoomPinnedMessageListItemSchema = {
             ]
         },
         message: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/ChatRoomMessage'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
                 },
-                {
-                    type: 'null'
+                roomId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                parentMessageId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                content: {
+                    type: 'string'
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                deletedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                editedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                sender: {
+                    $ref: '#/components/schemas/ChatRoomMessageSender'
+                },
+                mentions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageMention'
+                    }
+                },
+                reactions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageReaction'
+                    }
+                },
+                threadReplyCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                threadLastReplyAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                metadata: {
+                    type: [
+                        'object',
+                        'null'
+                    ],
+                    additionalProperties: {}
+                },
+                quote: {
+                    $ref: '#/components/schemas/ChatRoomMessageQuote'
+                },
+                membership: {
+                    $ref: '#/components/schemas/ChatRoomMessageMembership'
+                },
+                unfurls: {
+                    type: [
+                        'array',
+                        'null'
+                    ],
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageUnfurl'
+                    },
+                    maxItems: 3,
+                    description: 'Link preview cards scraped from message URLs (absent while pending).'
                 }
+            },
+            required: [
+                'id',
+                'roomId',
+                'parentMessageId',
+                'content',
+                'createdAt',
+                'deletedAt',
+                'editedAt',
+                'sender',
+                'mentions',
+                'reactions',
+                'threadReplyCount',
+                'threadLastReplyAt',
+                'metadata',
+                'quote',
+                'membership',
+                'unfurls'
             ]
         }
     },
@@ -9140,120 +9251,6 @@ export const ChatRoomPinnedMessageListItemSchema = {
         'pinnedAt',
         'pinnedBy',
         'message'
-    ]
-} as const;
-
-export const ChatRoomMessageSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        content: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        deletedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        editedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        sender: {
-            $ref: '#/components/schemas/ChatRoomMessageSender'
-        },
-        mentions: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageMention'
-            }
-        },
-        reactions: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageReaction'
-            }
-        },
-        threadReplyCount: {
-            type: 'integer',
-            minimum: 0
-        },
-        threadLastReplyAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        metadata: {
-            type: [
-                'object',
-                'null'
-            ],
-            additionalProperties: {}
-        },
-        quote: {
-            $ref: '#/components/schemas/ChatRoomMessageQuote'
-        },
-        membership: {
-            $ref: '#/components/schemas/ChatRoomMessageMembership'
-        },
-        unfurls: {
-            type: [
-                'array',
-                'null'
-            ],
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageUnfurl'
-            },
-            maxItems: 3,
-            description: 'Link preview cards scraped from message URLs (absent while pending).'
-        }
-    },
-    required: [
-        'id',
-        'roomId',
-        'parentMessageId',
-        'content',
-        'createdAt',
-        'deletedAt',
-        'editedAt',
-        'sender',
-        'mentions',
-        'reactions',
-        'threadReplyCount',
-        'threadLastReplyAt',
-        'metadata',
-        'quote',
-        'membership',
-        'unfurls'
     ]
 } as const;
 
@@ -9909,6 +9906,120 @@ export const ChatRoomThreadSchema = {
         'unreadReplyCount',
         'lastUnreadReplyAt',
         'hasLooked'
+    ]
+} as const;
+
+export const ChatRoomMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        content: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        deletedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        editedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sender: {
+            $ref: '#/components/schemas/ChatRoomMessageSender'
+        },
+        mentions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageMention'
+            }
+        },
+        reactions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageReaction'
+            }
+        },
+        threadReplyCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        threadLastReplyAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        metadata: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
+        },
+        quote: {
+            $ref: '#/components/schemas/ChatRoomMessageQuote'
+        },
+        membership: {
+            $ref: '#/components/schemas/ChatRoomMessageMembership'
+        },
+        unfurls: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageUnfurl'
+            },
+            maxItems: 3,
+            description: 'Link preview cards scraped from message URLs (absent while pending).'
+        }
+    },
+    required: [
+        'id',
+        'roomId',
+        'parentMessageId',
+        'content',
+        'createdAt',
+        'deletedAt',
+        'editedAt',
+        'sender',
+        'mentions',
+        'reactions',
+        'threadReplyCount',
+        'threadLastReplyAt',
+        'metadata',
+        'quote',
+        'membership',
+        'unfurls'
     ]
 } as const;
 
@@ -11923,6 +12034,11 @@ export const EnterpriseContractActivationConflictResponseSchema = {
                 'enterprise_activation_blocked'
             ],
             description: 'Machine-readable conflict reason for activation guards'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
         },
         blocker: {
             $ref: '#/components/schemas/EnterpriseContractActivationBlocker'
