@@ -1,0 +1,527 @@
+import { type ChildProcess, spawn as defaultSpawn } from "node:child_process";
+import { createHash, randomBytes } from "node:crypto";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
+
+export interface OAuthTokenCredentials {
+  authToken: string;
+  refreshToken: string | null;
+  tokenType: string;
+  expiresAt: string | null;
+}
+
+export interface PkcePair {
+  verifier: string;
+  challenge: string;
+}
+
+export interface OAuthAuthorizationUrlOptions {
+  authBaseUrl: string;
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  codeChallenge: string;
+  scope?: string;
+}
+
+export interface OAuthTokenRequestOptions {
+  authBaseUrl: string;
+  clientId: string;
+  clientSecret?: string;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+}
+
+export interface OAuthCodeExchangeOptions extends OAuthTokenRequestOptions {
+  redirectUri: string;
+  code: string;
+  codeVerifier: string;
+}
+
+export interface OAuthRefreshOptions extends OAuthTokenRequestOptions {
+  refreshToken: string;
+}
+
+export interface BrowserLoginOptions extends OAuthTokenRequestOptions {
+  scope?: string;
+  port?: number;
+  callbackPath?: string;
+  timeoutMs?: number;
+  openUrl?: (url: string) => void | Promise<void>;
+  serverFactory?: () => Server;
+}
+
+export class OAuthTokenError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = "OAuthTokenError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export function createPkcePair(): PkcePair {
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
+
+export const DEFAULT_OAUTH_SCOPE = "openid sokosumi:api offline_access";
+
+function trimBaseUrl(value: string | undefined, label: string): string {
+  const base = String(value || "")
+    .trim()
+    .replace(/\/+$/g, "");
+  if (!base) throw new Error(`${label} is required`);
+  try {
+    const parsed = new URL(base);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("unsupported protocol");
+    }
+    return parsed.toString().replace(/\/+$/g, "");
+  } catch {
+    throw new Error(`${label} must be a valid HTTP URL`);
+  }
+}
+
+function requireText(value: string | undefined, label: string): string {
+  const text = String(value || "").trim();
+  if (!text) throw new Error(`${label} is required`);
+  return text;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+export function buildAuthorizationUrl({
+  authBaseUrl,
+  clientId,
+  redirectUri,
+  state,
+  codeChallenge,
+  scope = DEFAULT_OAUTH_SCOPE,
+}: OAuthAuthorizationUrlOptions): string {
+  const url = new URL(
+    `${trimBaseUrl(authBaseUrl, "authBaseUrl")}/oauth2/authorize`,
+  );
+  url.searchParams.set("client_id", requireText(clientId, "clientId"));
+  url.searchParams.set("redirect_uri", requireText(redirectUri, "redirectUri"));
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", requireText(scope, "scope"));
+  url.searchParams.set("state", requireText(state, "state"));
+  url.searchParams.set(
+    "code_challenge",
+    requireText(codeChallenge, "codeChallenge"),
+  );
+  url.searchParams.set("code_challenge_method", "S256");
+  return url.toString();
+}
+
+export function parseOAuthCallback(
+  callbackUrl: string,
+  { expectedState }: { expectedState: string },
+): { code: string } {
+  let url: URL;
+  try {
+    url = new URL(callbackUrl);
+  } catch {
+    throw new Error("OAuth callback URL is invalid");
+  }
+
+  const receivedState = url.searchParams.get("state");
+  if (!receivedState || receivedState !== expectedState) {
+    throw new Error("OAuth state mismatch");
+  }
+
+  const oauthError = url.searchParams.get("error");
+  if (oauthError) {
+    const description = url.searchParams.get("error_description");
+    throw new Error(
+      `OAuth authorization failed: ${oauthError}${description ? ` (${description})` : ""}`,
+    );
+  }
+
+  const code = url.searchParams.get("code");
+  if (!code) {
+    throw new Error("OAuth callback did not include an authorization code");
+  }
+  return { code };
+}
+
+function normalizeTokenResponse(payload: unknown): OAuthTokenCredentials {
+  const record = asRecord(payload);
+  const accessToken =
+    typeof record.access_token === "string" ? record.access_token.trim() : "";
+  if (!accessToken) {
+    throw new Error("OAuth token response did not include an access token");
+  }
+
+  const expiresIn = Number(record.expires_in);
+  const expiresAt =
+    Number.isFinite(expiresIn) && expiresIn > 0
+      ? new Date(Date.now() + expiresIn * 1000).toISOString()
+      : null;
+
+  return {
+    authToken: accessToken,
+    refreshToken:
+      typeof record.refresh_token === "string" && record.refresh_token.trim()
+        ? record.refresh_token.trim()
+        : null,
+    tokenType:
+      typeof record.token_type === "string" && record.token_type.trim()
+        ? record.token_type.trim()
+        : "Bearer",
+    expiresAt,
+  };
+}
+
+async function parseResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  let payload: unknown = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = text;
+  }
+
+  if (!response.ok) {
+    const record = asRecord(payload);
+    const message =
+      typeof record.error_description === "string"
+        ? `OAuth token request failed: ${record.error_description}`
+        : `OAuth token request failed with status ${response.status}`;
+    throw new OAuthTokenError(message, response.status, payload);
+  }
+
+  return payload;
+}
+
+async function postTokenRequest({
+  authBaseUrl,
+  body,
+  fetchImpl = globalThis.fetch,
+  signal,
+}: {
+  authBaseUrl: string;
+  body: Record<string, string>;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+}): Promise<OAuthTokenCredentials> {
+  if (typeof fetchImpl !== "function") {
+    throw new Error("fetch is required for OAuth token exchange");
+  }
+  const response = await fetchImpl(
+    `${trimBaseUrl(authBaseUrl, "authBaseUrl")}/oauth2/token`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(body).toString(),
+      signal,
+    },
+  );
+  return normalizeTokenResponse(await parseResponse(response));
+}
+
+export async function exchangeAuthorizationCode({
+  authBaseUrl,
+  clientId,
+  clientSecret,
+  redirectUri,
+  code,
+  codeVerifier,
+  fetchImpl,
+  signal,
+}: OAuthCodeExchangeOptions): Promise<OAuthTokenCredentials> {
+  const body: Record<string, string> = {
+    grant_type: "authorization_code",
+    client_id: requireText(clientId, "clientId"),
+    redirect_uri: requireText(redirectUri, "redirectUri"),
+    code: requireText(code, "code"),
+    code_verifier: requireText(codeVerifier, "codeVerifier"),
+  };
+  if (clientSecret) body.client_secret = String(clientSecret).trim();
+  return postTokenRequest({ authBaseUrl, body, fetchImpl, signal });
+}
+
+export async function refreshAccessToken({
+  authBaseUrl,
+  clientId,
+  clientSecret,
+  refreshToken,
+  fetchImpl,
+  signal,
+}: OAuthRefreshOptions): Promise<OAuthTokenCredentials> {
+  const body: Record<string, string> = {
+    grant_type: "refresh_token",
+    client_id: requireText(clientId, "clientId"),
+    refresh_token: requireText(refreshToken, "refreshToken"),
+  };
+  if (clientSecret) body.client_secret = String(clientSecret).trim();
+  return postTokenRequest({ authBaseUrl, body, fetchImpl, signal });
+}
+
+export const OAUTH_LOOPBACK_HOST = "127.0.0.1";
+export const DEFAULT_OAUTH_REDIRECT_PORT = 53682;
+export const DEFAULT_OAUTH_REDIRECT_PATH = "/oauth/callback";
+
+type BrowserSpawn = (
+  command: string,
+  args: readonly string[],
+  options: {
+    detached: boolean;
+    stdio: "ignore";
+  },
+) => ChildProcess;
+
+function openWithCommand(
+  command: string,
+  args: string[],
+  { spawnImpl = defaultSpawn }: { spawnImpl?: BrowserSpawn } = {},
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child: ChildProcess = spawnImpl(command, args, {
+      detached: true,
+      stdio: "ignore",
+    });
+    const cleanup = () => {
+      child.off("spawn", onSpawn);
+      child.off("error", onError);
+    };
+    const onSpawn = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    child.once("spawn", onSpawn);
+    child.once("error", onError);
+    child.unref();
+  });
+}
+
+export function openInBrowser(
+  url: string,
+  {
+    platform = process.platform,
+    spawnImpl = defaultSpawn,
+  }: {
+    platform?: NodeJS.Platform;
+    spawnImpl?: BrowserSpawn;
+  } = {},
+): Promise<void> {
+  const target = requireText(url, "url");
+  if (platform === "darwin") {
+    return openWithCommand("open", [target], { spawnImpl });
+  }
+  if (platform === "win32") {
+    return openWithCommand("cmd", ["/c", "start", "", target], { spawnImpl });
+  }
+  return openWithCommand("xdg-open", [target], { spawnImpl });
+}
+
+function listen(server: Server, port: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => {
+      server.off("listening", onListening);
+      reject(
+        new Error(`Could not start OAuth callback server: ${error.message}`),
+      );
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(port, OAUTH_LOOPBACK_HOST);
+  });
+}
+
+function closeServer(server: Server): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (!server || typeof server.close !== "function") {
+      resolve();
+      return;
+    }
+    server.close(() => resolve());
+  });
+}
+
+function waitForCallback({
+  server,
+  callbackPath,
+  timeoutMs,
+  signal,
+  port,
+}: {
+  server: Server;
+  callbackPath: string;
+  timeoutMs: number;
+  signal?: AbortSignal;
+  port: number;
+}): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    let timeout: NodeJS.Timeout;
+    const finish = (
+      kind: "resolve" | "reject",
+      value: string | Error,
+    ): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+      if (kind === "resolve" && typeof value === "string") {
+        resolve(value);
+        return;
+      }
+      reject(value instanceof Error ? value : new Error(String(value)));
+    };
+    const onAbort = () =>
+      finish("reject", new Error("OAuth login was cancelled"));
+    timeout = setTimeout(
+      () =>
+        finish(
+          "reject",
+          new Error("OAuth login timed out waiting for the browser callback"),
+        ),
+      timeoutMs,
+    );
+
+    server.on(
+      "request",
+      (request: IncomingMessage, response: ServerResponse) => {
+        let url: URL;
+        try {
+          url = new URL(
+            request.url || "/",
+            `http://${OAUTH_LOOPBACK_HOST}:${port}`,
+          );
+        } catch {
+          response.statusCode = 400;
+          response.end("Invalid callback");
+          return;
+        }
+
+        if (url.pathname !== callbackPath) {
+          response.statusCode = 404;
+          response.end("Not found");
+          return;
+        }
+
+        response.statusCode = 200;
+        response.setHeader("cache-control", "no-store");
+        response.setHeader("content-type", "text/html; charset=utf-8");
+        response.setHeader("referrer-policy", "no-referrer");
+        response.end(`<!doctype html>
+<html lang="en">
+  <head><meta name="referrer" content="no-referrer"><title>Sokosumi sign-in completed</title></head>
+  <body>
+    <p>Sokosumi sign-in completed. You can close this window.</p>
+    <script>
+      window.history.replaceState(null, "", window.location.pathname);
+    </script>
+  </body>
+</html>`);
+        finish("resolve", url.toString());
+      },
+    );
+    if (signal?.aborted) {
+      onAbort();
+    } else {
+      signal?.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+}
+
+export async function loginWithBrowser({
+  authBaseUrl,
+  clientId,
+  clientSecret,
+  scope = DEFAULT_OAUTH_SCOPE,
+  port = DEFAULT_OAUTH_REDIRECT_PORT,
+  callbackPath = DEFAULT_OAUTH_REDIRECT_PATH,
+  timeoutMs = 5 * 60 * 1000,
+  openUrl = (url) => openInBrowser(url),
+  serverFactory = () => createServer(),
+  fetchImpl,
+  signal,
+}: BrowserLoginOptions): Promise<OAuthTokenCredentials> {
+  const resolvedClientId = requireText(clientId, "clientId");
+  const resolvedPort = Number(port);
+  if (
+    !Number.isInteger(resolvedPort) ||
+    resolvedPort < 1 ||
+    resolvedPort > 65535
+  ) {
+    throw new Error(
+      "OAuth callback port must be an integer between 1 and 65535",
+    );
+  }
+  const resolvedPath = callbackPath.startsWith("/")
+    ? callbackPath
+    : `/${callbackPath}`;
+  const pkce = createPkcePair();
+  const state = randomBytes(32).toString("base64url");
+  const redirectUri = `http://${OAUTH_LOOPBACK_HOST}:${resolvedPort}${resolvedPath}`;
+  const server = serverFactory();
+  let callbackPromise: Promise<string> | undefined;
+
+  const callbackAbortController = new AbortController();
+  const abortCallback = () => callbackAbortController.abort();
+  if (signal?.aborted) {
+    callbackAbortController.abort();
+  } else {
+    signal?.addEventListener("abort", abortCallback, { once: true });
+  }
+
+  try {
+    await listen(server, resolvedPort);
+    const authorizationUrl = buildAuthorizationUrl({
+      authBaseUrl,
+      clientId: resolvedClientId,
+      redirectUri,
+      state,
+      codeChallenge: pkce.challenge,
+      scope,
+    });
+    callbackPromise = waitForCallback({
+      server,
+      callbackPath: resolvedPath,
+      timeoutMs,
+      signal: callbackAbortController.signal,
+      port: resolvedPort,
+    });
+    await openUrl(authorizationUrl);
+    const callbackUrl = await callbackPromise;
+    const { code } = parseOAuthCallback(callbackUrl, { expectedState: state });
+    return exchangeAuthorizationCode({
+      authBaseUrl,
+      clientId: resolvedClientId,
+      clientSecret,
+      redirectUri,
+      code,
+      codeVerifier: pkce.verifier,
+      fetchImpl,
+      signal,
+    });
+  } finally {
+    callbackAbortController.abort();
+    signal?.removeEventListener("abort", abortCallback);
+    await callbackPromise?.catch(() => {});
+    await closeServer(server);
+  }
+}

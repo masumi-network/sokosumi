@@ -27,6 +27,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/Chat/Sidebar` | Conversation list and account/workspace menus |
 | `Sokosumi/Chat/Timeline` | Scrolling, message rows and status rows |
 | `Sokosumi/Chat/Threads` | Reply-thread presentation |
+| `Sokosumi/Chat/Pins` | Pinned-message inspector and preview cards |
 | `Sokosumi/Chat/Composer` | Rich composer, Drive picker and native text input |
 | `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation and attachment chips/previews |
 | `Sokosumi/Shared` | Participant avatar, `ParticipantProfileButton` and `ParticipantDetailsView` |

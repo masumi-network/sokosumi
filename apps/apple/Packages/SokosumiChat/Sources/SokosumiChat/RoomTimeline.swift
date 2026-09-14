@@ -6,7 +6,7 @@ import Foundation
 /// outbound sends and realtime delivery with this timeline.
 @MainActor
 public final class RoomTimeline: ObservableObject {
-  public enum Page: Sendable { case initial, older, latest }
+  public enum Page: Equatable, Sendable { case initial, older, latest, around(String), boundary(String), returnToLatest }
 
   @Published public private(set) var roomId: String?
   @Published public private(set) var parentMessageId: String?
@@ -22,13 +22,26 @@ public final class RoomTimeline: ObservableObject {
   public private(set) var cursor: String?
   public private(set) var generation = 0
 
+  @Published public private(set) var historicalAnchor: String?
+
   private var activePage: Page?
+  private var historyRanges = RoomHistoryRanges()
+
+  public var historyGapMessageIds: Set<String> {
+    historyRanges.gaps(in: messages)
+  }
+
+  public func followLatest() {
+    historicalAnchor = nil
+  }
 
   public init() {}
 
   public func reset(roomId: String? = nil, parentMessageId: String? = nil) {
     generation += 1
     activePage = nil
+    historyRanges = RoomHistoryRanges()
+    historicalAnchor = nil
     self.roomId = roomId
     self.parentMessageId = parentMessageId
     messages = []
@@ -67,12 +80,16 @@ public final class RoomTimeline: ObservableObject {
     generation expectedGeneration: Int
   ) async throws -> Bool {
     guard let roomId, generation == expectedGeneration, activePage == nil else { return false }
-    let requestedCursor = kind == .older ? cursor : nil
+    let requestedCursor: String? = if case let .boundary(id) = kind {
+      id
+    } else {
+      kind == .older ? cursor : nil
+    }
     guard kind != .older || requestedCursor != nil else { return false }
     activePage = kind
     isLoading = kind == .initial
     isLoadingOlder = kind == .older
-    isRefreshing = kind == .latest
+    isRefreshing = kind != .initial && kind != .older
     errorMessage = nil
     defer {
       if generation == expectedGeneration {
@@ -85,7 +102,12 @@ public final class RoomTimeline: ObservableObject {
     guard !Task.isCancelled else { return false }
     let page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?)
     do {
-      page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, organizationSlug: organizationSlug)
+      let around: String? = if case let .around(messageId) = kind {
+        messageId
+      } else {
+        nil
+      }
+      page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, around: around, organizationSlug: organizationSlug)
     } catch {
       if generation == expectedGeneration, !Task.isCancelled {
         failedPage = kind
@@ -94,23 +116,55 @@ public final class RoomTimeline: ObservableObject {
       throw error
     }
     guard generation == expectedGeneration, !Task.isCancelled else { return false }
-    if kind == .initial {
-      hasLoadedHistory = true
-    }
-    messages = mergeRealtimePage(messages: messages, page: page.messages.filter {
-      $0.roomId == roomId && $0.parentMessageId == parentMessageId
-    })
-    if kind != .latest {
-      cursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
-      hasMore = cursor != nil
-    }
-    errorMessage = nil
-    failedPage = nil
+    try applyPage(page, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
     return true
   }
 
+  private func applyPage(
+    _ page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?),
+    kind: Page, roomId: String, requestedCursor: String?
+  ) throws {
+    let rows = page.messages.filter { $0.roomId == roomId && $0.parentMessageId == parentMessageId }
+    if case let .around(messageId) = kind {
+      guard rows.contains(where: { $0.id == messageId }) else {
+        throw ChatServiceError.unprocessable(statusCode: 404, message: "This message is no longer available.")
+      }
+      historicalAnchor = messageId
+    } else if kind == .returnToLatest {
+      historicalAnchor = nil
+    }
+    let nextCursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
+    if parentMessageId == nil {
+      mergeRoomHistory(rows, kind: kind, requestedCursor: requestedCursor, nextCursor: nextCursor)
+    } else if kind != .latest {
+      cursor = nextCursor
+    }
+    messages = mergeRealtimePage(messages: messages, page: rows)
+    hasLoadedHistory = true
+    hasMore = cursor != nil
+    errorMessage = nil
+    failedPage = nil
+  }
+
+  private func mergeRoomHistory(_ rows: [Components.Schemas.ChatRoomMessage], kind: Page,
+                                requestedCursor: String?, nextCursor: String?) {
+    var contiguousRows = rows
+    if let requestedCursor, let cursorRow = messages.first(where: { $0.id == requestedCursor }),
+       !rows.contains(where: { $0.id == requestedCursor }) {
+      contiguousRows.append(cursorRow)
+    }
+    // Ordinary older loads are contiguous with the oldest range, even when
+    // a server cursor is opaque rather than the boundary message ID.
+    if kind == .older, let first = messages.first, !contiguousRows.contains(where: { $0.id == first.id }) {
+      contiguousRows.append(first)
+    }
+    historyRanges.merge(existing: messages, page: contiguousRows, nextCursor: nextCursor,
+                        reachesPresent: kind == .initial || kind == .latest || kind == .returnToLatest)
+    cursor = historyRanges.oldestCursor
+  }
+
   private func fetchPage(
-    client: Client, roomId: String, cursor: String?, organizationSlug: String?
+    client: Client, roomId: String, cursor: String?, around: String?, organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
     if let parentMessageId {
       return try await ChatService().listThreadMessages(
@@ -119,7 +173,7 @@ public final class RoomTimeline: ObservableObject {
       )
     }
     return try await ChatService().listMessages(
-      client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug
+      client: client, roomId: roomId, cursor: cursor, around: around, limit: around != nil || cursor != nil ? 30 : nil, organizationSlug: organizationSlug
     )
   }
 }
