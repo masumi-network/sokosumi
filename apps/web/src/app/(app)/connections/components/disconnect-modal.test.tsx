@@ -170,4 +170,28 @@ describe("DisconnectModal", () => {
       screen.queryByTestId("reauth-field-currentPassword"),
     ).not.toBeInTheDocument();
   });
+
+  it("says the unlink failed when the call never returns a result", async () => {
+    mockUnlinkAccount.mockRejectedValue(new Error("Network down"));
+
+    render(
+      <DisconnectModal
+        account={googleAccount}
+        accounts={[googleAccount, passwordAccount]}
+        open
+        setOpen={vi.fn()}
+      />,
+    );
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "confirm" }));
+
+    // Without this the spinner clears in silence and the viewer cannot tell
+    // whether the account is still connected.
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("error");
+    });
+    expect(screen.getByRole("button", { name: "confirm" })).not.toBeDisabled();
+  });
 });

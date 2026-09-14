@@ -74,6 +74,10 @@ export default function DisconnectModal({
       }
 
       toast.error(result.error.message ?? t("error", { provider: providerId }));
+    } catch {
+      // A rejected call leaves no result to read, so without this the spinner
+      // would clear and the viewer would never learn the account is still on.
+      toast.error(t("error", { provider: providerId }));
     } finally {
       setLoading(false);
     }
