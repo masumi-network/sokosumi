@@ -168,6 +168,7 @@ export function createPendingRoomMessage(
     createdAt: params.createdAt ?? new Date(),
     deletedAt: null,
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "user",
       user: params.senderUser,
