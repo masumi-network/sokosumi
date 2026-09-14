@@ -41,8 +41,12 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     owner: { id: "user-1", name: "Owner", image: null },
     assignee: null,
     commentsCount: 0,
-    createdAt: new Date("2026-03-01T00:00:00.000Z"),
+    createdAt: "2026-03-01T00:00:00.000Z",
+    updatedAt: "2026-03-01T00:00:00.000Z",
+    jobsCount: 0,
     columnId: "todo",
+    events: [],
+    agents: [],
     metadata: null,
     nextRunAt: null,
   };

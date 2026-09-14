@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentJobStatus, TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
+import {
+  AgentJobStatus,
+  TaskStatus,
+  TaskVisibility,
+} from "@/lib/clients/generated/core";
 
 const listCoworkersMock = vi.fn();
 const getMineMock = vi.fn();
