@@ -243,6 +243,7 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_parked",
         status: TaskStatus.GRANT_PENDING,
         ownerId: "user_other",
+        visibility: TaskVisibility.PUBLIC,
         workspace: { organizationId: "org_123" },
       } as never);
 
@@ -261,6 +262,27 @@ describe("requireTaskArchiveAccess", () => {
     );
   });
 
+  it("hides private parked tasks from org owner/admin non-owners", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_parked_private",
+        status: TaskStatus.GRANT_PENDING,
+        ownerId: "user_other",
+        visibility: TaskVisibility.PRIVATE,
+        workspace: { organizationId: "org_123" },
+      } as never);
+
+    await expect(
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_parked_private", tx),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: "Task not found",
+    });
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
   it("keeps parked+scheduled archive OWNER/ADMIN-only for non-owners", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
@@ -269,6 +291,7 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_parked_scheduled",
         status: TaskStatus.GRANT_PENDING,
         ownerId: "user_other",
+        visibility: TaskVisibility.PUBLIC,
         metadata: scheduledTaskMetadata,
         nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
         workspace: { organizationId: "org_123" },

@@ -117,6 +117,14 @@ describe("buildVisibleTaskLinksInclude", () => {
       assigneeSokoBotId: "30000000-0000-4000-8000-000000000001",
       status: { not: TaskStatus.DRAFT },
       archivedAt: null,
+      AND: [
+        {
+          OR: [
+            { visibility: TaskVisibility.PUBLIC },
+            { visibility: TaskVisibility.PRIVATE, ownerId: "user_1" },
+          ],
+        },
+      ],
     };
     expect(include.linksFrom?.where).toEqual({
       toTask: { is: peerWhere },
