@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -187,7 +187,12 @@ describe("ProjectDetailActions", () => {
         labels={LABELS}
       />,
     );
-    await user.click(closeButton);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Close project" }),
+      ).toBeEnabled(),
+    );
+    await user.click(screen.getByRole("button", { name: "Close project" }));
     await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(2));
 
     const firstOperationId = closeProjectMock.mock.calls[0]?.[0].operationId;
@@ -196,9 +201,17 @@ describe("ProjectDetailActions", () => {
     );
     expect(closeProjectMock.mock.calls[1]?.[0].expectedProjectRevision).toBe(4);
 
-    await user.clear(reason);
-    await user.type(reason, "Scope changed");
-    await user.click(closeButton);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Reason (optional)" }),
+      ).toBeEnabled(),
+    );
+    const updatedReason = screen.getByRole("textbox", {
+      name: "Reason (optional)",
+    });
+    await user.clear(updatedReason);
+    await user.type(updatedReason, "Scope changed");
+    await user.click(screen.getByRole("button", { name: "Close project" }));
     await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(3));
 
     expect(closeProjectMock.mock.calls[2]?.[0].operationId).not.toBe(
