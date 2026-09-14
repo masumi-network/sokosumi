@@ -1,4 +1,4 @@
-import { Channel, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
+import { Channel, TaskStatus, TaskVisibility, VendorGrantStatus } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,6 +114,7 @@ function buildMapTaskResponse(task: {
     name: task.name ?? "New Task",
     description: task.description ?? null,
     status: task.status ?? TaskStatus.DRAFT,
+    visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: null,
     credits: 0,
@@ -226,6 +227,27 @@ describe("createTaskRequestSchema", () => {
     });
 
     expect(result.status).toBe(TaskStatus.DRAFT);
+  });
+
+  it("defaults visibility to undefined when omitted", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "New Task",
+      description: null,
+      assigneeId: null,
+    });
+
+    expect(result.visibility).toBeUndefined();
+  });
+
+  it("accepts PRIVATE visibility", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Secret",
+      description: null,
+      assigneeId: null,
+      visibility: TaskVisibility.PRIVATE,
+    });
+
+    expect(result.visibility).toBe(TaskVisibility.PRIVATE);
   });
 
   it("accepts READY status", () => {
@@ -523,9 +545,76 @@ describe("POST /tasks", () => {
           organizationId: "org_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           projectId: null,
+          visibility: TaskVisibility.PUBLIC,
         }),
       }),
     );
+  });
+
+  it("persists PRIVATE visibility in an organization workspace", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Secret Task",
+        description: null,
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+        visibility: TaskVisibility.PRIVATE,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          visibility: TaskVisibility.PRIVATE,
+        }),
+      }),
+    );
+  });
+
+  it("rejects PRIVATE visibility in a personal workspace", async () => {
+    const app = new OpenAPIHonoWithAuth();
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: "user_123",
+        organizationId: null,
+      });
+      return await next();
+    });
+    mountPostTask(app);
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Secret Task",
+        description: null,
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+        visibility: TaskVisibility.PRIVATE,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("assigns a personal assistant as soko bot", async () => {

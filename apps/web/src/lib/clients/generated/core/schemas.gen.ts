@@ -4553,6 +4553,9 @@ export const TaskSchema = {
                 }
             ]
         },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
         grantResumeStatus: {
             type: [
                 'string',
@@ -4670,6 +4673,7 @@ export const TaskSchema = {
         'name',
         'description',
         'status',
+        'visibility',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'metadata',
@@ -4974,6 +4978,16 @@ export const TaskCreatorSokoBotSchema = {
         'id',
         'sokoBot'
     ]
+} as const;
+
+export const TaskVisibilitySchema = {
+    type: 'string',
+    enum: [
+        'PUBLIC',
+        'PRIVATE'
+    ],
+    example: 'PUBLIC',
+    description: 'PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner\'s Soko Bot, and the assigned coworker\'s vendor family. Set at create; immutable.'
 } as const;
 
 export const TaskEventSchema = {
@@ -18736,6 +18750,9 @@ export const TaskListItemSchema = {
                 }
             ]
         },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
         grantResumeStatus: {
             type: [
                 'string',
@@ -18819,6 +18836,7 @@ export const TaskListItemSchema = {
         'name',
         'description',
         'status',
+        'visibility',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'metadata',

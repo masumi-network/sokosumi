@@ -29,4 +29,16 @@ describe("TaskDetailHeader", () => {
     expect(back.className).toContain("hidden");
     expect(back.className).toContain("md:inline-flex");
   });
+
+  it("shows a private badge when provided", () => {
+    render(
+      <TaskDetailHeader
+        taskName="Secret"
+        backLabel="Back"
+        privateLabel="Private"
+      />,
+    );
+
+    expect(screen.getByText("Private")).toBeInTheDocument();
+  });
 });

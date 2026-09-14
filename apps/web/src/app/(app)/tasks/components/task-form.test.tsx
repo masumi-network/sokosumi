@@ -46,6 +46,15 @@ vi.mock("@/lib/actions/task/action", () => ({
   updateTask: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      session: { activeOrganizationId: "org-1" },
+      user: { id: "user-1" },
+    },
+  }),
+}));
+
 vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({
     showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
@@ -324,6 +333,8 @@ const baseLabels = {
   createAnother: "Create another task",
   uploadingFile: "Uploading {fileName}",
   uploadingFiles: "Uploading {count} files",
+  privateLabel: "Private task",
+  privateDescription: "Only you can see this.",
 };
 
 const coworkerOptions = [
@@ -651,6 +662,32 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         status: TaskStatus.DRAFT,
+      }),
+    );
+  });
+
+  it("submits PRIVATE visibility when the private checkbox is checked", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Secret work");
+    await user.click(screen.getByLabelText("Private task"));
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visibility: "PRIVATE",
       }),
     );
   });

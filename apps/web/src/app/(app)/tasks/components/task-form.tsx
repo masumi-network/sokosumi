@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
   FileUploadDropzone,
@@ -69,6 +70,7 @@ import {
   type TaskContextSelectionInput,
   updateTask,
 } from "@/lib/actions/task/action";
+import { useSession } from "@/lib/auth/auth.client";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Project } from "@/lib/clients/generated/core/types.gen";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
@@ -159,6 +161,8 @@ export interface TaskFormLabels {
   createAnother?: string;
   untitledTask: string;
   saveError: string;
+  privateLabel?: string;
+  privateDescription?: string;
 }
 
 interface TaskFormInitialValues {
@@ -245,6 +249,7 @@ export interface TaskFormCreateInput {
   context: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 export type TaskFormCreateHandler = (
@@ -308,6 +313,10 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canCreatePrivateTask = Boolean(
+    session?.session.activeOrganizationId,
+  );
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const tSeries = useTranslations("App.Tasks.Schedule.series");
@@ -327,6 +336,7 @@ export function TaskForm({
   const [name, setName] = useState(initialValues?.name ?? "");
   const initialDescription = initialValues?.description ?? "";
   const [description, setDescription] = useState(initialDescription);
+  const [isPrivate, setIsPrivate] = useState(false);
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
   const initialProjectId =
@@ -783,6 +793,9 @@ export function TaskForm({
               "DRAFT" | "READY" | "QUEUED"
             >,
             schedule: scheduleSelection,
+            ...(canCreatePrivateTask && isPrivate
+              ? { visibility: "PRIVATE" as const }
+              : {}),
           });
           if (!result.ok) {
             const feedbackKey = taskScheduleSeriesFeedbackKey(
@@ -924,6 +937,8 @@ export function TaskForm({
       scheduleLabel,
       hadSchedule,
       contextSelection,
+      canCreatePrivateTask,
+      isPrivate,
       labels.projectRequired,
       labels.statusDraft,
       labels.statusQueued,
@@ -1424,6 +1439,32 @@ export function TaskForm({
                     selection={contextSelection}
                     onSelectionChange={setContextSelection}
                   />
+                ) : null}
+                {mode === "create" &&
+                canCreatePrivateTask &&
+                labels.privateLabel ? (
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="task-private"
+                      checked={isPrivate}
+                      onCheckedChange={(checked) =>
+                        setIsPrivate(checked === true)
+                      }
+                    />
+                    <div className="grid gap-1">
+                      <Label
+                        htmlFor="task-private"
+                        className="cursor-pointer font-normal"
+                      >
+                        {labels.privateLabel}
+                      </Label>
+                      {labels.privateDescription ? (
+                        <p className="text-muted-foreground text-sm">
+                          {labels.privateDescription}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
                 ) : null}
                 {attachmentUrls.length > 0 ? (
                   <div className="flex flex-wrap gap-3">

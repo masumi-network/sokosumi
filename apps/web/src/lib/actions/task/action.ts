@@ -57,6 +57,7 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 export interface TaskContextSelectionInput {
@@ -499,6 +500,7 @@ async function createTaskFromDescription(input: {
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
@@ -524,6 +526,7 @@ async function createTaskFromDescription(input: {
     projectId: normalizedProjectId ?? null,
     ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
+    ...(input.visibility ? { visibility: input.visibility } : {}),
   });
 
   try {
@@ -682,6 +685,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     context,
     status,
     schedule,
+    visibility,
   }) => {
     try {
       const task = await createTaskFromDescription({
@@ -694,6 +698,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         context,
         status,
         schedule,
+        visibility,
       });
 
       revalidatePath("/tasks");

@@ -134,6 +134,9 @@ export async function TaskDetailView({
             <TaskDetailHeader
               taskName={task.name}
               backLabel={t("back")}
+              privateLabel={
+                task.visibility === "PRIVATE" ? t("privateBadge") : null
+              }
               parentLink={
                 parentTask ? (
                   <p className="text-muted-foreground text-sm">
@@ -576,6 +579,7 @@ async function TaskDetailActionsSlot({
       share={taskWithCoworker.share ?? null}
       taskId={taskId}
       status={taskWithCoworker.status}
+      taskVisibility={taskWithCoworker.visibility}
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}

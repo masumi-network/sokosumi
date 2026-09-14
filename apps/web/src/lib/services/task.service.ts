@@ -50,6 +50,7 @@ interface CreateTaskInput {
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 interface PatchTaskInput {
