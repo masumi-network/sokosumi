@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
+  getTaskScheduleOperationId,
   hasTaskScheduleChanged,
   metadataToSelection,
   schedulableOnceLocalIso,
@@ -59,6 +60,33 @@ describe("metadataToSelection", () => {
       cron: "0 9 * * *",
       endsMode: "after",
       endAfterOccurrences: 3,
+    });
+  });
+
+  it("submits the remaining occurrence count, not the original target", () => {
+    // A full-series edit starts a new epoch and resets `epochReleaseCount`, so
+    // resubmitting the original target would restore already-consumed runs.
+    const selection = metadataToSelection(
+      JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174001",
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "after",
+        targetReleaseCount: 5,
+        epochReleaseCount: 2,
+        anchorAt: "2026-06-01T09:00:00.000Z",
+      }),
+      "Europe/Berlin",
+    );
+
+    expect(selectionToApiBody(selection)).toMatchObject({
+      mode: "recurring",
+      endsMode: "after",
+      occurrences: 3,
     });
   });
 });
@@ -296,6 +324,32 @@ describe("selectionToApiBody", () => {
         runAt: expect.any(Date),
       });
     }
+  });
+});
+
+describe("getTaskScheduleOperationId", () => {
+  it("reuses an ID for the same rule and mints one when the rule changes", () => {
+    const randomUUID = vi
+      .spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce("123e4567-e89b-42d3-a456-426614174000")
+      .mockReturnValueOnce("123e4567-e89b-42d3-a456-426614174001");
+    const operation = { current: null };
+    const daily = {
+      mode: "recurring" as const,
+      timezone: "UTC",
+      cron: "0 9 * * *",
+    };
+
+    expect(getTaskScheduleOperationId(daily, operation)).toBe(
+      "123e4567-e89b-42d3-a456-426614174000",
+    );
+    expect(getTaskScheduleOperationId(daily, operation)).toBe(
+      "123e4567-e89b-42d3-a456-426614174000",
+    );
+    expect(
+      getTaskScheduleOperationId({ ...daily, cron: "0 10 * * *" }, operation),
+    ).toBe("123e4567-e89b-42d3-a456-426614174001");
+    expect(randomUUID).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -95,6 +95,15 @@ export const workspaceCalendarItemSchema = z
         "Whether the caller owns this Task and may edit or remove its schedule",
       example: true,
     }),
+    canMoveOccurrence: z.boolean().openapi({
+      description:
+        "Whether this indexed occurrence can be moved through the revision-safe occurrence contract",
+      example: true,
+    }),
+    scheduleRevision: z.number().int().min(0).openapi({
+      description: "Schedule revision observed with this occurrence",
+      example: 3,
+    }),
     taskName: z.string().openapi({ example: "Prepare release notes" }),
     taskStatus: z.enum(TaskStatus).openapi({ example: "QUEUED" }),
     taskAssigneeId: z.string().nullable().openapi({ example: "coworker_123" }),

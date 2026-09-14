@@ -15,7 +15,7 @@ import type { MemberRowData } from "./types";
 
 const columnHelper = createAppColumnHelper<MemberRowData>();
 
-export function getMembersTableColumns(
+function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
   me: OrganizationMembershipSelf,
 ) {

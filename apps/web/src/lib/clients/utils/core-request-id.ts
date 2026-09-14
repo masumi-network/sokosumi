@@ -12,7 +12,7 @@ interface CoreRequestInterceptable {
   };
 }
 
-export function createCoreRequestId(): string {
+function createCoreRequestId(): string {
   return crypto.randomUUID();
 }
 

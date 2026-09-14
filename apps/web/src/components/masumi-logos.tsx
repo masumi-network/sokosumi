@@ -99,34 +99,8 @@ function MasumiMessengerIcon({
   );
 }
 
-function KodosumiLogo({ variant = "black", ...props }: LogoProps) {
-  return (
-    <Image
-      src={`/images/logos/kodosumi-logo-${variant}.svg`}
-      alt="Kodosumi Logo"
-      width={200}
-      height={27}
-      {...props}
-    />
-  );
-}
-
-function MasumiLogo({ variant = "black", ...props }: LogoProps) {
-  return (
-    <Image
-      src={`/images/logos/masumi-logo-${variant}.svg`}
-      alt="Masumi Logo"
-      width={200}
-      height={31}
-      {...props}
-    />
-  );
-}
-
 export {
   KanjiLogo,
-  KodosumiLogo,
-  MasumiLogo,
   MasumiMessengerIcon,
   SokosumiIcon,
   SokosumiLogo,

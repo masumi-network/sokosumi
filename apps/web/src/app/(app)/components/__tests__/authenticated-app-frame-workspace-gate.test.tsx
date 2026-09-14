@@ -92,8 +92,8 @@ vi.mock("../app-mobile-chrome.client", () => ({
     <>{children}</>
   ),
 }));
-vi.mock("../login-account-notice-toast.client", () => ({
-  LoginAccountNoticeToast: () => null,
+vi.mock("../account-notice-toast.client", () => ({
+  AccountNoticeToast: () => null,
 }));
 vi.mock("../notice-dialog-context", () => ({
   NoticeDialogProvider: ({ children }: { children: React.ReactNode }) => (
@@ -106,7 +106,7 @@ vi.mock("../notification-toaster.client", () => ({
 vi.mock("../auth-session-hydrator.client", () => ({
   AuthSessionHydrator: () => null,
 }));
-vi.mock("@/components/emergency-dialog", () => ({
+vi.mock("@/components/emergency-dialog/emergency-dialog", () => ({
   EmergencyDialog: () => null,
 }));
 

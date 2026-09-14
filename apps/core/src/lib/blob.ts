@@ -306,7 +306,6 @@ export async function uploadProfileImage(
     return null;
   }
 
-  // Extract the base64 encoded image data
   const imageData = Buffer.from(
     base64Image.replace(IMAGE_DATA_URI_REGEX, ""),
     "base64",
@@ -317,7 +316,7 @@ export async function uploadProfileImage(
     .update(imageData)
     .digest("hex");
 
-  // Extract MIME type from data URI (e.g., "image/jpeg"); subtype lowercased for /i regex.
+  // Subtype lowercased for /i regex.
   const mimeType = `image/${dataUriMatch[1]!.toLowerCase()}`;
 
   // Upload new blob with hash as filename
