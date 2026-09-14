@@ -71,6 +71,8 @@ function mention(overrides: Partial<Notification> = {}): Notification {
   return {
     id: "notification_1",
     userId: "user_1",
+    workspaceId: null,
+    organizationId: null,
     kind: NotificationKind.CHAT,
     referenceId: "room_1",
     eventId: "message_1",

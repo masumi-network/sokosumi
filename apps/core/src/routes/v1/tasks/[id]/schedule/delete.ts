@@ -3,6 +3,7 @@ import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   lockCalendarScope,
   lockTaskRows,
@@ -13,15 +14,17 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
+import { notifyTaskCalendarAction } from "@/helpers/task-notifications";
 import { isSchedulableTaskStatus } from "@/helpers/task-schedule";
 import { retireTaskScheduleFutureOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import {
   createTaskScheduleRequestFingerprint,
-  isTaskScheduleOperationReplay,
+  readTaskScheduleOperationReplay,
 } from "@/helpers/task-schedule-operation";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { resolveUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -104,7 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    const task = await serializableTransaction(async (tx) => {
+    const result = await serializableTransaction(async (tx) => {
       const scopeLocked = await lockCalendarScope(
         tx,
         existingTask.workspaceId,
@@ -128,20 +131,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       // A retry replays before any state check: the first attempt already
       // cleared the series and advanced the revision the caller observed.
-      if (
-        await isTaskScheduleOperationReplay(tx, {
-          taskId: id,
-          operationId,
-          requestFingerprint,
-        })
-      ) {
-        return await tx.task.findUniqueOrThrow({
+      const replay = await readTaskScheduleOperationReplay(tx, {
+        taskId: id,
+        operationId,
+        requestFingerprint,
+      });
+      if (replay) {
+        const task = await tx.task.findUniqueOrThrow({
           where: { id },
           include: buildTaskIncludeForViewer(
             authContext,
             currentTask.workspaceId,
           ),
         });
+        return {
+          task,
+          notification: {
+            eventId: replay.eventId,
+            actorUserId: replay.actorUserId,
+            ownerId: currentTask.ownerId,
+            taskName: currentTask.name,
+          },
+        };
       }
       await requireOpenCalendarProject(
         tx,
@@ -192,7 +203,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         id,
         new Date(),
       );
-      await tx.taskEvent.create({
+      const event = await tx.taskEvent.create({
         data: {
           taskId: id,
           ...resolveTaskEventActorFields(authContext),
@@ -209,9 +220,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         select: { id: true },
       });
-      return task;
+      return {
+        task,
+        notification: {
+          eventId: event.id,
+          actorUserId: resolveUserContext(authContext)?.userId ?? null,
+          ownerId: currentTask.ownerId,
+          taskName: currentTask.name,
+        },
+      };
     }, "Task schedule changed during schedule removal");
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext)));
+    await Promise.all([
+      notifyTaskCalendarAction({
+        taskId: id,
+        taskName: result.notification.taskName,
+        ownerId: result.notification.ownerId,
+        actorUserId: result.notification.actorUserId,
+        eventId: result.notification.eventId,
+        messageKey: "Notifications.Task.scheduleRemovedByMember",
+        action: "remove_schedule",
+      }),
+      deliverCalendarInvalidationsNow(existingTask.workspaceId),
+    ]);
+
+    return ok(c, taskSchema.parse(mapTask(result.task, authContext)));
   });
 }

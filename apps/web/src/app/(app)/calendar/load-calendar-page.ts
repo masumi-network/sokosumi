@@ -40,6 +40,7 @@ export interface CalendarPageSearchParams {
 
 export interface LoadedWorkspaceCalendarPage {
   activeOrganizationId: string | null;
+  currentUserId: string | null;
   calendarKey: string;
   coworkerOptions: CoworkerOption[];
   initialDate: string;
@@ -138,6 +139,7 @@ export async function loadWorkspaceCalendarPage({
 
     return {
       activeOrganizationId,
+      currentUserId: session?.user?.id ?? null,
       calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}`,
       coworkerOptions,
       initialDate,
@@ -179,6 +181,7 @@ export async function loadWorkspaceCalendarPage({
 
   return {
     activeOrganizationId,
+    currentUserId: session?.user?.id ?? null,
     calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}`,
     coworkerOptions,
     initialDate,
