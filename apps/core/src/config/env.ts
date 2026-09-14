@@ -339,6 +339,12 @@ export function validateEnv(): EnvConfig {
     process.exit(1);
   }
 
+  if (!result.data.TURNSTILE_SECRET_KEY && isDeployedEnvironment(result.data)) {
+    console.warn(
+      "TURNSTILE_SECRET_KEY is unset in a deployed environment; Turnstile captcha verification is disabled and auth email endpoints are unprotected from spam",
+    );
+  }
+
   return result.data;
 }
 
