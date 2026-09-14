@@ -129,39 +129,47 @@ import SwiftUI
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }
-        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-          let previous = index > 0 ? messages[index - 1] : nil
-          let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
-          let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
-          let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
-          let outbox = workspaces.thread.outbox
-          let shell = outbox.shells.first { $0.id == message.id }
-          VStack(alignment: .leading, spacing: 0) {
-            if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
-              DaySeparatorRow(label: label)
-            }
-            if let status = membershipStatusText(message) {
-              MembershipStatusRow(text: status)
-            } else {
-              MessageRowView(channels: channels, room: room, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
-                             outbound: shell, sentAt: outbox.sentAt[message.id],
-                             onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
-                             onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                             onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
-                               quoteFocusRequest = UUID().uuidString
-                             } : nil,
-                             onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                             onDelete: deletionAction(for: message),
-                             onRemoveUnfurl: unfurlAction(for: message),
-                             onToggleReaction: reactionAction(for: message),
-                             pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
-                             editing: workspaces.messageEditing,
-                             onQuoteJump: { quoteTarget = $0 },
-                             streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
-            }
+        replyRows(messages: messages, channels: channels, room: room)
+      }
+    }
+
+    private func replyRows(
+      messages: [Components.Schemas.ChatRoomMessage],
+      channels: [ComposerChannel],
+      room: Components.Schemas.ChatRoom?
+    ) -> some View {
+      ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+        let previous = index > 0 ? messages[index - 1] : nil
+        let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
+        let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
+        let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
+        let outbox = workspaces.thread.outbox
+        let shell = outbox.shells.first { $0.id == message.id }
+        VStack(alignment: .leading, spacing: 0) {
+          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+            DaySeparatorRow(label: label)
           }
-          .id(message.id)
+          if let status = membershipStatusText(message) {
+            MembershipStatusRow(text: status)
+          } else {
+            MessageRowView(channels: channels, room: room, message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+                           outbound: shell, sentAt: outbox.sentAt[message.id],
+                           onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
+                           onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
+                           onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                             quoteFocusRequest = UUID().uuidString
+                           } : nil,
+                           onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                           onDelete: deletionAction(for: message),
+                           onRemoveUnfurl: unfurlAction(for: message),
+                           onToggleReaction: reactionAction(for: message),
+                           pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
+                           editing: workspaces.messageEditing,
+                           onQuoteJump: { quoteTarget = $0 },
+                           streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
+          }
         }
+        .id(message.id)
       }
     }
   }
