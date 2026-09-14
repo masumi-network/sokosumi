@@ -674,3 +674,5 @@ Verification: macOS app tests (including localization and rendered row fixtures)
 
 ![Pinned transcript rows, light appearance](docs/screenshots/message-pin-label-light.png)
 ![Pinned transcript rows, dark appearance](docs/screenshots/message-pin-label-dark.png)
+
+Deep-link highlighting now uses the same inner message-row background as hover, excluding sender-group spacing and day separators. The macOS app suite and Swift lint/format pass after this alignment fix.

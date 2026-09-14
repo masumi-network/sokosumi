@@ -193,6 +193,7 @@ import SwiftUI
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                                 isHighlighted: highlightedId == message.id,
                                  isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
@@ -210,7 +211,6 @@ import SwiftUI
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
                 }
               }
-              .background(highlightedId == message.id ? Color.accentColor.opacity(0.12) : .clear)
               .background {
                 if quoteTarget == message.id {
                   Color.clear.onScrollVisibilityChange(threshold: 0.01) { visible in
