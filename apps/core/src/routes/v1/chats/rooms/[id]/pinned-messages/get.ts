@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { assertChatMessageReadBudget } from "@/helpers/chat-message-read-budget";
 import { badRequest } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -40,7 +41,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/pinned-messages",
     description:
-      "List Pinned messages for a Channel, newest pin first. Directs are rejected.",
+      "List Pinned messages for a Channel, newest pin first. Directs are rejected. Prefer Ably realtime updates for new messages; use HTTP for history and bounded fallback recovery.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -55,6 +56,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      429: jsonErrorResponse("Chat history read budget exceeded"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -76,6 +78,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (room.kind !== "channel") {
       throw badRequest("Only Channels can have pinned messages.");
     }
+    // Shared per-user budget across rooms and credentials (SOK-1060).
+    await assertChatMessageReadBudget(userContext.userId);
 
     const [pins, count] = await Promise.all([
       prisma.chatRoomPinnedMessage.findMany({

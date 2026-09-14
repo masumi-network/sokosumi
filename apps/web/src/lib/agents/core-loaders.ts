@@ -16,7 +16,7 @@ const AGENTS_PAGE_SIZE = 100;
 // cookie-free catalog client inside `'use cache'` so Cache Components can share
 // payloads across requests. Invalidate with `updateTag(...)` from Server Actions.
 export const AGENTS_CACHE_TAG = "core-agents-catalog";
-export const CATEGORIES_CACHE_TAG = "core-categories-catalog";
+const CATEGORIES_CACHE_TAG = "core-categories-catalog";
 
 export const getCoreAgentById = cache(
   async (agentId: string): Promise<CoreAgentDetail | null> => {
