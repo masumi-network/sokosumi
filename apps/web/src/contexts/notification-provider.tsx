@@ -173,12 +173,10 @@ export function NotificationProvider({
   // in. Asks the reader for nothing and leaves a browser that never turned
   // push on alone.
   //
-  // Per reader rather than per mount. This provider is mounted without a key
-  // of its own, and signing in again is a `router.replace` rather than a page
-  // load, so a second reader arrives as a new `userId` on the same mount. On
-  // mount alone the repair would have run once, for whoever was here first,
-  // and every reader after them on this tab would go unrepaired until they
-  // reloaded.
+  // Per reader rather than per mount. AuthenticatedAppFrame keys this
+  // provider on session.user.id so a second reader remounts it. The effect
+  // still follows userId, because a same-instance swap (tests, a mount
+  // without that key) would otherwise repair only the first reader.
   useEffect(() => {
     void healPushSubscription(userId);
   }, [userId]);

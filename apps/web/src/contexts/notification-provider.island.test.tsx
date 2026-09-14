@@ -230,6 +230,34 @@ describe("NotificationProvider island", () => {
     expect(healPushSubscriptionMock).toHaveBeenLastCalledWith("user-2");
   });
 
+  it("repairs the new reader when remounted by identity", async () => {
+    lazyAblyProviderMock.mockImplementation((): ReactNode => null);
+
+    function Frame({ userId }: { userId: string }) {
+      return (
+        <NotificationProvider key={userId} userId={userId}>
+          <NotificationConsumer />
+        </NotificationProvider>
+      );
+    }
+
+    const { rerender } = render(<Frame userId="user-1" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(healPushSubscriptionMock).toHaveBeenCalledWith("user-1");
+
+    healPushSubscriptionMock.mockClear();
+    rerender(<Frame userId="user-2" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(healPushSubscriptionMock).toHaveBeenCalledTimes(1);
+    expect(healPushSubscriptionMock).toHaveBeenCalledWith("user-2");
+  });
+
   it("mounts realtime bridge and toast listener under the LazyAbly island", async () => {
     render(
       <NotificationProvider userId="user-1">
