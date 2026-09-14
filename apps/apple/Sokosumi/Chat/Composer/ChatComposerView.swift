@@ -89,7 +89,7 @@ import UniformTypeIdentifiers
         return true
       }
       .onDisappear { Task { @MainActor in uploads.cancel() } }
-      .padding(8)
+      .padding([.horizontal, .bottom], 8)
       .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
         guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
         draft = savedDraft.restoreFailedSend(text, preserving: draft)
