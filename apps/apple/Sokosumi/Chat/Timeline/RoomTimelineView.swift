@@ -262,7 +262,6 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
-        .defaultScrollAnchor(.bottom, for: .sizeChanges)
         .scrollPosition($scrollPosition)
         .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
@@ -310,9 +309,9 @@ import SwiftUI
             proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
-        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { old, edges in
+        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
           if workspaces.timeline.historicalAnchor == nil,
-             edges.isReaderMotion(from: old, userIsScrolling: userIsScrolling) {
+             userIsScrolling {
             scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
           } else if scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)

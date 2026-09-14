@@ -10,8 +10,8 @@
 
   @Suite(.serialized)
   @MainActor struct TranscriptContentGrowthTests {
-    @Test(arguments: ["bottom", "visible", "active"])
-    func growingMessagePreservesReadingPosition(position: String) async throws {
+    @Test(arguments: ["bottom", "visible", "active"], [10, 20])
+    func growingMessagePreservesReadingPosition(position: String, lines: Int) async throws {
       let readingHistory = position != "bottom"
       let state = fixtureState()
       let host = NSHostingView(rootView: RoomTimelineView(roomId: "growth")
@@ -38,11 +38,11 @@
       let offset = scroll.contentView.bounds.minY
       let originalHeight = try #require(scroll.documentView?.frame.height)
       let index = readingHistory ? 40 : 49
-      state.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: 10)
+      state.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
       try await Task.sleep(for: .milliseconds(500))
       host.layoutSubtreeIfNeeded()
       let newHeight = try #require(scroll.documentView?.frame.height)
-      #expect(newHeight > originalHeight + 100)
+      #expect(newHeight > originalHeight + (lines == 10 ? 100 : 200))
       if readingHistory {
         #expect(abs(scroll.contentView.bounds.minY - offset) <= 1)
       } else {

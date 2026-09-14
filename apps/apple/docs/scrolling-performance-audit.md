@@ -195,3 +195,14 @@ Apple run 34875536597 failed only in the app scrolling fixture (the aggregate Xc
 A temporary 750 ms preparation delay reproduced both failures locally (`/tmp/scroll-ci-delay-red.log`). Replacing the fixed startup sleep with `loadedTranscriptScrollView` passed all four cases with the same delay (`/tmp/scroll-ci-delay-green.log`). The test helper waits at most 10 seconds for scrollable prepared history and its composer inset, while retaining the existing bottom-position and scrolling assertions. Both transcript fixtures reuse it. The artificial delay was removed; no production source changes remain in this CI fix.
 
 Final full app suite passes (`/tmp/scroll-ci-final-app-tests.log`), as do pinned Swift lint/format. The production preparation source matches the prior commit exactly; only test readiness and audit documentation changed.
+
+
+### Simplicity and concurrency scope — September 14
+
+The user explicitly deferred further performance tuning. Keep the standard SwiftUI lazy transcript and background preparation; do not build a custom list engine or additional optimization infrastructure. Further live profiling is not an acceptance gate for this slice. UI state publication stays on the main actor; transcript parsing uses a detached task with Sendable value snapshots, propagated cancellation and stale-result checks. Reuse is bounded to the previous snapshot.
+
+Commit `c4d4fd261` introduced a reader-motion inference from geometry for synthetic wheel input. Extending the existing growth fixture from 10 to 20 added lines reproduced a 310-point bottom gap (`/tmp/scroll-simple-baseline.log`): content growth beyond the near-bottom threshold was treated as user scrolling. The inference, its custom equality and its implementation-only tests are removed. Native scroll phases identify user interaction.
+
+An experiment also removed explicit bottom alignment and relied only on native size-change anchoring. It failed both growth sizes with 160/309-point gaps (`/tmp/scroll-simple-native-anchor.log`) and was discarded. The small existing bottom-follow handler remains a correctness requirement. With phase-based interaction restored, all six small/large content-growth cases pass (`/tmp/scroll-simple-phase-only.log`), including reading history and active scrolling. No raw-position cache, geometry-based motion inference or new abstraction remains.
+
+Final verification: all ten parameterized scrolling/growth cases and the complete app suite pass (`/tmp/scroll-simple-phase-only.log`, `/tmp/scroll-simple-full-app-tests.log`). PreparedTranscript's three cancellation, consistency and origin-invalidation tests pass (`/tmp/scroll-simple-concurrency-tests.log`). Pinned SwiftFormat and strict SwiftLint pass. No new dependencies, platform adapters or generated-file changes. UI rendering and layout still belong on the main actor; these checks do not promise zero frame delays.
