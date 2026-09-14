@@ -1,5 +1,14 @@
 {
   "Components": {
+    "AuthCaptcha": {
+      "title": "Sicherheitsprüfung",
+      "description": "Schließe diese Prüfung ab, um fortzufahren.",
+      "error": "Die Prüfung konnte nicht abgeschlossen werden. Prüfe deine Verbindung. Falls die Prüfung nicht fortgesetzt wird, lade diese Seite neu.",
+      "verificationFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuche es erneut.",
+      "missingResponse": "Schließe die Sicherheitsprüfung ab und versuche es erneut.",
+      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
+      "cancel": "Abbrechen"
+    },
     "EmergencyDialog": {
       "title": "Notfallwartung",
       "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",
