@@ -977,21 +977,20 @@ export async function getUserJobs(
     await requireCoworkerCapability(coworkerId, "tasks", tx);
   }
 
-  const humanParentTaskVisibility =
-    coworkerId || sokoBotId
-      ? []
-      : [
-          {
-            OR: [
-              { taskId: null },
-              {
-                task: {
-                  is: buildHumanParentTaskVisibilityWhere(userContext.userId),
-                },
+  const humanParentTaskVisibility = coworkerId
+    ? []
+    : [
+        {
+          OR: [
+            { taskId: null },
+            {
+              task: {
+                is: buildHumanParentTaskVisibilityWhere(userContext.userId),
               },
-            ],
-          },
-        ];
+            },
+          ],
+        },
+      ];
 
   const where: Prisma.JobWhereInput = {
     AND: [
