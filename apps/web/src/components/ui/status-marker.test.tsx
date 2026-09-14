@@ -28,6 +28,22 @@ describe("status role styles", () => {
     expect(STATUS_ROLE_STYLES[role].dot.startsWith("bg-")).toBe(true);
   });
 
+  /**
+   * `onSurface` is the same colour as `dot` and the same reasoning, written as
+   * a text colour for the compact badge, which paints an svg by
+   * `currentColor` and so cannot use a `bg-` class. The two fields are spelled
+   * out separately on purpose, because deriving one from the other by string
+   * surgery is what produced the invisible failure dot. This pins the pairing
+   * without reintroducing the derivation: a hand edit of either field on any
+   * role fails here.
+   */
+  it.each(ROLES)("gives %s an onSurface twin of its dot", (role) => {
+    const { dot, onSurface } = STATUS_ROLE_STYLES[role];
+
+    expect(onSurface).toBe(dot.replace("bg-", "text-"));
+    expect(onSurface).not.toMatch(/-foreground$/);
+  });
+
   it("paints the failure dot with the solid fill, not its label", () => {
     expect(getJobStatusDotColorClass(SokosumiJobStatus.FAILED)).toBe(
       "bg-semantic-destructive-solid",

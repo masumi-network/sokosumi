@@ -31,8 +31,11 @@ export function JobStatusBadge({
   // It also drops the badge fill, so the glyph cannot take `marker`, which is
   // the colour of the label ON that fill. For the failure role that is the
   // near-white label, which measured 1.06:1 on --card-background: an invisible
-  // mark on exactly the status that most needs to be seen. `dot` is the field
-  // that carries a colour readable against the surface instead of the fill.
+  // mark on exactly the status that most needs to be seen. `onSurface` is the
+  // field that carries a colour readable against the surface instead of the
+  // fill. It is `dot` as a text colour, and it has to be its own field: the
+  // glyph here is an svg painted by `currentColor`, so a `bg-` class does
+  // nothing to it.
   if (variant === "dot") {
     return (
       <span aria-label={label} className={cn("inline-flex", className)}>
