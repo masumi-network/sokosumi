@@ -1,5 +1,6 @@
 import { LIMITS } from "@/config/constants";
 import { tooManyRequests } from "@/helpers/error";
+import { tryUseLogger } from "@/lib/evlog";
 import { getRedisClient } from "@/lib/redis";
 
 /** Idle budget keys expire; full refill takes BURST / REFILL seconds. */
@@ -67,10 +68,13 @@ export async function assertChatMessageReadBudget(
       BUDGET_TTL_SECONDS,
     );
   } catch (error) {
-    console.error(
-      "[chat-message-read-budget] Redis error; failing open:",
-      error,
-    );
+    // Keep the read; tag the wide event so a Redis outage is not "no 429s".
+    tryUseLogger()?.set({
+      rateLimit: {
+        failOpen: true,
+        cause: error instanceof Error ? error.name : "unknown",
+      },
+    });
     return;
   }
 

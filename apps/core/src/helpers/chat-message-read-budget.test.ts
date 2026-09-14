@@ -1,13 +1,20 @@
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getRedisClientMock, redisEvalMock } = vi.hoisted(() => ({
-  getRedisClientMock: vi.fn(),
-  redisEvalMock: vi.fn(),
-}));
+const { getRedisClientMock, redisEvalMock, loggerSetMock, tryUseLoggerMock } =
+  vi.hoisted(() => ({
+    getRedisClientMock: vi.fn(),
+    redisEvalMock: vi.fn(),
+    loggerSetMock: vi.fn(),
+    tryUseLoggerMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
+}));
+
+vi.mock("@/lib/evlog", () => ({
+  tryUseLogger: tryUseLoggerMock,
 }));
 
 import { LIMITS } from "@/config/constants";
@@ -22,6 +29,7 @@ describe("chat-message-read-budget", () => {
     vi.clearAllMocks();
     getRedisClientMock.mockReturnValue({ eval: redisEvalMock });
     redisEvalMock.mockResolvedValue([1, 0]);
+    tryUseLoggerMock.mockReturnValue({ set: loggerSetMock });
   });
 
   afterEach(() => {
@@ -82,5 +90,8 @@ describe("chat-message-read-budget", () => {
     await expect(
       assertChatMessageReadBudget("user-1"),
     ).resolves.toBeUndefined();
+    expect(loggerSetMock).toHaveBeenCalledWith({
+      rateLimit: { failOpen: true, cause: "Error" },
+    });
   });
 });
