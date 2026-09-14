@@ -122,13 +122,10 @@ describe("domain enum schemas", () => {
     );
   });
 
-  it("invitationStatusSchema values match database InvitationStatus (excluding frontend-only expired)", () => {
-    const { EXPIRED: _expired, ...persistedStatuses } = InvitationStatus;
-
+  it("invitationStatusSchema values match database InvitationStatus", () => {
     expect([...INVITATION_DB_STATUS_VALUES].sort()).toEqual(
-      Object.values(persistedStatuses).sort(),
+      Object.values(InvitationStatus).sort(),
     );
-    expect(InvitationStatus.EXPIRED).toBe("expired");
   });
 
   it("memberRoleSchema accepts all member roles and rejects unknown values", () => {

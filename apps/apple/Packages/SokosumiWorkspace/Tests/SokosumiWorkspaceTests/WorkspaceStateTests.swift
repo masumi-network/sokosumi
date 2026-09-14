@@ -36,6 +36,7 @@ private final class ScriptedTransport: ClientTransport {
   var pauseStream = false
   var pauseGET = false
   var pauseDELETE = false
+  var pauseReaction = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
@@ -90,7 +91,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/"), operationID.contains("/messages") {
+    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions"), operationID.contains("/messages") {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -1477,5 +1478,101 @@ extension WorkspaceStateTests {
       #expect(state.thread.parent?.threadReplyCount == 1)
       #expect(state.thread.timeline.messages.first?.deletedAt != nil)
     }
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: [false, true])
+  func reactionsWaitForServerAndPreserveNewerContent(reply: Bool) async throws {
+    let response = createdMessageBody(id: "message", roomId: "room", content: "Old content")
+      .replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}]")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
+    let (state, auth, transport, _) = try ephemeralState([(200, response)], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "New content",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = "message"
+    state.timeline.reset(roomId: "room")
+    if reply {
+      var parent = source
+      parent.id = "parent"
+      state.timeline.messages = [parent]
+      state.thread.open(parent)
+      source.parentMessageId = parent.id
+      state.thread.timeline.messages = [source]
+    } else {
+      state.timeline.messages = [source]
+      state.thread.open(source)
+    }
+    transport.pauseReaction = true
+    let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    while transport.operationIDs.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.pendingReactionEmoji(for: source.id) == ["👍"])
+    #expect((reply ? state.thread.timeline.messages.first : state.timeline.messages.first)?.reactions.isEmpty == true)
+    try await state.toggleReaction(source, emoji: "👍", auth: auth)
+    #expect(transport.operationIDs.count == 1)
+    transport.releasePausedRequest()
+    try await toggle.value
+    let updated = reply ? state.thread.timeline.messages.first : state.timeline.messages.first
+    #expect(updated?.content == "New content")
+    #expect(updated?.reactions.first?.count == 1)
+    #expect(updated?.reactions.first?.reactedByCurrentUser == true)
+    #expect(state.pendingReactionEmoji(for: source.id).isEmpty)
+    if !reply {
+      #expect(state.thread.parent?.reactions.first?.count == 1)
+    }
+  }
+
+  @Test(arguments: [false, true])
+  func failedOrStaleReactionPreservesMessages(roomChanged: Bool) async throws {
+    let (state, auth, transport, _) = try ephemeralState([(403, "{\"message\":\"Denied\"}")], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Unchanged",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = "message"
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    while transport.operationIDs.isEmpty {
+      await Task.yield()
+    }
+    if roomChanged {
+      state.timeline.reset(roomId: "other")
+    }
+    transport.releasePausedRequest()
+    if roomChanged {
+      try await toggle.value
+      #expect(state.timeline.messages.isEmpty)
+    } else {
+      await #expect(throws: (any Error).self) { try await toggle.value }
+      #expect(state.timeline.messages.first?.content == "Unchanged")
+      #expect(state.timeline.messages.first?.reactions.isEmpty == true)
+    }
+    #expect(state.pendingReactions.isEmpty)
+  }
+
+  @Test func newerSameEmojiReactionIsReconciled() async throws {
+    let base = createdMessageBody(id: "message", roomId: "room", content: "Old")
+    let first = base.replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}]")
+    let latest = first.replacingOccurrences(of: "\"count\":1", with: "\"count\":2")
+    let (state, auth, transport, _) = try ephemeralState([(200, first), (200, latest)], visible: false)
+    var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Current",
+                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    source.id = "message"
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    while transport.operationIDs.isEmpty {
+      await Task.yield()
+    }
+    source.reactions = [.init(emoji: "👍", count: 2, reactedByCurrentUser: true, reactors: [])]
+    state.timeline.messages = [source]
+    transport.releasePausedRequest()
+    try await toggle.value
+    #expect(transport.operationIDs.last == "get/chats/rooms/{id}/messages/{messageId}")
+    #expect(state.timeline.messages.first?.reactions.first?.count == 2)
+    #expect(state.timeline.messages.first?.content == "Current")
   }
 }
