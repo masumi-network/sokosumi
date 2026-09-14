@@ -336,8 +336,7 @@ describe("TranscriptViewport", () => {
       const y = row?.style.transform.match(/,\s*(-?[\d.]+)px/)?.[1];
       return y === undefined ? Number.NaN : Number(y) - scroller.scrollTop;
     };
-    const before = rowTop("msg-060");
-    expect(before).toBe(ROW_HEIGHT);
+    expect(rowTop("msg-060")).toBe(ROW_HEIGHT);
     // Rows mount unmeasured while the virtualizer still counts the reader
     // as scrolling, and nothing lays them out later here. Let that lapse.
     await act(async () => {
@@ -352,11 +351,9 @@ describe("TranscriptViewport", () => {
     );
     await settle(container);
 
-    // happy-dom cannot settle the exact offset: the rows the scroll mounts
-    // are measured against a scroll position it never reports back. What it
-    // can show is that the reader was not left at the top of the older page.
-    expect(scroller.scrollTop).toBeGreaterThan(before);
-    expect(rowTop("msg-060")).not.toBeNaN();
+    // At the edge, not 40 px below it: the boundary row the reader saw above
+    // it is gone, and the rows now above it are held whole.
+    expect(rowTop("msg-060")).toBe(0);
   });
 
   it("keeps row identity when an outbound shell is confirmed", async () => {
@@ -431,7 +428,7 @@ describe("rowHoldAfterRowsChange", () => {
     ).toBeNull();
   });
 
-  it("holds the first message below a boundary row that the page replaced", () => {
+  it("holds the first message below a boundary row that the page replaced, at the edge", () => {
     const previous = [boundary("msg-060"), ...newer];
     expect(
       rowHoldAfterRowsChange(source(previous, 10), previous, [
@@ -439,7 +436,7 @@ describe("rowHoldAfterRowsChange", () => {
         ...older,
         ...newer,
       ]),
-    ).toEqual({ key: "msg-060", offset: 10 - ROW_HEIGHT });
+    ).toEqual({ key: "msg-060", offset: 0 });
   });
 
   it("holds nothing when no row below the edge survived", () => {

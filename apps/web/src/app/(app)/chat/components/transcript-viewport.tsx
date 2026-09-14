@@ -135,7 +135,13 @@ export function rowHoldAfterRowsChange(
   if (!survivor) {
     return null;
   }
-  return { key: String(survivor.key), offset: scrollOffset - survivor.start };
+  // Never above the survivor: the rows between the edge and it are new and
+  // still estimated, and a row that straddles the edge is not compensated
+  // when it is measured, so the survivor would drift by their error.
+  return {
+    key: String(survivor.key),
+    offset: Math.max(scrollOffset - survivor.start, 0),
+  };
 }
 
 /**
@@ -216,7 +222,15 @@ export function TranscriptViewport({
     // A hold also stops a growing row from pulling the view to the end. Only
     // a view already exactly at the end keeps following growth then.
     scrollEndThreshold: hold ? 0 : STICK_TO_BOTTOM_NEAR_PX,
+    // The end of a scroll from the browser, where it has it. The fallback
+    // is a timer that re-reports the offset it saw at the last scroll event,
+    // and that stale offset lands on top of a hold set in between.
+    useScrollendEvent: true,
+    // Row positions are written to the DOM as they change, so the re-render
+    // a measurement triggers need not be flushed inside the commit that
+    // measured it: React refuses that flush and warns.
     directDomUpdates: true,
+    useFlushSync: false,
   });
   virtualizerRef.current = virtualizer;
 
@@ -264,23 +278,33 @@ export function TranscriptViewport({
     }
   });
 
-  // After the virtualizer has applied its own hold for this change.
-  useLayoutEffect(() => {
-    const rowHold = rowHoldRef.current;
-    if (!rowHold) {
-      return;
-    }
+  // The held row is put back the way the virtualizer puts back its own: the
+  // offset is set before this render's rows mount, so every row measured
+  // above the top edge on mount is compensated against the right position,
+  // and the scroller is written once they have been. A scroll issued after
+  // the mount would race those corrections.
+  const rowHold = rowHoldRef.current;
+  const writeScrollRef = useRef(false);
+  if (rowHold) {
     rowHoldRef.current = null;
     const index = rows.findIndex(
       (row) => transcriptRowKey(row) === rowHold.key,
     );
-    // Refreshes the measurements cache with the sizes this commit measured.
+    // Refreshes the measurements cache for this render's rows.
     virtualizer.getTotalSize();
     const item = virtualizer.measurementsCache[index];
     if (item) {
-      virtualizer.scrollToOffset(item.start + rowHold.offset);
+      virtualizer.scrollOffset = item.start + rowHold.offset;
+      writeScrollRef.current = true;
     }
-  }, [rows, virtualizer]);
+  }
+  useLayoutEffect(() => {
+    if (!writeScrollRef.current || !scroller) {
+      return;
+    }
+    writeScrollRef.current = false;
+    scroller.scrollTop = virtualizer.scrollOffset ?? 0;
+  });
 
   useImperativeHandle(
     ref,
