@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-import { CHAT_MENTION_ALL_KEY, readChatMentionKeys } from "@sokosumi/utils";
+import {
+  CHAT_MENTION_ALL_KEY,
+  canonicalUuidSpelling,
+  readChatMentionKeys,
+} from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 
@@ -49,10 +53,14 @@ export async function loadChatMentionNames(params: {
     return names;
   }
 
+  // Text IDs require both spellings. Keep raw IDs so legacy auth IDs still win.
+  const textIds = [
+    ...new Set(keys.flatMap((key) => [key, canonicalUuidSpelling(key) ?? key])),
+  ];
   const client = params.client ?? prisma;
 
   const userMembers = await client.chatRoomUserMember.findMany({
-    where: { roomId: params.roomId, userId: { in: keys } },
+    where: { roomId: params.roomId, userId: { in: textIds } },
     select: { user: { select: { id: true, name: true } } },
   });
   for (const member of userMembers) {
@@ -62,7 +70,7 @@ export async function loadChatMentionNames(params: {
   }
 
   const coworkerMembers = await client.chatRoomCoworkerMember.findMany({
-    where: { roomId: params.roomId, coworkerId: { in: keys } },
+    where: { roomId: params.roomId, coworkerId: { in: textIds } },
     select: { coworker: { select: { id: true, name: true } } },
   });
   for (const member of coworkerMembers) {

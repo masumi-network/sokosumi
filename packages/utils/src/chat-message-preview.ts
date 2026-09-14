@@ -613,7 +613,7 @@ function sameSpelling(one: string, other: string): boolean {
  * too. An all-hex one rewrites into a uuid that may name a different member,
  * and the composer writes an auth id verbatim, so the key as written wins.
  */
-function canonicalUuidSpelling(key: string): string | null {
+export function canonicalUuidSpelling(key: string): string | null {
   if (!/^[0-9a-f]{32}$/i.test(key)) {
     return null;
   }
