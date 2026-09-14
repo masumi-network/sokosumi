@@ -230,10 +230,17 @@ import SwiftUI
                   Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
                 }
               } label: {
-                actionLabel(nil, symbol: "ellipsis", action: .more)
+                Image(systemName: "ellipsis")
+                  .font(.callout)
+                  .frame(width: actionIconSize, height: actionIconSize)
               }
-              .menuStyle(.borderlessButton)
+              .menuStyle(.button)
+              .buttonStyle(.plain)
               .menuIndicator(.hidden)
+              .frame(width: replyActionHeight, height: replyActionHeight)
+              .foregroundStyle(hoveredAction == .more ? .primary : .secondary)
+              .background(hoveredAction == .more ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+              .contentShape(.rect)
               .onHover { hoveredAction = $0 ? .more : nil }
               .focused($focusedAction, equals: .more)
               .disabled(isDeleting)
@@ -331,16 +338,14 @@ import SwiftUI
       .help(title == "Reply" ? "Reply in thread" : title)
     }
 
-    private func actionLabel(_ title: String?, symbol: String, action: MessageAction) -> some View {
+    private func actionLabel(_ title: String, symbol: String, action: MessageAction) -> some View {
       HStack(spacing: 5) {
         Image(systemName: symbol)
           .font(.callout)
           .frame(width: actionIconSize, height: actionIconSize)
-        if let title {
-          Text(title).font(.callout).lineLimit(1)
-        }
+        Text(title).font(.callout).lineLimit(1)
       }
-      .padding(.horizontal, title == nil ? 6 : 8)
+      .padding(.horizontal, 8)
       .frame(height: replyActionHeight)
       .foregroundStyle(hoveredAction == action ? .primary : .secondary)
       .background(hoveredAction == action ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
