@@ -235,8 +235,6 @@ vi.mock("../thread-panel", async () => {
         scrollToBottomIfPinned: () => void;
         suppressStickToBottom: () => void;
         releaseStickToBottomSuppress: () => void;
-        captureAnchor: () => null;
-        restoreAnchor: () => void;
       } | null>;
     }) {
       useImperativeHandle(viewportRef, () => ({
@@ -245,8 +243,6 @@ vi.mock("../thread-panel", async () => {
         scrollToBottomIfPinned: () => undefined,
         suppressStickToBottom: () => undefined,
         releaseStickToBottomSuppress: () => undefined,
-        captureAnchor: () => null,
-        restoreAnchor: () => undefined,
         landOnMessage: (messageId: string) => {
           const target = document.querySelector<HTMLElement>(
             `[data-chat-message-list="thread"] [data-message-id="${CSS.escape(messageId)}"]`,
