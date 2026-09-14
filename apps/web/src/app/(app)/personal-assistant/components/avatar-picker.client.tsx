@@ -10,6 +10,11 @@ import { topUpSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
 import type { SokoBotAvatar } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
+import {
+  excludeIdsForAvatarRefresh,
+  nextSeenAvatarIds,
+} from "./avatar-picker-exclusions";
+
 const PAGE_SIZE = 6;
 
 /**
@@ -34,22 +39,30 @@ export function AvatarPicker({
 
   function load(excludeIds: string[]) {
     startTransition(async () => {
+      const requestedExcludeIds = excludeIdsForAvatarRefresh(excludeIds);
       const result = await topUpSokoBotAvatarsAction({
-        input: { take: PAGE_SIZE, excludeIds },
+        input: { take: PAGE_SIZE, excludeIds: requestedExcludeIds },
       });
       if (!result.ok) {
         toast.error(t("loadError"));
         return;
       }
       // The pool is finite; when a fresh set comes back short, start over.
-      const next =
-        result.value.length === 0 && excludeIds.length > 0
-          ? await topUpSokoBotAvatarsAction({
-              input: { take: PAGE_SIZE, excludeIds: [] },
-            }).then((r) => (r.ok ? r.value : []))
-          : result.value;
+      const wrappedAround =
+        result.value.length === 0 && requestedExcludeIds.length > 0;
+      const next = wrappedAround
+        ? await topUpSokoBotAvatarsAction({
+            input: { take: PAGE_SIZE, excludeIds: [] },
+          }).then((r) => (r.ok ? r.value : []))
+        : result.value;
       setAvatars(next);
-      setSeen((prev) => [...prev, ...next.map((avatar) => avatar.id)]);
+      setSeen((prev) =>
+        nextSeenAvatarIds(
+          prev,
+          next.map((avatar) => avatar.id),
+          wrappedAround ? [] : requestedExcludeIds,
+        ),
+      );
       setLoaded(true);
     });
   }

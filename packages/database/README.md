@@ -151,7 +151,7 @@ Agent query shapes used by Core:
 
 `agentTagsInclude` and `agentExampleOutputInclude` both embed `agentMetadataOverrideRelationsInclude` (tags + example outputs on the override row). Core owns `agentCategoriesInclude` locally — it is not exported from this package.
 
-Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-exported from `src/types/job.ts`. `InvitationStatus` includes `EXPIRED` for UI/API mapping; that value is not stored in the database.
+Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-exported from `src/types/job.ts`. `InvitationStatus` is persisted statuses only (`pending` / `accepted` / `rejected` / `canceled`).
 
 ## Entry Points
 

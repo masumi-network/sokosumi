@@ -853,24 +853,19 @@ export const getChatsRoomsByIdStreamMessagesResponseTransformer = async (data: a
     return data;
 };
 
-const chatRoomMessageSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    if (data.deletedAt) {
-        data.deletedAt = new Date(data.deletedAt);
-    }
-    if (data.editedAt) {
-        data.editedAt = new Date(data.editedAt);
-    }
-    if (data.threadLastReplyAt) {
-        data.threadLastReplyAt = new Date(data.threadLastReplyAt);
-    }
-    return data;
-};
-
 const chatRoomPinnedMessageListItemSchemaResponseTransformer = (data: any) => {
     data.pinnedAt = new Date(data.pinnedAt);
     if (data.message) {
-        data.message = chatRoomMessageSchemaResponseTransformer(data.message);
+        data.message.createdAt = new Date(data.message.createdAt);
+        if (data.message.deletedAt) {
+            data.message.deletedAt = new Date(data.message.deletedAt);
+        }
+        if (data.message.editedAt) {
+            data.message.editedAt = new Date(data.message.editedAt);
+        }
+        if (data.message.threadLastReplyAt) {
+            data.message.threadLastReplyAt = new Date(data.message.threadLastReplyAt);
+        }
     }
     return data;
 };
@@ -975,6 +970,20 @@ export const postChatsRoomsByIdReadResponseTransformer = async (data: any): Prom
 export const postChatsRoomsByIdUnreadResponseTransformer = async (data: any): Promise<PostChatsRoomsByIdUnreadResponse> => {
     data.data = chatRoomSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+const chatRoomMessageSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    if (data.deletedAt) {
+        data.deletedAt = new Date(data.deletedAt);
+    }
+    if (data.editedAt) {
+        data.editedAt = new Date(data.editedAt);
+    }
+    if (data.threadLastReplyAt) {
+        data.threadLastReplyAt = new Date(data.threadLastReplyAt);
+    }
     return data;
 };
 

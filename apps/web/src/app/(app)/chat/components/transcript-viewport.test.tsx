@@ -1,7 +1,6 @@
 import { act, render } from "@testing-library/react";
 import { createRef, useState } from "react";
-import { VirtuosoMockContext } from "react-virtuoso";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
@@ -16,12 +15,19 @@ import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-r
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
+  rowHoldAfterRowsChange,
   TranscriptViewport,
   type TranscriptViewportHandle,
 } from "./transcript-viewport";
 
 const VIEWPORT_HEIGHT = 600;
 const ROW_HEIGHT = 40;
+
+class InertResizeObserver implements ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
 
 function message(index: number): ChatRoomMessage {
   return {
@@ -53,14 +59,91 @@ function rows(count: number): RoomTranscriptRenderRow[] {
   }));
 }
 
+function boundary(cursorMessageId: string): RoomTranscriptRenderRow {
+  return { kind: "boundary", cursorMessageId, isGap: false };
+}
+
 function renderRow(row: RoomTranscriptRenderRow) {
   if (row.kind === "boundary") {
-    return <div>boundary</div>;
+    return <div data-boundary={row.cursorMessageId}>boundary</div>;
   }
   return (
     <article data-message-id={row.message.id}>{row.message.content}</article>
   );
 }
+
+/**
+ * happy-dom lays nothing out: every box is zero and nothing resizes. The
+ * virtualizer sizes the viewport and each mounting row from offset heights
+ * and clamps scrolls to the scroller's scroll height, so those are answered
+ * here from fixed heights; the list container reports where it sits relative to the
+ * scroller's top edge, so the viewport's margin math holds; and the resize
+ * observer is made inert so the zero boxes never overwrite any of it.
+ */
+const shimmed = ["offsetHeight", "clientHeight", "scrollHeight"] as const;
+const originalDescriptors = shimmed.map(
+  (name) =>
+    [
+      name,
+      Object.getOwnPropertyDescriptor(HTMLElement.prototype, name),
+    ] as const,
+);
+const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+const originalResizeObserver = window.ResizeObserver;
+
+beforeAll(() => {
+  Object.defineProperties(HTMLElement.prototype, {
+    offsetHeight: {
+      configurable: true,
+      get(this: HTMLElement) {
+        if (this.dataset.testid === "scroller") {
+          return VIEWPORT_HEIGHT;
+        }
+        return this.hasAttribute("data-index") ? ROW_HEIGHT : 0;
+      },
+    },
+    clientHeight: {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.dataset.testid === "scroller" ? VIEWPORT_HEIGHT : 0;
+      },
+    },
+    // The list container's height, which the virtualizer sets to its total.
+    scrollHeight: {
+      configurable: true,
+      get(this: HTMLElement) {
+        const list = this.querySelector<HTMLElement>(
+          `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] > div`,
+        );
+        return Number.parseFloat(list?.style.height ?? "0") || 0;
+      },
+    },
+  });
+  Element.prototype.getBoundingClientRect = function () {
+    const rect = originalGetBoundingClientRect.call(this).toJSON();
+    const scroller = this.closest<HTMLElement>('[data-testid="scroller"]');
+    if (scroller && scroller !== this) {
+      rect.top = -scroller.scrollTop;
+      rect.bottom = rect.top + rect.height;
+    }
+    return rect;
+  };
+  // On the scroller's own window: the virtualizer reads it from there, not
+  // from the test's globals.
+  window.ResizeObserver = InertResizeObserver;
+});
+
+afterAll(() => {
+  for (const [name, descriptor] of originalDescriptors) {
+    if (descriptor) {
+      Object.defineProperty(HTMLElement.prototype, name, descriptor);
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, name);
+    }
+  }
+  Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  window.ResizeObserver = originalResizeObserver;
+});
 
 /**
  * The shell's part: a scroller element handed down as state, and the list
@@ -77,26 +160,18 @@ function Harness({
 }) {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   return (
-    <VirtuosoMockContext.Provider
-      value={{ viewportHeight: VIEWPORT_HEIGHT, itemHeight: ROW_HEIGHT }}
-    >
-      <div
-        ref={setScroller}
-        data-testid="scroller"
-        style={{ overflowY: "auto" }}
-      >
-        <div {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: list }}>
-          <TranscriptViewport
-            ref={handle}
-            scroller={scroller}
-            rows={rows}
-            renderRow={renderRow}
-            list={list}
-            holdOffBottom={false}
-          />
-        </div>
+    <div ref={setScroller} data-testid="scroller" style={{ overflowY: "auto" }}>
+      <div {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: list }}>
+        <TranscriptViewport
+          ref={handle}
+          scroller={scroller}
+          rows={rows}
+          renderRow={renderRow}
+          list={list}
+          holdOffBottom={false}
+        />
       </div>
-    </VirtuosoMockContext.Provider>
+    </div>
   );
 }
 
@@ -107,9 +182,8 @@ function mountedIds(container: HTMLElement): string[] {
 }
 
 /**
- * happy-dom lays nothing out and fires no scroll events, so the scroll
- * Virtuoso makes to reach the initial row is echoed back to it here. The
- * mock context supplies the heights.
+ * happy-dom fires no scroll events, so the scroll the virtualizer makes to
+ * reach a row is echoed back to it here.
  */
 async function settle(container: HTMLElement) {
   for (let round = 0; round < 3; round += 1) {
@@ -135,7 +209,7 @@ describe("TranscriptViewport", () => {
     const ids = mountedIds(container);
     // One viewport plus the overscan on each side, not the whole room. Which
     // end is mounted is a browser question: happy-dom does not honor the
-    // scroll Virtuoso makes to open on the newest row.
+    // scroll the virtualizer makes to open on the newest row.
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.length).toBeLessThan(100);
   });
@@ -201,32 +275,107 @@ describe("TranscriptViewport", () => {
     expect(roomRow.dataset.searchLanded).toBeUndefined();
   });
 
-  it("a jump after a prepend restore still marks after the delayed retry window", async () => {
+  it("keeps the reader's row where it was when history lands above it", async () => {
     const handle = createRef<TranscriptViewportHandle>();
-    const { container } = render(<Harness rows={rows(40)} handle={handle} />);
+    const older = rows(60);
+    const newer = rows(100).slice(60);
+    const { container, rerender } = render(
+      <Harness rows={newer} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = container.querySelector<HTMLElement>(
+      '[data-testid="scroller"]',
+    );
+    if (!scroller) {
+      throw new Error("expected the scroller");
+    }
+    act(() => {
+      scroller.scrollTo({ top: 0 });
+    });
     await settle(container);
     const first = mountedIds(container)[0];
-    const target = mountedIds(container).at(-3);
-    if (!first || !target) {
+    if (!first) {
       throw new Error("expected mounted rows");
     }
+    const rowTop = (id: string) => {
+      const row = container.querySelector<HTMLElement>(
+        `[data-message-id="${id}"]`,
+      )?.parentElement;
+      const y = row?.style.transform.match(/,\s*(-?[\d.]+)px/)?.[1];
+      return y === undefined ? Number.NaN : Number(y) - scroller.scrollTop;
+    };
+    const before = rowTop(first);
+    const scrollTopBefore = scroller.scrollTop;
 
-    act(() => {
-      handle.current?.restoreAnchor({ messageId: first, offset: 8 });
-    });
-    let landed: boolean | undefined;
-    act(() => {
-      landed = handle.current?.landOnMessage(target);
-    });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 120));
-    });
+    rerender(<Harness rows={[...older, ...newer]} handle={handle} />);
     await settle(container);
 
-    expect(landed).toBe(true);
-    expect(
-      container.querySelector(`[data-message-id="${target}"]`),
-    ).toHaveAttribute("data-search-landed", "true");
+    expect(scroller.scrollTop).toBeGreaterThan(scrollTopBefore);
+    expect(rowTop(first)).toBe(before);
+  });
+
+  it("stays on the newest row when history prepends at the live edge", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const older = rows(60);
+    const newer = rows(68).slice(60);
+    const { container, rerender } = render(
+      <Harness rows={newer} handle={handle} />,
+    );
+    await settle(container);
+
+    rerender(<Harness rows={[...older, ...newer]} handle={handle} />);
+    await settle(container);
+
+    const ids = mountedIds(container);
+    expect(ids).toContain("msg-067");
+    expect(ids).not.toContain("msg-000");
+  });
+
+  it("holds the first message when the boundary row above it is replaced by the page it loaded", async () => {
+    // Scrolled to the very top: the boundary row sits under the top edge, so
+    // it is the row the virtualizer would hold, and it is the row that goes.
+    const handle = createRef<TranscriptViewportHandle>();
+    const older = rows(60);
+    const newer = rows(100).slice(60);
+    const { container, rerender } = render(
+      <Harness rows={[boundary("msg-060"), ...newer]} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = container.querySelector<HTMLElement>(
+      '[data-testid="scroller"]',
+    );
+    if (!scroller) {
+      throw new Error("expected the scroller");
+    }
+    act(() => {
+      scroller.scrollTo({ top: 0 });
+    });
+    await settle(container);
+    const rowTop = (id: string) => {
+      const row = container.querySelector<HTMLElement>(
+        `[data-message-id="${id}"]`,
+      )?.parentElement;
+      const y = row?.style.transform.match(/,\s*(-?[\d.]+)px/)?.[1];
+      return y === undefined ? Number.NaN : Number(y) - scroller.scrollTop;
+    };
+    expect(rowTop("msg-060")).toBe(ROW_HEIGHT);
+    // Rows mount unmeasured while the virtualizer still counts the reader
+    // as scrolling, and nothing lays them out later here. Let that lapse.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+
+    rerender(
+      <Harness
+        rows={[boundary("msg-000"), ...older, ...newer]}
+        handle={handle}
+      />,
+    );
+    await settle(container);
+
+    // At the edge, not 40 px below it: the boundary row the reader saw above
+    // it is gone, and the rows now above it are held whole.
+    expect(rowTop("msg-060")).toBe(0);
   });
 
   it("keeps row identity when an outbound shell is confirmed", async () => {
@@ -260,5 +409,62 @@ describe("TranscriptViewport", () => {
 
     expect(after?.getAttribute("data-message-id")).toBe("msg-server");
     expect(after?.parentElement).toBe(before?.parentElement);
+  });
+});
+
+describe("rowHoldAfterRowsChange", () => {
+  const older = rows(60);
+  const newer = rows(100).slice(60);
+  const measurementsFor = (list: readonly RoomTranscriptRenderRow[]) =>
+    list.map((row, index) => ({
+      index,
+      key:
+        row.kind === "boundary"
+          ? `boundary:${row.cursorMessageId}`
+          : row.message.id,
+      start: index * ROW_HEIGHT,
+      size: ROW_HEIGHT,
+      end: (index + 1) * ROW_HEIGHT,
+      lane: 0,
+    }));
+  const source = (
+    list: readonly RoomTranscriptRenderRow[],
+    scrollOffset: number,
+  ) => {
+    const measurementsCache = measurementsFor(list);
+    return {
+      scrollOffset,
+      measurementsCache,
+      getVirtualItemForOffset: (offset: number) =>
+        measurementsCache.find((item) => item.end > offset),
+    };
+  };
+
+  it("leaves a message row under the top edge to the virtualizer", () => {
+    const previous = [boundary("msg-060"), ...newer];
+    expect(
+      rowHoldAfterRowsChange(source(previous, 60), previous, [
+        ...older,
+        ...newer,
+      ]),
+    ).toBeNull();
+  });
+
+  it("holds the first message below a boundary row that the page replaced, at the edge", () => {
+    const previous = [boundary("msg-060"), ...newer];
+    expect(
+      rowHoldAfterRowsChange(source(previous, 10), previous, [
+        boundary("msg-000"),
+        ...older,
+        ...newer,
+      ]),
+    ).toEqual({ key: "msg-060", offset: 0 });
+  });
+
+  it("holds nothing when no row below the edge survived", () => {
+    const previous = [boundary("msg-060"), ...newer];
+    expect(
+      rowHoldAfterRowsChange(source(previous, 10), previous, older),
+    ).toBeNull();
   });
 });

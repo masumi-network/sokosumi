@@ -113,9 +113,7 @@ describe("soko bot avatar list and top-up schemas", () => {
     expect(parsed).toEqual({ take: 6, excludeIds: [] });
   });
 
-  it("caps a top-up at the pool page size", () => {
-    expect(() =>
-      topUpSokoBotAvatarsRequestSchema.parse({ take: 13 }),
-    ).toThrow();
+  it("caps a top-up at one generation batch", () => {
+    expect(() => topUpSokoBotAvatarsRequestSchema.parse({ take: 7 })).toThrow();
   });
 });
