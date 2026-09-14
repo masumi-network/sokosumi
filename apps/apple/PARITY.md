@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active slice: scrolling architecture and performance audit, branch `codex/apple-chat-scroll-performance`, based on merged #4571. Draft [#4573](https://github.com/masumi-network/sokosumi/pull/4573) contains the audit, repeatable media fixture and boundary-coalescing fix; Release benchmarking and live verification remain pending. This user-requested slice takes priority over room search (23). See [audit](docs/scrolling-performance-audit.md).
+- Active slice: scrolling architecture and performance audit, branch `codex/apple-chat-scroll-performance`, based on merged #4571. Draft [#4573](https://github.com/masumi-network/sokosumi/pull/4573) contains the audit, repeatable media fixture and boundary-coalescing fix; Release benchmarking passed; live verification remains pending. This user-requested slice takes priority over room search (23). See [audit](docs/scrolling-performance-audit.md).
 - Link unfurls (22): [#4571](https://github.com/masumi-network/sokosumi/pull/4571) merged with all required checks passing. User confirms previews work; scrolling remains unacceptably slow (2026-09-14).
 - Message pin-status follow-up [#4566](https://github.com/masumi-network/sokosumi/pull/4566) merged. Final checks completed without failures; review follow-up tests deletion through the actual timeline. Deep-link and hover backgrounds share the inner row bounds.
 - Pinned messages (21): [PR #4549](https://github.com/masumi-network/sokosumi/pull/4549) merged on 2026-09-14.

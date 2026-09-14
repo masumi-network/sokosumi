@@ -76,3 +76,13 @@ The same 120-event Debug fixture passed and no longer emitted the multiple-updat
 | Thread, mixed media | 10.895 → 2.495 ms | 37.419 → 36.222 ms |
 
 These are single-run diagnostic results, not a guaranteed frame-rate improvement. Full app tests (including threshold/equality coverage), 354 Chat tests, iOS 17 Workspace compilation and pinned lint/format pass. Release comparison and live user verification remain pending. No broad observation rewrite, new caching subsystem or image-loader replacement has been justified yet.
+
+## Optimized-build comparison
+
+Release fixture tests pass (`/tmp/scroll-release-benchmark.log`) using command-only overrides `ENABLE_TESTABILITY=YES ONLY_ACTIVE_ARCH=YES ENABLE_HARDENED_RUNTIME=NO` for the local ad-hoc test host. Production build settings are unchanged. The first attempt lacked testability; the second compiled but the ad-hoc host failed hardened-runtime library validation. Neither was a product performance result.
+
+With the retained boundary fix, Release room rich-text layout p95 was 24.298 ms and total step p95 41.468 ms; mixed-media room layout p95 was 8.235 ms and total step p95 37.948 ms. Reply rich-text layout p95 was 14.297 ms and total step p95 31.472 ms. This does not support dismissing the problem as Debug-only overhead.
+
+A separate experiment moved the remaining room message/gap reads outside the lazy builder. The fixture compiled and passed (`/tmp/scroll-hoisted-final.log`), but room rich-text layout p95 was 23.309 ms and total step p95 41.365 ms—no meaningful improvement over the repeated baseline. That experiment was discarded. Do not infer that arbitrary local bindings necessarily break laziness from the earlier review note.
+
+The retained code change remains boundary coalescing. Live verification of the user's affected chat is still outstanding, and additional architectural changes require evidence from that scenario. The controlled fixture does not yet reproduce the reported severity reliably.
