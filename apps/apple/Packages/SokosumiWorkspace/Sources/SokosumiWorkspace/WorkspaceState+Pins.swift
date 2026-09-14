@@ -7,8 +7,9 @@ public extension WorkspaceState {
     rooms.first { $0.id == transcriptRoomId }?.kind == .channel
   }
 
-  func isPinned(_ messageId: String) -> Bool {
-    timeline.pinOverrides[messageId] ?? pins.items.contains { $0.messageId == messageId }
+  func isPinned(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+    guard message.deletedAt == nil else { return false }
+    return timeline.pinOverrides[message.id] ?? (message.pinnedAt != nil)
   }
 
   func isUpdatingPin(_ messageId: String) -> Bool {
