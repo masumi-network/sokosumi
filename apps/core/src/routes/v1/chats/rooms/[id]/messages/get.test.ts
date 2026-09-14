@@ -1,6 +1,7 @@
 import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { tooManyRequests } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -65,6 +66,14 @@ vi.mock("@/services/chat-room-mention-state", () => ({
 
 vi.mock("@vercel/functions", () => ({
   waitUntil: vi.fn(),
+}));
+
+const { assertChatMessageReadBudgetMock } = vi.hoisted(() => ({
+  assertChatMessageReadBudgetMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/chat-message-read-budget", () => ({
+  assertChatMessageReadBudget: assertChatMessageReadBudgetMock,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -137,6 +146,7 @@ beforeEach(() => {
   messageFindManyMock.mockResolvedValue([message()]);
   messageCountMock.mockResolvedValue(1);
   listStaleSentChatRoomMentionIdsMock.mockResolvedValue([]);
+  assertChatMessageReadBudgetMock.mockResolvedValue(undefined);
 });
 
 describe("GET /chats/rooms/{id}/messages", () => {
@@ -159,6 +169,28 @@ describe("GET /chats/rooms/{id}/messages", () => {
         content: "Hello room",
       }),
     ]);
+  });
+
+  it("returns 429 with Retry-After when the read budget is exhausted", async () => {
+    assertChatMessageReadBudgetMock.mockRejectedValue(
+      tooManyRequests("Chat history read budget exceeded.", {
+        kind: "message_read_budget_exceeded",
+        retryAfterSeconds: 7,
+      }),
+    );
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("7");
+    expect(messageFindManyMock).not.toHaveBeenCalled();
+    expect(messageCountMock).not.toHaveBeenCalled();
+
+    const body = await response.json();
+    expect(body.kind).toBe("message_read_budget_exceeded");
+    expect(body.retryAfterSeconds).toBe(7);
   });
 
   it("returns 404 when the room is missing", async () => {
