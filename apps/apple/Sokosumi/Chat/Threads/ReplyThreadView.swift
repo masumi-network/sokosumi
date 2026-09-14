@@ -26,62 +26,63 @@ import SwiftUI
 
     var body: some View {
       if let parent = workspaces.thread.parent {
-        VStack(spacing: 0) {
-          ScrollViewReader { proxy in
-            ScrollView {
-              LazyVStack(alignment: .leading, spacing: 8) {
-                MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                               onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
-                                 quoteFocusRequest = UUID().uuidString
-                               } : nil,
-                               onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
-                               onDelete: deletionAction(for: parent),
-                               onToggleReaction: reactionAction(for: parent),
-                               pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
-                               editing: workspaces.messageEditing,
-                               onQuoteJump: { quoteTarget = $0 })
-                  .id(parent.id)
-                Divider()
-                Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
-                replies
-                Color.clear.frame(height: 17).id("thread-bottom")
-              }
-              .padding(.horizontal)
-              .padding(.top)
+        ScrollViewReader { proxy in
+          ScrollView {
+            LazyVStack(alignment: .leading, spacing: 8) {
+              MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }, message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                             onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
+                               quoteFocusRequest = UUID().uuidString
+                             } : nil,
+                             onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
+                             onDelete: deletionAction(for: parent),
+                             onToggleReaction: reactionAction(for: parent),
+                             pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
+                             editing: workspaces.messageEditing,
+                             onQuoteJump: { quoteTarget = $0 })
+                .id(parent.id)
+              Divider()
+              Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
+              replies
+              Color.clear.frame(height: 17).id("thread-bottom")
             }
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .onChange(of: quoteTarget) { _, target in
-              guard let target else { return }
-              quoteTarget = nil
-              guard parent.id == target || workspaces.displayedThreadReplies.contains(where: { $0.id == target }) else { return }
-              followsLatest = false
-              proxy.scrollTo(target, anchor: .center)
-            }
-            .onScrollPhaseChange { _, phase in userIsScrolling = phase == .interacting || phase == .decelerating }
-            .onScrollGeometryChange(for: Double.self) { geometry in
-              geometry.contentSize.height - geometry.visibleRect.maxY
-            } action: { _, distanceFromBottom in
-              if userIsScrolling {
-                followsLatest = distanceFromBottom < 200
-              } else if followsLatest, distanceFromBottom > 1 {
-                proxy.scrollTo("thread-bottom", anchor: .bottom)
-              }
-            }
-            .onChange(of: workspaces.displayedThreadReplies.last?.id) { _, _ in
-              if followsLatest {
-                proxy.scrollTo("thread-bottom", anchor: .bottom)
-              }
-            }
-            .overlay(alignment: .bottomTrailing) {
-              if !followsLatest {
-                Button("Latest reply", systemImage: "arrow.down") {
-                  followsLatest = true
-                  proxy.scrollTo("thread-bottom", anchor: .bottom)
-                }
-                .padding()
-              }
+            .padding(.horizontal)
+            .padding(.top)
+          }
+          .defaultScrollAnchor(.bottom, for: .initialOffset)
+          .onChange(of: quoteTarget) { _, target in
+            guard let target else { return }
+            quoteTarget = nil
+            guard parent.id == target || workspaces.displayedThreadReplies.contains(where: { $0.id == target }) else { return }
+            followsLatest = false
+            proxy.scrollTo(target, anchor: .center)
+          }
+          .onScrollPhaseChange { _, phase in userIsScrolling = phase == .interacting || phase == .decelerating }
+          .onScrollGeometryChange(for: Double.self) { geometry in
+            geometry.contentSize.height + geometry.contentInsets.bottom - geometry.visibleRect.maxY
+          } action: { _, distanceFromBottom in
+            if userIsScrolling {
+              followsLatest = distanceFromBottom < 200
+            } else if followsLatest, distanceFromBottom > 1 {
+              proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
           }
+          .onChange(of: workspaces.displayedThreadReplies.last?.id) { _, _ in
+            if followsLatest {
+              proxy.scrollTo("thread-bottom", anchor: .bottom)
+            }
+          }
+          .overlay(alignment: .bottomTrailing) {
+            if !followsLatest {
+              Button("Latest reply", systemImage: "arrow.down") {
+                followsLatest = true
+                proxy.scrollTo("thread-bottom", anchor: .bottom)
+              }
+              .padding()
+            }
+          }
+        }
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .safeAreaBar(edge: .bottom, spacing: 0) {
           ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
                            roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
                            onAccepted: { followsLatest = true })
