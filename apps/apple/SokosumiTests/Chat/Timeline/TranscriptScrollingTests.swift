@@ -27,11 +27,7 @@
       window.contentView = host
       window.orderFront(nil)
       defer { window.orderOut(nil) }
-      try await Task.sleep(for: .milliseconds(500))
-      func scrollViews(_ view: NSView) -> [NSScrollView] {
-        (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap(scrollViews)
-      }
-      let scroll = try #require(scrollViews(host).max(by: { $0.frame.height < $1.frame.height }))
+      let scroll = try await loadedTranscriptScrollView(in: host)
       let initialOffset = scroll.contentView.bounds.minY
       #expect(scroll.contentInsets.bottom > 0)
       #expect(abs(distanceFromBottom(scroll)) <= 1)

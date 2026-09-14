@@ -185,3 +185,13 @@ The final serial fixture (PID 51971, `/tmp/scroll-prepared-final-scrolling.log`)
 All 357 Chat tests and the full app suite pass (`/tmp/scroll-prepared-chat-tests.log`, `/tmp/scroll-prepared-full.log`). New model coverage checks edits/removals, URL resolution-context invalidation and cancelled preparation. Final review moved follow-latest observation to prepared rows rather than raw network-arrival IDs; the final serial fixture passes after that change. Pinned Swift lint/format and diff whitespace checks pass.
 
 Signed macOS build passes (`/tmp/scroll-prepared-signed.log`); the restarted signed app (PID 57837) loads formatted content. Computer-use scrolling fails with `noWindowsAvailable`; programmatic scrollbar changes return to bottom and are not treated as a user-scroll test. The iOS 17 Workspace cross-build passes (`/tmp/scroll-prepared-ios17-cross.log`, arm64 simulator target). Xcode destination-based verification was unavailable because the simulator platform runtime is not installed; compiling against the installed SDK succeeded. Final model tests pass after isolating URL-origin invalidation within the same scope. Live smoothness feedback is pending.
+
+Live feedback on the prepared-snapshot build: improved, but still stutters. The user-visible performance requirement remains open. A fresh CPU sample targets PID 57837 while the user scrolls (`/tmp/scroll-prepared-live.sample`); capture activity must be confirmed before interpreting it as scrolling evidence.
+
+### CI readiness race
+
+Apple run 34875536597 failed only in the app scrolling fixture (the aggregate Xcode test check also failed). Two thread cases found no NSScrollView; a room case selected the composer with a zero bottom inset. The fixture slept 500 ms even though transcript preparation now completes asynchronously. Build, lint and all shared package jobs passed.
+
+A temporary 750 ms preparation delay reproduced both failures locally (`/tmp/scroll-ci-delay-red.log`). Replacing the fixed startup sleep with `loadedTranscriptScrollView` passed all four cases with the same delay (`/tmp/scroll-ci-delay-green.log`). The test helper waits at most 10 seconds for scrollable prepared history and its composer inset, while retaining the existing bottom-position and scrolling assertions. Both transcript fixtures reuse it. The artificial delay was removed; no production source changes remain in this CI fix.
+
+Final full app suite passes (`/tmp/scroll-ci-final-app-tests.log`), as do pinned Swift lint/format. The production preparation source matches the prior commit exactly; only test readiness and audit documentation changed.

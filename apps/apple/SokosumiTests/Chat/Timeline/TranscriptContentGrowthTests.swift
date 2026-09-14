@@ -20,11 +20,7 @@
       window.contentView = host
       window.orderFront(nil)
       defer { window.orderOut(nil) }
-      try await Task.sleep(for: .milliseconds(500))
-      func scrollViews(_ view: NSView) -> [NSScrollView] {
-        (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap(scrollViews)
-      }
-      let scroll = try #require(scrollViews(host).max(by: { $0.frame.height < $1.frame.height }))
+      let scroll = try await loadedTranscriptScrollView(in: host)
       if readingHistory {
         for index in 0 ..< 10 {
           let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 60, wheel2: 0, wheel3: 0))
