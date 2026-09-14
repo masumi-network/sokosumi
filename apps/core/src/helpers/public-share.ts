@@ -224,6 +224,20 @@ export async function getPublicSharedResourceByToken(token: string) {
   }
 
   if (share.job) {
+    if (share.job.taskId) {
+      const parentTask = await prisma.task.findFirst({
+        where: { id: share.job.taskId },
+        select: { visibility: true, archivedAt: true },
+      });
+      if (
+        !parentTask ||
+        parentTask.archivedAt !== null ||
+        parentTask.visibility === TaskVisibility.PRIVATE
+      ) {
+        return null;
+      }
+    }
+
     return {
       kind: "job" as const,
       share,

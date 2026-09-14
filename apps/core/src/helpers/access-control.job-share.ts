@@ -9,6 +9,7 @@ import {
   requireParentTaskNotParked,
 } from "./access-control";
 import { notFound } from "./error";
+import { buildHumanParentTaskVisibilityWhere } from "./task-visibility";
 
 /**
  * Public-share write access for a job: create, update, or revoke the share.
@@ -17,6 +18,9 @@ import { notFound } from "./error";
  * workspace (SOK-1030). The workspace half is what widens sharing beyond the
  * owner, so an organization workspace admits every member of that organization
  * while a personal workspace admits only its owner.
+ *
+ * Jobs whose parent Task is private follow SOK-1046: only the private Task's
+ * human reader (owner) can create or manage a job share.
  *
  * `workspaceContext` is not client-controlled. It comes from the session's
  * active organization, or, when the session carries none, from an
@@ -37,7 +41,8 @@ import { notFound } from "./error";
  * unchanged; this only widens human access.
  *
  * @throws {notFound} If the caller neither owns the job nor shares its
- *   workspace, or if the job's parent task is missing or archived
+ *   workspace, or if the job's parent task is missing, archived, or private
+ *   to another member
  * @throws {forbidden} If the parent task is parked, or the agent context is not
  *   permitted to act on the job
  */
@@ -57,11 +62,25 @@ export async function requireJobShareCollaboration(
   const job = await tx.job.findFirst({
     where: {
       id: jobId,
-      OR: [
-        { ownerId: userContext.userId },
-        ...(workspaceContext
-          ? [{ workspaceId: workspaceContext.workspaceId }]
-          : []),
+      AND: [
+        {
+          OR: [
+            { ownerId: userContext.userId },
+            ...(workspaceContext
+              ? [{ workspaceId: workspaceContext.workspaceId }]
+              : []),
+          ],
+        },
+        {
+          OR: [
+            { taskId: null },
+            {
+              task: {
+                is: buildHumanParentTaskVisibilityWhere(userContext.userId),
+              },
+            },
+          ],
+        },
       ],
     },
   });
