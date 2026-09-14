@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskScheduleOccurrenceState, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -16,6 +16,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  createTaskSchedulePlannedOccurrencesMock,
   prismaTransactionMock,
   memberFindFirstMock,
   taskUpdateMock,
@@ -25,7 +26,9 @@ const {
   lockTaskRowsMock,
   quarantineFindUniqueMock,
   replaceTaskSchedulePlannedOccurrencesMock,
+  retireTaskScheduleFutureOccurrencesMock,
 } = vi.hoisted(() => ({
+  createTaskSchedulePlannedOccurrencesMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   taskUpdateMock: vi.fn(),
@@ -35,6 +38,7 @@ const {
   lockTaskRowsMock: vi.fn(),
   quarantineFindUniqueMock: vi.fn(),
   replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  retireTaskScheduleFutureOccurrencesMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -56,11 +60,21 @@ vi.mock("@/helpers/calendar-locks", () => ({
   lockTaskRows: lockTaskRowsMock,
 }));
 
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  TaskScheduleOccurrenceLimitError: class TaskScheduleOccurrenceLimitError extends Error {},
-  replaceTaskSchedulePlannedOccurrences:
-    replaceTaskSchedulePlannedOccurrencesMock,
-}));
+vi.mock("@/helpers/task-schedule-occurrence-index", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/helpers/task-schedule-occurrence-index")
+    >();
+  return {
+    ...actual,
+    createTaskSchedulePlannedOccurrences:
+      createTaskSchedulePlannedOccurrencesMock,
+    replaceTaskSchedulePlannedOccurrences:
+      replaceTaskSchedulePlannedOccurrencesMock,
+    retireTaskScheduleFutureOccurrences:
+      retireTaskScheduleFutureOccurrencesMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -74,6 +88,208 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const TASK_ID = "tsk_123";
+const V2_EPOCH_ID = "123e4567-e89b-42d3-a456-426614174001";
+const MOVED_OCCURRENCE_ID = "00000000-0000-7000-8000-000000000042";
+const RULE_NOW = new Date("2026-06-01T08:00:00.000Z");
+
+interface LedgerOccurrence {
+  id: string;
+  seriesTaskId: string;
+  epochId: string | null;
+  originalScheduledAt: Date | null;
+  effectiveScheduledAt: Date;
+  state: string;
+  scheduleVersion: number;
+  sourceWorkspaceId?: string;
+  sourceType?: string;
+  sourceProjectId?: string | null;
+  sourceAccuracy?: string;
+  timeAccuracy?: string;
+}
+
+function createOccurrenceLedger(initial: LedgerOccurrence[]) {
+  const rows = [...initial];
+  let nextId = 1;
+
+  function matches(
+    row: LedgerOccurrence,
+    where: Record<string, unknown> = {},
+  ): boolean {
+    if (where.seriesTaskId != null && row.seriesTaskId !== where.seriesTaskId) {
+      return false;
+    }
+    if ("epochId" in where && row.epochId !== where.epochId) {
+      return false;
+    }
+    if (typeof where.state === "string" && row.state !== where.state) {
+      return false;
+    }
+    if (
+      where.state &&
+      typeof where.state === "object" &&
+      where.state !== null &&
+      "in" in where.state &&
+      Array.isArray((where.state as { in: string[] }).in) &&
+      !(where.state as { in: string[] }).in.includes(row.state)
+    ) {
+      return false;
+    }
+    const effective = where.effectiveScheduledAt as
+      | { gte?: Date; lte?: Date }
+      | undefined;
+    if (effective?.gte && row.effectiveScheduledAt < effective.gte) {
+      return false;
+    }
+    if (effective?.lte && row.effectiveScheduledAt > effective.lte) {
+      return false;
+    }
+    const idWhere = where.id as { in?: string[] } | undefined;
+    if (idWhere?.in && !idWhere.in.includes(row.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  const client = {
+    findMany: vi.fn(
+      async ({ where }: { where?: Record<string, unknown> } = {}) =>
+        rows.filter((row) => matches(row, where)),
+    ),
+    updateMany: vi.fn(
+      async ({
+        where,
+        data,
+      }: {
+        where?: Record<string, unknown>;
+        data: Partial<LedgerOccurrence>;
+      }) => {
+        let count = 0;
+        for (const row of rows) {
+          if (matches(row, where)) {
+            Object.assign(row, data);
+            count += 1;
+          }
+        }
+        return { count };
+      },
+    ),
+    deleteMany: vi.fn(
+      async ({ where }: { where?: Record<string, unknown> } = {}) => {
+        const remaining = rows.filter((row) => !matches(row, where));
+        const count = rows.length - remaining.length;
+        rows.splice(0, rows.length, ...remaining);
+        return { count };
+      },
+    ),
+    createMany: vi.fn(
+      async ({
+        data,
+        skipDuplicates,
+      }: {
+        data: Array<Omit<LedgerOccurrence, "id"> & { id?: string }>;
+        skipDuplicates?: boolean;
+      }) => {
+        let count = 0;
+        for (const item of data) {
+          const duplicate = rows.some(
+            (row) =>
+              row.seriesTaskId === item.seriesTaskId &&
+              row.epochId === (item.epochId ?? null) &&
+              row.originalScheduledAt?.getTime() ===
+                item.originalScheduledAt?.getTime(),
+          );
+          if (duplicate && skipDuplicates) {
+            continue;
+          }
+          rows.push({
+            ...item,
+            id: item.id ?? `occ_new_${nextId++}`,
+            epochId: item.epochId ?? null,
+            originalScheduledAt: item.originalScheduledAt ?? null,
+          });
+          count += 1;
+        }
+        return { count };
+      },
+    ),
+  };
+
+  return { rows, client };
+}
+
+function createMovedV2Occurrence(epochId = V2_EPOCH_ID): LedgerOccurrence {
+  return {
+    id: MOVED_OCCURRENCE_ID,
+    seriesTaskId: TASK_ID,
+    epochId,
+    originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+    effectiveScheduledAt: new Date("2026-06-04T15:00:00.000Z"),
+    state: TaskScheduleOccurrenceState.PLANNED,
+    scheduleVersion: 2,
+    sourceWorkspaceId: WORKSPACE_ID,
+    sourceType: "WORKSPACE",
+    sourceProjectId: null,
+    sourceAccuracy: "EXACT",
+    timeAccuracy: "EXACT",
+  };
+}
+
+function createV2RecurringMetadata(epochId = V2_EPOCH_ID) {
+  return {
+    version: 2 as const,
+    epochId,
+    mode: "recurring" as const,
+    createdAt: "2026-06-01T08:00:00.000Z",
+    ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+    timezone: "UTC",
+    expr: "0 9 * * *",
+    endsMode: "after" as const,
+    targetReleaseCount: 10,
+    epochReleaseCount: 5,
+    anchorAt: "2026-06-01T08:00:00.000Z",
+  };
+}
+
+async function useRealOccurrenceIndex() {
+  const actual = await vi.importActual<
+    typeof import("@/helpers/task-schedule-occurrence-index")
+  >("@/helpers/task-schedule-occurrence-index");
+  createTaskSchedulePlannedOccurrencesMock.mockImplementation(
+    actual.createTaskSchedulePlannedOccurrences,
+  );
+  replaceTaskSchedulePlannedOccurrencesMock.mockImplementation(
+    actual.replaceTaskSchedulePlannedOccurrences,
+  );
+  retireTaskScheduleFutureOccurrencesMock.mockImplementation(
+    actual.retireTaskScheduleFutureOccurrences,
+  );
+  return actual;
+}
+
+function installLedgerTransaction(
+  ledger: ReturnType<typeof createOccurrenceLedger>,
+) {
+  prismaTransactionMock.mockImplementation(async (callback) =>
+    callback({
+      task: { update: taskUpdateMock },
+      taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
+      taskScheduleOccurrence: ledger.client,
+    }),
+  );
+}
+
+function mockQueuedV2Task(nextRunAt: Date, epochId = V2_EPOCH_ID) {
+  requireTaskCollaborationMock.mockResolvedValue({
+    id: TASK_ID,
+    status: TaskStatus.QUEUED,
+    assigneeId: "coworker-1",
+    workspaceId: WORKSPACE_ID,
+    organizationId: null,
+    projectId: null,
+    nextRunAt,
+    metadata: JSON.stringify(createV2RecurringMetadata(epochId)),
+  });
+}
 
 function createTaskResult(metadata: string, nextRunAt: Date) {
   const owner = { id: "user-1", name: "Owner", image: null };
@@ -289,19 +505,7 @@ describe("PUT /tasks/{id}/schedule", () => {
       organizationId: null,
       projectId: null,
       nextRunAt,
-      metadata: JSON.stringify({
-        version: 2,
-        epochId,
-        mode: "recurring",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "after",
-        targetReleaseCount: 10,
-        epochReleaseCount: 5,
-        anchorAt: "2026-06-01T08:00:00.000Z",
-      }),
+      metadata: JSON.stringify(createV2RecurringMetadata(epochId)),
     });
 
     const response = await createApp().request(
@@ -329,10 +533,13 @@ describe("PUT /tasks/{id}/schedule", () => {
       epochReleaseCount: 5,
     });
     expect(taskUpdateMock.mock.calls[0]?.[0].data.nextRunAt).toEqual(nextRunAt);
+    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledOnce();
+    expect(retireTaskScheduleFutureOccurrencesMock).not.toHaveBeenCalled();
+    expect(createTaskSchedulePlannedOccurrencesMock).not.toHaveBeenCalled();
   });
 
   it("starts a new v2 epoch when a Calendar schedule rule changes", async () => {
-    const epochId = "123e4567-e89b-42d3-a456-426614174001";
+    const epochId = V2_EPOCH_ID;
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
@@ -341,19 +548,7 @@ describe("PUT /tasks/{id}/schedule", () => {
       organizationId: null,
       projectId: null,
       nextRunAt: new Date("2026-06-02T09:00:00.000Z"),
-      metadata: JSON.stringify({
-        version: 2,
-        epochId,
-        mode: "recurring",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "after",
-        targetReleaseCount: 10,
-        epochReleaseCount: 5,
-        anchorAt: "2026-06-01T08:00:00.000Z",
-      }),
+      metadata: JSON.stringify(createV2RecurringMetadata(epochId)),
     });
 
     const response = await createApp().request(
@@ -381,12 +576,24 @@ describe("PUT /tasks/{id}/schedule", () => {
       targetReleaseCount: 5,
     });
     expect(saved.epochId).not.toBe(epochId);
-    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+    expect(retireTaskScheduleFutureOccurrencesMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      TASK_ID,
+      expect.any(Date),
+    );
+    expect(createTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
-        schedule: expect.objectContaining({ version: 2, mode: "recurring" }),
+        schedule: expect.objectContaining({
+          version: 2,
+          mode: "recurring",
+          expr: "0 10 * * *",
+          epochId: saved.epochId,
+        }),
       }),
+      expect.any(Date),
     );
+    expect(replaceTaskSchedulePlannedOccurrencesMock).not.toHaveBeenCalled();
   });
 
   it("returns a conflict when the Task Calendar source cannot be locked", async () => {
@@ -621,5 +828,111 @@ describe("PUT /tasks/{id}/schedule", () => {
 
     expect(response.status).toBe(422);
     expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("retires a moved PLANNED row when the legacy PUT changes the v2 rule", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(RULE_NOW);
+    try {
+      await useRealOccurrenceIndex();
+      const ledger = createOccurrenceLedger([createMovedV2Occurrence()]);
+      installLedgerTransaction(ledger);
+      mockQueuedV2Task(new Date("2026-06-04T15:00:00.000Z"));
+
+      const response = await createApp().request(
+        `http://localhost/${TASK_ID}/schedule`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "recurring",
+            timezone: "UTC",
+            expr: "0 10 * * *",
+            endsMode: "after",
+            occurrences: 5,
+          }),
+        },
+      );
+
+      expect(response.status).toBe(200);
+      const saved = JSON.parse(taskUpdateMock.mock.calls[0]?.[0].data.metadata);
+      const nextRunAt = taskUpdateMock.mock.calls[0]?.[0].data.nextRunAt;
+      expect(saved.epochId).not.toBe(V2_EPOCH_ID);
+      expect(nextRunAt).toEqual(new Date("2026-06-01T10:00:00.000Z"));
+      expect(
+        ledger.rows.find((row) => row.id === MOVED_OCCURRENCE_ID)?.state,
+      ).toBe(TaskScheduleOccurrenceState.CANCELED);
+      expect(
+        ledger.rows.filter(
+          (row) =>
+            row.epochId === V2_EPOCH_ID &&
+            row.state === TaskScheduleOccurrenceState.PLANNED,
+        ),
+      ).toEqual([]);
+
+      const nextReleaseable = ledger.rows
+        .filter(
+          (row) =>
+            row.epochId === saved.epochId &&
+            row.state === TaskScheduleOccurrenceState.PLANNED,
+        )
+        .toSorted(
+          (left, right) =>
+            left.effectiveScheduledAt.getTime() -
+              right.effectiveScheduledAt.getTime() ||
+            left.id.localeCompare(right.id),
+        )[0];
+      expect(nextReleaseable).toMatchObject({
+        epochId: saved.epochId,
+        effectiveScheduledAt: nextRunAt,
+      });
+      expect(nextReleaseable?.id).not.toBe(MOVED_OCCURRENCE_ID);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retire a moved PLANNED row when the legacy PUT repeats the same v2 rule", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(RULE_NOW);
+    try {
+      await useRealOccurrenceIndex();
+      const movedNextRunAt = new Date("2026-06-04T15:00:00.000Z");
+      const ledger = createOccurrenceLedger([createMovedV2Occurrence()]);
+      installLedgerTransaction(ledger);
+      mockQueuedV2Task(movedNextRunAt);
+
+      const response = await createApp().request(
+        `http://localhost/${TASK_ID}/schedule`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "recurring",
+            timezone: "UTC",
+            expr: "0 9 * * *",
+            endsMode: "after",
+            occurrences: 5,
+          }),
+        },
+      );
+
+      expect(response.status).toBe(200);
+      const saved = JSON.parse(taskUpdateMock.mock.calls[0]?.[0].data.metadata);
+      expect(saved.epochId).toBe(V2_EPOCH_ID);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.nextRunAt).toEqual(
+        movedNextRunAt,
+      );
+      expect(
+        ledger.rows.find((row) => row.id === MOVED_OCCURRENCE_ID),
+      ).toMatchObject({
+        state: TaskScheduleOccurrenceState.PLANNED,
+        epochId: V2_EPOCH_ID,
+        effectiveScheduledAt: movedNextRunAt,
+      });
+      expect(retireTaskScheduleFutureOccurrencesMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

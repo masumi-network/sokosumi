@@ -22,7 +22,9 @@ import {
   validateScheduleInput,
 } from "@/helpers/task-schedule";
 import {
+  createTaskSchedulePlannedOccurrences,
   replaceTaskSchedulePlannedOccurrences,
+  retireTaskScheduleFutureOccurrences,
   TaskScheduleOccurrenceLimitError,
 } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
@@ -174,13 +176,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             currentTask.workspaceId,
           ),
         });
-        await replaceTaskSchedulePlannedOccurrences(tx, {
+        const indexTask = {
           id,
           workspaceId: currentTask.workspaceId,
           projectId: currentTask.projectId,
           schedule: metadata,
           nextRunAt,
-        });
+        };
+        if (
+          persistedMetadata?.version === 2 &&
+          metadata.version === 2 &&
+          metadata.epochId !== persistedMetadata.epochId
+        ) {
+          // Same pair as PUT /calendar-schedule: future exceptions belong to
+          // the epoch that defined them, so the old epoch's future half is
+          // retired before the new epoch is projected.
+          await retireTaskScheduleFutureOccurrences(tx, id, scheduledAt);
+          await createTaskSchedulePlannedOccurrences(
+            tx,
+            indexTask,
+            scheduledAt,
+          );
+        } else {
+          await replaceTaskSchedulePlannedOccurrences(tx, indexTask);
+        }
         return task;
       })
       .catch((error: unknown) => {
