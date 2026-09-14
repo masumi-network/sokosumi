@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { CHAT_MENTION_MESSAGE_KEY } from "@sokosumi/utils";
 
 import { fanOutChatNotifications } from "./chat-notification-fanout";
@@ -24,10 +25,33 @@ export interface EmitChatMentionNotificationsParams {
   mentionedUserIds: readonly string[];
 }
 
-/** Emit CHAT notifications for human @mentions. Schedule via waitUntil. */
+/**
+ * Emit CHAT notifications for human @mentions. Schedule via waitUntil.
+ *
+ * Reports rather than rejects. Every caller schedules this after the reader
+ * has been answered, so a rejection has no caller left to reach and arrives
+ * as an unhandled one that names nothing. That is how the outage in #4411 ran
+ * for half an hour with no error anywhere: the fan-out's own reporting sits
+ * inside its per-recipient loop, which a throw above the loop never reaches.
+ */
 export async function emitChatMentionNotifications(
   params: EmitChatMentionNotificationsParams,
 ): Promise<void> {
+  try {
+    await emit(params);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "chat_mention_notifications" },
+      extra: {
+        roomId: params.roomId,
+        messageId: params.messageId,
+        mentionedCount: params.mentionedUserIds.length,
+      },
+    });
+  }
+}
+
+async function emit(params: EmitChatMentionNotificationsParams): Promise<void> {
   await fanOutChatNotifications({
     roomId: params.roomId,
     roomName: params.roomName,

@@ -15,6 +15,13 @@ export function initSentry() {
     dsn: env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT,
     sendDefaultPii: true,
+    // Errors are never sampled. This is the SDK default, and it is written
+    // out because the two rates below are not: at 0.005 a reader has every
+    // reason to read an unset third rate as sampled too, and to answer a
+    // question about a missing event with the sampler rather than with the
+    // code that should have reported it. A defect that reports once per
+    // damaged row, or once per outage, has nothing to spare.
+    sampleRate: 1,
     tracesSampleRate: 0.005,
     profilesSampleRate: 0.005,
     integrations: [

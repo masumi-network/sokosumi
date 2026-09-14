@@ -84,12 +84,28 @@ describe("usePushPreference", () => {
     // thing being read.
     activatePushMock.mockImplementation(async () => {
       setDeviceSubscribed(true);
+      return true;
     });
     deactivatePushMock.mockImplementation(async () => {
       setDeviceSubscribed(false);
     });
     setAccountWriteResult(true);
     setAccountOptIn(false);
+  });
+
+  it("reports cancelled device activation as unsuccessful", async () => {
+    setAccountOptIn(true);
+    activatePushMock.mockResolvedValueOnce(false);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
+    await act(async () => {
+      await expect(result.current.setDeviceEnabled(true)).rejects.toThrow(
+        "The browser did not enable push",
+      );
+    });
+    expect(result.current.isDeviceEnabled).toBe(false);
   });
 
   it("registers the device, then records the account opt-in", async () => {
@@ -228,6 +244,7 @@ describe("usePushPreference", () => {
     activatePushMock.mockImplementation(async () => {
       await activation;
       setDeviceSubscribed(true);
+      return true;
     });
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
@@ -332,7 +349,7 @@ describe("usePushPreference", () => {
   it("ends a device save on a read, not on what it asked for", async () => {
     setAccountOptIn(true);
     // Unlike the default fixture, this activation leaves nothing behind.
-    activatePushMock.mockResolvedValue(undefined);
+    activatePushMock.mockResolvedValue(true);
     setDeviceSubscribed(false);
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
@@ -355,7 +372,7 @@ describe("usePushPreference", () => {
   it("re-reads this browser when the account write fails after it", async () => {
     // Unlike the default fixture, this activation leaves no subscription
     // behind: the browser can drop one between the activation and the read.
-    activatePushMock.mockResolvedValue(undefined);
+    activatePushMock.mockResolvedValue(true);
     setDeviceSubscribed(false);
     patchMyPreferencesMock.mockRejectedValue(new Error("core said no"));
     const { result } = renderHook(() => usePushPreference("user_1"), {
@@ -412,7 +429,7 @@ describe("usePushPreference", () => {
 
     await act(async () => {
       await expect(result.current.setDeviceEnabled(true)).rejects.toThrow(
-        "The browser refused the notification permission",
+        "The browser did not enable push",
       );
     });
 
