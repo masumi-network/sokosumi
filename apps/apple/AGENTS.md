@@ -18,6 +18,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels.
 - `Chat/Timeline/`: room scrolling, message rows and timeline status rows.
 - `Chat/Threads/`: reply-thread presentation.
+- `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
 - `Chat/Composer/`: draft-owning rich composer, Drive picker (`DriveFilePickerView`) and isolated native text input.
 - `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
 - `Shared/`: reusable participant avatar, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking remains in `SokosumiChat`.
@@ -41,6 +42,7 @@ Read [README.md](README.md#architecture-and-navigation) for the dependency map a
 - **Talk to Core only.** Bearer OAuth token, `X-Organization-Slug` for org workspaces, omitted for personal. No Prisma, no Postgres, no `@sokosumi/database` from Swift.
 - **Packages stay UI-free.** No `import SwiftUI`/`AppKit` under `Packages/`; Mac chrome lives in `Sokosumi/`.
 - **Style**: human-review baseline is the Kodeco Swift style guide; machine truth is `.swiftformat` + `.swiftlint.yml` (CI-enforced). See the [Swift style rule](../../.cursor/rules/swift-style.mdc) for the baseline and the deliberate deviations.
+- **UI/UX parity**: before changing chat UI, inspect the corresponding web source and running interaction or supplied recording. Preserve action availability, loading/error states, spacing hierarchy, focus and hover behavior while using native controls. Inspect edge clipping, rounded-corner transitions, text truncation, icon alignment, and padding while scrolling and resizing, including avatars and reactions near the composer. Verify the rendered Apple result; passing builds alone do not prove visual correctness. Record any unverified interaction explicitly.
 - **SwiftUI work**: load the app-scoped `swiftui-expert-skill` (`apps/apple/.agents/skills/`) when writing, reviewing, or refactoring SwiftUI. Never install it at the repo root. Hop `@Published` writes off the current view update (Gotchas).
 
 ## App-Specific Commands

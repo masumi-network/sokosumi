@@ -231,38 +231,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         )
           ? await countTaskScheduleFutureExceptions(tx, id, now)
           : 0;
-        const [rows, total] = await Promise.all([
-          tx.taskScheduleOccurrence.findMany({
-            where: cursor
-              ? { ...viewWhere, AND: [buildCursorWhere(cursor, view)] }
-              : viewWhere,
-            take: limit + 1,
-            orderBy: [{ effectiveScheduledAt: direction }, { id: direction }],
-            select: {
-              id: true,
-              state: true,
-              scheduleVersion: true,
-              epochId: true,
-              originalScheduledAt: true,
-              effectiveScheduledAt: true,
-              timezone: true,
-              sourceWorkspaceId: true,
-              sourceType: true,
-              sourceProjectId: true,
-              sourceAccuracy: true,
-              timeAccuracy: true,
-              releasedTask: {
-                select: {
-                  id: true,
-                  name: true,
-                  status: true,
-                  archivedAt: true,
-                },
+        const rows = await tx.taskScheduleOccurrence.findMany({
+          where: cursor
+            ? { ...viewWhere, AND: [buildCursorWhere(cursor, view)] }
+            : viewWhere,
+          take: limit + 1,
+          orderBy: [{ effectiveScheduledAt: direction }, { id: direction }],
+          select: {
+            id: true,
+            state: true,
+            scheduleVersion: true,
+            epochId: true,
+            originalScheduledAt: true,
+            effectiveScheduledAt: true,
+            timezone: true,
+            sourceWorkspaceId: true,
+            sourceType: true,
+            sourceProjectId: true,
+            sourceAccuracy: true,
+            timeAccuracy: true,
+            releasedTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
               },
             },
-          }),
-          tx.taskScheduleOccurrence.count({ where: viewWhere }),
-        ]);
+          },
+        });
+        const total = await tx.taskScheduleOccurrence.count({
+          where: viewWhere,
+        });
 
         const page = rows.slice(0, limit);
         return {

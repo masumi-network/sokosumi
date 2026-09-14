@@ -47,7 +47,8 @@
       let scroll = try #require(scrollViews(host).max(by: { $0.frame.height < $1.frame.height }))
       let initialOffset = scroll.contentView.bounds.minY
       let contentHeight = try #require(scroll.documentView?.frame.height)
-      #expect(abs(contentHeight - scroll.contentView.bounds.maxY) <= 1)
+      #expect(scroll.contentInsets.bottom > 0)
+      #expect(abs(contentHeight - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)) <= 1)
       #expect(initialOffset > 600)
       for index in 0 ..< 30 {
         let scrollEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 20, wheel2: 0, wheel3: 0))

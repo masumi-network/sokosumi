@@ -79,6 +79,8 @@ public final class WorkspaceState: ObservableObject {
 
   @Published var pendingReactions: Set<ReactionRequest> = []
   public let timeline = RoomTimeline()
+  public let pins = PinnedMessages()
+  @Published var pendingPins: Set<String> = []
   private(set) var transcriptLoadTask: Task<Void, Never>?
   private(set) var olderPageTask: Task<Void, Never>?
   private(set) var transcriptRefreshTask: Task<Void, Never>?
@@ -182,7 +184,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -319,6 +321,8 @@ public final class WorkspaceState: ObservableObject {
     transcriptRealtimeHealthy = false
     transcriptRecovery.stop()
     readAttention.roomChanged()
+    pins.reset()
+    pendingPins = []
     timeline.reset()
     transcriptLoadTask = nil
     olderPageTask = nil
@@ -338,6 +342,8 @@ public final class WorkspaceState: ObservableObject {
     thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
+    pins.reset(roomId: room.id)
+    pendingPins = []
     timeline.reset(roomId: room.id)
     olderPageTask = nil
     transcriptRefreshTask = nil
@@ -405,6 +411,7 @@ public final class WorkspaceState: ObservableObject {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
+    timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
       return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, quote: quote, settled: { [weak self, weak auth] in
@@ -532,6 +539,13 @@ public final class WorkspaceState: ObservableObject {
     guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
     rooms[index].pinnedMessageCount = count
     timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
+    if pins.roomId == roomId {
+      if !isPinned {
+        pins.remove(messageId: messageId)
+      } else {
+        pins.invalidate()
+      }
+    }
   }
 
   private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
@@ -751,7 +765,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   var roomHistoryReadable: Bool {
-    timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
+    timeline.historicalAnchor == nil && timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
   }
 
   public func syncReadAttention(auth: AuthState) async {

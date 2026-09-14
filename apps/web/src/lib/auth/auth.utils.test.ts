@@ -10,7 +10,6 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignedOAuthConsentQueryFromSearchParams,
   buildSignUpUrlFromSignIn,
@@ -290,35 +289,6 @@ describe("buildSignUpUrlFromSignIn", () => {
   });
 });
 
-describe("buildOAuthConsentReturnUrl", () => {
-  it("builds a consent return URL when required params are present", () => {
-    expect(
-      buildOAuthConsentReturnUrl({
-        client_id: "client_1",
-        redirect_uri: "https://example.com/callback",
-        code_challenge: "challenge_1",
-        code_challenge_method: "S256",
-        scope: "openid",
-        state: "state_1",
-        response_type: "code",
-        exp: "1772367377",
-        sig: "signed-value",
-      }),
-    ).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
-    );
-  });
-
-  it("returns undefined when required params are missing", () => {
-    expect(
-      buildOAuthConsentReturnUrl({
-        client_id: "client_1",
-        redirect_uri: "https://example.com/callback",
-      }),
-    ).toBeUndefined();
-  });
-});
-
 describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
   it("builds a consent return URL from URLSearchParams", () => {
     const params = new URLSearchParams({
@@ -333,6 +303,15 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
     expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
       "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid&state=state_1&response_type=code",
     );
+  });
+
+  it("returns undefined when required params are missing", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+    });
+
+    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBeUndefined();
   });
 
   it("preserves signed oauth query and filters app-only params", () => {

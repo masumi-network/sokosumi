@@ -121,7 +121,7 @@ interface RescheduleTaskOccurrenceParameters
   scheduledAt: string;
 }
 
-export interface TaskMutationError {
+interface TaskMutationError {
   kind: TaskMutationErrorKind;
 }
 
@@ -131,23 +131,23 @@ export type CreateTaskResult = TaskMutationActionResult<{
   taskId: string;
   name: string;
 }>;
-export type UpdateTaskResult = TaskMutationActionResult<{ taskId: string }>;
-export type SetTaskStatusResult = TaskMutationActionResult<{ taskId: string }>;
-export type CreateScheduledTaskResult = TaskMutationActionResult<{
+type UpdateTaskResult = TaskMutationActionResult<{ taskId: string }>;
+type SetTaskStatusResult = TaskMutationActionResult<{ taskId: string }>;
+type CreateScheduledTaskResult = TaskMutationActionResult<{
   taskId: string;
   name: string;
 }>;
-export type SaveTaskScheduleResult = TaskMutationActionResult<{
+type SaveTaskScheduleResult = TaskMutationActionResult<{
   taskId: string;
 }>;
-export type ClearTaskScheduleResult = TaskMutationActionResult<{
+type ClearTaskScheduleResult = TaskMutationActionResult<{
   taskId: string;
 }>;
-export type RescheduleTaskOccurrenceResult = TaskMutationActionResult<{
+type RescheduleTaskOccurrenceResult = TaskMutationActionResult<{
   taskId: string;
   scheduleRevision: number;
 }>;
-export type CreateTaskAndLinkResult = TaskMutationActionResult<{
+type CreateTaskAndLinkResult = TaskMutationActionResult<{
   taskId: string;
   createdTaskId: string;
   linkId: string;

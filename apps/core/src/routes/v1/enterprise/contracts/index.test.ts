@@ -156,6 +156,9 @@ describe("enterprise contracts routes OpenAPI contract", () => {
       "error",
       "message",
       "kind",
+      // Optional on the shared error envelope (SOK-1060); throttled
+      // responses carry the retry delay clients should honor.
+      "retryAfterSeconds",
       "blocker",
       "meta",
     ]);
