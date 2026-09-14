@@ -61,6 +61,9 @@ import SwiftUI
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
+    var isPinned = false
+    var isUpdatingPin = false
+    var onTogglePin: (() async throws -> Void)?
     var onDelete: (() async throws -> Void)?
     var onToggleReaction: ((String) async throws -> Void)?
     var pendingReactionEmoji: Set<String> = []
@@ -70,6 +73,8 @@ import SwiftUI
     var streamReasoning: String?
     var streamThinking = false
     @State private var showsReactionPicker = false
+    @State private var pinError: String?
+    @State private var showsPinError = false
     @State private var reactionError: String?
     @State private var showsReactionError = false
     @State private var confirmsDeletion = false
@@ -129,6 +134,9 @@ import SwiftUI
         // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
         // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
+          if isPinned {
+            Label("Pinned", systemImage: "pin.fill").font(.caption).foregroundStyle(.secondary)
+          }
           if !isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
               ParticipantProfileButton(sender: message.sender) {
@@ -199,9 +207,9 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil) ? Color.primary.opacity(0.04) : .clear)
+      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil) ? Color.primary.opacity(0.04) : .clear)
       .overlay(alignment: .topTrailing) {
-        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onToggleReaction != nil {
+        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
           HStack(spacing: 2) {
             if onToggleReaction != nil {
               messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
@@ -218,8 +226,12 @@ import SwiftUI
             if let onQuote {
               messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
             }
-            if onEdit != nil || onDelete != nil {
+            if onEdit != nil || onDelete != nil || onTogglePin != nil {
               Menu {
+                if onTogglePin != nil {
+                  pinButton
+                }
+
                 if let onEdit {
                   Button("Edit message", systemImage: "pencil", action: onEdit)
                 }
@@ -271,6 +283,9 @@ import SwiftUI
           isHovered = hovering
         }
       }
+      .alert("Couldn’t update pin", isPresented: $showsPinError) {
+        Button("OK", role: .cancel) {}
+      } message: { Text(pinError ?? "Try again.") }
       .alert("Couldn’t update reaction", isPresented: $showsReactionError) {
         Button("OK", role: .cancel) {}
       } message: {
@@ -288,6 +303,9 @@ import SwiftUI
         Text(deletionError ?? "Try again.")
       }
       .contextMenu {
+        if onTogglePin != nil {
+          pinButton
+        }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
         }
@@ -354,6 +372,19 @@ import SwiftUI
 
     private var pendingSince: Date? {
       outbound?.status == .pending ? outbound?.createdAt : nil
+    }
+
+    private var pinButton: some View {
+      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin") {
+        Task { @MainActor in
+          do {
+            try await onTogglePin?()
+          } catch { pinError = friendlyMessage(for: error)
+            showsPinError = true
+          }
+        }
+      }
+      .disabled(isUpdatingPin)
     }
 
     private var avatarView: some View {
