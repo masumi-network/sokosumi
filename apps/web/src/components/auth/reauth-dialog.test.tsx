@@ -31,7 +31,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
     },
   },
   useSession: () => ({
-    data: { user: { email: "owner@example.com", emailVerified } },
+    // Null while pending, the way the session atom reports it.
+    data: isPending
+      ? null
+      : { user: { email: "owner@example.com", emailVerified } },
     isPending,
   }),
 }));
