@@ -8,7 +8,7 @@ const tokenColorRules = themeTokenClasses
 
 /**
  * GitHub token colors via createThemeCss. Surface fill stays on the Markdown
- * `prose-pre:bg-muted/40` chrome — `--th-background` is transparent so the
+ * `prose-pre:bg-card-background` chrome — `--th-background` is transparent so the
  * shipped #fff / #0d1117 fills do not paint a foreign island.
  */
 export const markdownHighlightThemeCss = `${createThemeCss({
