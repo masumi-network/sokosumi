@@ -544,9 +544,9 @@ export const chatRoomPinnedMessageListItemSchema = z
         name: z.string(),
       })
       .nullable(),
-    // Do not chain `.nullable()` onto chatRoomMessageSchema — that poisons
-    // the OpenAPI ChatRoomMessage component with null.
-    message: z.union([chatRoomMessageSchema, z.null()]),
+    // Reuse the fields without making the named ChatRoomMessage nullable.
+    // A nullable object also avoids standalone null schemas in generated clients.
+    message: z.object(chatRoomMessageSchema.shape).nullable(),
   })
   .openapi("ChatRoomPinnedMessageListItem");
 
