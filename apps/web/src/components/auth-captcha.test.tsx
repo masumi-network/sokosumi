@@ -212,7 +212,10 @@ describe("useAuthCaptcha", () => {
       entry: "signin",
       step: "failed",
     });
-    expect(reset).toHaveBeenCalled();
+    // Turnstile retries by itself; a reset here would loop on a persistent error.
+    expect(reset).not.toHaveBeenCalled();
+    act(() => widgetProps?.onError?.("110200"));
+    expect(track).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     await user.click(screen.getByText("Submit"));
     expect(submitAction).not.toHaveBeenCalled();

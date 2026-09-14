@@ -72,6 +72,7 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
       : undefined;
   const widgetRef = useRef<TurnstileInstance | null>(null);
   const loadFailed = useRef(false);
+  const widgetFailed = useRef(false);
   const interactive = useRef(false);
   const shownRef = useRef(false);
   const [alert, setAlert] = useState<"load" | "missing" | null>(null);
@@ -105,11 +106,14 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
     report("load_error");
   }, [report]);
 
+  // Turnstile retries a failed widget on its own (`retry: "auto"`). Resetting
+  // here would restart it immediately and loop on a persistent error, so only
+  // report the first failure of a streak.
   const handleWidgetError = useCallback(() => {
+    if (widgetFailed.current) return;
+    widgetFailed.current = true;
     report("failed");
-    revealWidget();
-    widgetRef.current?.reset();
-  }, [report, revealWidget]);
+  }, [report]);
 
   const runWithCaptcha = useCallback(
     async <T,>(action: (options: CaptchaFetchOptions) => Promise<T>) => {
@@ -186,6 +190,7 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
             }}
             onSuccess={() => {
               loadFailed.current = false;
+              widgetFailed.current = false;
               setAlert(null);
               if (!interactive.current) return;
               interactive.current = false;

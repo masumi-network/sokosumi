@@ -72,7 +72,7 @@ describe("VerifyEmailButton", () => {
     });
   });
 
-  it("does not send email when verification is cancelled", async () => {
+  it("does not send email when the security check yields no token", async () => {
     requestCaptchaMock.mockResolvedValueOnce(null);
     render(<VerifyEmailButton email="user@example.com" label="Verify email" />);
     await userEvent.click(screen.getByRole("button", { name: "Verify email" }));
