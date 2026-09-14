@@ -4,6 +4,7 @@ const envDefaults: Record<string, string> = {
   PORT: "8787",
   DATABASE_URL: "https://example.com/database",
   BETTER_AUTH_SECRET: "test-secret",
+  TURNSTILE_SECRET_KEY: "test-turnstile-secret",
   BETTER_AUTH_URL: "https://example.com/auth",
   BETTER_AUTH_RP_ID: "localhost",
   GOOGLE_CLIENT_ID: "test-google-client-id",
