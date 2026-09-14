@@ -2,7 +2,7 @@ import { captcha } from "better-auth/plugins";
 
 export function createAuthCaptchaPlugin(secretKey: string | undefined) {
   // Omitting the secret disables server-side verification in any environment.
-  if (!secretKey) return { id: "captcha" };
+  if (!secretKey) return { id: "captcha-disabled" };
   return captcha({
     provider: "cloudflare-turnstile",
     secretKey,

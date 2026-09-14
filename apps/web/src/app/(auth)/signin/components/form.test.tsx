@@ -119,7 +119,7 @@ describe("SignInForm", () => {
   });
 
   beforeEach(() => {
-    requestCaptchaMock.mockResolvedValue({
+    requestCaptchaMock.mockReset().mockResolvedValue({
       headers: { "x-captcha-response": "verified-token" },
     });
     mockReplace.mockReset();
@@ -217,6 +217,35 @@ describe("SignInForm", () => {
         screen.getByPlaceholderText("Fields.Password.placeholder"),
       ).toHaveFocus();
     });
+  });
+
+  it("passes the verified captcha token to credential sign-in", async () => {
+    mockSignInEmail.mockResolvedValue({ data: {}, error: null });
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    expect(requestCaptchaMock).toHaveBeenCalledOnce();
+    expect(mockSignInEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fetchOptions: { headers: { "x-captcha-response": "verified-token" } },
+      }),
+    );
+  });
+
+  it("releases submit without signing in when the captcha is cancelled", async () => {
+    requestCaptchaMock.mockResolvedValueOnce(null);
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    expect(requestCaptchaMock).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "submit" })).toBeEnabled(),
+    );
+    expect(mockSignInEmail).not.toHaveBeenCalled();
+    expect(mockWaitForAuthSession).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it("passes unwrapped session data to waitForAuthSession after credential login", async () => {

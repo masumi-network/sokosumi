@@ -63,7 +63,7 @@ export function AuthCaptchaProvider({ children }: { children: ReactNode }) {
   );
 
   const requestCaptcha = useCallback<RequestAuthCaptcha>(() => {
-    // Both apps allow unconfigured local development; deployed envs require keys.
+    // Omitting the public site key skips the widget during local development.
     if (!siteKey) return Promise.resolve({});
     if (pending.current) return Promise.resolve(null);
     const id = ++sequence.current;
@@ -76,6 +76,7 @@ export function AuthCaptchaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (challenge === null) return;
+    // Keep the dialog open for widget recovery or explicit cancellation.
     const timeout = setTimeout(() => setFailed(true), 30_000);
     return () => clearTimeout(timeout);
   }, [challenge]);

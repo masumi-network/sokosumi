@@ -1,8 +1,14 @@
 import type { TurnstileProps } from "@marsidev/react-turnstile";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthCaptchaProvider, useAuthCaptcha } from "./auth-captcha-provider";
 
@@ -49,6 +55,8 @@ beforeEach(() => {
   result.mockReset();
   siteKey = "test-site-key";
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe("AuthCaptchaProvider", () => {
   it("waits for verification and obtains a new token for the next request", async () => {
@@ -104,6 +112,38 @@ describe("AuthCaptchaProvider", () => {
     await userEvent.click(screen.getByText("cancel"));
     expect(result).toHaveBeenCalledWith(null);
   });
+
+  it.each(["cancel", "Solve challenge"])(
+    "keeps the timed-out check recoverable through %s",
+    async (action) => {
+      vi.useFakeTimers();
+      render(
+        <AuthCaptchaProvider>
+          <Consumer />
+        </AuthCaptchaProvider>,
+      );
+      fireEvent.click(screen.getByText("Submit"));
+
+      await act(() => vi.advanceTimersByTimeAsync(30_000));
+
+      expect(screen.getByRole("alert")).toHaveTextContent("error");
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(result).not.toHaveBeenCalled();
+      expect(screen.getByText("cancel")).toBeEnabled();
+
+      await act(async () => {
+        fireEvent.click(screen.getByText(action));
+      });
+
+      expect(result).toHaveBeenCalledExactlyOnceWith(
+        action === "cancel"
+          ? null
+          : { headers: { "x-captcha-response": "single-use-token" } },
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.getByText("Submit")).toBeEnabled();
+    },
+  );
 
   it("cancels a pending request when the provider unmounts", async () => {
     const { unmount } = render(

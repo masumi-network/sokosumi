@@ -53,8 +53,9 @@ describe("auth email abuse protection", () => {
   it("allows signup without a challenge when no secret is configured", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const { post, sendEmail } = createTestAuth({});
+    const { auth, post, sendEmail } = createTestAuth({});
 
+    expect((await auth.$context).getPlugin("captcha")).toBeNull();
     expect((await post("/sign-up/email")).status).toBe(200);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();

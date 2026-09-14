@@ -161,6 +161,9 @@ vi.mock("react-social-login-buttons", () => ({
 
 describe("SocialButtons", () => {
   beforeEach(() => {
+    requestCaptchaMock.mockReset().mockResolvedValue({
+      headers: { "x-captcha-response": "verified-token" },
+    });
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
     mockPasskeySignIn.mockReset();
@@ -562,6 +565,31 @@ describe("SocialButtons", () => {
     });
 
     expect(screen.getByText("magicLinkSuccess")).toHaveClass("text-center");
+  });
+
+  it("releases magic-link submit without sending mail when the captcha is cancelled", async () => {
+    const user = userEvent.setup();
+    requestCaptchaMock.mockResolvedValueOnce(null);
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      "login-user@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+
+    expect(requestCaptchaMock).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "magicLinkSubmit" }),
+      ).toBeEnabled(),
+    );
+    expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
+    expect(screen.queryByText("magicLinkSuccess")).not.toBeInTheDocument();
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 
   it("hides the magic-link panel when the trigger is clicked again", async () => {
