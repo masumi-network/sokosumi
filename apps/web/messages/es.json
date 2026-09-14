@@ -5296,6 +5296,7 @@
       },
       "loadOlder": "Cargar mensajes anteriores",
       "loadingOlder": "Cargando mensajes anteriores…",
+      "jumpToLatest": "Ir a lo más reciente",
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",
@@ -5885,7 +5886,6 @@
           "workingHint": "Espera a este turno o detenlo antes de enviar más",
           "send": "Enviar",
           "stop": "Detener",
-          "jumpToLatest": "Ir al último",
           "hints": {
             "0": "Prueba: ¿cuál es el estado de mis Tasks abiertas?",
             "1": "Prueba: delega un informe de investigación a un Coworker",

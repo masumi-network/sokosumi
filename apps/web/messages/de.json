@@ -5296,6 +5296,7 @@
       },
       "loadOlder": "Ältere Nachrichten laden",
       "loadingOlder": "Ältere Nachrichten werden geladen…",
+      "jumpToLatest": "Zu den neuesten springen",
       "Boundary": {
         "missingHere": "Hier fehlen Nachrichten",
         "loadMissing": "Fehlende Nachrichten laden",
@@ -5885,7 +5886,6 @@
           "workingHint": "Warte auf diesen Durchlauf oder stoppe ihn, bevor du mehr sendest",
           "send": "Senden",
           "stop": "Stoppen",
-          "jumpToLatest": "Zum Neuesten",
           "hints": {
             "0": "Versuch: Wie ist der Stand meiner offenen Tasks?",
             "1": "Versuch: Delegiere ein Research-Briefing an einen Coworker",
