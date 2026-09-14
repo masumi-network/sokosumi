@@ -10,6 +10,7 @@ const optionalVercelUrlSchema = z
   .optional();
 
 const envPublicConfigSchema = z.object({
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID: z.string().optional(),
   NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: z.string().optional(),
   NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z.coerce
@@ -50,6 +51,7 @@ let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
 
 function validateEnv() {
   const rawEnv = {
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
     NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID:
       process.env.NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID,
     NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:
@@ -79,7 +81,23 @@ function validateEnv() {
       process.env.NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG,
   };
 
-  const parsedConfig = envPublicConfigSchema.safeParse(rawEnv);
+  const parsedConfig = envPublicConfigSchema
+    .superRefine((value, context) => {
+      if (
+        (process.env.NODE_ENV === "production" ||
+          value.NEXT_PUBLIC_VERCEL_ENV === "production" ||
+          value.NEXT_PUBLIC_VERCEL_ENV === "preview") &&
+        !value.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["NEXT_PUBLIC_TURNSTILE_SITE_KEY"],
+          message:
+            "NEXT_PUBLIC_TURNSTILE_SITE_KEY is required in deployed environments",
+        });
+      }
+    })
+    .safeParse(rawEnv);
   if (!parsedConfig.success) {
     console.error(
       "❌ Invalid environment variables:",

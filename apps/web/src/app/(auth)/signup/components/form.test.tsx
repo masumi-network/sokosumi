@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import {
   afterAll,
   beforeAll,
@@ -9,6 +10,10 @@ import {
   it,
   vi,
 } from "vitest";
+import {
+  captchaErrorMessageMock,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 import SignUpForm from "./form";
 
@@ -141,6 +146,29 @@ describe("SignUpForm OAuth workflow", () => {
     );
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
+
+  it("shows translated captcha errors from Core", async () => {
+    const error = {
+      code: "VERIFICATION_FAILED",
+      message: "Captcha verification failed",
+    };
+    mockSignUpEmail.mockResolvedValueOnce({ data: null, error });
+    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
+    expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("does not register when verification is cancelled", async () => {
+    requestCaptchaMock.mockResolvedValueOnce(null);
+    render(<SignUpForm />);
+    await submitValidSignUpForm();
+    expect(mockSignUpEmail).not.toHaveBeenCalled();
+  });
 
   it("renders signup with a single password field", () => {
     render(<SignUpForm />);
@@ -375,3 +403,8 @@ describe("SignUpForm OAuth workflow", () => {
     expect(spinner).toHaveClass("absolute", "left-4");
   });
 });
+
+vi.mock(
+  "@/components/auth-captcha-provider",
+  () => import("@/test/auth-captcha-mock"),
+);
