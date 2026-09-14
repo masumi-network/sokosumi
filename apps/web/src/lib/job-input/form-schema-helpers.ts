@@ -23,9 +23,6 @@ import type { JobInputFormIntlPath } from "./type";
  */
 const MIN_REQUIRED_STRING_LENGTH = 1;
 
-/**
- * Input type groups for categorizing similar input behaviors
- */
 export const STRING_BASED_TYPES = new Set([
   InputType.STRING,
   InputType.TEXT,
@@ -35,34 +32,10 @@ export const STRING_BASED_TYPES = new Set([
   InputType.SEARCH,
 ]);
 
-export const DATE_TYPES = new Set([
-  InputType.DATE,
-  InputType.DATETIME,
-  InputType.TIME,
-  InputType.MONTH,
-  InputType.WEEK,
-]);
-
-export const OPTION_TYPES = new Set([
-  InputType.OPTION,
-  InputType.RADIO_GROUP,
-  InputType.MULTISELECT,
-]);
-
-export const NUMERIC_TYPES = new Set([InputType.NUMBER, InputType.RANGE]);
-
 export const BOOLEAN_TYPES = new Set([InputType.BOOLEAN, InputType.CHECKBOX]);
 
-/**
- * Type guards for input type groups
- */
 export const isStringBasedType = (type: InputType): boolean =>
   STRING_BASED_TYPES.has(type);
-export const isDateType = (type: InputType): boolean => DATE_TYPES.has(type);
-export const isOptionType = (type: InputType): boolean =>
-  OPTION_TYPES.has(type);
-export const isNumericType = (type: InputType): boolean =>
-  NUMERIC_TYPES.has(type);
 export const isBooleanType = (type: InputType): boolean =>
   BOOLEAN_TYPES.has(type);
 
