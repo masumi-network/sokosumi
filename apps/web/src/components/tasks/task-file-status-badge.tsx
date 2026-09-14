@@ -43,7 +43,11 @@ export function TaskFileStatusBadge({
   return (
     <Badge
       variant="default"
-      className={cn(role.bg, role.text, "gap-1.5", className)}
+      // Badge sets [&>svg]:size-3 on the parent, and `.badge > svg` outranks
+      // the size-3.5 StatusMarker puts on the svg itself, so the glyph
+      // rendered at the 12px the marker exists to avoid. Restated here, where
+      // className merges last and wins.
+      className={cn(role.bg, role.text, "gap-1.5 [&>svg]:size-3.5", className)}
     >
       <StatusMarker spec={marker} />
       {label}

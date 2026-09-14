@@ -56,7 +56,10 @@ export function RiskClassificationBadge({
   return (
     <Badge
       variant="outline"
-      className={cn(config.color)}
+      // Badge sets [&>svg]:size-3 on the parent, and `.badge > svg` outranks
+      // the size-3.5 on the glyph itself. Restated here, where className
+      // merges last and wins, so the risk shields match every other marker.
+      className={cn(config.color, "[&>svg]:size-3.5")}
       aria-label={t(config.labelKey)}
     >
       <config.icon
