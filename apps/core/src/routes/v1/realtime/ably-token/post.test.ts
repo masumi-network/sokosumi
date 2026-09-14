@@ -9,10 +9,12 @@ import mountPostAblyToken from "./post";
 const {
   findManyRoomMembersMock,
   findManyOrgMembersMock,
+  findManyWorkspacesMock,
   createAblyClientTokenRequestMock,
 } = vi.hoisted(() => ({
   findManyRoomMembersMock: vi.fn(),
   findManyOrgMembersMock: vi.fn(),
+  findManyWorkspacesMock: vi.fn(),
   createAblyClientTokenRequestMock: vi.fn(),
 }));
 
@@ -23,6 +25,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findMany: (...args: unknown[]) => findManyOrgMembersMock(...args),
+    },
+    workspace: {
+      findMany: (...args: unknown[]) => findManyWorkspacesMock(...args),
     },
   },
 }));
@@ -56,6 +61,7 @@ describe("POST /realtime/ably-token", () => {
   beforeEach(() => {
     findManyRoomMembersMock.mockReset();
     findManyOrgMembersMock.mockReset();
+    findManyWorkspacesMock.mockReset();
     createAblyClientTokenRequestMock.mockReset();
   });
 
@@ -67,6 +73,11 @@ describe("POST /realtime/ably-token", () => {
     findManyOrgMembersMock.mockResolvedValue([
       { organizationId: "org_a" },
       { organizationId: "org_b" },
+    ]);
+    findManyWorkspacesMock.mockResolvedValue([
+      { id: "workspace-personal" },
+      { id: "workspace-org-a" },
+      { id: "workspace-org-b" },
     ]);
     createAblyClientTokenRequestMock.mockResolvedValue({
       keyName: "app.key",
@@ -94,10 +105,28 @@ describe("POST /realtime/ably-token", () => {
       where: { userId: "user_123" },
       select: { organizationId: true },
     });
+    expect(findManyWorkspacesMock).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { userId: "user_123" },
+          {
+            organization: {
+              members: { some: { userId: "user_123" } },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
     expect(createAblyClientTokenRequestMock).toHaveBeenCalledWith({
       userId: "user_123",
       roomIds: ["room-a", "room-b"],
       organizationIds: ["org_a", "org_b"],
+      workspaceIds: [
+        "workspace-personal",
+        "workspace-org-a",
+        "workspace-org-b",
+      ],
       clientInstanceId: "inst_abcd",
     });
 
@@ -112,6 +141,7 @@ describe("POST /realtime/ably-token", () => {
   it("mints with empty lists when the user has no memberships", async () => {
     findManyRoomMembersMock.mockResolvedValue([]);
     findManyOrgMembersMock.mockResolvedValue([]);
+    findManyWorkspacesMock.mockResolvedValue([]);
     createAblyClientTokenRequestMock.mockResolvedValue({
       keyName: "app.key",
       capability: "{}",
@@ -131,8 +161,47 @@ describe("POST /realtime/ably-token", () => {
       userId: "user_123",
       roomIds: [],
       organizationIds: [],
+      workspaceIds: [],
       clientInstanceId: "default00",
     });
+  });
+
+  it("omits non-owned personal and departed organization workspaces", async () => {
+    findManyRoomMembersMock.mockResolvedValue([]);
+    findManyOrgMembersMock.mockResolvedValue([]);
+    findManyWorkspacesMock.mockResolvedValue([{ id: "workspace-personal" }]);
+    createAblyClientTokenRequestMock.mockResolvedValue({
+      keyName: "app.key",
+      capability: "{}",
+      timestamp: 1_700_000_000_000,
+      nonce: "n1",
+      mac: "m1",
+      clientId: "user_123:default00",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/ably-token", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(createAblyClientTokenRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceIds: ["workspace-personal"] }),
+    );
+    expect(findManyWorkspacesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { userId: "user_123" },
+            {
+              organization: {
+                members: { some: { userId: "user_123" } },
+              },
+            },
+          ],
+        },
+      }),
+    );
   });
 
   it("rejects invalid clientInstanceId", async () => {

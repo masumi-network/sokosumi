@@ -307,6 +307,7 @@ async function dispatchJobNotification(
       referenceId: job.id,
       eventId,
       messageKey,
+      ...(job.workspaceId ? { workspaceId: job.workspaceId } : {}),
       messageParams: {
         agentName,
         jobName,

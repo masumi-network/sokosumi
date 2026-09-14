@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { isOwnedProjectLogoUrl } from "@sokosumi/utils";
 
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -133,6 +134,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (updateResult.count === 0) {
       throw notFound("Project not found");
     }
+    await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
 
     await deleteProjectBriefingBlob(briefingUrlToDelete);
 
@@ -142,7 +144,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!project) {
       throw notFound("Project not found");
     }
-
     return ok(c, mapProjectForApi(project));
   });
 }

@@ -1288,6 +1288,7 @@ describe("coworker-workspace-access helpers", () => {
       expect(createNotificationMock).toHaveBeenCalledWith(
         {
           userId: "owner-1",
+          workspaceId: "workspace-1",
           kind: "SYSTEM",
           referenceId: "access-1",
           eventId: "access-1",

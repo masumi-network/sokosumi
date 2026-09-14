@@ -9,22 +9,32 @@ const {
   loadDirectRoomNamesByReaderMock,
   createNotificationMock,
   workspaceFindUniqueMock,
+  organizationMemberFindManyMock,
   membershipFindManyMock,
   userFindManyMock,
   notificationFindFirstMock,
   resolveDeliveryMock,
+  transactionMock,
+  executeRawMock,
+  queryRawMock,
+  workspaceFindFirstAccessMock,
 } = vi.hoisted(() => ({
   loadDirectRoomNamesByReaderMock: vi.fn(),
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
+  organizationMemberFindManyMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   notificationFindFirstMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
+  transactionMock: vi.fn(),
+  executeRawMock: vi.fn(),
+  queryRawMock: vi.fn(),
+  workspaceFindFirstAccessMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
-  createNotification: (...args: unknown[]) => createNotificationMock(...args),
+  createNotification: (input: unknown) => createNotificationMock(input),
   // The counting write asks which channels the row would reach before it looks
   // for a row to count onto. Which channels those are is the fan-out's
   // question; this file asks who hears about the message at all.
@@ -33,7 +43,9 @@ vi.mock("@/helpers/notifications", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
     workspace: { findUnique: workspaceFindUniqueMock },
+    member: { findMany: organizationMemberFindManyMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     user: { findMany: userFindManyMock },
     // The fan-out looks for a row to count onto before it writes one.
@@ -110,9 +122,39 @@ function emit(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  executeRawMock.mockResolvedValue(0);
+  queryRawMock.mockResolvedValue([{ access: "member", mutedAt: null }]);
+  transactionMock.mockImplementation(async (callback) =>
+    callback({
+      $executeRaw: executeRawMock,
+      $queryRaw: queryRawMock,
+      notification: { findFirst: notificationFindFirstMock },
+      workspace: { findFirst: workspaceFindFirstAccessMock },
+    }),
+  );
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
-  membershipFindManyMock.mockResolvedValue([]);
+  workspaceFindFirstAccessMock.mockResolvedValue({ id: "workspace_1" });
+  organizationMemberFindManyMock.mockImplementation(
+    ({ where }: { where: { userId: { in: string[] } } }) =>
+      Promise.resolve(
+        where.userId.in.map((userId) => ({
+          access: "member",
+          mutedAt: null,
+          userId,
+        })),
+      ),
+  );
+  membershipFindManyMock.mockImplementation(
+    ({ where }: { where: { userId: { in: string[] } } }) =>
+      Promise.resolve(
+        where.userId.in.map((userId) => ({
+          access: "member",
+          mutedAt: null,
+          userId,
+        })),
+      ),
+  );
   userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
   notificationFindFirstMock.mockResolvedValue(null);
   loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
@@ -136,6 +178,7 @@ describe("emitChatRoomMessageCreatedEffects", () => {
         messagePreview: "ship it",
       },
       metadata: { messageId: MESSAGE_ID, workspaceId: "workspace_1" },
+      workspaceId: "workspace_1",
     });
   });
 
@@ -238,7 +281,9 @@ describe("emitChatRoomMessageCreatedEffects", () => {
     // The roster, then the mute check the fan-out makes with the same model.
     membershipFindManyMock
       .mockResolvedValueOnce([{ userId: AUTHOR_ID }, { userId: SUBSCRIBER_ID }])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([
+        { access: "member", mutedAt: null, userId: SUBSCRIBER_ID },
+      ]);
 
     await emit({ memberUserIds: undefined });
 
@@ -364,7 +409,9 @@ describe("emitChatRoomMessageCreatedEffects", () => {
   });
 
   it("skips a member who muted the room", async () => {
-    membershipFindManyMock.mockResolvedValue([{ userId: SUBSCRIBER_ID }]);
+    membershipFindManyMock.mockResolvedValue([
+      { access: "member", mutedAt: new Date(), userId: SUBSCRIBER_ID },
+    ]);
 
     await emit();
 

@@ -1,13 +1,20 @@
 export {
+  CALENDAR_ACCESS_REVOKED_EVENT_NAME,
+  CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
+  parseUserIdFromCalendarControlChannelName,
+  parseWorkspaceCalendarChannelName,
+  type WorkspaceCalendarChannelIdentity,
 } from "./ably-channel.js";
 export { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "./auth-captcha.js";
 export {

@@ -10,6 +10,7 @@ export const notificationKindSchema = z
     NotificationKind.BILLING,
     NotificationKind.SYSTEM,
     NotificationKind.CHAT,
+    NotificationKind.PROJECT,
   ])
   .openapi("NotificationKind");
 

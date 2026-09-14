@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { Activity, StrictMode } from "react";
@@ -19,17 +19,26 @@ import {
 } from "./workspace-calendar";
 
 const {
+  calendarRealtimeBridgeMock,
   filterDropdownMenuMock,
   getProjectCalendarMock,
   getWorkspaceCalendarMock,
   pushMock,
   refreshMock,
 } = vi.hoisted(() => ({
+  calendarRealtimeBridgeMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
+  CalendarRealtimeBridge: (props: unknown) => {
+    calendarRealtimeBridgeMock(props);
+    return null;
+  },
 }));
 
 vi.mock("next-intl", () => ({
@@ -132,6 +141,43 @@ const SOURCES: WorkspaceCalendarSource[] = [
 ];
 
 describe("WorkspaceCalendar", () => {
+  it("clears Calendar details and pagination immediately when access is revoked", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar
+          currentUserId="user-1"
+          initialDate="2026-08-18"
+          items={ITEMS}
+          pagination={CALENDAR_PAGE.pagination}
+          range={CALENDAR_PAGE.range}
+          sources={SOURCES}
+          workspaceId="workspace-1"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: /Prepare release notes/ }),
+    ).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "pagination.loadMore" }),
+    ).toBeInTheDocument();
+
+    const bridgeProps = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0] as {
+      onAccessRevoked: () => void;
+    };
+    act(() => {
+      bridgeProps.onAccessRevoked();
+    });
+
+    expect(
+      screen.queryByRole("button", { name: /Prepare release notes/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "pagination.loadMore" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders Calendar items received after the initial client render", async () => {
     const { rerender } = render(
       <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
@@ -923,6 +969,53 @@ describe("WorkspaceCalendar", () => {
       status: "QUEUED",
       sourceId: "legacy:calendar-1",
     });
+  });
+
+  it("does not restore details from an in-flight page after access is revoked", async () => {
+    const user = userEvent.setup();
+    let resolvePage: ((value: unknown) => void) | undefined;
+    getWorkspaceCalendarMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePage = resolve;
+      }),
+    );
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar
+          currentUserId="user-1"
+          initialDate="2026-08-18"
+          items={ITEMS}
+          sources={SOURCES}
+          workspaceId="workspace-1"
+          {...CALENDAR_PAGE}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "pagination.loadMore" }),
+    );
+    const bridgeProps = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0] as {
+      onAccessRevoked: () => void;
+    };
+    act(() => {
+      bridgeProps.onAccessRevoked();
+    });
+    await act(async () => {
+      resolvePage?.({
+        data: [
+          {
+            ...ITEMS[0],
+            id: "occurrence-after-revoke",
+            taskName: "Secret after revoke",
+          },
+        ],
+        meta: { pagination: { nextCursor: null } },
+      });
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText(/Secret after revoke/)).not.toBeInTheDocument();
   });
 
   it("loads more Project Calendar items through the Project endpoint", async () => {

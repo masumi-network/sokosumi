@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   MAX_PUSH_PARAM_LENGTH,
+  publishCalendarAccessRevoked,
+  publishCalendarInvalidationToUsers,
   publishChatMembershipRevoked,
   publishChatMembershipRevokedToUsers,
   publishChatRoomMessageEvent,
@@ -48,6 +50,58 @@ getRestClientMock.mockImplementation(() => ({
     },
   },
 }));
+
+describe("calendar invalidation publishing", () => {
+  beforeEach(() => {
+    publishMock.mockClear();
+    getMock.mockClear();
+  });
+
+  it("publishes once per distinct user on an exact workspace channel", async () => {
+    const invalidation = {
+      id: "invalidation_123",
+      workspaceId: "workspace_123",
+      projectId: "project_123",
+      calendarRevision: 7,
+      payload: { kind: "task_changed" },
+    };
+
+    await publishCalendarInvalidationToUsers({
+      userIds: ["user_123", "user_123", "user_456"],
+      workspaceId: "workspace_123",
+      invalidation,
+    });
+
+    expect(getMock.mock.calls).toEqual([
+      ["calendar:workspace_workspace_123:user_user_123"],
+      ["calendar:workspace_workspace_123:user_user_456"],
+    ]);
+    expect(publishMock).toHaveBeenCalledTimes(2);
+    expect(publishMock).toHaveBeenNthCalledWith(
+      1,
+      "calendar_invalidated",
+      invalidation,
+    );
+  });
+
+  it("publishes revocation only on the departing user's control channel", async () => {
+    await publishCalendarAccessRevoked({
+      userId: "user_123",
+      workspaceId: "workspace_123",
+      organizationId: "organization_123",
+    });
+
+    expect(getMock).toHaveBeenCalledWith("calendar_control:user_user_123");
+    expect(publishMock).toHaveBeenCalledWith(
+      "calendar_access_revoked",
+      expect.objectContaining({
+        workspaceId: "workspace_123",
+        organizationId: "organization_123",
+        at: expect.any(String),
+      }),
+    );
+  });
+});
 
 describe("publishTaskEventData", () => {
   it("publishes task event data to the user channel", async () => {

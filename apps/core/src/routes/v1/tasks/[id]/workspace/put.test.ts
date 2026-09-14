@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   jobFindFirstMock,
   jobUpdateManyMock,
   mapTaskMock,
@@ -33,6 +34,7 @@ const {
   taskUpdateMock,
   workspaceFindUniqueOrThrowMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -48,6 +50,10 @@ const {
   taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   workspaceFindUniqueOrThrowMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -396,6 +402,14 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenNthCalledWith(
+      1,
+      "11111111-1111-7111-8111-111111111111",
+    );
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenNthCalledWith(
+      2,
+      "11111111-1111-4111-8111-111111111111",
+    );
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
       id: "org_target",
       userId: "user_123",

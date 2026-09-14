@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   parseTaskScheduleMetadata,
 } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   lockCalendarScope,
   lockTaskRows,
@@ -18,6 +19,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
+import { notifyTaskCalendarAction } from "@/helpers/task-notifications";
 import {
   buildTaskScheduleMetadata,
   buildUpdatedTaskScheduleMetadataV2,
@@ -87,7 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    const task = await prisma
+    const result = await prisma
       .$transaction(async (tx) => {
         const locked = await lockCalendarScope(tx, existingTask.workspaceId, [
           existingTask.projectId,
@@ -209,7 +211,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         } else {
           await replaceTaskSchedulePlannedOccurrences(tx, indexTask);
         }
-        return task;
+        const event = await tx.taskEvent.create({
+          data: {
+            taskId: id,
+            userId: userContext.userId,
+            scheduleKind: persistedMetadata
+              ? TaskScheduleEventKind.UPDATED
+              : TaskScheduleEventKind.CREATED,
+            schedulePayload: {
+              action: "save_schedule",
+              workspaceId: currentTask.workspaceId,
+              projectId: currentTask.projectId,
+              scheduleRevision: task.scheduleRevision,
+            },
+          },
+          select: { id: true },
+        });
+        return {
+          task,
+          notification: {
+            actorUserId: userContext.userId,
+            eventId: event.id,
+            ownerId: task.ownerId,
+            taskName: task.name ?? "Untitled task",
+          },
+        };
       })
       .catch((error: unknown) => {
         if (error instanceof TaskScheduleOccurrenceLimitError) {
@@ -218,6 +244,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw error;
       });
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    await Promise.all([
+      notifyTaskCalendarAction({
+        taskId: id,
+        taskName: result.notification.taskName,
+        ownerId: result.notification.ownerId,
+        actorUserId: result.notification.actorUserId,
+        eventId: result.notification.eventId,
+        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+        action: "save_schedule",
+      }),
+      deliverCalendarInvalidationsNow(existingTask.workspaceId),
+    ]);
+
+    return ok(c, taskSchema.parse(mapTask(result.task)));
   });
 }

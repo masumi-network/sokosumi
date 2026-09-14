@@ -3790,7 +3790,7 @@ export type NotificationPreference = {
     /**
      * What the notification is about
      */
-    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM';
+    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'PROJECT_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM';
     /**
      * Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)
      */
@@ -4866,7 +4866,8 @@ export const NotificationKind = {
     TASK: 'TASK',
     BILLING: 'BILLING',
     SYSTEM: 'SYSTEM',
-    CHAT: 'CHAT'
+    CHAT: 'CHAT',
+    PROJECT: 'PROJECT'
 } as const;
 
 /**
@@ -6187,6 +6188,18 @@ export type WorkspaceCalendarSource = {
      * Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.
      */
     isSchedulable: boolean;
+};
+
+export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;
+
+export type CalendarIdentityLabel = {
+    ref: string;
+    state: 'current_member' | 'former_member' | 'unknown';
+    label?: string;
+};
+
+export type CalendarIdentityLabelsRequest = {
+    refs: Array<string>;
 };
 
 export type WorkspaceOrganization = {
@@ -44597,6 +44610,96 @@ export type GetWorkspacesCalendarSourcesResponses = {
 };
 
 export type GetWorkspacesCalendarSourcesResponse = GetWorkspacesCalendarSourcesResponses[keyof GetWorkspacesCalendarSourcesResponses];
+
+export type PostWorkspacesByIdCalendarIdentityLabelsData = {
+    body?: CalendarIdentityLabelsRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/calendar/identity-labels';
+};
+
+export type PostWorkspacesByIdCalendarIdentityLabelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostWorkspacesByIdCalendarIdentityLabelsError = PostWorkspacesByIdCalendarIdentityLabelsErrors[keyof PostWorkspacesByIdCalendarIdentityLabelsErrors];
+
+export type PostWorkspacesByIdCalendarIdentityLabelsResponses = {
+    /**
+     * Access-scoped Calendar identity labels
+     */
+    200: {
+        data: CalendarIdentityLabels;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostWorkspacesByIdCalendarIdentityLabelsResponse = PostWorkspacesByIdCalendarIdentityLabelsResponses[keyof PostWorkspacesByIdCalendarIdentityLabelsResponses];
 
 export type GetWorkspacesByIdCalendarData = {
     body?: never;

@@ -366,6 +366,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     ],
   },
   {
+    id: "PROJECT",
+    labelKey: "kindProjectUpdate",
+    kinds: [
+      {
+        category: "PROJECT_UPDATE",
+        labelKey: "kindProjectUpdate",
+        hintKey: "kindProjectUpdateHint",
+        email: false,
+      },
+    ],
+    presets: [],
+  },
+  {
     id: "SYSTEM",
     labelKey: "kindSystem",
     kinds: [

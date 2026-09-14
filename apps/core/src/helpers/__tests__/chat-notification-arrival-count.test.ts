@@ -1,7 +1,3 @@
-vi.mock("@/lib/ably/publish", () => ({
-  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
-}));
-
 import type { Notification } from "@sokosumi/database";
 import { beforeEach, expect, it, vi } from "vitest";
 
@@ -21,50 +17,72 @@ const { rows, published, reader } = vi.hoisted(() => ({
 }));
 
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
-vi.mock("@/lib/ably/publish", () => ({ publishNotificationEvent: published }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    user: { findUnique: async () => reader, findMany: async () => [reader] },
-    chatRoomUserMember: { findMany: async () => [] },
-    chatRoomMessage: {
-      findUnique: async () => ({ content: "hello", deletedAt: null }),
-    },
-    notification: {
-      findFirst: async ({ where }: { where: Partial<Notification> }) =>
-        rows.find((row) => matches(row, where)) ?? null,
-      findUnique: async ({ where }: { where: Partial<Notification> }) =>
-        rows.find((row) => matches(row, where)) ?? null,
-      create: async ({
-        data,
-      }: {
-        data: Omit<Notification, "id" | "isRead" | "readAt" | "createdAt">;
-      }) => {
-        const row = {
-          ...data,
-          id: String(rows.length),
-          isRead: false,
-          readAt: null,
-          createdAt: new Date(),
-        };
-        rows.push(row);
-        return row;
-      },
-      updateMany: async ({
-        where,
-        data,
-      }: {
-        where: Partial<Notification>;
-        data: Partial<Notification>;
-      }) => {
-        const matching = rows.filter((row) => matches(row, where));
-        for (const row of matching) Object.assign(row, data);
-        return { count: matching.length };
-      },
-      findMany: async ({ where }: { where: Partial<Notification> }) =>
-        rows.filter((row) => matches(row, where)),
-    },
-  },
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+  publishNotificationEvent: published,
 }));
+vi.mock("@/lib/db/prisma", () => {
+  const notification = {
+    findFirst: async ({ where }: { where: Partial<Notification> }) =>
+      rows.find((row) => matches(row, where)) ?? null,
+    findUnique: async ({ where }: { where: Partial<Notification> }) =>
+      rows.find((row) => matches(row, where)) ?? null,
+    create: async ({
+      data,
+    }: {
+      data: Omit<Notification, "id" | "isRead" | "readAt" | "createdAt">;
+    }) => {
+      const row = {
+        ...data,
+        id: String(rows.length),
+        isRead: false,
+        readAt: null,
+        createdAt: new Date(),
+      };
+      rows.push(row);
+      return row;
+    },
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: Partial<Notification>;
+      data: Partial<Notification>;
+    }) => {
+      const matching = rows.filter((row) => matches(row, where));
+      for (const row of matching) Object.assign(row, data);
+      return { count: matching.length };
+    },
+    findMany: async ({ where }: { where: Partial<Notification> }) =>
+      rows.filter((row) => matches(row, where)),
+  };
+  const transactionClient = {
+    $executeRaw: async () => 0,
+    $queryRaw: async () => [{ access: "member", mutedAt: null }],
+    notification,
+  };
+
+  return {
+    default: {
+      $transaction: async (
+        callback: (tx: typeof transactionClient) => unknown,
+      ) => callback(transactionClient),
+      user: { findUnique: async () => reader, findMany: async () => [reader] },
+      chatRoomUserMember: {
+        findMany: async ({ where }: { where: { userId?: { in: string[] } } }) =>
+          (where.userId?.in ?? ["author", "reader"]).map((userId) => ({
+            access: "member",
+            mutedAt: null,
+            userId,
+          })),
+      },
+      chatRoomMessage: {
+        findUnique: async () => ({ content: "hello", deletedAt: null }),
+      },
+      notification,
+    },
+  };
+});
 
 import { emitChatMentionNotifications } from "../chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "../chat-room-message-created-effects";

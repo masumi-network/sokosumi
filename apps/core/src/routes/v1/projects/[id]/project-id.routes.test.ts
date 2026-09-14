@@ -21,6 +21,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   projectFindFirstMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
@@ -35,6 +36,7 @@ const {
   ensureProjectFilesTokenMock,
   uploadProjectBriefingFileMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
@@ -48,6 +50,10 @@ const {
   deleteProjectBriefingBlobMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/lib/project-files-blob", () => ({
@@ -257,6 +263,9 @@ describe("PATCH /projects/{id}", () => {
       body: JSON.stringify({ name: "New" }),
     });
     expect(res.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     const body = (await res.json()) as { data: { name: string } };
     expect(body.data.name).toBe("New");
   });
@@ -499,6 +508,9 @@ describe("DELETE /projects/{id}", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     const body = (await res.json()) as { data: { deleted: boolean } };
     expect(body.data.deleted).toBe(true);
     expect(queryRawMock).toHaveBeenCalledTimes(2);
