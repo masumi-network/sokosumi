@@ -4622,6 +4622,42 @@ export type WorkspaceCalendarItem = {
     timeAccuracy: 'EXACT' | 'APPROXIMATE';
 };
 
+export type ProjectCloseStatus = {
+    id: string;
+    projectId: string;
+    state: 'CLOSING' | 'CLOSE_FAILED' | 'CLOSED';
+    cutoffAt: Date;
+    reason: string | null;
+    attempts: number;
+    failure: ProjectCloseFailure;
+    completedAt: Date | null;
+    projectRevision: number;
+    owedOccurrenceCount: number;
+};
+
+export type ProjectCloseFailure = {
+    seriesTaskId: string | null;
+    message: string;
+} | null;
+
+export type ProjectCloseRequest = {
+    /**
+     * Browser-minted idempotency key for this operation
+     */
+    operationId: string;
+    expectedProjectRevision: number;
+    reason?: string;
+};
+
+export type ProjectCloseRecoveryRequest = {
+    /**
+     * Browser-minted idempotency key for this operation
+     */
+    operationId: string;
+    expectedProjectRevision: number;
+    reason: string;
+};
+
 export type ProjectNeedsAttention = {
     /**
      * Linked non-archived tasks. Same meaning as ProjectListItem.taskCount.
@@ -32061,6 +32097,426 @@ export type GetProjectsByIdCalendarResponses = {
 };
 
 export type GetProjectsByIdCalendarResponse = GetProjectsByIdCalendarResponses[keyof GetProjectsByIdCalendarResponses];
+
+export type GetProjectsByIdCloseData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close';
+};
+
+export type GetProjectsByIdCloseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdCloseError = GetProjectsByIdCloseErrors[keyof GetProjectsByIdCloseErrors];
+
+export type GetProjectsByIdCloseResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdCloseResponse = GetProjectsByIdCloseResponses[keyof GetProjectsByIdCloseResponses];
+
+export type PostProjectsByIdCloseData = {
+    body?: ProjectCloseRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close';
+};
+
+export type PostProjectsByIdCloseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseError = PostProjectsByIdCloseErrors[keyof PostProjectsByIdCloseErrors];
+
+export type PostProjectsByIdCloseResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseResponse = PostProjectsByIdCloseResponses[keyof PostProjectsByIdCloseResponses];
+
+export type PostProjectsByIdCloseRetryData = {
+    body?: ProjectCloseRecoveryRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close/retry';
+};
+
+export type PostProjectsByIdCloseRetryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseRetryError = PostProjectsByIdCloseRetryErrors[keyof PostProjectsByIdCloseRetryErrors];
+
+export type PostProjectsByIdCloseRetryResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseRetryResponse = PostProjectsByIdCloseRetryResponses[keyof PostProjectsByIdCloseRetryResponses];
+
+export type PostProjectsByIdCloseCancelOwedData = {
+    body?: ProjectCloseRecoveryRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close/cancel-owed';
+};
+
+export type PostProjectsByIdCloseCancelOwedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseCancelOwedError = PostProjectsByIdCloseCancelOwedErrors[keyof PostProjectsByIdCloseCancelOwedErrors];
+
+export type PostProjectsByIdCloseCancelOwedResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseCancelOwedResponse = PostProjectsByIdCloseCancelOwedResponses[keyof PostProjectsByIdCloseCancelOwedResponses];
 
 export type GetProjectsByIdNeedsAttentionData = {
     body?: never;

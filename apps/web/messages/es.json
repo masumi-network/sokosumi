@@ -2296,9 +2296,55 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
+          "close": "Cerrar proyecto",
           "delete": "Eliminar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
+        },
+        "close": {
+          "dialog": {
+            "title": "¿Cerrar el proyecto?",
+            "description": "El trabajo programado antes del límite de cierre finalizará. El trabajo previsto a partir de ese momento se cancelará y el proyecto no podrá volver a abrirse.",
+            "reasonLabel": "Motivo (opcional)",
+            "reasonPlaceholder": "¿Por qué se cierra este proyecto?",
+            "confirm": "Cerrar proyecto",
+            "cancel": "Mantener el proyecto abierto",
+            "success": "Cierre del proyecto iniciado",
+            "error": "No se pudo cerrar el proyecto. Revisa su estado actual e inténtalo de nuevo."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "El proyecto se está cerrando",
+              "description": "{count, plural, =0 {No quedan ejecuciones pendientes} one {Queda # ejecución pendiente} other {Quedan # ejecuciones pendientes}} antes del límite de las {cutoff}. El trabajo previsto a partir de ese momento se está cancelando."
+            },
+            "CLOSE_FAILED": {
+              "title": "El cierre del proyecto requiere atención",
+              "descriptionWithCancel": "El trabajo programado está pausado en el límite de las {cutoff}. Reintenta el cierre o cancela solo el trabajo pendiente bloqueado.",
+              "descriptionRetryOnly": "El trabajo programado está pausado en el límite de las {cutoff}. Reintenta el cierre para continuar."
+            },
+            "CLOSED": {
+              "title": "Proyecto cerrado",
+              "description": "Cerrado el {completedAt}. Se conserva el historial del calendario."
+            }
+          },
+          "recovery": {
+            "retryAction": "Reintentar cierre",
+            "cancelOwedAction": "Cancelar trabajo pendiente",
+            "reasonLabel": "Motivo",
+            "reasonPlaceholder": "Explica por qué se necesita esta acción de recuperación",
+            "reasonRequired": "Introduce un motivo para esta acción de recuperación.",
+            "keepFailed": "Mantener el cierre pausado",
+            "success": "Cierre del proyecto reanudado",
+            "error": "No se pudo reanudar el cierre del proyecto. Revisa su estado actual e inténtalo de nuevo.",
+            "retry": {
+              "title": "¿Reintentar el cierre del proyecto?",
+              "description": "El proceso de cierre volverá a intentar el trabajo programado bloqueado desde el mismo límite."
+            },
+            "cancelOwed": {
+              "title": "¿Cancelar el trabajo pendiente?",
+              "description": "Solo se cancelará el trabajo bloqueado que debía ejecutarse antes del límite. Esta acción no se puede deshacer."
+            }
+          }
         },
         "deleteDialog": {
           "title": "Eliminar proyecto",
