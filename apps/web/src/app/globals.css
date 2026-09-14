@@ -25,6 +25,7 @@
   --color-card-background: var(--card-background);
   --color-card-background-hover: var(--card-background-hover);
   --color-overlay: var(--overlay);
+  --color-overlay-primary: var(--overlay-primary);
   --color-surface-glass: var(--surface-glass);
   --color-surface-sticky: var(--surface-sticky);
   --color-scrim: var(--scrim);
@@ -304,6 +305,13 @@
      18px regular, which is not large text. .58 measures 4.82 dark and 6.87
      light. */
   --overlay: hsla(0, 0%, 100%, 0.5);
+  /* The drop-target wash. --overlay cannot serve here: it is the page
+     ground at half alpha, so over an unpainted surface it composites
+     back to the ground at 1.000:1 and disappears. The modal scrims get
+     away with it because they pair it with a backdrop blur. This one
+     tints instead, at 1.474:1 against the page, and leaves the text
+     under it at 12.41:1. */
+  --overlay-primary: hsla(263.5, 100%, 50%, 0.2);
   --surface-glass: hsla(0, 0%, 100%, 0.8);
   --surface-sticky: hsla(0, 0%, 100%, 0.95);
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
@@ -476,6 +484,10 @@
   --card-background-hover: hsla(0, 0%, 6%, 1);
   /* See the light block. The scrims do not change: they sit over media. */
   --overlay: hsla(0, 0%, 4%, 0.5);
+  /* Same wash, more alpha: the dark primary is a lighter purple and
+     needs 0.32 to reach the same weight. 1.489:1 against the page,
+     text under it at 8.73:1. */
+  --overlay-primary: hsla(270, 64%, 63%, 0.32);
   --surface-glass: hsla(0, 0%, 4%, 0.8);
   --surface-sticky: hsla(0, 0%, 4%, 0.95);
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
