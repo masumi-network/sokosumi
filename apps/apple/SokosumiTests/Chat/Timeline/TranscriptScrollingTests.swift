@@ -8,6 +8,7 @@
   import SwiftUI
   import Testing
 
+  @Suite(.serialized)
   @MainActor struct TranscriptScrollingTests {
     @Test(arguments: [false, true])
     func richHistoryStartsAtBottomAndScrollsUp(thread: Bool) async throws {
@@ -50,15 +51,31 @@
       #expect(scroll.contentInsets.bottom > 0)
       #expect(abs(contentHeight - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)) <= 1)
       #expect(initialOffset > 600)
+      try await measureScroll(scroll, host: host, thread: thread)
+      #expect(scroll.contentView.bounds.minY < initialOffset - 400)
+    }
+
+    private func measureScroll(_ scroll: NSScrollView, host: NSView, thread: Bool) async throws {
+      let clock = ContinuousClock()
+      var layoutDurations: [Duration] = []
+      var stepDurations: [Duration] = []
       for index in 0 ..< 30 {
+        let start = clock.now
         let scrollEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 20, wheel2: 0, wheel3: 0))
         scrollEvent.setIntegerValueField(.scrollWheelEventScrollPhase, value: index == 0 ? 1 : 2)
         let event = try #require(NSEvent(cgEvent: scrollEvent))
         scroll.scrollWheel(with: event)
         host.layoutSubtreeIfNeeded()
+        layoutDurations.append(start.duration(to: clock.now))
         try await Task.sleep(for: .milliseconds(16))
+        stepDurations.append(start.duration(to: clock.now))
       }
-      #expect(scroll.contentView.bounds.minY < initialOffset - 400)
+      // Host event/layout and scheduling costs, not display frame times.
+      let layout = layoutDurations.sorted()
+      let steps = stepDurations.sorted()
+      let report = "SCROLL_BASELINE thread=\(thread) layout_p95=\(layout[28]) layout_max=\(layout[29]) step_p95=\(steps[28]) step_max=\(steps[29])"
+      let output = FileManager.default.temporaryDirectory.appendingPathComponent("scroll-baseline-\(thread)-\(ProcessInfo.processInfo.processIdentifier).txt")
+      try report.write(to: output, atomically: true, encoding: .utf8)
     }
   }
 #endif
