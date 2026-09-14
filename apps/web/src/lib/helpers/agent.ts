@@ -127,9 +127,7 @@ interface AgentAuthorSource {
   };
 }
 
-export function getAgentAuthorOrganization(
-  agent: AgentAuthorSource,
-): string | null {
+function getAgentAuthorOrganization(agent: AgentAuthorSource): string | null {
   return agent.author.organization ?? null;
 }
 

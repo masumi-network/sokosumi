@@ -1,31 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  isEditableKeyboardTarget,
   isVisualViewportKeyboardOpen,
   readVisualViewportKeyboardOpen,
   resetVisualViewportKeyboardBaseline,
   VISUAL_VIEWPORT_KEYBOARD_OPEN_THRESHOLD_PX,
 } from "./visual-viewport-keyboard";
-
-describe("isEditableKeyboardTarget", () => {
-  it("accepts textarea, input, select, and contentEditable", () => {
-    const textarea = document.createElement("textarea");
-    const input = document.createElement("input");
-    const select = document.createElement("select");
-    const editable = document.createElement("div");
-    editable.contentEditable = "true";
-    expect(isEditableKeyboardTarget(textarea)).toBe(true);
-    expect(isEditableKeyboardTarget(input)).toBe(true);
-    expect(isEditableKeyboardTarget(select)).toBe(true);
-    expect(isEditableKeyboardTarget(editable)).toBe(true);
-  });
-
-  it("rejects non-editables", () => {
-    expect(isEditableKeyboardTarget(document.createElement("div"))).toBe(false);
-    expect(isEditableKeyboardTarget(null)).toBe(false);
-  });
-});
 
 describe("isVisualViewportKeyboardOpen", () => {
   it("is false when no editable is focused (autofocus / idle)", () => {
@@ -145,7 +125,6 @@ describe("readVisualViewportKeyboardOpen", () => {
     expect(readVisualViewportKeyboardOpen()).toBe(false);
     (document.activeElement as HTMLElement | null)?.blur?.();
     stubViewport(500, 500);
-    expect(isEditableKeyboardTarget(document.activeElement)).toBe(false);
     expect(readVisualViewportKeyboardOpen()).toBe(false);
   });
 

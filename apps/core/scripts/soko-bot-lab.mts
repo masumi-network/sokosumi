@@ -13,7 +13,6 @@ import {
   evaluateScenario,
   SOKO_BOT_SCENARIOS,
   SOKO_BOT_SYSTEM_SCHEDULES,
-  type SokoBotLabTurn,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
 
@@ -58,11 +57,7 @@ async function resolveOwner() {
   return { bot, workspaceId: bot.workspaceId };
 }
 
-async function loadTurn(
-  turnId: string,
-): Promise<
-  SokoBotLabTurn & { durationMs: number | null; costUsd: number | null }
-> {
+async function loadTurn(turnId: string) {
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
     select: {

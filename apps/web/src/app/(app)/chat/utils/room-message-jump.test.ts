@@ -19,7 +19,7 @@ describe("performRoomMessageJump", () => {
   it("highlights a message that is already on screen without loading", async () => {
     const d = deps({ highlight: vi.fn(() => true) });
 
-    await performRoomMessageJump("msg-1", d);
+    await expect(performRoomMessageJump("msg-1", d)).resolves.toBe(true);
 
     expect(d.highlight).toHaveBeenCalledExactlyOnceWith("msg-1");
     expect(d.loadAround).not.toHaveBeenCalled();
@@ -27,9 +27,11 @@ describe("performRoomMessageJump", () => {
   });
 
   it("loads the window around a message it cannot see, then highlights it", async () => {
-    const d = deps();
+    const d = deps({
+      highlight: vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true),
+    });
 
-    await performRoomMessageJump("msg-1", d);
+    await expect(performRoomMessageJump("msg-1", d)).resolves.toBe(true);
 
     expect(d.holdOffBottom).toHaveBeenCalledOnce();
     expect(d.loadAround).toHaveBeenCalledExactlyOnceWith("msg-1");
@@ -58,10 +60,18 @@ describe("performRoomMessageJump", () => {
   it("releases the hold when the window cannot be loaded", async () => {
     const d = deps({ loadAround: vi.fn(async () => false) });
 
-    await performRoomMessageJump("msg-1", d);
+    await expect(performRoomMessageJump("msg-1", d)).resolves.toBe(false);
 
     expect(d.releaseHoldOffBottom).toHaveBeenCalledOnce();
     expect(d.afterRender).not.toHaveBeenCalled();
+  });
+
+  it("answers false when the window loaded but the message never painted", async () => {
+    const d = deps();
+
+    await expect(performRoomMessageJump("msg-1", d)).resolves.toBe(false);
+
+    expect(d.releaseHoldOffBottom).toHaveBeenCalledOnce();
   });
 
   it("releases the hold when loading throws", async () => {

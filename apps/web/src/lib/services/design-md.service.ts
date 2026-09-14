@@ -80,7 +80,7 @@ function assertDesignMdApiKey(apiKey: string | undefined): string {
   return apiKey;
 }
 
-export function getDesignMdClient(): DesignMdClient {
+function getDesignMdClient(): DesignMdClient {
   if (client) return client;
 
   const secrets = getEnvSecrets();

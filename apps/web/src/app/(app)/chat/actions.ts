@@ -755,7 +755,7 @@ export async function sendRoomMessageAction(
 
 export async function listRoomMessagesAction(
   roomId: string,
-  options?: { cursor?: string; around?: string },
+  options?: { cursor?: string; around?: string; limit?: number },
 ): Promise<
   RoomActionResult<{
     messages: ChatRoomMessage[];
@@ -766,6 +766,7 @@ export async function listRoomMessagesAction(
     const page = await chatRoomService.listMessages(roomId, {
       cursor: options?.cursor,
       around: options?.around,
+      limit: options?.limit,
     });
     return roomOk(page);
   } catch (error) {

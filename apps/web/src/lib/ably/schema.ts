@@ -1,7 +1,4 @@
-import {
-  CHAT_ROOM_MESSAGE_EVENT_TYPES,
-  CHAT_ROOM_PINNED_MESSAGE_ACTIONS,
-} from "@sokosumi/utils";
+import { CHAT_ROOM_PINNED_MESSAGE_ACTIONS } from "@sokosumi/utils";
 import * as z from "zod";
 import {
   NotificationKind,
@@ -73,12 +70,8 @@ const chatRoomMessageUnfurlEventSchema = z.object({
   siteName: z.string().nullable(),
 });
 
-export const chatRoomMessageEventTypeSchema = z.enum(
-  CHAT_ROOM_MESSAGE_EVENT_TYPES,
-);
-
 /** Full message DTO carried on create / update / delete Ably events. */
-export const chatRoomMessageFullEventMessageSchema = z
+const chatRoomMessageFullEventMessageSchema = z
   .object({
     id: z.string().min(1),
     roomId: z.string().min(1),
@@ -87,6 +80,7 @@ export const chatRoomMessageFullEventMessageSchema = z
     createdAt: z.string(),
     deletedAt: z.string().nullable(),
     editedAt: z.string().nullable(),
+    pinnedAt: z.string().nullable(),
     sender: z.unknown(),
     mentions: z.array(z.unknown()),
     reactions: z.array(z.unknown()),

@@ -100,18 +100,10 @@ vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
   useClientLocalCalendarReady: () => true,
 }));
 
-vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
-  useStickToBottom: () => ({
-    scrollerRef: { current: null },
-    contentRef: { current: null },
-    contentMinHeight: undefined,
-    scrollToBottom: vi.fn(),
-    pinToBottomAfterOwnSend: vi.fn(),
-    scrollToBottomIfPinned: vi.fn(),
-    suppressStickToBottom: vi.fn(),
-    releaseStickToBottomSuppress: vi.fn(),
-  }),
-}));
+vi.mock(
+  "@/app/chat/components/transcript-viewport",
+  () => import("./transcript-viewport-stub"),
+);
 
 vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
   readStoredStreamParentMessageId: () => null,

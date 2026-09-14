@@ -384,7 +384,7 @@ export function buildSignedOAuthConsentQueryFromSearchParams(
   return serializeOAuthConsentSearchParams(signedSearchParams);
 }
 
-export function buildOAuthConsentReturnUrl(
+function buildOAuthConsentReturnUrl(
   params: OAuthConsentParamRecord,
 ): string | undefined {
   if (!params.client_id || !params.redirect_uri || !params.code_challenge) {

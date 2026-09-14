@@ -1,6 +1,12 @@
+import { sendGTMEvent } from "@next/third-parties/google";
 import type { AuthMethodId } from "@/lib/schemas/auth";
+import type { GTMEvent } from "./types";
 
-import { fireEvent } from "./utils";
+function fireEvent(event: GTMEvent) {
+  if (typeof window !== "undefined") {
+    sendGTMEvent(event);
+  }
+}
 
 export const fireGTMEvent = {
   viewRegisterArea() {

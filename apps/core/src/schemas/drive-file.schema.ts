@@ -157,11 +157,6 @@ export const driveFileSchema = z
 export type DriveFile = z.infer<typeof driveFileSchema>;
 
 /**
- * List of drive files.
- */
-export const driveFilesSchema = z.array(driveFileSchema).openapi("DriveFiles");
-
-/**
  * Rename drive file request.
  */
 export const renameDriveFileRequestSchema = z
@@ -425,7 +420,6 @@ export const moveDriveItemRequestSchema = z
           return false;
         }
       }
-      // Validate targetFolderPath (can be empty for root)
       const normalizedTarget = normalizeDriveFolderPath(data.targetFolderPath);
       const targetValidationError = validateDriveFolderPath(normalizedTarget);
       if (targetValidationError) {

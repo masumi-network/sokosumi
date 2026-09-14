@@ -5,8 +5,6 @@ export const InvitationStatus = {
   ACCEPTED: "accepted",
   REJECTED: "rejected",
   CANCELED: "canceled",
-  // This option is not used in the database, but it is used in the frontend to indicate that the invitation has expired
-  EXPIRED: "expired",
 } as const;
 
 export const invitationOrganizationInclude = {
@@ -21,14 +19,6 @@ export const invitationInclude = {
   ...invitationOrganizationInclude,
   ...invitationInviterInclude,
 } as const;
-
-export type InvitationWithOrganization = Prisma.InvitationGetPayload<{
-  include: typeof invitationOrganizationInclude;
-}>;
-
-export type InvitationWithInviter = Prisma.InvitationGetPayload<{
-  include: typeof invitationInviterInclude;
-}>;
 
 export type InvitationWithRelations = Prisma.InvitationGetPayload<{
   include: typeof invitationInclude;

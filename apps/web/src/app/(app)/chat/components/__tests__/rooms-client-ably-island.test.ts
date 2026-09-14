@@ -25,7 +25,7 @@ describe("RoomsClient Ably island", () => {
     );
     expect(source).not.toContain("ChannelProvider");
     // Open room chrome lives in RoomShellLayout (Instant + progressive share it).
-    expect(source).toContain("listScrollerRef={scrollerRef}");
+    expect(source).toContain("listScrollerRef={setScroller}");
     expect(source).toContain("<RoomShellLayout");
     // Assert exported shell contracts (not source-string formatting).
     expect(ROOM_SHELL_MAIN_CLASSNAME).toContain("overflow-x-clip");

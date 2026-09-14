@@ -10,7 +10,7 @@ import {
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
-export interface AgentRatingError {
+interface AgentRatingError {
   code:
     | "UNAUTHORIZED"
     | "INVALID_RATING"

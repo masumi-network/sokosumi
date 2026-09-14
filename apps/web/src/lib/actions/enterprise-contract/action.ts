@@ -29,7 +29,7 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-export type EnterpriseContractActionError =
+type EnterpriseContractActionError =
   | ActionError
   | EnterpriseContractActivationBlockedError;
 

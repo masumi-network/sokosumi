@@ -16,6 +16,7 @@ public final class WorkspaceState: ObservableObject {
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
   public let thread = ThreadSession()
+  public let messageEditing = MessageEditing()
   public let directStream = DirectStreamSession()
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
@@ -76,7 +77,10 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
+  @Published var pendingReactions: Set<ReactionRequest> = []
   public let timeline = RoomTimeline()
+  public let pins = PinnedMessages()
+  @Published var pendingPins: Set<String> = []
   private(set) var transcriptLoadTask: Task<Void, Never>?
   private(set) var olderPageTask: Task<Void, Never>?
   private(set) var transcriptRefreshTask: Task<Void, Never>?
@@ -180,9 +184,13 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
+    // Rows need editor identity changes; draft and save state are observed by the editor itself.
+    messageEditing.$source.map { $0?.id }.removeDuplicates().dropFirst()
+      .sink { [weak self] _ in self?.objectWillChange.send() }
+      .store(in: &threadObservations)
     outboxObservation = outbox.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -307,11 +315,14 @@ public final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    messageEditing.reset()
     directStream.reset()
     thread.close()
     transcriptRealtimeHealthy = false
     transcriptRecovery.stop()
     readAttention.roomChanged()
+    pins.reset()
+    pendingPins = []
     timeline.reset()
     transcriptLoadTask = nil
     olderPageTask = nil
@@ -326,10 +337,13 @@ public final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    messageEditing.reset()
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
+    pins.reset(roomId: room.id)
+    pendingPins = []
     timeline.reset(roomId: room.id)
     olderPageTask = nil
     transcriptRefreshTask = nil
@@ -393,13 +407,14 @@ public final class WorkspaceState: ObservableObject {
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
-  public func sendMessage(_ content: String, auth: AuthState) -> Bool {
+  public func sendMessage(_ content: String, quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
+    timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
-      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self, weak auth] in
+      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, quote: quote, settled: { [weak self, weak auth] in
         guard let self, let auth else { return false }
         return await settleDirectStream(auth: auth, generation: generation)
       }, failed: { [weak self, weak auth] error in
@@ -410,11 +425,12 @@ public final class WorkspaceState: ObservableObject {
     let id = UUID().uuidString
     let slug = selection?.workspace.organizationSlug
     let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
-    let shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
+    var shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
+    shell.quote = quote
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, quoteMessageId: quote?.messageId, organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }
@@ -523,6 +539,13 @@ public final class WorkspaceState: ObservableObject {
     guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
     rooms[index].pinnedMessageCount = count
     timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
+    if pins.roomId == roomId {
+      if !isPinned {
+        pins.remove(messageId: messageId)
+      } else {
+        pins.invalidate()
+      }
+    }
   }
 
   private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
@@ -742,7 +765,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   var roomHistoryReadable: Bool {
-    timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
+    timeline.historicalAnchor == nil && timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
   }
 
   public func syncReadAttention(auth: AuthState) async {

@@ -6,6 +6,7 @@ remark-emoji 5.0.2 / node-emoji 2.2.0 pipeline. No JavaScript runtime is bundled
 | Resource | Source | Entries | SHA-256 |
 | --- | --- | --- | --- |
 | shortcodes.json | emojilib 2.4.0 (`emojis.json` name → char) | 1,570 | `3afcba7d834ea2cafe4d4e26082faa769e51b81c61914724f2868c875f25025e` |
+| reaction-catalog.json | emojilib 2.4.0 (search keywords, categories and ordering by shortcode) | 1,570 | `87425252bd70a5f285acba1a1ab78f105428f19caea8f4f3a24567896af43565` |
 | emoticons.json | emoticon 4.1.0 (`index.js` emoji/emoticons) | 29 groups / 322 spellings | `e6ef43a6d7ae89ec74dbcdd2c6122250ae2bac0055ac4e1453bbe8fd8718b25c` |
 
 The corresponding MIT notices are included verbatim as emojilib-LICENSE.txt and
@@ -18,7 +19,6 @@ resolves the data through web's actual dependency graph, checks the approved
 source versions, preserves order, copies notices and prints output hashes.
 Review version changes separately before changing the version guards.
 
-Swift conversion was intentionally not implemented in this prerequisite.
 Shortcode matching must be case-sensitive, unknown values must remain literal,
 and emoticon group order must be preserved. Conversion belongs on Markdown text
 nodes, never source code or link destinations. Raw-message jumbo sizing remains

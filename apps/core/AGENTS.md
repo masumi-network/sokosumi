@@ -557,7 +557,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
 #### Example: Reference Implementation
 
-See `apps/core/src/routes/v1/coworkers/me/events/get.ts` and `apps/core/src/routes/v1/conversations/[id]/messages/get.ts` for complete reference implementations.
+See `apps/core/src/routes/v1/coworkers/me/events/get.ts` and `apps/core/src/routes/v1/chats/rooms/[id]/messages/get.ts` for complete reference implementations.
 
 ### Accessing Job-Related Resources
 
@@ -565,15 +565,24 @@ Jobs have associated files (blobs) and links that can be accessed through Prisma
 
 ```typescript
 import prisma from "@/lib/db/prisma";
-import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
-import { linkWithJobIdInclude, flattenLinkJobId } from "@/types/link";
+import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";
 
 // Get files for a job
 const blobs = await prisma.blob.findMany({
   where: { event: { jobId } },
-  include: blobWithJobIdInclude,
+  include: {
+    event: {
+      select: {
+        jobId: true,
+      },
+    },
+  },
 });
-const files = blobs.map(flattenBlobJobId);
+const files = blobs.map((blob) => ({
+  ...blob,
+  jobId: blob.event.jobId,
+  size: blob.size ? Number(blob.size) : null,
+}));
 
 // Get links for a job
 const links = await prisma.link.findMany({
@@ -581,20 +590,6 @@ const links = await prisma.link.findMany({
   include: linkWithJobIdInclude,
 });
 const flattenedLinks = links.map(flattenLinkJobId);
-
-// Get all files for current user
-const userBlobs = await prisma.blob.findMany({
-  where: { userId },
-  include: blobWithJobIdInclude,
-});
-const userFiles = userBlobs.map(flattenBlobJobId);
-
-// Get all links for current user
-const userLinks = await prisma.link.findMany({
-  where: { userId },
-  include: linkWithJobIdInclude,
-});
-const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 ```
 
 **Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
@@ -745,5 +740,5 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.6.2). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+- CLI is a Core devDependency (`@evlog/cli` 0.6.3). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
 

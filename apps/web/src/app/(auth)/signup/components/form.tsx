@@ -160,7 +160,7 @@ export default function SignUpForm({
             {t("Login.message")}
           </span>
           <Link
-            href="/login"
+            href="/signin"
             className="text-primary text-sm font-medium hover:underline"
           >
             {t("Login.link")}

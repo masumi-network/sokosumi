@@ -196,10 +196,6 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
   );
 }
 
-function toIsoDateTime(value: Date): string {
-  return value.toISOString();
-}
-
 async function lockCoworkerWorkspaceAccessById(
   accessId: string,
   tx: Prisma.TransactionClient,
@@ -284,10 +280,10 @@ export function toCoworkerWorkspaceAccessApiShape(
     ...workspaceDisplayFields(row.workspace, options),
     status: row.status,
     requestedByUserId: row.requestedByUserId,
-    resolvedAt: row.resolvedAt ? toIsoDateTime(row.resolvedAt) : null,
+    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
     resolvedById: row.resolvedById,
-    createdAt: toIsoDateTime(row.createdAt),
-    updatedAt: toIsoDateTime(row.updatedAt),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 

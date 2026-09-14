@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/database`
 **Purpose**: Shared database layer providing Prisma client factory, repositories, helpers, and types
-**Runtime**: Node.js 24.x (server-only)
+**Runtime**: Node.js 24.x
 **Location**: `packages/database/` within the pnpm workspace
 
 ## Layout
@@ -38,7 +38,7 @@ import { Prisma, Agent, User, Job } from "@sokosumi/database";
 
 - **Purpose**: Factory function to create Prisma client instances
 - **Includes**: `createPrismaClient(databaseUrl: string)` function
-- **Use in**: Server-side code only (protected by `server-only`)
+- **Use in**: Server-side code only
 
 ```typescript
 import { createPrismaClient } from "@sokosumi/database/client";

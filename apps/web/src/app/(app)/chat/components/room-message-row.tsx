@@ -21,13 +21,13 @@ import {
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  memo,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -38,6 +38,7 @@ import {
   CoworkerLiveThought,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
+import { useClampedOverflow } from "@/app/chat/hooks/use-clamped-overflow";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   extractThoughtStartedAtMs,
@@ -107,6 +108,7 @@ import {
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -135,7 +137,6 @@ import {
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
-  scrollToRoomMessageElement,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -172,6 +173,23 @@ function MessageEditedLabel({ editedAt, className }: MessageEditedLabelProps) {
     >
       <span>{t("Edit.edited")}</span>
       {editedWhen ? <span className="sr-only">{editedWhen}</span> : null}
+    </span>
+  );
+}
+
+interface MessagePinnedLabelProps {
+  className?: string;
+}
+
+function MessagePinnedLabel({ className }: MessagePinnedLabelProps) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <span
+      className={cn("text-muted-foreground text-xs leading-none", className)}
+    >
+      <Pin className="me-1 inline size-3 align-[-0.125em]" aria-hidden />
+      {t("PinnedMessages.pinned")}
     </span>
   );
 }
@@ -219,38 +237,6 @@ function hasLargeSoloImageAttachment(content: string): boolean {
     (segment) =>
       segment.kind === "files" && isLargeSoloImageFilesSegment(segment),
   );
-}
-
-function useClampedOverflow(resetKey: string) {
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    setExpanded(false);
-  }, [resetKey]);
-
-  useLayoutEffect(() => {
-    const node = contentRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = contentRef.current;
-      if (!el) {
-        return;
-      }
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-    }
-
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [expanded, resetKey]);
-
-  return { expanded, setExpanded, overflows, contentRef };
 }
 
 function MessageQuoteAttachmentThumb({
@@ -313,6 +299,7 @@ function formatWhoReactedLabel(
 }
 
 function MessageQuoteBlock({
+  messageId,
   quote,
   coworkersById,
   coworkersBySlug,
@@ -325,7 +312,9 @@ function MessageQuoteBlock({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  onJumpToQuotedMessage,
 }: {
+  messageId: string;
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -338,11 +327,14 @@ function MessageQuoteBlock({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
+  onJumpToQuotedMessage?: (messageId: string) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
-    `${quote.messageId}\0${quote.snippet}`,
-  );
+  const { expanded, toggleExpanded, overflows, contentRef } =
+    useClampedOverflow({
+      cacheKey: `quote:${messageId}`,
+      resetKey: `${quote.messageId}\0${quote.snippet}`,
+    });
 
   const attachment = quote.attachment ?? null;
 
@@ -353,7 +345,7 @@ function MessageQuoteBlock({
         className="hover:bg-muted/70 focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
-          scrollToRoomMessageElement(quote.messageId);
+          onJumpToQuotedMessage?.(quote.messageId);
         }}
       >
         <div className="text-foreground truncate text-xs font-semibold">
@@ -393,9 +385,7 @@ function MessageQuoteBlock({
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-0.5 text-xs font-medium outline-none focus-visible:underline"
-          onClick={() => {
-            setExpanded((current) => !current);
-          }}
+          onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
         </button>
@@ -414,14 +404,29 @@ function MessageUnfurlImage({
   onError: () => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
+  // Reserves the box on a remount, so a row scrolled back into view does not
+  // grow by the image a frame later.
+  const { onLoad, ...size } = useRememberedImageSize(imageUrl);
+  const [loaded, setLoaded] = useState(size.width != null);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={imageUrl}
       alt={t("imageAlt", { title })}
-      className="mt-2 h-auto max-h-48 max-w-full rounded-md"
+      className={cn(
+        "mt-2 max-w-full rounded-md",
+        // Until the first load the box is the cap itself: link previews are
+        // wide, so nearly all of them land there, and the row does not grow
+        // under a reader scrolling past it.
+        loaded ? "h-auto max-h-48" : "h-48",
+      )}
       onError={onError}
+      onLoad={(event) => {
+        onLoad(event);
+        setLoaded(true);
+      }}
+      {...size}
     />
   );
 }
@@ -713,9 +718,8 @@ function ChannelMessageBody({
   const jumboEmojiCount = getJumboEmojiCount(content);
   const isJumboEmoji = jumboEmojiCount !== null;
   const skipBodyClamp = hasLargeSoloImageAttachment(content);
-  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
-    `${messageId}\0${content}`,
-  );
+  const { expanded, toggleExpanded, overflows, contentRef } =
+    useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
 
   // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
   if (isJumboEmoji) {
@@ -765,9 +769,7 @@ function ChannelMessageBody({
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
-          onClick={() => {
-            setExpanded((current) => !current);
-          }}
+          onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
         </button>
@@ -2003,7 +2005,7 @@ function MessageMetaFooter({
   );
 }
 
-export function ChatMessageRow({
+export const ChatMessageRow = memo(function ChatMessageRow({
   message,
   coworkersById,
   coworkersBySlug,
@@ -2026,6 +2028,7 @@ export function ChatMessageRow({
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
+  onJumpToQuotedMessage,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -2065,6 +2068,8 @@ export function ChatMessageRow({
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  /** Quote tap: scroll the room transcript to the quoted message. */
+  onJumpToQuotedMessage?: (messageId: string) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -2166,12 +2171,32 @@ export function ChatMessageRow({
     message.sender.user.id === currentUserId;
   const editedAt = message.editedAt;
   const showEdited = !isDeleted && editedAt != null;
+  const showPinned = !isDeleted && isPinned;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const longPress = useLongPress(() => {
+  // Neither overlay is mounted until first opened. A closed Radix dialog
+  // still costs a root, a portal, and its contexts per row, and a transcript
+  // carries a couple of hundred rows. Once opened it stays mounted so its
+  // exit animation can run.
+  const [sheetMounted, setSheetMounted] = useState(false);
+  const [deleteDialogMounted, setDeleteDialogMounted] = useState(false);
+  // The hover action pill and the participant hover cards only matter once
+  // the pointer enters the row or focus lands inside it. Until then the row
+  // renders neither, so a 200-row transcript and a jump merge skip six
+  // buttons, a popover root, a dropdown root, and two hover-card roots per
+  // row. The latch never resets; a hovered row keeps its chrome.
+  const [interacted, setInteracted] = useState(false);
+  function markInteracted() {
+    if (!interacted) {
+      setInteracted(true);
+    }
+  }
+  function openSheet() {
+    setSheetMounted(true);
     setSheetOpen(true);
-  });
+  }
+  const longPress = useLongPress(openSheet);
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
   const canCopy =
@@ -2191,6 +2216,7 @@ export function ChatMessageRow({
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
+    setDeleteDialogMounted(true);
     setDeleteDialogOpen(true);
   }
 
@@ -2219,6 +2245,8 @@ export function ChatMessageRow({
             : "mt-2 min-h-0 pt-1 pb-0.5",
       )}
       {...(showActions ? longPress : {})}
+      onPointerEnter={markInteracted}
+      onFocus={markInteracted}
     >
       {isContinuation ? (
         // Same width as avatar rail so continuation body lines up with header body.
@@ -2255,6 +2283,7 @@ export function ChatMessageRow({
           onOpenDirect={onOpenDirectMessage}
           isOpeningDirect={isOpeningDirect}
           isDirectActionBusy={isDirectActionBusy}
+          active={interacted}
         >
           <span
             data-testid="message-sender-avatar"
@@ -2285,7 +2314,12 @@ export function ChatMessageRow({
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
-        {isContinuation ? null : (
+        {isContinuation ? (
+          // No header on a continuation; a trailing cue would sit below long bodies.
+          showPinned ? (
+            <MessagePinnedLabel className="block" />
+          ) : null
+        ) : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
               profile={hoverProfile}
@@ -2297,6 +2331,7 @@ export function ChatMessageRow({
               onOpenDirect={onOpenDirectMessage}
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
+              active={interacted}
             >
               <span className="truncate text-base font-semibold md:text-sm">
                 {sender.name}
@@ -2314,6 +2349,7 @@ export function ChatMessageRow({
             {showEdited && editedAt != null ? (
               <MessageEditedLabel editedAt={editedAt} />
             ) : null}
+            {showPinned ? <MessagePinnedLabel /> : null}
           </div>
         )}
         <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
@@ -2325,6 +2361,7 @@ export function ChatMessageRow({
             <>
               {quote ? (
                 <MessageQuoteBlock
+                  messageId={message.id}
                   quote={quote}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}
@@ -2337,6 +2374,7 @@ export function ChatMessageRow({
                   canOpenHumanDirect={canOpenHumanDirect}
                   onOpenDirectMessage={onOpenDirectMessage}
                   openingDirectParticipantKey={openingDirectParticipantKey}
+                  onJumpToQuotedMessage={onJumpToQuotedMessage}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
@@ -2454,54 +2492,61 @@ export function ChatMessageRow({
       </div>
       {showActions ? (
         <>
-          <MessageActions
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            onQuote={onQuote}
-            onPin={onPin}
-            onCopy={handleCopy}
-            onEdit={onStartEdit}
-            onDelete={requestDelete}
-            showThreadButton={showThreadButton}
-            showQuoteButton={canQuote}
-            showPinButton={canPin}
-            isPinned={isPinned}
-            showCopyButton={canCopy}
-            showEditButton={canEdit}
-            showDeleteButton={canDelete}
-          />
+          {/* Always mounted, and ahead of the pill in DOM order: on a row
+              whose body has no other tab stop this is the first stop, it
+              mounts the pill, and the next Tab then walks into it. */}
           <button
             type="button"
             className="sr-only"
             onClick={() => {
-              setSheetOpen(true);
+              openSheet();
             }}
           >
             {tChannels("Actions.more")}
           </button>
-          <TouchMessageActionsSheet
-            open={sheetOpen}
-            onOpenChange={setSheetOpen}
-            message={message}
-            onToggleReaction={onToggleReaction}
-            onOpenThread={onOpenThread}
-            onQuote={onQuote}
-            onPin={onPin}
-            onCopy={handleCopy}
-            onEdit={onStartEdit}
-            onDelete={requestDelete}
-            showThreadButton={showThreadButton}
-            showQuoteButton={canQuote}
-            showPinButton={canPin}
-            isPinned={isPinned}
-            showCopyButton={canCopy}
-            showEditButton={canEdit}
-            showDeleteButton={canDelete}
-          />
+          {interacted ? (
+            <MessageActions
+              message={message}
+              onToggleReaction={onToggleReaction}
+              onOpenThread={onOpenThread}
+              onQuote={onQuote}
+              onPin={onPin}
+              onCopy={handleCopy}
+              onEdit={onStartEdit}
+              onDelete={requestDelete}
+              showThreadButton={showThreadButton}
+              showQuoteButton={canQuote}
+              showPinButton={canPin}
+              isPinned={isPinned}
+              showCopyButton={canCopy}
+              showEditButton={canEdit}
+              showDeleteButton={canDelete}
+            />
+          ) : null}
+          {sheetMounted ? (
+            <TouchMessageActionsSheet
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              message={message}
+              onToggleReaction={onToggleReaction}
+              onOpenThread={onOpenThread}
+              onQuote={onQuote}
+              onPin={onPin}
+              onCopy={handleCopy}
+              onEdit={onStartEdit}
+              onDelete={requestDelete}
+              showThreadButton={showThreadButton}
+              showQuoteButton={canQuote}
+              showPinButton={canPin}
+              isPinned={isPinned}
+              showCopyButton={canCopy}
+              showEditButton={canEdit}
+              showDeleteButton={canDelete}
+            />
+          ) : null}
         </>
       ) : null}
-      {canDelete ? (
+      {canDelete && deleteDialogMounted ? (
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -2526,4 +2571,4 @@ export function ChatMessageRow({
       ) : null}
     </article>
   );
-}
+});

@@ -1724,6 +1724,7 @@ export type AdminTaskX402RefundConflictResponse = {
      * already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.
      */
     kind?: 'already_refunded' | 'not_refundable';
+    retryAfterSeconds?: number;
     meta: {
         timestamp: Date;
         requestId: string;
@@ -1754,13 +1755,13 @@ export type AdminTaskX402ResolveConflictResponse = {
      */
     kind?: 'already_resolved' | 'sign_in_flight' | 'sign_outcome_unresolved' | 'not_resolvable';
     /**
-     * ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.
-     */
-    retryAfter?: Date;
-    /**
      * Whole seconds until retryAfter. Present with retryAfter.
      */
     retryAfterSeconds?: number;
+    /**
+     * ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.
+     */
+    retryAfter?: Date;
     meta: {
         timestamp: Date;
         requestId: string;
@@ -2488,31 +2489,33 @@ export type ChatRoomPinnedMessageListItem = {
         id: string;
         name: string;
     } | null;
-    message: ChatRoomMessage | null;
-};
-
-export type ChatRoomMessage = {
-    id: string;
-    roomId: string;
-    parentMessageId: string | null;
-    content: string;
-    createdAt: Date;
-    deletedAt: Date | null;
-    editedAt: Date | null;
-    sender: ChatRoomMessageSender;
-    mentions: Array<ChatRoomMessageMention>;
-    reactions: Array<ChatRoomMessageReaction>;
-    threadReplyCount: number;
-    threadLastReplyAt: Date | null;
-    metadata: {
-        [key: string]: unknown;
+    message: {
+        id: string;
+        roomId: string;
+        parentMessageId: string | null;
+        content: string;
+        createdAt: Date;
+        deletedAt: Date | null;
+        editedAt: Date | null;
+        /**
+         * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+         */
+        pinnedAt: Date | null;
+        sender: ChatRoomMessageSender;
+        mentions: Array<ChatRoomMessageMention>;
+        reactions: Array<ChatRoomMessageReaction>;
+        threadReplyCount: number;
+        threadLastReplyAt: Date | null;
+        metadata: {
+            [key: string]: unknown;
+        } | null;
+        quote: ChatRoomMessageQuote;
+        membership: ChatRoomMessageMembership;
+        /**
+         * Link preview cards scraped from message URLs (absent while pending).
+         */
+        unfurls: Array<ChatRoomMessageUnfurl> | null;
     } | null;
-    quote: ChatRoomMessageQuote;
-    membership: ChatRoomMessageMembership;
-    /**
-     * Link preview cards scraped from message URLs (absent while pending).
-     */
-    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomMessageSender = {
@@ -2692,6 +2695,34 @@ export type ChatRoomThread = {
      * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
      */
     hasLooked: boolean;
+};
+
+export type ChatRoomMessage = {
+    id: string;
+    roomId: string;
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+    deletedAt: Date | null;
+    editedAt: Date | null;
+    /**
+     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+     */
+    pinnedAt: Date | null;
+    sender: ChatRoomMessageSender;
+    mentions: Array<ChatRoomMessageMention>;
+    reactions: Array<ChatRoomMessageReaction>;
+    threadReplyCount: number;
+    threadLastReplyAt: Date | null;
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+    quote: ChatRoomMessageQuote;
+    membership: ChatRoomMessageMembership;
+    /**
+     * Link preview cards scraped from message URLs (absent while pending).
+     */
+    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomThreadsUnreadCount = {
@@ -3031,6 +3062,21 @@ export type DriveFile = {
      * When the file was uploaded to Blob storage
      */
     uploadedAt: Date;
+};
+
+export type DrivePaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
 };
 
 export type MoveDriveItemRequest = {
@@ -3469,6 +3515,7 @@ export type EnterpriseContractActivationConflictResponse = {
      * Machine-readable conflict reason for activation guards
      */
     kind: 'enterprise_activation_blocked';
+    retryAfterSeconds?: number;
     blocker: EnterpriseContractActivationBlocker;
     meta: {
         timestamp: Date;
@@ -3756,7 +3803,7 @@ export type NotificationPreference = {
 
 export type PreferredOrganization = {
     /**
-     * Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
+     * Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
      */
     organizationId: string | null;
 };
@@ -4478,6 +4525,14 @@ export type WorkspaceCalendarItem = {
      * Whether the caller owns this Task and may edit or remove its schedule
      */
     canEditSchedule: boolean;
+    /**
+     * Whether this indexed occurrence can be moved through the revision-safe occurrence contract
+     */
+    canMoveOccurrence: boolean;
+    /**
+     * Schedule revision observed with this occurrence
+     */
+    scheduleRevision: number;
     taskName: string;
     taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
     taskAssigneeId: string | null;
@@ -5536,7 +5591,7 @@ export type TaskLinkDeleted = {
     deleted: true;
 };
 
-export type PutTaskScheduleRequest = {
+export type PutCalendarTaskScheduleRequest = {
     /**
      * Idempotency identity for this series edit
      */
@@ -5550,7 +5605,9 @@ export type PutTaskScheduleRequest = {
      */
     discardFutureExceptions: true;
     schedule: TaskScheduleInput;
-} | {
+};
+
+export type PutTaskScheduleRequest = {
     mode: 'once';
     /**
      * When the one-time schedule should run
@@ -5583,6 +5640,112 @@ export type PutTaskScheduleRequest = {
      * First run instant for intervalDays schedules (required when intervalDays > 1)
      */
     anchorAt?: Date;
+};
+
+export type TaskScheduleOccurrencePage = {
+    /**
+     * Series revision this page was read at
+     */
+    scheduleRevision: number;
+    /**
+     * Durable future exceptions a full-series edit or removal would cancel, counted across the whole series at this read's instant. 0 for a series with no live rule. Clients confirm a destructive discard only when this is above zero.
+     */
+    futureExceptionCount: number;
+    occurrences: Array<TaskScheduleOccurrence>;
+};
+
+export type TaskScheduleOccurrence = {
+    /**
+     * Ledger row identity, also the pagination tie-breaker
+     */
+    id: string;
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * 1 for legacy display-only projections, 2 for epoch-backed rows
+     */
+    scheduleVersion: number;
+    /**
+     * Rule epoch that projected this occurrence, when known
+     */
+    epochId: string | null;
+    /**
+     * Time the rule originally projected, when the ledger captured it
+     */
+    originalScheduledAt: Date | null;
+    /**
+     * Time the occurrence actually holds; the ordering key
+     */
+    effectiveScheduledAt: Date;
+    /**
+     * IANA timezone captured with the rule
+     */
+    timezone: string | null;
+    /**
+     * A planned occurrence whose effective time has passed without a release. Derived server-side so clients never depend on their own clock.
+     */
+    isMissed: boolean;
+    /**
+     * Canonical Calendar source identity
+     */
+    sourceId: string;
+    /**
+     * Workspace captured as the Calendar source
+     */
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    /**
+     * Project captured as the Calendar source, when applicable
+     */
+    sourceProjectId: string | null;
+    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
+    timeAccuracy: 'EXACT' | 'APPROXIMATE';
+    /**
+     * Independent Task this occurrence released, when it did
+     */
+    releasedTask: TaskScheduleOccurrenceReleasedTask | null;
+};
+
+export type TaskScheduleOccurrenceReleasedTask = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+    /**
+     * Set when the released Task was archived; it is no longer readable, so the summary is not navigable
+     */
+    archivedAt: Date | null;
+};
+
+/**
+ * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+ */
+export const TaskScheduleOccurrenceView = { UPCOMING: 'upcoming', HISTORY: 'history' } as const;
+
+/**
+ * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+ */
+export type TaskScheduleOccurrenceView = typeof TaskScheduleOccurrenceView[keyof typeof TaskScheduleOccurrenceView];
+
+export type TaskScheduleOccurrenceMutation = {
+    /**
+     * Series revision after the move
+     */
+    scheduleRevision: number;
+    occurrence: TaskScheduleOccurrence;
+};
+
+export type RescheduleTaskScheduleOccurrenceRequest = {
+    /**
+     * Idempotency identity for this occurrence move
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    /**
+     * New absolute time for the occurrence. Strictly future and inside the projection horizon.
+     */
+    scheduledAt: Date;
 };
 
 export type TaskWorkspace = {
@@ -6002,6 +6165,7 @@ export type ListAdminAgentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6016,6 +6180,7 @@ export type ListAdminAgentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6063,6 +6228,7 @@ export type GetAdminAgentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6077,6 +6243,7 @@ export type GetAdminAgentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6091,6 +6258,7 @@ export type GetAdminAgentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6138,6 +6306,7 @@ export type DeleteAdminAgentMetadataOverrideErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6152,6 +6321,7 @@ export type DeleteAdminAgentMetadataOverrideErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6166,6 +6336,7 @@ export type DeleteAdminAgentMetadataOverrideErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6213,6 +6384,7 @@ export type PatchAdminAgentMetadataOverrideErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6227,6 +6399,7 @@ export type PatchAdminAgentMetadataOverrideErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6241,6 +6414,7 @@ export type PatchAdminAgentMetadataOverrideErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6255,6 +6429,7 @@ export type PatchAdminAgentMetadataOverrideErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6302,6 +6477,7 @@ export type SearchAdminUsersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6316,6 +6492,7 @@ export type SearchAdminUsersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6363,6 +6540,7 @@ export type SearchAdminOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6377,6 +6555,7 @@ export type SearchAdminOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6426,6 +6605,7 @@ export type ListAdminSokoBotsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6440,6 +6620,7 @@ export type ListAdminSokoBotsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6485,6 +6666,7 @@ export type GetAdminSokoBotQualityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6499,6 +6681,7 @@ export type GetAdminSokoBotQualityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6541,6 +6724,7 @@ export type ListAdminSokoBotVersionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6555,6 +6739,7 @@ export type ListAdminSokoBotVersionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6597,6 +6782,7 @@ export type CreateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6611,6 +6797,7 @@ export type CreateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6625,6 +6812,7 @@ export type CreateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6639,6 +6827,7 @@ export type CreateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6681,6 +6870,7 @@ export type ListAdminSokoBotGatewayModelsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6695,6 +6885,7 @@ export type ListAdminSokoBotGatewayModelsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6739,6 +6930,7 @@ export type ArchiveAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6753,6 +6945,7 @@ export type ArchiveAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6767,6 +6960,7 @@ export type ArchiveAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6781,6 +6975,7 @@ export type ArchiveAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6835,6 +7030,7 @@ export type UpdateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6849,6 +7045,7 @@ export type UpdateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6863,6 +7060,7 @@ export type UpdateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6877,6 +7075,7 @@ export type UpdateAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6919,6 +7118,7 @@ export type GetAdminSokoBotAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6933,6 +7133,7 @@ export type GetAdminSokoBotAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6975,6 +7176,7 @@ export type SetAdminSokoBotAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6989,6 +7191,7 @@ export type SetAdminSokoBotAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7033,6 +7236,7 @@ export type DeleteAdminSokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7047,6 +7251,7 @@ export type DeleteAdminSokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7061,6 +7266,7 @@ export type DeleteAdminSokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7075,6 +7281,7 @@ export type DeleteAdminSokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7119,6 +7326,7 @@ export type GetAdminSokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7133,6 +7341,7 @@ export type GetAdminSokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7147,6 +7356,7 @@ export type GetAdminSokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7191,6 +7401,7 @@ export type PromoteAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7205,6 +7416,7 @@ export type PromoteAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7219,6 +7431,7 @@ export type PromoteAdminSokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7263,6 +7476,7 @@ export type GetAdminSokoBotVersionUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7277,6 +7491,7 @@ export type GetAdminSokoBotVersionUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7319,6 +7534,7 @@ export type MigrateAdminSokoBotVersionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7333,6 +7549,7 @@ export type MigrateAdminSokoBotVersionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7347,6 +7564,7 @@ export type MigrateAdminSokoBotVersionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7391,6 +7609,7 @@ export type PerformAdminSokoBotActionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7405,6 +7624,7 @@ export type PerformAdminSokoBotActionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7419,6 +7639,7 @@ export type PerformAdminSokoBotActionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7433,6 +7654,7 @@ export type PerformAdminSokoBotActionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7447,6 +7669,7 @@ export type PerformAdminSokoBotActionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7502,6 +7725,7 @@ export type ListAdminUsersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7516,6 +7740,7 @@ export type ListAdminUsersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7563,6 +7788,7 @@ export type ListAdminMatchedChannelsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7577,6 +7803,7 @@ export type ListAdminMatchedChannelsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7619,6 +7846,7 @@ export type CreateAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7633,6 +7861,7 @@ export type CreateAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7647,6 +7876,7 @@ export type CreateAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7661,6 +7891,7 @@ export type CreateAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7705,6 +7936,7 @@ export type DeleteAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7719,6 +7951,7 @@ export type DeleteAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7733,6 +7966,7 @@ export type DeleteAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7747,6 +7981,7 @@ export type DeleteAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7784,6 +8019,7 @@ export type GetAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7798,6 +8034,7 @@ export type GetAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7812,6 +8049,7 @@ export type GetAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7856,6 +8094,7 @@ export type ArchiveAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7870,6 +8109,7 @@ export type ArchiveAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7884,6 +8124,7 @@ export type ArchiveAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7898,6 +8139,7 @@ export type ArchiveAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7942,6 +8184,7 @@ export type RestoreAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7956,6 +8199,7 @@ export type RestoreAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7970,6 +8214,7 @@ export type RestoreAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7984,6 +8229,7 @@ export type RestoreAdminMatchedChannelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8028,6 +8274,7 @@ export type AddAdminMatchedChannelParticipantsFromOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8042,6 +8289,7 @@ export type AddAdminMatchedChannelParticipantsFromOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8056,6 +8304,7 @@ export type AddAdminMatchedChannelParticipantsFromOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8070,6 +8319,7 @@ export type AddAdminMatchedChannelParticipantsFromOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8114,6 +8364,7 @@ export type AddAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8128,6 +8379,7 @@ export type AddAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8142,6 +8394,7 @@ export type AddAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8156,6 +8409,7 @@ export type AddAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8201,6 +8455,7 @@ export type RemoveAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8215,6 +8470,7 @@ export type RemoveAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8229,6 +8485,7 @@ export type RemoveAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8243,6 +8500,7 @@ export type RemoveAdminMatchedChannelParticipantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8298,6 +8556,7 @@ export type ListAdminOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8312,6 +8571,7 @@ export type ListAdminOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8356,6 +8616,7 @@ export type GetAdminOrganizationBySlugErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8370,6 +8631,7 @@ export type GetAdminOrganizationBySlugErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8384,6 +8646,7 @@ export type GetAdminOrganizationBySlugErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8437,6 +8700,7 @@ export type ListAdminOrganizationMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8451,6 +8715,7 @@ export type ListAdminOrganizationMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8465,6 +8730,7 @@ export type ListAdminOrganizationMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8509,6 +8775,7 @@ export type AddAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8523,6 +8790,7 @@ export type AddAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8537,6 +8805,7 @@ export type AddAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8551,6 +8820,7 @@ export type AddAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8565,6 +8835,7 @@ export type AddAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8610,6 +8881,7 @@ export type RemoveAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8624,6 +8896,7 @@ export type RemoveAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8638,6 +8911,7 @@ export type RemoveAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8652,6 +8926,7 @@ export type RemoveAdminOrganizationMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8690,6 +8965,7 @@ export type UpdateAdminOrganizationMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8704,6 +8980,7 @@ export type UpdateAdminOrganizationMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8718,6 +8995,7 @@ export type UpdateAdminOrganizationMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8732,6 +9010,7 @@ export type UpdateAdminOrganizationMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8777,6 +9056,7 @@ export type UnassignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8791,6 +9071,7 @@ export type UnassignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8805,6 +9086,7 @@ export type UnassignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8850,6 +9132,7 @@ export type AssignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8864,6 +9147,7 @@ export type AssignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8878,6 +9162,7 @@ export type AssignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8892,6 +9177,7 @@ export type AssignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8906,6 +9192,7 @@ export type AssignAdminOrganizationMemberSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8956,6 +9243,7 @@ export type ListAdminInvoicesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8970,6 +9258,7 @@ export type ListAdminInvoicesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8984,6 +9273,7 @@ export type ListAdminInvoicesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8998,6 +9288,7 @@ export type ListAdminInvoicesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9040,6 +9331,7 @@ export type CreateAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9054,6 +9346,7 @@ export type CreateAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9068,6 +9361,7 @@ export type CreateAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9082,6 +9376,7 @@ export type CreateAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9129,6 +9424,7 @@ export type MarkAdminInvoicePaidErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9143,6 +9439,7 @@ export type MarkAdminInvoicePaidErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9157,6 +9454,7 @@ export type MarkAdminInvoicePaidErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9171,6 +9469,7 @@ export type MarkAdminInvoicePaidErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9185,6 +9484,7 @@ export type MarkAdminInvoicePaidErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9232,6 +9532,7 @@ export type DeleteAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9246,6 +9547,7 @@ export type DeleteAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9260,6 +9562,7 @@ export type DeleteAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9274,6 +9577,7 @@ export type DeleteAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9288,6 +9592,7 @@ export type DeleteAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9328,6 +9633,7 @@ export type GetAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9342,6 +9648,7 @@ export type GetAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9356,6 +9663,7 @@ export type GetAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9370,6 +9678,7 @@ export type GetAdminInvoiceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9412,6 +9721,7 @@ export type CreateAdminFreeCreditGrantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9426,6 +9736,7 @@ export type CreateAdminFreeCreditGrantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9440,6 +9751,7 @@ export type CreateAdminFreeCreditGrantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9454,6 +9766,7 @@ export type CreateAdminFreeCreditGrantErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9509,6 +9822,7 @@ export type ListAdminTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9523,6 +9837,7 @@ export type ListAdminTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9567,6 +9882,7 @@ export type GetAdminTaskErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9581,6 +9897,7 @@ export type GetAdminTaskErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9595,6 +9912,7 @@ export type GetAdminTaskErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9646,6 +9964,7 @@ export type ListAdminTaskPaymentClaimsRequiringReviewErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9660,6 +9979,7 @@ export type ListAdminTaskPaymentClaimsRequiringReviewErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9707,6 +10027,7 @@ export type RefundAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9721,6 +10042,7 @@ export type RefundAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9735,6 +10057,7 @@ export type RefundAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9749,6 +10072,7 @@ export type RefundAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9796,6 +10120,7 @@ export type ResolveAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9810,6 +10135,7 @@ export type ResolveAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9824,6 +10150,7 @@ export type ResolveAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9838,6 +10165,7 @@ export type ResolveAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9885,6 +10213,7 @@ export type RetryAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9899,6 +10228,7 @@ export type RetryAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9913,6 +10243,7 @@ export type RetryAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9927,6 +10258,7 @@ export type RetryAdminTaskPaymentClaimErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9971,6 +10303,7 @@ export type RepairAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9985,6 +10318,7 @@ export type RepairAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9999,6 +10333,7 @@ export type RepairAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10013,6 +10348,7 @@ export type RepairAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10027,6 +10363,7 @@ export type RepairAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10041,6 +10378,7 @@ export type RepairAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10085,6 +10423,7 @@ export type RemoveAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10099,6 +10438,7 @@ export type RemoveAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10113,6 +10453,7 @@ export type RemoveAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10127,6 +10468,7 @@ export type RemoveAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10141,6 +10483,7 @@ export type RemoveAdminTaskScheduleQuarantineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10204,6 +10547,7 @@ export type ListAdminTaskX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10218,6 +10562,7 @@ export type ListAdminTaskX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10273,6 +10618,7 @@ export type AggregateAdminTaskX402PaymentsByAgentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10287,6 +10633,7 @@ export type AggregateAdminTaskX402PaymentsByAgentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10334,6 +10681,7 @@ export type RefundAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10348,6 +10696,7 @@ export type RefundAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10362,6 +10711,7 @@ export type RefundAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10380,6 +10730,7 @@ export type RefundAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10427,6 +10778,7 @@ export type ResolveAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10441,6 +10793,7 @@ export type ResolveAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10455,6 +10808,7 @@ export type ResolveAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10473,6 +10827,7 @@ export type ResolveAdminTaskX402PaymentErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10515,6 +10870,7 @@ export type ListAdminVendorsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10529,6 +10885,7 @@ export type ListAdminVendorsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10571,6 +10928,7 @@ export type CreateAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10585,6 +10943,7 @@ export type CreateAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10599,6 +10958,7 @@ export type CreateAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10613,6 +10973,7 @@ export type CreateAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10660,6 +11021,7 @@ export type DeleteAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10674,6 +11036,7 @@ export type DeleteAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10688,6 +11051,7 @@ export type DeleteAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10702,6 +11066,7 @@ export type DeleteAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10742,6 +11107,7 @@ export type PatchAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10756,6 +11122,7 @@ export type PatchAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10770,6 +11137,7 @@ export type PatchAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10784,6 +11152,7 @@ export type PatchAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10798,6 +11167,7 @@ export type PatchAdminVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10857,6 +11227,7 @@ export type GetAgentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10912,6 +11283,7 @@ export type GetAgentsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10926,6 +11298,7 @@ export type GetAgentsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10985,6 +11358,7 @@ export type GetAgentsByIdReviewsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10999,6 +11373,7 @@ export type GetAgentsByIdReviewsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11057,6 +11432,7 @@ export type GetAgentsByIdReviewsMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11071,6 +11447,7 @@ export type GetAgentsByIdReviewsMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11085,6 +11462,7 @@ export type GetAgentsByIdReviewsMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11143,6 +11521,7 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11157,6 +11536,7 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11171,6 +11551,7 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11229,6 +11610,7 @@ export type PostAgentsByIdRatingsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11243,6 +11625,7 @@ export type PostAgentsByIdRatingsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11257,6 +11640,7 @@ export type PostAgentsByIdRatingsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11271,6 +11655,7 @@ export type PostAgentsByIdRatingsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11321,6 +11706,7 @@ export type GetAgentsByIdInputSchemaErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11335,6 +11721,7 @@ export type GetAgentsByIdInputSchemaErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11349,6 +11736,7 @@ export type GetAgentsByIdInputSchemaErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12355,6 +12743,7 @@ export type GetAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12369,6 +12758,7 @@ export type GetAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12383,6 +12773,7 @@ export type GetAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12397,6 +12788,7 @@ export type GetAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13393,6 +13785,7 @@ export type PostAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13407,6 +13800,7 @@ export type PostAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13421,6 +13815,7 @@ export type PostAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13435,6 +13830,7 @@ export type PostAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13449,6 +13845,7 @@ export type PostAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13463,6 +13860,7 @@ export type PostAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13477,6 +13875,7 @@ export type PostAgentsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13553,6 +13952,7 @@ export type GetChatsInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13567,6 +13967,7 @@ export type GetChatsInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13581,6 +13982,7 @@ export type GetChatsInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13631,6 +14033,7 @@ export type GetChatsInvitationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13645,6 +14048,7 @@ export type GetChatsInvitationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13659,6 +14063,7 @@ export type GetChatsInvitationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13673,6 +14078,7 @@ export type GetChatsInvitationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13723,6 +14129,7 @@ export type PostChatsInvitationsByIdAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13737,6 +14144,7 @@ export type PostChatsInvitationsByIdAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13751,6 +14159,7 @@ export type PostChatsInvitationsByIdAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13765,6 +14174,7 @@ export type PostChatsInvitationsByIdAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13779,6 +14189,7 @@ export type PostChatsInvitationsByIdAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13829,6 +14240,7 @@ export type PostChatsInvitationsByIdDeclineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13843,6 +14255,7 @@ export type PostChatsInvitationsByIdDeclineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13857,6 +14270,7 @@ export type PostChatsInvitationsByIdDeclineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13871,6 +14285,7 @@ export type PostChatsInvitationsByIdDeclineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13885,6 +14300,7 @@ export type PostChatsInvitationsByIdDeclineErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13950,6 +14366,7 @@ export type GetChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13964,6 +14381,7 @@ export type GetChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13978,6 +14396,7 @@ export type GetChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13992,6 +14411,7 @@ export type GetChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14006,6 +14426,7 @@ export type GetChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14054,6 +14475,7 @@ export type PostChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14068,6 +14490,7 @@ export type PostChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14082,6 +14505,7 @@ export type PostChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14096,6 +14520,7 @@ export type PostChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14110,6 +14535,7 @@ export type PostChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14124,6 +14550,7 @@ export type PostChatsRoomsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14182,6 +14609,7 @@ export type GetChatsRoomsDiscoverableErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14196,6 +14624,7 @@ export type GetChatsRoomsDiscoverableErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14210,6 +14639,7 @@ export type GetChatsRoomsDiscoverableErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14224,6 +14654,7 @@ export type GetChatsRoomsDiscoverableErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14238,6 +14669,7 @@ export type GetChatsRoomsDiscoverableErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14291,6 +14723,7 @@ export type GetChatsRoomsChannelSlugAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14305,6 +14738,7 @@ export type GetChatsRoomsChannelSlugAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14319,6 +14753,7 @@ export type GetChatsRoomsChannelSlugAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14333,6 +14768,7 @@ export type GetChatsRoomsChannelSlugAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14347,6 +14783,7 @@ export type GetChatsRoomsChannelSlugAvailabilityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14406,6 +14843,7 @@ export type GetChatsRoomsByIdStreamMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14420,6 +14858,7 @@ export type GetChatsRoomsByIdStreamMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14434,6 +14873,7 @@ export type GetChatsRoomsByIdStreamMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14448,6 +14888,22 @@ export type GetChatsRoomsByIdStreamMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14462,6 +14918,7 @@ export type GetChatsRoomsByIdStreamMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14512,6 +14969,7 @@ export type GetChatsRoomsByIdStreamActiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14526,6 +14984,7 @@ export type GetChatsRoomsByIdStreamActiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14540,6 +14999,7 @@ export type GetChatsRoomsByIdStreamActiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14554,6 +15014,7 @@ export type GetChatsRoomsByIdStreamActiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14703,6 +15164,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14717,6 +15179,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14731,6 +15194,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14745,6 +15209,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14759,6 +15224,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14773,6 +15239,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14787,6 +15254,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14801,6 +15269,7 @@ export type PostChatsRoomsByIdStreamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14853,6 +15322,7 @@ export type GetChatsRoomsByIdPinnedMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14867,6 +15337,7 @@ export type GetChatsRoomsByIdPinnedMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14881,6 +15352,7 @@ export type GetChatsRoomsByIdPinnedMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14895,6 +15367,22 @@ export type GetChatsRoomsByIdPinnedMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14909,6 +15397,7 @@ export type GetChatsRoomsByIdPinnedMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14959,6 +15448,7 @@ export type DeleteChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14973,6 +15463,7 @@ export type DeleteChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14987,6 +15478,7 @@ export type DeleteChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15001,6 +15493,7 @@ export type DeleteChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15015,6 +15508,7 @@ export type DeleteChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15058,6 +15552,7 @@ export type GetChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15072,6 +15567,7 @@ export type GetChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15086,6 +15582,7 @@ export type GetChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15100,6 +15597,7 @@ export type GetChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15150,6 +15648,7 @@ export type PatchChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15164,6 +15663,7 @@ export type PatchChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15178,6 +15678,7 @@ export type PatchChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15192,6 +15693,7 @@ export type PatchChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15206,6 +15708,7 @@ export type PatchChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15220,6 +15723,7 @@ export type PatchChatsRoomsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15270,6 +15774,7 @@ export type PostChatsRoomsByIdArchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15284,6 +15789,7 @@ export type PostChatsRoomsByIdArchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15298,6 +15804,7 @@ export type PostChatsRoomsByIdArchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15312,6 +15819,7 @@ export type PostChatsRoomsByIdArchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15326,6 +15834,7 @@ export type PostChatsRoomsByIdArchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15376,6 +15885,7 @@ export type PostChatsRoomsByIdRestoreErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15390,6 +15900,7 @@ export type PostChatsRoomsByIdRestoreErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15404,6 +15915,7 @@ export type PostChatsRoomsByIdRestoreErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15418,6 +15930,7 @@ export type PostChatsRoomsByIdRestoreErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15432,6 +15945,7 @@ export type PostChatsRoomsByIdRestoreErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15482,6 +15996,7 @@ export type GetChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15496,6 +16011,7 @@ export type GetChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15510,6 +16026,7 @@ export type GetChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15524,6 +16041,7 @@ export type GetChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15574,6 +16092,7 @@ export type PostChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15588,6 +16107,7 @@ export type PostChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15602,6 +16122,7 @@ export type PostChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15616,6 +16137,7 @@ export type PostChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15630,6 +16152,7 @@ export type PostChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15644,6 +16167,7 @@ export type PostChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15658,6 +16182,7 @@ export type PostChatsRoomsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15709,6 +16234,7 @@ export type DeleteChatsRoomsByIdInvitationsByInvitationIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15723,6 +16249,7 @@ export type DeleteChatsRoomsByIdInvitationsByInvitationIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15737,6 +16264,7 @@ export type DeleteChatsRoomsByIdInvitationsByInvitationIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15751,6 +16279,7 @@ export type DeleteChatsRoomsByIdInvitationsByInvitationIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15794,6 +16323,7 @@ export type GetChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15808,6 +16338,7 @@ export type GetChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15822,6 +16353,7 @@ export type GetChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15836,6 +16368,7 @@ export type GetChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15886,6 +16419,7 @@ export type PostChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15900,6 +16434,7 @@ export type PostChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15914,6 +16449,7 @@ export type PostChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15928,6 +16464,7 @@ export type PostChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15942,6 +16479,7 @@ export type PostChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15956,6 +16494,7 @@ export type PostChatsRoomsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16010,6 +16549,7 @@ export type DeleteChatsRoomsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16024,6 +16564,7 @@ export type DeleteChatsRoomsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16038,6 +16579,7 @@ export type DeleteChatsRoomsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16052,6 +16594,7 @@ export type DeleteChatsRoomsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16102,6 +16645,7 @@ export type DeleteChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16116,6 +16660,7 @@ export type DeleteChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16130,6 +16675,7 @@ export type DeleteChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16144,6 +16690,7 @@ export type DeleteChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16194,6 +16741,7 @@ export type PostChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16208,6 +16756,7 @@ export type PostChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16222,6 +16771,7 @@ export type PostChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16236,6 +16786,7 @@ export type PostChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16250,6 +16801,7 @@ export type PostChatsRoomsByIdMembersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16301,6 +16853,7 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16315,6 +16868,7 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16329,6 +16883,7 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16343,6 +16898,7 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16357,6 +16913,7 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16407,6 +16964,7 @@ export type PostChatsRoomsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16421,6 +16979,7 @@ export type PostChatsRoomsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16435,6 +16994,7 @@ export type PostChatsRoomsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16449,6 +17009,7 @@ export type PostChatsRoomsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16499,6 +17060,7 @@ export type PostChatsRoomsByIdUnreadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16513,6 +17075,7 @@ export type PostChatsRoomsByIdUnreadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16527,6 +17090,7 @@ export type PostChatsRoomsByIdUnreadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16541,6 +17105,7 @@ export type PostChatsRoomsByIdUnreadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16604,6 +17169,7 @@ export type GetChatsRoomsByIdThreadsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16618,6 +17184,7 @@ export type GetChatsRoomsByIdThreadsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16632,6 +17199,7 @@ export type GetChatsRoomsByIdThreadsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16646,6 +17214,22 @@ export type GetChatsRoomsByIdThreadsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16660,6 +17244,7 @@ export type GetChatsRoomsByIdThreadsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16710,6 +17295,7 @@ export type GetChatsRoomsByIdThreadsUnreadCountErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16724,6 +17310,7 @@ export type GetChatsRoomsByIdThreadsUnreadCountErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16738,6 +17325,7 @@ export type GetChatsRoomsByIdThreadsUnreadCountErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16752,6 +17340,7 @@ export type GetChatsRoomsByIdThreadsUnreadCountErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16766,6 +17355,7 @@ export type GetChatsRoomsByIdThreadsUnreadCountErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16816,6 +17406,7 @@ export type PostChatsRoomsByIdThreadsReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16830,6 +17421,7 @@ export type PostChatsRoomsByIdThreadsReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16844,6 +17436,7 @@ export type PostChatsRoomsByIdThreadsReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16858,6 +17451,7 @@ export type PostChatsRoomsByIdThreadsReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16909,6 +17503,7 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16923,6 +17518,7 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16937,6 +17533,22 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16951,6 +17563,7 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17015,6 +17628,7 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17029,6 +17643,7 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17043,6 +17658,7 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17057,6 +17673,22 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17071,6 +17703,7 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17122,6 +17755,7 @@ export type PostChatsRoomsByIdThreadsByParentMessageIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17136,6 +17770,7 @@ export type PostChatsRoomsByIdThreadsByParentMessageIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17150,6 +17785,7 @@ export type PostChatsRoomsByIdThreadsByParentMessageIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17164,6 +17800,7 @@ export type PostChatsRoomsByIdThreadsByParentMessageIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17214,6 +17851,7 @@ export type DeleteChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17228,6 +17866,7 @@ export type DeleteChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17242,6 +17881,7 @@ export type DeleteChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17256,6 +17896,7 @@ export type DeleteChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17306,6 +17947,7 @@ export type PostChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17320,6 +17962,7 @@ export type PostChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17334,6 +17977,7 @@ export type PostChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17348,6 +17992,7 @@ export type PostChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17362,6 +18007,7 @@ export type PostChatsRoomsByIdStarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17412,6 +18058,7 @@ export type DeleteChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17426,6 +18073,7 @@ export type DeleteChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17440,6 +18088,7 @@ export type DeleteChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17454,6 +18103,7 @@ export type DeleteChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17504,6 +18154,7 @@ export type PostChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17518,6 +18169,7 @@ export type PostChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17532,6 +18184,7 @@ export type PostChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17546,6 +18199,7 @@ export type PostChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17560,6 +18214,7 @@ export type PostChatsRoomsByIdMuteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17600,7 +18255,7 @@ export type GetChatsRoomsByIdMessagesData = {
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Cursor for pagination (ID of the last message from previous page)
          */
         cursor?: string;
         /**
@@ -17627,6 +18282,7 @@ export type GetChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17641,6 +18297,7 @@ export type GetChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17655,6 +18312,7 @@ export type GetChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17669,6 +18327,22 @@ export type GetChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17683,6 +18357,7 @@ export type GetChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17733,6 +18408,7 @@ export type PostChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17747,6 +18423,7 @@ export type PostChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17761,6 +18438,7 @@ export type PostChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17775,6 +18453,7 @@ export type PostChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17789,6 +18468,7 @@ export type PostChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17803,6 +18483,7 @@ export type PostChatsRoomsByIdMessagesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17854,6 +18535,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17868,6 +18550,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17882,6 +18565,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17896,6 +18580,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17947,6 +18632,7 @@ export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17961,6 +18647,7 @@ export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17975,6 +18662,7 @@ export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17989,6 +18677,7 @@ export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18003,6 +18692,22 @@ export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18017,6 +18722,7 @@ export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18068,6 +18774,7 @@ export type PatchChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18082,6 +18789,7 @@ export type PatchChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18096,6 +18804,7 @@ export type PatchChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18110,6 +18819,7 @@ export type PatchChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18124,6 +18834,7 @@ export type PatchChatsRoomsByIdMessagesByMessageIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18175,6 +18886,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18189,6 +18901,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18203,6 +18916,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18217,6 +18931,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18231,6 +18946,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18282,6 +18998,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18296,6 +19013,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18310,6 +19028,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18324,6 +19043,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18338,6 +19058,7 @@ export type DeleteChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18389,6 +19110,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18403,6 +19125,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18417,6 +19140,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18431,6 +19155,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18445,6 +19170,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdPinErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18496,6 +19222,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18510,6 +19237,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18524,6 +19252,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18538,6 +19267,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18552,6 +19282,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18604,6 +19335,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18618,6 +19350,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18632,6 +19365,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18646,6 +19380,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18660,6 +19395,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18674,6 +19410,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18724,6 +19461,7 @@ export type PostChatsRoomsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18738,6 +19476,7 @@ export type PostChatsRoomsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18752,6 +19491,7 @@ export type PostChatsRoomsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18766,6 +19506,7 @@ export type PostChatsRoomsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18780,6 +19521,7 @@ export type PostChatsRoomsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18794,6 +19536,7 @@ export type PostChatsRoomsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18836,6 +19579,7 @@ export type CreateCreditCheckoutSessionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18850,6 +19594,7 @@ export type CreateCreditCheckoutSessionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18864,6 +19609,7 @@ export type CreateCreditCheckoutSessionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18878,6 +19624,7 @@ export type CreateCreditCheckoutSessionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18892,6 +19639,7 @@ export type CreateCreditCheckoutSessionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18939,6 +19687,7 @@ export type GetCheckoutSessionAnalyticsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18953,6 +19702,7 @@ export type GetCheckoutSessionAnalyticsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18967,6 +19717,7 @@ export type GetCheckoutSessionAnalyticsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19014,6 +19765,7 @@ export type GetCouponDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19028,6 +19780,7 @@ export type GetCouponDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19042,6 +19795,7 @@ export type GetCouponDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19056,6 +19810,7 @@ export type GetCouponDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19103,6 +19858,7 @@ export type ClaimCouponErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19117,6 +19873,7 @@ export type ClaimCouponErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19131,6 +19888,7 @@ export type ClaimCouponErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19145,6 +19903,7 @@ export type ClaimCouponErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19159,6 +19918,7 @@ export type ClaimCouponErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19201,6 +19961,7 @@ export type GetCreditCostsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19215,6 +19976,7 @@ export type GetCreditCostsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19257,6 +20019,7 @@ export type PostCreditCostsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19271,6 +20034,7 @@ export type PostCreditCostsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19285,6 +20049,7 @@ export type PostCreditCostsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19329,6 +20094,7 @@ export type DeleteCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19343,6 +20109,7 @@ export type DeleteCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19357,6 +20124,7 @@ export type DeleteCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19401,6 +20169,7 @@ export type GetCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19415,6 +20184,7 @@ export type GetCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19429,6 +20199,7 @@ export type GetCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19473,6 +20244,7 @@ export type PatchCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19487,6 +20259,7 @@ export type PatchCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19501,6 +20274,7 @@ export type PatchCreditCostsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19556,6 +20330,7 @@ export type ListDeveloperOwnedCoworkerTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19570,6 +20345,7 @@ export type ListDeveloperOwnedCoworkerTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19584,6 +20360,7 @@ export type ListDeveloperOwnedCoworkerTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19628,6 +20405,7 @@ export type GetDeveloperOwnedCoworkerTaskErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19642,6 +20420,7 @@ export type GetDeveloperOwnedCoworkerTaskErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19656,6 +20435,7 @@ export type GetDeveloperOwnedCoworkerTaskErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19731,6 +20511,7 @@ export type GetDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19745,6 +20526,7 @@ export type GetDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19759,6 +20541,7 @@ export type GetDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19773,6 +20556,7 @@ export type GetDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19787,6 +20571,7 @@ export type GetDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19801,6 +20586,7 @@ export type GetDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19821,7 +20607,7 @@ export type GetDriveFilesResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination: PaginationMetadata;
+            pagination: DrivePaginationMetadata;
         };
     };
 };
@@ -19843,6 +20629,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19857,6 +20644,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19871,6 +20659,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19885,6 +20674,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19899,6 +20689,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19913,6 +20704,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19927,6 +20719,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19941,6 +20734,7 @@ export type PostDriveFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19983,6 +20777,7 @@ export type PatchDriveFilesMoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19997,6 +20792,7 @@ export type PatchDriveFilesMoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20011,6 +20807,7 @@ export type PatchDriveFilesMoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20025,6 +20822,7 @@ export type PatchDriveFilesMoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20039,6 +20837,7 @@ export type PatchDriveFilesMoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20053,6 +20852,7 @@ export type PatchDriveFilesMoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20067,6 +20867,7 @@ export type PatchDriveFilesMoveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20109,6 +20910,7 @@ export type PatchDriveFilesRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20123,6 +20925,7 @@ export type PatchDriveFilesRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20137,6 +20940,7 @@ export type PatchDriveFilesRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20151,6 +20955,7 @@ export type PatchDriveFilesRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20165,6 +20970,7 @@ export type PatchDriveFilesRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20179,6 +20985,7 @@ export type PatchDriveFilesRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20193,6 +21000,7 @@ export type PatchDriveFilesRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20235,6 +21043,7 @@ export type DeleteDriveFilesDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20249,6 +21058,7 @@ export type DeleteDriveFilesDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20263,6 +21073,7 @@ export type DeleteDriveFilesDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20277,6 +21088,7 @@ export type DeleteDriveFilesDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20291,6 +21103,7 @@ export type DeleteDriveFilesDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20305,6 +21118,7 @@ export type DeleteDriveFilesDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20340,6 +21154,7 @@ export type PostDriveFoldersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20354,6 +21169,7 @@ export type PostDriveFoldersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20368,6 +21184,7 @@ export type PostDriveFoldersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20382,6 +21199,7 @@ export type PostDriveFoldersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20396,6 +21214,7 @@ export type PostDriveFoldersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20410,6 +21229,7 @@ export type PostDriveFoldersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20424,6 +21244,7 @@ export type PostDriveFoldersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20466,6 +21287,7 @@ export type DeleteDriveFoldersDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20480,6 +21302,7 @@ export type DeleteDriveFoldersDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20494,6 +21317,7 @@ export type DeleteDriveFoldersDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20508,6 +21332,7 @@ export type DeleteDriveFoldersDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20522,6 +21347,7 @@ export type DeleteDriveFoldersDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20536,6 +21362,7 @@ export type DeleteDriveFoldersDeleteErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20571,6 +21398,7 @@ export type PatchDriveFoldersRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20585,6 +21413,7 @@ export type PatchDriveFoldersRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20599,6 +21428,7 @@ export type PatchDriveFoldersRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20613,6 +21443,7 @@ export type PatchDriveFoldersRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20627,6 +21458,7 @@ export type PatchDriveFoldersRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20641,6 +21473,7 @@ export type PatchDriveFoldersRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20655,6 +21488,7 @@ export type PatchDriveFoldersRenameErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20718,6 +21552,7 @@ export type GetDriveRecentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20732,6 +21567,7 @@ export type GetDriveRecentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20746,6 +21582,7 @@ export type GetDriveRecentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20760,6 +21597,7 @@ export type GetDriveRecentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20843,6 +21681,7 @@ export type GetDriveTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20857,6 +21696,7 @@ export type GetDriveTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20871,6 +21711,7 @@ export type GetDriveTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20885,6 +21726,7 @@ export type GetDriveTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20899,6 +21741,7 @@ export type GetDriveTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20941,6 +21784,7 @@ export type PostDriveTasksCopyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20955,6 +21799,7 @@ export type PostDriveTasksCopyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20969,6 +21814,7 @@ export type PostDriveTasksCopyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20983,6 +21829,7 @@ export type PostDriveTasksCopyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -20997,6 +21844,7 @@ export type PostDriveTasksCopyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21011,6 +21859,7 @@ export type PostDriveTasksCopyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21056,6 +21905,7 @@ export type GetEnterpriseContractsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21070,6 +21920,7 @@ export type GetEnterpriseContractsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21084,6 +21935,7 @@ export type GetEnterpriseContractsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21126,6 +21978,7 @@ export type PostEnterpriseContractsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21140,6 +21993,7 @@ export type PostEnterpriseContractsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21154,6 +22008,7 @@ export type PostEnterpriseContractsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21168,6 +22023,7 @@ export type PostEnterpriseContractsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21217,6 +22073,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21231,6 +22088,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21245,6 +22103,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21259,6 +22118,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21273,6 +22133,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21317,6 +22178,7 @@ export type GetEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21331,6 +22193,7 @@ export type GetEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21345,6 +22208,7 @@ export type GetEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21389,6 +22253,7 @@ export type PatchEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21403,6 +22268,7 @@ export type PatchEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21417,6 +22283,7 @@ export type PatchEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21431,6 +22298,7 @@ export type PatchEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21445,6 +22313,7 @@ export type PatchEnterpriseContractsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21489,6 +22358,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21503,6 +22373,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21517,6 +22388,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21535,6 +22407,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21579,6 +22452,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21593,6 +22467,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21607,6 +22482,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21621,6 +22497,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21698,6 +22575,7 @@ export type GetHistoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21712,6 +22590,7 @@ export type GetHistoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21726,6 +22605,7 @@ export type GetHistoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21740,6 +22620,7 @@ export type GetHistoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21787,6 +22668,7 @@ export type GetUsersRegisteredErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21801,6 +22683,7 @@ export type GetUsersRegisteredErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21815,6 +22698,7 @@ export type GetUsersRegisteredErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21885,6 +22769,7 @@ export type GetUsersByIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21899,6 +22784,7 @@ export type GetUsersByIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21913,6 +22799,7 @@ export type GetUsersByIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -21927,6 +22814,7 @@ export type GetUsersByIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22036,6 +22924,7 @@ export type GetUsersByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22050,6 +22939,7 @@ export type GetUsersByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22064,6 +22954,7 @@ export type GetUsersByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22078,6 +22969,7 @@ export type GetUsersByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22125,6 +23017,7 @@ export type GetUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22139,6 +23032,7 @@ export type GetUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22153,6 +23047,7 @@ export type GetUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22167,6 +23062,7 @@ export type GetUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22214,6 +23110,7 @@ export type PutUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22228,6 +23125,7 @@ export type PutUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22242,6 +23140,7 @@ export type PutUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22256,6 +23155,7 @@ export type PutUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22270,6 +23170,7 @@ export type PutUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22284,6 +23185,7 @@ export type PutUsersByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22331,6 +23233,7 @@ export type GetUsersByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22345,6 +23248,7 @@ export type GetUsersByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22359,6 +23263,7 @@ export type GetUsersByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22373,6 +23278,7 @@ export type GetUsersByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22434,6 +23340,7 @@ export type GetUsersByIdOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22448,6 +23355,7 @@ export type GetUsersByIdOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22462,6 +23370,7 @@ export type GetUsersByIdOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22476,6 +23385,7 @@ export type GetUsersByIdOrganizationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22541,6 +23451,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22555,6 +23466,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22569,6 +23481,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22583,6 +23496,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22696,6 +23610,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22710,6 +23625,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22724,6 +23640,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22738,6 +23655,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22785,6 +23703,7 @@ export type GetUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22799,6 +23718,7 @@ export type GetUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22813,6 +23733,7 @@ export type GetUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22827,6 +23748,7 @@ export type GetUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22916,6 +23838,7 @@ export type PatchUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22930,6 +23853,7 @@ export type PatchUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22944,6 +23868,7 @@ export type PatchUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -22958,6 +23883,7 @@ export type PatchUsersByIdPreferencesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23006,6 +23932,99 @@ export type PatchUsersByIdPreferencesResponses = {
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
 
+export type GetUsersByIdPreferredOrganizationData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferred-organization';
+};
+
+export type GetUsersByIdPreferredOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationError = GetUsersByIdPreferredOrganizationErrors[keyof GetUsersByIdPreferredOrganizationErrors];
+
+export type GetUsersByIdPreferredOrganizationResponses = {
+    /**
+     * The resolved organization selection for workspace restoration
+     */
+    200: {
+        data: PreferredOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPreferredOrganizationResponse = GetUsersByIdPreferredOrganizationResponses[keyof GetUsersByIdPreferredOrganizationResponses];
+
 export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
@@ -23026,6 +24045,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23040,6 +24060,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23054,6 +24075,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23068,6 +24090,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23082,6 +24105,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23096,6 +24120,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23143,6 +24168,7 @@ export type DeleteUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23157,6 +24183,7 @@ export type DeleteUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23171,6 +24198,7 @@ export type DeleteUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23185,6 +24213,7 @@ export type DeleteUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23199,6 +24228,7 @@ export type DeleteUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23246,6 +24276,7 @@ export type PostUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23260,6 +24291,7 @@ export type PostUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23274,6 +24306,7 @@ export type PostUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23288,6 +24321,7 @@ export type PostUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23302,6 +24336,7 @@ export type PostUsersByIdPersonalWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23358,6 +24393,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23372,6 +24408,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23386,6 +24423,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23400,6 +24438,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23414,6 +24453,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23463,6 +24503,7 @@ export type GetUsersByIdWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23477,6 +24518,7 @@ export type GetUsersByIdWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23491,6 +24533,7 @@ export type GetUsersByIdWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23505,6 +24548,7 @@ export type GetUsersByIdWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23552,6 +24596,7 @@ export type GetUsersByIdPendingOrganizationInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23566,6 +24611,7 @@ export type GetUsersByIdPendingOrganizationInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23580,6 +24626,7 @@ export type GetUsersByIdPendingOrganizationInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23594,6 +24641,7 @@ export type GetUsersByIdPendingOrganizationInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23641,6 +24689,7 @@ export type GetUsersByIdNoticesPendingErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23655,6 +24704,7 @@ export type GetUsersByIdNoticesPendingErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23669,6 +24719,7 @@ export type GetUsersByIdNoticesPendingErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23683,6 +24734,7 @@ export type GetUsersByIdNoticesPendingErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23736,6 +24788,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23750,6 +24803,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23764,6 +24818,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23778,6 +24833,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23792,6 +24848,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23843,6 +24900,7 @@ export type GetUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23857,6 +24915,7 @@ export type GetUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23871,6 +24930,7 @@ export type GetUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23885,6 +24945,7 @@ export type GetUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23899,6 +24960,7 @@ export type GetUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23951,6 +25013,7 @@ export type PostUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23965,6 +25028,7 @@ export type PostUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23979,6 +25043,7 @@ export type PostUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -23993,6 +25058,7 @@ export type PostUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24007,6 +25073,7 @@ export type PostUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24021,6 +25088,7 @@ export type PostUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24035,6 +25103,7 @@ export type PostUsersByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24082,6 +25151,7 @@ export type PostUsersByIdUtmAttributionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24096,6 +25166,7 @@ export type PostUsersByIdUtmAttributionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24110,6 +25181,7 @@ export type PostUsersByIdUtmAttributionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24124,6 +25196,7 @@ export type PostUsersByIdUtmAttributionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24171,6 +25244,7 @@ export type GetUsersByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24185,6 +25259,7 @@ export type GetUsersByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24199,6 +25274,7 @@ export type GetUsersByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24213,6 +25289,7 @@ export type GetUsersByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24264,6 +25341,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24278,6 +25356,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24292,6 +25371,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24306,6 +25386,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24357,6 +25438,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24371,6 +25453,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24385,6 +25468,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24399,6 +25483,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24450,6 +25535,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24464,6 +25550,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24478,6 +25565,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24492,6 +25580,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24542,6 +25631,7 @@ export type GetUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24556,6 +25646,7 @@ export type GetUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24570,6 +25661,7 @@ export type GetUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24584,6 +25676,7 @@ export type GetUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24633,6 +25726,7 @@ export type PostUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24647,6 +25741,7 @@ export type PostUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24661,6 +25756,7 @@ export type PostUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24675,6 +25771,7 @@ export type PostUsersByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24726,6 +25823,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24740,6 +25838,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24754,6 +25853,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24768,6 +25868,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24816,6 +25917,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24830,6 +25932,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24844,6 +25947,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24858,6 +25962,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24906,6 +26011,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24920,6 +26026,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24934,6 +26041,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -24948,6 +26056,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25001,6 +26110,7 @@ export type GetUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25015,6 +26125,7 @@ export type GetUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25029,6 +26140,7 @@ export type GetUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25043,6 +26155,7 @@ export type GetUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25096,6 +26209,7 @@ export type PostUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25110,6 +26224,7 @@ export type PostUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25124,6 +26239,7 @@ export type PostUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25138,6 +26254,7 @@ export type PostUsersByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25191,6 +26308,7 @@ export type GetUsersByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25205,6 +26323,7 @@ export type GetUsersByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25219,6 +26338,7 @@ export type GetUsersByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25233,6 +26353,7 @@ export type GetUsersByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25286,6 +26407,7 @@ export type GetUsersByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25300,6 +26422,7 @@ export type GetUsersByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25314,6 +26437,7 @@ export type GetUsersByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25328,6 +26452,7 @@ export type GetUsersByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25389,6 +26514,7 @@ export type GetUsersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25403,6 +26529,7 @@ export type GetUsersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25417,6 +26544,7 @@ export type GetUsersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25431,6 +26559,7 @@ export type GetUsersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25478,6 +26607,7 @@ export type GetOrganizationBySlugErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25492,6 +26622,7 @@ export type GetOrganizationBySlugErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25506,6 +26637,7 @@ export type GetOrganizationBySlugErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25520,6 +26652,7 @@ export type GetOrganizationBySlugErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25567,6 +26700,7 @@ export type GetOrganizationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25581,6 +26715,7 @@ export type GetOrganizationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25595,6 +26730,7 @@ export type GetOrganizationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25609,6 +26745,7 @@ export type GetOrganizationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25656,6 +26793,7 @@ export type GetOrganizationsByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25670,6 +26808,7 @@ export type GetOrganizationsByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25684,6 +26823,7 @@ export type GetOrganizationsByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25698,6 +26838,7 @@ export type GetOrganizationsByIdDeletionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25745,6 +26886,7 @@ export type GetOrganizationsByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25759,6 +26901,7 @@ export type GetOrganizationsByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25773,6 +26916,7 @@ export type GetOrganizationsByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25787,6 +26931,7 @@ export type GetOrganizationsByIdMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25834,6 +26979,7 @@ export type GetOrganizationsByIdMembersMeSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25848,6 +26994,7 @@ export type GetOrganizationsByIdMembersMeSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25862,6 +27009,7 @@ export type GetOrganizationsByIdMembersMeSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25876,6 +27024,7 @@ export type GetOrganizationsByIdMembersMeSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25927,6 +27076,7 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25941,6 +27091,7 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25955,6 +27106,7 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -25969,6 +27121,7 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26020,6 +27173,7 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26034,6 +27188,7 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26048,6 +27203,7 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26062,6 +27218,7 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26076,6 +27233,7 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26123,6 +27281,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26137,6 +27296,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26151,6 +27311,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26165,6 +27326,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26212,6 +27374,7 @@ export type GetOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26226,6 +27389,7 @@ export type GetOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26240,6 +27404,7 @@ export type GetOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26254,6 +27419,7 @@ export type GetOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26301,6 +27467,7 @@ export type PostOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26315,6 +27482,7 @@ export type PostOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26329,6 +27497,7 @@ export type PostOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26343,6 +27512,7 @@ export type PostOrganizationsByIdInviteLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26394,6 +27564,7 @@ export type DeleteOrganizationsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26408,6 +27579,7 @@ export type DeleteOrganizationsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26422,6 +27594,7 @@ export type DeleteOrganizationsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26436,6 +27609,7 @@ export type DeleteOrganizationsByIdInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26483,6 +27657,7 @@ export type GetOrganizationsByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26497,6 +27672,7 @@ export type GetOrganizationsByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26511,6 +27687,7 @@ export type GetOrganizationsByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26525,6 +27702,7 @@ export type GetOrganizationsByIdCoworkerAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26576,6 +27754,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26590,6 +27769,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26604,6 +27784,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26618,6 +27799,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26669,6 +27851,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26683,6 +27866,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26697,6 +27881,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26711,6 +27896,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26762,6 +27948,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26776,6 +27963,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26790,6 +27978,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26804,6 +27993,7 @@ export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26854,6 +28044,7 @@ export type GetOrganizationsByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26868,6 +28059,7 @@ export type GetOrganizationsByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26882,6 +28074,7 @@ export type GetOrganizationsByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26931,6 +28124,7 @@ export type PostOrganizationsByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26945,6 +28139,7 @@ export type PostOrganizationsByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26959,6 +28154,7 @@ export type PostOrganizationsByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -26973,6 +28169,7 @@ export type PostOrganizationsByIdVendorGrantsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27024,6 +28221,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27038,6 +28236,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27052,6 +28251,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27066,6 +28266,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27111,6 +28312,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27125,6 +28327,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27139,6 +28342,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27153,6 +28357,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27204,6 +28409,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27218,6 +28424,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27232,6 +28439,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27246,6 +28454,7 @@ export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27293,6 +28502,7 @@ export type GetOrganizationsByIdSeatSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27307,6 +28517,7 @@ export type GetOrganizationsByIdSeatSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27321,6 +28532,7 @@ export type GetOrganizationsByIdSeatSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27335,6 +28547,7 @@ export type GetOrganizationsByIdSeatSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27382,6 +28595,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27396,6 +28610,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27410,6 +28625,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27424,6 +28640,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27471,6 +28688,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27485,6 +28703,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27499,6 +28718,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27513,6 +28733,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27560,6 +28781,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27574,6 +28796,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27588,6 +28811,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27602,6 +28826,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27649,6 +28874,7 @@ export type PostOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27663,6 +28889,7 @@ export type PostOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27677,6 +28904,7 @@ export type PostOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27691,6 +28919,7 @@ export type PostOrganizationsByIdStripeCustomerErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27738,6 +28967,7 @@ export type GetOrganizationsByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27752,6 +28982,7 @@ export type GetOrganizationsByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27766,6 +28997,7 @@ export type GetOrganizationsByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27780,6 +29012,7 @@ export type GetOrganizationsByIdBillingDetailsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27827,6 +29060,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27841,6 +29075,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27855,6 +29090,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27869,6 +29105,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27916,6 +29153,7 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27930,6 +29168,7 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27944,6 +29183,7 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27958,6 +29198,7 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -27972,6 +29213,7 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28019,6 +29261,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28033,6 +29276,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28047,6 +29291,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28061,6 +29306,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28108,6 +29354,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28122,6 +29369,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28136,6 +29384,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28150,6 +29399,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28164,6 +29414,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28178,6 +29429,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28225,6 +29477,7 @@ export type PostOrganizationsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28239,6 +29492,7 @@ export type PostOrganizationsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28253,6 +29507,7 @@ export type PostOrganizationsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28267,6 +29522,7 @@ export type PostOrganizationsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28281,6 +29537,7 @@ export type PostOrganizationsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28295,6 +29552,7 @@ export type PostOrganizationsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28342,6 +29600,7 @@ export type PostOrganizationsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28356,6 +29615,7 @@ export type PostOrganizationsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28370,6 +29630,7 @@ export type PostOrganizationsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28384,6 +29645,7 @@ export type PostOrganizationsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28398,6 +29660,7 @@ export type PostOrganizationsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28412,6 +29675,7 @@ export type PostOrganizationsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28426,6 +29690,7 @@ export type PostOrganizationsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28473,6 +29738,7 @@ export type GetOrganizationInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28520,6 +29786,7 @@ export type PostOrganizationInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28534,6 +29801,7 @@ export type PostOrganizationInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28548,6 +29816,7 @@ export type PostOrganizationInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28562,6 +29831,7 @@ export type PostOrganizationInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28576,6 +29846,7 @@ export type PostOrganizationInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28623,6 +29894,7 @@ export type GetChatRoomInviteLinksByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28676,6 +29948,7 @@ export type PostChatRoomInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28690,6 +29963,7 @@ export type PostChatRoomInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28704,6 +29978,7 @@ export type PostChatRoomInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28718,6 +29993,7 @@ export type PostChatRoomInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28732,6 +30008,7 @@ export type PostChatRoomInviteLinksByTokenAcceptErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28797,6 +30074,7 @@ export type GetProjectsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28811,6 +30089,7 @@ export type GetProjectsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28825,6 +30104,7 @@ export type GetProjectsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28873,6 +30153,7 @@ export type PostProjectsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28887,6 +30168,7 @@ export type PostProjectsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28948,6 +30230,7 @@ export type GetProjectsStatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28962,6 +30245,7 @@ export type GetProjectsStatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28976,6 +30260,7 @@ export type GetProjectsStatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29026,6 +30311,7 @@ export type PostProjectsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29040,6 +30326,7 @@ export type PostProjectsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29054,6 +30341,7 @@ export type PostProjectsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29068,6 +30356,7 @@ export type PostProjectsByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29119,6 +30408,7 @@ export type DeleteProjectsByIdJobsByJobIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29133,6 +30423,7 @@ export type DeleteProjectsByIdJobsByJobIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29147,6 +30438,7 @@ export type DeleteProjectsByIdJobsByJobIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29197,6 +30489,7 @@ export type PostProjectsByIdTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29211,6 +30504,7 @@ export type PostProjectsByIdTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29225,6 +30519,7 @@ export type PostProjectsByIdTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29239,6 +30534,7 @@ export type PostProjectsByIdTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29290,6 +30586,7 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29304,6 +30601,7 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29318,6 +30616,22 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29376,6 +30690,7 @@ export type GetProjectsByIdContextMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29390,6 +30705,7 @@ export type GetProjectsByIdContextMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29404,6 +30720,7 @@ export type GetProjectsByIdContextMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29454,6 +30771,7 @@ export type DeleteProjectsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29468,6 +30786,7 @@ export type DeleteProjectsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29482,6 +30801,7 @@ export type DeleteProjectsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29532,6 +30852,7 @@ export type PutProjectsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29546,6 +30867,7 @@ export type PutProjectsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29560,6 +30882,7 @@ export type PutProjectsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29574,6 +30897,7 @@ export type PutProjectsByIdDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29665,6 +30989,7 @@ export type GetProjectsByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29679,6 +31004,7 @@ export type GetProjectsByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29693,6 +31019,7 @@ export type GetProjectsByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29707,6 +31034,7 @@ export type GetProjectsByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29721,6 +31049,7 @@ export type GetProjectsByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29779,6 +31108,7 @@ export type GetProjectsByIdNeedsAttentionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29793,6 +31123,7 @@ export type GetProjectsByIdNeedsAttentionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29807,6 +31138,7 @@ export type GetProjectsByIdNeedsAttentionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29857,6 +31189,7 @@ export type DeleteProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29871,6 +31204,7 @@ export type DeleteProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29885,6 +31219,7 @@ export type DeleteProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29899,6 +31234,7 @@ export type DeleteProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29957,6 +31293,7 @@ export type GetProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29971,6 +31308,7 @@ export type GetProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29985,6 +31323,7 @@ export type GetProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30035,6 +31374,7 @@ export type PatchProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30049,6 +31389,7 @@ export type PatchProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30063,6 +31404,7 @@ export type PatchProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30077,6 +31419,7 @@ export type PatchProjectsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30158,6 +31501,7 @@ export type GetJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30172,6 +31516,7 @@ export type GetJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30186,6 +31531,7 @@ export type GetJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30244,6 +31590,7 @@ export type GetJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30258,6 +31605,7 @@ export type GetJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30272,6 +31620,7 @@ export type GetJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30286,6 +31635,7 @@ export type GetJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30346,6 +31696,7 @@ export type PatchJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30360,6 +31711,7 @@ export type PatchJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30374,6 +31726,7 @@ export type PatchJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30388,6 +31741,7 @@ export type PatchJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30402,6 +31756,7 @@ export type PatchJobsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30460,6 +31815,7 @@ export type PostJobsByIdRefundErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30474,6 +31830,7 @@ export type PostJobsByIdRefundErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30488,6 +31845,7 @@ export type PostJobsByIdRefundErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30502,6 +31860,7 @@ export type PostJobsByIdRefundErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30516,6 +31875,7 @@ export type PostJobsByIdRefundErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30574,6 +31934,7 @@ export type GetJobsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30588,6 +31949,7 @@ export type GetJobsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30602,6 +31964,7 @@ export type GetJobsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30616,6 +31979,7 @@ export type GetJobsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30674,6 +32038,7 @@ export type GetJobsByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30688,6 +32053,7 @@ export type GetJobsByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30702,6 +32068,7 @@ export type GetJobsByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30716,6 +32083,7 @@ export type GetJobsByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30774,6 +32142,7 @@ export type GetJobsByIdInputRequestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30788,6 +32157,7 @@ export type GetJobsByIdInputRequestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30802,6 +32172,7 @@ export type GetJobsByIdInputRequestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30816,6 +32187,7 @@ export type GetJobsByIdInputRequestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30889,6 +32261,7 @@ export type PostJobsByIdInputsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30903,6 +32276,7 @@ export type PostJobsByIdInputsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30917,6 +32291,7 @@ export type PostJobsByIdInputsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30931,6 +32306,7 @@ export type PostJobsByIdInputsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30945,6 +32321,7 @@ export type PostJobsByIdInputsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30959,6 +32336,7 @@ export type PostJobsByIdInputsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -30973,6 +32351,7 @@ export type PostJobsByIdInputsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31031,6 +32410,7 @@ export type GetJobsByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31045,6 +32425,7 @@ export type GetJobsByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31059,6 +32440,7 @@ export type GetJobsByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31073,6 +32455,7 @@ export type GetJobsByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31131,6 +32514,7 @@ export type DeleteJobsByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31145,6 +32529,7 @@ export type DeleteJobsByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31159,6 +32544,7 @@ export type DeleteJobsByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31221,6 +32607,7 @@ export type PutJobsByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31235,6 +32622,7 @@ export type PutJobsByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31249,6 +32637,7 @@ export type PutJobsByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31309,6 +32698,7 @@ export type PutJobsByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31323,6 +32713,7 @@ export type PutJobsByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31337,6 +32728,7 @@ export type PutJobsByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31351,6 +32743,7 @@ export type PutJobsByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31365,6 +32758,7 @@ export type PutJobsByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31413,6 +32807,7 @@ export type DeleteNotificationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31427,6 +32822,7 @@ export type DeleteNotificationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31492,6 +32888,7 @@ export type GetNotificationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31506,6 +32903,7 @@ export type GetNotificationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31520,6 +32918,7 @@ export type GetNotificationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31568,6 +32967,7 @@ export type GetNotificationsUnreadCountErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31582,6 +32982,7 @@ export type GetNotificationsUnreadCountErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31635,6 +33036,7 @@ export type PatchNotificationsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31649,6 +33051,7 @@ export type PatchNotificationsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31663,6 +33066,7 @@ export type PatchNotificationsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31677,6 +33081,7 @@ export type PatchNotificationsByIdReadErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31725,6 +33130,7 @@ export type PatchNotificationsReadAllErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31739,6 +33145,7 @@ export type PatchNotificationsReadAllErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31792,6 +33199,7 @@ export type DeleteNotificationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31806,6 +33214,7 @@ export type DeleteNotificationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31820,6 +33229,7 @@ export type DeleteNotificationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31867,6 +33277,7 @@ export type GetInvitationsByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31911,6 +33322,7 @@ export type GetShareByTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31955,6 +33367,7 @@ export type GetSokoBotsByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31969,6 +33382,7 @@ export type GetSokoBotsByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31983,6 +33397,7 @@ export type GetSokoBotsByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32030,6 +33445,7 @@ export type PostSokoBotsByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32044,6 +33460,7 @@ export type PostSokoBotsByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32058,6 +33475,7 @@ export type PostSokoBotsByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32103,6 +33521,7 @@ export type DeleteSokoBotsByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32117,6 +33536,7 @@ export type DeleteSokoBotsByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32131,6 +33551,7 @@ export type DeleteSokoBotsByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32179,6 +33600,7 @@ export type PatchSokoBotsByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32193,6 +33615,7 @@ export type PatchSokoBotsByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32207,6 +33630,7 @@ export type PatchSokoBotsByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32258,6 +33682,7 @@ export type GetMySokoBotTaskEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32272,6 +33697,7 @@ export type GetMySokoBotTaskEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32314,6 +33740,7 @@ export type ArchiveMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32328,6 +33755,7 @@ export type ArchiveMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32372,6 +33800,7 @@ export type GetMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32386,6 +33815,7 @@ export type GetMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32428,6 +33858,7 @@ export type CreateMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32442,6 +33873,7 @@ export type CreateMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32456,6 +33888,7 @@ export type CreateMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32498,6 +33931,7 @@ export type GetMySokoBotActivityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32512,6 +33946,7 @@ export type GetMySokoBotActivityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32526,6 +33961,7 @@ export type GetMySokoBotActivityErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32568,6 +34004,7 @@ export type GetMySokoBotUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32582,6 +34019,7 @@ export type GetMySokoBotUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32596,6 +34034,7 @@ export type GetMySokoBotUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32638,6 +34077,7 @@ export type DeleteMySokoBotPermanentlyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32652,6 +34092,7 @@ export type DeleteMySokoBotPermanentlyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32666,6 +34107,7 @@ export type DeleteMySokoBotPermanentlyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32680,6 +34122,7 @@ export type DeleteMySokoBotPermanentlyErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32728,6 +34171,7 @@ export type ListMySokoBotTurnsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32742,6 +34186,7 @@ export type ListMySokoBotTurnsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32784,6 +34229,7 @@ export type StartMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32798,6 +34244,7 @@ export type StartMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32812,6 +34259,7 @@ export type StartMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32826,6 +34274,7 @@ export type StartMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32840,6 +34289,7 @@ export type StartMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32884,6 +34334,7 @@ export type GetMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32898,6 +34349,7 @@ export type GetMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32912,6 +34364,7 @@ export type GetMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32956,6 +34409,7 @@ export type CancelMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32970,6 +34424,7 @@ export type CancelMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -32984,6 +34439,7 @@ export type CancelMySokoBotTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33028,6 +34484,7 @@ export type ResetMySokoBotMemoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33042,6 +34499,7 @@ export type ResetMySokoBotMemoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33056,6 +34514,7 @@ export type ResetMySokoBotMemoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33070,6 +34529,7 @@ export type ResetMySokoBotMemoryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33112,6 +34572,7 @@ export type CreateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33126,6 +34587,7 @@ export type CreateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33140,6 +34602,7 @@ export type CreateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33154,6 +34617,7 @@ export type CreateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33198,6 +34662,7 @@ export type DeleteMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33212,6 +34677,7 @@ export type DeleteMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33226,6 +34692,7 @@ export type DeleteMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33272,6 +34739,7 @@ export type UpdateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33286,6 +34754,7 @@ export type UpdateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33300,6 +34769,7 @@ export type UpdateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33314,6 +34784,7 @@ export type UpdateMySokoBotScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33358,6 +34829,7 @@ export type ResolveMySokoBotDecisionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33372,6 +34844,7 @@ export type ResolveMySokoBotDecisionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33386,6 +34859,7 @@ export type ResolveMySokoBotDecisionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33400,6 +34874,7 @@ export type ResolveMySokoBotDecisionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33446,6 +34921,7 @@ export type ListSokoBotAvatarsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33488,6 +34964,7 @@ export type ListMySokoBotIntegrationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33502,6 +34979,7 @@ export type ListMySokoBotIntegrationsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33546,6 +35024,7 @@ export type SearchSokoBotIntegrationCatalogErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33560,6 +35039,7 @@ export type SearchSokoBotIntegrationCatalogErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33574,6 +35054,7 @@ export type SearchSokoBotIntegrationCatalogErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33618,6 +35099,7 @@ export type ConnectMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33632,6 +35114,7 @@ export type ConnectMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33646,6 +35129,7 @@ export type ConnectMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33690,6 +35174,7 @@ export type FinalizeMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33704,6 +35189,7 @@ export type FinalizeMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33718,6 +35204,7 @@ export type FinalizeMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33762,6 +35249,7 @@ export type DisconnectMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33776,6 +35264,7 @@ export type DisconnectMySokoBotIntegrationErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33820,6 +35309,7 @@ export type IntroduceMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33834,6 +35324,7 @@ export type IntroduceMySokoBotErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33876,6 +35367,7 @@ export type ClaimMySokoBotAvatarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33890,6 +35382,7 @@ export type ClaimMySokoBotAvatarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33904,6 +35397,7 @@ export type ClaimMySokoBotAvatarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33946,6 +35440,7 @@ export type ListSokoBotVersionsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33988,6 +35483,7 @@ export type UpdateMySokoBotProactiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34002,6 +35498,7 @@ export type UpdateMySokoBotProactiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34016,6 +35513,7 @@ export type UpdateMySokoBotProactiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34060,6 +35558,7 @@ export type SendMySokoBotTurnFeedbackErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34074,6 +35573,7 @@ export type SendMySokoBotTurnFeedbackErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34118,6 +35618,7 @@ export type UpdateMySokoBotBoardFollowingErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34132,6 +35633,7 @@ export type UpdateMySokoBotBoardFollowingErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34174,6 +35676,7 @@ export type UpdateMySokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34188,6 +35691,7 @@ export type UpdateMySokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34202,6 +35706,7 @@ export type UpdateMySokoBotVersionErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34244,6 +35749,7 @@ export type RunMySokoBotLabIngestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34258,6 +35764,7 @@ export type RunMySokoBotLabIngestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34272,6 +35779,7 @@ export type RunMySokoBotLabIngestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34286,6 +35794,7 @@ export type RunMySokoBotLabIngestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34300,6 +35809,7 @@ export type RunMySokoBotLabIngestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34314,6 +35824,7 @@ export type RunMySokoBotLabIngestErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34356,6 +35867,7 @@ export type SimulateMySokoBotTaskEventErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34370,6 +35882,7 @@ export type SimulateMySokoBotTaskEventErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34384,6 +35897,7 @@ export type SimulateMySokoBotTaskEventErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34398,6 +35912,7 @@ export type SimulateMySokoBotTaskEventErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34412,6 +35927,7 @@ export type SimulateMySokoBotTaskEventErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34454,6 +35970,7 @@ export type GetSokoBotTeamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34468,6 +35985,7 @@ export type GetSokoBotTeamErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34510,6 +36028,7 @@ export type GetMySokoBotStatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34524,6 +36043,7 @@ export type GetMySokoBotStatsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34566,6 +36086,7 @@ export type ListMySokoBotSkillsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34608,6 +36129,7 @@ export type InstallMySokoBotSkillErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34622,6 +36144,7 @@ export type InstallMySokoBotSkillErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34666,6 +36189,7 @@ export type RemoveMySokoBotSkillErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34680,6 +36204,7 @@ export type RemoveMySokoBotSkillErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34726,6 +36251,7 @@ export type SearchSokoBotSkillsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34740,6 +36266,7 @@ export type SearchSokoBotSkillsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34784,6 +36311,7 @@ export type BrowseSokoBotSkillsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34798,6 +36326,7 @@ export type BrowseSokoBotSkillsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34843,6 +36372,7 @@ export type ListMySokoBotLabRunsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34885,6 +36415,7 @@ export type JudgeMySokoBotLabTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34899,6 +36430,7 @@ export type JudgeMySokoBotLabTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34913,6 +36445,7 @@ export type JudgeMySokoBotLabTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34927,6 +36460,7 @@ export type JudgeMySokoBotLabTurnErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34978,6 +36512,7 @@ export type GetCoworkersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -34992,6 +36527,7 @@ export type GetCoworkersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35006,6 +36542,7 @@ export type GetCoworkersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35070,6 +36607,7 @@ export type PostCoworkersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35084,6 +36622,7 @@ export type PostCoworkersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35098,6 +36637,7 @@ export type PostCoworkersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35140,6 +36680,7 @@ export type GetCoworkersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35154,6 +36695,7 @@ export type GetCoworkersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35168,6 +36710,7 @@ export type GetCoworkersMeErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35219,6 +36762,7 @@ export type GetCoworkersMeEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35233,6 +36777,7 @@ export type GetCoworkersMeEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35247,6 +36792,7 @@ export type GetCoworkersMeEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35295,6 +36841,7 @@ export type PostCoworkersMeUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35309,6 +36856,7 @@ export type PostCoworkersMeUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35323,6 +36871,7 @@ export type PostCoworkersMeUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35337,6 +36886,7 @@ export type PostCoworkersMeUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35351,6 +36901,7 @@ export type PostCoworkersMeUsageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35406,6 +36957,7 @@ export type GetCoworkersByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35420,6 +36972,7 @@ export type GetCoworkersByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35434,6 +36987,7 @@ export type GetCoworkersByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35481,6 +37035,7 @@ export type PostCoworkersByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35495,6 +37050,7 @@ export type PostCoworkersByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35509,6 +37065,7 @@ export type PostCoworkersByIdApiKeysErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35554,6 +37111,7 @@ export type DeleteCoworkersByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35568,6 +37126,7 @@ export type DeleteCoworkersByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35582,6 +37141,7 @@ export type DeleteCoworkersByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35630,6 +37190,7 @@ export type PatchCoworkersByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35644,6 +37205,7 @@ export type PatchCoworkersByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35658,6 +37220,7 @@ export type PatchCoworkersByIdApiKeysByKeyIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35702,6 +37265,7 @@ export type DeleteCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35716,6 +37280,7 @@ export type DeleteCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35730,6 +37295,7 @@ export type DeleteCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35774,6 +37340,7 @@ export type GetCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35788,6 +37355,7 @@ export type GetCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35850,6 +37418,7 @@ export type PatchCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35864,6 +37433,7 @@ export type PatchCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35878,6 +37448,7 @@ export type PatchCoworkersByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35922,6 +37493,7 @@ export type DeleteCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35936,6 +37508,7 @@ export type DeleteCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35950,6 +37523,7 @@ export type DeleteCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35999,6 +37573,7 @@ export type PostCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36013,6 +37588,7 @@ export type PostCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36027,6 +37603,7 @@ export type PostCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36041,6 +37618,7 @@ export type PostCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36055,6 +37633,7 @@ export type PostCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36069,6 +37648,7 @@ export type PostCoworkersByIdImageErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36115,6 +37695,7 @@ export type PatchCoworkersByIdWhitelistErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36129,6 +37710,7 @@ export type PatchCoworkersByIdWhitelistErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36143,6 +37725,7 @@ export type PatchCoworkersByIdWhitelistErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36187,6 +37770,7 @@ export type ListCoworkerWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36201,6 +37785,7 @@ export type ListCoworkerWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36215,6 +37800,7 @@ export type ListCoworkerWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36259,6 +37845,7 @@ export type CreateCoworkerWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36273,6 +37860,7 @@ export type CreateCoworkerWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36287,6 +37875,7 @@ export type CreateCoworkerWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36301,6 +37890,7 @@ export type CreateCoworkerWorkspaceAccessErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36345,6 +37935,7 @@ export type RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36359,6 +37950,7 @@ export type RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36373,6 +37965,7 @@ export type RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36387,6 +37980,7 @@ export type RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36431,6 +38025,7 @@ export type PostCoworkersByIdUnarchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36445,6 +38040,7 @@ export type PostCoworkersByIdUnarchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36459,6 +38055,7 @@ export type PostCoworkersByIdUnarchiveErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36562,6 +38159,7 @@ export type GetTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36576,6 +38174,7 @@ export type GetTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36590,6 +38189,7 @@ export type GetTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36663,6 +38263,7 @@ export type PostTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36677,6 +38278,7 @@ export type PostTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36691,6 +38293,7 @@ export type PostTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36705,6 +38308,7 @@ export type PostTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36719,6 +38323,7 @@ export type PostTasksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36766,6 +38371,7 @@ export type GetTasksSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36780,6 +38386,7 @@ export type GetTasksSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36794,6 +38401,7 @@ export type GetTasksSummaryErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36850,6 +38458,7 @@ export type PostTasksScheduledErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36864,6 +38473,7 @@ export type PostTasksScheduledErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36878,6 +38488,7 @@ export type PostTasksScheduledErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36892,6 +38503,7 @@ export type PostTasksScheduledErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36906,6 +38518,7 @@ export type PostTasksScheduledErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36920,6 +38533,7 @@ export type PostTasksScheduledErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36964,6 +38578,7 @@ export type GetTasksByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36978,6 +38593,7 @@ export type GetTasksByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37026,6 +38642,7 @@ export type PostTasksByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37040,6 +38657,7 @@ export type PostTasksByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37054,6 +38672,7 @@ export type PostTasksByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37068,6 +38687,7 @@ export type PostTasksByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37082,6 +38702,7 @@ export type PostTasksByIdLinksErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37127,6 +38748,7 @@ export type DeleteTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37141,6 +38763,7 @@ export type DeleteTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37155,6 +38778,7 @@ export type DeleteTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37169,6 +38793,7 @@ export type DeleteTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37217,6 +38842,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37231,6 +38857,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37245,6 +38872,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37259,6 +38887,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37303,6 +38932,7 @@ export type DeleteTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37317,6 +38947,7 @@ export type DeleteTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37331,6 +38962,7 @@ export type DeleteTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37345,6 +38977,7 @@ export type DeleteTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37359,6 +38992,7 @@ export type DeleteTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37403,6 +39037,7 @@ export type GetTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37417,6 +39052,7 @@ export type GetTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37458,6 +39094,7 @@ export type PatchTasksByIdData = {
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
+        expectedScheduleRevision?: number;
     };
     path: {
         id: string;
@@ -37474,6 +39111,7 @@ export type PatchTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37488,6 +39126,7 @@ export type PatchTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37502,6 +39141,7 @@ export type PatchTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37516,6 +39156,7 @@ export type PatchTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37530,6 +39171,7 @@ export type PatchTasksByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37558,7 +39200,7 @@ export type PatchTasksByIdResponses = {
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
 
 export type PutTasksByIdCalendarScheduleData = {
-    body?: PutTaskScheduleRequest;
+    body?: PutCalendarTaskScheduleRequest;
     path: {
         id: string;
     };
@@ -37574,6 +39216,7 @@ export type PutTasksByIdCalendarScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37588,6 +39231,7 @@ export type PutTasksByIdCalendarScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37602,6 +39246,7 @@ export type PutTasksByIdCalendarScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37616,6 +39261,7 @@ export type PutTasksByIdCalendarScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37630,6 +39276,7 @@ export type PutTasksByIdCalendarScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37644,6 +39291,7 @@ export type PutTasksByIdCalendarScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37673,6 +39321,16 @@ export type PutTasksByIdCalendarScheduleResponse = PutTasksByIdCalendarScheduleR
 
 export type DeleteTasksByIdScheduleData = {
     body?: never;
+    headers: {
+        /**
+         * Idempotency identity for this series removal
+         */
+        'idempotency-key': string;
+        /**
+         * Schedule revision observed by the caller
+         */
+        'x-sokosumi-schedule-revision': string;
+    };
     path: {
         id: string;
     };
@@ -37688,6 +39346,7 @@ export type DeleteTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37702,6 +39361,7 @@ export type DeleteTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37716,6 +39376,7 @@ export type DeleteTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37730,6 +39391,22 @@ export type DeleteTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37774,6 +39451,7 @@ export type PutTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37788,6 +39466,7 @@ export type PutTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37802,6 +39481,7 @@ export type PutTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37816,6 +39496,7 @@ export type PutTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37830,6 +39511,7 @@ export type PutTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37844,6 +39526,7 @@ export type PutTasksByIdScheduleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37871,6 +39554,260 @@ export type PutTasksByIdScheduleResponses = {
 
 export type PutTasksByIdScheduleResponse = PutTasksByIdScheduleResponses[keyof PutTasksByIdScheduleResponses];
 
+export type GetTasksByIdScheduleOccurrencesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending
+         */
+        view?: TaskScheduleOccurrenceView;
+    };
+    url: '/tasks/{id}/schedule/occurrences';
+};
+
+export type GetTasksByIdScheduleOccurrencesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleOccurrencesError = GetTasksByIdScheduleOccurrencesErrors[keyof GetTasksByIdScheduleOccurrencesErrors];
+
+export type GetTasksByIdScheduleOccurrencesResponses = {
+    /**
+     * Task schedule occurrences
+     */
+    200: {
+        data: TaskScheduleOccurrencePage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleOccurrencesResponse = GetTasksByIdScheduleOccurrencesResponses[keyof GetTasksByIdScheduleOccurrencesResponses];
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdData = {
+    body?: RescheduleTaskScheduleOccurrenceRequest;
+    path: {
+        id: string;
+        occurrenceId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule/occurrences/{occurrenceId}';
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdError = PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors[keyof PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors];
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses = {
+    /**
+     * Schedule occurrence rescheduled
+     */
+    200: {
+        data: TaskScheduleOccurrenceMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponse = PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses[keyof PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses];
+
 export type DeleteTasksByIdShareData = {
     body?: never;
     path: {
@@ -37888,6 +39825,7 @@ export type DeleteTasksByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37902,6 +39840,7 @@ export type DeleteTasksByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37916,6 +39855,7 @@ export type DeleteTasksByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37964,6 +39904,7 @@ export type PutTasksByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37978,6 +39919,7 @@ export type PutTasksByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -37992,6 +39934,7 @@ export type PutTasksByIdShareErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38036,6 +39979,7 @@ export type GetTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38050,6 +39994,7 @@ export type GetTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38064,6 +40009,7 @@ export type GetTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38110,6 +40056,7 @@ export type PutTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38124,6 +40071,7 @@ export type PutTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38138,6 +40086,7 @@ export type PutTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38152,6 +40101,7 @@ export type PutTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38166,6 +40116,7 @@ export type PutTasksByIdWorkspaceErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38210,6 +40161,7 @@ export type GetTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38224,6 +40176,7 @@ export type GetTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38279,6 +40232,7 @@ export type PostTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38293,6 +40247,7 @@ export type PostTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38307,6 +40262,7 @@ export type PostTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38321,6 +40277,7 @@ export type PostTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38335,6 +40292,7 @@ export type PostTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38343,12 +40301,13 @@ export type PostTasksByIdEventsErrors = {
         };
     };
     /**
-     * Unprocessable Entity. Mid-run insufficient balance pauses the task to OUT_OF_CREDITS; `data` is that event and `kind` is insufficient_balance.
+     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_schedule (Queued requested without an active schedule; no pause event in `data`).
      */
     422: {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         data?: TaskEvent;
         attemptedCredits?: number;
         requestedStatus?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
@@ -38366,6 +40325,7 @@ export type PostTasksByIdEventsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38410,6 +40370,7 @@ export type GetTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38424,6 +40385,7 @@ export type GetTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38438,6 +40400,7 @@ export type GetTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38482,6 +40445,7 @@ export type PostTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38496,6 +40460,7 @@ export type PostTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38510,6 +40475,7 @@ export type PostTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38524,6 +40490,7 @@ export type PostTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38538,6 +40505,7 @@ export type PostTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38552,6 +40520,7 @@ export type PostTasksByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38596,6 +40565,7 @@ export type GetTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38610,6 +40580,7 @@ export type GetTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39601,6 +41572,7 @@ export type PostTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39615,6 +41587,7 @@ export type PostTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39629,6 +41602,7 @@ export type PostTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39643,6 +41617,7 @@ export type PostTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39657,6 +41632,7 @@ export type PostTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39671,6 +41647,7 @@ export type PostTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39685,6 +41662,7 @@ export type PostTasksByIdJobsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39746,6 +41724,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39760,6 +41739,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39774,6 +41754,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39788,6 +41769,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39802,6 +41784,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39816,6 +41799,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39830,6 +41814,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         data?: null;
         attemptedCredits?: number;
         meta: {
@@ -39846,6 +41831,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39860,6 +41846,7 @@ export type PostTasksByIdX402PaymentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39915,6 +41902,7 @@ export type GetToolsSiteIconErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39929,6 +41917,7 @@ export type GetToolsSiteIconErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39943,6 +41932,7 @@ export type GetToolsSiteIconErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39957,6 +41947,7 @@ export type GetToolsSiteIconErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39971,6 +41962,7 @@ export type GetToolsSiteIconErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -39985,6 +41977,7 @@ export type GetToolsSiteIconErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40027,6 +42020,7 @@ export type ListCreditPricesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40041,6 +42035,7 @@ export type ListCreditPricesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40083,6 +42078,7 @@ export type GetCreditTopUpPriceCatalogErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40097,6 +42093,7 @@ export type GetCreditTopUpPriceCatalogErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40139,6 +42136,7 @@ export type GetSubscriptionCatalogErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40153,6 +42151,7 @@ export type GetSubscriptionCatalogErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40203,6 +42202,7 @@ export type PostRealtimeAblyTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40217,6 +42217,7 @@ export type PostRealtimeAblyTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40231,6 +42232,7 @@ export type PostRealtimeAblyTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40245,6 +42247,7 @@ export type PostRealtimeAblyTokenErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40287,6 +42290,7 @@ export type ListVendorsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40301,6 +42305,7 @@ export type ListVendorsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40343,6 +42348,7 @@ export type ListMyVendorMembershipsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40357,6 +42363,7 @@ export type ListMyVendorMembershipsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40404,6 +42411,7 @@ export type PatchVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40418,6 +42426,7 @@ export type PatchVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40432,6 +42441,7 @@ export type PatchVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40446,6 +42456,7 @@ export type PatchVendorErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40493,6 +42504,7 @@ export type ListVendorMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40507,6 +42519,7 @@ export type ListVendorMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40521,6 +42534,7 @@ export type ListVendorMembersErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40568,6 +42582,7 @@ export type AddVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40582,6 +42597,7 @@ export type AddVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40596,6 +42612,7 @@ export type AddVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40610,6 +42627,7 @@ export type AddVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40624,6 +42642,7 @@ export type AddVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40675,6 +42694,7 @@ export type RemoveVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40689,6 +42709,7 @@ export type RemoveVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40703,6 +42724,7 @@ export type RemoveVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40717,6 +42739,7 @@ export type RemoveVendorMemberErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40761,6 +42784,7 @@ export type PatchVendorMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40775,6 +42799,7 @@ export type PatchVendorMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40789,6 +42814,7 @@ export type PatchVendorMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40803,6 +42829,7 @@ export type PatchVendorMemberRoleErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40854,6 +42881,7 @@ export type ListCoworkerAssignmentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40868,6 +42896,7 @@ export type ListCoworkerAssignmentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40882,6 +42911,7 @@ export type ListCoworkerAssignmentsErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40933,6 +42963,7 @@ export type AssignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40947,6 +42978,7 @@ export type AssignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40961,6 +42993,7 @@ export type AssignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -40975,6 +43008,7 @@ export type AssignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41030,6 +43064,7 @@ export type UnassignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41044,6 +43079,7 @@ export type UnassignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41058,6 +43094,7 @@ export type UnassignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41072,6 +43109,7 @@ export type UnassignCoworkerDeveloperErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41112,6 +43150,7 @@ export type PostVendorsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41126,6 +43165,7 @@ export type PostVendorsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41140,6 +43180,7 @@ export type PostVendorsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41154,6 +43195,7 @@ export type PostVendorsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41168,6 +43210,7 @@ export type PostVendorsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41182,6 +43225,7 @@ export type PostVendorsByIdFilesCleanupErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41229,6 +43273,7 @@ export type PostVendorsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41243,6 +43288,7 @@ export type PostVendorsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41257,6 +43303,7 @@ export type PostVendorsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41271,6 +43318,7 @@ export type PostVendorsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41285,6 +43333,7 @@ export type PostVendorsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41299,6 +43348,7 @@ export type PostVendorsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41313,6 +43363,7 @@ export type PostVendorsByIdFilesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41355,6 +43406,7 @@ export type PostWebhooksTasksFilesUploadedErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41369,6 +43421,7 @@ export type PostWebhooksTasksFilesUploadedErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41383,6 +43436,7 @@ export type PostWebhooksTasksFilesUploadedErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41422,6 +43476,7 @@ export type PostWorkspacesDesignMdAdhocErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41436,6 +43491,7 @@ export type PostWorkspacesDesignMdAdhocErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41450,6 +43506,7 @@ export type PostWorkspacesDesignMdAdhocErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41464,6 +43521,7 @@ export type PostWorkspacesDesignMdAdhocErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41478,6 +43536,7 @@ export type PostWorkspacesDesignMdAdhocErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41520,6 +43579,7 @@ export type GetWorkspacesDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41534,6 +43594,7 @@ export type GetWorkspacesDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41548,6 +43609,7 @@ export type GetWorkspacesDesignMdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41645,6 +43707,7 @@ export type GetWorkspacesCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41659,6 +43722,7 @@ export type GetWorkspacesCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41673,6 +43737,7 @@ export type GetWorkspacesCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41687,6 +43752,7 @@ export type GetWorkspacesCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41701,6 +43767,7 @@ export type GetWorkspacesCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41757,6 +43824,7 @@ export type GetWorkspacesCalendarSourcesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41771,6 +43839,7 @@ export type GetWorkspacesCalendarSourcesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41785,6 +43854,7 @@ export type GetWorkspacesCalendarSourcesErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41870,6 +43940,7 @@ export type GetWorkspacesByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41884,6 +43955,7 @@ export type GetWorkspacesByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41898,6 +43970,7 @@ export type GetWorkspacesByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41912,6 +43985,7 @@ export type GetWorkspacesByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41926,6 +44000,7 @@ export type GetWorkspacesByIdCalendarErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41970,6 +44045,7 @@ export type GetWorkspacesByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41984,6 +44060,7 @@ export type GetWorkspacesByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41998,6 +44075,7 @@ export type GetWorkspacesByIdErrors = {
         error: string;
         message: string;
         kind?: string;
+        retryAfterSeconds?: number;
         meta: {
             timestamp: Date;
             requestId: string;

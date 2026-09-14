@@ -30,7 +30,8 @@ export interface RoomNotificationDeepLinkParams {
   /** Still the room this jump was started for. */
   isStillSelectedRoom: (roomId: string) => boolean;
   invalidateJump: () => void;
-  jumpInRoom: (messageId: string) => Promise<void>;
+  /** Resolves true once the message is on screen; not read here. */
+  jumpInRoom: (messageId: string) => Promise<boolean>;
   jumpInThread: (message: ChatRoomMessage) => Promise<void>;
 }
 

@@ -11,7 +11,7 @@ import {
 } from "@/lib/aurora-orb";
 import { cn } from "@/lib/utils";
 
-export interface OrbEvent {
+interface OrbEvent {
   expr: OrbExpression;
   nonce: number;
   ms?: number;
@@ -243,7 +243,7 @@ interface PlaceholderOrbProps {
  * Default is a live `<canvas>` + rAF loop. Pass `animate={false}` for lists.
  * Display size comes from `className`.
  */
-export function PlaceholderOrb({
+function PlaceholderOrb({
   size = 64,
   speed = 1.2,
   className,

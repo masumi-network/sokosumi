@@ -395,7 +395,7 @@ export function CreateOrganizationWizard({
           toast.error(message, {
             action: {
               label: t("Errors.unauthorizedAction"),
-              onClick: () => router.push("/login"),
+              onClick: () => router.push("/signin"),
             },
           });
         } else {
@@ -612,7 +612,6 @@ export function CreateOrganizationWizard({
           {t("description")}
         </DialogDescription>
 
-        {/* Progress rail + slide counter */}
         <div className="relative flex items-center px-6 py-5 sm:px-8 sm:py-6">
           <div className="absolute inset-x-0 top-0 flex h-[3px] gap-1">
             {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
@@ -647,7 +646,6 @@ export function CreateOrganizationWizard({
             key={step}
             className="animate-in fade-in-0 slide-in-from-bottom-1 my-auto w-full duration-200 ease-out motion-reduce:animate-none"
           >
-            {/* Step 1 — Details */}
             {step === 0 && (
               <Form {...form}>
                 <form id="create-org-details" onSubmit={handleDetailsContinue}>
@@ -737,7 +735,6 @@ export function CreateOrganizationWizard({
               </Form>
             )}
 
-            {/* Step 2 — Logo */}
             {step === 1 && (
               <>
                 <div className="flex min-h-24 flex-none items-center justify-center">
@@ -813,7 +810,6 @@ export function CreateOrganizationWizard({
               </>
             )}
 
-            {/* Step 3 — Brand Guidelines */}
             {step === 2 && (
               <>
                 <div className="flex min-h-24 flex-none items-center justify-center">
@@ -907,7 +903,6 @@ export function CreateOrganizationWizard({
               </>
             )}
 
-            {/* Step 4 — created; confirm and invite */}
             {step === SUCCESS_STEP && (
               <>
                 {/* Tighter than the setup steps: this slide stacks the link

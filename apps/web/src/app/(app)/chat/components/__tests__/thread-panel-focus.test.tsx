@@ -51,6 +51,11 @@ vi.mock("../room-message-row", () => ({
   ),
 }));
 
+vi.mock(
+  "@/app/chat/components/transcript-viewport",
+  () => import("./transcript-viewport-stub"),
+);
+
 function parentMessage(
   overrides: Partial<ChatRoomMessage> = {},
 ): ChatRoomMessage {
@@ -61,6 +66,7 @@ function parentMessage(
     content: "Parent",
     createdAt: new Date("2026-07-01T14:35:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
@@ -96,7 +102,6 @@ function renderThreadPanel(
       replies={[]}
       isLoading={false}
       olderNextCursor={null}
-      isLoadingOlder={false}
       onLoadOlder={() => undefined}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}

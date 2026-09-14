@@ -36,22 +36,26 @@ export interface RoomMessageJumpDeps {
  * Reached from the pinned list and from a notification that named the message
  * on the room's URL. The thread case belongs to `performRoomSearchJump`, which
  * needs the parent to open the panel first.
+ *
+ * Resolves true once the message is on screen. The pinned list waits on that
+ * to close itself, and stays open when the jump gave up so the row the reader
+ * tapped is still there to tap again.
  */
 export async function performRoomMessageJump(
   messageId: string,
   deps: RoomMessageJumpDeps,
-): Promise<void> {
+): Promise<boolean> {
   if (deps.highlight(messageId)) {
-    return;
+    return true;
   }
 
   deps.holdOffBottom();
   try {
     if (!(await deps.loadAround(messageId))) {
-      return;
+      return false;
     }
     await deps.afterRender();
-    deps.highlight(messageId);
+    return deps.highlight(messageId);
   } finally {
     deps.releaseHoldOffBottom();
   }

@@ -8,6 +8,7 @@ import {
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
+import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -15,6 +16,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
+import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
 const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
   mockIsMobileMedia: vi.fn((): boolean | undefined => false),
@@ -35,15 +37,6 @@ const { mockReplace, mockSearch, mockThreadPanelRows } = vi.hoisted(() => ({
 const { mockSearchHit } = vi.hoisted(() => ({
   mockSearchHit: { current: null as ChatRoomMessage | null },
 }));
-
-// Stable across renders on purpose. A fresh `vi.fn()` per render cannot show
-// which room a hold was taken for, or which jump gave it back, and those are
-// the two things the guards on these calls exist to get right.
-const { mockSuppressStickToBottom, mockReleaseStickToBottomSuppress } =
-  vi.hoisted(() => ({
-    mockSuppressStickToBottom: vi.fn(),
-    mockReleaseStickToBottomSuppress: vi.fn(),
-  }));
 
 vi.mock("@/app/chat/message-actions", () => ({
   getRoomMessageAction: vi.fn(),
@@ -123,18 +116,10 @@ vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
   useClientLocalCalendarReady: () => true,
 }));
 
-vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
-  useStickToBottom: () => ({
-    scrollerRef: { current: null },
-    contentRef: { current: null },
-    contentMinHeight: undefined,
-    scrollToBottom: vi.fn(),
-    pinToBottomAfterOwnSend: vi.fn(),
-    scrollToBottomIfPinned: vi.fn(),
-    suppressStickToBottom: mockSuppressStickToBottom,
-    releaseStickToBottomSuppress: mockReleaseStickToBottomSuppress,
-  }),
-}));
+vi.mock(
+  "@/app/chat/components/transcript-viewport",
+  () => import("./transcript-viewport-stub"),
+);
 
 vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
   readStoredStreamParentMessageId: () => null,
@@ -230,32 +215,67 @@ vi.mock("../room-message-row", () => ({
 
 // Reports which thread was opened and what it holds. A notification for a
 // reply is meant to land inside the thread, and the real panel renders far
-// more than this test can set up.
-vi.mock("../thread-panel", () => ({
-  ThreadPanel: ({
-    parentMessage,
-    replies,
-  }: {
-    parentMessage: ChatRoomMessage | null;
-    replies: ChatRoomMessage[];
-  }) => (
-    <div
-      data-testid="thread-panel"
-      data-parent-id={parentMessage?.id ?? ""}
-      data-reply-ids={replies.map((reply) => reply.id).join(",")}
-    >
-      {mockThreadPanelRows.current ? (
-        <div data-chat-message-list="thread">
-          {[parentMessage, ...replies]
-            .filter((message) => message != null)
-            .map((message) => (
-              <div key={message.id} data-message-id={message.id} />
-            ))}
+// more than this test can set up. The viewport handle is how jumps land:
+// DOM attribute queries are the old path.
+vi.mock("../thread-panel", async () => {
+  const { useImperativeHandle } = await import("react");
+  return {
+    ThreadPanel: function ThreadPanelMock({
+      parentMessage,
+      replies,
+      viewportRef,
+    }: {
+      parentMessage: ChatRoomMessage | null;
+      replies: ChatRoomMessage[];
+      viewportRef?: Ref<{
+        landOnMessage: (messageId: string) => boolean;
+        scrollToMessage: (messageId: string) => boolean;
+        scrollToBottom: () => void;
+        pinToBottomAfterOwnSend: () => void;
+        suppressStickToBottom: () => void;
+        releaseStickToBottomSuppress: () => void;
+      } | null>;
+    }) {
+      useImperativeHandle(viewportRef, () => ({
+        scrollToBottom: () => undefined,
+        pinToBottomAfterOwnSend: () => undefined,
+        suppressStickToBottom: () => undefined,
+        releaseStickToBottomSuppress: () => undefined,
+        landOnMessage: (messageId: string) => {
+          const target = document.querySelector<HTMLElement>(
+            `[data-chat-message-list="thread"] [data-message-id="${CSS.escape(messageId)}"]`,
+          );
+          if (!target) {
+            return false;
+          }
+          target.dataset.searchLanded = "true";
+          return true;
+        },
+        scrollToMessage: (messageId: string) =>
+          document.querySelector(
+            `[data-chat-message-list="thread"] [data-message-id="${CSS.escape(messageId)}"]`,
+          ) != null,
+      }));
+      return (
+        <div
+          data-testid="thread-panel"
+          data-parent-id={parentMessage?.id ?? ""}
+          data-reply-ids={replies.map((reply) => reply.id).join(",")}
+        >
+          {mockThreadPanelRows.current ? (
+            <div data-chat-message-list="thread">
+              {[parentMessage, ...replies]
+                .filter((message) => message != null)
+                .map((message) => (
+                  <div key={message.id} data-message-id={message.id} />
+                ))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </div>
-  ),
-}));
+      );
+    },
+  };
+});
 
 vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: ({
@@ -373,6 +393,7 @@ function sampleMessage(
     content,
     createdAt: new Date("2026-07-01T12:01:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
@@ -411,8 +432,8 @@ describe("RoomsClient notification deep link", () => {
     mockThreadPanelRows.current = false;
     mockReplace.mockReset();
     mockSearchHit.current = null;
-    mockSuppressStickToBottom.mockReset();
-    mockReleaseStickToBottomSuppress.mockReset();
+    transcriptViewportSpies.suppressStickToBottom.mockReset();
+    transcriptViewportSpies.releaseStickToBottomSuppress.mockReset();
     vi.mocked(getRoomMessageAction).mockReset();
     vi.mocked(getRoomThreadAction).mockReset();
     vi.mocked(listRoomMessagesAction).mockReset();
@@ -515,6 +536,7 @@ describe("RoomsClient notification deep link", () => {
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
         around: "msg-1",
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
       });
     });
   });
@@ -551,6 +573,7 @@ describe("RoomsClient notification deep link", () => {
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
         around: "msg-1",
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
       });
     });
 
@@ -891,7 +914,7 @@ describe("RoomsClient notification deep link", () => {
       />,
     );
     const releasesBeforeTheMove =
-      mockReleaseStickToBottomSuppress.mock.calls.length;
+      transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length;
 
     await act(async () => {
       failParent();
@@ -905,9 +928,9 @@ describe("RoomsClient notification deep link", () => {
     // The thread jump gives up here, which is where it would release the hold
     // it took. That hold was for the room the reader left, so releasing now
     // would drop whatever hold the room they moved to is relying on.
-    expect(mockReleaseStickToBottomSuppress.mock.calls.length).toBe(
-      releasesBeforeTheMove,
-    );
+    expect(
+      transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length,
+    ).toBe(releasesBeforeTheMove);
   });
   /**
    * Every load a jump makes checks the room before it reports a failure, so
@@ -959,6 +982,7 @@ describe("RoomsClient notification deep link", () => {
       await waitFor(() => {
         expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
           around: "msg-1",
+          limit: ROOM_HISTORY_WINDOW_LIMIT,
         });
       });
 
@@ -998,12 +1022,14 @@ describe("RoomsClient notification deep link", () => {
 
       // The hold is taken for room-channel before the window is asked for.
       await waitFor(() => {
-        expect(mockSuppressStickToBottom).toHaveBeenCalled();
+        expect(
+          transcriptViewportSpies.suppressStickToBottom,
+        ).toHaveBeenCalled();
       });
 
       leaveRoom(rerender);
       const releasesBeforeTheMove =
-        mockReleaseStickToBottomSuppress.mock.calls.length;
+        transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length;
 
       await act(async () => {
         finishWindow();
@@ -1013,9 +1039,9 @@ describe("RoomsClient notification deep link", () => {
       // The jump finishes for a room nobody is looking at. Releasing now
       // would drop whatever hold room-other is relying on, and a room that
       // has lost its hold cannot be given it back by scrolling.
-      expect(mockReleaseStickToBottomSuppress.mock.calls.length).toBe(
-        releasesBeforeTheMove,
-      );
+      expect(
+        transcriptViewportSpies.releaseStickToBottomSuppress.mock.calls.length,
+      ).toBe(releasesBeforeTheMove);
     });
 
     it("says nothing when a search hit's own window fails", async () => {
@@ -1041,6 +1067,7 @@ describe("RoomsClient notification deep link", () => {
       await waitFor(() => {
         expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
           around: "msg-hit",
+          limit: ROOM_HISTORY_WINDOW_LIMIT,
         });
       });
 
@@ -1192,6 +1219,7 @@ describe("RoomsClient notification deep link", () => {
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
         around: "msg-1",
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
       });
     });
 
@@ -1203,7 +1231,9 @@ describe("RoomsClient notification deep link", () => {
     expect(getRoomMessageAction).toHaveBeenCalledTimes(1);
     await act(async () => finishWindow());
     await waitFor(() => {
-      expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+      expect(
+        transcriptViewportSpies.releaseStickToBottomSuppress,
+      ).toHaveBeenCalledOnce();
     });
     expect(screen.getByText("latest target")).toBeInTheDocument();
     expect(screen.queryByText("older target")).toBeNull();
@@ -1254,7 +1284,9 @@ describe("RoomsClient notification deep link", () => {
     });
     // The newest jump owns the hold and is the one that gives it back.
     await waitFor(() => {
-      expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+      expect(
+        transcriptViewportSpies.releaseStickToBottomSuppress,
+      ).toHaveBeenCalledOnce();
     });
 
     await act(async () => {
@@ -1267,7 +1299,9 @@ describe("RoomsClient notification deep link", () => {
     expect(screen.queryByText("first window")).toBeNull();
     // The replaced jump must not release either, or a hold the newest jump
     // is still relying on goes with it.
-    expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+    expect(
+      transcriptViewportSpies.releaseStickToBottomSuppress,
+    ).toHaveBeenCalledOnce();
   });
 
   it("still reports a missing thread to the reader who searched for it", async () => {

@@ -81,6 +81,12 @@ export function mergeRoomMessages(
     if (isOutboundLocalMessage(message)) {
       continue;
     }
+    // Memoized rows key on object identity; a refresh page re-sends every
+    // message, so keep the existing object when nothing in it changed.
+    const existingById = byId.get(message.id);
+    if (existingById != null && isSameMessage(existingById, message)) {
+      continue;
+    }
     byId.set(message.id, message);
   }
 
@@ -111,6 +117,15 @@ export function mergeRoomMessages(
   }
 
   return [...mergedConfirmed, ...unresolvedOutbound];
+}
+
+/**
+ * Structural equality by JSON text. Page and realtime rows are built in the
+ * same DTO key order, so equal messages serialize identically (Dates as ISO).
+ * A key-order mismatch only costs one extra row render, never wrong data.
+ */
+function isSameMessage(left: ChatRoomMessage, right: ChatRoomMessage): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function streamSenderSortRank(message: ChatRoomMessage): number {

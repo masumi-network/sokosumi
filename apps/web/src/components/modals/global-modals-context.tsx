@@ -7,13 +7,11 @@ import LogoutModal, { type LogoutModalUser } from "./logout-modal";
 
 interface GlobalModalsContextType {
   showLogoutModal: (user: LogoutModalUser) => void;
-  hideLogoutModal: () => void;
   showCalendarClientUpgradeModal: () => void;
 }
 
 const GlobalModalsContext = createContext<GlobalModalsContextType>({
   showLogoutModal: () => {},
-  hideLogoutModal: () => {},
   showCalendarClientUpgradeModal: () => {},
 });
 
@@ -32,17 +30,12 @@ export function GlobalModalsContextProvider({
     setLogoutModalOpen(true);
   };
 
-  const hideLogoutModal = () => {
-    setLogoutModalOpen(false);
-  };
-
   const showCalendarClientUpgradeModal = () => {
     setCalendarClientUpgradeModalOpen(true);
   };
 
   const value: GlobalModalsContextType = {
     showLogoutModal,
-    hideLogoutModal,
     showCalendarClientUpgradeModal,
   };
 

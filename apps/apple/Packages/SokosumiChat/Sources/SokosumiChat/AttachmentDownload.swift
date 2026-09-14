@@ -8,6 +8,18 @@ public enum AttachmentDownload {
     }
   }
 
+  /// Matches the web text viewer's UTF-8 decoding, including replacement of invalid bytes.
+  public static func text(_ url: URL, session: URLSession = .shared) async throws -> String {
+    let file = try await fetch(url, session: session)
+    defer { try? FileManager.default.removeItem(at: file) }
+    let data = try Data(contentsOf: file)
+    try Task.checkCancellation()
+    // Fetch text decoding replaces invalid UTF-8 instead of failing.
+    // swiftlint:disable:next optional_data_string_conversion
+    let text = String(decoding: data, as: UTF8.self)
+    return text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text
+  }
+
   /// No Core credentials are forwarded to message-authored URLs.
   public static func fetch(_ url: URL, session: URLSession = .shared) async throws -> URL {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil else { throw Failure.invalidResponse }

@@ -2,6 +2,12 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CHAT_READ_THROTTLE_FALLBACK_SECONDS,
+  resetChatReadThrottleForTests,
+} from "@/lib/chat/chat-read-throttle";
+
+import { fetchBackgroundJson } from "./fetch-background-json";
+import {
   CHAT_HEALTHY_REFRESH_MS,
   useChatRefreshScheduler,
 } from "./use-chat-refresh-scheduler";
@@ -69,11 +75,14 @@ describe("useChatRefreshScheduler", () => {
       .spyOn(document, "visibilityState", "get")
       .mockReturnValue("visible");
     hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    resetChatReadThrottleForTests();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    resetChatReadThrottleForTests();
   });
 
   it("recovers every 60 seconds while healthy, re-armed after each completion", async () => {
@@ -354,5 +363,281 @@ describe("useChatRefreshScheduler", () => {
     });
     await tick(CHAT_HEALTHY_REFRESH_MS);
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  describe("while throttled", () => {
+    function throttledFetch(
+      headerSeconds?: number,
+      bodySeconds?: number,
+    ): void {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 429,
+          headers: new Headers(
+            headerSeconds === undefined
+              ? {}
+              : { "retry-after": String(headerSeconds) },
+          ),
+          json: async () =>
+            bodySeconds === undefined ? {} : { retryAfterSeconds: bodySeconds },
+        }),
+      );
+    }
+
+    /** Arms the shared clock through the real background-fetch seam. */
+    async function armThrottle(delaySeconds: number): Promise<void> {
+      throttledFetch(delaySeconds);
+      await fetchBackgroundJson("/api/chat/rooms", 20_000);
+    }
+
+    beforeEach(() => {
+      // No resume jitter, so the waits below read as the delays they pin.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+    });
+
+    it("quiets the timer read and runs one catch-up read at the window end", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(refresh, { healthy: false });
+
+      await tick(FALLBACK_MS);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000 - FALLBACK_MS - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("resumes the fallback cadence after the window ends", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(refresh, { healthy: false });
+
+      await tick(30_000);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      await tick(FALLBACK_MS - 1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(2);
+    });
+
+    it("resumes the healthy cadence after the window ends", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(refresh, { refreshOnMount: true });
+
+      await tick(30_000);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      await tick(CHAT_HEALTHY_REFRESH_MS - 1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(2);
+    });
+
+    it("defers the mount read until the window ends", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(refresh, { healthy: false, refreshOnMount: true });
+
+      await act(async () => undefined);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000 - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("defers an online read until the window ends", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(refresh, { healthy: false });
+
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+      });
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("defers a foreground-return read until the window ends", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(refresh, { healthy: false });
+
+      await act(async () => goBackground("hidden"));
+      await tick(FALLBACK_MS);
+      expect(refresh).not.toHaveBeenCalled();
+      await act(async () => goForeground());
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000 - FALLBACK_MS);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("defers a recovery read until the window ends", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      const { rerender } = mount(refresh, {
+        healthy: true,
+        refreshOnRecovery: true,
+      });
+
+      rerender({ key: "room-1", healthy: false });
+      rerender({ key: "room-1", healthy: true });
+      await act(async () => undefined);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs an explicit request exactly once at the window end, even while hidden", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      const { result } = mount(refresh, { healthy: false });
+
+      await act(async () => goBackground("hidden"));
+      await act(async () => {
+        result.current();
+      });
+      expect(refresh).not.toHaveBeenCalled();
+
+      // The deferred explicit read fires while still away, so the tab title
+      // unread count updates without waiting for the return.
+      await tick(30_000 - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+
+      await act(async () => goForeground());
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("coalesces timer, explicit, and online needs into one catch-up read", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      const { result } = mount(refresh, { healthy: false });
+
+      await tick(FALLBACK_MS);
+      await act(async () => {
+        result.current();
+        result.current();
+        window.dispatchEvent(new Event("online"));
+      });
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000 - FALLBACK_MS);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("extends the quiet period when throttled again inside the window", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(10);
+      mount(refresh, { healthy: false, refreshOnMount: true });
+      await act(async () => undefined);
+      expect(refresh).not.toHaveBeenCalled();
+
+      await tick(8_000);
+      await armThrottle(30);
+      await tick(2_000);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(28_000 - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("quiets a sibling scheduler that never saw the 429", async () => {
+      const first = vi.fn().mockResolvedValue(undefined);
+      const second = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(first, { healthy: false });
+      mount(second, { healthy: false });
+
+      await tick(FALLBACK_MS);
+      expect(first).not.toHaveBeenCalled();
+      expect(second).not.toHaveBeenCalled();
+      await tick(30_000 - FALLBACK_MS);
+      expect(first).toHaveBeenCalledTimes(1);
+      expect(second).toHaveBeenCalledTimes(1);
+    });
+
+    it("honors the body delay when the header is missing", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      throttledFetch(undefined, 45);
+      await fetchBackgroundJson("/api/chat/rooms", 20_000);
+      mount(refresh, { healthy: false, refreshOnMount: true });
+
+      await act(async () => undefined);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(45_000 - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("prefers the header delay over a conflicting body delay", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      throttledFetch(30, 45);
+      await fetchBackgroundJson("/api/chat/rooms", 20_000);
+      mount(refresh, { healthy: false, refreshOnMount: true });
+
+      await act(async () => undefined);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(30_000 - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      // The header won: the read lands at 30s, not at the body's 45s.
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to a short bounded wait on a bare 429", async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      throttledFetch();
+      await fetchBackgroundJson("/api/chat/rooms", 20_000);
+      mount(refresh, { healthy: false, refreshOnMount: true });
+
+      const fallbackMs = CHAT_READ_THROTTLE_FALLBACK_SECONDS * 1000;
+      await act(async () => undefined);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(fallbackMs - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("spreads the resume past the window end with jitter, never before it", async () => {
+      vi.spyOn(Math, "random").mockReturnValue(1);
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      mount(refresh, { healthy: false, refreshOnMount: true });
+
+      await act(async () => undefined);
+      await tick(30_000);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(7_500 - 1);
+      expect(refresh).not.toHaveBeenCalled();
+      await tick(1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not fire a second catch-up when a read starts in the jitter tail", async () => {
+      vi.spyOn(Math, "random").mockReturnValue(1);
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      await armThrottle(30);
+      const { result } = mount(refresh, { refreshOnMount: true });
+
+      await act(async () => undefined);
+      await tick(30_000);
+      expect(refresh).not.toHaveBeenCalled();
+
+      await act(async () => {
+        result.current();
+      });
+      expect(refresh).toHaveBeenCalledTimes(1);
+
+      await tick(7_500);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
   });
 });

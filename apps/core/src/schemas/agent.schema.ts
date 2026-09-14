@@ -334,8 +334,6 @@ export type AgentMyReview = z.infer<typeof agentMyReviewSchema>;
 
 export const agentMyReviewResponseSchema = agentMyReviewSchema.nullable();
 
-export const agentsSummarySchema = z.array(agentSummarySchema);
-
 export const agentRatingRequestSchema = z
   .object({
     rating: z

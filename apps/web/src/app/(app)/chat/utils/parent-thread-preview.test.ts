@@ -15,6 +15,7 @@ function parentMessage(
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
     deletedAt: null,
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "user",
       user: {

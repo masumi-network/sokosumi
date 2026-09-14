@@ -24,7 +24,7 @@ export const memberRepository = (() => {
    * @param userId - The ID of the user to add as a member.
    * @param organizationId - The ID of the organization.
    * @param role - The role to assign to the member (e.g., ADMIN, MEMBER).
-   * @param tx - Optional Prisma transaction client for transactional operations.
+   * @param tx - The Prisma transaction client to use.
    * @returns The created Member object.
    */
   async function createMember(
@@ -54,7 +54,7 @@ export const memberRepository = (() => {
    * Retrieves all memberships for a user, including organization details.
    *
    * @param userId - The ID of the user.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns An array of MemberWithOrganization objects.
    */
   async function getMembersWithOrganizationByUserId(
@@ -74,7 +74,7 @@ export const memberRepository = (() => {
    * Retrieves all organization IDs for which the user is a member.
    *
    * @param userId - The ID of the user.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns An array of organization IDs.
    */
   async function getMembersOrganizationIdsByUserId(
@@ -93,7 +93,7 @@ export const memberRepository = (() => {
    *
    * @param userId - The ID of the user.
    * @param organizationId - The ID of the organization.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns The Member object if found, otherwise null.
    */
   async function getMemberByUserIdAndOrganizationId(
@@ -164,7 +164,7 @@ export const memberRepository = (() => {
    * Retrieves all members of a given organization.
    *
    * @param organizationId - The ID of the organization.
-   * @param tx - Optional Prisma transaction client.
+   * @param tx - The Prisma transaction client to use.
    * @returns An array of Member objects.
    */
   async function getMembersByOrganizationId(

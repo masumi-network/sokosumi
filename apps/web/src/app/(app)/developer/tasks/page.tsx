@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { DeveloperSectionContentSkeleton } from "@/app/developer/components/developer-loading-view";
 import { DeveloperSectionShell } from "@/app/developer/components/developer-section-shell";
-import { DeveloperTasksSection } from "@/app/developer/components/tasks";
+import { DeveloperTasksSection } from "@/app/developer/components/tasks/developer-tasks-section";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Developer.tabs");

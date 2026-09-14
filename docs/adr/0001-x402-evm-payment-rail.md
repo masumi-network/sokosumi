@@ -10,8 +10,7 @@
 > (`docs/wayfinder/x402-evm/`). The refund-policy blocker below is resolved,
 > and the payment-record model is settled as a sibling of PR 1's
 > `TaskX402Payment`. The node behaviors the pinned spec did not guarantee are
-> now **confirmed** against masumi-payment-service `main`
-> (`docs/wayfinder/x402-evm/NODE-QUESTIONS.md` `## Answers`) and folded into
+> now **confirmed** against masumi-payment-service `main` and folded into
 > the body below; nothing external gates the PR 2 build. The only node-side
 > work still outstanding is the future settlement-observation surface, called
 > out as explicitly-future below.
@@ -26,6 +25,11 @@
 > Every other decision here stands. Superseded sentences are named where they
 > stood rather than deleted.
 
+> **Amended 2026-09-13 by ADR 0024.** Web `/agents` is no longer Coworkers-only:
+> Agent catalog browse is restored. App Hire stays off (SOK-805 remainder /
+> ADR 0006). Decision 8's Web `/agents` sentences are restated below; pay stays
+> coworker + assigned task. Every other decision here stands.
+
 ## Context
 
 Sokosumi buys agent work through the Masumi payment node. Today every paid
@@ -37,8 +41,9 @@ buyer replays the original request with it. The V2 registry already describes
 x402 agents (`X402` manifests and `OpenApi` entries with EVM payment sources),
 and sokosumi already ingests them. They appear on public `GET /v1/agents` as
 `kind: "x402"` next to Cardano hire items (`kind: "cardano"`). There is no
-`/v1/agents/x402`. Web `/agents` stays Coworkers-only (SOK-805); paying an
-x402 agent stays coworker + assigned task.
+`/v1/agents/x402`. Web `/agents` restored Agent catalog browse (ADR-0024);
+app Hire stays off (SOK-805 remainder). Paying an x402 agent stays coworker
++ assigned task.
 
 The two rails differ structurally, not just by network:
 
@@ -261,9 +266,10 @@ x402 agents are agents. They share the public Cardano catalog:
 - **Pay** stays coworker + assigned task
   (`POST /v1/tasks/{id}/x402-payments`). Listed ⇒ payable, fail-closed,
   scheme `exact`.
-- Web `/agents` does **not** advertise x402 (or classic hire agents).
-  SOK-805: that page is Coworkers-only. x402, like classic agents, is
-  API-only.
+- Web `/agents` restored Agent catalog browse (ADR-0024). App Hire stays
+  off (SOK-805 remainder). x402 pay stays coworker + assigned task, not app
+  Hire. (Superseded: this bullet used to say the page is Coworkers-only and
+  does not advertise x402 or classic hire agents.)
 
 A dedicated coworker-only `/v1/agents/x402` was sketched and dropped
 during implementation. This ADR records the shipped contract.
@@ -330,13 +336,16 @@ on a single job:
   migration's snapshot-on-job pattern.
 - **Dedicated coworker-only `GET /v1/agents/x402`.** Rejected: callers see
   one agent catalog. A `kind` discriminator on `GET /v1/agents` is enough.
-  Pay stays a separate coworker+task route. Web `/agents` is not a catalog.
+  Pay stays a separate coworker+task route. Web `/agents` is a browse
+  catalog again (ADR-0024); app Hire stays off. (Superseded: "Web `/agents`
+  is not a catalog.")
 
 ## Consequences
 
 - **Ingest** already lands x402 payment sources. Discovery is public
   `GET /v1/agents` (`kind: "x402"`), not a dedicated `/v1/agents/x402`.
-  Web `/agents` stays Coworkers-only. Flipping Cardano-catalog hire
+  Web `/agents` restored Agent catalog browse (ADR-0024); app Hire stays
+  off (SOK-805 remainder). Flipping Cardano-catalog hire
   availability for x402 jobs is PR 2, not ingest.
 - The jobs pipeline gains one discriminator and one sibling model; escrow
   code paths remain untouched.
@@ -346,7 +355,7 @@ on a single job:
   low-priority nicety, not a correctness gap — paginate-and-match suffices
   (ticket 011).
 - The credit-refund product decision is **resolved** (above), and the
-  ticket-011 node confirmations have landed (`NODE-QUESTIONS.md` `## Answers`)
+  ticket-011 node confirmations have landed in this ADR
   — nothing external gates the build. Engineering can proceed to the PR 2 spec
   and implementation; the only remaining node-side work is the future
   settlement-observation surface, which does not gate the initial ship.

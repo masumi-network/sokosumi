@@ -27,4 +27,11 @@ struct ComposerChannelTests {
     room.kind = .direct
     #expect(ComposerChannel.catalog(rooms: [room]).isEmpty)
   }
+
+  @Test func referenceRangesSkipWhenHashOrCatalogIsMissing() {
+    let channel = ComposerChannel(id: "launch", name: "Launch", slug: "launch")
+    #expect(ComposerChannel.referenceRanges(in: "plain **markdown** and a link", channels: [channel]).isEmpty)
+    #expect(ComposerChannel.referenceRanges(in: "See #Launch please", channels: []).isEmpty)
+    #expect(ComposerChannel.referenceRanges(in: "See #Launch please", channels: [channel]).map(\.1.id) == ["launch"])
+  }
 }

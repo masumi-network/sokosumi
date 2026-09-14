@@ -45,7 +45,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     }
 
     toast.success(t("success"));
-    router.push("/login");
+    router.push("/signin");
   }
 
   const { isSubmitting } = form.formState;

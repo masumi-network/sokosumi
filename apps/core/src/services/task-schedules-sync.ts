@@ -21,6 +21,7 @@ import {
   isDueRunPastScheduleEnd,
 } from "@/helpers/task-schedule";
 import {
+  findNextReleaseableOccurrence,
   removeTaskSchedulePlannedOccurrences,
   replaceTaskSchedulePlannedOccurrences,
   TaskScheduleOccurrenceLimitError,
@@ -119,6 +120,10 @@ function getCloneTaskData(
 }
 
 /**
+ * Every sync write that changes schedule state also increments
+ * `Task.scheduleRevision`, so a release is visible to Calendar clients holding
+ * an older revision.
+ *
  * Claim guard for schedule sync writes: template must still be an unarchived
  * QUEUED schedule whose `nextRunAt` equals the value read at transaction start.
  * Concurrent schedule PUT / clear / cancel / archive must not be overwritten —
@@ -146,6 +151,7 @@ async function clearTemplateSchedule(
       status: TaskStatus.DRAFT,
       metadata: null,
       nextRunAt: null,
+      scheduleRevision: { increment: 1 },
     },
   });
 
@@ -161,6 +167,7 @@ async function promoteOneTimeTask(
   templateId: string,
   userId: string,
   claimedNextRunAt: Date,
+  epochId: string | null,
 ): Promise<boolean> {
   const updateResult = await tx.task.updateMany({
     where: queuedTemplateClaimWhere(templateId, claimedNextRunAt),
@@ -168,12 +175,30 @@ async function promoteOneTimeTask(
       status: TaskStatus.READY,
       metadata: null,
       nextRunAt: null,
+      scheduleRevision: { increment: 1 },
     },
   });
   if (updateResult.count !== 1) {
     return false;
   }
 
+  if (epochId) {
+    const released = await tx.taskScheduleOccurrence.updateMany({
+      where: {
+        seriesTaskId: templateId,
+        epochId,
+        state: TaskScheduleOccurrenceState.PLANNED,
+        effectiveScheduledAt: claimedNextRunAt,
+      },
+      data: {
+        state: TaskScheduleOccurrenceState.RELEASED,
+        releasedTaskId: templateId,
+      },
+    });
+    if (released.count !== 1) {
+      throw new Error("One-time schedule occurrence ledger row is missing");
+    }
+  }
   await removeTaskSchedulePlannedOccurrences(tx, templateId);
 
   await tx.taskEvent.create({
@@ -206,9 +231,16 @@ function getUpdatedRecurringMetadata(
   lastRunAt: Date,
 ): Extract<TaskScheduleMetadata, { mode: "recurring" }> {
   if (metadata.version === 2) {
+    const previousSourceAt = metadata.lastProcessedSourceAt
+      ? new Date(metadata.lastProcessedSourceAt)
+      : null;
+    const lastProcessedSourceAt =
+      previousSourceAt && previousSourceAt > lastRunAt
+        ? previousSourceAt
+        : lastRunAt;
     return {
       ...metadata,
-      lastProcessedSourceAt: lastRunAt.toISOString(),
+      lastProcessedSourceAt: lastProcessedSourceAt.toISOString(),
       epochReleaseCount: metadata.epochReleaseCount + 1,
     };
   }
@@ -246,6 +278,11 @@ function shouldEndRecurringAfterRun(
   return nextRunAt == null;
 }
 
+interface OccurrenceReleaseTimes {
+  originalScheduledAt: Date;
+  effectiveScheduledAt: Date;
+}
+
 async function cloneRecurringOccurrence(
   tx: Prisma.TransactionClient,
   template: Prisma.TaskGetPayload<{
@@ -261,7 +298,7 @@ async function cloneRecurringOccurrence(
     };
   }>,
   metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-  scheduledAt: Date,
+  times: OccurrenceReleaseTimes,
   recordCalendarHistory: boolean,
 ): Promise<string> {
   const clone = await tx.task.create({
@@ -295,7 +332,7 @@ async function cloneRecurringOccurrence(
       where: {
         seriesTaskId: template.id,
         epochId: metadata.epochId,
-        originalScheduledAt: scheduledAt,
+        originalScheduledAt: times.originalScheduledAt,
         state: TaskScheduleOccurrenceState.PLANNED,
       },
     });
@@ -309,7 +346,7 @@ async function cloneRecurringOccurrence(
             releasedTaskId: clone.id,
             legacyLinkId: link.id,
             scheduleVersion: 1,
-            effectiveScheduledAt: scheduledAt,
+            effectiveScheduledAt: times.effectiveScheduledAt,
             state: TaskScheduleOccurrenceState.RELEASED,
             ...source,
             sourceAccuracy: CalendarSourceAccuracy.INFERRED,
@@ -322,8 +359,8 @@ async function cloneRecurringOccurrence(
             releasedTaskId: clone.id,
             epochId: metadata.epochId,
             scheduleVersion: 2,
-            originalScheduledAt: scheduledAt,
-            effectiveScheduledAt: scheduledAt,
+            originalScheduledAt: times.originalScheduledAt,
+            effectiveScheduledAt: times.effectiveScheduledAt,
             state: TaskScheduleOccurrenceState.RELEASED,
             ...source,
             sourceAccuracy: CalendarSourceAccuracy.EXACT,
@@ -475,6 +512,7 @@ async function processDueTask(
           template.id,
           template.ownerId,
           claimedNextRunAt,
+          scheduleMetadata.version === 2 ? scheduleMetadata.epochId : null,
         );
         if (!promoted) {
           return { outcome: "skipped", publishEvents: [] };
@@ -487,43 +525,91 @@ async function processDueTask(
 
       const now = new Date();
       let metadata = scheduleMetadata;
-      let nextRunAt = claimedNextRunAt;
+      let nextRunAt: Date | null = claimedNextRunAt;
       let clonesCreated = 0;
       const clonedTaskIds: string[] = [];
 
-      while (nextRunAt && nextRunAt <= now) {
-        if (
-          !options.shouldContinue() ||
-          options.abortSignal.aborted ||
-          Date.now() >= options.deadlineMs
-        ) {
-          break;
+      if (
+        scheduleMetadata.mode === "recurring" &&
+        scheduleMetadata.version === 2
+      ) {
+        // The ledger owns release for v2: release every due planned row at its
+        // own effective time, so a moved occurrence releases at its new time
+        // and a skipped one never releases.
+        const dueOccurrences = await tx.taskScheduleOccurrence.findMany({
+          where: {
+            seriesTaskId: template.id,
+            epochId: scheduleMetadata.epochId,
+            state: TaskScheduleOccurrenceState.PLANNED,
+            effectiveScheduledAt: { lte: now },
+          },
+          orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            originalScheduledAt: true,
+            effectiveScheduledAt: true,
+          },
+        });
+
+        for (const occurrence of dueOccurrences) {
+          if (
+            !options.shouldContinue() ||
+            options.abortSignal.aborted ||
+            Date.now() >= options.deadlineMs
+          ) {
+            break;
+          }
+
+          if (
+            !(await isTemplateClaimStillHeld(tx, template.id, claimedNextRunAt))
+          ) {
+            break;
+          }
+
+          const originalScheduledAt =
+            occurrence.originalScheduledAt ?? occurrence.effectiveScheduledAt;
+          const cloneId = await cloneRecurringOccurrence(
+            tx,
+            template,
+            metadata,
+            {
+              originalScheduledAt,
+              effectiveScheduledAt: occurrence.effectiveScheduledAt,
+            },
+            true,
+          );
+          clonedTaskIds.push(cloneId);
+          clonesCreated += 1;
+
+          metadata = getUpdatedRecurringMetadata(metadata, originalScheduledAt);
+
+          if (hasReachedTaskScheduleReleaseTarget(metadata)) {
+            const cleared = await clearTemplateSchedule(
+              tx,
+              template.id,
+              claimedNextRunAt,
+            );
+            assertTemplateClaimHeld(cleared, clonesCreated);
+            return {
+              outcome: "cloned",
+              publishEvents: buildRecurringPublishEvents(
+                template.ownerId,
+                template.id,
+                clonedTaskIds,
+                true,
+              ),
+            };
+          }
         }
 
-        if (isDueRunPastScheduleEnd(metadata, nextRunAt)) {
-          break;
-        }
-
-        if (
-          !(await isTemplateClaimStillHeld(tx, template.id, claimedNextRunAt))
-        ) {
-          break;
-        }
-
-        const cloneId = await cloneRecurringOccurrence(
+        const nextReleaseable = await findNextReleaseableOccurrence(
           tx,
-          template,
-          metadata,
-          nextRunAt,
-          metadata.version === 2 || calendarBetaEnabled,
+          template.id,
+          scheduleMetadata.epochId,
         );
-        clonedTaskIds.push(cloneId);
-        clonesCreated += 1;
+        nextRunAt = nextReleaseable?.effectiveScheduledAt ?? null;
 
-        metadata = getUpdatedRecurringMetadata(metadata, nextRunAt);
-        const computedNextRun = computeScheduleNextRun(metadata, nextRunAt);
-
-        if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
+        if (!nextRunAt) {
           const cleared = await clearTemplateSchedule(
             tx,
             template.id,
@@ -531,51 +617,123 @@ async function processDueTask(
           );
           assertTemplateClaimHeld(cleared, clonesCreated);
           return {
-            outcome: "cloned",
-            publishEvents: buildRecurringPublishEvents(
-              template.ownerId,
-              template.id,
-              clonedTaskIds,
-              true,
-            ),
+            outcome: clonesCreated > 0 ? "cloned" : "skipped",
+            publishEvents:
+              clonesCreated > 0
+                ? buildRecurringPublishEvents(
+                    template.ownerId,
+                    template.id,
+                    clonedTaskIds,
+                    true,
+                  )
+                : cleared
+                  ? [{ userId: template.ownerId, taskId: template.id }]
+                  : [],
           };
         }
 
-        if (!computedNextRun) {
-          const cleared = await clearTemplateSchedule(
+        if (
+          clonesCreated === 0 &&
+          nextRunAt.getTime() === claimedNextRunAt.getTime()
+        ) {
+          return { outcome: "skipped", publishEvents: [] };
+        }
+      } else {
+        while (nextRunAt && nextRunAt <= now) {
+          if (
+            !options.shouldContinue() ||
+            options.abortSignal.aborted ||
+            Date.now() >= options.deadlineMs
+          ) {
+            break;
+          }
+
+          if (isDueRunPastScheduleEnd(metadata, nextRunAt)) {
+            break;
+          }
+
+          if (
+            !(await isTemplateClaimStillHeld(tx, template.id, claimedNextRunAt))
+          ) {
+            break;
+          }
+
+          const cloneId = await cloneRecurringOccurrence(
             tx,
-            template.id,
-            claimedNextRunAt,
+            template,
+            metadata,
+            {
+              originalScheduledAt: nextRunAt,
+              effectiveScheduledAt: nextRunAt,
+            },
+            metadata.version === 2 || calendarBetaEnabled,
           );
-          assertTemplateClaimHeld(cleared, clonesCreated);
-          return {
-            outcome: "cloned",
-            publishEvents: buildRecurringPublishEvents(
-              template.ownerId,
+          clonedTaskIds.push(cloneId);
+          clonesCreated += 1;
+
+          metadata = getUpdatedRecurringMetadata(metadata, nextRunAt);
+          const computedNextRun = computeScheduleNextRun(metadata, nextRunAt);
+
+          if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
+            const cleared = await clearTemplateSchedule(
+              tx,
               template.id,
-              clonedTaskIds,
-              true,
-            ),
-          };
+              claimedNextRunAt,
+            );
+            assertTemplateClaimHeld(cleared, clonesCreated);
+            return {
+              outcome: "cloned",
+              publishEvents: buildRecurringPublishEvents(
+                template.ownerId,
+                template.id,
+                clonedTaskIds,
+                true,
+              ),
+            };
+          }
+
+          if (!computedNextRun) {
+            const cleared = await clearTemplateSchedule(
+              tx,
+              template.id,
+              claimedNextRunAt,
+            );
+            assertTemplateClaimHeld(cleared, clonesCreated);
+            return {
+              outcome: "cloned",
+              publishEvents: buildRecurringPublishEvents(
+                template.ownerId,
+                template.id,
+                clonedTaskIds,
+                true,
+              ),
+            };
+          }
+
+          nextRunAt = computedNextRun;
         }
 
-        nextRunAt = computedNextRun;
+        if (clonesCreated === 0) {
+          if (isDueRunPastScheduleEnd(metadata, claimedNextRunAt)) {
+            const cleared = await clearTemplateSchedule(
+              tx,
+              template.id,
+              claimedNextRunAt,
+            );
+            return {
+              outcome: "skipped",
+              publishEvents: cleared
+                ? [{ userId: template.ownerId, taskId: template.id }]
+                : [],
+            };
+          }
+          return { outcome: "skipped", publishEvents: [] };
+        }
       }
 
-      if (clonesCreated === 0) {
-        if (isDueRunPastScheduleEnd(metadata, claimedNextRunAt)) {
-          const cleared = await clearTemplateSchedule(
-            tx,
-            template.id,
-            claimedNextRunAt,
-          );
-          return {
-            outcome: "skipped",
-            publishEvents: cleared
-              ? [{ userId: template.ownerId, taskId: template.id }]
-              : [],
-          };
-        }
+      if (!nextRunAt) {
+        // Both branches return before persisting a ledger that cannot wake
+        // again, so a missing wake time here means there is nothing to update.
         return { outcome: "skipped", publishEvents: [] };
       }
 
@@ -584,6 +742,7 @@ async function processDueTask(
         data: {
           metadata: JSON.stringify(metadata),
           nextRunAt,
+          scheduleRevision: { increment: 1 },
         },
       });
       assertTemplateClaimHeld(updateResult.count === 1, clonesCreated);

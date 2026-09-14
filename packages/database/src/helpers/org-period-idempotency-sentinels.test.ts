@@ -23,19 +23,17 @@ describe("parseMemberPeriodReferenceId", () => {
       "org-1",
     );
 
-    assert.equal(parsed.isOk(), true);
-    if (parsed.isOk()) {
-      assert.equal(parsed.value.kind, "invoice_subscription");
-      assert.equal(parsed.value.fingerprint, "in_1Abc");
-      assert.equal(
-        parsed.value.orgReferenceId,
-        buildOrganizationInvoiceCreditReferenceId(
-          "org-1",
-          "in_1Abc",
-          "subscription",
-        ),
-      );
-    }
+    assert.ok(parsed);
+    assert.equal(parsed.kind, "invoice_subscription");
+    assert.equal(parsed.fingerprint, "in_1Abc");
+    assert.equal(
+      parsed.orgReferenceId,
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_1Abc",
+        "subscription",
+      ),
+    );
   });
 
   it("parses leftover local-free refs into org local-free fingerprints", () => {
@@ -45,38 +43,33 @@ describe("parseMemberPeriodReferenceId", () => {
       "org-1",
     );
 
-    assert.equal(parsed.isOk(), true);
-    if (parsed.isOk()) {
-      assert.equal(parsed.value.kind, "local_free_subscription");
-      assert.equal(parsed.value.fingerprint, periodEnd.toISOString());
-      assert.equal(
-        parsed.value.orgReferenceId,
-        buildLocalFreeOrganizationSubscriptionReferenceId("org-1", periodEnd),
-      );
-    }
+    assert.ok(parsed);
+    assert.equal(parsed.kind, "local_free_subscription");
+    assert.equal(parsed.fingerprint, periodEnd.toISOString());
+    assert.equal(
+      parsed.orgReferenceId,
+      buildLocalFreeOrganizationSubscriptionReferenceId("org-1", periodEnd),
+    );
   });
 
   it("rejects unparseable and mismatched refs", () => {
     assert.equal(
-      parseMemberPeriodReferenceId(
-        "org:org-1:in_1:subscription",
-        "org-1",
-      ).isErr(),
-      true,
+      parseMemberPeriodReferenceId("org:org-1:in_1:subscription", "org-1"),
+      null,
     );
     assert.equal(
       parseMemberPeriodReferenceId(
         "member:user-1:local-free:other-org:2026-05-01T00:00:00.000Z",
         "org-1",
-      ).isErr(),
-      true,
+      ),
+      null,
     );
     assert.equal(
       parseMemberPeriodReferenceId(
         "member:user-1:migrated-member-period:x",
         "org-1",
-      ).isErr(),
-      true,
+      ),
+      null,
     );
   });
 });
@@ -418,17 +411,14 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
       prisma as never,
     );
 
-    assert.equal(result.isErr(), true);
-    if (result.isErr()) {
-      assert.equal(result.error.unparseable, 0);
-      assert.deepEqual(result.error.uncoveredReferenceIds, [
-        buildOrganizationInvoiceCreditReferenceId(
-          "org-1",
-          "in_missing",
-          "subscription",
-        ),
-      ]);
-    }
+    assert.equal(result.unparseable, 0);
+    assert.deepEqual(result.uncoveredReferenceIds, [
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_missing",
+        "subscription",
+      ),
+    ]);
   });
 
   it("passes when every leftover fingerprint exists", async () => {
@@ -458,7 +448,7 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
     const result = await assertSentinelsCoverLeftoverMemberPeriods(
       prisma as never,
     );
-    assert.equal(result.isOk(), true);
+    assert.deepEqual(result.uncoveredReferenceIds, []);
   });
 
   it("passes when leftovers are only unparseable (no uncovered fingerprints)", async () => {
@@ -483,13 +473,11 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
     const result = await assertSentinelsCoverLeftoverMemberPeriods(
       prisma as never,
     );
-    assert.equal(result.isOk(), true);
-    if (result.isOk()) {
-      assert.equal(result.value.unparseable, 1);
-      assert.deepEqual(result.value.unparseableReferenceIds, [
-        "member:user-1:weird-shape",
-      ]);
-    }
+    assert.deepEqual(result.uncoveredReferenceIds, []);
+    assert.equal(result.unparseable, 1);
+    assert.deepEqual(result.unparseableReferenceIds, [
+      "member:user-1:weird-shape",
+    ]);
   });
 });
 

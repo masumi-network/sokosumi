@@ -141,6 +141,9 @@ describe("authMiddleware", () => {
             userId: true,
             workspaceId: true,
             workspace: { select: { organizationId: true } },
+            user: {
+              select: { role: true, banned: true, banExpires: true },
+            },
           },
         },
       },
@@ -165,6 +168,7 @@ describe("authMiddleware", () => {
           userId: "user_123",
           workspaceId: "01960001-0001-7001-8001-000000000010",
           workspace: { organizationId: "org_123" },
+          user: { role: "user", banned: false, banExpires: null },
         },
       });
 
@@ -184,6 +188,96 @@ describe("authMiddleware", () => {
       expect(verifyApiKeyMock).not.toHaveBeenCalled();
     },
   );
+
+  it("returns 401 for a Soko Bot API key whose owner is banned", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_banned",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        workspace: { organizationId: "org_123" },
+        user: { role: "user", banned: true, banExpires: null },
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer sokoBot_bannedowner" },
+    });
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe("Invalid or expired agent token");
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for a Soko Bot API key whose owner row is gone", async () => {
+    // SokoBot.userId cascades on delete, so a live key with a missing owner
+    // should not happen. Cover the dangling relation the same way OAuth does.
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_deleted",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        workspace: { organizationId: "org_123" },
+        user: null,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer sokoBot_deletedowner" },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("authenticates a Soko Bot API key once the owner's ban has expired", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_ban_expired",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        workspace: { organizationId: "org_123" },
+        user: {
+          role: "user",
+          banned: true,
+          banExpires: new Date(Date.now() - 60_000),
+        },
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer sokoBot_expiredban" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "sokoBot",
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      userId: "user_ban_expired",
+      workspaceId: "01960001-0001-7001-8001-000000000010",
+      organizationId: "org_123",
+    });
+  });
 
   it("does not treat an orchestrator_ token as a Soko Bot API key", async () => {
     const app = createApp();

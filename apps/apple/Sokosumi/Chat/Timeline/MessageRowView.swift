@@ -59,13 +59,81 @@ import SwiftUI
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
     var onReply: (() -> Void)?
+    var onQuote: (() -> Void)?
+    var onEdit: (() -> Void)?
+    var isHighlighted = false
+    var isPinned = false
+    var isUpdatingPin = false
+    var onTogglePin: (() async throws -> Void)?
+    var onDelete: (() async throws -> Void)?
+    var onRemoveUnfurl: ((String) async throws -> Void)?
+    var onToggleReaction: ((String) async throws -> Void)?
+    var pendingReactionEmoji: Set<String> = []
+    var editing: MessageEditing?
+    var onQuoteJump: ((String) -> Void)?
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
     var streamThinking = false
+    @State private var showsReactionPicker = false
+    @State private var pinError: String?
+    @State private var showsPinError = false
+    @State private var reactionError: String?
+    @State private var showsReactionError = false
+    @State private var confirmsDeletion = false
+    @State private var isDeleting = false
+    @State private var deletionError: String?
+    @State private var showsDeletionError = false
     @State private var isHovered = false
     @State private var isReplyHovered = false
+    @State private var hoveredAction: MessageAction?
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
-    @FocusState private var replyFocused: Bool
+    @ScaledMetric(relativeTo: .callout) private var actionIconSize: CGFloat = 16
+    @FocusState private var focusedAction: MessageAction?
+
+    private enum MessageAction: Hashable {
+      case quote, reply, more, react
+    }
+
+    private var reactionAction: ((String) -> Void)? {
+      guard onToggleReaction != nil else { return nil }
+      return { emoji in toggleReaction(emoji) }
+    }
+
+    private func toggleReaction(_ emoji: String) {
+      guard let onToggleReaction else { return }
+      Task { @MainActor in
+        do {
+          try await onToggleReaction(emoji)
+          ReactionEmojiHistory().record(emoji)
+        } catch {
+          reactionError = friendlyMessage(for: error)
+          showsReactionError = true
+        }
+      }
+    }
+
+    private func deleteMessage() {
+      guard !isDeleting, let onDelete else { return }
+      isDeleting = true
+      Task { @MainActor in
+        defer { isDeleting = false }
+        do { try await onDelete() } catch {
+          deletionError = friendlyMessage(for: error)
+          showsDeletionError = true
+        }
+      }
+    }
+
+    private var pinnedLabel: some View {
+      Label {
+        Text("Pinned", tableName: "ChatPins", comment: "A channel message that is pinned.")
+      } icon: {
+        Image(systemName: "pin.fill")
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .fixedSize()
+    }
 
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
@@ -79,6 +147,9 @@ import SwiftUI
         // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
         // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
+          if isContinuation, isPinned, message.deletedAt == nil {
+            pinnedLabel
+          }
           if !isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
               ParticipantProfileButton(sender: message.sender) {
@@ -89,10 +160,13 @@ import SwiftUI
               }
               DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt,
                                timestamp: message.createdAt)
-              if message.editedAt != nil {
-                Text("Edited")
+              if message.editedAt != nil, message.deletedAt == nil {
+                Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
+              }
+              if isPinned, message.deletedAt == nil {
+                pinnedLabel
               }
             }
           }
@@ -105,10 +179,27 @@ import SwiftUI
               .italic()
               .foregroundStyle(.secondary)
           } else {
-            MessageMarkdownView(source: message.content, room: room, channels: channels)
-            if isContinuation, message.editedAt != nil {
-              Text("Edited").font(.caption).foregroundStyle(.secondary)
+            if let quote = message.quote {
+              MessageQuoteView(quote: quote, room: room, channels: channels, jump: onQuoteJump)
+                .id(quote.messageId + quote.snippet)
             }
+            if let editing, editing.source?.id == message.id {
+              MessageEditComposer(editing: editing).id(message.id)
+            } else {
+              MessageMarkdownView(source: message.content, room: room, channels: channels)
+            }
+            if outbound == nil {
+              ForEach(message.unfurls ?? [], id: \.url) { preview in
+                MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+                  .id(preview.url + (preview.imageUrl ?? ""))
+              }
+            }
+            if isContinuation, message.editedAt != nil {
+              Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
+            }
+          }
+          if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
+            MessageReactionsView(reactions: message.reactions, pendingEmoji: pendingReactionEmoji, toggle: reactionAction)
           }
           if let onReply, message.threadReplyCount > 0 {
             Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
@@ -138,43 +229,75 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && onReply != nil ? Color.primary.opacity(0.04) : .clear)
+      .background {
+        if isHighlighted {
+          Color.accentColor.opacity(0.12)
+        } else if isHovered || isReplyHovered, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+          Color.primary.opacity(0.04)
+        }
+      }
       .overlay(alignment: .topTrailing) {
-        if let onReply, message.deletedAt == nil {
-          Button(action: onReply) {
-            HStack(spacing: 4) {
-              Image(systemName: "text.bubble")
-                .font(.body)
-              Text("Reply")
-                .font(.caption)
+        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+          HStack(spacing: 2) {
+            if onToggleReaction != nil {
+              messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
+                .popover(isPresented: $showsReactionPicker, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+                  ReactionEmojiPicker { emoji in
+                    showsReactionPicker = false
+                    toggleReaction(emoji)
+                  }
+                }
             }
-            .padding(.horizontal, 10)
-            .frame(height: replyActionHeight)
-            .background(isReplyHovered ? Color.primary.opacity(0.12) : .clear,
-                        in: .rect(cornerRadius: 8))
-            .contentShape(.rect(cornerRadius: 8))
+            if let onReply {
+              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
+            }
+            if let onQuote {
+              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
+            }
+            if onEdit != nil || onDelete != nil || onTogglePin != nil {
+              Menu {
+                if onTogglePin != nil {
+                  pinButton
+                }
+
+                if let onEdit {
+                  Button("Edit message", systemImage: "pencil", action: onEdit)
+                }
+                if onEdit != nil, onDelete != nil {
+                  Divider()
+                }
+                if onDelete != nil {
+                  Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+                }
+              } label: {
+                Image(systemName: "ellipsis")
+                  .font(.callout)
+                  .frame(width: actionIconSize, height: actionIconSize)
+              }
+              .menuStyle(.button)
+              .buttonStyle(.plain)
+              .menuIndicator(.hidden)
+              .frame(width: replyActionHeight, height: replyActionHeight)
+              .foregroundStyle(hoveredAction == .more ? .primary : .secondary)
+              .background(hoveredAction == .more ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+              .contentShape(.rect)
+              .onHover { hoveredAction = $0 ? .more : nil }
+              .focused($focusedAction, equals: .more)
+              .disabled(isDeleting)
+              .help(isDeleting ? "Deleting message…" : "More message actions")
+              .accessibilityLabel("More message actions")
+            }
           }
-          .buttonStyle(.borderless)
-          .background(.regularMaterial, in: .rect(cornerRadius: 8))
-          .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.25)))
-          .onContinuousHover { phase in
-            let hovering = switch phase {
-            case .active: true
-            case .ended: false
-            }
-            if isReplyHovered != hovering {
-              isReplyHovered = hovering
-            }
-          }
-          .focused($replyFocused)
-          .help("Reply in thread")
-          .accessibilityLabel("Reply in thread")
-          .opacity(isHovered || isReplyHovered || replyFocused ? 1 : 0)
-          .allowsHitTesting(isHovered || isReplyHovered || replyFocused)
+          .padding(3)
+          .fixedSize()
+          .background(.regularMaterial, in: .rect(cornerRadius: 9))
+          .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)))
+          .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+          .onHover { isReplyHovered = $0 }
+          .opacity(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker ? 1 : 0)
+          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker)
           .padding(.trailing, horizontalInset)
-          // Move the rendered button by exactly half its height. An alignment
-          // guide inside this conditional overlay does not reposition it.
-          .offset(y: -replyActionHeight / 2)
+          .offset(y: -(replyActionHeight + 6) / 2)
         }
       }
       // Track the complete row, including its action overlay. The toolbar
@@ -188,13 +311,61 @@ import SwiftUI
           isHovered = hovering
         }
       }
+      .alert("Couldn’t update pin", isPresented: $showsPinError) {
+        Button("OK", role: .cancel) {}
+      } message: { Text(pinError ?? "Try again.") }
+      .alert("Couldn’t update reaction", isPresented: $showsReactionError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(reactionError ?? "Try again.")
+      }
+      .alert("Delete message?", isPresented: $confirmsDeletion) {
+        Button("Cancel", role: .cancel) {}
+        Button("Delete", role: .destructive) { deleteMessage() }
+      } message: {
+        Text("This message will be deleted for everyone. This cannot be undone.")
+      }
+      .alert("Couldn’t delete message", isPresented: $showsDeletionError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(deletionError ?? "Try again.")
+      }
       .contextMenu {
+        if onTogglePin != nil {
+          pinButton
+        }
+        if onToggleReaction != nil, message.deletedAt == nil {
+          Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
+        }
+        if onDelete != nil, message.deletedAt == nil {
+          Button(isDeleting ? "Deleting…" : "Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+            .disabled(isDeleting)
+          Divider()
+        }
+        if let onEdit {
+          Button("Edit message", systemImage: "pencil", action: onEdit)
+        }
+        if let onQuote {
+          Button("Quote message", systemImage: "quote.opening", action: onQuote)
+        }
         if let onReply, message.deletedAt == nil {
           Button("Reply in thread", systemImage: "bubble.right", action: onReply)
         }
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
+        if onToggleReaction != nil, message.deletedAt == nil {
+          Button("Add reaction") { showsReactionPicker = true }
+        }
+        if onDelete != nil, !isDeleting, message.deletedAt == nil {
+          Button("Delete message", role: .destructive) { confirmsDeletion = true }
+        }
+        if let onEdit {
+          Button("Edit message", action: onEdit)
+        }
+        if let onQuote {
+          Button("Quote message", action: onQuote)
+        }
         if let onReply, message.deletedAt == nil {
           Button("Reply in thread", action: onReply)
         }
@@ -203,8 +374,45 @@ import SwiftUI
       .padding(.top, isContinuation ? 0 : 8)
     }
 
+    private func messageAction(_ title: String, symbol: String, focus: MessageAction, action: @escaping () -> Void) -> some View {
+      Button(action: action) {
+        actionLabel(title, symbol: symbol, action: focus)
+      }
+      .buttonStyle(.plain)
+      .onHover { hoveredAction = $0 ? focus : nil }
+      .focused($focusedAction, equals: focus)
+      .help(title == "Reply" ? "Reply in thread" : title)
+    }
+
+    private func actionLabel(_ title: String, symbol: String, action: MessageAction) -> some View {
+      HStack(spacing: 5) {
+        Image(systemName: symbol)
+          .font(.callout)
+          .frame(width: actionIconSize, height: actionIconSize)
+        Text(title).font(.callout).lineLimit(1)
+      }
+      .padding(.horizontal, 8)
+      .frame(height: replyActionHeight)
+      .foregroundStyle(hoveredAction == action ? .primary : .secondary)
+      .background(hoveredAction == action ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+      .contentShape(.rect)
+    }
+
     private var pendingSince: Date? {
       outbound?.status == .pending ? outbound?.createdAt : nil
+    }
+
+    private var pinButton: some View {
+      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin") {
+        Task { @MainActor in
+          do {
+            try await onTogglePin?()
+          } catch { pinError = friendlyMessage(for: error)
+            showsPinError = true
+          }
+        }
+      }
+      .disabled(isUpdatingPin)
     }
 
     private var avatarView: some View {

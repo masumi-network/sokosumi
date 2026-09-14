@@ -56,7 +56,7 @@ export function InvitationActionsModalContextProvider({
         action: {
           label: t("Errors.unauthorizedAction"),
           onClick: () => {
-            router.push(`/login`);
+            router.push(`/signin`);
           },
         },
       });

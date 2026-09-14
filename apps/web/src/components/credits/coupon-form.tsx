@@ -109,25 +109,13 @@ export default function CouponForm({
                   action: {
                     label: t("Errors.unauthenticatedAction"),
                     onClick: () => {
-                      router.push(`/login`);
+                      router.push(`/signin`);
                     },
                   },
                 });
                 break;
               case CreditsErrorCode.INVALID_COUPON:
                 toast.error(t("Errors.invalidCoupon"));
-                break;
-              case CreditsErrorCode.COUPON_NOT_FOUND:
-                toast.error(t("Errors.couponNotFound"));
-                break;
-              case CreditsErrorCode.COUPON_TYPE_ERROR:
-                toast.error(t("Errors.couponTypeError"));
-                break;
-              case CreditsErrorCode.COUPON_CURRENCY_ERROR:
-                toast.error(t("Errors.couponCurrencyError"));
-                break;
-              case CreditsErrorCode.PROMOTION_CODE_NOT_FOUND:
-                toast.error(t("Errors.promotionCodeNotFound"));
                 break;
               case CommonErrorCode.UNAUTHORIZED:
                 if (organization) {

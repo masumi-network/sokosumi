@@ -53,7 +53,7 @@ const HUES: Array<[string, number]> = [
  * tier, then the jewel tier. ~28 colours = plenty of variety between
  * coworkers while one shading recipe keeps them a family.
  */
-export const ORB_PALETTE: OrbPaletteEntry[] = [
+const ORB_PALETTE: OrbPaletteEntry[] = [
   { id: "porcelain", name: "Porcelain", tier: "anchor", hue: null },
   { id: "ink", name: "Ink", tier: "anchor", hue: null },
   ...HUES.map(
@@ -247,7 +247,7 @@ function paletteEntryForSeed(seed: string): OrbPaletteEntry {
   return TINTED[Math.floor(r() * TINTED.length)] ?? TINTED[0]!;
 }
 
-export function params(seed: string): OrbParams {
+function params(seed: string): OrbParams {
   const entry = paletteEntryForSeed(seed);
   const r = mulberry32(xmur3(`${seed}:paint`)());
   return {
@@ -258,7 +258,7 @@ export function params(seed: string): OrbParams {
   };
 }
 
-export function draw(
+function draw(
   ctx: CanvasRenderingContext2D,
   S: number,
   p: OrbParams,
@@ -330,7 +330,7 @@ const PLACEHOLDER_PARAMS: OrbParams = {
  *
  * Pure function of (ctx, S, t) — no seed, no module state.
  */
-export function drawPlaceholder(
+function drawPlaceholder(
   ctx: CanvasRenderingContext2D,
   S: number,
   t: number,
@@ -406,7 +406,7 @@ interface EyeFrame {
  *   happy                        upward "^ ^" arcs — a smile in the eyes
  *   sleeping                     closed lines
  */
-export function drawEyes(
+function drawEyes(
   ctx: CanvasRenderingContext2D,
   S: number,
   expr: OrbExpression,
@@ -796,7 +796,7 @@ export function toDataURL(
 // unique, so two coworkers with the same colour still don't look the same.
 
 /** Seed for a specific palette colour, salted for per-user face traits. */
-export function orbSeedFor(paletteId: string, salt?: string): string {
+function orbSeedFor(paletteId: string, salt?: string): string {
   return salt ? `orb:${paletteId}:${salt}` : `orb:${paletteId}`;
 }
 
@@ -805,18 +805,4 @@ export function defaultOrbSeed(userId: string): string {
   const r = mulberry32(xmur3(`${userId}:default`)());
   const entry = TINTED[Math.floor(r() * TINTED.length)] ?? TINTED[0]!;
   return orbSeedFor(entry.id, userId);
-}
-
-/**
- * Candidate seeds for the "pick your colour" selector — a tight, curated
- * set: the ink anchor plus the jewel tier (porcelain is offered separately
- * by the picker as the "standard" placeholder option), salted per user.
- * The pastel tier stays in the palette for variety elsewhere without
- * overwhelming the picker.
- */
-export function orbCandidateSeeds(userId: string, count?: number): string[] {
-  const pool = ORB_PALETTE.filter((e) => e.id === "ink" || e.tier === "jewel");
-  return pool
-    .slice(0, count ?? pool.length)
-    .map((e) => orbSeedFor(e.id, userId));
 }

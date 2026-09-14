@@ -18,6 +18,7 @@ function baseMessage(
     parentMessageId: null,
     content: "hi",
     editedAt: null,
+    pinnedAt: null,
     mentions: [],
     reactions: [],
     threadReplyCount: 0,
@@ -40,6 +41,7 @@ function userMessage(
     id,
     createdAt: new Date(createdAt),
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "user",
       user: {
@@ -62,6 +64,7 @@ function coworkerMessage(
     id,
     createdAt: new Date(createdAt),
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "coworker",
       coworker: {
@@ -85,6 +88,7 @@ function sokoBotMessage(
     id,
     createdAt: new Date(createdAt),
     editedAt: null,
+    pinnedAt: null,
     sender: {
       type: "sokoBot",
       sokoBot: {
@@ -104,6 +108,7 @@ function unknownMessage(id: string, createdAt: string): ChatRoomMessage {
     id,
     createdAt: new Date(createdAt),
     editedAt: null,
+    pinnedAt: null,
     sender: { type: "unknown" },
   });
 }

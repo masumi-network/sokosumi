@@ -24,7 +24,7 @@ export class InsufficientBalanceError extends Error {
 }
 
 /** Per-bucket amounts in cents from listAvailableBucketsWithBalances */
-export interface CreditBucketBalanceRow {
+interface CreditBucketBalanceRow {
   totalCents: bigint;
   remainingCents: bigint;
   expiresAt: Date | null;

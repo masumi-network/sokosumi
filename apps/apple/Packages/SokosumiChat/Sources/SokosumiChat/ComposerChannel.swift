@@ -41,6 +41,7 @@ public struct ComposerChannel: Hashable, Sendable, Identifiable {
   }
 
   static func referenceRanges(in text: String, channels: [Self]) -> [(NSRange, Self)] {
+    guard text.contains("#"), !channels.isEmpty else { return [] }
     var candidates: [Int: [(NSRange, ComposerChannel)]] = [:]
     for channel in channels {
       let keys = Set([channel.name, channel.slug].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })
