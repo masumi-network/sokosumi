@@ -16,11 +16,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   getWorkspaceGrantMock,
-  requireTaskReadForRouteVarsMock,
+  requireTaskWorkspaceMappingMock,
   workspaceRepositoryMock,
 } = vi.hoisted(() => ({
   getWorkspaceGrantMock: vi.fn(),
-  requireTaskReadForRouteVarsMock: vi.fn(),
+  requireTaskWorkspaceMappingMock: vi.fn(),
   workspaceRepositoryMock: {
     resolveWorkspaceForContext: vi.fn(),
   },
@@ -45,7 +45,7 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
 });
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
+  requireTaskWorkspaceMapping: requireTaskWorkspaceMappingMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -117,7 +117,7 @@ describe("GET /tasks/{id}/workspace", () => {
       status: "GRANTED",
       permission: "WORKSPACE",
     });
-    requireTaskReadForRouteVarsMock.mockResolvedValue(createTask());
+    requireTaskWorkspaceMappingMock.mockResolvedValue(createTask());
   });
 
   it("returns the task title and workspace mapping for accessible tasks", async () => {
@@ -130,7 +130,7 @@ describe("GET /tasks/{id}/workspace", () => {
       workspaceId: WORKSPACE_ID,
       organizationId: "org_123",
     });
-    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+    expect(requireTaskWorkspaceMappingMock).toHaveBeenCalledWith(
       expect.objectContaining({
         authContext: expect.objectContaining({
           actor: "user",
@@ -139,14 +139,11 @@ describe("GET /tasks/{id}/workspace", () => {
       }),
       "tsk_123",
       expect.any(Object),
-      {
-        workspace: { select: { organizationId: true } },
-      },
     );
   });
 
   it("returns a personal workspace mapping when the task has no organization", async () => {
-    requireTaskReadForRouteVarsMock.mockResolvedValue(
+    requireTaskWorkspaceMappingMock.mockResolvedValue(
       createTask({
         organizationId: null,
       }),
@@ -169,7 +166,7 @@ describe("GET /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.workspaceId).toBe(WORKSPACE_ID);
-    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
+    expect(requireTaskWorkspaceMappingMock).toHaveBeenCalled();
   });
 
   it("returns 403 for bare coworker without context headers", async () => {
@@ -184,7 +181,7 @@ describe("GET /tasks/{id}/workspace", () => {
     expect(body.message).toBe(
       "Context headers (X-Context-User-Id) are required for this resource",
     );
-    expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
+    expect(requireTaskWorkspaceMappingMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker with a DENIED workspace grant", async () => {
@@ -201,7 +198,7 @@ describe("GET /tasks/{id}/workspace", () => {
     expect(response.status).toBe(403);
     expect(body.message).toBe("Vendor workspace access was denied");
     expect(body.kind).toBe("grant_denied");
-    expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
+    expect(requireTaskWorkspaceMappingMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker with a REVOKED workspace grant", async () => {
@@ -218,6 +215,6 @@ describe("GET /tasks/{id}/workspace", () => {
     expect(response.status).toBe(403);
     expect(body.message).toBe("Vendor workspace access was revoked");
     expect(body.kind).toBe("grant_revoked");
-    expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
+    expect(requireTaskWorkspaceMappingMock).not.toHaveBeenCalled();
   });
 });
