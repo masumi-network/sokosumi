@@ -1,7 +1,10 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listRoomMessagesAction } from "@/app/chat/actions";
+import {
+  listRoomMessagesAction,
+  listThreadMessagesAction,
+} from "@/app/chat/actions";
 import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
@@ -33,8 +36,7 @@ function params(): Params {
     setSearchHoldOffBottom: vi.fn(),
     mergeRoomJumpWindow: vi.fn(),
     historicalThreadRef: { current: false },
-    setThreadMessages: vi.fn(),
-    setThreadOlderNextCursor: vi.fn(),
+    replaceThreadWindow: vi.fn(),
     handleOpenThreadFromMessage: vi.fn(async () => true),
   };
 }
@@ -152,9 +154,37 @@ describe("useRoomMessageJumps", () => {
     expect(options.handleOpenThreadFromMessage).toHaveBeenCalledWith(parent);
     expect(landOnThreadMessage).toHaveBeenCalledWith(reply.id);
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
-    expect(options.setThreadMessages).not.toHaveBeenCalled();
+    expect(options.replaceThreadWindow).not.toHaveBeenCalled();
     // The transcript follows the thread: without this the reader lands on a
     // reply with the room still sitting on the newest message.
     expect(landOnRoomMessage).toHaveBeenCalledWith(parent.id);
+  });
+
+  it("replaces the thread window when the reply is not already loaded", async () => {
+    const parent = message();
+    const reply = { ...message(), id: "reply-1", parentMessageId: parent.id };
+    const window = { messages: [reply], nextCursor: "older" };
+    vi.mocked(listThreadMessagesAction).mockResolvedValue({
+      ok: true,
+      value: window,
+    });
+    landOnThreadMessage.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const options = params();
+    options.topLevelRoomMessages = [parent];
+    const { result } = renderHook(() => useRoomMessageJumps(options));
+
+    await result.current.handleSearchJump(reply);
+
+    expect(listThreadMessagesAction).toHaveBeenCalledExactlyOnceWith(
+      "room-1",
+      parent.id,
+      { around: reply.id },
+    );
+    expect(options.replaceThreadWindow).toHaveBeenCalledExactlyOnceWith(
+      window.messages,
+      window.nextCursor,
+    );
+    expect(options.historicalThreadRef.current).toBe(true);
+    expect(options.releaseStickToBottomSuppress).not.toHaveBeenCalled();
   });
 });

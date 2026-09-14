@@ -1701,6 +1701,20 @@ export function RoomsClient({
     setTranscript((current) => mergeRoomJumpWindow(current, page));
   }, []);
 
+  function replaceThreadWindow(
+    messages: ChatRoomMessage[],
+    nextCursor: string | null,
+  ) {
+    // Jump-window and live-page replaces skip `loadThreadMessages`, so they
+    // have to drop in-flight older loads themselves or a late page can merge
+    // into (or fail on) the list it did not start.
+    threadLoadGenerationRef.current += 1;
+    threadOlderLoadRef.current = false;
+    setThreadOlderLoadStatus("idle");
+    setThreadMessages(messages);
+    setThreadOlderNextCursor(nextCursor);
+  }
+
   const { handleSearchJump, handleJumpToMessage, invalidateJump } =
     useRoomMessageJumps({
       roomId: selectedRoom?.id ?? null,
@@ -1714,8 +1728,7 @@ export function RoomsClient({
       setSearchHoldOffBottom,
       mergeRoomJumpWindow: applyRoomJumpWindow,
       historicalThreadRef,
-      setThreadMessages,
-      setThreadOlderNextCursor,
+      replaceThreadWindow,
       handleOpenThreadFromMessage,
     });
 
@@ -2445,8 +2458,7 @@ export function RoomsClient({
         } else if (isStillSelectedRoom(roomId)) {
           historicalThreadRef.current = false;
           setSearchHoldOffBottom(false);
-          setThreadMessages(live.value.messages);
-          setThreadOlderNextCursor(live.value.nextCursor);
+          replaceThreadWindow(live.value.messages, live.value.nextCursor);
         }
       }
 

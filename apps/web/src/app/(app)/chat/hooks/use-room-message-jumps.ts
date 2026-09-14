@@ -50,8 +50,14 @@ interface RoomMessageJumpsParams {
    */
   mergeRoomJumpWindow: (page: RoomTranscriptPage) => void;
   historicalThreadRef: RefObject<boolean>;
-  setThreadMessages: (messages: ChatRoomMessage[]) => void;
-  setThreadOlderNextCursor: (cursor: string | null) => void;
+  /**
+   * Swap the open thread onto a jump window. Must drop in-flight older
+   * loads: this path does not go through `loadThreadMessages`.
+   */
+  replaceThreadWindow: (
+    messages: ChatRoomMessage[],
+    nextCursor: string | null,
+  ) => void;
   handleOpenThreadFromMessage: (parent: ChatRoomMessage) => Promise<boolean>;
 }
 
@@ -67,8 +73,7 @@ export function useRoomMessageJumps({
   setSearchHoldOffBottom,
   mergeRoomJumpWindow,
   historicalThreadRef,
-  setThreadMessages,
-  setThreadOlderNextCursor,
+  replaceThreadWindow,
   handleOpenThreadFromMessage,
 }: RoomMessageJumpsParams) {
   const jumpStateRef = useRef(createRoomJumpState());
@@ -211,8 +216,7 @@ export function useRoomMessageJumps({
           return false;
         }
         historicalThreadRef.current = true;
-        setThreadMessages(result.value.messages);
-        setThreadOlderNextCursor(result.value.nextCursor);
+        replaceThreadWindow(result.value.messages, result.value.nextCursor);
         return true;
       },
     });

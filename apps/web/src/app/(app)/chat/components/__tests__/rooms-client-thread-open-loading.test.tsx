@@ -38,8 +38,27 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
 }));
 
+const { mockSearchHit } = vi.hoisted(() => ({
+  mockSearchHit: { current: null as ChatRoomMessage | null },
+}));
+
 vi.mock("@/app/chat/components/room-search-panel", () => ({
-  RoomSearchPanel: () => null,
+  RoomSearchPanel: ({
+    onJumpToMessage,
+  }: {
+    onJumpToMessage: (hit: ChatRoomMessage) => void;
+  }) => {
+    const hit = mockSearchHit.current;
+    return hit ? (
+      <button
+        type="button"
+        data-testid="search-hit"
+        onClick={() => {
+          onJumpToMessage(hit);
+        }}
+      />
+    ) : null;
+  },
 }));
 
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
@@ -310,6 +329,7 @@ const baseProps = {
 
 describe("RoomsClient thread open loading race", () => {
   beforeEach(() => {
+    mockSearchHit.current = null;
     actions.markThreadReadAction.mockReset();
     actions.listThreadMessagesAction.mockReset();
     actions.markOrganizationChatRoomReadAction.mockReset();
@@ -450,5 +470,94 @@ describe("RoomsClient thread open loading race", () => {
       );
     });
     expect(actions.listThreadMessagesAction).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops an in-flight older page when a jump window replaces the thread", async () => {
+    actions.markThreadReadAction.mockResolvedValue({
+      ok: true as const,
+      value: { lookedAt: new Date().toISOString() },
+    });
+
+    let resolveAround!: (value: {
+      ok: true;
+      value: { messages: ChatRoomMessage[]; nextCursor: string | null };
+    }) => void;
+    let failOlder!: (value: { ok: false; error: { message: string } }) => void;
+
+    actions.listThreadMessagesAction.mockImplementation(
+      async (
+        _roomId,
+        _parentId,
+        options?: { around?: string; cursor?: string },
+      ) => {
+        if (options?.around) {
+          return new Promise((resolve) => {
+            resolveAround = resolve;
+          });
+        }
+        if (options?.cursor) {
+          return new Promise((resolve) => {
+            failOlder = resolve;
+          });
+        }
+        return {
+          ok: true as const,
+          value: {
+            messages: [replyMessage("r1")],
+            nextCursor: "cursor-1",
+          },
+        };
+      },
+    );
+
+    mockSearchHit.current = replyMessage("r-old");
+
+    render(<RoomsClient {...baseProps} />);
+    fireEvent.click(screen.getByTestId("open-thread-parent-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-state").textContent).toBe("replies");
+    });
+
+    fireEvent.click(screen.getByTestId("search-hit"));
+
+    await waitFor(() => {
+      expect(actions.listThreadMessagesAction).toHaveBeenCalledWith(
+        "room-channel",
+        "parent-1",
+        { around: "r-old" },
+      );
+    });
+
+    fireEvent.click(screen.getByTestId("thread-load-older"));
+
+    await act(async () => {
+      resolveAround({
+        ok: true,
+        value: {
+          messages: [replyMessage("r-old")],
+          nextCursor: "around-cursor",
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-reply-count").textContent).toBe("1");
+    });
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-older-status",
+      "idle",
+    );
+
+    await act(async () => {
+      failOlder({ ok: false, error: { message: "boom" } });
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-older-status",
+      "idle",
+    );
+    expect(screen.getByTestId("thread-reply-count").textContent).toBe("1");
   });
 });
