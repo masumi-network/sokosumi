@@ -2,7 +2,7 @@
 
 ## Resume checkpoint
 
-- Active slice: message pin status (SOK-1066 follow-up), branch `sok-1066-apple-message-pin-status`. Core message `pinnedAt` supplies first-load status independently of pin-list pagination; existing realtime overrides retain precedence. The localized note sits beside the sender/time or above continuation bodies, and deleted rows hide it. Verification below.
+- Active slice: message pin status (SOK-1066 follow-up), draft [PR #4566](https://github.com/masumi-network/sokosumi/pull/4566), branch `sok-1066-apple-message-pin-status`. Core message `pinnedAt` supplies first-load status independently of pin-list pagination; existing realtime overrides retain precedence. The localized note sits beside the sender/time or above continuation bodies, and deleted rows hide it. Verification below.
 - Pinned messages (21): [PR #4549](https://github.com/masumi-network/sokosumi/pull/4549) merged on 2026-09-14.
 - User acceptance (2026-09-14): first-load pins and navigation to older messages now work.
 - Complete-line expansion [#4560](https://github.com/masumi-network/sokosumi/pull/4560) merged on 2026-09-14. Final CI passed Xcode build/app tests, all five package suites, lint/format and CodeQL. Heading coverage now uses actual line rectangles at three widths.
