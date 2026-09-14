@@ -104,10 +104,10 @@
       let second = try #require(CFDataGetBytePtr(secondData))
       try #require(before.width == after.width && before.height == after.height)
       try #require(before.bitsPerPixel == after.bitsPerPixel && before.bitsPerPixel == 32)
-      /// Exclude the changing boundary, composer and hover toolbar; compare the middle replies.
+      /// Compare lower visible replies: at the top, the upper half includes the changing page boundary.
       func difference(_ shift: Int) -> Int {
         var total = 0
-        for row in stride(from: before.height / 4, to: before.height / 2, by: 3) {
+        for row in stride(from: before.height / 2, to: before.height * 2 / 3, by: 3) {
           for column in stride(from: before.width / 12, to: before.width / 3, by: 4) {
             let firstOffset = row * before.bytesPerRow + column * 4
             let secondOffset = (row + shift) * after.bytesPerRow + column * 4
