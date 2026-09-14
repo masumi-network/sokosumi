@@ -48,7 +48,8 @@ the token, not at the call site:
 
 | Token | Role |
 | --- | --- |
-| `--overlay` | modal and dialog scrim |
+| `--overlay` | scrim behind a dialog, or under the mobile chrome; always with a backdrop blur |
+| `--overlay-primary` | drop-target wash over content that must stay readable |
 | `--surface-glass` | floating chip or control over content |
 | `--surface-sticky` | header that sits on the page |
 | `--scrim`, `--scrim-soft`, `--scrim-strong` | over user media, same in both themes |
@@ -58,7 +59,6 @@ the token, not at the call site:
 | `--media-ground` | the opaque ground behind media, and ink on light media |
 | `--hero-wash` | the gradient laid over the landing photograph |
 | `--background-muted` | quieter label on an inverted (`bg-foreground`) surface |
-| `--card-background-hover` | row hover on a card, which must not hide the row under it |
 | `--ring-halo`, `--destructive-halo` | the soft glow outside a focus ring |
 
 The `on-media` family is the one place a name has tripped people up. `-muted`
