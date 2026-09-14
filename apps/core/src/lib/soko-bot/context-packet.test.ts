@@ -406,7 +406,42 @@ describe("ContextPacketBuilder", () => {
         where: {
           ownerId: "user-1",
           workspaceId: buildInput().workspaceId,
+          OR: [
+            { taskId: null },
+            {
+              task: {
+                is: {
+                  OR: [
+                    { visibility: "PUBLIC" },
+                    { visibility: "PRIVATE", ownerId: "user-1" },
+                  ],
+                },
+              },
+            },
+          ],
         },
+      }),
+    );
+  });
+
+  it("loads only public Tasks and Jobs for teammate audience packets", async () => {
+    await new ContextPacketBuilder().build({
+      ...buildInput(),
+      audience: "TEAMMATE" as const,
+    });
+
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          visibility: "PUBLIC",
+        }),
+      }),
+    );
+    expect(jobFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ taskId: null }, { task: { is: { visibility: "PUBLIC" } } }],
+        }),
       }),
     );
   });
