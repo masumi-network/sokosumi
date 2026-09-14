@@ -181,7 +181,7 @@ describe("coworkerContextMiddleware", () => {
     });
     expect(userFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "context_wins" },
-      select: { id: true },
+      select: { id: true, role: true, banned: true, banExpires: true },
     });
   });
 
@@ -257,7 +257,67 @@ describe("coworkerContextMiddleware", () => {
     });
 
     expect(res.status).toBe(400);
+    expect(await res.text()).toBe("Context user does not exist");
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the context user is banned", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      id: "banned_user",
+      role: "user",
+      banned: true,
+      banExpires: null,
+    });
+
+    const app = createApp({
+      isAuthenticated: true,
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
+    });
+
+    const res = await app.request("http://localhost/", {
+      headers: { "X-Context-User-Id": "banned_user" },
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toBe("Context user does not exist");
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("attaches context once the context user's ban has expired", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      id: "user_ban_expired",
+      role: "user",
+      banned: true,
+      banExpires: new Date(Date.now() - 60_000),
+    });
+
+    const app = createApp({
+      isAuthenticated: true,
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
+    });
+
+    const res = await app.request("http://localhost/", {
+      headers: { "X-Context-User-Id": "user_ban_expired" },
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      authContext: AuthVariables["authContext"];
+    };
+    expect(body.authContext).toEqual({
+      actor: "coworker",
+      coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_ban_expired", organizationId: null },
+    });
   });
 
   it("returns 400 when organization context header is set without user id", async () => {
