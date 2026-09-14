@@ -1,4 +1,5 @@
 import CoreAPI
+import SokosumiChat
 import SwiftUI
 
 struct MessageUnfurlView: View {
@@ -54,7 +55,7 @@ struct MessageUnfurlView: View {
             removing = true
             Task { @MainActor in
               defer { removing = false }
-              do { try await remove() } catch { errorMessage = error.localizedDescription }
+              do { try await remove() } catch { errorMessage = friendlyMessage(for: error) }
             }
           } label: {
             Image(systemName: "xmark").font(.caption).frame(width: 16, height: 16)
