@@ -12,7 +12,11 @@ import {
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
-import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import {
+  lockCalendarScope,
+  lockTaskRows,
+  requireOpenCalendarProject,
+} from "@/helpers/calendar-locks";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -205,6 +209,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
       }
+
+      await requireOpenCalendarProject(
+        tx,
+        currentTask.workspaceId,
+        currentTask.projectId,
+      );
 
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
         throw conflict(

@@ -74,7 +74,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const deleteResult = await tx.project.deleteMany({
-        where: { id, workspaceId: workspaceContext.workspaceId },
+        where: {
+          id,
+          workspaceId: workspaceContext.workspaceId,
+          closingAt: null,
+          closedAt: null,
+          closeOperation: { is: null },
+        },
       });
       return deleteResult.count === 1
         ? ("deleted" as const)

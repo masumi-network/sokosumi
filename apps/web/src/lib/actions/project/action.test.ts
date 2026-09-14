@@ -14,11 +14,14 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 const projectServiceMock = {
+  cancelProjectCloseOwedWork: vi.fn(),
+  closeProject: vi.fn(),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
   getProjectContextMd: vi.fn(),
   patchProject: vi.fn(),
   removeProjectDesignMd: vi.fn(),
+  retryProjectClose: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 const resolveProjectSiteIconMock = vi.fn();
@@ -74,6 +77,21 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
     ...overrides,
+  };
+}
+
+function buildCloseStatus() {
+  return {
+    id: "123e4567-e89b-42d3-a456-426614174001",
+    projectId: "project-1",
+    state: "CLOSING" as const,
+    cutoffAt: new Date("2026-09-14T10:00:00.000Z"),
+    reason: null,
+    attempts: 0,
+    failure: null,
+    completedAt: null,
+    projectRevision: 4,
+    owedOccurrenceCount: 2,
   };
 }
 
@@ -216,6 +234,101 @@ describe("project actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
     expect(result).toEqual({ projectId: "project-1" });
+  });
+
+  it("closes a project with normalized input and revalidates calendar routes", async () => {
+    const status = buildCloseStatus();
+    projectServiceMock.closeProject.mockResolvedValue(status);
+
+    const { closeProject } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    await expect(
+      closeProject({
+        projectId: " project-1 ",
+        operationId: "123e4567-e89b-42d3-a456-426614174003",
+        expectedProjectRevision: 3,
+        reason: "  Campaign complete  ",
+      }),
+    ).resolves.toEqual(status);
+
+    expect(projectServiceMock.closeProject).toHaveBeenCalledWith("project-1", {
+      operationId: "123e4567-e89b-42d3-a456-426614174003",
+      expectedProjectRevision: 3,
+      reason: "Campaign complete",
+    });
+    for (const path of [
+      "/projects",
+      "/projects/project-1",
+      "/projects/project-1/calendar",
+      "/calendar",
+      "/tasks",
+    ]) {
+      expect(revalidatePath).toHaveBeenCalledWith(path);
+    }
+  });
+
+  it("requires an operation UUID and a recovery reason", async () => {
+    const { closeProject, retryProjectClose } = await import("./action");
+
+    await expect(
+      closeProject({
+        projectId: "project-1",
+        operationId: "not-a-uuid",
+        expectedProjectRevision: 3,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      retryProjectClose({
+        projectId: "project-1",
+        operationId: "123e4567-e89b-42d3-a456-426614174004",
+        expectedProjectRevision: 4,
+        reason: "   ",
+      }),
+    ).rejects.toThrow();
+
+    expect(projectServiceMock.closeProject).not.toHaveBeenCalled();
+    expect(projectServiceMock.retryProjectClose).not.toHaveBeenCalled();
+  });
+
+  it("sends retry and cancel-owed as separate recovery operations", async () => {
+    const status = buildCloseStatus();
+    projectServiceMock.retryProjectClose.mockResolvedValue(status);
+    projectServiceMock.cancelProjectCloseOwedWork.mockResolvedValue(status);
+    const { cancelProjectCloseOwedWork, retryProjectClose } = await import(
+      "./action"
+    );
+    const retryInput = {
+      projectId: "project-1",
+      operationId: "123e4567-e89b-42d3-a456-426614174004",
+      expectedProjectRevision: 4,
+      reason: "Retry after review",
+    };
+    const cancelInput = {
+      projectId: "project-1",
+      operationId: "123e4567-e89b-42d3-a456-426614174005",
+      expectedProjectRevision: 4,
+      reason: "Cancel the blocked owed work",
+    };
+
+    await retryProjectClose(retryInput);
+    await cancelProjectCloseOwedWork(cancelInput);
+
+    expect(projectServiceMock.retryProjectClose).toHaveBeenCalledWith(
+      "project-1",
+      {
+        operationId: retryInput.operationId,
+        expectedProjectRevision: 4,
+        reason: retryInput.reason,
+      },
+    );
+    expect(projectServiceMock.cancelProjectCloseOwedWork).toHaveBeenCalledWith(
+      "project-1",
+      {
+        operationId: cancelInput.operationId,
+        expectedProjectRevision: 4,
+        reason: cancelInput.reason,
+      },
+    );
   });
 
   it("loads project memory through the service", async () => {

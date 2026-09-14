@@ -140,4 +140,43 @@ describe("taskScheduleValidationService", () => {
       task.id,
     );
   });
+
+  it("skips a project schedule that starts closing while validation waits for locks", async () => {
+    const task = {
+      id: "tsk_123",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      projectId: "22222222-2222-7222-8222-222222222222",
+      status: TaskStatus.QUEUED,
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "once",
+        scheduledAt: "2026-06-01T00:00:00.000Z",
+        runAt: "2026-06-02T09:00:00.000Z",
+      }),
+      nextRunAt: new Date("2026-06-02T09:00:00.000Z"),
+      archivedAt: null,
+      scheduleQuarantine: null,
+      project: { closingAt: null, closedAt: null },
+    };
+    taskFindManyMock.mockResolvedValue([{ id: task.id }]);
+    taskFindUniqueMock.mockResolvedValueOnce(task).mockResolvedValueOnce({
+      ...task,
+      project: {
+        closingAt: new Date("2026-06-01T12:00:00.000Z"),
+        closedAt: null,
+      },
+    });
+
+    const { taskScheduleValidationService } = await import(
+      "./task-schedule-validation.service"
+    );
+    const result = await taskScheduleValidationService.validateActiveSchedules({
+      shouldContinue: () => true,
+    });
+
+    expect(result).toEqual({ scanned: 1, quarantined: 0, passComplete: true });
+    expect(lockCalendarScopeMock).toHaveBeenCalled();
+    expect(lockTaskRowsMock).toHaveBeenCalled();
+    expect(replaceTaskSchedulePlannedOccurrencesMock).not.toHaveBeenCalled();
+  });
 });

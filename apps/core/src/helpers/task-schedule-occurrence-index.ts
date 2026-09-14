@@ -436,9 +436,11 @@ function isDurableScheduleException(occurrence: {
 function futureScheduleOccurrenceCandidatesWhere(
   seriesTaskId: string,
   now: Date,
+  sourceProjectId?: string,
 ): Prisma.TaskScheduleOccurrenceWhereInput {
   return {
     seriesTaskId,
+    ...(sourceProjectId ? { sourceProjectId } : {}),
     effectiveScheduledAt: { gte: now },
     state: {
       in: [
@@ -470,9 +472,14 @@ export async function retireTaskScheduleFutureOccurrences(
   tx: TaskScheduleOccurrenceRetireClient,
   seriesTaskId: string,
   now = new Date(),
+  options: { sourceProjectId?: string } = {},
 ): Promise<RetiredTaskScheduleOccurrences> {
   const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
-    where: futureScheduleOccurrenceCandidatesWhere(seriesTaskId, now),
+    where: futureScheduleOccurrenceCandidatesWhere(
+      seriesTaskId,
+      now,
+      options.sourceProjectId,
+    ),
     select: {
       id: true,
       state: true,
