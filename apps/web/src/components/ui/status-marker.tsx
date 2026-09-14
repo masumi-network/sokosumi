@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
  * The old system asked hue to name eleven categories, which no palette can do:
  * `status-running` and `status-awaiting` measured OKLab ΔE 4.0 apart in light
  * mode, barely past the 2.0 just-noticeable difference, and five pairs sat
- * under ΔE 10. Draft and canceled were byte-identical. Collapsing to five
+ * under ΔE 10. Draft and canceled were byte-identical. Collapsing to nine
  * roles removes the crowding, and the glyph separates states inside a role
  * with no crowding limit at all. Every badge now reads in greyscale, which is
  * what WCAG 2.2 SC 1.4.1 asks for.
@@ -64,6 +64,14 @@ interface RoleStyle {
    * mode, which is invisible. Every dot below clears 3:1 on that surface.
    */
   dot: string;
+  /**
+   * Glyph colour when the marker is drawn with no fill behind it, as the
+   * compact job badge does. Same reasoning and same values as `dot`, as a
+   * text colour rather than a fill. Spelled out rather than rewritten from
+   * `dot` at runtime: deriving one class from another by string surgery is
+   * what produced the invisible failure dot in the first place.
+   */
+  onSurface: string;
 }
 
 /**
@@ -86,54 +94,63 @@ export const STATUS_ROLE_STYLES: Record<StatusRole, RoleStyle> = {
     text: "text-foreground",
     marker: "text-status-done",
     dot: "bg-status-done",
+    onSurface: "text-status-done",
   },
   queued: {
     bg: "bg-status-queued-quaternary",
     text: "text-foreground",
     marker: "text-status-queued",
     dot: "bg-status-queued",
+    onSurface: "text-status-queued",
   },
   active: {
     bg: "bg-status-active-quaternary",
     text: "text-foreground",
     marker: "text-status-active",
     dot: "bg-status-active",
+    onSurface: "text-status-active",
   },
   waiting: {
     bg: "bg-status-waiting-quaternary",
     text: "text-foreground",
     marker: "text-status-waiting",
     dot: "bg-status-waiting",
+    onSurface: "text-status-waiting",
   },
   action: {
     bg: "bg-semantic-warning-quaternary",
     text: "text-foreground",
     marker: "text-semantic-warning",
     dot: "bg-semantic-warning",
+    onSurface: "text-semantic-warning",
   },
   problem: {
     bg: "bg-semantic-destructive-quaternary",
     text: "text-foreground",
     marker: "text-semantic-destructive",
     dot: "bg-semantic-destructive",
+    onSurface: "text-semantic-destructive",
   },
   failure: {
     bg: "bg-semantic-destructive-solid",
     text: "text-semantic-destructive-foreground",
     marker: "text-semantic-destructive-foreground",
     dot: "bg-semantic-destructive-solid",
+    onSurface: "text-semantic-destructive-solid",
   },
   success: {
     bg: "bg-semantic-success-quaternary",
     text: "text-foreground",
     marker: "text-semantic-success",
     dot: "bg-semantic-success",
+    onSurface: "text-semantic-success",
   },
   closed: {
     bg: "bg-quaternary",
     text: "text-foreground",
     marker: "text-status-done",
     dot: "bg-status-done",
+    onSurface: "text-status-done",
   },
 };
 
