@@ -57,6 +57,7 @@ interface TasksPageProps {
     coworkerId?: string | string[];
     status?: string | string[];
     projectId?: string | string[];
+    visibility?: string | string[];
     agentId?: string | string[];
     jobStatus?: string | string[];
     tab?: string | string[];
@@ -99,6 +100,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     coworkerId: legacyCoworkerId,
     status,
     projectId,
+    visibility,
     agentId,
     jobStatus,
     tab,
@@ -136,6 +138,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       coworkerId: legacyCoworkerId,
       status,
       projectId,
+      visibility,
     },
     activeOrganizationId,
   );
