@@ -677,9 +677,10 @@ describe("PasskeySettings", () => {
 
     // Wait for the list, because Add is disabled while it loads either way.
     // Asserting before this would pass with `canAddPasskey` ignored entirely.
-    expect(
-      (await screen.findAllByRole("button", { name: /^delete-/ })).length,
-    ).toBeGreaterThan(0);
+    const [deleteButton] = await screen.findAllByRole("button", {
+      name: /^delete-/,
+    });
+    expect(deleteButton).toBeEnabled();
 
     expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
     expect(screen.getByText("addUnavailable")).toBeInTheDocument();
