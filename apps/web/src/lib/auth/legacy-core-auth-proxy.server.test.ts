@@ -19,7 +19,10 @@ describe("proxyLegacyCoreAuthRequest", () => {
     fetchCoreAuthMock.mockResolvedValue(
       new Response(JSON.stringify({ session: null }), {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: new Headers({
+          "content-type": "application/json",
+          "x-captcha-response": "token",
+        }),
       }),
     );
 
@@ -35,7 +38,7 @@ describe("proxyLegacyCoreAuthRequest", () => {
       {
         method: "GET",
         body: undefined,
-        headers: undefined,
+        headers: new Headers(),
       },
     );
     expect(response.status).toBe(200);
@@ -60,7 +63,10 @@ describe("proxyLegacyCoreAuthRequest", () => {
       "https://app.sokosumi.com/api/auth/passkey/generate-authenticate-options",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: new Headers({
+          "content-type": "application/json",
+          "x-captcha-response": "token",
+        }),
         body: JSON.stringify({}),
       },
     );
@@ -74,7 +80,10 @@ describe("proxyLegacyCoreAuthRequest", () => {
       "https://core.sokosumi.com/auth/passkey/generate-authenticate-options",
       expect.objectContaining({
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: new Headers({
+          "content-type": "application/json",
+          "x-captcha-response": "token",
+        }),
       }),
     );
     expect(response.status).toBe(200);

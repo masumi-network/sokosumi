@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { useAuthCaptcha } from "@/components/auth-captcha-provider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,6 +33,7 @@ import { type EmailFormType, emailFormSchema } from "@/lib/schemas";
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");
   const router = useRouter();
+  const { runWithCaptcha, getErrorMessage } = useAuthCaptcha();
 
   const form = useForm<EmailFormType>({
     resolver: zodResolver(
@@ -43,19 +45,25 @@ export function EmailForm() {
   });
 
   const handleSubmit = async (values: EmailFormType) => {
-    const changeEmailResult = await changeEmail({
-      newEmail: values.email,
-      callbackURL: getAbsoluteAuthRedirectUrl("/"),
-    });
+    await runWithCaptcha(async (fetchOptions) => {
+      const changeEmailResult = await changeEmail({
+        fetchOptions,
+        newEmail: values.email,
+        callbackURL: getAbsoluteAuthRedirectUrl("/"),
+      });
 
-    if (changeEmailResult.error) {
-      const errorMessage = changeEmailResult.error.message ?? t("error");
-      toast.error(errorMessage);
-    } else {
-      toast.success(t("success"));
-      form.reset();
-      router.refresh();
-    }
+      if (changeEmailResult.error) {
+        const errorMessage = getErrorMessage(
+          changeEmailResult.error,
+          changeEmailResult.error.message ?? t("error"),
+        );
+        toast.error(errorMessage);
+      } else {
+        toast.success(t("success"));
+        form.reset();
+        router.refresh();
+      }
+    });
   };
 
   const { isSubmitting } = form.formState;
