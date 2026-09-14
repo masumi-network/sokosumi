@@ -97,8 +97,6 @@ interface TaskStatusBadgeProps {
   /** When set, overrides the default English label (e.g. from next-intl). */
   label?: string;
   className?: string;
-  /** Ignored. The marker glyph is always drawn; this keeps old call sites. */
-  showDot?: boolean;
   showLabel?: boolean;
 }
 

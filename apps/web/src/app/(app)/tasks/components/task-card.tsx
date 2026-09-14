@@ -57,7 +57,6 @@ export function TaskCard({
                 <TaskStatusBadge
                   status={task.status}
                   label={statusLabels?.[task.status]}
-                  showDot={task.columnId === "in-progress"}
                   className="w-fit rounded-sm"
                 />
               </div>

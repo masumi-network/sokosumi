@@ -27,10 +27,19 @@ export function JobStatusBadge({
 
   // The compact variant drops the label, not the glyph: a bare colour dot was
   // the whole problem, since two statuses could share a hue.
+  //
+  // It also drops the badge fill, so the glyph cannot take `marker`, which is
+  // the colour of the label ON that fill. For the failure role that is the
+  // near-white label, which measured 1.06:1 on --card-background: an invisible
+  // mark on exactly the status that most needs to be seen. `dot` is the field
+  // that carries a colour readable against the surface instead of the fill.
   if (variant === "dot") {
     return (
       <span aria-label={label} className={cn("inline-flex", className)}>
-        <StatusMarker spec={marker} />
+        <StatusMarker
+          spec={marker}
+          className={STATUS_ROLE_STYLES[marker.role].onSurface}
+        />
       </span>
     );
   }

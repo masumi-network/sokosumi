@@ -6,7 +6,7 @@ import {
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 /**
- * The job scale in the same five roles the task badge uses, so a job and a
+ * The job scale in the same nine roles the task badge uses, so a job and a
  * task that mean the same thing look the same. Colour carries urgency, the
  * glyph carries identity. See `status-marker.tsx`.
  *

@@ -71,8 +71,6 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  const latestStatusEventId =
-    visibleEvents.find((event) => event.status)?.id ?? null;
   const publicDescription = task.description
     ? removeTaskContextAttachmentLinks(task.description)
     : "";
@@ -298,8 +296,6 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                     isCommentEvent && event.status === TaskStatus.COMPLETED;
                   const isStatusOnlyEvent =
                     !isCommentEvent && Boolean(event.status);
-                  const isLatestStatusEvent =
-                    Boolean(event.status) && event.id === latestStatusEventId;
 
                   return (
                     <div
@@ -367,9 +363,6 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                   <TaskStatusBadge
                                     status={event.status}
                                     label={statusLabels[event.status]}
-                                    showDot={
-                                      isLatestStatusEvent && !isStatusOnlyEvent
-                                    }
                                   />
                                   <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                                     <span>{originFromLabel}</span>
