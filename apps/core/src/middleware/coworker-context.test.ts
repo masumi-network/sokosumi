@@ -257,6 +257,7 @@ describe("coworkerContextMiddleware", () => {
     });
 
     expect(res.status).toBe(400);
+    expect(await res.text()).toBe("Context user does not exist");
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
@@ -282,6 +283,7 @@ describe("coworkerContextMiddleware", () => {
     });
 
     expect(res.status).toBe(400);
+    expect(await res.text()).toBe("Context user does not exist");
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 

@@ -212,6 +212,7 @@ describe("authMiddleware", () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await response.text()).toBe("Invalid or expired agent token");
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
   });
 
