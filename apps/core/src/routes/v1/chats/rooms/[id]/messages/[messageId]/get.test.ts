@@ -97,6 +97,7 @@ function message(overrides: Record<string, unknown> = {}) {
     mentionsAsSource: [],
     reactions: [],
     replies: [],
+    pins: [],
     _count: { replies: 0 },
     ...overrides,
   };

@@ -5322,6 +5322,7 @@
         "couldNotLoad": "Message could not be loaded",
         "pin": "Pin message",
         "unpin": "Unpin message",
+        "pinned": "Pinned",
         "messageRequired": "Message is required.",
         "roomRequired": "Room is required.",
         "pinError": "Could not pin message.",

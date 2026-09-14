@@ -109,6 +109,7 @@ const mappedMessage = {
   senderCoworker: null,
   mentionsAsSource: [],
   reactions: [],
+  pins: [],
   _count: { replies: 0 },
   replies: [],
 };

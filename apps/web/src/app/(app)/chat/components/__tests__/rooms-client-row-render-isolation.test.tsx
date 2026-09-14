@@ -293,6 +293,7 @@ function message(id: string, minute: number): ChatRoomMessage {
       `2026-07-01T12:${String(minute).padStart(2, "0")}:00.000Z`,
     ),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
@@ -356,11 +357,17 @@ function rendersSince(before: Map<string, number>) {
   return delta;
 }
 
-async function mountRoom() {
-  render(<RoomsClient {...baseProps} />);
+async function mountRoom(initialMessages: ChatRoomMessage[] = messages) {
+  render(<RoomsClient {...baseProps} messages={initialMessages} />);
   await act(async () => {});
   expect(screen.getAllByTestId("chat-message-row")).toHaveLength(3);
   return snapshotRenders();
+}
+
+function pinnedFlags() {
+  return screen
+    .getAllByTestId("chat-message-row")
+    .map((row) => row.getAttribute("data-pinned"));
 }
 
 describe("RoomsClient transcript row render isolation", () => {
@@ -520,6 +527,65 @@ describe("RoomsClient transcript row render isolation", () => {
 
     expect(unpinRoomMessageAction).toHaveBeenCalledWith("room-channel", "m2");
     expect(pinRoomMessageAction).not.toHaveBeenCalled();
+  });
+
+  it("marks messages pinned on first load without opening the pinned panel", async () => {
+    await mountRoom([
+      message("m1", 1),
+      { ...message("m2", 2), pinnedAt: new Date("2026-07-01T13:00:00.000Z") },
+      message("m3", 3),
+    ]);
+
+    expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+  });
+
+  it("clears the pinned mark on a realtime unpin", async () => {
+    await mountRoom([
+      message("m1", 1),
+      { ...message("m2", 2), pinnedAt: new Date("2026-07-01T13:00:00.000Z") },
+      message("m3", 3),
+    ]);
+
+    await act(async () => {
+      realtimeOptions().onPinnedMessage?.({
+        action: "unpin",
+        roomId: "room-channel",
+        messageId: "m2",
+        pinnedMessageCount: 0,
+      });
+    });
+
+    expect(pinnedFlags()).toEqual(["false", "false", "false"]);
+  });
+
+  it("ignores a realtime pin for another room", async () => {
+    await mountRoom();
+
+    await act(async () => {
+      realtimeOptions().onPinnedMessage?.({
+        action: "pin",
+        roomId: "room-other",
+        messageId: "m2",
+        pinnedMessageCount: 1,
+      });
+    });
+
+    expect(pinnedFlags()).toEqual(["false", "false", "false"]);
+  });
+
+  it("re-renders only the row a realtime pin touches", async () => {
+    const before = await mountRoom();
+
+    await act(async () => {
+      realtimeOptions().onPinnedMessage?.({
+        action: "pin",
+        roomId: "room-channel",
+        messageId: "m2",
+        pinnedMessageCount: 1,
+      });
+    });
+
+    expect(rendersSince(before)).toEqual({ m1: 0, m2: 1, m3: 0 });
   });
 
   it("saves the current draft after a realtime update to the edited row", async () => {
