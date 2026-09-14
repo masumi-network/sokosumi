@@ -5,6 +5,8 @@ import {
   useVirtualizer,
   type Virtualizer,
 } from "@tanstack/react-virtual";
+import { ArrowDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   type Ref,
@@ -25,6 +27,7 @@ import {
   STICK_TO_BOTTOM_NEAR_PX,
   transcriptRowKey,
 } from "@/app/chat/utils/transcript-viewport-model";
+import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 /**
@@ -184,6 +187,9 @@ export function TranscriptViewport({
   // scroll time, not when asked: chrome that resizes the scroller moves the
   // edge away before the caller asks whether to keep it in view.
   const atEndRef = useRef(true);
+  // The same answer as state, for the jump-to-latest control that shows
+  // whenever the reader is away from the live edge.
+  const [atEnd, setAtEnd] = useState(true);
 
   // The previous render's instance, for the look at the old rows below. The
   // instance itself never changes; the ref exists to read it before the hook
@@ -241,13 +247,24 @@ export function TranscriptViewport({
       return;
     }
     const record = () => {
-      atEndRef.current = virtualizer.isAtEnd(STICK_TO_BOTTOM_NEAR_PX);
+      const isAtEnd = virtualizer.isAtEnd(STICK_TO_BOTTOM_NEAR_PX);
+      atEndRef.current = isAtEnd;
+      setAtEnd(isAtEnd);
     };
     scroller.addEventListener("scroll", record, { passive: true });
     return () => {
       scroller.removeEventListener("scroll", record);
     };
   }, [scroller, virtualizer]);
+
+  // Under a hold an append leaves the view where it was with the new row
+  // below it, and no scroll event says so. Re-read once the rows change.
+  // Without a hold the append pulls the view down, which does scroll.
+  useEffect(() => {
+    if (hold) {
+      setAtEnd(virtualizer.isAtEnd(STICK_TO_BOTTOM_NEAR_PX));
+    }
+  }, [hold, rows, virtualizer]);
 
   // Every render: the container moves whenever a short list grows toward
   // the scroller's height, and the state guard makes a settled margin free.
@@ -385,6 +402,8 @@ export function TranscriptViewport({
     [virtualizer],
   );
 
+  const t = useTranslations("App.Channels");
+
   if (!scroller) {
     return null;
   }
@@ -409,6 +428,26 @@ export function TranscriptViewport({
           );
         })}
       </div>
+      {/* A zero-height sticky line at the end of the list: it takes no room
+          from the transcript, and the control hangs above it, pinned over
+          the bottom of the scroller while the reader is anywhere above. */}
+      {atEnd ? null : (
+        <div className="pointer-events-none sticky bottom-3 z-10 h-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-primary border-primary/30 bg-background hover:bg-primary/5 hover:text-primary dark:bg-background dark:border-primary/30 dark:hover:bg-primary/10 pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
+            onClick={() => {
+              setHeld(false);
+              virtualizer.scrollToEnd();
+            }}
+          >
+            <ArrowDown aria-hidden />
+            {t("jumpToLatest")}
+          </Button>
+        </div>
+      )}
     </ClampedOverflowProvider>
   );
 }
