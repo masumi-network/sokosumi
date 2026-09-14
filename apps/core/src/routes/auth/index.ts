@@ -21,7 +21,7 @@ app.use(
   "*",
   cors({
     origin: (origin) => resolveCorsAllowOrigin(origin),
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "x-captcha-response"],
     allowMethods: ["POST", "GET", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: TIME.CORS_MAX_AGE,

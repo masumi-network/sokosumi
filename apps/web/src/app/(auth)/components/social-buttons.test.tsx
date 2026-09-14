@@ -38,6 +38,13 @@ const mockSignInEvent = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
+const requestCaptchaMock = vi
+  .fn()
+  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
+vi.mock("@/components/auth-captcha-provider", () => ({
+  useAuthCaptcha: () => requestCaptchaMock,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockRouterReplace,
@@ -548,6 +555,7 @@ describe("SocialButtons", () => {
 
     await waitFor(() => {
       expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
+        fetchOptions: { headers: { "x-captcha-response": "verified-token" } },
         email: "login-user@example.com",
         callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
       });

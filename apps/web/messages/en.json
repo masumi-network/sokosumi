@@ -1,5 +1,11 @@
 {
   "Components": {
+    "AuthCaptcha": {
+      "title": "Security check",
+      "description": "Complete this check to continue.",
+      "error": "Verification could not finish. Check your connection. If the check does not resume, reload this page.",
+      "cancel": "Cancel"
+    },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
       "description": "We currently encounter issues with the execution of jobs due to technical issues with one of our third party providers. Don't worry everything will be back to normal in a bit.",

@@ -6,6 +6,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import VerifyEmailButton from "@/app/components/verify-email-button";
 import { authClient } from "@/lib/auth/auth.client";
 
+const requestCaptchaMock = vi
+  .fn()
+  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
+vi.mock("@/components/auth-captcha-provider", () => ({
+  useAuthCaptcha: () => requestCaptchaMock,
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
@@ -32,6 +39,9 @@ vi.mock("sonner", () => ({
 
 describe("VerifyEmailButton", () => {
   beforeEach(() => {
+    requestCaptchaMock.mockResolvedValue({
+      headers: { "x-captcha-response": "verified-token" },
+    });
     vi.mocked(authClient.sendVerificationEmail).mockReset();
     vi.mocked(toast.success).mockReset();
     vi.mocked(toast.error).mockReset();
@@ -56,6 +66,7 @@ describe("VerifyEmailButton", () => {
     expect(authClient.sendVerificationEmail).toHaveBeenCalledWith({
       email: "user@example.com",
       callbackURL: window.location.href,
+      fetchOptions: { headers: { "x-captcha-response": "verified-token" } },
     });
     expect(button).toBeDisabled();
 
@@ -65,6 +76,13 @@ describe("VerifyEmailButton", () => {
       expect(toast.success).toHaveBeenCalledWith("Verification email sent.");
       expect(button).not.toBeDisabled();
     });
+  });
+
+  it("does not send email when verification is cancelled", async () => {
+    requestCaptchaMock.mockResolvedValueOnce(null);
+    render(<VerifyEmailButton email="user@example.com" label="Verify email" />);
+    await userEvent.click(screen.getByRole("button", { name: "Verify email" }));
+    expect(authClient.sendVerificationEmail).not.toHaveBeenCalled();
   });
 
   it("shows a fallback error toast when sending verification email throws", async () => {

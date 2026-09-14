@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { useAuthCaptcha } from "@/components/auth-captcha-provider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,6 +33,7 @@ import { type EmailFormType, emailFormSchema } from "@/lib/schemas";
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");
   const router = useRouter();
+  const requestCaptcha = useAuthCaptcha();
 
   const form = useForm<EmailFormType>({
     resolver: zodResolver(
@@ -43,7 +45,10 @@ export function EmailForm() {
   });
 
   const handleSubmit = async (values: EmailFormType) => {
+    const fetchOptions = await requestCaptcha();
+    if (!fetchOptions) return;
     const changeEmailResult = await changeEmail({
+      fetchOptions,
       newEmail: values.email,
       callbackURL: getAbsoluteAuthRedirectUrl("/"),
     });

@@ -19,6 +19,13 @@ const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
 
 let mockSearchParams = new URLSearchParams();
 
+const requestCaptchaMock = vi
+  .fn()
+  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
+vi.mock("@/components/auth-captcha-provider", () => ({
+  useAuthCaptcha: () => requestCaptchaMock,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockReplace,
@@ -112,6 +119,9 @@ describe("SignInForm", () => {
   });
 
   beforeEach(() => {
+    requestCaptchaMock.mockResolvedValue({
+      headers: { "x-captcha-response": "verified-token" },
+    });
     mockReplace.mockReset();
     mockSignInEmail.mockReset();
     mockGetSession.mockReset();

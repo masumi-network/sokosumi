@@ -9,9 +9,9 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/signup/data";
+import { useAuthCaptcha } from "@/components/auth-captcha-provider";
 import { AuthErrorCode } from "@/lib/actions";
 import { handleUtmConversion } from "@/lib/actions/auth";
 import { authClient, signUp } from "@/lib/auth/auth.client";
@@ -39,6 +39,7 @@ export default function SignUpForm({
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const registerFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const requestCaptcha = useAuthCaptcha();
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -75,7 +76,11 @@ export default function SignUpForm({
   const handleSubmit = async (values: SignUpFormSchemaType) => {
     track("Sign Up", { provider: "credential" });
 
+    const fetchOptions = await requestCaptcha();
+    if (!fetchOptions) return;
+
     const result = await signUp.email({
+      fetchOptions,
       email: values.email,
       name: values.name,
       password: values.password,

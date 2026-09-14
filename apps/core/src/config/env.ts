@@ -51,6 +51,7 @@ const baseEnvSchema = z.object({
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
+  TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
   BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce
@@ -237,9 +238,7 @@ const baseEnvSchema = z.object({
   JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
 });
 
-function isDeployedSokoBotEnvironment(
-  value: z.infer<typeof baseEnvSchema>,
-): boolean {
+function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
   return (
     value.NODE_ENV === "production" ||
     value.VERCEL_ENV === "production" ||
@@ -248,10 +247,20 @@ function isDeployedSokoBotEnvironment(
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
+  if (
+    (value.NODE_ENV === "staging" || isDeployedEnvironment(value)) &&
+    !value.TURNSTILE_SECRET_KEY
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["TURNSTILE_SECRET_KEY"],
+      message: "TURNSTILE_SECRET_KEY is required in deployed environments",
+    });
+  }
   if (!value.SOKO_BOT_ENABLED) return;
   // The agent runs inside Core, so enabling it needs no runtime deployment,
   // signing key, or allowlist — only a real adapter in a deployed environment.
-  if (!isDeployedSokoBotEnvironment(value)) return;
+  if (!isDeployedEnvironment(value)) return;
   if (value.SOKO_BOT_RUNTIME_ADAPTER !== "in-process") {
     context.addIssue({
       code: "custom",

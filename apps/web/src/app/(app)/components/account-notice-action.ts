@@ -4,6 +4,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { toast } from "sonner";
 
 import type { AccountNotice } from "@/app/components/account-notice-state";
+import type { RequestAuthCaptcha } from "@/components/auth-captcha-provider";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface AccountNoticeEmailMessages {
@@ -14,10 +15,14 @@ interface AccountNoticeEmailMessages {
 export async function sendAccountVerificationEmail(
   email: string,
   messages: AccountNoticeEmailMessages,
+  requestCaptcha: RequestAuthCaptcha,
 ): Promise<void> {
   try {
+    const fetchOptions = await requestCaptcha();
+    if (!fetchOptions) return;
     const result = await authClient.sendVerificationEmail({
       email,
+      fetchOptions,
       callbackURL: window.location.href,
     });
 
@@ -36,11 +41,16 @@ export async function performAccountNoticeAction(
   notice: AccountNotice,
   options: {
     router: AppRouterInstance;
+    requestCaptcha: RequestAuthCaptcha;
     emailMessages: AccountNoticeEmailMessages;
   },
 ): Promise<void> {
   if (notice.type === "emailVerification") {
-    await sendAccountVerificationEmail(notice.email, options.emailMessages);
+    await sendAccountVerificationEmail(
+      notice.email,
+      options.emailMessages,
+      options.requestCaptcha,
+    );
     return;
   }
 

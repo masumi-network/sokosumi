@@ -20,6 +20,13 @@ const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
 
 let mockSearchParams = new URLSearchParams();
 
+const requestCaptchaMock = vi
+  .fn()
+  .mockResolvedValue({ headers: { "x-captcha-response": "verified-token" } });
+vi.mock("@/components/auth-captcha-provider", () => ({
+  useAuthCaptcha: () => requestCaptchaMock,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockReplace,
@@ -109,6 +116,9 @@ describe("SignUpForm OAuth workflow", () => {
   });
 
   beforeEach(() => {
+    requestCaptchaMock.mockResolvedValue({
+      headers: { "x-captcha-response": "verified-token" },
+    });
     mockReplace.mockReset();
     mockSignUpEmail.mockReset();
     mockHandleUtmConversion.mockReset();
@@ -141,6 +151,13 @@ describe("SignUpForm OAuth workflow", () => {
     );
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
+
+  it("does not register when verification is cancelled", async () => {
+    requestCaptchaMock.mockResolvedValueOnce(null);
+    render(<SignUpForm />);
+    await submitValidSignUpForm();
+    expect(mockSignUpEmail).not.toHaveBeenCalled();
+  });
 
   it("renders signup with a single password field", () => {
     render(<SignUpForm />);

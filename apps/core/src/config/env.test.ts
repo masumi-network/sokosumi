@@ -36,6 +36,7 @@ afterEach(() => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
@@ -114,5 +115,30 @@ describe("Soko Bot deployment environment", () => {
     });
 
     expect(validateEnv().SOKO_BOT_ENABLED).toBe(false);
+  });
+});
+
+describe("Turnstile deployment configuration", () => {
+  it.each(["production", "staging"])(
+    "requires a secret in Node %s",
+    (nodeEnv) => {
+      vi.stubEnv("NODE_ENV", nodeEnv);
+      vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
+      expectInvalidEnvironment("TURNSTILE_SECRET_KEY is required");
+    },
+  );
+  it.each(["production", "preview"])(
+    "requires a secret on Vercel %s",
+    (vercelEnv) => {
+      vi.stubEnv("VERCEL_ENV", vercelEnv);
+      vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
+      expectInvalidEnvironment("TURNSTILE_SECRET_KEY is required");
+    },
+  );
+  it("allows unconfigured local development", () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("VERCEL_ENV", undefined);
+    expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
   });
 });

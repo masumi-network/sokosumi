@@ -3,6 +3,7 @@
   "globalEnv": [
     "CI",
     "NODE_ENV",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
     "NETWORK",
     "DATABASE_URL",
     "CORE_APP_BASE_URL",
@@ -15,6 +16,7 @@
   ],
   "globalPassThroughEnv": [
     "BETTER_AUTH_SECRET",
+    "TURNSTILE_SECRET_KEY",
     "APP_SIGNING_SECRET",
     "RESEND_API_KEY",
     "RESEND_FROM_EMAIL",

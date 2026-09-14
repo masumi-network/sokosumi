@@ -19,6 +19,8 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
+import { useAuthCaptcha } from "@/components/auth-captcha-provider";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
@@ -69,6 +71,7 @@ export default function SocialButtons({
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
+  const requestCaptcha = useAuthCaptcha();
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -195,7 +198,11 @@ export default function SocialButtons({
     try {
       // The link lands on the callback page (full page load), which fires the
       // `login` GTM event and then forwards to the return URL.
+      const fetchOptions = await requestCaptcha();
+      if (!fetchOptions) return;
+
       const result = await authClient.signIn.magicLink({
+        fetchOptions,
         email: trimmedEmail,
         callbackURL: buildAuthCallbackUrl(
           "/auth/callback/signin",
