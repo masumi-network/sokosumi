@@ -4,6 +4,7 @@ import {
   coreSessionUnavailableJson,
   readRouteSession,
 } from "@/lib/auth/route-session";
+import { CHAT_READ_THROTTLE_FALLBACK_SECONDS } from "@/lib/chat/chat-read-throttle";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 interface BackgroundChatReadPage {
@@ -60,6 +61,26 @@ export async function respondToBackgroundChatRead(
     // status, and anything else thrown here stays 502.
     const status =
       error instanceof CoreApiRequestError ? error.status || 503 : 502;
+    // A throttle is a schedule, not a failure detail: the browser's shared
+    // backoff clock needs the delay to stay quiet for exactly as long as
+    // Core asked (SOK-1065). Kind and delay are stable contract fields, so
+    // forwarding them keeps the "no error details leak" rule intact while
+    // the message stays the generic unavailable string.
+    if (error instanceof CoreApiRequestError && status === 429) {
+      const retryAfterSeconds =
+        error.retryAfterSeconds ?? CHAT_READ_THROTTLE_FALLBACK_SECONDS;
+      return NextResponse.json(
+        {
+          error: unavailableMessage,
+          ...(error.kind ? { kind: error.kind } : {}),
+          retryAfterSeconds,
+        },
+        {
+          status,
+          headers: { "Retry-After": String(retryAfterSeconds) },
+        },
+      );
+    }
     return NextResponse.json({ error: unavailableMessage }, { status });
   }
 }

@@ -2,6 +2,7 @@ import { err, ok } from "neverthrow";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CHAT_READ_THROTTLE_FALLBACK_SECONDS } from "@/lib/chat/chat-read-throttle";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 const { getSessionResultMock, listMessagesMock, listThreadMessagesMock } =
@@ -116,6 +117,39 @@ describe("GET /api/chat/[roomId]/messages", () => {
     expect(result.status).toBe(403);
     expect(await result.json()).toEqual({
       error: "Chat messages unavailable",
+    });
+  });
+
+  it("forwards a Core throttle as a 429 with the retry signal", async () => {
+    listMessagesMock.mockRejectedValue(
+      new CoreApiRequestError("Chat history read budget exceeded", {
+        status: 429,
+        kind: "message_read_budget_exceeded",
+        retryAfterSeconds: 7,
+      }),
+    );
+    const result = await get();
+    expect(result.status).toBe(429);
+    expect(result.headers.get("retry-after")).toBe("7");
+    expect(await result.json()).toEqual({
+      error: "Chat messages unavailable",
+      kind: "message_read_budget_exceeded",
+      retryAfterSeconds: 7,
+    });
+  });
+
+  it("answers a bare Core 429 with the bounded fallback delay", async () => {
+    listMessagesMock.mockRejectedValue(
+      new CoreApiRequestError("slow down", { status: 429 }),
+    );
+    const result = await get();
+    expect(result.status).toBe(429);
+    expect(result.headers.get("retry-after")).toBe(
+      String(CHAT_READ_THROTTLE_FALLBACK_SECONDS),
+    );
+    expect(await result.json()).toEqual({
+      error: "Chat messages unavailable",
+      retryAfterSeconds: CHAT_READ_THROTTLE_FALLBACK_SECONDS,
     });
   });
 });
