@@ -9019,6 +9019,1102 @@
           }
         }
       }
+    },
+    "/chats/rooms/{id}/pinned-messages": {
+      "get": {
+        "description": "List Pinned messages for a Channel, newest pin first. Directs are rejected.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Cursor for pagination (ID of the last item from previous page)",
+              "example": "cmi4gmksz000104l8wps8p7fp"
+            },
+            "required": false,
+            "description": "Cursor for pagination (ID of the last item from previous page)",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Number of items to return (max 100)",
+              "example": 20
+            },
+            "required": false,
+            "description": "Number of items to return (max 100)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pinned messages retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatRoomPinnedMessageListItem"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "pagination"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chats/rooms/{id}/messages/{messageId}/pin": {
+      "post": {
+        "description": "Pin a top-level Channel message onto that Channel's shared pin list. Idempotent if already pinned. Directs and thread replies are rejected.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "messageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Message pinned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatRoomPinnedMessageMutation"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "Remove a message from a Channel's shared pin list. Idempotent if it was not pinned. Directs are rejected.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "messageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Message unpinned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatRoomPinnedMessageMutation"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10814,6 +11910,181 @@
         },
         "required": [
           "emoji"
+        ]
+      },
+      "ChatRoomPinnedMessageListItem": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pinnedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "pinnedBy": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          },
+          "message": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "roomId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "parentMessageId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "content": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "deletedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "editedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "sender": {
+                "$ref": "#/components/schemas/ChatRoomMessageSender"
+              },
+              "mentions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChatRoomMessageMention"
+                }
+              },
+              "reactions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChatRoomMessageReaction"
+                }
+              },
+              "threadReplyCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "threadLastReplyAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "metadata": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {}
+              },
+              "quote": {
+                "$ref": "#/components/schemas/ChatRoomMessageQuote"
+              },
+              "membership": {
+                "$ref": "#/components/schemas/ChatRoomMessageMembership"
+              },
+              "unfurls": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/ChatRoomMessageUnfurl"
+                },
+                "maxItems": 3,
+                "description": "Link preview cards scraped from message URLs (absent while pending)."
+              }
+            },
+            "required": [
+              "id",
+              "roomId",
+              "parentMessageId",
+              "content",
+              "createdAt",
+              "deletedAt",
+              "editedAt",
+              "sender",
+              "mentions",
+              "reactions",
+              "threadReplyCount",
+              "threadLastReplyAt",
+              "metadata",
+              "quote",
+              "membership",
+              "unfurls"
+            ]
+          }
+        },
+        "required": [
+          "messageId",
+          "pinnedAt",
+          "pinnedBy",
+          "message"
+        ]
+      },
+      "ChatRoomPinnedMessageMutation": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Pinned or unpinned message id.",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          },
+          "pinnedMessageCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Current number of Pinned messages on this Channel.",
+            "example": 1
+          }
+        },
+        "required": [
+          "messageId",
+          "pinnedMessageCount"
         ]
       }
     }
