@@ -9,7 +9,7 @@ public struct ReactionEmojiHistory {
     self.defaults = defaults
   }
 
-  /// Three desktop toolbar defaults, in the same order as web.
+  /// The first three web defaults, matching the desktop toolbar slot count.
   public static let defaultQuickReactions: [ReactionEmoji] = ["👍", "❤️", "😂"].compactMap { emoji in
     ReactionEmoji.catalog.first { $0.emoji == emoji }
   }

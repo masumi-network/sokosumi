@@ -427,6 +427,7 @@ import SwiftUI
       .help(":\(emoji.name):")
       .accessibilityLabel("Toggle \(emoji.emoji) reaction")
       .accessibilityValue(reacted ? "You reacted" : "You have not reacted")
+      .accessibilityAddTraits(reacted ? .isSelected : [])
     }
 
     private func messageAction(_ title: String, symbol: String, focus: MessageAction, compact: Bool, action: @escaping () -> Void) -> some View {
