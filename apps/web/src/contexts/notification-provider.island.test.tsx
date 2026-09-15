@@ -781,6 +781,60 @@ describe("NotificationProvider deleting", () => {
     consoleError.mockRestore();
   });
 
+  it("keeps a row the reader put back by hand when the panel commits a read", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({
+      data: { ...READ_ROW, isRead: false, readAt: null },
+    });
+    await renderLoaded();
+
+    await act(async () => {
+      await currentNotifications.markUnread("notification-read");
+    });
+
+    // The close commit passes every row the panel showed, this one included.
+    await act(async () => {
+      await currentNotifications.markManyRead([
+        "notification-unread",
+        "notification-read",
+      ]);
+    });
+
+    // An unread the reader asked for outranks the read the close writes for
+    // them, so only the other row goes.
+    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
+      ids: ["notification-unread"],
+    });
+    expect(
+      currentNotifications.notifications.find(
+        (row) => row.id === "notification-read",
+      )?.isRead,
+    ).toBe(false);
+  });
+
+  it("lets a row go once the reader opens it", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({
+      data: { ...READ_ROW, isRead: false, readAt: null },
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...READ_ROW, isRead: true },
+    });
+    await renderLoaded();
+
+    await act(async () => {
+      await currentNotifications.markUnread("notification-read");
+    });
+    // Opening it is deliberate too, and it outranks the earlier unread.
+    await act(async () => {
+      await currentNotifications.markRead("notification-read");
+    });
+    await act(async () => {
+      await currentNotifications.markManyRead(["notification-read"]);
+    });
+
+    // Already read by the open, so the commit finds nothing left to write.
+    expect(patchNotificationsReadMock).not.toHaveBeenCalled();
+  });
+
   it("takes a deleted row out of the list and off the bell", async () => {
     await renderLoaded();
     await press("delete-first");

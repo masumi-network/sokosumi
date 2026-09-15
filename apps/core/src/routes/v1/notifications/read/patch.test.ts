@@ -122,9 +122,10 @@ describe("PATCH /notifications/read", () => {
     expect(body.data.count).toBe(2);
   });
 
-  it("counts only the rows the write actually changed", async () => {
+  it("leaves an already-read row and someone else's row to the where clause", async () => {
     // Three ids asked for, one already read and one belonging to someone
-    // else: the where clause drops both, so the count is what changed.
+    // else. The route does not sift them itself: the guards in the write do,
+    // so the count is whatever the write changed.
     notificationUpdateManyAndReturnMock.mockResolvedValue([
       {
         id: "notif_1",
@@ -135,6 +136,13 @@ describe("PATCH /notifications/read", () => {
 
     const response = await patchRead(createApp(), {
       ids: ["notif_1", "notif_already_read", "notif_someone_else"],
+    });
+
+    const where = notificationUpdateManyAndReturnMock.mock.calls[0]?.[0]?.where;
+    expect(where).toMatchObject({
+      id: { in: ["notif_1", "notif_already_read", "notif_someone_else"] },
+      userId: "user_123",
+      isRead: false,
     });
 
     const body = (await response.json()) as { data: { count: number } };
