@@ -34,7 +34,8 @@ public actor OAuthSession {
   private let store: any TokenStore
   private let transport: any TokenEndpointTransport
   private let now: @Sendable () -> Date
-  private var generation = 0
+  /// Changes on sign-in/sign-out, but not token refresh; scopes waiting API reads.
+  public private(set) var generation = 0
   private var refreshTask: Task<String, any Error>?
 
   public init(

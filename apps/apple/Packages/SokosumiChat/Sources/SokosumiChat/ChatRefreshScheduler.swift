@@ -7,6 +7,7 @@ public final class ChatRefreshScheduler {
   private let sleep: (Duration) async throws -> Void
   private var refresh: (() async -> Void)?
   private var timer: Task<Void, Never>?
+  private var refreshTask: Task<Void, Never>?
   private var generation = UUID()
   private var inFlight = false
   private var queued = false
@@ -51,6 +52,8 @@ public final class ChatRefreshScheduler {
     generation = UUID()
     timer?.cancel()
     timer = nil
+    refreshTask?.cancel()
+    refreshTask = nil
     refresh = nil
     inFlight = false
     queued = false
@@ -94,10 +97,11 @@ public final class ChatRefreshScheduler {
     timer = nil
     inFlight = true
     let current = generation
-    Task { [weak self] in
+    refreshTask = Task { [weak self] in
       guard self?.generation == current else { return }
       await refresh()
       guard let self, generation == current else { return }
+      refreshTask = nil
       inFlight = false
       if queued {
         queued = false

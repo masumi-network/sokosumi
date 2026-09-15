@@ -75,6 +75,8 @@ import SwiftUI
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
     var streamThinking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
     @State private var pinError: String?
     @State private var showsPinError = false
@@ -93,6 +95,11 @@ import SwiftUI
 
     private enum MessageAction: Hashable {
       case quote, reply, more, react
+      case quickReaction(Int)
+    }
+
+    private var showsActions: Bool {
+      isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -102,10 +109,14 @@ import SwiftUI
 
     private func toggleReaction(_ emoji: String) {
       guard let onToggleReaction else { return }
+      // Match web: adding teaches quick reactions; removing does not.
+      let isAdding = !message.reactions.contains { $0.emoji == emoji && $0.reactedByCurrentUser }
       Task { @MainActor in
         do {
           try await onToggleReaction(emoji)
-          ReactionEmojiHistory().record(emoji)
+          if isAdding {
+            ReactionEmojiHistory().record(emoji)
+          }
         } catch {
           reactionError = friendlyMessage(for: error)
           showsReactionError = true
@@ -239,66 +250,32 @@ import SwiftUI
       }
       .overlay(alignment: .topTrailing) {
         if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
-          HStack(spacing: 2) {
-            if onToggleReaction != nil {
-              messageAction("React", symbol: "face.smiling", focus: .react) { showsReactionPicker = true }
-                .popover(isPresented: $showsReactionPicker, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-                  ReactionEmojiPicker { emoji in
-                    showsReactionPicker = false
-                    toggleReaction(emoji)
-                  }
-                }
-            }
-            if let onReply {
-              messageAction("Reply", symbol: "text.bubble", focus: .reply, action: onReply)
-            }
-            if let onQuote {
-              messageAction("Quote", symbol: "quote.opening", focus: .quote, action: onQuote)
-            }
-            if onEdit != nil || onDelete != nil || onTogglePin != nil {
-              Menu {
-                if onTogglePin != nil {
-                  pinButton
-                }
-
-                if let onEdit {
-                  Button("Edit message", systemImage: "pencil", action: onEdit)
-                }
-                if onEdit != nil, onDelete != nil {
-                  Divider()
-                }
-                if onDelete != nil {
-                  Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
-                }
-              } label: {
-                Image(systemName: "ellipsis")
-                  .font(.callout)
-                  .frame(width: actionIconSize, height: actionIconSize)
-              }
-              .menuStyle(.button)
-              .buttonStyle(.plain)
-              .menuIndicator(.hidden)
-              .frame(width: replyActionHeight, height: replyActionHeight)
-              .foregroundStyle(hoveredAction == .more ? .primary : .secondary)
-              .background(hoveredAction == .more ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
-              .contentShape(.rect)
-              .onHover { hoveredAction = $0 ? .more : nil }
-              .focused($focusedAction, equals: .more)
-              .disabled(isDeleting)
-              .help(isDeleting ? "Deleting message…" : "More message actions")
-              .accessibilityLabel("More message actions")
+          ViewThatFits(in: .horizontal) {
+            actionControls(compact: false)
+            actionControls(compact: true)
+          }
+          .popover(isPresented: $showsReactionPicker, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+            ReactionEmojiPicker { emoji in
+              showsReactionPicker = false
+              toggleReaction(emoji)
             }
           }
           .padding(3)
-          .fixedSize()
           .background(.regularMaterial, in: .rect(cornerRadius: 9))
           .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)))
           .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
           .onHover { isReplyHovered = $0 }
-          .opacity(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker ? 1 : 0)
-          .allowsHitTesting(isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker)
+          .opacity(showsActions ? 1 : 0)
+          .allowsHitTesting(showsActions)
           .padding(.trailing, horizontalInset)
           .offset(y: -(replyActionHeight + 6) / 2)
+        }
+      }
+      .onChange(of: showsActions) { _, visible in
+        // Read history only on entry. Keep targets stable while hovering,
+        // keyboard-focused, or choosing from the picker.
+        if visible {
+          quickReactions = ReactionEmojiHistory().quickReactions
         }
       }
       // Track the complete row, including its action overlay. The toolbar
@@ -375,22 +352,103 @@ import SwiftUI
       .padding(.top, isContinuation ? 0 : 8)
     }
 
-    private func messageAction(_ title: String, symbol: String, focus: MessageAction, action: @escaping () -> Void) -> some View {
+    private func actionControls(compact: Bool) -> some View {
+      HStack(spacing: 2) {
+        if onToggleReaction != nil {
+          ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
+            quickReactionButton(emoji, position: index)
+          }
+          messageAction("React", symbol: "face.smiling", focus: .react, compact: compact) { showsReactionPicker = true }
+        }
+        if let onReply {
+          messageAction("Reply", symbol: "text.bubble", focus: .reply, compact: compact, action: onReply)
+        }
+        if let onQuote {
+          messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact, action: onQuote)
+        }
+        if onEdit != nil || onDelete != nil || onTogglePin != nil {
+          moreActions
+        }
+      }
+      .fixedSize()
+    }
+
+    private var moreActions: some View {
+      Menu {
+        if onTogglePin != nil {
+          pinButton
+        }
+
+        if let onEdit {
+          Button("Edit message", systemImage: "pencil", action: onEdit)
+        }
+        if onEdit != nil, onDelete != nil {
+          Divider()
+        }
+        if onDelete != nil {
+          Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+        }
+      } label: {
+        Image(systemName: "ellipsis")
+          .font(.callout)
+          .frame(width: actionIconSize, height: actionIconSize)
+      }
+      .menuStyle(.button)
+      .buttonStyle(.plain)
+      .menuIndicator(.hidden)
+      .frame(width: replyActionHeight, height: replyActionHeight)
+      .foregroundStyle(hoveredAction == .more ? .primary : .secondary)
+      .background(hoveredAction == .more ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+      .contentShape(.rect)
+      .onHover { hoveredAction = $0 ? .more : nil }
+      .focused($focusedAction, equals: .more)
+      .disabled(isDeleting)
+      .help(isDeleting ? "Deleting message…" : "More message actions")
+      .accessibilityLabel("More message actions")
+    }
+
+    private func quickReactionButton(_ emoji: ReactionEmoji, position: Int) -> some View {
+      let focus = MessageAction.quickReaction(position)
+      let reacted = message.reactions.contains { $0.emoji == emoji.emoji && $0.reactedByCurrentUser }
+      return Button { toggleReaction(emoji.emoji) } label: {
+        Text(emoji.emoji)
+          .font(.title3)
+          .scaleEffect(!reduceMotion && hoveredAction == focus ? 1.15 : 1)
+          .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: hoveredAction == focus)
+          .frame(width: replyActionHeight, height: replyActionHeight)
+          .background(reacted ? Color.accentColor.opacity(0.18) : .clear, in: .rect(cornerRadius: 5))
+          .background(hoveredAction == focus ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
+          .contentShape(.rect)
+      }
+      .buttonStyle(.plain)
+      .disabled(pendingReactionEmoji.contains(emoji.emoji))
+      .onHover { hoveredAction = $0 ? focus : nil }
+      .focused($focusedAction, equals: focus)
+      .help(":\(emoji.name):")
+      .accessibilityLabel("Toggle \(emoji.emoji) reaction")
+      .accessibilityValue(reacted ? "You reacted" : "You have not reacted")
+      .accessibilityAddTraits(reacted ? .isSelected : [])
+    }
+
+    private func messageAction(_ title: String, symbol: String, focus: MessageAction, compact: Bool, action: @escaping () -> Void) -> some View {
       Button(action: action) {
-        actionLabel(title, symbol: symbol, action: focus)
+        actionLabel(title, symbol: symbol, action: focus, compact: compact)
       }
       .buttonStyle(.plain)
       .onHover { hoveredAction = $0 ? focus : nil }
       .focused($focusedAction, equals: focus)
       .help(title == "Reply" ? "Reply in thread" : title)
+      .accessibilityLabel(title)
     }
 
-    private func actionLabel(_ title: String, symbol: String, action: MessageAction) -> some View {
+    private func actionLabel(_ title: String, symbol: String, action: MessageAction, compact: Bool) -> some View {
       HStack(spacing: 5) {
         Image(systemName: symbol)
           .font(.callout)
           .frame(width: actionIconSize, height: actionIconSize)
-        Text(title).font(.callout).lineLimit(1)
+        if !compact {
+          Text(title).font(.callout).lineLimit(1)
+        }
       }
       .padding(.horizontal, 8)
       .frame(height: replyActionHeight)

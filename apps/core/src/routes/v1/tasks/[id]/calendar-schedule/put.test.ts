@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { createTaskScheduleRequestFingerprint } from "@/helpers/task-schedule-operation";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountPutTaskCalendarSchedule from "./put";
 
@@ -190,17 +191,19 @@ function createTaskResult(metadata: string, nextRunAt: Date) {
   };
 }
 
-function createApp() {
+function createApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_calendar_schedule_put_test");
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("workspaceContext", {
       workspaceId: WORKSPACE_ID,
       userId: "user_123",
@@ -342,6 +345,24 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
 
     expect(response.status).toBe(403);
     expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+  });
+
+  it("updates for a standalone coworker agent without Calendar beta or organization seat", async () => {
+    mockCurrentTask(createV2Metadata());
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+    });
+    const response = await app.request(
+      ...calendarRequest(seriesEdit(RECURRING_SCHEDULE)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
+    expect(requireAssignedOrganizationSeatMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).toHaveBeenCalled();
   });
 
   it("rejects the legacy bare schedule body on the Calendar route", async () => {
