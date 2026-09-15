@@ -2263,6 +2263,73 @@
           "disconnect": "We could not disconnect this X account. Try again."
         }
       },
+      "SocialPosts": {
+        "title": "Social posts",
+        "description": "Draft text posts for X and schedule them from this Project.",
+        "newPost": "New post",
+        "moreActions": "Post actions",
+        "noAccount": "No account",
+        "connectAccountFirst": "Connect an X account to this Project before scheduling posts.",
+        "connectAccountLink": "Connect an account",
+        "sections": {
+          "upcoming": "Upcoming",
+          "drafts": "Drafts",
+          "history": "History"
+        },
+        "empty": {
+          "upcoming": "No scheduled posts yet.",
+          "drafts": "No drafts yet.",
+          "history": "No published, failed, or canceled posts yet."
+        },
+        "status": {
+          "DRAFT": "Draft",
+          "SCHEDULED": "Scheduled",
+          "PUBLISHING": "Publishing",
+          "PUBLISHED": "Published",
+          "FAILED": "Failed",
+          "MISSED": "Missed",
+          "CANCELED": "Canceled"
+        },
+        "creator": {
+          "user": "User",
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot"
+        },
+        "composer": {
+          "newTitle": "New post",
+          "editTitle": "Edit post",
+          "scheduleTitle": "Schedule post",
+          "rescheduleTitle": "Reschedule post",
+          "description": "Write the text, pick the account, and choose when it goes out.",
+          "text": "Text",
+          "textPlaceholder": "What do you want to post?",
+          "characters": "{count} / {limit}",
+          "account": "Account",
+          "noAccount": "Choose an account",
+          "unknownHandle": "Unknown X account",
+          "scheduledAt": "Scheduled time",
+          "saveDraft": "Save draft",
+          "save": "Save",
+          "schedule": "Schedule",
+          "reschedule": "Reschedule",
+          "cancel": "Cancel post",
+          "edit": "Edit",
+          "close": "Close"
+        },
+        "cancelDialog": {
+          "title": "Cancel this post?",
+          "description": "The post will not be published. You can schedule it again later.",
+          "confirm": "Cancel post"
+        },
+        "toasts": {
+          "created": "Draft saved.",
+          "scheduled": "Post scheduled.",
+          "updated": "Post updated.",
+          "canceled": "Post canceled.",
+          "conflict": "This post was changed elsewhere. Reloading the latest version.",
+          "failed": "Something went wrong. Try again."
+        }
+      },
       "Detail": {
         "back": "Back to projects",
         "header": {

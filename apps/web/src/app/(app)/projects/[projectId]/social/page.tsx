@@ -4,6 +4,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
+import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import { PROJECTS_DETAIL_SHELL_CLASS } from "@/app/projects/constants";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
@@ -29,11 +30,15 @@ export default async function ProjectSocialPage({
     notFound();
   }
 
-  const [connections, t, formatter] = await Promise.all([
+  const [posts, connections, t, formatter] = await Promise.all([
+    projectService.listSocialPosts(project.id),
     projectService.listSocialConnections(project.id),
     getTranslations("App.Projects.Detail"),
     getFormatter(),
   ]);
+  const activeConnections = connections.filter(
+    (socialConnection) => socialConnection.status === "active",
+  );
 
   return (
     <div className={PROJECTS_DETAIL_SHELL_CLASS}>
@@ -56,7 +61,12 @@ export default async function ProjectSocialPage({
         websiteUrl={project.websiteUrl}
       />
 
-      <div className="mt-8">
+      <div className="mt-8 space-y-8">
+        <ProjectSocialPosts
+          connections={activeConnections}
+          posts={posts}
+          projectId={project.id}
+        />
         <ProjectSocialAccounts
           projectId={project.id}
           connections={connections}
