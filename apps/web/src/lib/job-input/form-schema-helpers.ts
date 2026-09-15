@@ -23,7 +23,7 @@ import type { JobInputFormIntlPath } from "./type";
  */
 const MIN_REQUIRED_STRING_LENGTH = 1;
 
-export const STRING_BASED_TYPES = new Set([
+const STRING_BASED_TYPES = new Set([
   InputType.STRING,
   InputType.TEXT,
   InputType.EMAIL,
@@ -32,7 +32,7 @@ export const STRING_BASED_TYPES = new Set([
   InputType.SEARCH,
 ]);
 
-export const BOOLEAN_TYPES = new Set([InputType.BOOLEAN, InputType.CHECKBOX]);
+const BOOLEAN_TYPES = new Set([InputType.BOOLEAN, InputType.CHECKBOX]);
 
 export const isStringBasedType = (type: InputType): boolean =>
   STRING_BASED_TYPES.has(type);
@@ -62,7 +62,7 @@ export interface ParsedValidationOptions {
   step?: number;
 }
 
-export function parseValidations(
+function parseValidations(
   validations: ValidationEntry[] | null | undefined,
 ): ParsedValidationOptions {
   const result: ParsedValidationOptions = { canBeOptional: false };
