@@ -183,7 +183,7 @@ export function formatWeekday(dow: Dow, timezone?: string): string {
   }).format(date);
 }
 
-export function getDaysInMonth(year: number, monthIndex: number): number {
+function getDaysInMonth(year: number, monthIndex: number): number {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
 

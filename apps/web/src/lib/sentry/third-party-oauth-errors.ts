@@ -6,7 +6,7 @@ import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
  * Better Auth / FedCM rejections on iOS Chrome surface as minified unhandled
  * rejections with no stack (SOKOSUMI-PZ on `/auth/google` and `/agents`).
  */
-export const minifiedOAuthIgnoreErrors: RegExp[] = [/^Aa$/];
+const minifiedOAuthIgnoreErrors: RegExp[] = [/^Aa$/];
 
 const OAUTH_NOISE_TRANSACTION_PREFIXES = ["/auth/", "/agents"] as const;
 
