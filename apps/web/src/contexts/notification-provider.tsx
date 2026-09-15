@@ -21,6 +21,7 @@ import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
+import { createNotificationReadQueue } from "./notification-read-queue";
 import {
   NOTIFICATION_LIST_LIMIT,
   type NotificationAction,
@@ -64,6 +65,8 @@ interface NotificationContextValue {
   notifications: NotificationItem[];
   unreadCount: number;
   markRead: (id: string) => Promise<void>;
+  /** Put one row back to unread, the reader's way out of a read they did not mean. */
+  markUnread: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   /** Delete one notification for good, in Core and in local feed state. */
   deleteNotification: (
@@ -102,6 +105,7 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   notifications: [],
   unreadCount: 0,
   markRead: noopAsync,
+  markUnread: noopAsync,
   markAllRead: noopAsync,
   deleteNotification: noopAsync,
   clearNotifications: noopAsync,
@@ -186,6 +190,7 @@ export function NotificationProvider({
     unreadCount: 0,
   });
   const confirmedState = useRef(state);
+  const readQueue = useRef(createNotificationReadQueue());
   const pendingDeletions = useRef(new Map<number, PendingDeletion>());
   const deletionListeners = useRef(new Set<NotificationDeletionListener>());
   const nextDeletionId = useRef(0);
@@ -194,6 +199,8 @@ export function NotificationProvider({
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const fetchGenerationRef = useRef(0);
+  const latestFetchGeneration = useRef(0);
+  const latestReadGeneration = useRef(0);
   const realtimeDuringFetch = useRef(new Set<string>());
   const refreshAfterDeletion = useRef(false);
 
@@ -217,6 +224,15 @@ export function NotificationProvider({
 
   const dispatch = useCallback(
     (action: NotificationAction) => {
+      if (
+        action.type === "mark_read_optimistic" ||
+        action.type === "mark_unread_optimistic" ||
+        action.type === "mark_all_read"
+      ) {
+        // A fetch started before this intent cannot restore its old read state.
+        latestReadGeneration.current = ++fetchGenerationRef.current;
+        setIsLoading(false);
+      }
       for (const pending of pendingDeletions.current.values()) {
         if (pending.event.kind !== "delete") continue;
         const id = pending.event.id;
@@ -288,13 +304,23 @@ export function NotificationProvider({
   );
 
   const fetchNotifications = useCallback(async (): Promise<void> => {
+    const generation = ++fetchGenerationRef.current;
+    latestFetchGeneration.current = generation;
+    await readQueue.current.whenIdle();
+    if (generation !== fetchGenerationRef.current) {
+      if (
+        latestFetchGeneration.current === generation &&
+        latestReadGeneration.current === fetchGenerationRef.current
+      )
+        void fetchNotifications();
+      return;
+    }
     if (pendingDeletions.current.size) {
       refreshAfterDeletion.current = true;
       return;
     }
     const realtimeIds = new Set<string>();
     realtimeDuringFetch.current = realtimeIds;
-    const generation = ++fetchGenerationRef.current;
     setIsLoading(true);
 
     try {
@@ -306,6 +332,11 @@ export function NotificationProvider({
       ]);
 
       if (generation !== fetchGenerationRef.current) {
+        if (
+          latestFetchGeneration.current === generation &&
+          latestReadGeneration.current === fetchGenerationRef.current
+        )
+          void fetchNotifications();
         return;
       }
 
@@ -343,7 +374,9 @@ export function NotificationProvider({
     dismissAllNotificationToasts();
 
     try {
-      await notificationsBrowserClient.patchNotificationsReadAll();
+      await readQueue.current.enqueue(null, () =>
+        notificationsBrowserClient.patchNotificationsReadAll(),
+      );
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
       void fetchNotifications();
@@ -360,24 +393,57 @@ export function NotificationProvider({
       dismissNotificationToast(id);
 
       try {
-        const response = await notificationsBrowserClient.patchNotificationRead(
-          { id },
-        );
+        await readQueue.current.enqueue([id], async (isCurrent) => {
+          const response =
+            await notificationsBrowserClient.patchNotificationRead({ id });
 
-        if (deletedIds.current.has(id)) return;
-        if (generation !== clearGeneration.current) {
-          // The row may have survived clear. Reconcile its read state without
-          // charging a deleted row's response against the new unread count.
-          await fetchNotifications();
-          return;
-        }
-        dispatch({
-          type: "mark_read_success",
-          id,
-          updated: response.data,
+          if (!isCurrent(id) || deletedIds.current.has(id)) return;
+          if (generation !== clearGeneration.current) {
+            // The row may have survived clear. Reconcile its read state without
+            // charging a deleted row's response against the new unread count.
+            void fetchNotifications();
+            return;
+          }
+          dispatch({
+            type: "mark_read_success",
+            id,
+            updated: response.data,
+          });
         });
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
+        void fetchNotifications();
+        throw error;
+      }
+    },
+    [dispatch, fetchNotifications],
+  );
+
+  const markUnread = useCallback(
+    async (id: string) => {
+      const generation = clearGeneration.current;
+      // Optimistic, like the read path, so the row and the badge answer the
+      // click before the round-trip.
+      dispatch({ type: "mark_unread_optimistic", id });
+
+      try {
+        await readQueue.current.enqueue([id], async (isCurrent) => {
+          const response =
+            await notificationsBrowserClient.patchNotificationUnread({ id });
+
+          if (!isCurrent(id) || deletedIds.current.has(id)) return;
+          if (generation !== clearGeneration.current) {
+            void fetchNotifications();
+            return;
+          }
+          dispatch({
+            type: "mark_unread_success",
+            id,
+            updated: response.data,
+          });
+        });
+      } catch (error) {
+        console.error("Failed to mark notification as unread:", error);
         void fetchNotifications();
         throw error;
       }
@@ -514,6 +580,18 @@ export function NotificationProvider({
         return;
       }
 
+      // State-only publishes can arrive after a newer local write. Read the
+      // current server state instead of replaying that possibly stale snapshot.
+      if (
+        notification.created === false &&
+        confirmedState.current.notifications.some(
+          (row) =>
+            row.id === notification.id && row.isRead !== notification.isRead,
+        )
+      ) {
+        void fetchNotifications();
+        return;
+      }
       realtimeDuringFetch.current.add(notification.id);
       dispatch({
         type: "realtime",
@@ -526,7 +604,7 @@ export function NotificationProvider({
         },
       });
     },
-    [dispatch],
+    [dispatch, fetchNotifications],
   );
 
   const handleRealtimeSubscribed = useCallback(() => {
@@ -541,6 +619,7 @@ export function NotificationProvider({
     notifications: state.notifications,
     unreadCount: state.unreadCount,
     markRead,
+    markUnread,
     markAllRead,
     deleteNotification,
     clearNotifications,

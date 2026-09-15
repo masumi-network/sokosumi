@@ -33242,6 +33242,105 @@ export type PatchNotificationsByIdReadResponses = {
 
 export type PatchNotificationsByIdReadResponse = PatchNotificationsByIdReadResponses[keyof PatchNotificationsByIdReadResponses];
 
+export type PatchNotificationsByIdUnreadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        /**
+         * Notification ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/{id}/unread';
+};
+
+export type PatchNotificationsByIdUnreadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsByIdUnreadError = PatchNotificationsByIdUnreadErrors[keyof PatchNotificationsByIdUnreadErrors];
+
+export type PatchNotificationsByIdUnreadResponses = {
+    /**
+     * Notification marked as unread
+     */
+    200: {
+        data: NotificationItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsByIdUnreadResponse = PatchNotificationsByIdUnreadResponses[keyof PatchNotificationsByIdUnreadResponses];
+
 export type PatchNotificationsReadAllData = {
     body?: never;
     headers?: {
