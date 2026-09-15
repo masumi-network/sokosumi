@@ -18,6 +18,10 @@ import type {
   PatchNotificationsByIdReadErrors,
   PatchNotificationsByIdReadResponse,
   PatchNotificationsByIdReadResponses,
+  PatchNotificationsByIdUnreadData,
+  PatchNotificationsByIdUnreadErrors,
+  PatchNotificationsByIdUnreadResponse,
+  PatchNotificationsByIdUnreadResponses,
   PatchNotificationsReadAllErrors,
   PatchNotificationsReadAllResponse,
   PatchNotificationsReadAllResponses,
@@ -128,6 +132,25 @@ export const notificationsBrowserClient = {
           responseTransformer: transformNotificationItemResponse,
         }),
       "Failed to mark notification as read",
+    );
+  },
+
+  async patchNotificationUnread(
+    path: PatchNotificationsByIdUnreadData["path"],
+  ): Promise<PatchNotificationsByIdUnreadResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.patch<
+          PatchNotificationsByIdUnreadResponses,
+          PatchNotificationsByIdUnreadErrors
+        >({
+          url: "/notifications/{id}/unread",
+          path,
+          cache: "no-store",
+          responseTransformer: transformNotificationItemResponse,
+        }),
+      "Failed to mark notification as unread",
     );
   },
 

@@ -2,9 +2,9 @@
 
 import {
   Download,
+  Ellipsis,
   ImageIcon,
   Minus,
-  MoreVertical,
   Plus,
   Printer,
   Search,
@@ -220,7 +220,7 @@ function ImageViewerChrome({
                 size="icon"
                 variant="ghost"
               >
-                <MoreVertical className="size-4" aria-hidden="true" />
+                <Ellipsis className="size-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
