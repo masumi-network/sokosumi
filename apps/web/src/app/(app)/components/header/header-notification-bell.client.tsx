@@ -111,8 +111,13 @@ export function HeaderNotificationBell() {
             {t("notifications")}
           </TooltipContent>
         </Tooltip>
+        {/* One width, whatever the unread count is. The panel used to narrow
+            the moment the count reached zero, and now that each row carries
+            its own mark read control the reader watches that happen under
+            their cursor. The cap keeps that one width inside a narrow
+            viewport, where 24rem is wider than the screen. */}
         <DropdownMenuContent
-          className={cn("w-96", unreadCount === 0 && "w-80")}
+          className="w-96 max-w-(--radix-dropdown-menu-content-available-width)"
           align="end"
         >
           <NotificationDropdownContent

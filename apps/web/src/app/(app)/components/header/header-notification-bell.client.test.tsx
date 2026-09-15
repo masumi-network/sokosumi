@@ -108,6 +108,40 @@ describe("HeaderNotificationBell", () => {
     );
   });
 
+  it("gives the panel the same width whatever the unread count is", async () => {
+    // The panel used to narrow the moment the count reached zero. Each row
+    // now carries its own mark read control, so the reader would watch the
+    // panel resize under their cursor as they cleared the last unread row.
+    const user = userEvent.setup();
+
+    useNotificationsMock.mockReturnValue({
+      unreadCount: 2,
+      notifications: [
+        notificationRow("n1", false),
+        notificationRow("n2", false),
+      ],
+      markRead: markReadMock,
+      markAllRead: markAllReadMock,
+    });
+    const withUnread = render(<HeaderNotificationBell />);
+    await user.click(
+      screen.getByRole("button", { name: "2 unread notifications" }),
+    );
+    const withUnreadClassName = screen.getByRole("menu").className;
+    withUnread.unmount();
+
+    useNotificationsMock.mockReturnValue({
+      unreadCount: 0,
+      notifications: [notificationRow("n1", true)],
+      markRead: markReadMock,
+      markAllRead: markAllReadMock,
+    });
+    render(<HeaderNotificationBell />);
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+
+    expect(screen.getByRole("menu").className).toBe(withUnreadClassName);
+  });
+
   it("renders a notifications control with tooltip copy as the accessible name", () => {
     render(<HeaderNotificationBell />);
 
