@@ -9,8 +9,8 @@
   import Testing
 
   @MainActor struct RoomSearchViewTests {
-    @Test(arguments: [false, true])
-    func resultPanelRendersAtMinimumInspectorWidth(dark: Bool) async throws {
+    @Test(arguments: [false, true], [false, true])
+    func resultPanelRendersAtMinimumInspectorWidth(dark: Bool, loading: Bool) async throws {
       let sender = Components.Schemas.ChatRoomUserParticipant(id: "user", name: "Alexandra Long Display Name", email: "alexandra@example.com", presence: .online)
       var first = chatRoomMessage(from: OutboundShell(clientTurnId: "first", roomId: "room", content: "A longer search result that wraps across multiple lines without overlapping the sender or timestamp. The preview should stop after two lines.", sender: sender))
       first.id = "first"
@@ -30,7 +30,7 @@
       let search = RoomSearch()
       try await search.search(query: "matching", roomId: "room", client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport), organizationSlug: nil)
       try #require(search.results.count == 2, Comment(rawValue: String(reflecting: search.failure)))
-      let content = RoomSearchResultsView(search: search, query: "matching", selectedId: .constant("first"), jumpingId: nil, jumpError: nil, select: { _ in }, retry: {}, close: {})
+      let content = RoomSearchResultsView(search: search, query: "matching", selectedId: .constant("first"), jumpingId: loading ? "first" : nil, jumpError: nil, select: { _ in }, retry: {}, close: {})
         .frame(width: 280, height: 420).background(.background)
         .environment(\.colorScheme, dark ? .dark : .light)
       let host = NSHostingView(rootView: content)
@@ -43,7 +43,7 @@
       let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
       host.cacheDisplay(in: host.bounds, to: bitmap)
       let png = try #require(bitmap.representation(using: .png, properties: [:]))
-      try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("room-search-\(dark ? "dark" : "light").png"))
+      try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("room-search-\(dark ? "dark" : "light")\(loading ? "-loading" : "").png"))
     }
   }
 

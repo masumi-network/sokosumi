@@ -54,11 +54,16 @@ struct RoomSearchResultsView: View {
                     Label("Reply", systemImage: "text.bubble").font(.caption).foregroundStyle(.secondary)
                   }
                   Text(message.content).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                  if jumpingId == message.id {
-                    ProgressView().controlSize(.small)
-                  }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 28)
+                .overlay(alignment: .trailing) {
+                  if jumpingId == message.id {
+                    ProgressView().controlSize(.small)
+                      .accessibilityLabel("Opening message")
+                      .frame(width: 20)
+                  }
+                }
                 .padding(10)
                 .background(selectedId == message.id ? Color.primary.opacity(0.08) : .clear, in: .rect(cornerRadius: 8))
                 .contentShape(.rect)
