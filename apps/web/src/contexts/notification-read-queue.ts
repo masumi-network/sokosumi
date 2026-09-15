@@ -25,5 +25,13 @@ export function createNotificationReadQueue() {
     return result;
   }
 
-  return { enqueue };
+  async function whenIdle(): Promise<void> {
+    let pending: Promise<unknown>;
+    do {
+      pending = tail;
+      await pending;
+    } while (pending !== tail);
+  }
+
+  return { enqueue, whenIdle };
 }

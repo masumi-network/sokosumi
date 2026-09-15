@@ -190,6 +190,7 @@ export function NotificationProvider({
     unreadCount: 0,
   });
   const confirmedState = useRef(state);
+  const readQueue = useRef(createNotificationReadQueue());
   const pendingDeletions = useRef(new Map<number, PendingDeletion>());
   const deletionListeners = useRef(new Set<NotificationDeletionListener>());
   const nextDeletionId = useRef(0);
@@ -198,6 +199,8 @@ export function NotificationProvider({
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const fetchGenerationRef = useRef(0);
+  const latestFetchGeneration = useRef(0);
+  const latestReadGeneration = useRef(0);
   const realtimeDuringFetch = useRef(new Set<string>());
   const refreshAfterDeletion = useRef(false);
 
@@ -221,6 +224,15 @@ export function NotificationProvider({
 
   const dispatch = useCallback(
     (action: NotificationAction) => {
+      if (
+        action.type === "mark_read_optimistic" ||
+        action.type === "mark_unread_optimistic" ||
+        action.type === "mark_all_read"
+      ) {
+        // A fetch started before this intent cannot restore its old read state.
+        latestReadGeneration.current = ++fetchGenerationRef.current;
+        setIsLoading(false);
+      }
       for (const pending of pendingDeletions.current.values()) {
         if (pending.event.kind !== "delete") continue;
         const id = pending.event.id;
@@ -292,13 +304,23 @@ export function NotificationProvider({
   );
 
   const fetchNotifications = useCallback(async (): Promise<void> => {
+    const generation = ++fetchGenerationRef.current;
+    latestFetchGeneration.current = generation;
+    await readQueue.current.whenIdle();
+    if (generation !== fetchGenerationRef.current) {
+      if (
+        latestFetchGeneration.current === generation &&
+        latestReadGeneration.current === fetchGenerationRef.current
+      )
+        void fetchNotifications();
+      return;
+    }
     if (pendingDeletions.current.size) {
       refreshAfterDeletion.current = true;
       return;
     }
     const realtimeIds = new Set<string>();
     realtimeDuringFetch.current = realtimeIds;
-    const generation = ++fetchGenerationRef.current;
     setIsLoading(true);
 
     try {
@@ -310,6 +332,11 @@ export function NotificationProvider({
       ]);
 
       if (generation !== fetchGenerationRef.current) {
+        if (
+          latestFetchGeneration.current === generation &&
+          latestReadGeneration.current === fetchGenerationRef.current
+        )
+          void fetchNotifications();
         return;
       }
 
@@ -340,8 +367,6 @@ export function NotificationProvider({
       }
     }
   }, [dispatch]);
-
-  const readQueue = useRef(createNotificationReadQueue());
 
   const markAllRead = useCallback(async () => {
     // Paint read state immediately so mark-all-read clicks stay within good INP.
@@ -376,7 +401,7 @@ export function NotificationProvider({
           if (generation !== clearGeneration.current) {
             // The row may have survived clear. Reconcile its read state without
             // charging a deleted row's response against the new unread count.
-            await fetchNotifications();
+            void fetchNotifications();
             return;
           }
           dispatch({
@@ -408,7 +433,7 @@ export function NotificationProvider({
 
           if (!isCurrent(id) || deletedIds.current.has(id)) return;
           if (generation !== clearGeneration.current) {
-            await fetchNotifications();
+            void fetchNotifications();
             return;
           }
           dispatch({
@@ -555,6 +580,18 @@ export function NotificationProvider({
         return;
       }
 
+      // State-only publishes can arrive after a newer local write. Read the
+      // current server state instead of replaying that possibly stale snapshot.
+      if (
+        notification.created === false &&
+        confirmedState.current.notifications.some(
+          (row) =>
+            row.id === notification.id && row.isRead !== notification.isRead,
+        )
+      ) {
+        void fetchNotifications();
+        return;
+      }
       realtimeDuringFetch.current.add(notification.id);
       dispatch({
         type: "realtime",
@@ -567,7 +604,7 @@ export function NotificationProvider({
         },
       });
     },
-    [dispatch],
+    [dispatch, fetchNotifications],
   );
 
   const handleRealtimeSubscribed = useCallback(() => {

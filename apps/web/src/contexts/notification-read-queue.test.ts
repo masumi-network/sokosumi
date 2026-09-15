@@ -30,6 +30,22 @@ describe("notification read writes", () => {
     await Promise.all([first, all]);
   });
 
+  it("waits for writes added while a refresh is waiting", async () => {
+    const queue = createNotificationReadQueue();
+    const firstGate = Promise.withResolvers<void>();
+    const secondGate = Promise.withResolvers<void>();
+    const first = queue.enqueue(["a"], () => firstGate.promise);
+    const refreshed = vi.fn();
+    const idle = queue.whenIdle().then(refreshed);
+    const second = queue.enqueue(null, () => secondGate.promise);
+    firstGate.resolve();
+    await first;
+    expect(refreshed).not.toHaveBeenCalled();
+    secondGate.resolve();
+    await Promise.all([second, idle]);
+    expect(refreshed).toHaveBeenCalledOnce();
+  });
+
   it("continues after failure and preserves the error for its caller", async () => {
     const queue = createNotificationReadQueue();
     const failure = queue.enqueue(["a"], async () => {
