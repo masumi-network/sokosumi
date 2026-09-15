@@ -11,6 +11,7 @@ import {
   type TaskAssigner,
 } from "@/helpers/access-control";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { conflict, notFound } from "@/helpers/error";
 import {
   buildTaskScheduleMetadataV2,
@@ -26,7 +27,6 @@ import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
   isCoworkerAuthContext,
-  requireUserContext,
   type UserContext,
 } from "@/middleware/auth";
 import type { CreateTaskContext } from "@/schemas/task.schema";
@@ -137,15 +137,15 @@ function coworkerScheduledTaskCreator(
 
 /**
  * Resolves the creator of a scheduled Task: the session or contextual user, or
- * the Coworker acting for them. Coworkers need the `tasks` capability, exactly
- * like any other Task they create; scheduled creation has no workspace-grant
- * approval gate.
+ * the Coworker acting for them. Coworker contexts must pass the standard
+ * grant/baseline user binding, and Coworkers need the `tasks` capability.
+ * Scheduled creation itself has no workspace-approval round-trip.
  */
 export async function requireScheduledTaskCreator(
   authContext: AuthenticationContext,
   tx?: Prisma.TransactionClient,
 ): Promise<ScheduledTaskCreator> {
-  const userContext = requireUserContext(authContext);
+  const userContext = await requireAuthorizedUserContext(authContext, tx);
   if (!isCoworkerAuthContext(authContext)) {
     return {
       userContext,

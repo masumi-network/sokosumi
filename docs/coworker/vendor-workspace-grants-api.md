@@ -149,13 +149,14 @@ Scheduled creation is a distinct v2 Calendar operation. It requires a UUID
 an assignee, and a schedule. Core atomically creates the `QUEUED` Task, v2 rule
 epoch, planned occurrence index, and workspace-scoped idempotency result.
 
-Scheduled creation is **not** workspace-grant gated: there is no approval step
-and it never creates `GRANT_PENDING` work. A Coworker caller needs the `tasks`
-capability and the contextual workspace user, exactly like other Task
-operations; Calendar beta and organization-seat checks apply to that user. The
-Coworker may target any usable task-capable Coworker in the active workspace,
-including one from a different vendor. Core records the caller as creator and
-the selected Coworker as assignee separately.
+Scheduled creation has no approval round-trip: a missing grant is **not**
+requested and it never creates `GRANT_PENDING` work. A Coworker caller must
+still pass the standard coworker-user binding — a **GRANTED** workspace grant or
+a baseline assignee/sibling task relationship with the contextual user — plus
+the `tasks` capability. Calendar beta and organization-seat checks apply to that
+user. The Coworker may target any usable task-capable Coworker in the active
+workspace, including one from a different vendor. Core records the caller as
+creator and the selected Coworker as assignee separately.
 
 Project sources are rechecked inside the transaction and reject Projects that
 are closing or closed. Retrying the same `operationId` in the same workspace
@@ -170,12 +171,18 @@ returns the original Task without creating another occurrence ledger.
 | GET | `/v1/tasks` | With **GRANTED** grant, list all non-DRAFT tasks in workspace. `status=DRAFT` filter → **400**. |
 | GET | `/v1/tasks/{id}` | Baseline unchanged. Out-of-scope: upsert PENDING grant, **403** unless **GRANTED**. Same gate for task events, links, jobs list. |
 | POST | `/v1/tasks` | Delegated create flow above. |
-| POST | `/v1/tasks/scheduled` | Atomic v2 scheduled creation; not workspace-grant gated. Coworker needs the `tasks` capability and a contextual user; Calendar beta / seat checks apply to that user; never parks work. |
+| POST | `/v1/tasks/scheduled` | Atomic v2 scheduled creation; no approval round-trip. Coworker needs an authorized user binding (**GRANTED** grant or baseline task) plus the `tasks` capability; Calendar beta / seat checks apply to that user; never parks work. |
 | POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
 | POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |
 | PATCH | `/v1/tasks/{id}` (+ schedule, etc.) | Collaborators cannot mutate parked tasks. |
-| PUT/DELETE/PATCH | `/v1/tasks/{id}/schedule`, `/calendar-schedule`, `/calendar-source`, `/schedule/occurrences*` | Coworker collaborators may edit, remove, or move schedules and occurrences. Calendar beta / organization-seat gates follow the effective user (session, contextual coworker, or Soko Bot); standalone coworker keys skip them. |
+| PUT | `/v1/tasks/{id}/schedule` | Coworker collaborators may edit the series. No Calendar beta gate; organization seat applies to the effective user. |
+| DELETE | `/v1/tasks/{id}/schedule` | Coworker collaborators may remove the series. Deliberately no Calendar beta or seat gate (escape hatch). |
+| PUT/PATCH/GET | `/v1/tasks/{id}/calendar-schedule`, `/calendar-source`, `/schedule/occurrences*` | Coworker collaborators may move the series and mutate or read occurrences. Calendar beta follows the effective user; series writes also require their organization seat. |
 | GET | `/v1/jobs/{id}` | Sibling read uses workspace grant gate; writes blocked if parent task parked. |
+
+On these Task-collaboration routes, a standalone Coworker key (no
+`X-Context-*` headers) skips the user-scoped gates and is scoped by the Task
+relationship (assignee or vendor sibling).
 
 ---
 

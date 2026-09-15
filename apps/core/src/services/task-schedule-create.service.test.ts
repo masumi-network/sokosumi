@@ -21,11 +21,13 @@ const {
   createTaskForActorMock,
   lockCalendarScopeMock,
   replaceTaskSchedulePlannedOccurrencesMock,
+  requireAuthorizedUserContextMock,
   requireCoworkerCapabilityMock,
 } = vi.hoisted(() => ({
   createTaskForActorMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  requireAuthorizedUserContextMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
 }));
 
@@ -37,6 +39,10 @@ vi.mock("@/helpers/access-control", async (importOriginal) => {
     requireCoworkerCapability: requireCoworkerCapabilityMock,
   };
 });
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  requireAuthorizedUserContext: requireAuthorizedUserContextMock,
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {},
@@ -501,6 +507,13 @@ describe("createScheduledTaskInTransaction", () => {
 describe("requireScheduledTaskCreator", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      source: "session",
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+      role: "user",
+    });
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
   });
 
@@ -520,19 +533,22 @@ describe("requireScheduledTaskCreator", () => {
     expect(requireCoworkerCapabilityMock).not.toHaveBeenCalled();
   });
 
-  it("lets a Coworker with the tasks capability assign another usable Coworker for the contextual user", async () => {
+  it("lets a bound Coworker with the tasks capability assign another usable Coworker for the contextual user", async () => {
+    const authContext = {
+      actor: "coworker" as const,
+      coworkerId: "creator_coworker",
+      vendorId: "33333333-3333-7333-8333-333333333333",
+      context: { userId: "user_123", organizationId: "org_123" },
+    };
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      source: "context",
+      userId: "user_123",
+      organizationId: "org_123",
+    });
     const { tx } = createTransaction();
 
     await expect(
-      requireScheduledTaskCreator(
-        {
-          actor: "coworker",
-          coworkerId: "creator_coworker",
-          vendorId: "33333333-3333-7333-8333-333333333333",
-          context: { userId: "user_123", organizationId: "org_123" },
-        },
-        tx,
-      ),
+      requireScheduledTaskCreator(authContext, tx),
     ).resolves.toMatchObject({
       userContext: { userId: "user_123" },
       actor: {
@@ -543,6 +559,10 @@ describe("requireScheduledTaskCreator", () => {
       assigneeAuthorization: { kind: "user", userId: "user_123" },
     });
 
+    expect(requireAuthorizedUserContextMock).toHaveBeenCalledWith(
+      authContext,
+      tx,
+    );
     expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(
       "creator_coworker",
       "tasks",
@@ -550,7 +570,33 @@ describe("requireScheduledTaskCreator", () => {
     );
   });
 
+  it("rejects a Coworker whose user context has no authorized binding", async () => {
+    requireAuthorizedUserContextMock.mockRejectedValue(
+      forbidden(
+        "Coworker cannot act as this user without a granted workspace access or assigned task relationship",
+      ),
+    );
+
+    await expect(
+      requireScheduledTaskCreator({
+        actor: "coworker",
+        coworkerId: "creator_coworker",
+        vendorId: "33333333-3333-7333-8333-333333333333",
+        context: { userId: "user_123", organizationId: "org_123" },
+      }),
+    ).rejects.toThrow(
+      "Coworker cannot act as this user without a granted workspace access or assigned task relationship",
+    );
+
+    expect(requireCoworkerCapabilityMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a Coworker without the tasks capability", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      source: "context",
+      userId: "user_123",
+      organizationId: "org_123",
+    });
     requireCoworkerCapabilityMock.mockRejectedValue(
       forbidden("Coworker is not allowed to use tasks"),
     );
