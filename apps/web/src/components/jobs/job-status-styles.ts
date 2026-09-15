@@ -19,10 +19,10 @@ const JOB_STATUS_MARKERS: Record<SokosumiJobStatus, StatusMarkerSpec> = {
   // The payment is settling and then the coworker holds the job. The reader
   // is not blocked in either, so neither is amber. They are one stage seen
   // twice, and to the reader it is one stage, so they share a role and a
-  // glyph on purpose. The labels should be what tell them apart, and a later
-  // change in this stack splits them. This is the one deliberate pair that
-  // shares a role AND a glyph, and status-marker.test.tsx names it. Other
-  // pairs share a glyph across two roles, which the colour separates.
+  // glyph on purpose. The labels are what tell them apart. This is the one
+  // deliberate pair that shares a role AND a glyph, and status-marker.test.tsx
+  // names it. Other pairs share a glyph across two roles, which the colour
+  // separates.
   [SokosumiJobStatus.PAYMENT_PENDING]: {
     role: "working",
     icon: MARKER_ICONS.hiring,
