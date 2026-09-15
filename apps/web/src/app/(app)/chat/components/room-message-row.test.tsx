@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { copyMock } = vi.hoisted(() => ({
   copyMock: vi.fn().mockResolvedValue(undefined),
@@ -877,15 +877,15 @@ describe("ChatMessageRow", () => {
     renderRow();
 
     const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-48");
-    expect(article.className.split(/\s+/)).not.toContain("pr-48");
+    expect(article.className).toContain("[@media(hover:hover)]:pr-64");
+    expect(article.className.split(/\s+/)).not.toContain("pr-64");
   });
 
   it("skips the hover action gutter so a narrow thread can use full width", () => {
     renderRow({ reserveHoverActionGutter: false });
 
     const article = screen.getByRole("article");
-    expect(article.className).not.toContain("pr-48");
+    expect(article.className).not.toContain("pr-64");
   });
 
   it("renders quote snapshot from DTO and hands a jump to the transcript", async () => {
@@ -2942,6 +2942,107 @@ describe("ChatMessageRow outbound delivery", () => {
   });
 });
 
+describe("ChatMessageRow quick reactions", () => {
+  const FREQUENTLY_USED_STORAGE_KEY = "sokosumi.emoji-picker.recent.v1";
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  function renderReactableRow(message: ChatRoomMessage = userMessage()) {
+    const onToggleReaction = vi.fn();
+    render(
+      <ChatMessageRow
+        message={message}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={onToggleReaction}
+      />,
+    );
+    return onToggleReaction;
+  }
+
+  function quickReactionButtons() {
+    return within(hoverPill() as HTMLElement).getAllByRole("button", {
+      name: "Reactions.toggle",
+    });
+  }
+
+  function storedHistory(): unknown {
+    return JSON.parse(
+      window.localStorage.getItem(FREQUENTLY_USED_STORAGE_KEY) ?? "[]",
+    );
+  }
+
+  it("offers three default reactions ahead of the picker", async () => {
+    const user = userEvent.setup();
+    renderReactableRow();
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(quickReactionButtons().map((button) => button.textContent)).toEqual([
+      "👍",
+      "❤️",
+      "😂",
+    ]);
+  });
+
+  it("leads with the reader's most recently used emojis", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      FREQUENTLY_USED_STORAGE_KEY,
+      JSON.stringify(["🚀", "✅"]),
+    );
+    renderReactableRow();
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(quickReactionButtons().map((button) => button.textContent)).toEqual([
+      "🚀",
+      "✅",
+      "👍",
+    ]);
+  });
+
+  it("reacts in one click and remembers the emoji", async () => {
+    const user = userEvent.setup();
+    const message = userMessage();
+    const onToggleReaction = renderReactableRow(message);
+
+    await user.hover(screen.getByRole("article"));
+    await user.click(quickReactionButtons()[2]);
+
+    expect(onToggleReaction).toHaveBeenCalledWith(message, "😂");
+    expect(storedHistory()).toEqual(["😂"]);
+  });
+
+  it("does not remember an emoji when the click removes the reader's reaction", async () => {
+    const user = userEvent.setup();
+    const onToggleReaction = renderReactableRow(
+      userMessage({
+        reactions: [
+          {
+            emoji: "👍",
+            count: 1,
+            reactedByCurrentUser: true,
+            reactors: [{ id: "user-1", name: "Ada" }],
+          },
+        ],
+      }),
+    );
+
+    await user.hover(screen.getByRole("article"));
+    await user.click(quickReactionButtons()[0]);
+
+    expect(onToggleReaction).toHaveBeenCalledTimes(1);
+    expect(storedHistory()).toEqual([]);
+  });
+});
+
 describe("ChatMessageRow hover chrome", () => {
   it("mounts the action pill on the first hover and keeps it", async () => {
     const user = userEvent.setup();
@@ -3076,9 +3177,9 @@ describe("ChatMessageRow hover chrome", () => {
     // still walk forward into it rather than leave the row.
     await user.tab();
     expect(
-      within(hoverPill() as HTMLElement).getByRole("button", {
-        name: "Reactions.add",
-      }),
+      within(hoverPill() as HTMLElement).getAllByRole("button", {
+        name: "Reactions.toggle",
+      })[0],
     ).toHaveFocus();
   });
 

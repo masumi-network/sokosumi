@@ -56,7 +56,7 @@ interface SearchEmojiCatalogOptions {
 }
 
 interface ListEmojiCatalogSectionsOptions {
-  frequentlyUsed?: string[];
+  frequentlyUsed?: readonly string[];
 }
 
 const EMOJI_CATEGORY_DEFINITIONS: readonly EmojiCategoryDefinition[] = [

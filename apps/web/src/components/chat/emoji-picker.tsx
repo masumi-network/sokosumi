@@ -12,6 +12,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useEmojiPickerMaxHeight } from "@/hooks/use-emoji-picker-max-height";
+import {
+  recordFrequentlyUsedEmojiPick,
+  useFrequentlyUsedEmojis,
+} from "@/hooks/use-frequently-used-emojis";
 import { cn } from "@/lib/utils";
 import {
   type EmojiCatalogEntry,
@@ -19,11 +23,9 @@ import {
   FREQUENTLY_USED_SECTION_ID,
   listEmojiCatalogSections,
   listEmojiCategories,
-  recordFrequentlyUsedEmoji,
   searchEmojiCatalog,
 } from "@/lib/utils/emoji-shortcodes";
 
-const FREQUENTLY_USED_STORAGE_KEY = "sokosumi.emoji-picker.recent.v1";
 const FREQUENTLY_USED_NAV_EMOJI = "🕒";
 const SEARCH_NAV_ID = "search" as const;
 
@@ -40,26 +42,6 @@ export interface EmojiPickerProps {
   triggerClassName?: string;
   /** Portal host for Sheet/Dialog embedding so touch scroll stays allowlisted. */
   portalContainer?: HTMLElement | null;
-}
-
-function readFrequentlyUsedEmojis(): string[] {
-  try {
-    const raw = localStorage.getItem(FREQUENTLY_USED_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string");
-  } catch {
-    return [];
-  }
-}
-
-function writeFrequentlyUsedEmojis(emojis: string[]): void {
-  try {
-    localStorage.setItem(FREQUENTLY_USED_STORAGE_KEY, JSON.stringify(emojis));
-  } catch {
-    // Incognito / blocked storage — ignore.
-  }
 }
 
 function EmojiGridButton({
@@ -180,9 +162,7 @@ function initialNavId(frequentlyUsed: readonly string[]): NavTargetId {
 function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
   const t = useTranslations("Components.EmojiPicker");
   const [query, setQuery] = useState("");
-  const [frequentlyUsed, setFrequentlyUsed] = useState<string[]>(
-    readFrequentlyUsedEmojis,
-  );
+  const frequentlyUsed = useFrequentlyUsedEmojis();
   const [activeNavId, setActiveNavId] = useState<NavTargetId>(() =>
     initialNavId(frequentlyUsed),
   );
@@ -213,9 +193,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
   }, []);
 
   function handlePick(emoji: string) {
-    const next = recordFrequentlyUsedEmoji(frequentlyUsed, emoji);
-    setFrequentlyUsed(next);
-    writeFrequentlyUsedEmojis(next);
+    recordFrequentlyUsedEmojiPick(emoji);
     onPick(emoji);
   }
 
