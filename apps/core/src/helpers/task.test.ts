@@ -1,6 +1,7 @@
 import { Channel, GrantResumeStatus, TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
@@ -14,6 +15,13 @@ import {
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
+
+const TEST_USER_AUTH: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: null,
+  role: "user",
+};
 
 const defaultTaskUser = {
   id: "user_123",
@@ -471,7 +479,7 @@ describe("mapTask", () => {
       },
     } as unknown as TaskWithIncludes;
 
-    const result = mapTask(task);
+    const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.share).toEqual(share);
   });
@@ -520,12 +528,12 @@ describe("mapTask", () => {
       pendingVendorGrantId: grantId,
     } as unknown as TaskWithIncludes;
 
-    expect(mapTask(parkedTask)).toMatchObject({
+    expect(mapTask(parkedTask, TEST_USER_AUTH)).toMatchObject({
       status: TaskStatus.GRANT_PENDING,
       grantResumeStatus: GrantResumeStatus.READY,
       pendingVendorGrantId: grantId,
     });
-    expect(mapTask(readyTask)).toMatchObject({
+    expect(mapTask(readyTask, TEST_USER_AUTH)).toMatchObject({
       status: TaskStatus.READY,
       grantResumeStatus: null,
       pendingVendorGrantId: null,
@@ -575,7 +583,7 @@ describe("mapTask", () => {
       },
     } as unknown as TaskWithIncludes;
 
-    expect(mapTask(task)).toMatchObject({
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
       assigneeId: null,
       assigneeSokoBotId: assigneeSokoBot.id,
       coworkerId: null,
@@ -641,7 +649,7 @@ describe("mapTask", () => {
       owner: defaultTaskUser,
     };
 
-    expect(mapTask(task)).toMatchObject({
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
       ownerId: "user_123",
       userId: "user_123",
       user: defaultTaskUser,
@@ -718,7 +726,7 @@ describe("mapTask", () => {
       ],
     } as unknown as TaskWithIncludes;
 
-    const result = mapTask(task);
+    const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.jobs[0]?.workspace).toEqual({
       id: "22222222-2222-7222-8222-222222222222",
@@ -819,7 +827,7 @@ describe("mapTask", () => {
       ],
     } as unknown as TaskWithIncludes;
 
-    const result = mapTask(task);
+    const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.credits).toBe(5);
     expect(result.events).toHaveLength(3);
@@ -895,7 +903,7 @@ describe("mapTask", () => {
       ],
     } as unknown as TaskWithIncludes;
 
-    const result = mapTask(task);
+    const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.credits).toBe(3);
     expect(result.events).toHaveLength(2);
@@ -973,7 +981,7 @@ describe("mapTask", () => {
       ],
     } as unknown as TaskWithIncludes;
 
-    const result = mapTask(task);
+    const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(2);
@@ -1033,7 +1041,7 @@ describe("mapTask", () => {
       ],
     } as unknown as TaskWithIncludes;
 
-    const result = mapTask(task);
+    const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(5);

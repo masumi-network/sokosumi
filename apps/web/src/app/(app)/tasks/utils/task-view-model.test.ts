@@ -152,6 +152,7 @@ describe("mapTaskToTaskWithCoworker", () => {
     const task: Task = {
       ...buildTask(TaskStatus.READY),
       credits: 0,
+      selectableStatuses: [],
       events: [],
       jobs: [],
       files: [],

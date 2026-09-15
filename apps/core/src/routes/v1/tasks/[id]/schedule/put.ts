@@ -209,6 +209,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw error;
       });
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    return ok(c, taskSchema.parse(mapTask(task, authContext)));
   });
 }
