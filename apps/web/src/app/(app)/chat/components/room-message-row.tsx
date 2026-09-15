@@ -926,7 +926,7 @@ function MessageActionControls({
             variant="ghost"
             size="icon"
             className={cn(
-              "size-9 rounded-full text-sm sm:size-7",
+              "group/quick-reaction size-9 rounded-full text-sm sm:size-7",
               reacted && "bg-primary/10 hover:bg-primary/15",
             )}
             title={
@@ -939,7 +939,13 @@ function MessageActionControls({
               onAfterAction?.();
             }}
           >
-            <span aria-hidden>{emoji}</span>
+            {/* Only the glyph grows, so the hover circle keeps its size. */}
+            <span
+              aria-hidden
+              className="transition-transform duration-100 ease-out motion-safe:group-hover/quick-reaction:scale-115"
+            >
+              {emoji}
+            </span>
           </Button>
         );
       })}
