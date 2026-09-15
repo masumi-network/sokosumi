@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { memberRepository } from "@sokosumi/database/repositories";
 
+import { assertOrganizationInContextScope } from "@/helpers/context-organization-scope";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -60,7 +61,14 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     const { organizationId } = c.req.valid("param");
-    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
+    const { resolvedUserId, userContext } = requireUserRouteContext(
+      c.var.userRouteContext,
+    );
+
+    // Agents cannot reach this path today (it is absent from
+    // AGENT_ALLOWED_USER_SUBPATH_PATTERNS). Bind anyway, so widening that
+    // allowlist cannot silently reopen SOK-1020.
+    assertOrganizationInContextScope(userContext, organizationId);
 
     const member = await memberRepository.getMemberByUserIdAndOrganizationId(
       resolvedUserId,

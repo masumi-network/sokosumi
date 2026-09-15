@@ -1627,7 +1627,7 @@ export const getUsersByIdMembers = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`.
+ * Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`. Coworker and Soko Bot callers only see the organization their context is bound to.
  */
 export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsResponseTransformer,
@@ -1636,7 +1636,7 @@ export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`.
+ * Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`. Coworker and Soko Bot callers must target the organization their context is bound to.
  */
 export const getUsersByIdOrganizationsByOrganizationIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsByOrganizationIdCreditsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer,
@@ -1937,7 +1937,7 @@ export const getUsersById = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Get the raw organization record by slug for the effective user when they are a member (session user or coworker with authorized context headers; coworker requires workspace grant or baseline task binding)
+ * Get the raw organization record by slug for the effective user when they are a member (session user or coworker with authorized context headers; coworker requires workspace grant or baseline task binding). Coworker and Soko Bot callers may only resolve their own organization's slug; every other slug answers 404.
  */
 export const getOrganizationBySlug = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationBySlugData, ThrowOnError>): RequestResult<GetOrganizationBySlugResponses, GetOrganizationBySlugErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationBySlugResponses, GetOrganizationBySlugErrors, ThrowOnError>({
     responseTransformer: getOrganizationBySlugResponseTransformer,
@@ -3758,7 +3758,7 @@ export const getWorkspacesByIdCalendar = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Resolve a workspace id to its organization id
+ * Resolve a workspace id to its organization id. Coworker and Soko Bot callers must target their active workspace.
  */
 export const getWorkspacesById = <ThrowOnError extends boolean = false>(options: Options<GetWorkspacesByIdData, ThrowOnError>): RequestResult<GetWorkspacesByIdResponses, GetWorkspacesByIdErrors, ThrowOnError> => (options.client ?? client).get<GetWorkspacesByIdResponses, GetWorkspacesByIdErrors, ThrowOnError>({
     responseTransformer: getWorkspacesByIdResponseTransformer,
