@@ -55,7 +55,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireAuthorizedUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { projectIds } = c.req.valid("query");
 
@@ -71,6 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const projectStats = await getProjectStatsByProjectIds(
       workspaceContext.workspaceId,
       workspaceProjectIds,
+      userContext.userId,
     );
 
     return ok(

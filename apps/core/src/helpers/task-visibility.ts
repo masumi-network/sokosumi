@@ -1,5 +1,7 @@
 import { type Prisma, TaskVisibility } from "@sokosumi/database";
 
+export type SokoBotPacketAudience = "OWNER" | "TEAMMATE" | "ASSISTANT";
+
 /**
  * Human reader for a private Task is the Task owner (the member under whose
  * user context it was created). Creator FKs can be re-pointed on user
@@ -25,6 +27,21 @@ export function buildHumanParentTaskVisibilityWhere(
   return buildHumanTaskVisibilityWhere(userId);
 }
 
+/**
+ * Jobs with no parent Task stay visible. Jobs under a Task follow the human
+ * reader rule so a private parent cannot leak through the Job list.
+ */
+export function buildHumanJobParentVisibilityWhere(
+  userId: string,
+): Prisma.JobWhereInput {
+  return {
+    OR: [
+      { taskId: null },
+      { task: { is: buildHumanParentTaskVisibilityWhere(userId) } },
+    ],
+  };
+}
+
 export function isPrivateTaskVisibleToHuman(
   task: Pick<
     { visibility: TaskVisibility; ownerId: string },
@@ -47,6 +64,74 @@ export function buildSokoBotOwnerTaskVisibilityWhere(
   ownerUserId: string,
 ): Prisma.TaskWhereInput {
   return buildHumanTaskVisibilityWhere(ownerUserId);
+}
+
+export function isRestrictedSokoBotAudience(
+  audience: SokoBotPacketAudience | undefined,
+): boolean {
+  return audience === "TEAMMATE" || audience === "ASSISTANT";
+}
+
+export function readSokoBotPacketAudience(
+  packet: unknown,
+): SokoBotPacketAudience | undefined {
+  if (!packet || typeof packet !== "object") {
+    return undefined;
+  }
+  if (
+    !("trigger" in packet) ||
+    !packet.trigger ||
+    typeof packet.trigger !== "object"
+  ) {
+    return undefined;
+  }
+  const trigger = packet.trigger;
+  if (
+    !("askedBy" in trigger) ||
+    !trigger.askedBy ||
+    typeof trigger.askedBy !== "object"
+  ) {
+    return undefined;
+  }
+  const askedBy = trigger.askedBy;
+  if (!("kind" in askedBy)) {
+    return undefined;
+  }
+  const kind = askedBy.kind;
+  if (kind === "OWNER" || kind === "TEAMMATE" || kind === "ASSISTANT") {
+    return kind;
+  }
+  return undefined;
+}
+
+/**
+ * Teammate and bot-to-bot turns answer in a shared room. They may read public
+ * Tasks only. Owner turns keep the owner's private Tasks.
+ */
+export function buildSokoBotAudienceTaskVisibilityWhere(
+  ownerUserId: string,
+  audience: SokoBotPacketAudience | undefined,
+): Prisma.TaskWhereInput {
+  if (isRestrictedSokoBotAudience(audience)) {
+    return { visibility: TaskVisibility.PUBLIC };
+  }
+  return buildSokoBotOwnerTaskVisibilityWhere(ownerUserId);
+}
+
+export function buildSokoBotAudienceJobParentTaskWhere(
+  ownerUserId: string,
+  audience: SokoBotPacketAudience | undefined,
+): Prisma.JobWhereInput {
+  return {
+    OR: [
+      { taskId: null },
+      {
+        task: {
+          is: buildSokoBotAudienceTaskVisibilityWhere(ownerUserId, audience),
+        },
+      },
+    ],
+  };
 }
 
 /**
@@ -88,4 +173,28 @@ export function isPrivateTaskVisibleToCoworker(
     return true;
   }
   return false;
+}
+
+/**
+ * Coworker Job lists: Jobs on Tasks assigned to this coworker, plus Jobs on
+ * private Tasks assigned to a same-vendor sibling (the vendor-family reader
+ * set already used for Task detail).
+ */
+export function buildCoworkerJobParentTaskWhere(params: {
+  coworkerId: string;
+  vendorId: string;
+}): Prisma.JobWhereInput {
+  return {
+    task: {
+      is: {
+        OR: [
+          { assigneeId: params.coworkerId },
+          {
+            visibility: TaskVisibility.PRIVATE,
+            assignee: { vendorId: params.vendorId },
+          },
+        ],
+      },
+    },
+  };
 }

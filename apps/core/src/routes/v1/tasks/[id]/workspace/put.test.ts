@@ -542,6 +542,37 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
+  it("rejects moving a private Task to a personal workspace", async () => {
+    taskFindFirstMock.mockResolvedValue(
+      createTaskRecord({
+        organizationId: "org_current",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
+        visibility: TaskVisibility.PRIVATE,
+        status: TaskStatus.READY,
+      }),
+    );
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: null,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain(
+      "Private Tasks cannot move to a personal workspace",
+    );
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when moving to a missing personal workspace", async () => {
     const { PersonalWorkspaceMissingError } = await import(
       "@sokosumi/database/repositories"

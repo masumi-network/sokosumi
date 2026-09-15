@@ -8,7 +8,7 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { loadAgentPreviewsByIds } from "@/helpers/history";
 import {
-  buildHumanParentTaskVisibilityWhere,
+  buildHumanJobParentVisibilityWhere,
   buildHumanTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
@@ -206,18 +206,7 @@ export function unsettledProjectJobsQuery(params: {
       projectId: params.projectId,
       workspaceId: params.workspaceId,
       ...unsettledProjectJobsWhere(params.now),
-      AND: [
-        {
-          OR: [
-            { taskId: null },
-            {
-              task: {
-                is: buildHumanParentTaskVisibilityWhere(params.readerUserId),
-              },
-            },
-          ],
-        },
-      ],
+      AND: [buildHumanJobParentVisibilityWhere(params.readerUserId)],
     },
     orderBy: [{ updatedAt: "desc" as const }, { id: "desc" as const }],
     take: PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT,
@@ -276,7 +265,10 @@ export async function getProjectNeedsAttention(
       id: params.projectId,
       workspaceId: params.workspaceId,
     },
-    include: createProjectListCountsInclude(params.workspaceId),
+    include: createProjectListCountsInclude(
+      params.workspaceId,
+      params.readerUserId,
+    ),
   });
 
   if (!project) {

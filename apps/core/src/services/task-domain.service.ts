@@ -115,6 +115,18 @@ function requireAssigneeXor(
   }
 }
 
+export function requireNoHumanAssigneeOnPrivateTask(
+  visibility: TaskVisibility,
+  assigneeUserId: string | null | undefined,
+): void {
+  if (
+    visibility === TaskVisibility.PRIVATE &&
+    hasAssigneeValue(assigneeUserId)
+  ) {
+    throw badRequest("Private Tasks cannot be assigned to a human teammate");
+  }
+}
+
 function requireAssigneeForExecutableStatus(
   status: TaskStatus,
   assigneeId: string | null | undefined,
@@ -290,6 +302,17 @@ export async function createTaskForActor(
     input.assigneeSokoBotId,
     input.assigneeUserId,
   );
+  const visibility =
+    input.visibility === "PRIVATE" && input.organizationId != null
+      ? TaskVisibility.PRIVATE
+      : TaskVisibility.PUBLIC;
+
+  if (input.visibility === "PRIVATE" && input.organizationId == null) {
+    throw badRequest(
+      "Private Tasks are only allowed in organization workspaces",
+    );
+  }
+  requireNoHumanAssigneeOnPrivateTask(visibility, input.assigneeUserId);
   await requireTaskReferences(input, tx);
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
@@ -316,17 +339,6 @@ export async function createTaskForActor(
     pendingGrant || !input.resolveDescription
       ? (input.description ?? null)
       : await input.resolveDescription(tx);
-
-  const visibility =
-    input.visibility === "PRIVATE" && input.organizationId != null
-      ? TaskVisibility.PRIVATE
-      : TaskVisibility.PUBLIC;
-
-  if (input.visibility === "PRIVATE" && input.organizationId == null) {
-    throw badRequest(
-      "Private Tasks are only allowed in organization workspaces",
-    );
-  }
 
   return tx.task.create({
     data: {
@@ -452,6 +464,7 @@ export async function updateTaskForActor(
     nextAssigneeSokoBotId,
     nextAssigneeUserId,
   );
+  requireNoHumanAssigneeOnPrivateTask(task.visibility, nextAssigneeUserId);
 
   await requireTaskReferences(
     {

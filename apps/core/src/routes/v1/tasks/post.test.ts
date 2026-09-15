@@ -622,6 +622,31 @@ describe("POST /tasks", () => {
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
+  it("rejects PRIVATE visibility with a human assignee", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Secret Task",
+        description: null,
+        assigneeUserId: "user_teammate",
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+        visibility: TaskVisibility.PRIVATE,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain(
+      "Private Tasks cannot be assigned to a human teammate",
+    );
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
   it("assigns a personal assistant as soko bot", async () => {
     const sokoBotId = "01960001-0001-7001-8001-000000000099";
     requireTaskAssignableSokoBotMock.mockResolvedValue(undefined);

@@ -605,6 +605,32 @@ describe("PATCH /tasks/{id}", () => {
       );
     });
 
+    it("rejects assigning a human teammate to a private Task", async () => {
+      requireTaskOwnershipMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        visibility: TaskVisibility.PRIVATE,
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeUserId: "user_assignee" }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain(
+        "Private Tasks cannot be assigned to a human teammate",
+      );
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    });
+
     it("does not notify when the human assignee is cleared", async () => {
       requireTaskOwnershipMock.mockResolvedValue({
         id: "tsk_123",

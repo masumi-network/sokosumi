@@ -1,4 +1,4 @@
-import { Channel, TaskStatus } from "@sokosumi/database";
+import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { projectMemoryService } from "./project-memory.service";
@@ -374,6 +374,53 @@ describe("projectMemoryService", () => {
       }),
     ).resolves.toEqual({ status: "skipped", reason: "already_updating" });
     expect(projectFindUniqueMock).not.toHaveBeenCalled();
+    expect(generateTextMock).not.toHaveBeenCalled();
+  });
+
+  it("loads only public Tasks into shared project memory", async () => {
+    await projectMemoryService.refreshAfterTaskCompleted({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    });
+
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: TASK_ID,
+          projectId: PROJECT_ID,
+          visibility: TaskVisibility.PUBLIC,
+        },
+      }),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: PROJECT_ID,
+          id: { not: TASK_ID },
+          visibility: TaskVisibility.PUBLIC,
+        }),
+      }),
+    );
+  });
+
+  it("skips a private triggering Task so it never enters shared context", async () => {
+    taskFindFirstMock.mockImplementation(
+      (args: {
+        select?: Record<string, boolean>;
+        where?: { visibility?: string };
+      }) => {
+        if (isFollowUpTaskIdLookup(args)) return null;
+        if (args.where?.visibility === TaskVisibility.PUBLIC) return null;
+        return completedTask;
+      },
+    );
+
+    await expect(
+      projectMemoryService.refreshAfterTaskCompleted({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+      }),
+    ).resolves.toEqual({ status: "skipped", reason: "task_not_found" });
     expect(generateTextMock).not.toHaveBeenCalled();
   });
 

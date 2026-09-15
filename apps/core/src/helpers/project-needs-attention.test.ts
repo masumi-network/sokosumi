@@ -1,7 +1,10 @@
 import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
+import {
+  buildHumanJobParentVisibilityWhere,
+  buildHumanTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import type { HistoryItem } from "@/schemas/history.schema";
 import { PROJECT_NEEDS_ATTENTION_LIMIT } from "@/schemas/project.schema";
 
@@ -271,18 +274,7 @@ describe("unsettledProjectJobsQuery", () => {
       projectId: "project-1",
       workspaceId: "workspace-1",
       ...unsettledProjectJobsWhere(now),
-      AND: [
-        {
-          OR: [
-            { taskId: null },
-            {
-              task: {
-                is: buildHumanTaskVisibilityWhere("user_123"),
-              },
-            },
-          ],
-        },
-      ],
+      AND: [buildHumanJobParentVisibilityWhere("user_123")],
     });
   });
 });

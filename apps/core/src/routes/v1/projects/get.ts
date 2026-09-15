@@ -47,7 +47,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireAuthorizedUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
@@ -56,6 +56,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
     const projectListCountsInclude = createProjectListCountsInclude(
       workspaceContext.workspaceId,
+      userContext.userId,
     );
 
     const [projects, count] = await prisma.$transaction([

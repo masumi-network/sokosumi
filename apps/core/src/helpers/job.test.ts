@@ -248,6 +248,7 @@ describe("getUserJobs", () => {
       take: 20,
       tx,
       coworkerId: "cow_123",
+      coworkerVendorId: "vendor_123",
     });
 
     expect(tx.coworker.findFirst).toHaveBeenCalledWith(
@@ -266,7 +267,19 @@ describe("getUserJobs", () => {
               ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
-            { task: { assigneeId: "cow_123" } },
+            {
+              task: {
+                is: {
+                  OR: [
+                    { assigneeId: "cow_123" },
+                    {
+                      visibility: TaskVisibility.PRIVATE,
+                      assignee: { vendorId: "vendor_123" },
+                    },
+                  ],
+                },
+              },
+            },
           ],
         },
       }),

@@ -34,6 +34,7 @@ const {
   requireTaskAssignableCoworkerMock,
   agentFindFirstMock,
   taskFindFirstMock,
+  jobFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
   toolCallUpdateManyMock,
@@ -115,6 +116,7 @@ const {
   requireTaskAssignableCoworkerMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
   toolCallFindUniqueMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
@@ -221,6 +223,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     agent: { findFirst: agentFindFirstMock },
     task: { findFirst: taskFindFirstMock },
+    job: { findFirst: jobFindFirstMock },
     jobEvent: { findFirst: jobEventFindFirstMock },
     jobInput: {
       create: jobInputCreateMock,
@@ -1023,6 +1026,127 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(toolCallUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+  });
+
+  it("hides private Tasks from teammate Soko Bot reads", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_task_status",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify({ taskId: "task_1" }))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindFirstMock.mockResolvedValue(null);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_task_status",
+      toolCallId: "call_teammate_task",
+      input: { taskId: "task_1" },
+    });
+
+    expect(result).toBeNull();
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "task_1",
+          workspaceId: SCOPE.workspaceId,
+          archivedAt: null,
+          visibility: "PUBLIC",
+        }),
+      }),
+    );
+  });
+
+  it("hides jobs on private parent Tasks from teammate Soko Bot reads", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the jobs",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_job_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_job_status",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify({ jobId: "job_1" }))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    jobFindFirstMock.mockResolvedValue(null);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_job_status",
+      toolCallId: "call_teammate_job",
+      input: { jobId: "job_1" },
+    });
+
+    expect(result).toBeNull();
+    expect(jobFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              id: "job_1",
+              ownerId: SCOPE.userId,
+              workspaceId: SCOPE.workspaceId,
+            },
+            {
+              OR: [
+                { taskId: null },
+                { task: { is: { visibility: "PUBLIC" } } },
+              ],
+            },
+          ],
+        },
       }),
     );
   });

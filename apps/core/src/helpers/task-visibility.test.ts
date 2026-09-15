@@ -2,12 +2,17 @@ import { TaskVisibility } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCoworkerJobParentTaskWhere,
   buildCoworkerPrivateTaskVisibilityWhere,
+  buildHumanJobParentVisibilityWhere,
   buildHumanParentTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
+  buildSokoBotAudienceJobParentTaskWhere,
+  buildSokoBotAudienceTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
   isPrivateTaskVisibleToCoworker,
   isPrivateTaskVisibleToHuman,
+  readSokoBotPacketAudience,
 } from "./task-visibility";
 
 describe("task visibility helpers", () => {
@@ -44,6 +49,40 @@ describe("task visibility helpers", () => {
 
     expect(buildHumanParentTaskVisibilityWhere("user_a")).toEqual(humanWhere);
     expect(buildSokoBotOwnerTaskVisibilityWhere("user_a")).toEqual(humanWhere);
+    expect(buildHumanJobParentVisibilityWhere("user_a")).toEqual({
+      OR: [{ taskId: null }, { task: { is: humanWhere } }],
+    });
+  });
+
+  it("limits teammate and assistant Soko Bot reads to public Tasks", () => {
+    expect(
+      buildSokoBotAudienceTaskVisibilityWhere("user_a", "TEAMMATE"),
+    ).toEqual({ visibility: TaskVisibility.PUBLIC });
+    expect(
+      buildSokoBotAudienceTaskVisibilityWhere("user_a", "ASSISTANT"),
+    ).toEqual({ visibility: TaskVisibility.PUBLIC });
+    expect(buildSokoBotAudienceTaskVisibilityWhere("user_a", "OWNER")).toEqual(
+      buildSokoBotOwnerTaskVisibilityWhere("user_a"),
+    );
+    expect(
+      buildSokoBotAudienceJobParentTaskWhere("user_a", "TEAMMATE"),
+    ).toEqual({
+      OR: [
+        { taskId: null },
+        { task: { is: { visibility: TaskVisibility.PUBLIC } } },
+      ],
+    });
+  });
+
+  it("reads askedBy.kind from a stored Soko Bot packet", () => {
+    expect(
+      readSokoBotPacketAudience({
+        trigger: { askedBy: { kind: "TEAMMATE" } },
+      }),
+    ).toBe("TEAMMATE");
+    expect(
+      readSokoBotPacketAudience({ memory: { version: 1 } }),
+    ).toBeUndefined();
   });
 
   it("keeps private Tasks on the coworker vendor-family seam", () => {
@@ -104,5 +143,24 @@ describe("task visibility helpers", () => {
         { coworkerId: "cow_1", vendorId: "vendor_1" },
       ),
     ).toBe(false);
+
+    expect(
+      buildCoworkerJobParentTaskWhere({
+        coworkerId: "cow_1",
+        vendorId: "vendor_1",
+      }),
+    ).toEqual({
+      task: {
+        is: {
+          OR: [
+            { assigneeId: "cow_1" },
+            {
+              visibility: TaskVisibility.PRIVATE,
+              assignee: { vendorId: "vendor_1" },
+            },
+          ],
+        },
+      },
+    });
   });
 });

@@ -139,7 +139,10 @@ describe("GET /projects", () => {
 
     expect(projectFindManyMock).toHaveBeenCalledWith({
       where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
-      include: createProjectListCountsInclude(WORKSPACE_CONTEXT.workspaceId),
+      include: createProjectListCountsInclude(
+        WORKSPACE_CONTEXT.workspaceId,
+        USER_AUTH_CONTEXT.userId,
+      ),
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
       skip: undefined,
       cursor: undefined,
@@ -209,7 +212,10 @@ describe("GET /projects", () => {
     expect(res.status).toBe(200);
     expect(projectFindManyMock).toHaveBeenCalledWith({
       where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
-      include: createProjectListCountsInclude(WORKSPACE_CONTEXT.workspaceId),
+      include: createProjectListCountsInclude(
+        WORKSPACE_CONTEXT.workspaceId,
+        USER_AUTH_CONTEXT.userId,
+      ),
       take: 11,
       skip: 1,
       cursor: { id: cursorId },

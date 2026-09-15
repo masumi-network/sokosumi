@@ -1,6 +1,14 @@
 import type { Prisma } from "@sokosumi/database";
 
-export function createProjectListCountsInclude(workspaceId: string) {
+import {
+  buildHumanJobParentVisibilityWhere,
+  buildHumanTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
+
+export function createProjectListCountsInclude(
+  workspaceId: string,
+  readerUserId: string,
+) {
   return {
     _count: {
       select: {
@@ -8,11 +16,13 @@ export function createProjectListCountsInclude(workspaceId: string) {
           where: {
             archivedAt: null,
             workspaceId,
+            ...buildHumanTaskVisibilityWhere(readerUserId),
           },
         },
         jobs: {
           where: {
             workspaceId,
+            ...buildHumanJobParentVisibilityWhere(readerUserId),
           },
         },
       },
