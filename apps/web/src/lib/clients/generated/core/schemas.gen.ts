@@ -16240,6 +16240,42 @@ export const MarkAllReadResponseSchema = {
     ]
 } as const;
 
+export const MarkNotificationsReadResponseSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of notifications this request marked as read',
+            example: 3
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const MarkNotificationsReadRequestSchema = {
+    type: 'object',
+    properties: {
+        ids: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            minItems: 1,
+            maxItems: 100,
+            description: 'Notification IDs to mark as read',
+            example: [
+                'cm123456789abcdefghij'
+            ]
+        }
+    },
+    required: [
+        'ids'
+    ]
+} as const;
+
 export const ClearNotificationsResponseSchema = {
     type: 'object',
     properties: {
