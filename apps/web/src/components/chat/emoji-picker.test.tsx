@@ -110,4 +110,28 @@ describe("EmojiPicker", () => {
       host.remove();
     }
   });
+
+  it("leaves recording the use to the consumer", async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    window.localStorage.clear();
+    render(
+      <EmojiPicker
+        title="Add reaction"
+        ariaLabel="Add reaction"
+        onPick={onPick}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Add reaction" }));
+    await user.type(await screen.findByRole("searchbox"), "joy");
+    await user.click(
+      await screen.findByRole("button", { name: "face with tears of joy" }),
+    );
+
+    expect(onPick).toHaveBeenCalledWith("😂");
+    expect(
+      window.localStorage.getItem("sokosumi.emoji-picker.recent.v1"),
+    ).toBeNull();
+  });
 });

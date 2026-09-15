@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { JobDetails } from "@/components/jobs";
+import JobDetails from "@/components/jobs/job-details/job-details";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
