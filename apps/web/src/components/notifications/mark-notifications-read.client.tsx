@@ -4,10 +4,17 @@ import { useEffect, useRef } from "react";
 
 import { useOptionalNotifications } from "@/contexts/notification-provider";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
+import type { MarkReadForReferenceRequest } from "@/lib/clients/generated/core/types.gen";
 
 interface MarkNotificationsReadProps {
-  /** Only kinds whose own page can stand for reading them. Chat is not one. */
-  kind: "TASK" | "JOB";
+  /**
+   * Only kinds whose own page can stand for reading them. Chat is not one.
+   *
+   * Taken from the Core contract rather than written out again here, so a kind
+   * added to or removed from the route cannot leave this page offering one the
+   * route refuses.
+   */
+  kind: MarkReadForReferenceRequest["kind"];
   /** The task or job this page is showing. */
   referenceId: string;
 }

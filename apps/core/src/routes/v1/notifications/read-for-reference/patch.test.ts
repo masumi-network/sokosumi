@@ -14,16 +14,12 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { notificationUpdateManyMock } = vi.hoisted(() => ({
-  notificationUpdateManyMock: vi.fn(),
+const { markNotificationsReadMock } = vi.hoisted(() => ({
+  markNotificationsReadMock: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    notification: {
-      updateMany: notificationUpdateManyMock,
-    },
-  },
+vi.mock("@/helpers/notification-read", () => ({
+  markNotificationsRead: markNotificationsReadMock,
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -60,7 +56,10 @@ function patch(body: unknown) {
 describe("PATCH /notifications/read-for-reference", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    notificationUpdateManyMock.mockResolvedValue({ count: 2 });
+    markNotificationsReadMock.mockResolvedValue({
+      count: 2,
+      clearedRoomIds: [],
+    });
   });
 
   it("marks the reader's unread rows for one task read", async () => {
@@ -83,28 +82,24 @@ describe("PATCH /notifications/read-for-reference", () => {
   it("scopes the write to this reader, this kind and this reference", async () => {
     await patch({ kind: NotificationKind.TASK, referenceId: "task_123" });
 
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: {
-        userId: "user_123",
-        kind: NotificationKind.TASK,
-        referenceId: "task_123",
-        isRead: false,
-      },
-      data: { isRead: true, readAt: expect.any(Date) },
+    // The reference is the whole of what this route adds. The reader's id, the
+    // unread state and the feed rule belong to the shared write, which is what
+    // stops this route from reaching a row the feed would never show. Asserted
+    // exactly, so a scoping clause added back here fails rather than passes as
+    // a harmless duplicate.
+    expect(markNotificationsReadMock).toHaveBeenCalledWith("user_123", {
+      kind: NotificationKind.TASK,
+      referenceId: "task_123",
     });
   });
 
   it("marks the reader's unread rows for one job read", async () => {
     await patch({ kind: NotificationKind.JOB, referenceId: "job_123" });
 
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          kind: NotificationKind.JOB,
-          referenceId: "job_123",
-        }),
-      }),
-    );
+    expect(markNotificationsReadMock).toHaveBeenCalledWith("user_123", {
+      kind: NotificationKind.JOB,
+      referenceId: "job_123",
+    });
   });
 
   /**
@@ -121,7 +116,7 @@ describe("PATCH /notifications/read-for-reference", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    expect(markNotificationsReadMock).not.toHaveBeenCalled();
   });
 
   it("refuses a blank reference rather than reading everything", async () => {
@@ -131,11 +126,14 @@ describe("PATCH /notifications/read-for-reference", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    expect(markNotificationsReadMock).not.toHaveBeenCalled();
   });
 
   it("says nothing was read when nothing was unread", async () => {
-    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+    markNotificationsReadMock.mockResolvedValue({
+      count: 0,
+      clearedRoomIds: [],
+    });
 
     const response = await patch({
       kind: NotificationKind.TASK,

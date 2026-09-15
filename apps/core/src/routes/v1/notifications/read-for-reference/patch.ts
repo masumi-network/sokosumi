@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
 
+import { markNotificationsRead } from "@/helpers/notification-read";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -78,24 +78,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { kind, referenceId } = c.req.valid("json");
 
-    // Scoped by the reader's own id, so no access check on the task or the job
-    // is needed or wanted: the only rows this can reach are ones already
-    // written for the caller.
+    // The shared write, so this route cannot reach a row the feed would never
+    // show by scoping it itself. The reader's own id, the unread state and the
+    // feed rule all come from there; the reference is all this route adds.
+    // Which also means no access check on the task or the job is needed or
+    // wanted: the only rows this can reach are ones already written for the
+    // caller.
     //
-    // Nothing is republished. A cleared-row event exists for the chat banner a
-    // room message stands for; a task or job row has no such banner, and the
-    // single-row read route publishes nothing for these kinds either.
-    const { count } = await prisma.notification.updateMany({
-      where: {
-        userId: userContext.userId,
-        kind,
-        referenceId,
-        isRead: false,
-      },
-      data: {
-        isRead: true,
-        readAt: new Date(),
-      },
+    // Nothing is republished, and `clearedRoomIds` is empty by construction:
+    // it carries chat rows, and chat is not a kind this route accepts. A
+    // cleared-row event exists for the banner a room message stands for; a
+    // task or job row has no such banner.
+    const { count } = await markNotificationsRead(userContext.userId, {
+      kind,
+      referenceId,
     });
 
     return ok(c, responseSchema.parse({ count }));
