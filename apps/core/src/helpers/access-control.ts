@@ -439,7 +439,12 @@ export async function requireTaskAssignableSokoBot(
 // Task collaboration (user ownership or coworker on assigned task)
 // -----------------------------------------------------------------------------
 
-async function requireGrantedWorkspaceAccessOrRequest(params: {
+/**
+ * Passes for GRANTED access. DENIED/REVOKED never reopen. Otherwise commits a
+ * PENDING workspace grant request (approvers notified) and passes only once the
+ * grant resolves as GRANTED — callers without access get `grant_required`.
+ */
+export async function requireGrantedWorkspaceAccessOrRequest(params: {
   vendorId: string;
   workspaceId: string;
   requestedByUserId: string | null;

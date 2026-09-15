@@ -9,6 +9,7 @@ import {
 
 import {
   requireCoworkerCapability,
+  requireGrantedWorkspaceAccessOrRequest,
   type TaskAssigner,
 } from "@/helpers/access-control";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
@@ -29,6 +30,7 @@ import {
 } from "@/helpers/vendor-grants";
 import {
   type AuthenticationContext,
+  type CoworkerAuthenticationContext,
   isCoworkerAuthContext,
   requireUserContext,
   type UserContext,
@@ -121,10 +123,29 @@ export async function findScheduledTaskCreateOperation(
   return existingOperation.taskId;
 }
 
+function coworkerScheduledTaskCreator(
+  authContext: CoworkerAuthenticationContext,
+  userContext: UserContext,
+): ScheduledTaskCreator {
+  return {
+    userContext,
+    actor: {
+      kind: "coworker",
+      coworkerId: authContext.coworkerId,
+      vendorId: authContext.vendorId,
+      enforceWorkspaceGrant: false,
+    },
+    // The grant authorizes the contextual workspace user to choose any usable
+    // task-capable Coworker, including one from another vendor.
+    assigneeAuthorization: { kind: "user", userId: userContext.userId },
+  };
+}
+
 /**
  * Resolves an authenticated scheduled-Task creator. Coworkers need a GRANTED
  * vendor workspace grant because scheduled work is an immediate workspace-wide
- * commitment, not a GRANT_PENDING delegated draft.
+ * commitment, not a GRANT_PENDING delegated draft. Never requests access; use
+ * {@link requireScheduledTaskCreatorOrRequestGrant} for the cold-start gate.
  */
 export async function requireScheduledTaskCreator(
   authContext: AuthenticationContext,
@@ -148,18 +169,42 @@ export async function requireScheduledTaskCreator(
     throwGrantAccessError(grant?.status);
   }
 
-  return {
-    userContext,
-    actor: {
-      kind: "coworker",
-      coworkerId: authContext.coworkerId,
-      vendorId: authContext.vendorId,
-      enforceWorkspaceGrant: false,
-    },
-    // The grant authorizes the contextual workspace user to choose any usable
-    // task-capable Coworker, including one from another vendor.
-    assigneeAuthorization: { kind: "user", userId: userContext.userId },
-  };
+  return coworkerScheduledTaskCreator(authContext, userContext);
+}
+
+/**
+ * Cold-start variant of {@link requireScheduledTaskCreator}: a Coworker with no
+ * workspace grant (or a pending one) asks for one — approvers are notified —
+ * and gets `grant_required` until a human approves. The caller retries the same
+ * `operationId` afterwards. No schedule row exists before access is GRANTED, so
+ * this endpoint never parks work.
+ */
+export async function requireScheduledTaskCreatorOrRequestGrant(
+  authContext: AuthenticationContext,
+  workspaceId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<ScheduledTaskCreator> {
+  const userContext = requireUserContext(authContext);
+  if (!isCoworkerAuthContext(authContext)) {
+    return {
+      userContext,
+      actor: { kind: "user", userId: userContext.userId },
+    };
+  }
+
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+  const grant = await getWorkspaceGrant(
+    { vendorId: authContext.vendorId, workspaceId },
+    tx,
+  );
+  await requireGrantedWorkspaceAccessOrRequest({
+    vendorId: authContext.vendorId,
+    workspaceId,
+    requestedByUserId: userContext.userId,
+    grant,
+  });
+
+  return coworkerScheduledTaskCreator(authContext, userContext);
 }
 
 /**

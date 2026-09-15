@@ -32,6 +32,7 @@ import {
   createScheduledTaskInTransaction,
   findScheduledTaskCreateOperation,
   requireScheduledTaskCreator,
+  requireScheduledTaskCreatorOrRequestGrant,
 } from "@/services/task-schedule-create.service";
 import { taskInclude } from "@/types/task";
 
@@ -100,13 +101,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const body = c.req.valid("json");
-    const preflightCreator = await requireScheduledTaskCreator(
+    await requireAssignedOrganizationSeat(
+      userContext.userId,
+      workspaceContext.organizationId,
+    );
+    const preflightCreator = await requireScheduledTaskCreatorOrRequestGrant(
       c.var.authContext,
       workspaceContext.workspaceId,
-    );
-    await requireAssignedOrganizationSeat(
-      preflightCreator.userContext.userId,
-      workspaceContext.organizationId,
     );
     const scheduledTaskInput = {
       creator: preflightCreator,

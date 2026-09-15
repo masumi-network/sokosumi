@@ -6,15 +6,18 @@ import {
 } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import {
   canonicalTaskScheduleInput,
   createTaskScheduleRequestFingerprint,
 } from "@/helpers/task-schedule-operation";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import type { CreateScheduledTaskInput } from "./task-schedule-create.service";
 import {
   createScheduledTaskInTransaction,
   requireScheduledTaskCreator,
+  requireScheduledTaskCreatorOrRequestGrant,
 } from "./task-schedule-create.service";
 
 const {
@@ -22,15 +25,19 @@ const {
   lockCalendarScopeMock,
   replaceTaskSchedulePlannedOccurrencesMock,
   requireCoworkerCapabilityMock,
+  requireGrantedWorkspaceAccessOrRequestMock,
 } = vi.hoisted(() => ({
   createTaskForActorMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
+  requireGrantedWorkspaceAccessOrRequestMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
+  requireGrantedWorkspaceAccessOrRequest:
+    requireGrantedWorkspaceAccessOrRequestMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -542,5 +549,99 @@ describe("requireScheduledTaskCreator", () => {
         tx,
       ),
     ).rejects.toThrow("Vendor workspace access is required");
+  });
+});
+
+describe("requireScheduledTaskCreatorOrRequestGrant", () => {
+  const VENDOR_ID = "33333333-3333-7333-8333-333333333333";
+
+  function createCoworkerAuthContext(): AuthenticationContext {
+    return {
+      actor: "coworker",
+      coworkerId: "creator_coworker",
+      vendorId: VENDOR_ID,
+      context: { userId: "user_123", organizationId: "org_123" },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
+  });
+
+  it("returns a user creator without requesting workspace access", async () => {
+    const { tx } = createTransaction();
+
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+          role: "user",
+        },
+        WORKSPACE_ID,
+        tx,
+      ),
+    ).resolves.toMatchObject({
+      actor: { kind: "user", userId: "user_123" },
+    });
+
+    expect(requireGrantedWorkspaceAccessOrRequestMock).not.toHaveBeenCalled();
+  });
+
+  it("requests workspace access for a Coworker without a grant", async () => {
+    const { tx, vendorGrantFindUniqueMock } = createTransaction();
+    vendorGrantFindUniqueMock.mockResolvedValue(null);
+    requireGrantedWorkspaceAccessOrRequestMock.mockRejectedValue(
+      forbidden("Vendor workspace access is required", {
+        kind: "grant_required",
+      }),
+    );
+
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        createCoworkerAuthContext(),
+        WORKSPACE_ID,
+        tx,
+      ),
+    ).rejects.toThrow("Vendor workspace access is required");
+
+    expect(requireGrantedWorkspaceAccessOrRequestMock).toHaveBeenCalledWith({
+      vendorId: VENDOR_ID,
+      workspaceId: WORKSPACE_ID,
+      requestedByUserId: "user_123",
+      grant: null,
+    });
+  });
+
+  it("returns the Coworker creator once the pending request resolves as granted", async () => {
+    const { tx, vendorGrantFindUniqueMock } = createTransaction();
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      status: VendorGrantStatus.PENDING,
+    });
+    requireGrantedWorkspaceAccessOrRequestMock.mockResolvedValue(undefined);
+
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        createCoworkerAuthContext(),
+        WORKSPACE_ID,
+        tx,
+      ),
+    ).resolves.toMatchObject({
+      actor: {
+        kind: "coworker",
+        coworkerId: "creator_coworker",
+        enforceWorkspaceGrant: false,
+      },
+      assigneeAuthorization: { kind: "user", userId: "user_123" },
+    });
+
+    expect(requireGrantedWorkspaceAccessOrRequestMock).toHaveBeenCalledWith({
+      vendorId: VENDOR_ID,
+      workspaceId: WORKSPACE_ID,
+      requestedByUserId: "user_123",
+      grant: { status: VendorGrantStatus.PENDING },
+    });
   });
 });
