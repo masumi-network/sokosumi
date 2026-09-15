@@ -8,11 +8,14 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "../generated/prisma/client.js";
-import { vendorGrantRepository } from "./vendor-grant.repository.js";
+import {
+  clearServiceplanGrantWorkspaceCacheForTests,
+  vendorGrantRepository,
+} from "./vendor-grant.repository.js";
 
 describe("vendorGrantRepository", () => {
   beforeEach(() => {
-    vendorGrantRepository.clearServiceplanGrantWorkspaceCacheForTests();
+    clearServiceplanGrantWorkspaceCacheForTests();
   });
 
   it("creates a granted Serviceplan workspace grant on first create", async () => {
