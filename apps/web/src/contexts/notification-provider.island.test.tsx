@@ -811,7 +811,7 @@ describe("NotificationProvider deleting", () => {
     ).toBe(false);
   });
 
-  it("lets a row go once the reader opens it", async () => {
+  it("lets a row go again once the reader opens it", async () => {
     patchNotificationUnreadMock.mockResolvedValue({
       data: { ...READ_ROW, isRead: false, readAt: null },
     });
@@ -827,12 +827,44 @@ describe("NotificationProvider deleting", () => {
     await act(async () => {
       await currentNotifications.markRead("notification-read");
     });
+    // Another device puts it back, so the row is unread again without the
+    // reader asking for it here. Only the forgetting above keeps the panel
+    // from refusing to read this row for the rest of the session.
+    await deliverRealtime("notification-read");
+
     await act(async () => {
       await currentNotifications.markManyRead(["notification-read"]);
     });
 
-    // Already read by the open, so the commit finds nothing left to write.
-    expect(patchNotificationsReadMock).not.toHaveBeenCalled();
+    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
+      ids: ["notification-read"],
+    });
+  });
+
+  it("forgets every deliberate unread when the reader marks all read", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({
+      data: { ...READ_ROW, isRead: false, readAt: null },
+    });
+    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 1 } });
+    await renderLoaded();
+
+    await act(async () => {
+      await currentNotifications.markUnread("notification-read");
+    });
+    await act(async () => {
+      await currentNotifications.markAllRead();
+    });
+    // Marking everything read is the reader saying they are done, so a row
+    // arriving unread afterwards is no longer protected by the earlier click.
+    await deliverRealtime("notification-read");
+
+    await act(async () => {
+      await currentNotifications.markManyRead(["notification-read"]);
+    });
+
+    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
+      ids: ["notification-read"],
+    });
   });
 
   it("takes a deleted row out of the list and off the bell", async () => {
