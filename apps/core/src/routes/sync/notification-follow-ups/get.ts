@@ -26,8 +26,9 @@ export default function mount(app: Hono) {
           durationMs: Date.now() - startedAt,
           examined: result.examined,
           sent: result.sent,
-          // False means the run ended before the eligible rows ran out. One
-          // is survivable, because the window is twice the interval. False on
+          // False means the run stopped early, either on the deadline with
+          // rows still waiting or on an abort before it read anything. One is
+          // survivable, because the window is twice the interval. False on
           // consecutive runs is the warning worth acting on.
           completed: result.completed,
         });

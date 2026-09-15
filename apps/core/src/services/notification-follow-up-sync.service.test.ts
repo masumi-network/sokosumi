@@ -121,7 +121,7 @@ function compareBy(
     const difference =
       "createdAt" in term
         ? a.createdAt.getTime() - b.createdAt.getTime()
-        : a.id.localeCompare(b.id);
+        : compareIds(a.id, b.id);
 
     if (difference !== 0) {
       return difference;
@@ -135,6 +135,21 @@ function compareBy(
 type AfterClause =
   | { createdAt: { gt: Date } }
   | { createdAt: Date; id: { gt: string } };
+
+/**
+ * Two ids, in the one order this fake uses.
+ *
+ * Sorting and paging have to agree. A real table orders and compares under one
+ * collation, so a fake that sorted by locale and paged by code unit could put
+ * a row before the position it then treats as behind it, and lose it.
+ */
+function compareIds(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+
+  return a < b ? -1 : 1;
+}
 
 /** Whether a stored row sits after the position one branch names. */
 function isAfter(one: StoredNotification, clause: AfterClause): boolean {
@@ -615,6 +630,37 @@ describe("NotificationFollowUpSyncService", () => {
     expect(written.map((one) => one.eventId)).toContain(
       `follow-up:notification-${String(NOTIFICATION_FOLLOW_UP_PAGE_SIZE).padStart(4, "0")}`,
     );
+  });
+
+  /**
+   * A backlog that is exactly one page is a finished run, not a truncated one.
+   *
+   * The route treats `completed: false` as the sign that reminders are being
+   * left behind. A full last page must not raise that on a run that in fact
+   * reached the end of the eligible rows.
+   */
+  it("reports a backlog of exactly one page as finished", async () => {
+    const waiting = Array.from(
+      { length: NOTIFICATION_FOLLOW_UP_PAGE_SIZE },
+      (_unused, index) =>
+        row({
+          id: `notification-${index}`,
+          createdAt: new Date(WAITING.getTime() + index),
+        }),
+    );
+    seed(waiting);
+
+    // Time runs out the moment the last row is written. Without the read
+    // knowing there is no next page, the run would turn the loop once more,
+    // meet this, and report itself truncated.
+    const result = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+      shouldContinue: () => written.length < NOTIFICATION_FOLLOW_UP_PAGE_SIZE,
+    });
+
+    expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE);
+    expect(result.completed).toBe(true);
+    expect(notificationFindManyMock).toHaveBeenCalledTimes(1);
   });
 
   /**

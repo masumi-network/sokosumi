@@ -71,10 +71,12 @@ export interface SendFollowUpsResult {
   /**
    * Follow-ups this run actually wrote.
    *
-   * Far below `examined` in ordinary running, and not a count of failures. A
-   * source row stays unread after its follow-up, so the next run reads it
-   * again and the write is refused as a duplicate. Readers who silenced the
-   * category are skipped before the write too.
+   * Lower than `examined` without anything being wrong. A source row stays
+   * unread after its follow-up, so a later run reads it again and the write is
+   * refused as a duplicate. Readers who silenced the category are skipped
+   * before the write too. How much of the gap is either of those, against how
+   * much is failed writes, is not something this says: the failures are the
+   * ones in Sentry.
    */
   sent: number;
   /**
@@ -231,10 +233,17 @@ export async function sendFollowUps(
       // `createdAt` alone leaves the order of two rows in the same instant to
       // chance, and the filter above would then skip or repeat them.
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      take: NOTIFICATION_FOLLOW_UP_PAGE_SIZE,
+      // One more than the page, to learn whether another page exists without
+      // reading again. Without it a backlog that is an exact multiple of the
+      // page costs an extra turn of the loop, and a deadline landing on that
+      // turn reports a run that finished everything as one that ran out.
+      take: NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1,
     });
 
-    for (const source of sources) {
+    const hasMore = sources.length > NOTIFICATION_FOLLOW_UP_PAGE_SIZE;
+    const page = sources.slice(0, NOTIFICATION_FOLLOW_UP_PAGE_SIZE);
+
+    for (const source of page) {
       if (outOfTime()) {
         stopped = true;
         break;
@@ -284,9 +293,9 @@ export async function sendFollowUps(
       }
     }
 
-    const last = sources.at(-1);
+    const last = page.at(-1);
 
-    if (stopped || !last || sources.length < NOTIFICATION_FOLLOW_UP_PAGE_SIZE) {
+    if (stopped || !hasMore || !last) {
       break;
     }
 
