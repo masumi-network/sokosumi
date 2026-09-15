@@ -1137,7 +1137,7 @@ export function WorkspaceCalendar({
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 pb-6">
+    <div className="flex w-full flex-col gap-5 pb-6">
       <div className="flex items-center gap-1">
         <Button
           aria-label={t("previous")}
