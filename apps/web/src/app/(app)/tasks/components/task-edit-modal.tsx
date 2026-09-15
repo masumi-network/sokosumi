@@ -21,6 +21,7 @@ interface TaskEditModalProps {
     assigneeUserId?: string | null;
     projectId?: string | null;
     status: TaskStatus;
+    selectableStatuses: readonly TaskStatus[];
     metadata?: string | null;
     nextRunAt?: string | null;
   };

@@ -433,6 +433,7 @@ async function TaskMetadataSection({
       editable={!isReadOnly}
       task={{
         status: task.status,
+        selectableStatuses: task.selectableStatuses,
         owner: task.owner,
         organization: task.organization,
         assignee: task.assignee,
@@ -462,6 +463,8 @@ async function TaskMetadataSection({
       }}
       statusFieldLabels={{
         statusLabels,
+        changeStatus: t("actions.changeStatus"),
+        noStatusMatches: t("actions.noStatusMatches"),
         reopenToReadyTitle: t("actions.reopenToReadyTitle"),
         reopenToReadyDescription: t("actions.reopenToReadyDescription"),
         reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),

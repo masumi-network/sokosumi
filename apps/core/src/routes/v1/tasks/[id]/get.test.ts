@@ -286,6 +286,25 @@ describe("GET /tasks/{id}", () => {
     expect(body.data.scheduleRevision).toBe(4);
   });
 
+  it("lists the statuses the viewer may set by hand", async () => {
+    viewerTaskIncludeResult = createTask();
+
+    const app = createApp();
+    mountGetTaskById(app);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.selectableStatuses).toEqual([
+      "DRAFT",
+      "RUNNING",
+      "AWAITING_EXTERNAL",
+      "COMPLETED",
+      "CANCELED",
+    ]);
+  });
+
   it("keeps same-workspace peer links visible for a workspace collaborator", async () => {
     viewerTaskIncludeResult = createTask({
       ownerId: "user_123",
