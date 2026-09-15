@@ -248,6 +248,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
@@ -1310,6 +1311,7 @@ export const createTaskAndLink = withSession<
     status,
     context,
     schedule,
+    visibility,
     relation,
     note,
     replaceExistingParent,
@@ -1332,6 +1334,7 @@ export const createTaskAndLink = withSession<
         context,
         status,
         schedule,
+        visibility,
       });
 
       const parentLinksToReplace = await collectParentLinksToReplace({

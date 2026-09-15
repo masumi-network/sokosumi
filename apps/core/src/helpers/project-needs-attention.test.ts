@@ -7,6 +7,7 @@ import {
 } from "@/helpers/task-visibility";
 import type { HistoryItem } from "@/schemas/history.schema";
 import { PROJECT_NEEDS_ATTENTION_LIMIT } from "@/schemas/project.schema";
+import { humanProjectReaderVisibility } from "@/types/project";
 
 import {
   compareNeedsAttention,
@@ -263,7 +264,7 @@ describe("unsettledProjectJobsQuery", () => {
     const query = unsettledProjectJobsQuery({
       projectId: "project-1",
       workspaceId: "workspace-1",
-      readerUserId: "user_123",
+      jobVisibilityWhere: buildHumanJobParentVisibilityWhere("user_123"),
       now,
     });
 
@@ -298,7 +299,7 @@ describe("getProjectNeedsAttention", () => {
     await getProjectNeedsAttention({
       workspaceId: WORKSPACE_ID,
       projectId: PROJECT_ID,
-      readerUserId: "user_123",
+      visibility: humanProjectReaderVisibility("user_123"),
     });
 
     expect(taskFindManyMock).toHaveBeenCalledWith(

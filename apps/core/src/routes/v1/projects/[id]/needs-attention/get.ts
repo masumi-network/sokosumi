@@ -4,6 +4,7 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { getProjectNeedsAttention } from "@/helpers/project-needs-attention";
 import { ok } from "@/helpers/response";
+import { resolveProjectReaderVisibility } from "@/types/project";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -45,14 +46,18 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = await requireAuthorizedUserContext(c.var.authContext);
+    await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
+    const visibility = await resolveProjectReaderVisibility(
+      c.var.authContext,
+      workspaceContext.workspaceId,
+    );
     const dto = await getProjectNeedsAttention({
       workspaceId: workspaceContext.workspaceId,
       projectId: id,
-      readerUserId: userContext.userId,
+      visibility,
     });
 
     if (!dto) {

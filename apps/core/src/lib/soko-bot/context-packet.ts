@@ -593,7 +593,15 @@ export class ContextPacketBuilder {
                   ),
                 },
               },
-              jobs: true,
+              jobs: {
+                where: {
+                  ownerId: input.userId,
+                  ...buildPacketJobParentTaskWhere(
+                    input.userId,
+                    input.audience,
+                  ),
+                },
+              },
             },
           },
         },

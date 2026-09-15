@@ -20,7 +20,10 @@ import {
   mapProjectForApi,
   projectListItemSchema,
 } from "@/schemas/project.schema";
-import { createProjectListCountsInclude } from "@/types/project";
+import {
+  createProjectListCountsInclude,
+  resolveProjectReaderVisibility,
+} from "@/types/project";
 
 const query = cursorPaginationQuerySchema;
 
@@ -47,16 +50,20 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = await requireAuthorizedUserContext(c.var.authContext);
+    await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const where = { workspaceId: workspaceContext.workspaceId };
     const takePlusOne = take + 1;
+    const visibility = await resolveProjectReaderVisibility(
+      c.var.authContext,
+      workspaceContext.workspaceId,
+    );
     const projectListCountsInclude = createProjectListCountsInclude(
       workspaceContext.workspaceId,
-      userContext.userId,
+      visibility,
     );
 
     const [projects, count] = await prisma.$transaction([

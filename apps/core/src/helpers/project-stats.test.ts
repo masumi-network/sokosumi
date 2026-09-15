@@ -4,6 +4,7 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getProjectStatsByProjectIds } from "./project-stats";
+import { humanProjectReaderVisibility } from "@/types/project";
 import {
   buildHumanJobParentVisibilityWhere,
   buildHumanTaskVisibilityWhere,
@@ -54,13 +55,13 @@ describe("getProjectStatsByProjectIds", () => {
     jobFindManyMock.mockResolvedValue([]);
   });
 
-  const READER_USER_ID = "user_123";
+  const READER_VISIBILITY = humanProjectReaderVisibility("user_123");
 
   it("returns zero stats for every requested project when no rows match", async () => {
     const stats = await getProjectStatsByProjectIds(
       WORKSPACE_ID,
       [PROJECT_A_ID, PROJECT_B_ID],
-      READER_USER_ID,
+      READER_VISIBILITY,
     );
 
     expect(stats).toEqual([
@@ -104,7 +105,7 @@ describe("getProjectStatsByProjectIds", () => {
     const stats = await getProjectStatsByProjectIds(
       WORKSPACE_ID,
       [PROJECT_A_ID, PROJECT_B_ID],
-      READER_USER_ID,
+      READER_VISIBILITY,
     );
 
     expect(stats).toEqual([
@@ -143,7 +144,7 @@ describe("getProjectStatsByProjectIds", () => {
     await getProjectStatsByProjectIds(
       WORKSPACE_ID,
       [PROJECT_A_ID, PROJECT_B_ID],
-      READER_USER_ID,
+      READER_VISIBILITY,
     );
 
     expect(taskGroupByMock).toHaveBeenCalledWith(
@@ -152,7 +153,7 @@ describe("getProjectStatsByProjectIds", () => {
           archivedAt: null,
           workspaceId: WORKSPACE_ID,
           projectId: { in: [PROJECT_A_ID, PROJECT_B_ID] },
-          ...buildHumanTaskVisibilityWhere(READER_USER_ID),
+          ...buildHumanTaskVisibilityWhere("user_123"),
         },
       }),
     );
@@ -160,7 +161,7 @@ describe("getProjectStatsByProjectIds", () => {
       where: {
         workspaceId: WORKSPACE_ID,
         projectId: { in: [PROJECT_A_ID, PROJECT_B_ID] },
-        ...buildHumanJobParentVisibilityWhere(READER_USER_ID),
+        ...buildHumanJobParentVisibilityWhere("user_123"),
       },
       select: jobForStatusComputeSelect,
     });

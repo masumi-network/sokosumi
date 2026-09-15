@@ -3,11 +3,8 @@ import { computeJobStatus } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
-import {
-  buildHumanJobParentVisibilityWhere,
-  buildHumanTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import type { ProjectReaderVisibility } from "@/types/project";
 
 interface StatusCount<TStatus extends string> {
   status: TStatus;
@@ -54,7 +51,7 @@ function addStatusCount<TStatus extends string>(
 export async function getProjectTaskStatsByProjectIds(
   workspaceId: string,
   projectIds: readonly string[],
-  readerUserId: string,
+  visibility: ProjectReaderVisibility,
 ): Promise<Map<string, ProjectResourceStats<TaskStatus>>> {
   const statsByProjectId =
     createResourceStatsByProjectId<TaskStatus>(projectIds);
@@ -69,7 +66,7 @@ export async function getProjectTaskStatsByProjectIds(
       archivedAt: null,
       workspaceId,
       projectId: { in: [...projectIds] },
-      ...buildHumanTaskVisibilityWhere(readerUserId),
+      ...visibility.taskWhere,
     },
     _count: {
       _all: true,
@@ -90,7 +87,7 @@ export async function getProjectTaskStatsByProjectIds(
 export async function getProjectJobStatsByProjectIds(
   workspaceId: string,
   projectIds: readonly string[],
-  readerUserId: string,
+  visibility: ProjectReaderVisibility,
 ): Promise<Map<string, ProjectResourceStats<SokosumiJobStatus>>> {
   const statsByProjectId =
     createResourceStatsByProjectId<SokosumiJobStatus>(projectIds);
@@ -103,7 +100,7 @@ export async function getProjectJobStatsByProjectIds(
     where: {
       workspaceId,
       projectId: { in: [...projectIds] },
-      ...buildHumanJobParentVisibilityWhere(readerUserId),
+      ...visibility.jobWhere,
     },
     select: jobForStatusComputeSelect,
   });
@@ -133,16 +130,20 @@ export async function getProjectJobStatsByProjectIds(
 export async function getProjectStatsByProjectIds(
   workspaceId: string,
   projectIds: readonly string[],
-  readerUserId: string,
+  visibility: ProjectReaderVisibility,
 ): Promise<ProjectStatsEntry[]> {
   const uniqueProjectIds = Array.from(new Set(projectIds));
   const [taskStatsByProjectId, jobStatsByProjectId] = await Promise.all([
     getProjectTaskStatsByProjectIds(
       workspaceId,
       uniqueProjectIds,
-      readerUserId,
+      visibility,
     ),
-    getProjectJobStatsByProjectIds(workspaceId, uniqueProjectIds, readerUserId),
+    getProjectJobStatsByProjectIds(
+      workspaceId,
+      uniqueProjectIds,
+      visibility,
+    ),
   ]);
 
   return uniqueProjectIds.map((projectId) => ({

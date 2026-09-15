@@ -66,12 +66,6 @@ export function buildSokoBotOwnerTaskVisibilityWhere(
   return buildHumanTaskVisibilityWhere(ownerUserId);
 }
 
-export function isRestrictedSokoBotAudience(
-  audience: SokoBotPacketAudience | undefined,
-): boolean {
-  return audience === "TEAMMATE" || audience === "ASSISTANT";
-}
-
 export function readSokoBotPacketAudience(
   packet: unknown,
 ): SokoBotPacketAudience | undefined {
@@ -105,17 +99,17 @@ export function readSokoBotPacketAudience(
 }
 
 /**
- * Teammate and bot-to-bot turns answer in a shared room. They may read public
- * Tasks only. Owner turns keep the owner's private Tasks.
+ * Owner turns keep the owner's private Tasks. Every other audience, including
+ * a missing or unclassified packet audience, is public-only (fail closed).
  */
 export function buildSokoBotAudienceTaskVisibilityWhere(
   ownerUserId: string,
   audience: SokoBotPacketAudience | undefined,
 ): Prisma.TaskWhereInput {
-  if (isRestrictedSokoBotAudience(audience)) {
-    return { visibility: TaskVisibility.PUBLIC };
+  if (audience === "OWNER") {
+    return buildSokoBotOwnerTaskVisibilityWhere(ownerUserId);
   }
-  return buildSokoBotOwnerTaskVisibilityWhere(ownerUserId);
+  return { visibility: TaskVisibility.PUBLIC };
 }
 
 export function buildSokoBotAudienceJobParentTaskWhere(

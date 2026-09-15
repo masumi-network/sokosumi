@@ -4,7 +4,10 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
-import { createProjectListCountsInclude } from "@/types/project";
+import {
+  createProjectListCountsInclude,
+  humanProjectReaderVisibility,
+} from "@/types/project";
 
 import mountListProjects from "./get.js";
 
@@ -141,7 +144,7 @@ describe("GET /projects", () => {
       where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
       include: createProjectListCountsInclude(
         WORKSPACE_CONTEXT.workspaceId,
-        USER_AUTH_CONTEXT.userId,
+        humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
       ),
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
       skip: undefined,
@@ -214,7 +217,7 @@ describe("GET /projects", () => {
       where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
       include: createProjectListCountsInclude(
         WORKSPACE_CONTEXT.workspaceId,
-        USER_AUTH_CONTEXT.userId,
+        humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
       ),
       take: 11,
       skip: 1,

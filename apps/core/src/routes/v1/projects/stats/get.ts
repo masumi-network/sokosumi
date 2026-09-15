@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { getProjectStatsByProjectIds } from "@/helpers/project-stats";
+import { resolveProjectReaderVisibility } from "@/types/project";
 import {
   deduplicateQueryValues,
   preprocessMultiValueQueryInput,
@@ -55,9 +56,13 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = await requireAuthorizedUserContext(c.var.authContext);
+    await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { projectIds } = c.req.valid("query");
+    const visibility = await resolveProjectReaderVisibility(
+      c.var.authContext,
+      workspaceContext.workspaceId,
+    );
 
     const projects = await prisma.project.findMany({
       where: {
@@ -71,7 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const projectStats = await getProjectStatsByProjectIds(
       workspaceContext.workspaceId,
       workspaceProjectIds,
-      userContext.userId,
+      visibility,
     );
 
     return ok(

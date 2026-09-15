@@ -1010,6 +1010,7 @@ export function TaskDetailActions({
               status,
               schedule,
               context,
+              visibility,
             }) => {
               const result = await createTaskAndLink({
                 taskId,
@@ -1021,6 +1022,7 @@ export function TaskDetailActions({
                 status,
                 schedule,
                 context,
+                visibility,
                 relation: selectedCreateRelatedOption.relation,
               });
 
