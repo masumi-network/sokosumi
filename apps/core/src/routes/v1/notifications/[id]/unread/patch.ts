@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
 
 import { forbidden, notFound } from "@/helpers/error";
+import { notificationFeedWhere } from "@/helpers/notification-feed";
 import { mapNotificationToItem } from "@/helpers/notification-item";
+import { publishNotificationRow } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -70,8 +73,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const notification = await prisma.notification.findUnique({
-      where: { id },
+    // Scoped by the feed rule as well as the id. The control that calls this
+    // sits in the notification center, which lists only feed rows, and a row
+    // outside the feed put back to unread would count towards the room's
+    // sidebar badge with nothing in the center able to clear it again.
+    const notification = await prisma.notification.findFirst({
+      where: { id, ...notificationFeedWhere() },
     });
 
     if (!notification) {
@@ -92,9 +99,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         })
       : notification;
 
-    // No clear event: a banner stands for a waiting room row, and nothing is
-    // waiting again just because the reader put the row back. Publishing an
-    // arrival here would ring for a message they have already seen.
+    // Published so the reader's other tabs and devices see the row go back,
+    // the way the read direction publishes when a row is cleared. `osBanner`
+    // false means no banner is raised: a row put back is not a new arrival,
+    // and ringing for it would announce a message they have already seen.
+    // `created` false for the same reason, so an open tab updates the row it
+    // already holds rather than counting a second one.
+    if (notification.isRead) {
+      waitUntil(
+        publishNotificationRow(
+          updated,
+          { inApp: updated.inApp, osBanner: false },
+          false,
+        ),
+      );
+    }
 
     return ok(c, notificationItemSchema.parse(mapNotificationToItem(updated)));
   });

@@ -236,10 +236,8 @@ describe("NotificationItem mark unread", () => {
 
   it("offers the way back on a read row and puts it back when used", async () => {
     const user = userEvent.setup();
-    const notification = createPendingVendorGrantNotification({
+    const notification = createJobNotification({
       id: "notification-read",
-      messageKey: "Notifications.Job.completed",
-      metadata: null,
       isRead: true,
       readAt: new Date("2026-06-18T09:30:00.000Z"),
     });
@@ -256,13 +254,23 @@ describe("NotificationItem mark unread", () => {
     );
   });
 
-  it("does not offer it on a row that is already unread", async () => {
+  it("offers it on a read row that carries pending access actions too", async () => {
+    // That branch renders its own row shape, so the control has to be placed
+    // in both or it goes missing on exactly the rows a reader lingers over.
     const notification = createPendingVendorGrantNotification({
-      messageKey: "Notifications.Job.completed",
-      metadata: null,
-      isRead: false,
-      readAt: null,
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
     });
+
+    renderInOpenDropdown(notification, vi.fn());
+
+    expect(
+      await screen.findByRole("menuitem", { name: /markUnread/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer it on a row that is already unread", async () => {
+    const notification = createJobNotification();
 
     renderInOpenDropdown(notification, vi.fn());
 

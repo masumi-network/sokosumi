@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { notificationFeedWhere } from "@/helpers/notification-feed";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -13,17 +14,34 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { notificationFindUniqueMock, notificationUpdateMock } = vi.hoisted(
-  () => ({
-    notificationFindUniqueMock: vi.fn(),
-    notificationUpdateMock: vi.fn(),
-  }),
-);
+const {
+  notificationFindFirstMock,
+  notificationUpdateMock,
+  publishNotificationRowMock,
+  waitUntilPromises,
+} = vi.hoisted(() => ({
+  notificationFindFirstMock: vi.fn(),
+  notificationUpdateMock: vi.fn(),
+  publishNotificationRowMock: vi.fn(),
+  waitUntilPromises: [] as Promise<unknown>[],
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    waitUntilPromises.push(promise);
+  },
+}));
+
+vi.mock("@/helpers/notifications", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/notifications")>()),
+  publishNotificationRow: (...args: unknown[]) =>
+    publishNotificationRowMock(...args),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     notification: {
-      findUnique: notificationFindUniqueMock,
+      findFirst: notificationFindFirstMock,
       update: notificationUpdateMock,
     },
   },
@@ -46,6 +64,7 @@ function readRow(overrides: Record<string, unknown> = {}) {
     messageKey: "Notifications.Job.completed",
     messageParams: JSON.stringify({}),
     metadata: null,
+    inApp: true,
     isRead: true,
     readAt: new Date("2026-06-16T15:00:00.000Z"),
     createdAt: new Date("2026-06-16T14:00:00.000Z"),
@@ -76,7 +95,8 @@ function patchUnread(id = "notif_123") {
 describe("PATCH /notifications/{id}/unread", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    notificationFindUniqueMock.mockResolvedValue(readRow());
+    waitUntilPromises.length = 0;
+    notificationFindFirstMock.mockResolvedValue(readRow());
     notificationUpdateMock.mockImplementation(async () =>
       readRow({ isRead: false, readAt: null }),
     );
@@ -98,8 +118,27 @@ describe("PATCH /notifications/{id}/unread", () => {
     expect(body.data.readAt).toBeNull();
   });
 
+  it("looks the row up through the feed rule, not by id alone", async () => {
+    await patchUnread();
+
+    expect(notificationFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "notif_123", ...notificationFeedWhere() },
+    });
+  });
+
+  it("tells the reader's other tabs, without raising a banner", async () => {
+    await patchUnread();
+
+    await Promise.all(waitUntilPromises);
+    expect(publishNotificationRowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "notif_123", isRead: false }),
+      { inApp: true, osBanner: false },
+      false,
+    );
+  });
+
   it("writes nothing when the row is already unread", async () => {
-    notificationFindUniqueMock.mockResolvedValue(
+    notificationFindFirstMock.mockResolvedValue(
       readRow({ isRead: false, readAt: null }),
     );
 
@@ -107,10 +146,12 @@ describe("PATCH /notifications/{id}/unread", () => {
 
     expect(response.status).toBe(200);
     expect(notificationUpdateMock).not.toHaveBeenCalled();
+    // Nothing changed, so there is nothing for another tab to hear about.
+    expect(publishNotificationRowMock).not.toHaveBeenCalled();
   });
 
   it("refuses a row belonging to someone else", async () => {
-    notificationFindUniqueMock.mockResolvedValue(
+    notificationFindFirstMock.mockResolvedValue(
       readRow({ userId: "someone_else" }),
     );
 
@@ -120,11 +161,14 @@ describe("PATCH /notifications/{id}/unread", () => {
     expect(notificationUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("reports a row that is not there", async () => {
-    notificationFindUniqueMock.mockResolvedValue(null);
+  it("reports a row that is not there, or that the feed never shows", async () => {
+    // findFirst carries the feed rule, so a silenced or browser-only row
+    // comes back null exactly as a missing one does.
+    notificationFindFirstMock.mockResolvedValue(null);
 
     const response = await patchUnread();
 
     expect(response.status).toBe(404);
+    expect(notificationUpdateMock).not.toHaveBeenCalled();
   });
 });
