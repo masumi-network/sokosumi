@@ -11,8 +11,6 @@ export const jobStatusDataSchema = z.object({
   jobStatusSettled: z.boolean(),
 });
 
-export type JobStatusData = z.infer<typeof jobStatusDataSchema>;
-
 export const taskEventDataSchema = z.object({
   taskId: z.string().min(1),
   eventType: z.literal("task_event"),

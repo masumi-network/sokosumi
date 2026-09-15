@@ -28,8 +28,8 @@ vi.mock("@/app/components/auto-context-switch", () => ({
   },
 }));
 
-vi.mock("@/components/jobs", () => ({
-  JobDetails: (props: unknown) => {
+vi.mock("@/components/jobs/job-details/job-details", () => ({
+  default: (props: unknown) => {
     jobDetailsMock(props);
     return <div data-testid="job-details" />;
   },
