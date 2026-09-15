@@ -154,8 +154,12 @@ describe("buildJobsNeedingPurchaseTransactionSyncWhere", () => {
       buildJobsNeedingPurchaseTransactionSyncWhere(cutoff, legacyCutoff),
       {
         jobType: JobType.PAID,
-        purchase: {
-          onChainTransactionStatus: { not: null },
+        purchase: { isNot: null },
+        AND: {
+          OR: [
+            { paymentSourceType: "Web3CardanoV2" },
+            { purchase: { onChainTransactionStatus: { not: null } } },
+          ],
         },
         OR: [
           { externalDisputeUnlockTime: { gt: cutoff } },
@@ -228,6 +232,7 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
       jobType: JobType.PAID,
       purchase: {
         onChainStatus: {
+          not: null,
           in: [
             OnChainJobStatus.DISPUTED,
             OnChainJobStatus.REFUND_REQUESTED,

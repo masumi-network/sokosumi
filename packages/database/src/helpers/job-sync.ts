@@ -16,9 +16,7 @@ export const FREE_JOB_OFFLINE_SYNC_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 
 /**
  * Paid jobs that still have no JobPurchase row, inside the payment grace
- * window. Jobs that already have one are updated from the payment diff feed
- * (job-purchase-diff.service.ts), which needs no per-job selector because the
- * node tells us which purchases changed.
+ * window. Attached purchases use the diff feed and transaction polling.
  */
 export function buildJobsNeedingPurchaseBackfillWhere(
   cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
@@ -35,6 +33,8 @@ export function buildJobsNeedingPurchaseBackfillWhere(
 
 /**
  * Current transaction fields can change without moving the diff cursor.
+ * Poll V2 purchases even before a transaction is observed: a fast purchase
+ * can reach RESULT_SUBMITTED between ticks, or be absent from the diff feed.
  * Bound ordinary states by the dispute deadline plus grace. Refund and dispute
  * actions keep polling until their terminal state because credits depend on it.
  */
@@ -46,8 +46,12 @@ export function buildJobsNeedingPurchaseTransactionSyncWhere(
 ): Prisma.JobWhereInput {
   return {
     jobType: JobType.PAID,
-    purchase: {
-      onChainTransactionStatus: { not: null },
+    purchase: { isNot: null },
+    AND: {
+      OR: [
+        { paymentSourceType: "Web3CardanoV2" },
+        { purchase: { onChainTransactionStatus: { not: null } } },
+      ],
     },
     OR: [
       { externalDisputeUnlockTime: { gt: cutoffTime } },
@@ -124,6 +128,8 @@ export function buildJobsNeedingAgentStatusSyncWhere(
         jobType: JobType.PAID,
         purchase: {
           onChainStatus: {
+            // Exclude known states only: negating NULL IN (...) drops pending jobs.
+            not: null,
             in: [
               OnChainJobStatus.DISPUTED,
               OnChainJobStatus.REFUND_REQUESTED,
