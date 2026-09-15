@@ -118,7 +118,10 @@ import SwiftUI
             if userIsScrolling {
               scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
             } else if scrollIntent.followsLatest, edges.needsBottomAlignment {
-              proxy.scrollTo("thread-bottom", anchor: .bottom)
+              Task { @MainActor in
+                guard scrollIntent.followsLatest, !userIsScrolling else { return }
+                proxy.scrollTo("thread-bottom", anchor: .bottom)
+              }
             }
           }
           .onChange(of: preparedMessages.last?.id) { _, _ in
@@ -136,7 +139,7 @@ import SwiftUI
           }
         }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .safeAreaBar(edge: .bottom, spacing: 0) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
           ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
                            roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
                            onAccepted: { scrollIntent.followLatest() })

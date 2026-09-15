@@ -69,7 +69,7 @@ import SwiftUI
           preparedTranscript = prepared
         }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .safeAreaBar(edge: .bottom, spacing: 0) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
           ChatComposerView(
             userId: workspaces.currentUserId,
             organizationId: workspaces.selection?.workspace.organizationId,
@@ -320,7 +320,10 @@ import SwiftUI
              userIsScrolling {
             scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
           } else if scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
-            proxy.scrollTo("timeline-bottom", anchor: .bottom)
+            Task { @MainActor in
+              guard scrollIntent.followsLatest, !userIsScrolling, workspaces.timeline.historicalAnchor == nil else { return }
+              proxy.scrollTo("timeline-bottom", anchor: .bottom)
+            }
           }
           let isNearTop = edges.nearTop
           if !isNearTop {
