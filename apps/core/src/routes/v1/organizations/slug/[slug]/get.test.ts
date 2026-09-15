@@ -271,6 +271,25 @@ describe("GET /organizations/slug/{slug} organization scope", () => {
    * A 403 here would tell the caller "this organization exists and your user
    * is a member", which is the enumeration SOK-1020 closes.
    */
+  it("returns 404 if another organization takes the slug after the scope check", async () => {
+    organizationFindUniqueMock.mockResolvedValueOnce({ slug: "acme" });
+    organizationFindUniqueMock.mockImplementation(async ({ where }) => {
+      // The context organization released acme after the first read.
+      const organization = createOrganization({
+        id: "org_other",
+        stripeCustomerId: "cus_other",
+      });
+      return where.id && where.id !== organization.id ? null : organization;
+    });
+
+    const response = await createApp(COWORKER_IN_ORG_123).request(
+      "http://localhost/slug/acme",
+    );
+
+    expect(response.status).toBe(404);
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("answers 404 for a slug outside the coworker context", async () => {
     organizationFindUniqueMock.mockResolvedValueOnce({ slug: "other-org" });
 

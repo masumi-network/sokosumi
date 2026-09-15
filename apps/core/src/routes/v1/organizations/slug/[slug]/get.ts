@@ -64,6 +64,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { organization } = await resolveMemberOrganizationBySlug({
       slug,
+      organizationId:
+        userContext.source === "context"
+          ? (userContext.organizationId ?? undefined)
+          : undefined,
       userId: userContext.userId,
       tx: prisma,
     });
