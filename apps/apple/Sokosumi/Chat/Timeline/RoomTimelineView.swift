@@ -15,6 +15,7 @@ import SwiftUI
     @State private var transcriptWasAwayFromTop = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var userIsScrolling = false
+    @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var showsPins = false
     @State private var highlightedId: String?
@@ -69,7 +70,7 @@ import SwiftUI
           preparedTranscript = prepared
         }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .safeAreaBar(edge: .bottom, spacing: 0) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
           ChatComposerView(
             userId: workspaces.currentUserId,
             organizationId: workspaces.selection?.workspace.organizationId,
@@ -120,6 +121,7 @@ import SwiftUI
           scrollPosition = ScrollPosition(idType: String.self)
           transcriptWasAwayFromTop = false
           scrollIntent = TimelineScrollIntent()
+          pendingBottomAlignment = false
         }
     }
 
@@ -261,8 +263,14 @@ import SwiftUI
           .scrollTargetLayout()
           .padding(.top, 8)
         }
-        .defaultScrollAnchor(.bottom)
+        .task {
+          // Position after the lazy list mounts. A default initial bottom
+          // anchor can leave the viewport unrealized on macOS 27.
+          guard workspaces.timeline.historicalAnchor == nil, quoteTarget == nil else { return }
+          proxy.scrollTo("timeline-bottom", anchor: .bottom)
+        }
         .scrollPosition($scrollPosition)
+        .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
         .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
@@ -273,6 +281,11 @@ import SwiftUI
           }
           scrollIntent.readOlder()
           scrollPosition.scrollTo(id: target, anchor: .center)
+        }
+        .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest && workspaces.timeline.historicalAnchor == nil) {
+          guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil else { return }
+          pendingBottomAlignment = false
+          proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
@@ -309,25 +322,39 @@ import SwiftUI
             proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
-        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
+        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
           if workspaces.timeline.historicalAnchor == nil,
-             userIsScrolling {
-            scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
-          } else if scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
-            proxy.scrollTo("timeline-bottom", anchor: .bottom)
+             oldEdges.offsetY != edges.offsetY,
+             userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
+            if scrollIntent.followsLatest != edges.nearBottom {
+              scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+              if !edges.nearBottom {
+                pendingBottomAlignment = false
+              }
+            }
+          } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
+            if !pendingBottomAlignment {
+              pendingBottomAlignment = true
+            }
           }
           let isNearTop = edges.nearTop
           if !isNearTop {
-            transcriptWasAwayFromTop = true
+            if !transcriptWasAwayFromTop {
+              transcriptWasAwayFromTop = true
+            }
             return
           }
+          var nextIntent = scrollIntent
           guard transcriptWasAwayFromTop, workspaces.transcriptError == nil,
-                scrollIntent.beginAutomaticOlderPage(
+                nextIntent.beginAutomaticOlderPage(
                   userIsScrolling: userIsScrolling,
                   isNearTop: isNearTop,
                   hasMore: workspaces.transcriptHasMore,
                   isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder
                 ) else { return }
+          if nextIntent != scrollIntent {
+            scrollIntent = nextIntent
+          }
           Task { @MainActor in
             workspaces.loadOlderMessages(auth: auth)
           }
