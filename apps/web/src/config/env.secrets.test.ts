@@ -17,10 +17,10 @@ const WEB_PKG = JSON.parse(
   devDependencies: Record<string, string>;
 };
 
-const PUPPETEER_VERSION = "25.10.0";
-const CHROMIUM_MIN_VERSION = "152.0.0";
+const PUPPETEER_VERSION = "25.11.0";
+const CHROMIUM_MIN_VERSION = "153.0.0";
 const CHROMIUM_PACK_URL =
-  "https://github.com/Sparticuz/chromium/releases/download/v152.0.0/chromium-v152.0.0-pack.x64.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar";
 
 describe("PDF Chromium pack lockstep", () => {
   it("pins puppeteer, puppeteer-core, and chromium-min together", () => {
