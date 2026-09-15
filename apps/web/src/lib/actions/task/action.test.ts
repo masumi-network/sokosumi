@@ -1111,6 +1111,51 @@ describe("setTaskStatusFromDrag", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
+  it("allows Ready → Queued on a live series (Core's selectable exception)", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
+        id: "task-1",
+        status: TaskStatus.READY,
+        metadata: scheduledMetadata,
+        nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("./action");
+
+    const result = await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.QUEUED,
+    });
+
+    expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.QUEUED,
+    });
+    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
+  });
+
+  it("rejects Ready → Draft on a live series as schedule_active", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
+        id: "task-1",
+        status: TaskStatus.READY,
+        metadata: scheduledMetadata,
+        nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("./action");
+
+    const result = await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.DRAFT,
+    });
+
+    expect(result).toEqual({ ok: false, error: { kind: "schedule_active" } });
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
   it("rejects a scheduled Task drag as schedule_active without touching its schedule or status", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({
