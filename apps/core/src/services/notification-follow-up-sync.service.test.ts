@@ -795,6 +795,30 @@ describe("NotificationFollowUpSyncService", () => {
   });
 
   /**
+   * The preference read failed, so nothing is known about this reader.
+   *
+   * `resolveDelivery` never throws. It answers with a fallback that says
+   * in-app, which for every other caller only drops the banner from a row
+   * that was going to be written anyway. Here that answer decides whether to
+   * write at all, so taking it at face value reminds a reader who switched
+   * the reminder off. The row stays unread and the next run tries again.
+   */
+  it("says nothing to a reader whose preferences would not read", async () => {
+    seed([row()]);
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: true,
+      osBanner: false,
+      fellBack: true,
+    });
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toEqual([]);
+    // Considered and passed over, not left unread by a run that stopped.
+    expect(result).toEqual({ examined: 1, sent: 0, reachedEnd: true });
+  });
+
+  /**
    * One reader who switched the category off is one reminder skipped, not the
    * end of the run. Skipping the rest of the page would cost everyone behind
    * them, and the page moves on regardless, so they would never be read again.

@@ -89,6 +89,15 @@ export interface NotificationDelivery {
   /** The Notification Center for a feed kind, the in-app toast for a chat one. */
   inApp: boolean;
   osBanner: boolean;
+  /**
+   * Set only when the reader's preferences would not read and this is a guess.
+   *
+   * The guess suits a caller that was going to write either way and only
+   * wants to know about the banner. It does not suit a caller for whom this
+   * answer decides whether to write at all: there it says yes on behalf of a
+   * reader who may have said no. Such a caller reads this and skips instead.
+   */
+  fellBack?: true;
 }
 
 /**

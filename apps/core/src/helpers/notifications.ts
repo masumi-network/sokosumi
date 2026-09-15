@@ -90,7 +90,7 @@ export async function resolveDelivery(
       },
     });
 
-    return { inApp: true, osBanner: false };
+    return { inApp: true, osBanner: false, fellBack: true };
   }
 }
 

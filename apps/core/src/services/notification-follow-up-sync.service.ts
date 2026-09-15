@@ -195,9 +195,12 @@ function toFollowUpInput(
  * A row whose write throws costs that one reminder and nothing else: the run
  * carries on through the rest. The preference read sits inside the same try,
  * so it is covered too, but `resolveDelivery` answers with a fallback rather
- * than throwing, so everything Sentry sees from here today is a failed write. Whether the next run finds that row again depends on
- * where in the window it sits: rows in the newer half are read again, rows in
- * the older half are not. Sentry is told about each.
+ * than throwing, so everything Sentry reports from here is a failed write.
+ * Failed reads are reported by that helper instead, under the error type
+ * `notification-delivery-read`.
+ *
+ * Whether the next run finds that row again depends on where in the window it
+ * sits: rows in the newer half are read again, rows in the older half are not.
  */
 export async function sendFollowUps(
   options: SendFollowUpsOptions = {},
@@ -306,6 +309,15 @@ export async function sendFollowUps(
         if (outOfTime()) {
           stopped = true;
           break;
+        }
+
+        // A guess is not an answer here. Everywhere else this read only
+        // decides the banner on a row that was going to be written; here it
+        // decides whether to write, and its fallback says yes for a reader
+        // who may have switched the reminder off. The row stays unread, so
+        // the next run reads it again while the window still holds it.
+        if (delivery.fellBack) {
+          continue;
         }
 
         if (!delivery.inApp && !delivery.osBanner) {

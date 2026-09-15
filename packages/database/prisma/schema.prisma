@@ -469,9 +469,9 @@ model Notification {
   /// notifications carry, across every recipient at once.
   @@index([kind, referenceId])
   /// SOK-916: reads every notification that is a day old, whoever it is for.
-  /// It asks by age alone, across users, so no index leading with `userId`
-  /// can serve it. The expectation is that without this the read scans the
-  /// table once an hour, that the window is the selective part a page at a
+  /// It asks by age alone, across users. The expectation is that no index
+  /// leading with `userId` can serve that, that without this the read scans
+  /// the table once an hour, that the window is the selective part a page at a
   /// time, with read state and message key filtered off the heap, and that
   /// the `id` the run orders by after `createdAt` is the part this single
   /// column cannot serve, leaving rows that share one instant to be sorted
