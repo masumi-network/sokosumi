@@ -148,6 +148,7 @@ export function TaskStatusPicker({
           <div className="relative">
             <CommandInput
               autoFocus
+              hideIcon
               placeholder={labels.searchPlaceholder}
               value={search}
               onValueChange={setSearch}
@@ -161,7 +162,8 @@ export function TaskStatusPicker({
               </kbd>
             ) : null}
           </div>
-          <CommandList>
+          {/* p-1 + item px-2 puts row icons on the input text's left edge. */}
+          <CommandList className="p-1">
             <CommandEmpty>{labels.noResults}</CommandEmpty>
             {rows.map(({ status, isDisabled, digit }) => {
               const RowIcon = getTaskStatusIcon(status);

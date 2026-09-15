@@ -61,14 +61,18 @@ function CommandDialog({
 
 function CommandInput({
   className,
+  hideIcon = false,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+}: React.ComponentProps<typeof CommandPrimitive.Input> & {
+  /** Omit the leading search glyph so the input text lines up with row icons. */
+  hideIcon?: boolean
+}) {
   return (
     <div
       data-slot="command-input-wrapper"
       className="flex h-10 items-center gap-2 border-b px-3"
     >
-      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      {hideIcon ? null : <SearchIcon className="size-4 shrink-0 opacity-50" />}
       <CommandPrimitive.Input
         data-slot="command-input"
         className={withEditableTextSize(
