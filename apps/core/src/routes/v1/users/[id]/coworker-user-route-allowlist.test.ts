@@ -79,6 +79,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 const CREDITS_PAYLOAD = {
+  scope: "personal" as const,
   subscription: null,
   extra: {
     credits: { total: 10, remaining: 10, used: 0 },

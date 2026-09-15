@@ -19,6 +19,7 @@ import {
   MobileStackedMenuLink,
 } from "@/app/components/mobile-stacked-menu/mobile-stacked-menu";
 import { getAccountNavItems } from "@/app/components/sidebar/components/account-menu-config";
+import { resolveWalletHeadingKey } from "@/app/components/sidebar/components/account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
   AccountSummaryCreditProps,
@@ -52,6 +53,7 @@ export function YouPageClient({
   planName,
   extraCredits,
   creditUsage,
+  creditScope,
   subscriptionPeriodEndMs,
   currentTimestampMs,
   buyCreditsLabel,
@@ -59,6 +61,7 @@ export function YouPageClient({
   adminSettingsChrome,
 }: YouPageClientProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
+  const tBilling = useTranslations("App.Billing");
   const tCredit = useTranslations("Components.UserAvatar");
   const tPresence = useTranslations("App.Channels.Presence");
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
@@ -72,6 +75,9 @@ export function YouPageClient({
     sessionUser.email,
   );
   const presenceLabel = tPresence(presence);
+  const walletHeadingKey = resolveWalletHeadingKey(creditScope);
+  const walletHeading =
+    walletHeadingKey === null ? null : tBilling(walletHeadingKey);
 
   const accountNavItems = getAccountNavItems({
     activeOrganizationId: adminSettingsChrome.activeOrganizationId,
@@ -143,6 +149,7 @@ export function YouPageClient({
             subscriptionPeriodEndMs={subscriptionPeriodEndMs}
             currentTimestampMs={currentTimestampMs}
             headingId="you-credits-heading"
+            walletHeading={walletHeading}
           />
           <Button
             type="button"

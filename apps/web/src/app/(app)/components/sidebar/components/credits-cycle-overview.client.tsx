@@ -14,6 +14,7 @@ export interface CreditsCycleOverviewProps {
   subscriptionPeriodEndMs: number | null;
   currentTimestampMs: number;
   headingId?: string;
+  walletHeading?: string | null;
 }
 
 function additionalCreditsDisplay(extraCredits: number | null): number | null {
@@ -30,6 +31,7 @@ export function CreditsCycleOverview({
   subscriptionPeriodEndMs,
   currentTimestampMs,
   headingId,
+  walletHeading = null,
 }: CreditsCycleOverviewProps): ReactElement | null {
   const tCredit = useTranslations("Components.UserAvatar");
 
@@ -74,7 +76,10 @@ export function CreditsCycleOverview({
 
     monthly = (
       <div className="space-y-1">
-        <p id={headingId} className="text-muted-foreground text-xs font-medium">
+        <p
+          id={walletHeading ? undefined : headingId}
+          className="text-muted-foreground text-xs font-medium"
+        >
           {tCredit("monthlyUsageLimit")}
         </p>
         {remaining > 0 ? (
@@ -102,6 +107,11 @@ export function CreditsCycleOverview({
 
   return (
     <div className="space-y-3" data-testid="credits-cycle-overview">
+      {walletHeading ? (
+        <p id={headingId} className="text-sm font-medium">
+          {walletHeading}
+        </p>
+      ) : null}
       {monthly}
       {monthly !== null && formattedExtra !== null ? (
         <div
@@ -112,7 +122,7 @@ export function CreditsCycleOverview({
       {formattedExtra !== null ? (
         <div className="space-y-1" data-testid="credits-additional">
           <p
-            id={monthly === null ? headingId : undefined}
+            id={walletHeading || monthly !== null ? undefined : headingId}
             className="text-muted-foreground text-xs font-medium"
           >
             {tCredit("additionalCreditsLabel")}

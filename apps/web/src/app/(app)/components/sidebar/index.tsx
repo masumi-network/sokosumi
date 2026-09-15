@@ -10,6 +10,8 @@ import {
 import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
 
+import type { CreditWalletScope } from "./components/account-summary-types";
+
 import AnnouncementCards from "./components/announcement-cards";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
@@ -51,6 +53,7 @@ export interface AccountCreditsChrome {
   totalCredits: number | null;
   extraCredits: number | null;
   creditUsage: CreditUsage | null;
+  creditScope: CreditWalletScope | null;
 }
 
 /** Shared header/sidebar mapping from a credits Core payload. */
@@ -76,6 +79,7 @@ export function mapAccountCreditsChrome(
     totalCredits: creditsData?.total ?? null,
     extraCredits: creditsResult?.data.extra.credits.remaining ?? null,
     creditUsage: resolveCreditUsage(creditsData),
+    creditScope: creditsResult?.data.scope ?? null,
   };
 }
 

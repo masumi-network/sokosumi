@@ -102,11 +102,18 @@ describe("YouPageClient", () => {
         .compareDocumentPosition(statusPlan) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.queryByText(/balanceCreditsLabel/)).not.toBeInTheDocument();
+    expect(screen.queryByText("organizationCredits")).not.toBeInTheDocument();
     expect(screen.getByTestId("credits-additional")).toHaveTextContent(
       "additionalCreditsHero 15750",
     );
     expect(screen.queryByText("monthlyUsageLimit")).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("names the organization wallet when credits scope is organization", () => {
+    renderYouPage({ creditScope: "organization" });
+
+    expect(screen.getByText("organizationCredits")).toBeInTheDocument();
   });
 
   it("shows a large avatar with initials", () => {

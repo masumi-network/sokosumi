@@ -25,5 +25,6 @@ describe("users/{id}/credits OpenAPI contract", () => {
     expect(contract).toContain("buffer");
     expect(contract).toContain("total");
     expect(contract).toContain("subscription");
+    expect(contract).toContain("scope");
   });
 });

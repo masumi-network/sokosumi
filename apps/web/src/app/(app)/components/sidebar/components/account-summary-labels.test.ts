@@ -5,7 +5,28 @@ import {
   resolveAccountCreditsLabel,
   resolveAccountSummaryLabel,
   resolveCreditRenewalKind,
+  resolveWalletCreditsLabelKey,
+  resolveWalletHeadingKey,
 } from "@/app/components/sidebar/components/account-summary-labels";
+
+describe("resolveWalletCreditsLabelKey", () => {
+  it("picks personal, organization, or generic credits copy from scope", () => {
+    expect(resolveWalletCreditsLabelKey("personal")).toBe(
+      "personalCreditsLabel",
+    );
+    expect(resolveWalletCreditsLabelKey("organization")).toBe(
+      "organizationCreditsLabel",
+    );
+    expect(resolveWalletCreditsLabelKey(null)).toBe("balanceCreditsLabel");
+  });
+});
+
+describe("resolveWalletHeadingKey", () => {
+  it("omits a heading when the wallet scope is unknown", () => {
+    expect(resolveWalletHeadingKey(null)).toBeNull();
+    expect(resolveWalletHeadingKey("organization")).toBe("organizationCredits");
+  });
+});
 
 describe("resolveAccountCreditsLabel", () => {
   it("returns null when total credits are unknown", () => {

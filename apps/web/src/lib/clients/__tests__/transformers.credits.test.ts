@@ -5,6 +5,7 @@ import { getUsersByIdCreditsResponseTransformer } from "@/lib/clients/generated/
 function buildCreditsResponse(enterprise: unknown) {
   return {
     data: {
+      scope: "personal" as const,
       subscription: {
         plan: "starter",
         status: "active",

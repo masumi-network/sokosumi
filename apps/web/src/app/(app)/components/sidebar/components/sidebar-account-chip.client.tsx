@@ -26,6 +26,7 @@ import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
   resolveAccountSummaryLabel,
+  resolveWalletCreditsLabelKey,
 } from "./account-summary-labels";
 import { AccountSummaryMenu } from "./account-summary-menu.client";
 import type {
@@ -67,6 +68,7 @@ function SidebarAccountChipDesktop({
   totalCredits,
   extraCredits,
   creditUsage,
+  creditScope,
   subscriptionPeriodEndMs,
   currentTimestampMs,
   lowCreditsThreshold,
@@ -89,7 +91,7 @@ function SidebarAccountChipDesktop({
   );
   const presenceLabel = tPresence(presence);
   const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
-    tBilling("balanceCreditsLabel", { credits }),
+    tBilling(resolveWalletCreditsLabelKey(creditScope), { credits }),
   );
   const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
   const summary = resolveAccountSummaryLabel({
@@ -178,6 +180,7 @@ function SidebarAccountChipDesktop({
         totalCredits={totalCredits}
         extraCredits={extraCredits}
         creditUsage={creditUsage}
+        creditScope={creditScope}
         subscriptionPeriodEndMs={subscriptionPeriodEndMs}
         currentTimestampMs={currentTimestampMs}
         lowCreditsThreshold={lowCreditsThreshold}

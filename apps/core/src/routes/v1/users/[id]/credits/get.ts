@@ -35,6 +35,7 @@ const route = withCoworkerContextHeaderParameters(
         "Retrieve the user's credits for personal or organization context",
         {
           data: {
+            scope: "personal",
             subscription: {
               plan: "starter",
               status: "active",

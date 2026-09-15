@@ -39,6 +39,7 @@ describe("creditsResponseSchema", () => {
       },
     };
     const result = creditsResponseSchema.parse({
+      scope: "personal",
       subscription,
       extra: {
         credits: {
@@ -56,6 +57,7 @@ describe("creditsResponseSchema", () => {
       },
     });
 
+    expect(result.scope).toBe("personal");
     expect(result.extra.credits.total).toBe(0);
     expect(result.extra.credits.remaining).toBe(0);
     expect(result.extra.credits.used).toBe(0);
@@ -76,6 +78,7 @@ describe("creditsResponseSchema", () => {
 
   it("accepts null subscription credits payload with credit buffer", () => {
     const result = creditsResponseSchema.parse({
+      scope: "organization",
       subscription: null,
       extra: {
         credits: {
@@ -93,10 +96,29 @@ describe("creditsResponseSchema", () => {
       },
     });
 
+    expect(result.scope).toBe("organization");
     expect(result.subscription).toBeNull();
     expect(result.credits.subscription).toBeNull();
     expect(result.credits.buffer).toBe(20);
     expect(result.credits.total).toBe(20);
+  });
+
+  it("rejects a payload without scope", () => {
+    expect(() =>
+      creditsResponseSchema.parse({
+        subscription: null,
+        extra: {
+          credits: { total: 0, remaining: 0, used: 0 },
+          buckets: [],
+          enterprise: null,
+        },
+        credits: {
+          subscription: null,
+          buffer: 0,
+          total: 0,
+        },
+      }),
+    ).toThrow();
   });
 
   it("rejects legacy numeric credits shape", () => {
@@ -117,6 +139,7 @@ describe("creditsResponseSchema", () => {
       { total: 2, remaining: 2, expiresAt: null },
     ];
     const result = creditsResponseSchema.parse({
+      scope: "personal",
       subscription: null,
       extra: {
         credits: {
@@ -146,6 +169,7 @@ describe("creditsResponseSchema", () => {
 
   it("accepts buckets with only non-expiring entries", () => {
     const result = creditsResponseSchema.parse({
+      scope: "personal",
       subscription: null,
       extra: {
         credits: {

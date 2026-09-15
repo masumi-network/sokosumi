@@ -53,6 +53,7 @@ export async function YouPageContent() {
       totalCredits={credits.totalCredits}
       extraCredits={credits.extraCredits}
       creditUsage={credits.creditUsage}
+      creditScope={credits.creditScope}
       subscriptionPeriodEndMs={credits.subscriptionPeriodEndMs}
       currentTimestampMs={credits.currentTimestampMs}
       lowCreditsThreshold={lowCreditsThreshold}

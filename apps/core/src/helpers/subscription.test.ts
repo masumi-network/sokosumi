@@ -613,6 +613,7 @@ describe("buildCreditsPayload", () => {
           tx,
         }),
       ).resolves.toEqual({
+        scope: "personal",
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -715,6 +716,7 @@ describe("buildCreditsPayload", () => {
           tx,
         }),
       ).resolves.toEqual({
+        scope: "personal",
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -817,6 +819,7 @@ describe("buildCreditsPayload", () => {
           tx,
         }),
       ).resolves.toEqual({
+        scope: "organization",
         subscription: null,
         extra: {
           credits: {
@@ -889,6 +892,7 @@ describe("buildCreditsPayload", () => {
         tx,
       });
 
+      expect(payload.scope).toBe("organization");
       expect(payload.extra.enterprise).toEqual({
         credits: {
           total: 50,

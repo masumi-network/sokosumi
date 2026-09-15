@@ -266,6 +266,7 @@ export interface CreditsPayload {
 }
 
 export interface CreditsApiPayload {
+  scope: "organization" | "personal";
   subscription: ReturnType<typeof mapSubscription>;
   extra: {
     credits: {
@@ -403,6 +404,7 @@ export async function buildCreditsPayload(params: {
   };
 
   return {
+    scope: params.organizationId ? "organization" : "personal",
     subscription,
     extra: {
       credits: {

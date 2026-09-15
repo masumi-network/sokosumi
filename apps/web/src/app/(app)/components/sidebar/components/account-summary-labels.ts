@@ -1,5 +1,7 @@
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
+import type { CreditWalletScope } from "./account-summary-types";
+
 export const ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS =
   "bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md";
 
@@ -30,6 +32,30 @@ export function resolveCreditRenewalKind(
     kind: "inDays",
     days: Math.ceil(remainingMs / MILLISECONDS_PER_DAY),
   };
+}
+
+export function resolveWalletCreditsLabelKey(
+  scope: CreditWalletScope | null | undefined,
+): "organizationCreditsLabel" | "personalCreditsLabel" | "balanceCreditsLabel" {
+  if (scope === "organization") {
+    return "organizationCreditsLabel";
+  }
+  if (scope === "personal") {
+    return "personalCreditsLabel";
+  }
+  return "balanceCreditsLabel";
+}
+
+export function resolveWalletHeadingKey(
+  scope: CreditWalletScope | null | undefined,
+): "organizationCredits" | "personalCredits" | null {
+  if (scope === "organization") {
+    return "organizationCredits";
+  }
+  if (scope === "personal") {
+    return "personalCredits";
+  }
+  return null;
 }
 
 export function resolveAccountCreditsLabel(

@@ -22833,6 +22833,10 @@ export type GetUsersByIdCreditsResponses = {
     200: {
         data: {
             /**
+             * Which credit wallet this payload is for: the user's personal credits, or the organization credit pool
+             */
+            scope: 'organization' | 'personal';
+            /**
              * Active subscription and period credit breakdown for the billing context
              */
             subscription: {
@@ -23514,6 +23518,10 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
      */
     200: {
         data: {
+            /**
+             * Which credit wallet this payload is for: the user's personal credits, or the organization credit pool
+             */
+            scope: 'organization' | 'personal';
             /**
              * Active subscription and period credit breakdown for the billing context
              */

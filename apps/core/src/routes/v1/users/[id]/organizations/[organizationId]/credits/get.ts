@@ -40,6 +40,7 @@ const route = withCoworkerContextHeaderParameters(
         "Retrieve shared non-subscription organization credits plus the member subscription wallet",
         {
           data: {
+            scope: "organization",
             subscription: {
               plan: "starter",
               status: "active",

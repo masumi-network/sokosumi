@@ -218,7 +218,14 @@ export const utmAttributionResponseSchema = z
   })
   .openapi("UtmAttributionResponse");
 
+const creditWalletScopeSchema = z.enum(["organization", "personal"]).openapi({
+  description:
+    "Which credit wallet this payload is for: the user's personal credits, or the organization credit pool",
+  example: "personal",
+});
+
 export const creditsResponseSchema = z.object({
+  scope: creditWalletScopeSchema,
   subscription: subscriptionSchema.nullable().openapi({
     description:
       "Active subscription and period credit breakdown for the billing context",

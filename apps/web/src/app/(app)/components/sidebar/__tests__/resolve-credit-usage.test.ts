@@ -63,6 +63,7 @@ describe("mapAccountCreditsChrome", () => {
       totalCredits: null,
       extraCredits: null,
       creditUsage: null,
+      creditScope: null,
     });
   });
 
@@ -81,6 +82,7 @@ describe("mapAccountCreditsChrome", () => {
     expect(
       mapAccountCreditsChrome({
         data: {
+          scope: "organization",
           subscription: creditsData.subscription,
           extra: {
             credits: { total: 10, remaining: 10, used: 0 },
@@ -103,6 +105,7 @@ describe("mapAccountCreditsChrome", () => {
       subscriptionPeriodEndMs: periodEnd.getTime(),
       totalCredits: 100,
       extraCredits: 10,
+      creditScope: "organization",
       creditUsage: {
         percentageUsed: 25,
         remaining: 75,

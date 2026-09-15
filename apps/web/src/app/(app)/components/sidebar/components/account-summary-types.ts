@@ -2,11 +2,14 @@ import type { SessionUser } from "@sokosumi/utils";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
 
+export type CreditWalletScope = "organization" | "personal";
+
 export interface AccountSummaryCreditProps {
   planName: string | null;
   totalCredits: number | null;
   extraCredits: number | null;
   creditUsage: CreditUsage | null;
+  creditScope?: CreditWalletScope | null;
   subscriptionPeriodEndMs: number | null;
   currentTimestampMs: number;
   lowCreditsThreshold: number;
