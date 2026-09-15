@@ -9,6 +9,7 @@ import {
   requireAdminAuthContext,
   requireInteractiveAdminAuthContext,
   requireOwnerUserContext,
+  resolveUserContext,
 } from "./auth";
 
 const {
@@ -1143,5 +1144,61 @@ describe("requireOwnerUserContext", () => {
         context: { userId: "user_123", organizationId: null },
       }),
     ).toThrowError("Agent authentication cannot perform this owner action");
+  });
+});
+
+describe("resolveUserContext", () => {
+  it("returns the session user context", () => {
+    expect(
+      resolveUserContext({
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_1",
+        role: "user",
+      }),
+    ).toEqual(
+      expect.objectContaining({ source: "session", userId: "user_123" }),
+    );
+  });
+
+  it("returns the contextual user for a coworker with X-Context headers", () => {
+    expect(
+      resolveUserContext({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: "user_456", organizationId: "org_1" },
+      }),
+    ).toEqual({
+      source: "context",
+      userId: "user_456",
+      organizationId: "org_1",
+    });
+  });
+
+  it("returns the owner user for a Soko Bot", () => {
+    expect(
+      resolveUserContext({
+        actor: "sokoBot",
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
+        userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        organizationId: "org_1",
+      }),
+    ).toEqual({
+      source: "context",
+      userId: "user_123",
+      organizationId: "org_1",
+    });
+  });
+
+  it("returns null for a standalone coworker key", () => {
+    expect(
+      resolveUserContext({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+      }),
+    ).toBeNull();
   });
 });
