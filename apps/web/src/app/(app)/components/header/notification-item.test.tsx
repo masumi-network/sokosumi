@@ -402,6 +402,9 @@ describe("NotificationItem unread indicator", () => {
     // Forced colors repaints bg-primary as Canvas, the row's own colour, so
     // the rail carries a system colour that mode leaves alone.
     expect(rail?.className).toContain("forced-colors:bg-[Highlight]");
+    // The tint lives in a shared component, so the row has to prove it
+    // renders it at all. Its own test covers what the tint looks like.
+    expect(screen.getByTestId("notification-row-icon")).toBeInTheDocument();
     // The bar and the icon tint are colour, so the state is also text.
     const state = screen.getByText("unreadIndicator");
     // Hidden from sight, or the row says "Unread" twice over to everyone else.

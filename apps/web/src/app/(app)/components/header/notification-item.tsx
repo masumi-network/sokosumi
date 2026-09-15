@@ -1,10 +1,14 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationMenuItem } from "@/components/notifications/delete-notification-menu-item";
 import { MarkNotificationReadMenuItem } from "@/components/notifications/mark-notification-read-menu-item";
 import { MarkNotificationUnreadMenuItem } from "@/components/notifications/mark-notification-unread-menu-item";
+import { NotificationRowIcon } from "@/components/notifications/notification-row-icon";
+import {
+  NotificationUnreadLabel,
+  NotificationUnreadRail,
+} from "@/components/notifications/notification-unread-signal";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import {
   DropdownMenuGroup,
@@ -13,7 +17,6 @@ import {
 import type { NotificationItem as NotificationItemType } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
-import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
@@ -28,9 +31,7 @@ export function NotificationItem({
   onClick,
   formatTime,
 }: NotificationItemProps) {
-  const t = useTranslations("Components.NotificationCenter");
   const formatMessage = useNotificationMessage();
-  const Icon = getNotificationIcon(notification);
   const message = formatMessage(
     notification.messageKey,
     notification.messageParams ?? {},
@@ -46,25 +47,13 @@ export function NotificationItem({
   // Unread is the icon's colour and a bar on the leading edge, so the tint is
   // free to mean "here".
   //
-  // The bar is its own element rather than a tint, so it stays legible while
+  // The rail is its own element rather than a tint, so it stays legible while
   // the row is highlighted, and it lines up down the list so several unread
-  // rows read as a group at a glance. A read row keeps the same rail in
-  // transparent, so nothing shifts when a row changes state under the reader.
-  //
-  // A background rather than a left border, so the bar survives forced colors
-  // mode. That mode keeps the alpha of a background-color, which leaves the
-  // read row's rail invisible, but it forces a border-color outright and
-  // would have painted both states the same bar. It repaints bg-primary as
-  // Canvas too, so the unread rail names a system colour of its own.
+  // rows read as a group at a glance. Its geometry and its forced colors
+  // behaviour live in the shared component, which the notifications page
+  // renders too.
   const rowClassName =
     "group/row has-data-highlighted:bg-accent flex w-full items-start";
-
-  const railClassName = cn(
-    "w-0.5 shrink-0 self-stretch",
-    notification.isRead
-      ? "bg-transparent"
-      : "bg-primary forced-colors:bg-[Highlight]",
-  );
 
   const itemClassName = cn(
     "flex min-w-0 flex-1 cursor-pointer flex-col items-start gap-1 rounded-none py-3 pr-1 pl-3 focus:bg-transparent",
@@ -73,26 +62,9 @@ export function NotificationItem({
 
   const body = (
     <div className="flex w-full items-start gap-3">
-      <span
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full",
-          // Translucent, so the circle survives the row's hover tint, which
-          // is the same colour as the muted surface.
-          notification.isRead
-            ? "bg-foreground/10 text-muted-foreground"
-            : "bg-primary/15 text-primary",
-        )}
-        aria-hidden
-      >
-        <Icon className="size-4" />
-      </span>
+      <NotificationRowIcon notification={notification} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {/* The bar and the icon tint are colour, so neither reaches a screen
-            reader. This names the state in the reading order, ahead of the
-            message. */}
-        {notification.isRead ? null : (
-          <span className="sr-only">{t("unreadIndicator")}</span>
-        )}
+        <NotificationUnreadLabel isRead={notification.isRead} />
         {/* The message keeps one weight in both states. A heavier unread
             message re-wraps the moment the row is marked read, and every row
             below it moves. The bar and the icon tint carry the state instead,
@@ -162,7 +134,7 @@ export function NotificationItem({
   if (showPendingAccessActions) {
     return (
       <DropdownMenuGroup className={rowClassName}>
-        <span className={railClassName} aria-hidden />
+        <NotificationUnreadRail isRead={notification.isRead} />
         <DropdownMenuItem
           className={itemClassName}
           onSelect={(event) => event.preventDefault()}
@@ -177,7 +149,7 @@ export function NotificationItem({
 
   return (
     <DropdownMenuGroup className={rowClassName}>
-      <span className={railClassName} aria-hidden />
+      <NotificationUnreadRail isRead={notification.isRead} />
       <DropdownMenuItem className={itemClassName} onClick={onClick}>
         {body}
       </DropdownMenuItem>
