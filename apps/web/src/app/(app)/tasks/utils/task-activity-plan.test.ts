@@ -30,10 +30,6 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-vi.mock("@/components/billing/subscription-plan-utils", () => ({
-  parsePlanName: (plan: string | null | undefined) => plan ?? null,
-}));
-
 import {
   resolveTaskActivityPlan,
   resolveTaskDetailViewerPlan,

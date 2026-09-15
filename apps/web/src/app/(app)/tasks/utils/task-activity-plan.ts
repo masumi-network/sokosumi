@@ -1,8 +1,9 @@
 import "server-only";
 
-import type { SubscriptionPlanName } from "@sokosumi/utils";
-
-import { parsePlanName } from "@/components/billing/subscription-plan-utils";
+import {
+  parseSelfServeSubscriptionPlanName,
+  type SubscriptionPlanName,
+} from "@sokosumi/utils";
 import type { getSession } from "@/lib/auth/auth.server";
 import {
   CoreApiRequestError,
@@ -38,7 +39,9 @@ export async function resolveTaskActivityPlan(
       : await coreClientNoRedirect.getMyActiveSubscription();
 
     // Member who can resolve the subscription: null plan from Core means free.
-    return parsePlanName(data.subscription?.plan) ?? "free";
+    return (
+      parseSelfServeSubscriptionPlanName(data.subscription?.plan) ?? "free"
+    );
   } catch (error) {
     if (
       error instanceof CoreApiRequestError &&

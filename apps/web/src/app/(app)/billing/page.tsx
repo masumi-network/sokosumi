@@ -1,4 +1,7 @@
-import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
+import {
+  parseSelfServeSubscriptionPlanName,
+  type SelfServeSubscriptionPlanName,
+} from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
@@ -13,7 +16,6 @@ import { OrganizationSubscriptionSection } from "@/components/billing/organizati
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
   getPlanTranslationKey,
-  parsePlanName,
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
@@ -298,7 +300,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   ]);
   const latestPersonalSubscription = personalSubscription.data.subscription;
   const stripeCustomerId = stripeCustomer.data.stripeCustomerId;
-  const currentPlan = parsePlanName(latestPersonalSubscription?.plan) ?? "free";
+  const currentPlan =
+    parseSelfServeSubscriptionPlanName(latestPersonalSubscription?.plan) ??
+    "free";
   const displayCredits = formatCreditsForDisplay(
     personalCredits.data.credits.total,
   );
