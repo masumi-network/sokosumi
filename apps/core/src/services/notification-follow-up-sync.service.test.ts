@@ -406,6 +406,29 @@ describe("NotificationFollowUpSyncService", () => {
     );
   });
 
+  /**
+   * The other column, pinned the same way. Each read passes its own label
+   * and its own row id, so either can be wrong on its own, and the words
+   * for both columns sit one line apart.
+   */
+  it("names the other column when that one would not read", async () => {
+    seed([
+      { ...row({ id: "notification-unreadable-params" }), messageParams: "{" },
+    ]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          field: "messageParams",
+          rowId: "notification-unreadable-params",
+        }),
+      }),
+    );
+  });
+
   it("reminds a reader of a task still waiting on them", async () => {
     seed([
       row({

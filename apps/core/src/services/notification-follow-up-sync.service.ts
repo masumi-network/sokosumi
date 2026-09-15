@@ -207,7 +207,7 @@ export async function sendFollowUps(
     waitedUntil.getTime() - NOTIFICATION_FOLLOW_UP_WINDOW_MS,
   );
 
-  /** Whether the handler still wants this run to do more work. */
+  /** Whether the handler has stopped wanting this run to do more work. */
   const outOfTime = () =>
     options.abortSignal?.aborted === true ||
     options.shouldContinue?.() === false;
