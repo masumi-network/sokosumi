@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { rescheduleTaskOccurrence } from "@/lib/actions/task/action";
+import { mutateTaskOccurrence } from "@/lib/actions/task/action";
 import {
   utcToDateTimeLocalInTimezone,
   zonedDateTimeLocalToUtc,
@@ -26,10 +26,11 @@ import {
 } from "@/lib/utils/task-schedule";
 import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 
-interface MoveOccurrenceDialogProps {
+interface OccurrenceTimeDialogProps {
+  action: "reschedule" | "restore";
   expectedScheduleRevision: number;
   occurrenceId: string;
-  /** Effective time the input is seeded from; sent back as an absolute instant. */
+  /** Effective or original time the input is seeded from. */
   scheduledAt: Date;
   taskId: string;
   /** IANA zone the wall-clock input is interpreted in. */
@@ -37,20 +38,19 @@ interface MoveOccurrenceDialogProps {
   onClose: () => void;
 }
 
-/**
- * The keyboard/mobile counterpart to dragging a Calendar occurrence. It edits a
- * wall-clock time in the series' zone and sends the canonical UTC instant, the
- * same contract the drop handler uses.
- */
-export function MoveOccurrenceDialog({
+/** Changes one occurrence's wall-clock time in the series' captured zone. */
+export function OccurrenceTimeDialog({
+  action,
   expectedScheduleRevision,
   occurrenceId,
   scheduledAt,
   taskId,
   timeZone,
   onClose,
-}: MoveOccurrenceDialogProps) {
-  const t = useTranslations("App.Tasks.Schedule.occurrenceMove");
+}: OccurrenceTimeDialogProps) {
+  const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
+  const tRestore = useTranslations("App.Tasks.Schedule.occurrenceRestore");
+  const t = action === "restore" ? tRestore : tMove;
   const tSeries = useTranslations("App.Tasks.Schedule.series");
   const router = useRouter();
   const inputId = useId();
@@ -59,8 +59,7 @@ export function MoveOccurrenceDialog({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
-  // One UUID per distinct submitted time: a retry of the same attempt replays
-  // on Core, while picking another time is a new operation.
+  // One UUID per distinct submitted time: exact retries replay on Core.
   const operation = useRef<TaskScheduleOperationIdentity | null>(null);
 
   async function handleSubmit() {
@@ -77,7 +76,7 @@ export function MoveOccurrenceDialog({
     setIsPending(true);
     setError(null);
     try {
-      const result = await rescheduleTaskOccurrence({
+      const result = await mutateTaskOccurrence({
         taskId,
         occurrenceId,
         operationId: getTaskScheduleOperationId(
@@ -85,6 +84,7 @@ export function MoveOccurrenceDialog({
           operation,
         ),
         expectedScheduleRevision,
+        action,
         scheduledAt: target.toISOString(),
       });
 

@@ -60,6 +60,32 @@
         try await expectStableReadingPosition(host, before: before)
       }
 
+      @Test func searchTargetScrollsToAnOlderPreparedReply() async throws {
+        let (state, session) = try await fixture(fails: false)
+        defer {
+          state.reset()
+          session.invalidateAndCancel()
+        }
+        let host = NSHostingView(rootView: ReplyThreadView().environmentObject(state).environmentObject(AuthState()))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.ignoresMouseEvents = true
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        let scroll = try await loadedTranscriptScrollView(in: host)
+        let initialOffset = scroll.contentView.bounds.minY
+        let target = try #require(state.thread.timeline.messages.first?.id)
+        state.thread.requestJump(to: target)
+        for _ in 0 ..< 50 {
+          if scroll.contentView.bounds.minY < initialOffset - 200 {
+            break
+          }
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(scroll.contentView.bounds.minY < initialOffset - 200)
+        #expect(state.thread.jumpTarget?.messageId == target)
+      }
+
       private func expectStableReadingPosition(_ host: NSView, before: CGImage) async throws {
         let after = try snapshot(host)
         // Lazy stacks estimate their total height. Compare visible pixels instead of that estimate.

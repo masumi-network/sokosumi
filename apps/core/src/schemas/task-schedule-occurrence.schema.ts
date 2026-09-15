@@ -128,28 +128,46 @@ export const taskScheduleOccurrencePageSchema = z
   })
   .openapi("TaskScheduleOccurrencePage");
 
-export const rescheduleTaskScheduleOccurrenceRequestSchema = z
-  .object({
-    operationId: z.uuid().openapi({
-      description: "Idempotency identity for this occurrence move",
-      example: "123e4567-e89b-42d3-a456-426614174000",
+const taskScheduleOccurrenceMutationPrecondition = {
+  operationId: z.uuid().openapi({
+    description: "Idempotency identity for this occurrence mutation",
+    example: "123e4567-e89b-42d3-a456-426614174000",
+  }),
+  expectedScheduleRevision: z.number().int().nonnegative().openapi({
+    description: "Schedule revision observed by the caller",
+    example: 3,
+  }),
+};
+
+const taskScheduleOccurrenceMutationTarget = dateTimeSchema.openapi({
+  description:
+    "New absolute time for the occurrence. Strictly future and inside the projection horizon.",
+  example: "2026-09-20T09:00:00.000Z",
+});
+
+export const mutateTaskScheduleOccurrenceRequestSchema = z
+  .discriminatedUnion("action", [
+    z.object({
+      ...taskScheduleOccurrenceMutationPrecondition,
+      action: z.literal("reschedule"),
+      scheduledAt: taskScheduleOccurrenceMutationTarget,
     }),
-    expectedScheduleRevision: z.number().int().nonnegative().openapi({
-      description: "Schedule revision observed by the caller",
-      example: 3,
+    z.object({
+      ...taskScheduleOccurrenceMutationPrecondition,
+      action: z.literal("skip"),
     }),
-    scheduledAt: dateTimeSchema.openapi({
-      description:
-        "New absolute time for the occurrence. Strictly future and inside the projection horizon.",
-      example: "2026-09-20T09:00:00.000Z",
+    z.object({
+      ...taskScheduleOccurrenceMutationPrecondition,
+      action: z.literal("restore"),
+      scheduledAt: taskScheduleOccurrenceMutationTarget.optional(),
     }),
-  })
-  .openapi("RescheduleTaskScheduleOccurrenceRequest");
+  ])
+  .openapi("MutateTaskScheduleOccurrenceRequest");
 
 export const taskScheduleOccurrenceMutationSchema = z
   .object({
     scheduleRevision: z.number().int().nonnegative().openapi({
-      description: "Series revision after the move",
+      description: "Series revision after the occurrence mutation",
       example: 4,
     }),
     occurrence: taskScheduleOccurrenceSchema,

@@ -250,10 +250,10 @@ describe("BillingPage", () => {
       },
     });
     getMyCreditsMock.mockResolvedValue({
-      data: { credits: { total: 0 } },
+      data: { spendable: 0 },
     });
     getMyOrganizationCreditsMock.mockResolvedValue({
-      data: { credits: { total: 0 } },
+      data: { spendable: 0 },
     });
     getMyActiveSubscriptionMock.mockResolvedValue({
       data: {
@@ -700,7 +700,7 @@ describe("BillingPage", () => {
     // though the page locally believed it was on an enterprise contract.
     getEnterpriseContractBillingSummaryMock.mockResolvedValue(null);
     getMyOrganizationCreditsMock.mockResolvedValue({
-      data: { credits: { total: 750 } },
+      data: { spendable: 750 },
     });
 
     const { default: BillingPage } = await import("./page");

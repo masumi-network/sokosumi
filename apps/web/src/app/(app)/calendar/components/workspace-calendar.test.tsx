@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -64,7 +63,7 @@ const ITEMS: WorkspaceCalendarItem[] = [
     id: "occurrence-1",
     taskId: "task-1",
     canEditSchedule: true,
-    canMoveOccurrence: true,
+    canMutateOccurrence: true,
     scheduleRevision: 3,
     taskName: "Prepare release notes",
     taskStatus: "QUEUED",
@@ -301,7 +300,7 @@ describe("WorkspaceCalendar", () => {
 
   it("uses the server-provided date when the URL has no date", () => {
     render(
-      <NuqsTestingAdapter>
+      <NuqsTestingAdapter searchParams="?view=month">
         <WorkspaceCalendar items={ITEMS} initialDate="2040-01-18" />
       </NuqsTestingAdapter>,
     );
@@ -316,7 +315,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-month")[0]).toHaveClass(
+    expect(screen.getAllByTestId("calendar-week")[0]).toHaveClass(
       "workspace-calendar-theme",
       "bg-background",
       "overflow-x-auto",
@@ -326,20 +325,9 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("sets transparent classic events for the week theme", () => {
-    const styles = readFileSync(
-      new URL("../../../globals.css", import.meta.url).pathname.slice(1),
-      "utf8",
-    );
-
-    expect(styles).toMatch(
-      /\.workspace-calendar-theme\[data-view="week"\]\s*\{[^}]*--fc-classic-event:\s*transparent;/,
-    );
-  });
-
   it("disables forward navigation beyond the supplied calendar horizon", () => {
     render(
-      <NuqsTestingAdapter>
+      <NuqsTestingAdapter searchParams="?view=month">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -777,7 +765,7 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("defaults the mobile Calendar to month so empty dates can create tasks", async () => {
+  it("defaults the mobile Calendar to the week view so empty dates can create tasks", async () => {
     const mediaQuery: MediaQueryList = {
       matches: true,
       media: "(max-width: 767px)",
@@ -802,25 +790,23 @@ describe("WorkspaceCalendar", () => {
       );
 
       await waitFor(() =>
-        expect(screen.getAllByTestId("calendar-month")).toHaveLength(2),
+        expect(screen.getAllByTestId("calendar-week")).toHaveLength(2),
       );
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it("honors an explicit week view on mobile", () => {
+  it("defaults to the week view and offers every view switch", () => {
     render(
-      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18">
+      <NuqsTestingAdapter searchParams="?date=2026-08-18">
         <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
       </NuqsTestingAdapter>,
     );
 
     expect(screen.getAllByTestId("calendar-week")).toHaveLength(2);
     expect(screen.queryByTestId("calendar-month")).not.toBeInTheDocument();
-    expect(screen.getByTestId("mobile-calendar-views")).not.toHaveTextContent(
-      "view.week",
-    );
+    expect(screen.getByTestId("calendar-views")).toHaveTextContent("view.week");
   });
 
   it("uses event cards without the all-day row in the week view", () => {

@@ -31,12 +31,13 @@ public extension ChatService {
     cursor: String? = nil,
     around: String? = nil,
     limit: Int? = nil,
+    query: String? = nil,
     organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
     let response = try await client.getChatsRoomsIdMessages(
       .init(
         path: .init(id: roomId),
-        query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit, around: around),
+        query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit, q: query, around: around),
         headers: .init(xOrganizationSlug: organizationSlug)
       )
     )

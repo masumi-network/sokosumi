@@ -1826,7 +1826,18 @@
           "stateReleased": "Gestartet",
           "stateMissed": "Verpasst",
           "archivedRun": "Archiviert",
-          "move": "Verschieben"
+          "move": "Verschieben",
+          "skip": "Überspringen",
+          "restore": "Wiederherstellen",
+          "mutationError": "Dieser Lauf konnte nicht geändert werden. Bitte versuche es erneut.",
+          "moveSource": "Kalender wechseln",
+          "moveSourceTitle": "Diesen Zeitplan verschieben?",
+          "moveSourceLabel": "Zielkalender",
+          "moveSourceDescription": "Wähle den Kalender, in dem dieser Zeitplan neue Läufe erstellt. Beim Verschieben werden {count, plural, =0 {keine geänderten anstehenden Läufe} one {# geänderter anstehender Lauf} other {# geänderte anstehende Läufe}} abgebrochen. Vergangene und bereits gestartete Läufe bleiben unverändert.",
+          "moveSourceCancel": "Aktuellen Kalender behalten",
+          "moveSourceConfirm": "Zeitplan verschieben",
+          "moveSourceSuccess": "Der Zeitplan wurde in den neuen Kalender verschoben.",
+          "moveSourceError": "Dieser Zeitplan konnte nicht verschoben werden. Lade die Aufgabe neu und versuche es erneut."
         },
         "files": "Dateien",
         "assignee": "Zuständig"
@@ -1952,7 +1963,7 @@
           "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
           "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan.",
           "unknownCount": "Wir konnten nicht prüfen, welche bevorstehenden Läufe eine neue Regel abbrechen würde. Lade die Seite neu, öffne den Zeitplan erneut und versuche es noch einmal.",
-          "occurrenceLocked": "Dieses Vorkommen kann nicht mehr verschoben werden.",
+          "occurrenceLocked": "Dieses Vorkommen kann nicht mehr geändert werden.",
           "occurrenceTargetInvalid": "Dieser Zeitpunkt ist kein gültiges Ziel."
         },
         "occurrenceMove": {
@@ -1963,6 +1974,15 @@
           "cancel": "Abbrechen",
           "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
           "error": "Dieses Vorkommen konnte nicht verschoben werden. Bitte versuche es erneut."
+        },
+        "occurrenceRestore": {
+          "title": "Vorkommen wiederherstellen",
+          "description": "Stelle diesen Lauf zur ursprünglichen Zeit wieder her oder wähle eine andere zukünftige Zeit.",
+          "label": "Wiederhergestellte Zeit",
+          "confirm": "Vorkommen wiederherstellen",
+          "cancel": "Abbrechen",
+          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
+          "error": "Dieses Vorkommen konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
         },
         "option": {
           "oneTime": "One-time",
@@ -2708,7 +2728,7 @@
           "totalCount": "{count, plural, one {# Benutzer} other {# Benutzer}}",
           "empty": "Keine Benutzer gefunden.",
           "user": "Benutzer",
-          "credits": "Guthaben",
+          "credits": "Persönliches Guthaben",
           "subscription": "Abonnement",
           "startedTasks": "Gestartete Aufgaben",
           "registered": "Registriert",
@@ -2743,8 +2763,8 @@
             "enterprisePool": "Enterprise-Pool: {credits} Credits"
           },
           "credits": {
-            "title": "Guthaben gesamt",
-            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
+            "title": "Organisations-Guthaben",
+            "description": "Verfügbare Credits im Organisations-Pool, inklusive Extra-Credits und dem Enterprise-Vertrags-Pool, falls vorhanden.",
             "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
           },
           "members": {
@@ -6147,8 +6167,12 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
+        "accessibleNameSkipped": "{task}, {source}, übersprungen",
         "editSchedule": "Zeitplan bearbeiten",
         "moveOccurrence": "Vorkommen verschieben",
+        "skipOccurrence": "Vorkommen überspringen",
+        "restoreOccurrence": "Vorkommen wiederherstellen",
+        "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
         "openTask": "Task öffnen"
       },
       "create": {

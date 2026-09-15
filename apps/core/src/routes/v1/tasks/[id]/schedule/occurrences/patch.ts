@@ -21,17 +21,18 @@ import { buildTaskScheduleMetadataV2 } from "@/helpers/task-schedule";
 import {
   CALENDAR_OCCURRENCE_HORIZON_MS,
   findNextReleaseableOccurrence,
+  replaceTaskSchedulePlannedOccurrences,
 } from "@/helpers/task-schedule-occurrence-index";
 import {
   createTaskScheduleRequestFingerprint,
-  isTaskScheduleOperationReplay,
+  readTaskScheduleOperationReplay,
 } from "@/helpers/task-schedule-operation";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import {
-  rescheduleTaskScheduleOccurrenceRequestSchema,
+  mutateTaskScheduleOccurrenceRequestSchema,
   taskScheduleOccurrenceMutationSchema,
 } from "@/schemas/task-schedule-occurrence.schema";
 
@@ -49,7 +50,7 @@ const paramsSchema = z.object({
     }),
 });
 
-function buildOneTimeScheduleMove(
+function buildOneTimeScheduleMutation(
   metadataJson: string | null,
   scheduleVersion: number,
   target: Date,
@@ -93,14 +94,14 @@ const route = createRoute({
   method: "patch",
   path: "/{id}/schedule/occurrences/{occurrenceId}",
   description:
-    "Move one unreleased schedule occurrence to a new time. Idempotent per operationId and guarded by the observed schedule revision.",
+    "Reschedule, skip, or restore one unreleased schedule occurrence. Idempotent per operationId and guarded by the observed schedule revision.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
     body: {
       content: {
         "application/json": {
-          schema: rescheduleTaskScheduleOccurrenceRequestSchema,
+          schema: mutateTaskScheduleOccurrenceRequestSchema,
         },
       },
     },
@@ -108,7 +109,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       taskScheduleOccurrenceMutationSchema,
-      "Schedule occurrence rescheduled",
+      "Schedule occurrence mutated",
     ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
@@ -125,16 +126,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id, occurrenceId } = c.req.valid("param");
-    const { operationId, expectedScheduleRevision, scheduledAt } =
-      c.req.valid("json");
-    const target = new Date(scheduledAt);
+    const mutation = c.req.valid("json");
+    const { operationId, expectedScheduleRevision, action } = mutation;
     const now = new Date();
+    const requestedScheduledAt =
+      action === "reschedule"
+        ? new Date(mutation.scheduledAt)
+        : action === "restore" && mutation.scheduledAt
+          ? new Date(mutation.scheduledAt)
+          : null;
 
     const requestFingerprint = createTaskScheduleRequestFingerprint({
-      action: "reschedule_occurrence",
+      action: `${action}_occurrence`,
       taskId: id,
       occurrenceId,
-      scheduledAt: target.toISOString(),
+      scheduledAt: requestedScheduledAt?.toISOString() ?? null,
     });
 
     const existingTask = await requireTaskCollaboration(
@@ -150,7 +156,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ])) ||
         !(await lockTaskRows(tx, [id]))
       ) {
-        throw conflict("Task changed during occurrence reschedule");
+        throw conflict("Task changed during occurrence mutation");
       }
 
       const currentTask = await requireTaskCollaboration(authContext, id, tx);
@@ -159,19 +165,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         currentTask.projectId !== existingTask.projectId
       ) {
         throw conflict(
-          "Task Calendar source changed during occurrence reschedule",
+          "Task Calendar source changed during occurrence mutation",
         );
       }
 
       // A retry replays before any state check: the first attempt already
-      // applied this move and may have advanced the revision the caller saw.
-      if (
-        await isTaskScheduleOperationReplay(tx, {
-          taskId: id,
-          operationId,
-          requestFingerprint,
-        })
-      ) {
+      // applied this mutation and may have advanced the revision the caller saw.
+      const replayPayload = await readTaskScheduleOperationReplay(tx, {
+        taskId: id,
+        operationId,
+        requestFingerprint,
+      });
+      if (replayPayload) {
+        const storedResponse = taskScheduleOccurrenceMutationSchema.safeParse(
+          replayPayload.response,
+        );
+        if (storedResponse.success) {
+          return storedResponse.data;
+        }
+
+        // Reschedule operations created before response snapshots were added
+        // still replay safely by reading the row without repeating effects.
         const replayed = await tx.taskScheduleOccurrence.findUniqueOrThrow({
           where: { id: occurrenceId },
           include: {
@@ -180,22 +194,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           },
         });
-        return {
+        return taskScheduleOccurrenceMutationSchema.parse({
           scheduleRevision: currentTask.scheduleRevision,
-          occurrence: replayed,
-        };
-      }
-
-      if (target <= now) {
-        throw unprocessableEntity("scheduledAt must be in the future", {
-          kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID,
+          occurrence: {
+            ...replayed,
+            sourceId: getCalendarSourceId(replayed),
+            isMissed:
+              replayed.state === TaskScheduleOccurrenceState.PLANNED &&
+              replayed.effectiveScheduledAt < now,
+          },
         });
-      }
-      if (target.getTime() >= now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS) {
-        throw unprocessableEntity(
-          "scheduledAt must be inside the schedule projection horizon",
-          { kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID },
-        );
       }
 
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
@@ -221,26 +229,58 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         scheduleMetadata?.version === 1 &&
         scheduleMetadata.mode === "recurring"
       ) {
-        throw conflict("Legacy recurring occurrences cannot be rescheduled", {
-          kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE,
+        throw conflict("Legacy recurring occurrences cannot be mutated", {
+          kind:
+            action === "reschedule"
+              ? CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE
+              : CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_STATE_CONFLICT,
         });
       }
+
+      const expectedState =
+        action === "restore"
+          ? TaskScheduleOccurrenceState.SKIPPED
+          : TaskScheduleOccurrenceState.PLANNED;
       if (
-        occurrence.state !== TaskScheduleOccurrenceState.PLANNED ||
+        occurrence.state !== expectedState ||
         occurrence.releasedTaskId !== null ||
         occurrence.effectiveScheduledAt <= now
       ) {
         throw conflict(
-          "Only a future unreleased occurrence can be rescheduled",
-          { kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE },
+          `This occurrence cannot be changed with ${action} from its current state`,
+          {
+            kind:
+              action === "reschedule"
+                ? CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_NOT_RESCHEDULABLE
+                : CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_STATE_CONFLICT,
+          },
         );
       }
 
-      if (occurrence.effectiveScheduledAt.getTime() === target.getTime()) {
+      const target =
+        action === "skip"
+          ? occurrence.effectiveScheduledAt
+          : (requestedScheduledAt ?? occurrence.originalScheduledAt);
+      if (!target || target <= now) {
+        throw unprocessableEntity("scheduledAt must be in the future", {
+          kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID,
+        });
+      }
+      if (target.getTime() >= now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS) {
+        throw unprocessableEntity(
+          "scheduledAt must be inside the schedule projection horizon",
+          { kind: CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID },
+        );
+      }
+
+      if (
+        action === "reschedule" &&
+        occurrence.effectiveScheduledAt.getTime() === target.getTime()
+      ) {
         return { scheduleRevision: currentTask.scheduleRevision, occurrence };
       }
 
-      const oneTimeMove = buildOneTimeScheduleMove(
+      const oneTimeMutation = buildOneTimeScheduleMutation(
         currentTask.metadata,
         occurrence.scheduleVersion,
         target,
@@ -248,8 +288,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
       const updatedOccurrence = await tx.taskScheduleOccurrence.update({
         where: { id: occurrence.id },
-        data: oneTimeMove?.occurrenceData ?? {
-          effectiveScheduledAt: target,
+        data: {
+          ...(oneTimeMutation?.occurrenceData ?? {
+            effectiveScheduledAt: target,
+          }),
+          ...(action === "skip"
+            ? { state: TaskScheduleOccurrenceState.SKIPPED }
+            : action === "restore"
+              ? { state: TaskScheduleOccurrenceState.PLANNED }
+              : {}),
+          actorUserId: userContext.userId,
         },
         include: {
           releasedTask: {
@@ -259,8 +307,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       const activeEpochId =
-        oneTimeMove?.metadata.epochId ??
+        oneTimeMutation?.metadata.epochId ??
         (scheduleMetadata?.version === 2 ? scheduleMetadata.epochId : null);
+      if (
+        scheduleMetadata?.version === 2 &&
+        scheduleMetadata.mode === "recurring" &&
+        scheduleMetadata.endsMode === "after" &&
+        currentTask.nextRunAt
+      ) {
+        const indexTask = {
+          id,
+          workspaceId: currentTask.workspaceId,
+          projectId: currentTask.projectId,
+          schedule: scheduleMetadata,
+          nextRunAt: currentTask.nextRunAt,
+        };
+        if (action === "skip" || action === "restore") {
+          await replaceTaskSchedulePlannedOccurrences(tx, indexTask, now);
+        }
+      }
       const nextReleaseable = await findNextReleaseableOccurrence(
         tx,
         id,
@@ -269,11 +334,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedTask = await tx.task.update({
         where: { id },
         data: {
-          ...(oneTimeMove
-            ? { metadata: JSON.stringify(oneTimeMove.metadata) }
+          ...(oneTimeMutation
+            ? { metadata: JSON.stringify(oneTimeMutation.metadata) }
             : {}),
           nextRunAt: nextReleaseable?.effectiveScheduledAt ?? null,
           scheduleRevision: { increment: 1 },
+        },
+      });
+
+      const response = taskScheduleOccurrenceMutationSchema.parse({
+        scheduleRevision: updatedTask.scheduleRevision,
+        occurrence: {
+          ...updatedOccurrence,
+          sourceId: getCalendarSourceId(updatedOccurrence),
+          isMissed:
+            updatedOccurrence.state === TaskScheduleOccurrenceState.PLANNED &&
+            updatedOccurrence.effectiveScheduledAt < now,
         },
       });
 
@@ -281,39 +357,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           taskId: id,
           userId: userContext.userId,
-          scheduleKind: TaskScheduleEventKind.OCCURRENCE_RESCHEDULED,
+          scheduleKind:
+            action === "skip"
+              ? TaskScheduleEventKind.OCCURRENCE_SKIPPED
+              : action === "restore"
+                ? TaskScheduleEventKind.OCCURRENCE_RESTORED
+                : TaskScheduleEventKind.OCCURRENCE_RESCHEDULED,
           scheduleOperationId: operationId,
           schedulePayload: {
-            action: "reschedule_occurrence",
+            action: `${action}_occurrence`,
             requestFingerprint,
             occurrenceId,
             originalScheduledAt:
               occurrence.originalScheduledAt?.toISOString() ?? null,
             effectiveScheduledAt: target.toISOString(),
             scheduleRevision: updatedTask.scheduleRevision,
+            response,
           },
         },
         select: { id: true },
       });
 
-      return {
-        scheduleRevision: updatedTask.scheduleRevision,
-        occurrence: updatedOccurrence,
-      };
-    }, "Task schedule changed during occurrence reschedule");
+      return response;
+    }, "Task schedule changed during occurrence mutation");
 
-    return ok(
-      c,
-      taskScheduleOccurrenceMutationSchema.parse({
-        scheduleRevision: result.scheduleRevision,
-        occurrence: {
-          ...result.occurrence,
-          sourceId: getCalendarSourceId(result.occurrence),
-          isMissed:
-            result.occurrence.state === TaskScheduleOccurrenceState.PLANNED &&
-            result.occurrence.effectiveScheduledAt < now,
-        },
-      }),
-    );
+    return ok(c, result);
   });
 }

@@ -1826,7 +1826,18 @@
           "stateReleased": "Lanzada",
           "stateMissed": "Perdida",
           "archivedRun": "Archivada",
-          "move": "Mover"
+          "move": "Mover",
+          "skip": "Omitir",
+          "restore": "Restaurar",
+          "mutationError": "No se pudo cambiar esta ejecución. Inténtalo de nuevo.",
+          "moveSource": "Mover calendario",
+          "moveSourceTitle": "¿Mover esta programación?",
+          "moveSourceLabel": "Calendario de destino",
+          "moveSourceDescription": "Elige el calendario en el que esta programación debe crear nuevas ejecuciones. Al moverla se cancelan {count, plural, =0 {ninguna ejecución próxima modificada} one {# ejecución próxima modificada} other {# ejecuciones próximas modificadas}}. Las ejecuciones pasadas y ya lanzadas no cambian.",
+          "moveSourceCancel": "Mantener el calendario actual",
+          "moveSourceConfirm": "Mover programación",
+          "moveSourceSuccess": "La programación se movió al nuevo calendario.",
+          "moveSourceError": "No se pudo mover esta programación. Actualiza la tarea e inténtalo de nuevo."
         },
         "files": "Archivos",
         "assignee": "Responsable"
@@ -1952,7 +1963,7 @@
           "operationConflict": "Este guardado ya se envió con otros datos. Vuelve a abrir la programación e inténtalo de nuevo.",
           "activeSeries": "Esta tarea se ejecuta según una programación. Cambia o elimina primero su programación.",
           "unknownCount": "No pudimos comprobar qué próximas ejecuciones cancelaría una nueva regla. Recarga la página, vuelve a abrir la programación e inténtalo de nuevo.",
-          "occurrenceLocked": "Esta repetición ya no se puede mover.",
+          "occurrenceLocked": "Esta repetición ya no se puede cambiar.",
           "occurrenceTargetInvalid": "Esa hora no es un destino válido."
         },
         "occurrenceMove": {
@@ -1963,6 +1974,15 @@
           "cancel": "Cancelar",
           "invalid": "Elige una fecha y una hora válidas.",
           "error": "No se pudo mover esta repetición. Inténtalo de nuevo."
+        },
+        "occurrenceRestore": {
+          "title": "Restaurar repetición",
+          "description": "Restaura esta ejecución a su hora original o elige otra hora futura.",
+          "label": "Hora restaurada",
+          "confirm": "Restaurar repetición",
+          "cancel": "Cancelar",
+          "invalid": "Elige una fecha y una hora válidas.",
+          "error": "No se pudo restaurar esta repetición. Inténtalo de nuevo."
         },
         "option": {
           "oneTime": "One-time",
@@ -2708,7 +2728,7 @@
           "totalCount": "{count, plural, one {# usuario} other {# usuarios}}",
           "empty": "No se encontraron usuarios.",
           "user": "Usuario",
-          "credits": "Créditos",
+          "credits": "Créditos personales",
           "subscription": "Suscripción",
           "startedTasks": "Tareas iniciadas",
           "registered": "Registrado",
@@ -2743,8 +2763,8 @@
             "enterprisePool": "Pool enterprise: {credits} créditos"
           },
           "credits": {
-            "title": "Créditos totales",
-            "description": "Créditos disponibles combinados para esta organización.",
+            "title": "Créditos de la organización",
+            "description": "Créditos disponibles en el fondo de la organización, incluidos los extras y el fondo del contrato enterprise si existe.",
             "perMember": "Los créditos se muestran por miembro a continuación."
           },
           "members": {
@@ -6147,8 +6167,12 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
+        "accessibleNameSkipped": "{task}, {source}, omitida",
         "editSchedule": "Editar programación",
         "moveOccurrence": "Mover repetición",
+        "skipOccurrence": "Omitir repetición",
+        "restoreOccurrence": "Restaurar repetición",
+        "mutationError": "No se pudo cambiar esta repetición. Inténtalo de nuevo.",
         "openTask": "Abrir tarea"
       },
       "create": {

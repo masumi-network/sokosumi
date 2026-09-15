@@ -6,6 +6,7 @@ import type { JobSummary } from "@/lib/clients/generated/core";
 import { JobType, SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
+  useTimeZone: () => "UTC",
   useLocale: () => "en",
   useTranslations: () => (_key: string) => "",
 }));
