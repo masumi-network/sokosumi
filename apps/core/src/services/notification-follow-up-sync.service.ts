@@ -78,11 +78,11 @@ export interface SendFollowUpsResult {
    * Follow-ups this run actually wrote.
    *
    * Lower than `examined` without anything being wrong. A source row stays
-   * unread after its follow-up, so a later run reads it again and the write is
-   * refused as a duplicate. Readers who silenced the category are skipped
-   * before the write too. How much of the gap is either of those, against how
-   * much is failed writes, is not something this says: the failures are the
-   * ones in Sentry.
+   * unread after its follow-up, so while it remains in the window a later run
+   * reads it again and the write is refused as a duplicate. Readers who
+   * silenced the category are skipped before the write too. How much of the
+   * gap is either of those, against how much is failed writes, is not
+   * something this says: the failures are the ones in Sentry.
    */
   sent: number;
   /**
@@ -181,8 +181,11 @@ function toFollowUpInput(
  * uniqueness the notification table already enforces is what stops the second,
  * and this needs no record of its own that a run happened.
  *
- * A write that throws costs that one reminder and nothing else. The run carries
- * on, and the next hour finds the row again inside the window.
+ * A write that throws costs that one reminder and nothing else: the run carries
+ * on through the rest. Whether the next run finds that row again depends on
+ * where in the window it sits, and the run reaches the half that will not
+ * survive first, so a failed write is more often a lost reminder than a
+ * retried one. Sentry is told about each.
  */
 export async function sendFollowUps(
   options: SendFollowUpsOptions = {},
@@ -216,7 +219,17 @@ export async function sendFollowUps(
         isRead: false,
         inApp: true,
         messageKey: { in: [...FOLLOW_UP_SOURCE_MESSAGE_KEYS] },
-        createdAt: { gt: windowOpened, lte: waitedUntil },
+        createdAt: {
+          // The first page opens at the window. Every later one opens at the
+          // instant the last page ended on, so the one index this reads by is
+          // `createdAt` and it can start there rather than at the window and
+          // walk over the rows already handled. The paging clause below still
+          // does the deciding; this only says where to start looking.
+          ...(after === undefined
+            ? { gt: windowOpened }
+            : { gte: after.createdAt }),
+          lte: waitedUntil,
+        },
         // Where the last page ended, said as a plain filter rather than
         // Prisma's `cursor`. A follow-up leaves its source row unread, so the
         // next page cannot be "whatever still matches" and has to continue

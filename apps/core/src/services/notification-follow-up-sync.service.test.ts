@@ -573,9 +573,13 @@ describe("NotificationFollowUpSyncService", () => {
   it("says nothing about a message the reader only opted into", async () => {
     seed([row({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY })]);
 
-    await notificationFollowUpSyncService.sendFollowUps({ now });
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
+    // Never read, rather than read and then dropped. The query names the keys
+    // it wants, and a run that read every unread row in the window and sorted
+    // them out afterwards would say nothing here either.
+    expect(result.examined).toBe(0);
   });
 
   it("says nothing about an outcome that waits on nobody", async () => {
@@ -591,9 +595,10 @@ describe("NotificationFollowUpSyncService", () => {
       }),
     ]);
 
-    await notificationFollowUpSyncService.sendFollowUps({ now });
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
+    expect(result.examined).toBe(0);
   });
 
   /** One reminder, ever. The run may repeat; the reminder may not. */
@@ -611,9 +616,10 @@ describe("NotificationFollowUpSyncService", () => {
   it("never reminds a reader of a reminder", async () => {
     seed([row({ messageKey: CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY })]);
 
-    await notificationFollowUpSyncService.sendFollowUps({ now });
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
+    expect(result.examined).toBe(0);
   });
 
   /**
