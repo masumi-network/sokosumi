@@ -5,7 +5,7 @@ import SokosumiWorkspace
 import SwiftUI
 
 #if os(macOS)
-  /// One native inspector shared by room search and pins.
+  /// One native inspector shared by room search, pins and threads.
   struct RoomToolsModifier: ViewModifier {
     let roomId: String
     let jump: (String) async throws -> Bool
@@ -14,6 +14,7 @@ import SwiftUI
     @StateObject private var search = RoomSearch()
     @State private var showsSearch = false
     @State private var showsPins = false
+    @State private var showsThreads = false
     @State private var query = ""
     @State private var selectedId: String?
     @State private var jumpingId: String?
@@ -37,14 +38,14 @@ import SwiftUI
     func body(content: Content) -> some View {
       content
         .toolbar { roomToolbar }
-        .inspector(isPresented: Binding(get: { showsPins || showsSearch }, set: {
-          if !$0 {
-            showsPins = false
-            closeSearch()
-          }
-        })) {
+        .inspector(isPresented: inspectorPresented) {
           Group {
-            if showsSearch {
+            if showsThreads {
+              RoomThreadOverviewView(overview: workspaces.threadOverview, open: {
+                workspaces.openThread($0, auth: auth)
+              }, older: { updateThreads(.older) }, markAllRead: { updateThreads(.markAllRead) },
+              retry: { updateThreads(.load) }, close: { showsThreads = false })
+            } else if showsSearch {
               RoomSearchResultsView(search: search, query: query, selectedId: $selectedId,
                                     jumpingId: jumpingId, jumpError: jumpError,
                                     select: select, retry: { retry += 1 }, close: closeSearch)
@@ -53,6 +54,17 @@ import SwiftUI
             }
           }
           .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
+        }
+        .task(id: scope + [String(showsThreads), workspaces.thread.parent?.id ?? ""]) {
+          guard showsThreads, workspaces.thread.parent == nil else { return }
+          await workspaces.updateThreadOverview(.load, roomId: roomId, auth: auth)
+        }
+        .task(id: scope + [String(workspaces.threadAttentionRevision), String(showsThreads), workspaces.thread.parent?.id ?? ""]) {
+          do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+          await workspaces.updateThreadOverview(.count, roomId: roomId, auth: auth)
+        }
+        .task(id: scope + [String(showsThreads)]) {
+          await workspaces.updateThreadOverview(.displayPreference, roomId: roomId, auth: auth)
         }
         .task(id: request) {
           jumpError = nil
@@ -67,10 +79,23 @@ import SwiftUI
         .onChange(of: scope) { _, _ in
           closeSearch()
           showsPins = false
+          showsThreads = false
           query = ""
           jumpingId = nil
           jumpError = nil
         }
+    }
+
+    private var inspectorPresented: Binding<Bool> {
+      Binding(get: { (showsPins || showsSearch || showsThreads) && workspaces.thread.parent == nil }, set: {
+        if !$0 {
+          showsPins = false
+          if workspaces.thread.parent == nil {
+            showsThreads = false
+          }
+          closeSearch()
+        }
+      })
     }
 
     @ToolbarContentBuilder
@@ -83,6 +108,7 @@ import SwiftUI
             } else {
               showsSearch = true
               showsPins = false
+              showsThreads = false
             }
           }
           .keyboardShortcut("f", modifiers: .command)
@@ -93,14 +119,40 @@ import SwiftUI
           }
         }
       }
+      ToolbarItem {
+        Button {
+          showsThreads.toggle()
+          showsPins = false
+          closeSearch()
+        } label: {
+          HStack(spacing: 4) {
+            Image(systemName: "bubble.left.and.bubble.right")
+            if workspaces.threadOverview.unreadCount > 0 {
+              if workspaces.threadOverview.showsUnreadCount {
+                Text(workspaces.threadOverview.unreadCount > 99 ? "99+" : String(workspaces.threadOverview.unreadCount))
+                  .font(.caption).monospacedDigit()
+              } else {
+                Circle().fill(Color.accentColor).frame(width: 6, height: 6)
+              }
+            }
+          }
+        }
+        .help("Threads")
+        .accessibilityLabel("Threads, \(workspaces.threadOverview.unreadCount) unread")
+      }
       if room?.kind == .channel {
         ToolbarItem {
           Button("Pinned messages", systemImage: "pin") {
             showsPins.toggle()
+            showsThreads = false
             closeSearch()
           }.help("Pinned messages")
         }
       }
+    }
+
+    private func updateThreads(_ action: WorkspaceState.ThreadOverviewAction) {
+      Task { await workspaces.updateThreadOverview(action, roomId: roomId, auth: auth) }
     }
 
     private func closeSearch() {
