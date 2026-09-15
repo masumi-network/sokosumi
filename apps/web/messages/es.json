@@ -2726,8 +2726,19 @@
           "subscription": "Suscripción",
           "startedTasks": "Tareas iniciadas",
           "registered": "Registrado",
+          "actions": "Acciones",
           "loadMore": "Cargar más",
           "loadError": "No se pudieron cargar los usuarios."
+        },
+        "Impersonate": {
+          "trigger": "Suplantar usuario",
+          "title": "Suplantar usuario",
+          "description": "Actuarás como {name} ({email}) con acceso total a su cuenta, incluida la escritura. La sesión caduca al cabo de una hora.",
+          "reasonLabel": "Motivo",
+          "reasonPlaceholder": "SOK-123: por qué necesitas acceso",
+          "cancel": "Cancelar",
+          "start": "Iniciar suplantación",
+          "startError": "No se pudo iniciar la suplantación."
         }
       },
       "Organizations": {
@@ -4891,6 +4902,11 @@
         },
         "button": "Abrir facturación"
       }
+    },
+    "Impersonation": {
+      "banner": "Actuando como {name} ({email})",
+      "exit": "Salir",
+      "stopError": "No se pudo detener la suplantación."
     },
     "DesignMd": {
       "adHocDialogTitle": "Usar una marca diferente",

@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
-
+import impersonationRouter from "./admin/impersonation/index.js";
 import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
@@ -119,6 +119,10 @@ app.doc31("/openapi.json", {
 
 // Mount Routes
 app.route("/admin", adminRouter);
+// Impersonation mounts beside the admin router, not inside it: stop must
+// accept the impersonated (non-admin) caller, and start must answer 409
+// before the admin guard would 403. Both handlers guard themselves.
+app.route("/admin/impersonation", impersonationRouter);
 app.route("/agents", agentsRouter);
 app.route("/categories", categoriesRouter);
 app.route("/chats", chatsRouter);

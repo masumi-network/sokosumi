@@ -34,6 +34,10 @@ vi.mock("@/lib/actions/admin-users/action", () => ({
   listAdminUsersAction: vi.fn(),
 }));
 
+vi.mock("@/lib/actions/admin-impersonation/action", () => ({
+  startImpersonationAction: vi.fn(),
+}));
+
 function createUser(
   overrides: Partial<AdminUserOverviewItem> = {},
 ): AdminUserOverviewItem {
@@ -64,5 +68,27 @@ describe("UserList credits", () => {
 
     expect(screen.getByText("2,807")).toBeInTheDocument();
     expect(screen.queryByText("2,807.025")).not.toBeInTheDocument();
+  });
+});
+
+describe("UserList impersonation", () => {
+  it("renders one Impersonate action per row", () => {
+    render(
+      <UserList
+        initialPage={{
+          users: [
+            createUser({ id: "user-1" }),
+            createUser({ id: "user-2", email: "bob@example.com" }),
+          ],
+          total: 2,
+          nextCursor: null,
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("columnheader", { name: "actions" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "trigger" })).toHaveLength(2);
   });
 });

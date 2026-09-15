@@ -6914,6 +6914,28 @@ export const PatchVendorRequestSchema = {
     }
 } as const;
 
+export const StartImpersonationBodySchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'ID of the non-admin user to impersonate',
+            example: 'user_123'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            description: 'Why this impersonation is started (Linear-id convention, e.g. SOK-123: reproduce). Stored in the audit log.',
+            example: 'SOK-123: reproduce reported bug'
+        }
+    },
+    required: [
+        'userId',
+        'reason'
+    ]
+} as const;
+
 export const AgentListItemSchema = {
     oneOf: [
         {

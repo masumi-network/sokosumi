@@ -14,6 +14,7 @@ vi.mock("@/config/env.js", () => ({
 }));
 
 vi.mock("./admin/index.js", () => ({ default: new Hono() }));
+vi.mock("./admin/impersonation/index.js", () => ({ default: new Hono() }));
 vi.mock("./agents/index.js", () => ({ default: new Hono() }));
 vi.mock("./categories/index.js", () => ({ default: new Hono() }));
 vi.mock("./chats/index.js", () => ({ default: new Hono() }));

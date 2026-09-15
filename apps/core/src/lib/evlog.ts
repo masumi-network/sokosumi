@@ -152,6 +152,40 @@ export function recordCoreRequestError(error: Error) {
   tryUseLogger()?.error(error);
 }
 
+export interface ImpersonationAuditInput {
+  /** Platform admin performing the impersonation. */
+  adminId: string;
+  /** Non-admin user being impersonated. */
+  targetUserId: string;
+  /** Start reason (Linear-id convention). Start only — stops carry none. */
+  reason?: string;
+}
+
+function auditImpersonation(
+  action: "impersonation.start" | "impersonation.stop",
+  input: ImpersonationAuditInput,
+) {
+  tryUseLogger()?.audit({
+    action,
+    actor: { type: "user", id: input.adminId },
+    target: { type: "user", id: input.targetUserId },
+    ...(input.reason ? { reason: input.reason } : {}),
+    outcome: "success",
+  });
+}
+
+/** Audit trail for an impersonation start (actor, target, reason). */
+export function auditImpersonationStart(
+  input: ImpersonationAuditInput & { reason: string },
+) {
+  auditImpersonation("impersonation.start", input);
+}
+
+/** Audit trail for an impersonation stop (actor, target). */
+export function auditImpersonationStop(input: ImpersonationAuditInput) {
+  auditImpersonation("impersonation.stop", input);
+}
+
 export function tryUseLogger() {
   try {
     return useLogger();

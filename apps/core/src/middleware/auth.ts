@@ -26,6 +26,12 @@ export interface UserAuthenticationContext {
   role: string;
   /** Credential class used to authenticate this request. */
   authenticationMethod?: "session" | "api_key" | "oauth";
+  /**
+   * Admin user id when this session impersonates another user (Better Auth
+   * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
+   * effective (target) user.
+   */
+  impersonatedBy?: string;
 }
 
 /**
@@ -724,6 +730,9 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       organizationId: session.activeOrganizationId ?? null,
       role: user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "session",
+      ...(session.impersonatedBy
+        ? { impersonatedBy: session.impersonatedBy }
+        : {}),
     },
   });
   return await next();

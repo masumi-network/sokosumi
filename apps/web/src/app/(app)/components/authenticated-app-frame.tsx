@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
+import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
@@ -118,6 +119,13 @@ export default async function AuthenticatedAppFrame({
                           className="flex min-w-0 flex-1 flex-col overflow-clip"
                           data-app-content-inner
                         >
+                          <ImpersonationBanner
+                            name={session.user.name}
+                            email={session.user.email}
+                            impersonatedBy={
+                              session.session.impersonatedBy ?? null
+                            }
+                          />
                           <Header
                             // Horizontal pad only on md: vertical py would fight the
                             // shared h-16 hairline with SidebarHeader.

@@ -7,6 +7,8 @@ import {
   postTasksScheduled as corePostTasksScheduled,
   putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
   putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
+  startAdminImpersonation as coreStartAdminImpersonation,
+  stopAdminImpersonation as coreStopAdminImpersonation,
   type PostTasksScheduledResponse,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
@@ -22,6 +24,8 @@ vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
     postTasksScheduled: vi.fn(),
     putTasksByIdCalendarSchedule: vi.fn(),
     putTasksByIdCalendarSource: vi.fn(),
+    startAdminImpersonation: vi.fn(),
+    stopAdminImpersonation: vi.fn(),
   };
 });
 
@@ -197,5 +201,64 @@ describe("createCoreClient scheduled tasks", () => {
     );
     expect(result.data.createdAt).toEqual(new Date("2026-08-20T09:00:00.000Z"));
     expect(result.data.nextRunAt).toEqual(new Date("2026-08-21T09:00:00.000Z"));
+  });
+});
+
+describe("createCoreClient impersonation", () => {
+  it("starts an impersonation and keeps the response for cookie reads", async () => {
+    const response = new Response(null, { status: 201 });
+    response.headers.append("set-cookie", "session_token=abc; Path=/");
+    vi.mocked(coreStartAdminImpersonation).mockResolvedValue({
+      data: {
+        data: { id: "user_target", name: "T", email: "t@example.com" },
+        meta: { timestamp: new Date(), requestId: "req_1" },
+      },
+      response,
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    const result = await core.startAdminImpersonation({
+      userId: "user_target",
+      reason: "SOK-1: x",
+    });
+
+    expect(coreStartAdminImpersonation).toHaveBeenCalledWith({
+      client: {},
+      body: { userId: "user_target", reason: "SOK-1: x" },
+      cache: "no-store",
+    });
+    expect(result.data.data).toEqual({
+      id: "user_target",
+      name: "T",
+      email: "t@example.com",
+    });
+    expect(result.response).toBe(response);
+  });
+
+  it("stops an impersonation and keeps the response for cookie reads", async () => {
+    const response = new Response(null, { status: 200 });
+    vi.mocked(coreStopAdminImpersonation).mockResolvedValue({
+      data: {
+        data: { id: "user_admin", name: "A", email: "a@example.com" },
+        meta: { timestamp: new Date(), requestId: "req_1" },
+      },
+      response,
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    const result = await core.stopAdminImpersonation();
+
+    expect(coreStopAdminImpersonation).toHaveBeenCalledWith({
+      client: {},
+      cache: "no-store",
+    });
+    expect(result.data.data).toEqual({
+      id: "user_admin",
+      name: "A",
+      email: "a@example.com",
+    });
+    expect(result.response).toBe(response);
   });
 });

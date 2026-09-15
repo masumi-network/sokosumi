@@ -1810,6 +1810,17 @@ export type PatchVendorRequest = {
     logos?: VendorLogosInput;
 };
 
+export type StartImpersonationBody = {
+    /**
+     * ID of the non-admin user to impersonate
+     */
+    userId: string;
+    /**
+     * Why this impersonation is started (Linear-id convention, e.g. SOK-123: reproduce). Stored in the audit log.
+     */
+    reason: string;
+};
+
 export type AgentListItem = CardanoAgentListItem | X402Agent;
 
 export type CardanoAgentListItem = Agent & {
@@ -11244,6 +11255,227 @@ export type PatchAdminVendorResponses = {
 };
 
 export type PatchAdminVendorResponse = PatchAdminVendorResponses[keyof PatchAdminVendorResponses];
+
+export type StopAdminImpersonationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/impersonation';
+};
+
+export type StopAdminImpersonationErrors = {
+    /**
+     * Bad Request - not currently impersonating
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StopAdminImpersonationError = StopAdminImpersonationErrors[keyof StopAdminImpersonationErrors];
+
+export type StopAdminImpersonationResponses = {
+    /**
+     * The restored admin user
+     */
+    200: {
+        data: AdminUserOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StopAdminImpersonationResponse = StopAdminImpersonationResponses[keyof StopAdminImpersonationResponses];
+
+export type StartAdminImpersonationData = {
+    body?: StartImpersonationBody;
+    path?: never;
+    query?: never;
+    url: '/admin/impersonation';
+};
+
+export type StartAdminImpersonationErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - admin access required or target is an admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - target user does not exist
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - already impersonating a user
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartAdminImpersonationError = StartAdminImpersonationErrors[keyof StartAdminImpersonationErrors];
+
+export type StartAdminImpersonationResponses = {
+    /**
+     * The user now being impersonated
+     */
+    201: {
+        data: AdminUserOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartAdminImpersonationResponse = StartAdminImpersonationResponses[keyof StartAdminImpersonationResponses];
 
 export type GetAgentsData = {
     body?: never;
