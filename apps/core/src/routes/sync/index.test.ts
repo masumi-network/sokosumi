@@ -194,7 +194,11 @@ describe("sync routes", () => {
     });
     syncStripeCustomersMock.mockResolvedValue(undefined);
     expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 0 });
-    sendFollowUpsMock.mockResolvedValue({ examined: 0, sent: 0 });
+    sendFollowUpsMock.mockResolvedValue({
+      examined: 0,
+      sent: 0,
+      completed: true,
+    });
     syncDueTaskSchedulesMock.mockResolvedValue({
       promoted: 0,
       cloned: 0,

@@ -156,7 +156,7 @@ function isAfter(one: StoredNotification, clause: AfterClause): boolean {
   if ("id" in clause) {
     return (
       one.createdAt.getTime() === clause.createdAt.getTime() &&
-      one.id > clause.id.gt
+      compareIds(one.id, clause.id.gt) > 0
     );
   }
 
@@ -523,7 +523,8 @@ describe("NotificationFollowUpSyncService", () => {
 
   /**
    * A room counts its messages onto one unread row, so the reminder is about
-   * the room rather than about each message in it.
+   * the room rather than about each message in it. The count is one of the
+   * words the reminder says, so it has to survive the copy.
    */
   it("reminds a reader once about a room, however many messages it holds", async () => {
     seed([
@@ -535,6 +536,11 @@ describe("NotificationFollowUpSyncService", () => {
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toHaveLength(1);
+    expect(firstFollowUpInput()).toEqual(
+      expect.objectContaining({
+        messageParams: { authorName: "Ada", count: 12, roomName: "Design" },
+      }),
+    );
   });
 
   it("writes nothing when the reader turned reminders off", async () => {
