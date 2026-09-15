@@ -38,6 +38,13 @@ export function HeaderNotificationBell() {
     notice?.tone,
   );
 
+  // Reading a row is the reader's move, not the panel's. Closing the bell
+  // writes nothing: each row carries its own mark read control, and the
+  // header still offers mark all as read.
+  function closeBell() {
+    setIsOpen(false);
+  }
+
   const ariaLabel =
     unreadCount > 0 && hasAccountNotice
       ? t("unreadBadgeWithAccountNotice", { count: unreadCount })
@@ -104,12 +111,17 @@ export function HeaderNotificationBell() {
             {t("notifications")}
           </TooltipContent>
         </Tooltip>
+        {/* One width, whatever the unread count is. The panel used to narrow
+            the moment the count reached zero, and now that each row carries
+            its own mark read control the reader watches that happen under
+            their cursor. The cap keeps that one width inside a narrow
+            viewport, where 24rem is wider than the screen. */}
         <DropdownMenuContent
-          className={cn("w-96", unreadCount === 0 && "w-80")}
+          className="w-96 max-w-(--radix-dropdown-menu-content-available-width)"
           align="end"
         >
           <NotificationDropdownContent
-            onClose={() => setIsOpen(false)}
+            onClose={closeBell}
             onClearAll={() => setIsClearDialogOpen(true)}
           />
         </DropdownMenuContent>
