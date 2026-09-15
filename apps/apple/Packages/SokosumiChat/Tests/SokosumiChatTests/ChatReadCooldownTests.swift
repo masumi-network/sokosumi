@@ -34,6 +34,19 @@ struct ChatReadCooldownTests {
     #expect(ChatReadCooldown.validDelay(value) == nil)
   }
 
+  @Test(arguments: [1.0, 60, 300])
+  func jitterLengthensTheWholeWait(delay: Double) async throws {
+    let clock = CooldownTestClock()
+    let cooldown = ChatReadCooldown(now: { clock.now }, sleep: { duration in
+      #expect(duration <= .seconds(60))
+      clock.advance(duration)
+    }, jitter: { 0.25 })
+    try await cooldown.wait(scope: 0, currentScope: { 0 })
+    await cooldown.note(delay: delay, scope: 0)
+    try await cooldown.wait(scope: 0, currentScope: { 0 })
+    #expect(clock.elapsed == delay * 1.25)
+  }
+
   @Test func sharedDeadlineOnlyExtendsAndUsesFallback() async throws {
     let clock = CooldownTestClock()
     let cooldown = clock.cooldown()

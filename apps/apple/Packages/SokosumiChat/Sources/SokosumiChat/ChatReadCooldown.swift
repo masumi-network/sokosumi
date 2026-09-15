@@ -35,12 +35,15 @@ public actor ChatReadCooldown {
     }
     while deadline > now() {
       let remaining = deadline.timeIntervalSince(now())
-      // Chunk very large server delays so Duration conversion cannot overflow.
-      // Recheck the deadline after every sleep: another reader may extend it.
-      let seconds = min(remaining, 60) * (1 + jitter())
-      try await sleep(.seconds(seconds))
-      try Task.checkCancellation()
-      guard await currentScope() == expected else { throw CancellationError() }
+      // Jitter the whole window once; chunking must not consume that spread.
+      let resumeAt = now().addingTimeInterval(remaining * (1 + jitter()))
+      while resumeAt > now() {
+        // Bound Duration conversion even for very large server delays.
+        try await sleep(.seconds(min(resumeAt.timeIntervalSince(now()), 60)))
+        try Task.checkCancellation()
+        guard await currentScope() == expected else { throw CancellationError() }
+      }
+      // Another reader may have extended the shared deadline while we slept.
     }
     try Task.checkCancellation()
   }

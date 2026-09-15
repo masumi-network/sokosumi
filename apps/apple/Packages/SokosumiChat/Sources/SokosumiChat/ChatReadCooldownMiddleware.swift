@@ -6,6 +6,12 @@ import OpenAPIRuntime
 /// Waiting happens before bearer-token resolution so delayed reads use a fresh
 /// token. Never retries the failed response or delays writes/stream delivery.
 public struct ChatReadCooldownMiddleware: ClientMiddleware {
+  private static let reads: Set<String> = [
+    "get/chats/rooms", "get/chats/rooms/{id}/messages",
+    "get/chats/rooms/{id}/threads/{parentMessageId}/messages",
+    "get/chats/rooms/{id}/messages/{messageId}", "get/chats/rooms/{id}/pinned-messages"
+  ]
+
   private let cooldown: ChatReadCooldown
   private let currentScope: @Sendable () async -> Int
 
@@ -21,12 +27,7 @@ public struct ChatReadCooldownMiddleware: ClientMiddleware {
     operationID: String,
     next: @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)
   ) async throws -> (HTTPResponse, HTTPBody?) {
-    let reads: Set = [
-      "get/chats/rooms", "get/chats/rooms/{id}/messages",
-      "get/chats/rooms/{id}/threads/{parentMessageId}/messages",
-      "get/chats/rooms/{id}/messages/{messageId}", "get/chats/rooms/{id}/pinned-messages"
-    ]
-    guard request.method == .get, reads.contains(operationID) else {
+    guard request.method == .get, Self.reads.contains(operationID) else {
       return try await next(request, body, baseURL)
     }
     let scope = await currentScope()
