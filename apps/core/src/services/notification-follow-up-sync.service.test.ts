@@ -45,6 +45,10 @@ const WAITING = new Date("2026-09-14T11:00:00.000Z");
 const TOO_YOUNG = new Date("2026-09-15T06:00:00.000Z");
 /** A day old before this run's window opened. */
 const TOO_OLD = new Date("2026-09-14T09:00:00.000Z");
+/** A day old to the millisecond: the youngest a reminder is due for. */
+const JUST_A_DAY = new Date("2026-09-14T12:00:00.000Z");
+/** The instant the window opens on, which the window itself excludes. */
+const WINDOW_EDGE = new Date("2026-09-14T10:00:00.000Z");
 
 interface StoredNotification {
   id: string;
@@ -95,6 +99,32 @@ function row(overrides: RowOverrides = {}): StoredNotification {
   };
 }
 
+/** The bounds a date range can carry, as Prisma spells them. */
+type RangeClause = Partial<{ gt: Date; gte: Date; lt: Date; lte: Date }>;
+
+/**
+ * Whether one date satisfies every bound its clause carries.
+ *
+ * All four operators are modelled, so swapping one for its neighbour changes
+ * which rows come back instead of dropping the bound. Modelling only the two
+ * the service writes would make `gt` and `gte` indistinguishable here, and the
+ * tests that name the window's edges would pass either way.
+ */
+function withinRange(value: Date, clause: RangeClause | undefined): boolean {
+  if (clause === undefined) {
+    return true;
+  }
+
+  const at = value.getTime();
+
+  return (
+    (clause.gt === undefined || at > clause.gt.getTime()) &&
+    (clause.gte === undefined || at >= clause.gte.getTime()) &&
+    (clause.lt === undefined || at < clause.lt.getTime()) &&
+    (clause.lte === undefined || at <= clause.lte.getTime())
+  );
+}
+
 /** One term of the service's `orderBy`, in the order it lists them. */
 type OrderByClause = { createdAt: "asc" | "desc" } | { id: "asc" | "desc" };
 
@@ -137,10 +167,17 @@ function compareBy(
   return stored.indexOf(b) - stored.indexOf(a);
 }
 
-/** One branch of the service's "after this row" paging filter. */
+/**
+ * One branch of the service's "after this row" paging filter.
+ *
+ * `gt` is optional although the service always writes it. Optional, a service
+ * that wrote any other operator leaves this branch with no bound at all, and
+ * the branch then matches nothing and every paging test fails. Required, the
+ * same change would not compile here and the fake would be edited to suit it.
+ */
 type AfterClause =
-  | { createdAt: Partial<{ gt: Date; lt: Date }> }
-  | { createdAt: Date; id: Partial<{ gt: string; lt: string }> };
+  | { createdAt: Partial<{ gt: Date }> }
+  | { createdAt: Date; id: Partial<{ gt: string }> };
 
 /**
  * Two ids, in the one order this fake uses.
@@ -160,56 +197,23 @@ function compareIds(a: string, b: string): number {
 /**
  * Whether a stored row satisfies one branch of the paging filter.
  *
- * The operator is read off the branch rather than assumed to be `gt`. Assuming
- * it would let the service page backwards and still be served the rows it
- * would have got by paging forwards, so the one direction this filter has
- * would go untested.
+ * A branch whose bound is missing matches nothing. That is what an operator
+ * this fake does not model has to do: every row then falls outside the page
+ * and the paging tests fail, rather than the fake quietly serving the rows
+ * the service would have got from the operator it no longer writes.
  */
 function isAfter(one: StoredNotification, clause: AfterClause): boolean {
   if ("id" in clause) {
-    if (one.createdAt.getTime() !== clause.createdAt.getTime()) {
-      return false;
-    }
-
-    return compare(
-      clause.id.gt === undefined ? undefined : compareIds(one.id, clause.id.gt),
-      clause.id.lt,
-      (bound: string) => compareIds(one.id, bound),
+    return (
+      one.createdAt.getTime() === clause.createdAt.getTime() &&
+      clause.id.gt !== undefined &&
+      compareIds(one.id, clause.id.gt) > 0
     );
   }
 
-  return compare(
-    clause.createdAt.gt === undefined
-      ? undefined
-      : one.createdAt.getTime() - clause.createdAt.gt.getTime(),
-    clause.createdAt.lt,
-    (bound: Date) => one.createdAt.getTime() - bound.getTime(),
+  return (
+    clause.createdAt.gt !== undefined && one.createdAt > clause.createdAt.gt
   );
-}
-
-/**
- * One comparison against whichever bound the branch carries.
- *
- * `greater` is the row's position against a `gt` bound, already worked out,
- * or undefined when the branch has no `gt`. `lessBound` is a `lt` bound when
- * the branch carries one. A branch with neither matches nothing, which is
- * what an operator this fake does not model should do: fail loudly rather
- * than pass every row.
- */
-function compare<T>(
-  greater: number | undefined,
-  lessBound: T | undefined,
-  against: (bound: T) => number,
-): boolean {
-  if (greater !== undefined) {
-    return greater > 0;
-  }
-
-  if (lessBound !== undefined) {
-    return against(lessBound) < 0;
-  }
-
-  return false;
 }
 
 /**
@@ -250,7 +254,7 @@ function seed(stored: readonly StoredNotification[]) {
   notificationFindManyMock.mockImplementation(
     async (query: {
       where: Partial<{
-        createdAt: Partial<{ gt: Date; lte: Date }>;
+        createdAt: RangeClause;
         inApp: boolean;
         isRead: boolean;
         messageKey: { in: string[] };
@@ -276,10 +280,7 @@ function seed(stored: readonly StoredNotification[]) {
             (where.inApp === undefined || one.inApp === where.inApp) &&
             (where.messageKey === undefined ||
               where.messageKey.in.includes(one.messageKey)) &&
-            (where.createdAt?.gt === undefined ||
-              one.createdAt > where.createdAt.gt) &&
-            (where.createdAt?.lte === undefined ||
-              one.createdAt <= where.createdAt.lte) &&
+            withinRange(one.createdAt, where.createdAt) &&
             (where.OR === undefined ||
               where.OR.some((clause) => isAfter(one, clause))),
         )
@@ -484,7 +485,10 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(written).toEqual([]);
-    expect(result.sent).toBe(0);
+    // The row was considered and the run was cut off, so it is counted and
+    // the run says it did not finish. Reporting this one as finished would
+    // hide the case the flag exists for.
+    expect(result).toEqual({ examined: 1, sent: 0, completed: false });
   });
 
   /**
@@ -508,6 +512,31 @@ describe("NotificationFollowUpSyncService", () => {
 
   it("waits a full day before reminding anyone", async () => {
     seed([row({ createdAt: TOO_YOUNG })]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toEqual([]);
+  });
+
+  /**
+   * Exactly a day old. The wait is "a day", not "more than a day", so the
+   * instant it comes due is inside the window and not the moment after.
+   */
+  it("reminds a reader the moment the day is up", async () => {
+    seed([row({ createdAt: JUST_A_DAY })]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toHaveLength(1);
+  });
+
+  /**
+   * Exactly at the far edge. The window is open at that instant rather than
+   * closed on it, so this row belonged to the previous run and is not read
+   * again here.
+   */
+  it("leaves a notification sitting on the window's far edge alone", async () => {
+    seed([row({ createdAt: WINDOW_EDGE })]);
 
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
