@@ -21,8 +21,9 @@ const requireAdmin = createMiddleware(async (c, next) => {
   await next();
 });
 
-// Note: ./impersonation is mounted from the v1 router, not here — its
-// handlers need bespoke guard ordering (see the mount comment there).
+// Note: ./impersonation is mounted from the v1 router *before* this
+// router — `use("*")` flattens to `/admin/*` on the parent and would
+// 403 stop otherwise. See the mount comment in ../index.ts.
 
 const app = new OpenAPIHonoWithAuth();
 

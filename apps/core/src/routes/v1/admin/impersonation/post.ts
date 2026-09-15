@@ -5,11 +5,13 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
-import { auditImpersonationStart } from "@/lib/evlog";
+import { auditImpersonationDenied, auditImpersonationStart } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   hasAdminRole,
-  requireAdminAuthContext,
+  isCoworkerAuthContext,
+  isSokoBotAuthContext,
+  requireInteractiveAdminAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -68,13 +70,50 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Conflict before the admin check: an impersonated caller holds the
     // target's non-admin role, so the admin guard alone would answer 403 and
     // the "already impersonating" state would never surface as 409.
-    const caller = requireUserAuthContext(c.var.authContext);
+    let caller;
+    try {
+      caller = requireUserAuthContext(c.var.authContext);
+    } catch (error) {
+      const actorId = isCoworkerAuthContext(c.var.authContext)
+        ? c.var.authContext.coworkerId
+        : isSokoBotAuthContext(c.var.authContext)
+          ? c.var.authContext.sokoBotId
+          : "unknown";
+      auditImpersonationDenied({
+        action: "impersonation.start",
+        actorId,
+        denial:
+          error instanceof Error
+            ? error.message
+            : "User authentication required",
+      });
+      throw error;
+    }
     if (caller.impersonatedBy) {
+      auditImpersonationDenied({
+        action: "impersonation.start",
+        actorId: caller.impersonatedBy,
+        targetUserId: caller.userId,
+        denial: "Already impersonating a user",
+      });
       throw conflict(
         "Already impersonating a user. Stop the current impersonation first.",
       );
     }
-    const admin = requireAdminAuthContext(c.var.authContext);
+    let admin;
+    try {
+      admin = requireInteractiveAdminAuthContext(c.var.authContext);
+    } catch (error) {
+      auditImpersonationDenied({
+        action: "impersonation.start",
+        actorId: caller.userId,
+        denial:
+          error instanceof Error
+            ? error.message
+            : "Interactive admin session required",
+      });
+      throw error;
+    }
 
     const { userId, reason } = c.req.valid("json");
 
@@ -83,9 +122,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       select: { id: true, name: true, email: true, role: true },
     });
     if (!target) {
+      auditImpersonationDenied({
+        action: "impersonation.start",
+        actorId: admin.userId,
+        targetUserId: userId,
+        denial: "User not found",
+      });
       throw notFound("User not found");
     }
     if (hasAdminRole(target.role)) {
+      auditImpersonationDenied({
+        action: "impersonation.start",
+        actorId: admin.userId,
+        targetUserId: target.id,
+        denial: "Admin users cannot be impersonated",
+      });
       throw forbidden("Admin users cannot be impersonated");
     }
 

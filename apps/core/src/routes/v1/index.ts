@@ -118,11 +118,13 @@ app.doc31("/openapi.json", {
 });
 
 // Mount Routes
-app.route("/admin", adminRouter);
-// Impersonation mounts beside the admin router, not inside it: stop must
-// accept the impersonated (non-admin) caller, and start must answer 409
-// before the admin guard would 403. Both handlers guard themselves.
+// Impersonation MUST be registered before `/admin`. Hono flattens
+// `admin.use("*", requireAdmin)` onto the parent as `/admin/*`, which also
+// matches `/admin/impersonation`. Stop runs as the impersonated (non-admin)
+// caller; start must answer 409 rather than the admin guard's 403. Both
+// handlers still guard themselves. Do not reverse these two `route` calls.
 app.route("/admin/impersonation", impersonationRouter);
+app.route("/admin", adminRouter);
 app.route("/agents", agentsRouter);
 app.route("/categories", categoriesRouter);
 app.route("/chats", chatsRouter);

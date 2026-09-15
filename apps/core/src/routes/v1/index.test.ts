@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -101,5 +103,19 @@ describe("v1 router", () => {
     };
     expect(body.servers).toEqual([{ url: "/v1" }]);
     expect(body.paths?.["/share/{token}"]?.get?.security).toEqual([]);
+  });
+
+  it("registers impersonation before the admin router", () => {
+    const src = readFileSync(
+      fileURLToPath(new URL("./index.ts", import.meta.url)),
+      "utf8",
+    );
+    const impersonation = src.indexOf(
+      'app.route("/admin/impersonation", impersonationRouter)',
+    );
+    const admin = src.indexOf('app.route("/admin", adminRouter)');
+    expect(impersonation).toBeGreaterThan(-1);
+    expect(admin).toBeGreaterThan(-1);
+    expect(impersonation).toBeLessThan(admin);
   });
 });

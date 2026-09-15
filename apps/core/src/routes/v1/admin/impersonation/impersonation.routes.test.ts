@@ -1,9 +1,13 @@
 import type { DrainContext } from "evlog";
+import { createMiddleware } from "hono/factory";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler.js";
 import { coreEvlogMiddleware, initCoreLogger } from "@/lib/evlog.js";
 import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
-import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  requireAdminAuthContext,
+} from "@/middleware/auth";
 
 const {
   authContextState,
@@ -59,32 +63,44 @@ const { default: mountStartImpersonation } = await import("./post.js");
 const { default: mountStopImpersonation } = await import("./delete.js");
 
 type AuthContextPreset =
-  | { actor: "user"; userId?: string; role?: string; impersonatedBy?: string }
+  | {
+      actor: "user";
+      userId?: string;
+      role?: string;
+      impersonatedBy?: string;
+      authenticationMethod?: "session" | "api_key" | "oauth";
+    }
   | { actor: "coworker" };
 
 const captured: DrainContext[] = [];
 
-function createApp(
-  mountRoutes: (app: OpenAPIHonoWithAuth) => void,
-  authContext: AuthContextPreset = { actor: "user" },
-) {
+function applyAuthPreset(authContext: AuthContextPreset) {
   if (authContext.actor === "coworker") {
     authContextState.current = {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: "vendor_123",
     };
-  } else {
-    authContextState.current = {
-      actor: "user",
-      userId: authContext.userId ?? "user_admin",
-      organizationId: null,
-      role: authContext.role ?? "admin",
-      ...(authContext.impersonatedBy
-        ? { impersonatedBy: authContext.impersonatedBy }
-        : {}),
-    };
+    return;
   }
+
+  authContextState.current = {
+    actor: "user",
+    userId: authContext.userId ?? "user_admin",
+    organizationId: null,
+    role: authContext.role ?? "admin",
+    authenticationMethod: authContext.authenticationMethod ?? "session",
+    ...(authContext.impersonatedBy
+      ? { impersonatedBy: authContext.impersonatedBy }
+      : {}),
+  };
+}
+
+function createApp(
+  mountRoutes: (app: OpenAPIHonoWithAuth) => void,
+  authContext: AuthContextPreset = { actor: "user" },
+) {
+  applyAuthPreset(authContext);
 
   const app = new OpenAPIHonoWithAuth();
 
@@ -93,6 +109,42 @@ function createApp(
   mountRoutes(app);
 
   return app;
+}
+
+function createComposedApp(
+  authContext: AuthContextPreset = { actor: "user" },
+  impersonationFirst = true,
+) {
+  applyAuthPreset(authContext);
+
+  const parent = new OpenAPIHonoWithAuth();
+  parent.use(coreEvlogMiddleware());
+  parent.onError(errorHandler);
+
+  const admin = new OpenAPIHonoWithAuth();
+  admin.use(
+    "*",
+    createMiddleware(async (c, next) => {
+      requireAdminAuthContext(c.var.authContext);
+      await next();
+    }),
+  );
+  admin.get("/users", (c) => c.json({ ok: true }));
+
+  const impersonation = new OpenAPIHonoWithAuth();
+  mountStartImpersonation(impersonation);
+  mountStopImpersonation(impersonation);
+
+  // Same order as apps/core/src/routes/v1/index.ts (impersonation before admin).
+  if (impersonationFirst) {
+    parent.route("/admin/impersonation", impersonation);
+    parent.route("/admin", admin);
+  } else {
+    parent.route("/admin", admin);
+    parent.route("/admin/impersonation", impersonation);
+  }
+
+  return parent;
 }
 
 function mountBoth(app: OpenAPIHonoWithAuth) {
@@ -229,6 +281,14 @@ describe("POST /v1/admin/impersonation", () => {
     expect(res.status).toBe(409);
     expect(impersonateUserMock).not.toHaveBeenCalled();
     expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(captured[0]?.event).toMatchObject({
+      audit: expect.objectContaining({
+        action: "impersonation.start",
+        actor: { type: "user", id: "user_admin" },
+        target: { type: "user", id: TARGET_USER.id },
+        outcome: "denied",
+      }),
+    });
   });
 
   it("rejects non-admin callers", async () => {
@@ -245,7 +305,39 @@ describe("POST /v1/admin/impersonation", () => {
 
     expect(res.status).toBe(403);
     expect(impersonateUserMock).not.toHaveBeenCalled();
+    expect(captured[0]?.event).toMatchObject({
+      audit: expect.objectContaining({
+        action: "impersonation.start",
+        actor: { type: "user", id: "user_plain" },
+        outcome: "denied",
+      }),
+    });
   });
+
+  it.each(["api_key", "oauth"] as const)(
+    "rejects %s admin credentials",
+    async (authenticationMethod) => {
+      const app = createApp(mountBoth, {
+        actor: "user",
+        authenticationMethod,
+      });
+      const res = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: TARGET_USER.id, reason: "SOK-1: x" }),
+      });
+
+      expect(res.status).toBe(403);
+      expect(impersonateUserMock).not.toHaveBeenCalled();
+      expect(captured[0]?.event).toMatchObject({
+        audit: expect.objectContaining({
+          action: "impersonation.start",
+          actor: { type: "user", id: "user_admin" },
+          outcome: "denied",
+        }),
+      });
+    },
+  );
 
   it("rejects coworker actors", async () => {
     const app = createApp(mountBoth, { actor: "coworker" });
@@ -257,6 +349,13 @@ describe("POST /v1/admin/impersonation", () => {
 
     expect(res.status).toBe(403);
     expect(impersonateUserMock).not.toHaveBeenCalled();
+    expect(captured[0]?.event).toMatchObject({
+      audit: expect.objectContaining({
+        action: "impersonation.start",
+        actor: { type: "user", id: "cow_123" },
+        outcome: "denied",
+      }),
+    });
   });
 
   it("returns 404 when the target user does not exist", async () => {
@@ -271,7 +370,14 @@ describe("POST /v1/admin/impersonation", () => {
 
     expect(res.status).toBe(404);
     expect(impersonateUserMock).not.toHaveBeenCalled();
-    expect(captured[0]?.event).not.toHaveProperty("audit");
+    expect(captured[0]?.event).toMatchObject({
+      audit: expect.objectContaining({
+        action: "impersonation.start",
+        actor: { type: "user", id: "user_admin" },
+        target: { type: "user", id: "user_missing" },
+        outcome: "denied",
+      }),
+    });
   });
 
   it("rejects admin users as targets", async () => {
@@ -290,7 +396,14 @@ describe("POST /v1/admin/impersonation", () => {
 
     expect(res.status).toBe(403);
     expect(impersonateUserMock).not.toHaveBeenCalled();
-    expect(captured[0]?.event).not.toHaveProperty("audit");
+    expect(captured[0]?.event).toMatchObject({
+      audit: expect.objectContaining({
+        action: "impersonation.start",
+        actor: { type: "user", id: "user_admin" },
+        target: { type: "user", id: "user_other_admin" },
+        outcome: "denied",
+      }),
+    });
   });
 
   it("fails loudly when no session cookie comes back", async () => {
@@ -390,12 +503,113 @@ describe("DELETE /v1/admin/impersonation", () => {
 
     expect(res.status).toBe(400);
     expect(stopImpersonatingMock).not.toHaveBeenCalled();
-    expect(captured[0]?.event).not.toHaveProperty("audit");
+    expect(captured[0]?.event).toMatchObject({
+      audit: expect.objectContaining({
+        action: "impersonation.stop",
+        actor: { type: "user", id: "user_plain" },
+        outcome: "denied",
+      }),
+    });
   });
 
   it("rejects stop for coworker actors", async () => {
     const app = createApp(mountBoth, { actor: "coworker" });
     const res = await app.request("/", { method: "DELETE" });
+
+    expect(res.status).toBe(403);
+    expect(stopImpersonatingMock).not.toHaveBeenCalled();
+    expect(captured[0]?.event).toMatchObject({
+      audit: expect.objectContaining({
+        action: "impersonation.stop",
+        actor: { type: "user", id: "cow_123" },
+        outcome: "denied",
+      }),
+    });
+  });
+});
+
+describe("v1 admin + impersonation mount order", () => {
+  const ADMIN_USER = {
+    id: "user_admin",
+    name: "Admin User",
+    email: "admin@example.com",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    captured.length = 0;
+    delete process.env.SENTRY_DSN;
+    initCoreLogger({
+      silent: true,
+      drain: (ctx) => {
+        captured.push(ctx);
+      },
+    });
+
+    stopImpersonatingMock.mockResolvedValue({
+      headers: headersWithCookies(
+        "session_token=admin-restored; Path=/; HttpOnly",
+      ),
+      response: {
+        session: { id: "sess_admin", userId: ADMIN_USER.id },
+        user: ADMIN_USER,
+      },
+    });
+  });
+
+  it("lets an impersonated non-admin stop when impersonation is mounted first", async () => {
+    const app = createComposedApp({
+      actor: "user",
+      userId: TARGET_USER.id,
+      role: "user",
+      impersonatedBy: "user_admin",
+    });
+    const res = await app.request("/admin/impersonation", { method: "DELETE" });
+
+    expect(res.status).toBe(200);
+    expect(stopImpersonatingMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 409 not 403 for nested start on the composed mount", async () => {
+    const app = createComposedApp({
+      actor: "user",
+      userId: TARGET_USER.id,
+      role: "user",
+      impersonatedBy: "user_admin",
+    });
+    const res = await app.request("/admin/impersonation", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: "user_other", reason: "SOK-1: x" }),
+    });
+
+    expect(res.status).toBe(409);
+    expect(impersonateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("still 403s admin child routes for a non-admin", async () => {
+    const app = createComposedApp({
+      actor: "user",
+      userId: TARGET_USER.id,
+      role: "user",
+      impersonatedBy: "user_admin",
+    });
+    const res = await app.request("/admin/users");
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403s stop if admin is mounted first (Hono /admin/* inheritance)", async () => {
+    const app = createComposedApp(
+      {
+        actor: "user",
+        userId: TARGET_USER.id,
+        role: "user",
+        impersonatedBy: "user_admin",
+      },
+      false,
+    );
+    const res = await app.request("/admin/impersonation", { method: "DELETE" });
 
     expect(res.status).toBe(403);
     expect(stopImpersonatingMock).not.toHaveBeenCalled();

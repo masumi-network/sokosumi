@@ -74,6 +74,8 @@ export interface CoreLogAuthIdentity {
   sokoBotId?: string;
   contextUserId?: string;
   contextOrganizationId?: string | null;
+  /** Platform admin id when this request is an impersonated session. */
+  impersonatedBy?: string;
 }
 
 export interface CoreLogWorkspaceIdentity {
@@ -92,6 +94,15 @@ export function attachAuthToLogger(identity: CoreLogAuthIdentity) {
 
   if (identity.userId) {
     log.set({ user: { id: identity.userId } });
+  }
+
+  if (identity.impersonatedBy) {
+    log.set({
+      impersonation: {
+        by: identity.impersonatedBy,
+        target: identity.userId,
+      },
+    });
   }
 
   if (identity.organizationId) {
@@ -184,6 +195,25 @@ export function auditImpersonationStart(
 /** Audit trail for an impersonation stop (actor, target). */
 export function auditImpersonationStop(input: ImpersonationAuditInput) {
   auditImpersonation("impersonation.stop", input);
+}
+
+export interface ImpersonationDenialInput {
+  action: "impersonation.start" | "impersonation.stop";
+  actorId: string;
+  targetUserId?: string;
+  /** Why the attempt was rejected (policy message, not the Linear start reason). */
+  denial: string;
+}
+
+/** Audit trail for a rejected impersonation start or stop. */
+export function auditImpersonationDenied(input: ImpersonationDenialInput) {
+  tryUseLogger()?.audit.deny(input.denial, {
+    action: input.action,
+    actor: { type: "user", id: input.actorId },
+    ...(input.targetUserId
+      ? { target: { type: "user", id: input.targetUserId } }
+      : {}),
+  });
 }
 
 export function tryUseLogger() {

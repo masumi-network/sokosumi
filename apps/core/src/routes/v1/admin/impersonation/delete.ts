@@ -4,9 +4,13 @@ import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { auth } from "@/lib/auth";
-import { auditImpersonationStop } from "@/lib/evlog";
+import { auditImpersonationDenied, auditImpersonationStop } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isSokoBotAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import { adminUserOptionSchema } from "@/schemas/admin.schema";
 
 import { forwardSessionCookies } from "./cookies.js";
@@ -39,9 +43,32 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const caller = requireUserAuthContext(c.var.authContext);
+    let caller;
+    try {
+      caller = requireUserAuthContext(c.var.authContext);
+    } catch (error) {
+      const actorId = isCoworkerAuthContext(c.var.authContext)
+        ? c.var.authContext.coworkerId
+        : isSokoBotAuthContext(c.var.authContext)
+          ? c.var.authContext.sokoBotId
+          : "unknown";
+      auditImpersonationDenied({
+        action: "impersonation.stop",
+        actorId,
+        denial:
+          error instanceof Error
+            ? error.message
+            : "User authentication required",
+      });
+      throw error;
+    }
     const adminId = caller.impersonatedBy;
     if (!adminId) {
+      auditImpersonationDenied({
+        action: "impersonation.stop",
+        actorId: caller.userId,
+        denial: "Not currently impersonating a user",
+      });
       throw badRequest("Not currently impersonating a user");
     }
 

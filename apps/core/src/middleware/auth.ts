@@ -80,10 +80,17 @@ function syncSentryUser(context: AuthVariables) {
   }
 
   if (context.authContext.actor === "user") {
+    const user = context.authContext;
     scope.setUser({
-      id: context.authContext.userId,
-      organizationId: context.authContext.organizationId || undefined,
+      id: user.userId,
+      organizationId: user.organizationId || undefined,
     });
+    if (user.impersonatedBy) {
+      scope.setContext("impersonation", {
+        by: user.impersonatedBy,
+        target: user.userId,
+      });
+    }
     return;
   }
 
@@ -127,6 +134,7 @@ function syncRequestLogger(context: AuthVariables) {
       actor: "user",
       userId: authContext.userId,
       organizationId: authContext.organizationId,
+      impersonatedBy: authContext.impersonatedBy,
     });
     return;
   }
