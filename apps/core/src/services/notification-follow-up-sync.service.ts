@@ -184,6 +184,16 @@ export async function sendFollowUps(
       // reminder reaches nobody and would still be there to explain later.
       const delivery = await resolveDelivery(input);
 
+      // Asked again. The read above is itself an await, so it can be the thing
+      // that crosses the deadline, and the check at the top of the loop
+      // answered for a moment that has passed.
+      if (
+        options.abortSignal?.aborted ||
+        options.shouldContinue?.() === false
+      ) {
+        break;
+      }
+
       if (!delivery.inApp && !delivery.osBanner) {
         continue;
       }

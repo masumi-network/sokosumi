@@ -43,8 +43,6 @@ export function MarkNotificationsRead({
   refetchRef.current = notifications?.refetch;
 
   useEffect(() => {
-    let cancelled = false;
-
     void (async () => {
       try {
         const response =
@@ -55,7 +53,11 @@ export function MarkNotificationsRead({
 
         // Most opens clear nothing, and a refetch costs a request. Only a page
         // that actually read something makes the bell's badge wrong.
-        if (cancelled || response.data.count === 0) {
+        //
+        // Not skipped when this component has gone. The provider outlives it,
+        // so a reader who opens a task and moves on before the write lands
+        // would otherwise keep a badge counting rows that are now read.
+        if (response.data.count === 0) {
           return;
         }
 
@@ -66,10 +68,6 @@ export function MarkNotificationsRead({
         // open tries again.
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [kind, referenceId]);
 
   return null;

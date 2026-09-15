@@ -106,6 +106,35 @@ describe("MarkNotificationsRead", () => {
     });
   });
 
+  /**
+   * The provider outlives this component, so a reader who opens a task and
+   * moves on before the write lands must still get an honest badge. Skipping
+   * the refresh on unmount would leave it counting rows that are now read.
+   */
+  it("refreshes the bell even when the reader has already moved on", async () => {
+    let settle: (value: { data: { count: number } }) => void = () => {};
+    patchReadForReferenceMock.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    );
+
+    const { unmount } = render(
+      <MarkNotificationsRead kind="TASK" referenceId="task-1" />,
+    );
+
+    await waitFor(() => {
+      expect(patchReadForReferenceMock).toHaveBeenCalledTimes(1);
+    });
+
+    unmount();
+    settle({ data: { count: 1 } });
+
+    await waitFor(() => {
+      expect(refetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("marks the new task read when the reader moves to another one", async () => {
     const { rerender } = render(
       <MarkNotificationsRead kind="TASK" referenceId="task-1" />,

@@ -315,6 +315,30 @@ describe("NotificationFollowUpSyncService", () => {
     },
   );
 
+  /**
+   * The loop checks the deadline before it starts a row, then awaits the
+   * reader's preferences. That read can be the thing that crosses the
+   * deadline, so the answer is checked again before anything is written.
+   * Otherwise a run that is already over still starts one more write.
+   */
+  it("writes nothing when the deadline passes while it reads preferences", async () => {
+    seed([row()]);
+
+    let deadlinePassed = false;
+    resolveDeliveryMock.mockImplementation(async () => {
+      deadlinePassed = true;
+      return { inApp: true, osBanner: false };
+    });
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+      shouldContinue: () => !deadlinePassed,
+    });
+
+    expect(written).toEqual([]);
+    expect(result.sent).toBe(0);
+  });
+
   it("waits a full day before reminding anyone", async () => {
     seed([row({ createdAt: TOO_YOUNG })]);
 
@@ -460,13 +484,17 @@ describe("NotificationFollowUpSyncService", () => {
     );
   });
 
+  /**
+   * Said in terms of what the run has done, not of how many times it asks.
+   * Counting the probes would pin the number of checks per row, so adding one
+   * would fail this test without anything about the behaviour having changed.
+   */
   it("stops writing once the run is out of time", async () => {
     seed([row({ id: "notification-1" }), row({ id: "notification-2" })]);
-    let checks = 0;
 
     const result = await notificationFollowUpSyncService.sendFollowUps({
       now,
-      shouldContinue: () => checks++ < 1,
+      shouldContinue: () => written.length < 1,
     });
 
     expect(written).toHaveLength(1);
