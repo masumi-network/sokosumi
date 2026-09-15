@@ -18,6 +18,16 @@ public struct MessageMentions: Hashable, Sendable {
       + room.userMembers.map { Entry(id: $0.id, slug: ComposerMention.slug(for: $0.name), name: $0.name.isEmpty ? $0.email : $0.name, kind: "human") }
   }
 
+  var previewNames: [String: String] {
+    var names = ["all": ComposerMention.allDisplayName]
+    for kind in ["human", "coworker", "sokoBot"] {
+      for entry in entries where entry.kind == kind {
+        names[entry.id] = entry.name
+      }
+    }
+    return names
+  }
+
   public func applying(to text: AttributedString) -> AttributedString {
     let source = String(text.characters)
     guard let expression = try? NSRegularExpression(pattern: "@([^\\s:,.!?;()\\[\\]{}]+)(?::([^\\s]+))?") else { return text }
