@@ -171,7 +171,7 @@ family also exposes `--primary-variant/-tertiary/-quaternary/-quinary` (decreasi
 Black/White + the neutral ramp `#FAFAFA → #0C0C0C` plus a black-alpha ramp
 (`--secondary/-tertiary/-quaternary/-quinary/-senary` and `--alpha-5…95`). Elevated surfaces are
 **lighter** (card `#FAFAFA` on muted `#F5F5F5`), not heavier. Default border = `--border`; the
-base layer applies `border-border` + `outline-ring/50` to all elements.
+base layer applies `border-border` + `outline-ring` to all elements.
 
 ### Category palette (ecosystem)
 
@@ -231,11 +231,11 @@ UI; **sidebar-** set; and `card/popover/border/input/ring/ring-semantic`. Use se
 
 Borders-first, then soft glow — **never** dramatic drop shadows.
 
-- Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border/60`).
+- Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border`).
 - **Soft glow:** subtle shadows for lift (`shadow-sm` → `shadow-md` on hover), echoing the
   brand's "blur & glow." No shadow **token scale** exists — use Tailwind `shadow-*` defaults or
   the two custom utilities (`agent-card-image-shadow`, `agent-modal-card`); keep it subtle.
-- **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-background/50
+- **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
   backdrop-blur-lg`); pairs with the **material** translucent-surface tokens.
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
   modals); `z-10` for local stacking. Don't invent new high values.
@@ -247,7 +247,7 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
   Use `rounded-sm/md/lg/xl` — don't hardcode px radii.
 - **Segmented lines:** a thin line anchors content to the grid and acts as **separator** — used
   to define sections and delineate cards. In-app these are **full-bleed**
-  (`-mx-6 border-t border-border/60`) between major blocks and company groups.
+  (`-mx-6 border-t border-border`) between major blocks and company groups.
 - Avatars are **circular** for people; square source art is shown **whole** (no crop).
 
 ## Components
@@ -258,7 +258,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 - **Button** — 8 variants: `primary` (bg-primary), `default` (bg-secondary, *default*),
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
   `default` (h-9 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-9). Base:
-  `cursor-pointer transition-all disabled:opacity-50`, hover per-variant (`hover:bg-primary/90`),
+  `cursor-pointer transition-all disabled:opacity-50`, hover per-variant (`hover:bg-primary-hover`),
   embedded SVG defaults to `size-4`.
 - **Input** — h-9, `rounded-md border-input bg-transparent`, `text-base md:text-sm`.
 - **Badge** — 4 variants (default/secondary/destructive/outline), `px-2 py-0.5 text-xs rounded-md`,
@@ -266,9 +266,9 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
-  `bg-background/50 backdrop-blur-lg`; built-in close button; open/close = fade + zoom-95.
+  `bg-overlay backdrop-blur-lg`; built-in close button; open/close = fade + zoom-95.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
-  Radix `data-[state=…]` + `focus-visible:ring-ring/50 ring-[3px]`; tabs/list `bg-muted h-9
+  Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-primary text-primary-foreground text-xs`.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
   **hero search** (black `rounded-full` pill); **company group** (header → coworker tiles →
@@ -320,10 +320,11 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 ## Accessibility
 
 - **Focus rings — two conventions.** shadcn primitives: `outline-none focus-visible:border-ring
-  focus-visible:ring-ring/50 focus-visible:ring-[3px]` (+ `aria-invalid:ring-destructive/20
+  focus-visible:ring-ring-halo focus-visible:ring-[3px]` (+ `aria-invalid:ring-destructive-halo
   aria-invalid:border-destructive`). Bespoke clickable cards/chips: `outline-none
-  focus-visible:ring-2 focus-visible:ring-primary/30` (use /30–/40; /50 on the dark hero). Reuse
-  these verbatim; never animate the ring.
+  focus-visible:ring-2 focus-visible:ring-ring`. Reuse these verbatim; never animate the
+  ring, and never fade it with a modifier: `--ring-halo` is the soft wide glow, and it
+  carries its own alpha so the class does not have to.
 - **Decorative icons:** boolean shorthand `aria-hidden` (bare attribute, the dominant style).
 - **Icon-only / unlabeled controls:** `aria-label` (sourced from i18n); search inputs mirror the
   placeholder into `aria-label`; toggles add `aria-pressed`; otherwise pair with
