@@ -782,6 +782,7 @@
       "markAllRead": "Marcar todas como leídas",
       "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
       "delete": "Eliminar notificación: {message}",
+      "markUnread": "Marcar notificación como no leída: {message}",
       "deleteError": "No se pudo eliminar la notificación",
       "clearAll": "Borrar todas",
       "clearAllError": "No se pudieron borrar las notificaciones",

@@ -83,6 +83,12 @@ export type NotificationAction =
       updated: NotificationItem;
     }
   | { type: "mark_read_optimistic"; id: string }
+  | { type: "mark_unread_optimistic"; id: string }
+  | {
+      type: "mark_unread_success";
+      id: string;
+      updated: NotificationItem;
+    }
   | { type: "mark_all_read" }
   | { type: "remove"; id: string }
   | { type: "unread_deleted"; id: string }
@@ -201,6 +207,49 @@ export function notificationReducer(
             : notification,
         ),
         unreadCount: Math.max(0, state.unreadCount - 1),
+      };
+    }
+    case "mark_unread_optimistic": {
+      const existing = state.notifications.find(
+        (notification) => notification.id === action.id,
+      );
+
+      if (!existing || !existing.isRead) {
+        return state;
+      }
+
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.id === action.id
+            ? { ...notification, isRead: false, readAt: null }
+            : notification,
+        ),
+        unreadCount: state.unreadCount + 1,
+      };
+    }
+    case "mark_unread_success": {
+      // Browser-only rows never reach the in-app badge, so a row the feed
+      // excludes must not add to it here either.
+      if (isFeedExcluded(action.updated)) {
+        return state;
+      }
+
+      const existing = state.notifications.find(
+        (notification) => notification.id === action.id,
+      );
+
+      // The optimistic pass already counted it. Only a row this list did not
+      // hold as read still owes the badge a count.
+      const shouldIncrementUnread = existing ? existing.isRead : false;
+
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.id === action.id ? action.updated : notification,
+        ),
+        unreadCount:
+          shouldIncrementUnread && !action.updated.isRead
+            ? state.unreadCount + 1
+            : state.unreadCount,
       };
     }
     case "mark_read_success": {
