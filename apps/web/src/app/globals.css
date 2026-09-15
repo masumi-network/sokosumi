@@ -67,6 +67,7 @@
     --semantic-destructive-quaternary
   );
   --color-semantic-destructive-quinary: var(--semantic-destructive-quinary);
+  --color-semantic-destructive-label: var(--semantic-destructive-label);
   --color-semantic-destructive-foreground: var(
     --semantic-destructive-foreground
   );
@@ -75,12 +76,14 @@
   --color-semantic-warning-tertiary: var(--semantic-warning-tertiary);
   --color-semantic-warning-quaternary: var(--semantic-warning-quaternary);
   --color-semantic-warning-quinary: var(--semantic-warning-quinary);
+  --color-semantic-warning-label: var(--semantic-warning-label);
   --color-semantic-warning-foreground: var(--semantic-warning-foreground);
 
   --color-semantic-success: var(--semantic-success);
   --color-semantic-success-tertiary: var(--semantic-success-tertiary);
   --color-semantic-success-quaternary: var(--semantic-success-quaternary);
   --color-semantic-success-quinary: var(--semantic-success-quinary);
+  --color-semantic-success-label: var(--semantic-success-label);
   --color-semantic-success-foreground: var(--semantic-success-foreground);
 
   --color-presence-offline: var(--presence-offline);
@@ -94,6 +97,9 @@
   --color-status-active-tertiary: var(--status-active-tertiary);
   --color-status-waiting: var(--status-waiting);
   --color-status-waiting-quaternary: var(--status-waiting-quaternary);
+  --color-status-queued-label: var(--status-queued-label);
+  --color-status-active-label: var(--status-active-label);
+  --color-status-waiting-label: var(--status-waiting-label);
   --color-status-done: var(--status-done);
   --color-status-done-quaternary: var(--status-done-quaternary);
   --color-status-done-tertiary: var(--status-done-tertiary);
@@ -314,20 +320,29 @@
      page, the fill red darkens to carry white. One token cannot do both. */
   --semantic-destructive-solid: hsla(0, 74.0%, 42.0%, 1);
   --semantic-destructive-tertiary: hsla(0, 53.6%, 83.8%, 1);
-  --semantic-destructive-quaternary: hsla(0, 53.6%, 89.6%, 1);
+  --semantic-destructive-quaternary: hsla(0, 100.0%, 90.0%, 1);
   --semantic-destructive-quinary: hsla(0, 53.6%, 94.8%, 1);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
+  /* Label step: the marker hue at the lightness that clears 4.5 on the
+     role's own quaternary fill. 12px badge text is normal text, so 3:1
+     (SC 1.4.11, what the marker is tuned to) is not enough. Four dark steps
+     hold the same value as their base, which already clears 4.5 on a dark
+     tint. They stay separate tokens so retuning a glyph cannot move a label
+     under the threshold without the guard seeing it. */
+  --semantic-destructive-label: hsla(0, 95.0%, 38.1%, 1);
 
   --semantic-warning: hsla(35, 92%, 31%, 1);
   --semantic-warning-tertiary: hsla(35, 41.3%, 80.7%, 1);
-  --semantic-warning-quaternary: hsla(35, 41.3%, 87.6%, 1);
+  --semantic-warning-quaternary: hsla(35, 100.0%, 90.0%, 1);
   --semantic-warning-quinary: hsla(35, 41.3%, 93.8%, 1);
+  --semantic-warning-label: hsla(26, 95.0%, 34.9%, 1);
   --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
-  --semantic-success-quaternary: hsla(142, 26.6%, 86.9%, 1);
+  --semantic-success-quaternary: hsla(142, 100.0%, 90.0%, 1);
   --semantic-success-quinary: hsla(142, 26.6%, 93.4%, 1);
+  --semantic-success-label: hsla(142, 95.0%, 25.6%, 1);
   --semantic-success-foreground: hsla(138, 76%, 97%, 1);
 
   /* Online and afk now come straight from --semantic-success and
@@ -361,9 +376,12 @@
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
   --status-active-tertiary: hsla(186, 41.2%, 81.5%, 1);
-  --status-queued-quaternary: hsla(212, 30.9%, 88.5%, 1);
-  --status-active-quaternary: hsla(186, 41.2%, 88.1%, 1);
-  --status-waiting-quaternary: hsla(238, 40.0%, 89.2%, 1);
+  --status-queued-quaternary: hsla(212, 100.0%, 90.0%, 1);
+  --status-active-quaternary: hsla(186, 100.0%, 90.0%, 1);
+  --status-waiting-quaternary: hsla(238, 100.0%, 90.0%, 1);
+  --status-queued-label: hsla(212, 95.0%, 40.0%, 1);
+  --status-active-label: hsla(186, 95.0%, 26.8%, 1);
+  --status-waiting-label: hsla(238, 95.0%, 58.0%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 90.1%, 1);
   --status-ready: hsla(217, 91.0%, 47.0%, 1);
   --status-ready-quaternary: hsla(217, 80.7%, 94.8%, 1);
@@ -382,8 +400,14 @@
 
      The tint step is -quaternary, not -quinary. Every quinary step measures
      between 1.13 and 1.21:1 against the light page, so the badge had no
-     visible edge at all. -quaternary raises the alpha and reaches 1.24 to
-     1.50:1 in light and 1.33 to 2.18:1 in dark. */
+     visible edge at all. -quaternary raises the alpha and reaches 1.25 to
+     1.50:1 in light and 1.33 to 2.18:1 in dark.
+
+     The six role tints the status badge paints are the exception: they run
+     1.11 to 1.52:1 in light, below that floor, because they trade luminance
+     for hue. They sit at OKLab dE 6.6 to 15.1 from the page, so the edge is
+     carried by colour rather than by lightness, and the label on top still
+     clears 4.5:1. A grey at that luminance would be invisible. */
 }
 
 .dark {
@@ -443,17 +467,20 @@
   --semantic-destructive-quaternary: hsla(0, 47.1%, 18.6%, 1);
   --semantic-destructive-quinary: hsla(0, 39.7%, 11.8%, 1);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
+  --semantic-destructive-label: hsla(0, 84.0%, 66.0%, 1);
 
   --semantic-warning: hsla(43, 96%, 56%, 1);
   --semantic-warning-tertiary: hsla(43, 68.1%, 24.8%, 1);
   --semantic-warning-quaternary: hsla(43, 62.7%, 17.5%, 1);
   --semantic-warning-quinary: hsla(43, 52.4%, 11.3%, 1);
+  --semantic-warning-label: hsla(43, 96.0%, 56.0%, 1);
   --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
 
   --semantic-success: hsla(142, 71%, 45%, 1);
   --semantic-success-tertiary: hsla(142, 62.6%, 20.4%, 1);
   --semantic-success-quaternary: hsla(142, 56.7%, 14.7%, 1);
   --semantic-success-quinary: hsla(142, 45.9%, 9.7%, 1);
+  --semantic-success-label: hsla(142, 71.0%, 45.0%, 1);
   --semantic-success-foreground: hsla(0, 0%, 4%, 1);
 
   /* Measured against the dark ground: 5.61. */
@@ -475,6 +502,9 @@
   --status-queued-quaternary: hsla(212, 35.0%, 21.2%, 1);
   --status-active-quaternary: hsla(186, 35.0%, 21.2%, 1);
   --status-waiting-quaternary: hsla(238, 35.0%, 21.2%, 1);
+  --status-queued-label: hsla(212, 95.0%, 70.0%, 1);
+  --status-active-label: hsla(186, 95.0%, 70.0%, 1);
+  --status-waiting-label: hsla(238, 95.0%, 75.0%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 19.6%, 1);
   --status-ready: hsla(213, 94.0%, 68.0%, 1);
   --status-ready-quaternary: hsla(213, 35.8%, 16.8%, 1);

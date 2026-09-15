@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -14,6 +17,56 @@ import {
 import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const ROLES = Object.keys(STATUS_ROLE_STYLES) as StatusRole[];
+
+const GLOBALS_CSS = readFileSync(
+  join(process.cwd(), "src/app/globals.css"),
+  "utf8",
+);
+
+function block(selector: string): string {
+  const start = GLOBALS_CSS.indexOf(selector);
+  return GLOBALS_CSS.slice(start, GLOBALS_CSS.indexOf("\n}", start));
+}
+
+const THEMES = {
+  light: block(":root {"),
+  dark: block(".dark {"),
+} as const;
+const BRIDGES = block("@theme inline {");
+
+/** The token a colour utility reads, e.g. `bg-status-queued` -> `status-queued`. */
+function tokenOf(utility: string): string {
+  return utility.replace(/^(bg|text)-/, "");
+}
+
+function declaredValue(theme: string, token: string): string {
+  const match = theme.match(
+    new RegExp(`--${token}:\\s*hsla\\(([^)]*)\\)`),
+  );
+  if (!match) throw new Error(`--${token} is not declared in this theme`);
+  return match[1];
+}
+
+/** sRGB relative luminance, WCAG 2.1 definition. */
+function luminance(hsla: string): number {
+  const [h, s, l] = hsla
+    .split(",")
+    .slice(0, 3)
+    .map((part) => Number.parseFloat(part));
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+  const channel = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const c = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(0) + 0.7152 * channel(8) + 0.0722 * channel(4);
+}
+
+function contrast(theme: string, a: string, b: string): number {
+  const [x, y] = [luminance(declaredValue(theme, a)), luminance(declaredValue(theme, b))];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
 
 describe("status role styles", () => {
   /**
@@ -42,6 +95,68 @@ describe("status role styles", () => {
 
     expect(onSurface).toBe(dot.replace("bg-", "text-"));
     expect(onSurface).not.toMatch(/-foreground$/);
+  });
+
+  /**
+   * The marker token is tuned to 3:1, which is all WCAG 2.2 SC 1.4.11 asks of
+   * a glyph. The badge label is 12px text and needs 4.5:1 on the same fill, so
+   * every tinted role reads its label from a dedicated `-label` step. Reusing
+   * the marker token here looks right and fails contrast on several roles, so
+   * the pairing is pinned instead of left to review.
+   */
+  it.each(ROLES)("gives %s a label colour matched to its fill", (role) => {
+    const { bg, text, marker } = STATUS_ROLE_STYLES[role];
+
+    if (!bg.endsWith("-quaternary")) {
+      // A solid fill carries its own foreground.
+      expect(text).toMatch(/-foreground$/);
+      return;
+    }
+
+    expect(text).toBe(
+      bg === "bg-quaternary" ? "text-foreground" : `${marker}-label`,
+    );
+  });
+
+  /**
+   * A colour token becomes a utility only through a `--color-*` bridge in
+   * `@theme inline`. Without one the class emits no CSS at all, the badge
+   * silently inherits, and every string-comparing test stays green. Six label
+   * tokens arrived with this seam, so the seam is pinned here.
+   */
+  it.each(ROLES)("bridges every token %s paints with", (role) => {
+    const { bg, text, marker } = STATUS_ROLE_STYLES[role];
+
+    for (const token of [bg, text, marker].map(tokenOf)) {
+      // The formatter wraps the longer bridges across lines.
+      const bridge = new RegExp(
+        `--color-${token}:\\s*var\\(\\s*--${token},?\\s*\\)`,
+      );
+
+      expect(bridge.test(BRIDGES), `--color-${token} has no bridge`).toBe(true);
+      expect(() => declaredValue(THEMES.light, token)).not.toThrow();
+      expect(() => declaredValue(THEMES.dark, token)).not.toThrow();
+    }
+  });
+
+  /**
+   * The reason the label reads from its own step rather than from the marker.
+   * Badge text is `text-xs`, so it is normal text and WCAG 2.2 SC 1.4.3 asks
+   * 4.5:1; the glyph is a non-text graphic and SC 1.4.11 asks 3:1. The
+   * numbers are measured from the stylesheet, so retuning a hue and forgetting
+   * its label fails here instead of shipping.
+   */
+  it.each(ROLES)("keeps %s legible on its own fill in both themes", (role) => {
+    const { bg, text, marker } = STATUS_ROLE_STYLES[role];
+
+    for (const theme of [THEMES.light, THEMES.dark]) {
+      expect(contrast(theme, tokenOf(bg), tokenOf(text))).toBeGreaterThanOrEqual(
+        4.5,
+      );
+      expect(
+        contrast(theme, tokenOf(bg), tokenOf(marker)),
+      ).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it("paints the failure dot with the solid fill, not its label", () => {
