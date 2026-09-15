@@ -10,10 +10,10 @@ import {
   CirclePause,
   CirclePlay,
   CircleQuestionMark,
-  CircleSlash2,
   CircleUserRound,
   CircleX,
   type LucideIcon,
+  OctagonAlert,
 } from "lucide-react";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
@@ -125,8 +125,8 @@ const STATUS_ICONS: Record<TaskStatus, LucideIcon> = {
   [TaskStatus.RUNNING]: CirclePlay,
   [TaskStatus.AWAITING_EXTERNAL]: CircleEllipsis,
   [TaskStatus.COMPLETED]: CircleCheck,
-  [TaskStatus.FAILED]: CircleX,
-  [TaskStatus.CANCELED]: CircleSlash2,
+  [TaskStatus.FAILED]: OctagonAlert,
+  [TaskStatus.CANCELED]: CircleX,
 };
 
 export function getTaskStatusIcon(status: TaskStatus): LucideIcon {
