@@ -46,6 +46,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const include = buildTaskIncludeForViewer(authContext, workspaceId);
     const task = await requireTaskReadForRouteVars(c.var, id, prisma, include);
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    return ok(c, taskSchema.parse(mapTask(task, authContext)));
   });
 }

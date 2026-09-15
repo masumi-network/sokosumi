@@ -1,4 +1,20 @@
-import { CircleAlert } from "lucide-react";
+import {
+  Circle,
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
+  CircleDollarSign,
+  CircleDotDashed,
+  CircleEllipsis,
+  CircleFadingPlus,
+  CirclePause,
+  CirclePlay,
+  CircleQuestionMark,
+  CircleSlash2,
+  CircleUserRound,
+  CircleX,
+  type LucideIcon,
+} from "lucide-react";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
@@ -94,6 +110,28 @@ const STATUS_PILL_STYLES: Partial<
     dot: "bg-muted-foreground",
   },
 };
+
+/** One glyph per status so the picker and badges can be read without color. */
+const STATUS_ICONS: Record<TaskStatus, LucideIcon> = {
+  [TaskStatus.DRAFT]: CircleDashed,
+  [TaskStatus.QUEUED]: CircleDotDashed,
+  [TaskStatus.READY]: Circle,
+  [TaskStatus.GRANT_PENDING]: CirclePause,
+  [TaskStatus.INPUT_REQUIRED]: CircleQuestionMark,
+  [TaskStatus.APPROVAL_REQUIRED]: CircleAlert,
+  [TaskStatus.AUTHENTICATION_REQUIRED]: CircleUserRound,
+  [TaskStatus.OUT_OF_CREDITS]: CircleDollarSign,
+  [TaskStatus.CREDITS_TOPPED_UP]: CircleFadingPlus,
+  [TaskStatus.RUNNING]: CirclePlay,
+  [TaskStatus.AWAITING_EXTERNAL]: CircleEllipsis,
+  [TaskStatus.COMPLETED]: CircleCheck,
+  [TaskStatus.FAILED]: CircleX,
+  [TaskStatus.CANCELED]: CircleSlash2,
+};
+
+export function getTaskStatusIcon(status: TaskStatus): LucideIcon {
+  return STATUS_ICONS[status];
+}
 
 export function getTaskStatusPillTone(status: TaskStatus): {
   bg: string;

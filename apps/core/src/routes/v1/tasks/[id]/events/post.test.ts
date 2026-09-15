@@ -618,6 +618,34 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
+  it.each([TaskStatus.INPUT_REQUIRED, TaskStatus.APPROVAL_REQUIRED])(
+    "rejects %s from a user even when a coworker is assigned",
+    async (status) => {
+      const tx: TransactionMock = {
+        taskEvent: { create: vi.fn() },
+        task: { updateMany: vi.fn() },
+      };
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+
+      expect(response.status).toBe(422);
+      expect(tx.taskEvent.create).not.toHaveBeenCalled();
+      expect(tx.task.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
   it("auto-sets OUT_OF_CREDITS when COMPLETED credits are insufficient", async () => {
     const createdEvent = createTaskEvent({
       status: TaskStatus.OUT_OF_CREDITS,
