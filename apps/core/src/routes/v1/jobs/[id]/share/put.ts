@@ -39,6 +39,7 @@ const route = withCoworkerContextHeaderParameters(
     },
     responses: {
       200: jsonSuccessResponse(jobShareSchema, "Create or update a job share"),
+      400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
