@@ -798,6 +798,7 @@
       "markAllRead": "Mark all as read",
       "markAllReadError": "Failed to mark all notifications as read",
       "delete": "Delete notification: {message}",
+      "markUnread": "Mark notification as unread: {message}",
       "deleteError": "Failed to delete notification",
       "clearAll": "Clear all",
       "clearAllError": "Failed to clear notifications",

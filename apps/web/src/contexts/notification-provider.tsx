@@ -64,6 +64,8 @@ interface NotificationContextValue {
   notifications: NotificationItem[];
   unreadCount: number;
   markRead: (id: string) => Promise<void>;
+  /** Put one row back to unread, the reader's way out of a read they did not mean. */
+  markUnread: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   /** Delete one notification for good, in Core and in local feed state. */
   deleteNotification: (
@@ -102,6 +104,7 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   notifications: [],
   unreadCount: 0,
   markRead: noopAsync,
+  markUnread: noopAsync,
   markAllRead: noopAsync,
   deleteNotification: noopAsync,
   clearNotifications: noopAsync,
@@ -385,6 +388,30 @@ export function NotificationProvider({
     [dispatch, fetchNotifications],
   );
 
+  const markUnread = useCallback(
+    async (id: string) => {
+      // Optimistic, like the read path, so the row and the badge answer the
+      // click before the round-trip.
+      dispatch({ type: "mark_unread_optimistic", id });
+
+      try {
+        const response =
+          await notificationsBrowserClient.patchNotificationUnread({ id });
+
+        dispatch({
+          type: "mark_unread_success",
+          id,
+          updated: response.data,
+        });
+      } catch (error) {
+        console.error("Failed to mark notification as unread:", error);
+        void fetchNotifications();
+        throw error;
+      }
+    },
+    [dispatch, fetchNotifications],
+  );
+
   const deleteNotification = useCallback(
     async (id: string, options?: { isRead: boolean }) => {
       if (
@@ -541,6 +568,7 @@ export function NotificationProvider({
     notifications: state.notifications,
     unreadCount: state.unreadCount,
     markRead,
+    markUnread,
     markAllRead,
     deleteNotification,
     clearNotifications,

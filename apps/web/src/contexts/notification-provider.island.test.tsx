@@ -9,6 +9,7 @@ import {
 
 const getNotificationsMock = vi.fn();
 const patchNotificationReadMock = vi.fn();
+const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
 const deleteNotificationMock = vi.fn();
 const deleteNotificationsMock = vi.fn();
@@ -29,6 +30,8 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
       getNotificationsUnreadCountMock(...args),
     patchNotificationRead: (...args: unknown[]) =>
       patchNotificationReadMock(...args),
+    patchNotificationUnread: (...args: unknown[]) =>
+      patchNotificationUnreadMock(...args),
     patchNotificationsReadAll: (...args: unknown[]) =>
       patchNotificationsReadAllMock(...args),
     deleteNotification: (...args: unknown[]) => deleteNotificationMock(...args),
@@ -129,6 +132,7 @@ describe("NotificationProvider island", () => {
   beforeEach(() => {
     getNotificationsMock.mockReset();
     patchNotificationReadMock.mockReset();
+    patchNotificationUnreadMock.mockReset();
     patchNotificationsReadAllMock.mockReset();
     getNotificationsUnreadCountMock.mockReset();
     useNotificationRealtimeMock.mockReset();
@@ -512,6 +516,59 @@ describe("NotificationProvider deleting", () => {
       await Promise.resolve();
     });
   }
+
+  it("puts a read row back and adds it to the bell", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({
+      data: { ...READ_ROW, isRead: false, readAt: null },
+    });
+    await renderLoaded();
+    expect(currentNotifications.unreadCount).toBe(1);
+
+    await act(async () => {
+      await currentNotifications.markUnread("notification-read");
+    });
+
+    expect(patchNotificationUnreadMock).toHaveBeenCalledWith({
+      id: "notification-read",
+    });
+    expect(currentNotifications.unreadCount).toBe(2);
+    expect(
+      currentNotifications.notifications.find(
+        (row) => row.id === "notification-read",
+      )?.isRead,
+    ).toBe(false);
+  });
+
+  it("leaves the bell alone when the row was already unread", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({ data: UNREAD_ROW });
+    await renderLoaded();
+
+    await act(async () => {
+      await currentNotifications.markUnread("notification-unread");
+    });
+
+    expect(currentNotifications.unreadCount).toBe(1);
+  });
+
+  it("refetches when putting a row back fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    await renderLoaded();
+    const fetchCallsBefore = getNotificationsMock.mock.calls.length;
+    patchNotificationUnreadMock.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await expect(
+        currentNotifications.markUnread("notification-read"),
+      ).rejects.toThrow("offline");
+    });
+
+    expect(getNotificationsMock.mock.calls.length).toBeGreaterThan(
+      fetchCallsBefore,
+    );
+    consoleError.mockRestore();
+  });
 
   it("takes a deleted row out of the list and off the bell", async () => {
     await renderLoaded();
