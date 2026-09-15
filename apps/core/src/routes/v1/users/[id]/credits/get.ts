@@ -36,6 +36,8 @@ const route = withCoworkerContextHeaderParameters(
         {
           data: {
             scope: "personal",
+            spendable: 70,
+            enterprise: null,
             subscription: {
               plan: "starter",
               status: "active",

@@ -201,12 +201,18 @@ export function OrganizationDetailPanel({
         </section>
 
         <section className="bg-muted/40 space-y-2 rounded-lg border p-4">
-          <h2 className="font-medium">{t("credits.title")}</h2>
+          <h2 className="font-medium">
+            {detail.billingPlan.mode === "enterprise_contract"
+              ? t("credits.enterpriseTitle")
+              : t("credits.title")}
+          </h2>
           <p className="text-2xl font-semibold tabular-nums">
             {formatter.number(formatCreditsForDisplay(detail.totalCredits))}
           </p>
           <p className="text-muted-foreground text-sm">
-            {t("credits.description")}
+            {detail.billingPlan.mode === "enterprise_contract"
+              ? t("credits.enterpriseDescription")
+              : t("credits.description")}
           </p>
         </section>
       </div>

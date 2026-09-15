@@ -18,16 +18,17 @@ import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
 
-export type SidebarCreditsData = GetUsersByIdCreditsResponse["data"]["credits"];
+export type SidebarCreditsSubscription =
+  GetUsersByIdCreditsResponse["data"]["subscription"];
 
 /**
  * Subscription-period usage only exists once a paid period grants credits; the
  * free plan has no allowance to draw down, so the chip hides the bar entirely.
  */
 export function resolveCreditUsage(
-  creditsData: SidebarCreditsData | null,
+  subscription: SidebarCreditsSubscription | null,
 ): CreditUsage | null {
-  const subscriptionCredits = creditsData?.subscription?.credits ?? null;
+  const subscriptionCredits = subscription?.credits ?? null;
   if (!subscriptionCredits || subscriptionCredits.total <= 0) {
     return null;
   }
@@ -44,7 +45,6 @@ export function resolveCreditUsage(
 }
 
 export interface AccountCreditsChrome {
-  creditsData: SidebarCreditsData | null;
   currentPlan: string;
   planForLabel: string | null;
   buyCreditsPath: string;
@@ -60,13 +60,13 @@ export interface AccountCreditsChrome {
 export function mapAccountCreditsChrome(
   creditsResult: GetUsersByIdCreditsResponse | null,
 ): AccountCreditsChrome {
-  const creditsData = creditsResult?.data.credits ?? null;
-  const currentPlan = creditsData?.subscription?.plan ?? "free";
-  const planForLabel = creditsData === null ? null : currentPlan;
-  const subscriptionPeriodEnd = creditsData?.subscription?.periodEnd ?? null;
+  const payload = creditsResult?.data ?? null;
+  const subscription = payload?.subscription ?? null;
+  const currentPlan = subscription?.plan ?? "free";
+  const planForLabel = payload === null ? null : currentPlan;
+  const subscriptionPeriodEnd = subscription?.periodEnd ?? null;
 
   return {
-    creditsData,
     currentPlan,
     planForLabel,
     buyCreditsPath: resolveLowCreditsBillingPath(currentPlan),
@@ -76,10 +76,10 @@ export function mapAccountCreditsChrome(
     subscriptionPeriodEndMs: subscriptionPeriodEnd
       ? new Date(subscriptionPeriodEnd).getTime()
       : null,
-    totalCredits: creditsData?.total ?? null,
-    extraCredits: creditsResult?.data.extra.credits.remaining ?? null,
-    creditUsage: resolveCreditUsage(creditsData),
-    creditScope: creditsResult?.data.scope ?? null,
+    totalCredits: payload?.spendable ?? null,
+    extraCredits: payload?.extra.credits.remaining ?? null,
+    creditUsage: resolveCreditUsage(subscription),
+    creditScope: payload?.scope ?? null,
   };
 }
 

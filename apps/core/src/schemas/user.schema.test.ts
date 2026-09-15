@@ -25,6 +25,20 @@ describe("userSchema", () => {
 });
 
 describe("creditsResponseSchema", () => {
+  const extraEmpty = {
+    credits: {
+      total: 0,
+      remaining: 0,
+      used: 0,
+    },
+    buckets: [] as Array<{
+      total: number;
+      remaining: number;
+      expiresAt: string | null;
+    }>,
+    enterprise: null,
+  };
+
   it("accepts subscription credits payload with credit buffer", () => {
     const subscription = {
       plan: "starter",
@@ -40,6 +54,8 @@ describe("creditsResponseSchema", () => {
     };
     const result = creditsResponseSchema.parse({
       scope: "personal",
+      spendable: 70,
+      enterprise: null,
       subscription,
       extra: {
         credits: {
@@ -58,6 +74,8 @@ describe("creditsResponseSchema", () => {
     });
 
     expect(result.scope).toBe("personal");
+    expect(result.spendable).toBe(70);
+    expect(result.enterprise).toBeNull();
     expect(result.extra.credits.total).toBe(0);
     expect(result.extra.credits.remaining).toBe(0);
     expect(result.extra.credits.used).toBe(0);
@@ -79,6 +97,8 @@ describe("creditsResponseSchema", () => {
   it("accepts null subscription credits payload with credit buffer", () => {
     const result = creditsResponseSchema.parse({
       scope: "organization",
+      spendable: 20,
+      enterprise: null,
       subscription: null,
       extra: {
         credits: {
@@ -97,6 +117,8 @@ describe("creditsResponseSchema", () => {
     });
 
     expect(result.scope).toBe("organization");
+    expect(result.spendable).toBe(20);
+    expect(result.enterprise).toBeNull();
     expect(result.subscription).toBeNull();
     expect(result.credits.subscription).toBeNull();
     expect(result.credits.buffer).toBe(20);
@@ -107,11 +129,9 @@ describe("creditsResponseSchema", () => {
     expect(() =>
       creditsResponseSchema.parse({
         subscription: null,
-        extra: {
-          credits: { total: 0, remaining: 0, used: 0 },
-          buckets: [],
-          enterprise: null,
-        },
+        spendable: 0,
+        enterprise: null,
+        extra: extraEmpty,
         credits: {
           subscription: null,
           buffer: 0,
@@ -140,6 +160,8 @@ describe("creditsResponseSchema", () => {
     ];
     const result = creditsResponseSchema.parse({
       scope: "personal",
+      spendable: 5,
+      enterprise: null,
       subscription: null,
       extra: {
         credits: {
@@ -170,6 +192,8 @@ describe("creditsResponseSchema", () => {
   it("accepts buckets with only non-expiring entries", () => {
     const result = creditsResponseSchema.parse({
       scope: "personal",
+      spendable: 5,
+      enterprise: null,
       subscription: null,
       extra: {
         credits: {

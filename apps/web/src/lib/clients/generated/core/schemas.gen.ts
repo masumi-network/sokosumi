@@ -12462,7 +12462,8 @@ export const CreditsResponseExtraSchema = {
                 'credits',
                 'buckets'
             ],
-            description: 'Enterprise contract shared pool for assigned members; null when not applicable'
+            deprecated: true,
+            description: 'Deprecated: credits and buckets for the enterprise pool when those buckets exist. Prefer top-level `enterprise`. Null when there are no enterprise pool buckets.'
         }
     },
     required: [

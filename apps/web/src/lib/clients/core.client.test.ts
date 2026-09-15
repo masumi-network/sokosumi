@@ -245,6 +245,8 @@ describe("core.client", () => {
       data: {
         data: {
           scope: "personal",
+          spendable: 42,
+          enterprise: null,
           subscription: null,
           credits: {
             subscription: null,

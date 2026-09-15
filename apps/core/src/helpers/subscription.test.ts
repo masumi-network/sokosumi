@@ -16,11 +16,15 @@ const {
   getLatestSubscriptionByReferenceIdMock,
   listAvailableBucketsWithBalancesMock,
   listEnterprisePoolBucketsWithBalancesMock,
+  resolveOrganizationBillingPlanMock,
+  getEnterpriseContractBillingSummaryMock,
 } = vi.hoisted(() => ({
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   getLatestSubscriptionByReferenceIdMock: vi.fn(),
   listAvailableBucketsWithBalancesMock: vi.fn(),
   listEnterprisePoolBucketsWithBalancesMock: vi.fn(),
+  resolveOrganizationBillingPlanMock: vi.fn(),
+  getEnterpriseContractBillingSummaryMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/user", () => ({
@@ -40,6 +44,21 @@ vi.mock("@sokosumi/database/repositories", () => ({
     listEnterprisePoolBucketsWithBalances: (...args: unknown[]) =>
       listEnterprisePoolBucketsWithBalancesMock(...args),
   },
+}));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    resolveOrganizationBillingPlan: (...args: unknown[]) =>
+      resolveOrganizationBillingPlanMock(...args),
+  };
+});
+
+vi.mock("@/helpers/enterprise-contract-summary", () => ({
+  getEnterpriseContractBillingSummary: (...args: unknown[]) =>
+    getEnterpriseContractBillingSummaryMock(...args),
 }));
 
 function createSubscriptionRecord(
@@ -573,6 +592,14 @@ describe("buildCreditsPayload", () => {
     listEnterprisePoolBucketsWithBalancesMock.mockReset();
     listAvailableBucketsWithBalancesMock.mockResolvedValue([]);
     listEnterprisePoolBucketsWithBalancesMock.mockResolvedValue([]);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "starter",
+      purchasedSeats: 1,
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+    getEnterpriseContractBillingSummaryMock.mockReset();
   });
 
   it("uses the latest active subscription when one exists", async () => {
@@ -614,6 +641,8 @@ describe("buildCreditsPayload", () => {
         }),
       ).resolves.toEqual({
         scope: "personal",
+        spendable: 25,
+        enterprise: null,
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -717,6 +746,8 @@ describe("buildCreditsPayload", () => {
         }),
       ).resolves.toEqual({
         scope: "personal",
+        spendable: 25,
+        enterprise: null,
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -820,6 +851,8 @@ describe("buildCreditsPayload", () => {
         }),
       ).resolves.toEqual({
         scope: "organization",
+        spendable: 10,
+        enterprise: null,
         subscription: null,
         extra: {
           credits: {
@@ -893,6 +926,8 @@ describe("buildCreditsPayload", () => {
       });
 
       expect(payload.scope).toBe("organization");
+      expect(payload.spendable).toBe(100);
+      expect(payload.enterprise).toBeNull();
       expect(payload.extra.enterprise).toEqual({
         credits: {
           total: 50,
@@ -912,5 +947,69 @@ describe("buildCreditsPayload", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("exposes the enterprise contract on the top-level enterprise wallet", async () => {
+    getCreditsMock.mockResolvedValue(100);
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      purchasedSeats: 10,
+      activatedAt: new Date("2026-07-01T00:00:00.000Z"),
+      endsAt: new Date("2027-07-01T00:00:00.000Z"),
+      isConsumable: true,
+    });
+    const activatedAt = new Date("2026-07-01T00:00:00.000Z");
+    const endsAt = new Date("2027-07-01T00:00:00.000Z");
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt,
+      endsAt,
+      currentPeriodEnd: null,
+      isConsumable: true,
+      monthlyCredits: 60_000,
+      nextActivationAt: null,
+      poolRemainingCredits: 30,
+      purchasedSeats: 10,
+    });
+    listEnterprisePoolBucketsWithBalancesMock.mockResolvedValue([
+      {
+        totalCents: convertCreditsToCents(50),
+        remainingCents: convertCreditsToCents(30),
+        expiresAt: null,
+      },
+    ]);
+
+    const { tx } = createTransactionClient();
+    const payload = await buildCreditsPayload({
+      organizationId: "org_1",
+      referenceId: "org_1",
+      tx,
+      userId: "user_1",
+    });
+
+    expect(payload.spendable).toBe(100);
+    expect(payload.enterprise).toEqual({
+      activatedAt,
+      buckets: [
+        {
+          expiresAt: null,
+          remaining: 30,
+          total: 50,
+        },
+      ],
+      credits: {
+        remaining: 30,
+        total: 50,
+        used: 20,
+      },
+      currentPeriodEnd: null,
+      endsAt,
+      isConsumable: true,
+      monthlyCredits: 60_000,
+      nextActivationAt: null,
+      purchasedSeats: 10,
+    });
   });
 });

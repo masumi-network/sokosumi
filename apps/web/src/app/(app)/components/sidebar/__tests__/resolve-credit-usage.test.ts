@@ -2,27 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { StripeSubscriptionStatus } from "@/lib/clients/generated/core";
 
-import type { SidebarCreditsData } from "../index";
+import type { SidebarCreditsSubscription } from "../index";
 import { mapAccountCreditsChrome, resolveCreditUsage } from "../index";
 
-function buildCreditsData(
+function buildSubscription(
   subscriptionCredits: NonNullable<
-    NonNullable<SidebarCreditsData["subscription"]>["credits"]
+    NonNullable<SidebarCreditsSubscription>["credits"]
   > | null = {
     total: 100,
     used: 25,
     remaining: 75,
   },
-): SidebarCreditsData {
+): NonNullable<SidebarCreditsSubscription> {
   return {
-    total: 100,
-    buffer: 0,
-    subscription: {
-      plan: "pro",
-      status: StripeSubscriptionStatus.ACTIVE,
-      periodEnd: null,
-      credits: subscriptionCredits,
-    },
+    plan: "pro",
+    status: StripeSubscriptionStatus.ACTIVE,
+    periodEnd: null,
+    credits: subscriptionCredits,
   };
 }
 
@@ -33,16 +29,18 @@ describe("resolveCreditUsage", () => {
 
   it("returns null when subscription credits total is zero", () => {
     expect(
-      resolveCreditUsage(buildCreditsData({ total: 0, used: 0, remaining: 0 })),
+      resolveCreditUsage(
+        buildSubscription({ total: 0, used: 0, remaining: 0 }),
+      ),
     ).toBeNull();
   });
 
   it("returns null when subscription credits are null", () => {
-    expect(resolveCreditUsage(buildCreditsData(null))).toBeNull();
+    expect(resolveCreditUsage(buildSubscription(null))).toBeNull();
   });
 
   it("maps subscription credits into chip usage", () => {
-    expect(resolveCreditUsage(buildCreditsData())).toEqual({
+    expect(resolveCreditUsage(buildSubscription())).toEqual({
       percentageUsed: 25,
       remaining: 75,
       total: 100,
@@ -54,7 +52,6 @@ describe("resolveCreditUsage", () => {
 describe("mapAccountCreditsChrome", () => {
   it("maps a missing credits fetch to free-plan chrome with no plan label", () => {
     expect(mapAccountCreditsChrome(null)).toEqual({
-      creditsData: null,
       currentPlan: "free",
       planForLabel: null,
       buyCreditsPath: "/billing?tab=subscription",
@@ -70,26 +67,28 @@ describe("mapAccountCreditsChrome", () => {
   it("maps a credits payload into chip fields and timestamps", () => {
     const periodEnd = new Date("2026-09-01T00:00:00.000Z");
     const timestamp = new Date("2026-08-13T12:00:00.000Z");
-    const creditsData = {
-      ...buildCreditsData(),
-      buffer: 99,
-      subscription: {
-        ...buildCreditsData().subscription!,
-        periodEnd,
-      },
+    const subscription = {
+      ...buildSubscription(),
+      periodEnd,
     };
 
     expect(
       mapAccountCreditsChrome({
         data: {
           scope: "organization",
-          subscription: creditsData.subscription,
+          spendable: 100,
+          subscription,
           extra: {
             credits: { total: 10, remaining: 10, used: 0 },
             buckets: [],
             enterprise: null,
           },
-          credits: creditsData,
+          enterprise: null,
+          credits: {
+            buffer: 99,
+            subscription,
+            total: 100,
+          },
         },
         meta: {
           timestamp,
@@ -97,7 +96,6 @@ describe("mapAccountCreditsChrome", () => {
         },
       }),
     ).toEqual({
-      creditsData,
       currentPlan: "pro",
       planForLabel: "pro",
       buyCreditsPath: "/billing?tab=credits",

@@ -2737,8 +2737,10 @@
             "enterprisePool": "Pool enterprise: {credits} créditos"
           },
           "credits": {
-            "title": "Créditos totales",
-            "description": "Créditos disponibles combinados para esta organización.",
+            "title": "Créditos de la organización",
+            "description": "Créditos disponibles en el fondo de la organización, incluida la concesión del periodo actual y los extras.",
+            "enterpriseTitle": "Fondo enterprise",
+            "enterpriseDescription": "Créditos restantes del contrato enterprise de la organización. No incluye créditos extra de la organización.",
             "perMember": "Los créditos se muestran por miembro a continuación."
           },
           "members": {

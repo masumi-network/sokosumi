@@ -68,11 +68,30 @@ const creditsResponseExtraSchema = z
         "Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
     }),
     enterprise: creditsResponseEnterpriseSchema.nullable().openapi({
+      deprecated: true,
       description:
-        "Enterprise contract shared pool for assigned members; null when not applicable",
+        "Deprecated: credits and buckets for the enterprise pool when those buckets exist. Prefer top-level `enterprise`. Null when there are no enterprise pool buckets.",
     }),
   })
   .openapi("CreditsResponseExtra");
+
+const creditsResponseEnterpriseWalletSchema = z.object({
+  activatedAt: dateTimeSchema,
+  endsAt: dateTimeSchema,
+  currentPeriodEnd: dateTimeSchema.nullable(),
+  isConsumable: z.boolean(),
+  monthlyCredits: z.number().nullable(),
+  nextActivationAt: dateTimeSchema.nullable(),
+  purchasedSeats: z.number().int(),
+  credits: creditsResponseExtraCreditsSchema.openapi({
+    description:
+      "Enterprise contract pool rollup (ENTERPRISE_PERIOD and ENTERPRISE_TOP_UP buckets)",
+  }),
+  buckets: z.array(creditBucketBreakdownItemSchema).openapi({
+    description:
+      "Enterprise pool buckets with remaining balance for the assigned member",
+  }),
+});
 
 /** Nested shape mirrored under deprecated `credits` */
 const creditsDeprecatedMirrorSchema = z.object({
@@ -226,6 +245,11 @@ const creditWalletScopeSchema = z.enum(["organization", "personal"]).openapi({
 
 export const creditsResponseSchema = z.object({
   scope: creditWalletScopeSchema,
+  spendable: z.number().openapi({
+    description:
+      "Current available total for this wallet (same value as deprecated `credits.total`)",
+    example: 70,
+  }),
   subscription: subscriptionSchema.nullable().openapi({
     description:
       "Active subscription and period credit breakdown for the billing context",
@@ -234,9 +258,13 @@ export const creditsResponseSchema = z.object({
     description:
       "`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.",
   }),
+  enterprise: creditsResponseEnterpriseWalletSchema.nullable().openapi({
+    description:
+      "Enterprise contract wallet for this organization context; null when the org is not on an enterprise contract",
+  }),
   credits: creditsDeprecatedMirrorSchema.openapi({
     deprecated: true,
     description:
-      "Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).",
+      "Deprecated: prefer `spendable`, top-level `subscription`, and `extra.credits`. `total` equals `spendable`; `buffer` is extra remaining with the enterprise pool stripped.",
   }),
 });

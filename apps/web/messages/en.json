@@ -2915,8 +2915,10 @@
             "enterprisePool": "Enterprise pool: {credits} credits"
           },
           "credits": {
-            "title": "Total credits",
-            "description": "Combined available credits for this organization.",
+            "title": "Organization credits",
+            "description": "Available credits in this organization's pool, including the current period grant and extras.",
+            "enterpriseTitle": "Enterprise pool",
+            "enterpriseDescription": "Remaining credits in the organization enterprise contract. Extra organization credits are not included.",
             "perMember": "Credits are listed per member below."
           },
           "members": {

@@ -1,11 +1,15 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import { creditBucketActivatesAtOrBefore } from "@sokosumi/database/helpers";
+import {
+  creditBucketActivatesAtOrBefore,
+  resolveOrganizationBillingPlan,
+} from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
+import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary";
 import { getCredits } from "@/helpers/user";
 
 interface SubscriptionPeriodRecord {
@@ -265,33 +269,41 @@ export interface CreditsPayload {
   total: number;
 }
 
+interface CreditAmountPayload {
+  remaining: number;
+  total: number;
+  used: number;
+}
+
+interface CreditBucketPayload {
+  expiresAt: Date | null;
+  remaining: number;
+  total: number;
+}
+
 export interface CreditsApiPayload {
   scope: "organization" | "personal";
+  spendable: number;
   subscription: ReturnType<typeof mapSubscription>;
   extra: {
-    credits: {
-      total: number;
-      remaining: number;
-      used: number;
-    };
-    buckets: Array<{
-      total: number;
-      remaining: number;
-      expiresAt: Date | null;
-    }>;
+    credits: CreditAmountPayload;
+    buckets: CreditBucketPayload[];
     enterprise: {
-      credits: {
-        total: number;
-        remaining: number;
-        used: number;
-      };
-      buckets: Array<{
-        total: number;
-        remaining: number;
-        expiresAt: Date | null;
-      }>;
+      credits: CreditAmountPayload;
+      buckets: CreditBucketPayload[];
     } | null;
   };
+  enterprise: {
+    activatedAt: Date;
+    buckets: CreditBucketPayload[];
+    credits: CreditAmountPayload;
+    currentPeriodEnd: Date | null;
+    endsAt: Date;
+    isConsumable: boolean;
+    monthlyCredits: number | null;
+    nextActivationAt: Date | null;
+    purchasedSeats: number;
+  } | null;
   credits: CreditsPayload;
 }
 
@@ -405,6 +417,7 @@ export async function buildCreditsPayload(params: {
 
   return {
     scope: params.organizationId ? "organization" : "personal",
+    spendable: total,
     subscription,
     extra: {
       credits: {
@@ -415,6 +428,48 @@ export async function buildCreditsPayload(params: {
       buckets,
       enterprise,
     },
+    enterprise: await resolveEnterpriseWallet({
+      extraEnterprise: enterprise,
+      organizationId: params.organizationId,
+      tx: params.tx,
+    }),
     credits,
+  };
+}
+
+async function resolveEnterpriseWallet(params: {
+  extraEnterprise: CreditsApiPayload["extra"]["enterprise"];
+  organizationId: string | null;
+  tx: Prisma.TransactionClient;
+}): Promise<CreditsApiPayload["enterprise"]> {
+  if (!params.organizationId) {
+    return null;
+  }
+
+  const billingPlan = await resolveOrganizationBillingPlan(
+    params.organizationId,
+    params.tx,
+  );
+  if (billingPlan.mode !== "enterprise_contract") {
+    return null;
+  }
+
+  const summary = await getEnterpriseContractBillingSummary(
+    billingPlan,
+    params.organizationId,
+    params.tx,
+  );
+  const emptyCredits = { remaining: 0, total: 0, used: 0 };
+
+  return {
+    activatedAt: summary.activatedAt,
+    buckets: params.extraEnterprise?.buckets ?? [],
+    credits: params.extraEnterprise?.credits ?? emptyCredits,
+    currentPeriodEnd: summary.currentPeriodEnd,
+    endsAt: summary.endsAt,
+    isConsumable: summary.isConsumable,
+    monthlyCredits: summary.monthlyCredits,
+    nextActivationAt: summary.nextActivationAt,
+    purchasedSeats: summary.purchasedSeats,
   };
 }

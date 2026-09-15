@@ -2737,8 +2737,10 @@
             "enterprisePool": "Enterprise-Pool: {credits} Credits"
           },
           "credits": {
-            "title": "Guthaben gesamt",
-            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
+            "title": "Organisations-Guthaben",
+            "description": "Verfügbare Credits im Organisations-Pool, inklusive aktueller Perioden-Gutschrift und Extra-Credits.",
+            "enterpriseTitle": "Enterprise-Pool",
+            "enterpriseDescription": "Verbleibende Credits im Enterprise-Vertrag der Organisation. Extra-Credits der Organisation sind nicht enthalten.",
             "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
           },
           "members": {

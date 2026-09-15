@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import { getUsersByIdCreditsResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 
 function buildCreditsResponse(enterprise: unknown) {
   return {
     data: {
       scope: "personal" as const,
+      spendable: 70,
+      enterprise: null as GetUsersByIdCreditsResponse["data"]["enterprise"],
       subscription: {
         plan: "starter",
         status: "active",
@@ -70,6 +73,38 @@ describe("getUsersByIdCreditsResponseTransformer", () => {
     );
 
     expect(result.data.extra.enterprise?.buckets[0]?.expiresAt).toEqual(
+      new Date("2026-09-01T00:00:00.000Z"),
+    );
+  });
+
+  it("transforms top-level enterprise contract dates", async () => {
+    const data = buildCreditsResponse(null);
+    data.data.enterprise = {
+      activatedAt: "2026-07-01T00:00:00.000Z",
+      endsAt: "2027-07-01T00:00:00.000Z",
+      currentPeriodEnd: null,
+      isConsumable: true,
+      monthlyCredits: 60_000,
+      nextActivationAt: null,
+      purchasedSeats: 10,
+      credits: { total: 40, remaining: 30, used: 10 },
+      buckets: [
+        {
+          total: 40,
+          remaining: 30,
+          expiresAt: "2026-09-01T00:00:00.000Z",
+        },
+      ],
+    } as unknown as GetUsersByIdCreditsResponse["data"]["enterprise"];
+
+    const result = await getUsersByIdCreditsResponseTransformer(
+      structuredClone(data),
+    );
+
+    expect(result.data.enterprise?.activatedAt).toEqual(
+      new Date("2026-07-01T00:00:00.000Z"),
+    );
+    expect(result.data.enterprise?.buckets[0]?.expiresAt).toEqual(
       new Date("2026-09-01T00:00:00.000Z"),
     );
   });
