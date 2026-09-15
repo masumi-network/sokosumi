@@ -209,7 +209,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
     expect(taskUpdateMock).toHaveBeenCalledOnce();
   });
 
-  it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
+  it("removes a series for a collaborating coworker agent", async () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
@@ -219,9 +219,14 @@ describe("DELETE /tasks/{id}/schedule", () => {
 
     const response = await app.request(...removalRequest());
 
-    expect(response.status).toBe(403);
-    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
-    expect(serializableTransactionMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(serializableTransactionMock).toHaveBeenCalledOnce();
+    expect(taskEventCreateMock.mock.calls[0][0].data).toMatchObject({
+      userId: null,
+      coworkerId: "cow_123",
+      sokoBotId: null,
+    });
   });
 
   it("requires audited operator removal for a quarantined schedule", async () => {

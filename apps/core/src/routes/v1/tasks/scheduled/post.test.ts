@@ -29,7 +29,6 @@ const {
   resolveTaskNameMock,
   requireAssignedOrganizationSeatMock,
   requireScheduledTaskCreatorMock,
-  requireScheduledTaskCreatorOrRequestGrantMock,
   taskFindUniqueOrThrowMock,
 } = vi.hoisted(() => ({
   createScheduledTaskInTransactionMock: vi.fn(),
@@ -43,7 +42,6 @@ const {
   resolveTaskNameMock: vi.fn(),
   requireAssignedOrganizationSeatMock: vi.fn(),
   requireScheduledTaskCreatorMock: vi.fn(),
-  requireScheduledTaskCreatorOrRequestGrantMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
 }));
 
@@ -81,8 +79,6 @@ vi.mock("@/services/task-schedule-create.service", () => ({
   createScheduledTaskInTransaction: createScheduledTaskInTransactionMock,
   findScheduledTaskCreateOperation: findScheduledTaskCreateOperationMock,
   requireScheduledTaskCreator: requireScheduledTaskCreatorMock,
-  requireScheduledTaskCreatorOrRequestGrant:
-    requireScheduledTaskCreatorOrRequestGrantMock,
 }));
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
@@ -296,9 +292,6 @@ describe("POST /tasks/scheduled", () => {
       callback(transaction),
     );
     requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
-    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
-      buildUserCreator(),
-    );
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -375,9 +368,6 @@ describe("POST /tasks/scheduled", () => {
       callback(transaction),
     );
     requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
-    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
-      buildUserCreator(),
-    );
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -406,10 +396,8 @@ describe("POST /tasks/scheduled", () => {
   });
 
   it("rejects an unauthorized creator before resolving an automatic name", async () => {
-    requireScheduledTaskCreatorOrRequestGrantMock.mockRejectedValue(
-      forbidden("Vendor workspace access is required", {
-        kind: "grant_required",
-      }),
+    requireScheduledTaskCreatorMock.mockRejectedValue(
+      forbidden("Coworker is not allowed to use tasks"),
     );
 
     const response = await createApp().request("http://localhost/scheduled", {
@@ -436,9 +424,6 @@ describe("POST /tasks/scheduled", () => {
 
   it("returns an idempotent replay before resolving an automatic name", async () => {
     requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
-    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
-      buildUserCreator(),
-    );
     findScheduledTaskCreateOperationMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -502,9 +487,6 @@ describe("POST /tasks/scheduled", () => {
       return await callback(transaction);
     });
     requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
-    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
-      buildUserCreator(),
-    );
     findTaskProjectInWorkspaceMock.mockImplementation(
       async (_projectId, _workspaceId, db) => (db ? healedProject : project),
     );
@@ -564,9 +546,6 @@ describe("POST /tasks/scheduled", () => {
       callback(transaction),
     );
     requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
-    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
-      buildUserCreator(),
-    );
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -596,9 +575,6 @@ describe("POST /tasks/scheduled", () => {
       callback(transaction),
     );
     requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
-    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
-      buildUserCreator(),
-    );
     createScheduledTaskInTransactionMock.mockRejectedValue(
       new TaskScheduleOccurrenceLimitError(),
     );

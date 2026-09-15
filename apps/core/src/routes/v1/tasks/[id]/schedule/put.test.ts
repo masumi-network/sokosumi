@@ -433,7 +433,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
+  it("schedules for a collaborating coworker acting with user context", async () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
@@ -450,9 +450,36 @@ describe("PUT /tasks/{id}/schedule", () => {
       }),
     });
 
-    expect(response.status).toBe(403);
-    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(hasAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      expect.anything(),
+    );
+    expect(taskUpdateMock).toHaveBeenCalled();
+  });
+
+  it("schedules for a standalone coworker key without user-scoped gates", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/schedule`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "once",
+        runAt: "2099-01-01T09:00:00.000Z",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(hasAssignedOrganizationSeatMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).toHaveBeenCalled();
   });
 
   it("persists the legacy request as metadata version 1", async () => {
