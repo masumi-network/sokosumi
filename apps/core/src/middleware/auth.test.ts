@@ -16,6 +16,7 @@ const {
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
+  workspaceFindFirstMock,
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
@@ -24,6 +25,7 @@ const {
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
+  workspaceFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
@@ -43,6 +45,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
+    },
+    workspace: {
+      findFirst: workspaceFindFirstMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -69,6 +74,7 @@ describe("authMiddleware", () => {
     vi.clearAllMocks();
 
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
+    workspaceFindFirstMock.mockResolvedValue({ organizationId: "org_123" });
 
     verifyApiKeyMock.mockResolvedValue({
       valid: false,
@@ -141,7 +147,6 @@ describe("authMiddleware", () => {
             deletedAt: true,
             userId: true,
             workspaceId: true,
-            workspace: { select: { organizationId: true } },
             user: {
               select: { role: true, banned: true, banExpires: true },
             },
@@ -168,7 +173,6 @@ describe("authMiddleware", () => {
           deletedAt: null,
           userId: "user_123",
           workspaceId: "01960001-0001-7001-8001-000000000010",
-          workspace: { organizationId: "org_123" },
           user: { role: "user", banned: false, banExpires: null },
         },
       });
@@ -202,7 +206,6 @@ describe("authMiddleware", () => {
         deletedAt: null,
         userId: "user_banned",
         workspaceId: "01960001-0001-7001-8001-000000000010",
-        workspace: { organizationId: "org_123" },
         user: { role: "user", banned: true, banExpires: null },
       },
     });
@@ -231,7 +234,6 @@ describe("authMiddleware", () => {
         deletedAt: null,
         userId: "user_deleted",
         workspaceId: "01960001-0001-7001-8001-000000000010",
-        workspace: { organizationId: "org_123" },
         user: null,
       },
     });
@@ -256,7 +258,6 @@ describe("authMiddleware", () => {
         deletedAt: null,
         userId: "user_ban_expired",
         workspaceId: "01960001-0001-7001-8001-000000000010",
-        workspace: { organizationId: "org_123" },
         user: {
           role: "user",
           banned: true,
@@ -277,6 +278,76 @@ describe("authMiddleware", () => {
       userId: "user_ban_expired",
       workspaceId: "01960001-0001-7001-8001-000000000010",
       organizationId: "org_123",
+    });
+  });
+
+  it("returns 401 for a Soko Bot API key whose owner left the organization", async () => {
+    // Removing the Member row is the whole of an organization exit. The bot,
+    // its key and the workspace context stored on that key all survive it.
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_left",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        user: { role: "user", banned: false, banExpires: null },
+      },
+    });
+    workspaceFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer sokoBot_ownerleft" },
+    });
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe("Invalid or expired agent token");
+    expect(workspaceFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "01960001-0001-7001-8001-000000000010",
+        OR: [
+          { userId: "user_left" },
+          { organization: { members: { some: { userId: "user_left" } } } },
+        ],
+      },
+      select: { organizationId: true },
+    });
+  });
+
+  it("authenticates a Soko Bot API key in the owner's personal workspace", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_personal",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        user: { role: "user", banned: false, banExpires: null },
+      },
+    });
+    workspaceFindFirstMock.mockResolvedValue({ organizationId: null });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer sokoBot_personal" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "sokoBot",
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      userId: "user_personal",
+      workspaceId: "01960001-0001-7001-8001-000000000010",
+      organizationId: null,
     });
   });
 
