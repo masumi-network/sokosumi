@@ -4,12 +4,12 @@ import "server-only";
 import * as z from "zod";
 
 /**
- * Official `@sparticuz/chromium-min` 152 x64 pack for Vercel PDF export.
- * Matches puppeteer / puppeteer-core 25.10.0 Chrome 152.0.7977.75
- * (pack binary is Chromium 152.0.7977.42).
+ * Official `@sparticuz/chromium-min` 153 x64 pack for Vercel PDF export.
+ * Matches puppeteer / puppeteer-core 25.11.0 Chrome 153.0.8010.36
+ * (pack binary is Chromium 153.0.8010.36).
  */
 export const DEFAULT_CHROMIUM_EXECUTABLE_URL =
-  "https://github.com/Sparticuz/chromium/releases/download/v152.0.0/chromium-v152.0.0-pack.x64.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar";
 
 /**
  * Specify your environment variables schema here.
