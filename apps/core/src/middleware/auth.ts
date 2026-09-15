@@ -3,7 +3,7 @@ import { hasCoreApiOAuthScope } from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
-
+import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import {
@@ -452,96 +452,13 @@ async function verifyAgentApiKey(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
-  if (
-    !token.startsWith(COWORKER_API_KEY_PREFIX) &&
-    !isSokoBotApiKeyToken(token)
-  ) {
+  const authContext = await resolveAgentApiKeyAuthContext(token);
+  if (!authContext) {
     return false;
   }
 
-  const keyHash = await hashApiKey(token);
-  const apiKey = await prisma.coworkerApiKey.findUnique({
-    where: {
-      keyHash,
-    },
-    select: {
-      coworkerId: true,
-      sokoBotId: true,
-      revokedAt: true,
-      expiresAt: true,
-      coworker: {
-        select: {
-          archivedAt: true,
-          vendorId: true,
-        },
-      },
-      sokoBot: {
-        select: {
-          archivedAt: true,
-          deletedAt: true,
-          userId: true,
-          workspaceId: true,
-          workspace: { select: { organizationId: true } },
-          user: { select: BEARER_USER_SELECT },
-        },
-      },
-    },
-  });
-
-  if (!apiKey) {
-    return false;
-  }
-
-  if (apiKey.revokedAt) {
-    return false;
-  }
-
-  if (apiKey.expiresAt && apiKey.expiresAt <= new Date()) {
-    return false;
-  }
-
-  if (apiKey.coworkerId && apiKey.coworker) {
-    if (apiKey.coworker.archivedAt) {
-      return false;
-    }
-
-    setAuthContext(c, {
-      isAuthenticated: true,
-      authContext: {
-        actor: "coworker",
-        coworkerId: apiKey.coworkerId,
-        vendorId: apiKey.coworker.vendorId,
-      },
-    });
-    return true;
-  }
-
-  if (
-    apiKey.sokoBotId &&
-    apiKey.sokoBot &&
-    !apiKey.sokoBot.archivedAt &&
-    !apiKey.sokoBot.deletedAt
-  ) {
-    // Banning the owner does not revoke the bot key. requireUserContext then
-    // maps this actor to that owner, so the check has to live here.
-    if (!isActiveUser(apiKey.sokoBot.user)) {
-      return false;
-    }
-
-    setAuthContext(c, {
-      isAuthenticated: true,
-      authContext: {
-        actor: "sokoBot",
-        sokoBotId: apiKey.sokoBotId,
-        userId: apiKey.sokoBot.userId,
-        workspaceId: apiKey.sokoBot.workspaceId,
-        organizationId: apiKey.sokoBot.workspace.organizationId,
-      },
-    });
-    return true;
-  }
-
-  return false;
+  setAuthContext(c, { isAuthenticated: true, authContext });
+  return true;
 }
 
 const hashAccessToken = async (value: string) => {
