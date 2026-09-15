@@ -32,6 +32,7 @@ import SwiftUI
     @State private var olderBoundaryVisible = false
     @State private var visibleMessageID: String?
     @State private var userIsScrolling = false
+    @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var quoteTarget: String?
     @State private var quoteFocusRequest: String?
@@ -58,6 +59,7 @@ import SwiftUI
           olderBoundaryVisible = false
           visibleMessageID = nil
           userIsScrolling = false
+          pendingBottomAlignment = false
         }
         .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
           if preparedTranscript?.input == preparationInput {
@@ -110,17 +112,26 @@ import SwiftUI
             scrollIntent.readOlder()
             proxy.scrollTo(target, anchor: .center)
           }
+          .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest) {
+            guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest else { return }
+            pendingBottomAlignment = false
+            proxy.scrollTo("thread-bottom", anchor: .bottom)
+          }
           .onScrollPhaseChange { _, phase in
             userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
             loadOlderRepliesAutomatically()
           }
           .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
-            if userIsScrolling || (oldEdges.hasSameSize(as: edges) && oldEdges.nearBottom != edges.nearBottom) {
-              scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+            if oldEdges.offsetY != edges.offsetY, userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
+              if scrollIntent.followsLatest != edges.nearBottom {
+                scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+                if !edges.nearBottom {
+                  pendingBottomAlignment = false
+                }
+              }
             } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment {
-              Task { @MainActor in
-                guard scrollIntent.followsLatest, !userIsScrolling else { return }
-                proxy.scrollTo("thread-bottom", anchor: .bottom)
+              if !pendingBottomAlignment {
+                pendingBottomAlignment = true
               }
             }
           }

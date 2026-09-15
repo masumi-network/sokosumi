@@ -15,6 +15,7 @@ import SwiftUI
     @State private var transcriptWasAwayFromTop = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var userIsScrolling = false
+    @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var showsPins = false
     @State private var highlightedId: String?
@@ -120,6 +121,7 @@ import SwiftUI
           scrollPosition = ScrollPosition(idType: String.self)
           transcriptWasAwayFromTop = false
           scrollIntent = TimelineScrollIntent()
+          pendingBottomAlignment = false
         }
     }
 
@@ -267,8 +269,8 @@ import SwiftUI
           guard workspaces.timeline.historicalAnchor == nil, quoteTarget == nil else { return }
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
-        .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
         .scrollPosition($scrollPosition)
+        .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
         .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
@@ -279,6 +281,11 @@ import SwiftUI
           }
           scrollIntent.readOlder()
           scrollPosition.scrollTo(id: target, anchor: .center)
+        }
+        .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest && workspaces.timeline.historicalAnchor == nil) {
+          guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil else { return }
+          pendingBottomAlignment = false
+          proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
@@ -317,26 +324,37 @@ import SwiftUI
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
           if workspaces.timeline.historicalAnchor == nil,
-             userIsScrolling || (oldEdges.hasSameSize(as: edges) && oldEdges.nearBottom != edges.nearBottom) {
-            scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+             oldEdges.offsetY != edges.offsetY,
+             userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
+            if scrollIntent.followsLatest != edges.nearBottom {
+              scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+              if !edges.nearBottom {
+                pendingBottomAlignment = false
+              }
+            }
           } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
-            Task { @MainActor in
-              guard scrollIntent.followsLatest, !userIsScrolling, workspaces.timeline.historicalAnchor == nil else { return }
-              proxy.scrollTo("timeline-bottom", anchor: .bottom)
+            if !pendingBottomAlignment {
+              pendingBottomAlignment = true
             }
           }
           let isNearTop = edges.nearTop
           if !isNearTop {
-            transcriptWasAwayFromTop = true
+            if !transcriptWasAwayFromTop {
+              transcriptWasAwayFromTop = true
+            }
             return
           }
+          var nextIntent = scrollIntent
           guard transcriptWasAwayFromTop, workspaces.transcriptError == nil,
-                scrollIntent.beginAutomaticOlderPage(
+                nextIntent.beginAutomaticOlderPage(
                   userIsScrolling: userIsScrolling,
                   isNearTop: isNearTop,
                   hasMore: workspaces.transcriptHasMore,
                   isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder
                 ) else { return }
+          if nextIntent != scrollIntent {
+            scrollIntent = nextIntent
+          }
           Task { @MainActor in
             workspaces.loadOlderMessages(auth: auth)
           }

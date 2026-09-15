@@ -1,8 +1,9 @@
 #if os(macOS)
   import SwiftUI
 
-  /// Observe boundary transitions and layout size, not every pixel of scrolling.
+  /// Distinguish viewport movement from content growth.
   struct TranscriptScrollEdges: Equatable {
+    let offsetY: CGFloat
     let contentHeight: CGFloat
     let viewportHeight: CGFloat
     let nearTop: Bool
@@ -14,6 +15,7 @@
     }
 
     init(_ geometry: ScrollGeometry) {
+      offsetY = geometry.contentOffset.y
       contentHeight = geometry.contentSize.height
       viewportHeight = geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
       let distance = geometry.contentSize.height + geometry.contentInsets.bottom - geometry.visibleRect.maxY
