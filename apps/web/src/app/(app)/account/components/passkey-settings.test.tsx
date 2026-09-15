@@ -42,38 +42,37 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("next-intl", () => ({
-  useLocale: () => "en",
-  useFormatter: () => ({
-    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
-      new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" }).format(
-        value,
-      ),
-  }),
-  useTranslations: (namespace?: string) => {
-    return (
-      key: string,
-      values?: {
-        date?: string;
-        name?: string;
-      },
-    ) => {
-      if (key === "createdAt") {
-        return `created-${values?.date}`;
-      }
+vi.mock("next-intl", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  const formatter = createTestFormatter();
+  return {
+    useLocale: () => "en",
+    useFormatter: () => formatter,
+    useTranslations: (namespace?: string) => {
+      return (
+        key: string,
+        values?: {
+          date?: string;
+          name?: string;
+        },
+      ) => {
+        if (key === "createdAt") {
+          return `created-${values?.date}`;
+        }
 
-      if (key === "deleteAriaLabel") {
-        return `delete-${values?.name}`;
-      }
+        if (key === "deleteAriaLabel") {
+          return `delete-${values?.name}`;
+        }
 
-      if (key === "editAriaLabel") {
-        return `edit-${values?.name}`;
-      }
+        if (key === "editAriaLabel") {
+          return `edit-${values?.name}`;
+        }
 
-      return key;
-    };
-  },
-}));
+        return key;
+      };
+    },
+  };
+});
 
 vi.mock("sonner", () => ({
   toast: {
