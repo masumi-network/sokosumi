@@ -15,6 +15,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
+import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   buildTaskScheduleMetadataV2,
   computeScheduleNextRun,
@@ -34,7 +35,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireOwnerUserContext } from "@/middleware/auth";
+import { resolveUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putCalendarTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -76,8 +77,10 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireOwnerUserContext(authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
+    const userContext = resolveUserContext(authContext);
+    if (userContext) {
+      await requireCalendarBetaAccess(userContext.userId, prisma);
+    }
     const { id } = c.req.valid("param");
     const { operationId, expectedScheduleRevision, schedule } =
       c.req.valid("json");
@@ -143,11 +146,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!isSchedulableTaskStatus(currentTask.status)) {
         throw forbidden("You can only schedule draft, ready, or queued tasks");
       }
-      await requireAssignedOrganizationSeat(
-        userContext.userId,
-        currentTask.organizationId,
-        tx,
-      );
+      if (userContext) {
+        await requireAssignedOrganizationSeat(
+          userContext.userId,
+          currentTask.organizationId,
+          tx,
+        );
+      }
       const quarantine = await tx.taskScheduleQuarantine.findUnique({
         where: { taskId: id },
         select: { id: true },
@@ -231,7 +236,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.taskEvent.create({
         data: {
           taskId: id,
-          userId: userContext.userId,
+          ...resolveTaskEventActorFields(authContext),
           scheduleKind: TaskScheduleEventKind.UPDATED,
           scheduleOperationId: operationId,
           schedulePayload: {
