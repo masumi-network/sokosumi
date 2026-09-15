@@ -1,6 +1,7 @@
 import type { Account } from "@sokosumi/utils";
 import type { ReactNode } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md";
+import type { TimeFormatPreference } from "@/i18n/time-format";
 import { AccountProvider } from "@/lib/auth/types";
 import type {
   StripeCustomerBillingDetails,
@@ -38,6 +39,7 @@ interface AccountSettingsProps {
   deletionPreflightFailed?: boolean;
   deletionPreflightLoadError?: ReactNode;
   ownedOrganizationSlug?: string | null;
+  initialTimeFormat?: TimeFormatPreference;
 }
 
 export function AccountSettings({
@@ -57,6 +59,7 @@ export function AccountSettings({
   deletionPreflightFailed = false,
   deletionPreflightLoadError,
   ownedOrganizationSlug = null,
+  initialTimeFormat,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -108,7 +111,7 @@ export function AccountSettings({
       </div>
 
       <div className="border-t pt-8">
-        <PreferencesSection />
+        <PreferencesSection initialTimeFormat={initialTimeFormat} />
       </div>
 
       <div className="border-t pt-8">

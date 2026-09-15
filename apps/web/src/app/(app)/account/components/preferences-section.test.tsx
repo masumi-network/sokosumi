@@ -64,9 +64,19 @@ describe("PreferencesSection time format", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the stored choice after a server render", () => {
+    render(<PreferencesSection initialTimeFormat="24h" />);
+
+    expect(
+      screen.getByRole("combobox", {
+        name: "App.Account.TimeFormat.selectAriaLabel",
+      }),
+    ).toHaveTextContent("App.Account.TimeFormat.options.24h");
+  });
+
   it("goes back to Auto by deleting the stored choice", () => {
     document.cookie = `${TIME_FORMAT_COOKIE_NAME}=24h; path=/`;
-    render(<PreferencesSection />);
+    render(<PreferencesSection initialTimeFormat="24h" />);
 
     chooseTimeFormat(AUTO_24H);
 

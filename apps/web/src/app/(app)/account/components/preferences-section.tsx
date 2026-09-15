@@ -31,15 +31,20 @@ import {
 import {
   detectBrowserTimeFormat,
   parseTimeFormat,
-  readTimeFormatCookie,
   serializeTimeFormatCookie,
   serializeTimeFormatCookieDelete,
-  TIME_FORMAT_COOKIE_NAME,
   TIME_FORMATS,
   type TimeFormatPreference,
 } from "@/i18n/time-format";
 
-export function PreferencesSection() {
+interface PreferencesSectionProps {
+  /** Cookie value from the account page. `document.cookie` is empty during SSR. */
+  initialTimeFormat?: TimeFormatPreference;
+}
+
+export function PreferencesSection({
+  initialTimeFormat = AUTO_DETECT_VALUE,
+}: PreferencesSectionProps) {
   const isClient = useIsClient();
   const themeTranslations = useTranslations("App.Account.Theme");
   const languageTranslations = useTranslations("App.Account.Language");
@@ -55,13 +60,7 @@ export function PreferencesSection() {
       ) ?? AUTO_DETECT_VALUE,
   );
   const [selectedTimeFormat, setSelectedTimeFormat] =
-    useState<TimeFormatPreference>(
-      () =>
-        (typeof document === "undefined"
-          ? null
-          : readTimeFormatCookie(document.cookie, TIME_FORMAT_COOKIE_NAME)) ??
-        AUTO_DETECT_VALUE,
-    );
+    useState<TimeFormatPreference>(initialTimeFormat);
 
   const selectedTheme = useMemo(() => {
     if (!isClient) {
