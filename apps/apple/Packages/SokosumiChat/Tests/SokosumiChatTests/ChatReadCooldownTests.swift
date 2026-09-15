@@ -144,8 +144,8 @@ struct ChatReadCooldownTests {
     }
   }
 
-  @Test(arguments: [true, false])
-  func middlewarePreservesBodyAndHonorsHeaderBeforeBody(header: Bool) async throws {
+  @Test(arguments: [true, false], ["get/chats/rooms/{id}/pinned-messages", "get/chats/rooms/{id}/threads/{parentMessageId}"])
+  func middlewarePreservesBodyAndHonorsHeaderBeforeBody(header: Bool, operation: String) async throws {
     let clock = CooldownTestClock()
     let scope = 0
     let middleware = ChatReadCooldownMiddleware(cooldown: clock.cooldown(), currentScope: { scope })
@@ -161,7 +161,7 @@ struct ChatReadCooldownTests {
     }
     let body = try #require(response.1)
     #expect(try await String(collecting: body, upTo: 1024) == json)
-    _ = try await middleware.intercept(request, body: nil, baseURL: url, operationID: "get/chats/rooms/{id}/pinned-messages") { _, _, _ in
+    _ = try await middleware.intercept(request, body: nil, baseURL: url, operationID: operation) { _, _, _ in
       (HTTPResponse(status: .ok), nil)
     }
     #expect(clock.elapsed == (header ? 7 : 2))

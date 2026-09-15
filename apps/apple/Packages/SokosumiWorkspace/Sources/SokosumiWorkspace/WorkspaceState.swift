@@ -15,6 +15,14 @@ public final class WorkspaceState: ObservableObject {
   public typealias Phase = WorkspaceSession.Phase
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
+  public struct MessageJump: Equatable, Sendable {
+    public let roomId: String
+    public let messageId: String
+    public let requestId = UUID()
+  }
+
+  @Published public internal(set) var messageJump: MessageJump?
+  var messageNavigationRequest = UUID()
   public let thread = ThreadSession()
   public let threadOverview = RoomThreadOverview()
   @Published public internal(set) var threadAttentionRevision = 0
@@ -317,6 +325,8 @@ public final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    messageNavigationRequest = UUID()
+    messageJump = nil
     messageEditing.reset()
     directStream.reset()
     thread.close()
@@ -340,6 +350,8 @@ public final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    messageNavigationRequest = UUID()
+    messageJump = nil
     messageEditing.reset()
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()

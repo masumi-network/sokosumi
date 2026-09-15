@@ -40,7 +40,7 @@ import SwiftUI
     @State private var userIsScrolling = false
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
-    @State private var quoteTarget: String?
+    @State private var jumpError: String?
     @State private var quoteFocusRequest: String?
 
     private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
@@ -60,6 +60,13 @@ import SwiftUI
 
     var body: some View {
       content
+        .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
+          if !$0 {
+            jumpError = nil
+          }
+        })) {
+          Button("OK", role: .cancel) {}
+        } message: { Text(jumpError ?? "") }
         .onChange(of: preparationScope) { _, _ in
           scrollIntent = TimelineScrollIntent()
           olderBoundaryVisible = false
@@ -97,7 +104,7 @@ import SwiftUI
                              onToggleReaction: reactionAction(for: parent),
                              pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
                              editing: workspaces.messageEditing,
-                             onQuoteJump: { quoteTarget = $0 })
+                             onQuoteJump: jumpToQuote)
                 .id(parent.id)
               Divider()
               HStack {
@@ -136,13 +143,6 @@ import SwiftUI
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
-          }
-          .onChange(of: quoteTarget) { _, target in
-            guard let target else { return }
-            quoteTarget = nil
-            guard parent.id == target || workspaces.displayedThreadReplies.contains(where: { $0.id == target }) else { return }
-            scrollIntent.readOlder()
-            proxy.scrollTo(target, anchor: .center)
           }
           .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest) {
             guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest else { return }
@@ -197,10 +197,18 @@ import SwiftUI
         }
         .navigationTitle("Thread")
         .onChange(of: parent.id) { _, _ in pendingQuote = nil
-          quoteTarget = nil
+          jumpError = nil
         }
       } else {
         ProgressView("Loading replies…").frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+
+    private func jumpToQuote(_ id: String) {
+      Task { @MainActor in
+        do {
+          _ = try await workspaces.openMessage(id, auth: auth)
+        } catch { jumpError = friendlyMessage(for: error) }
       }
     }
 
@@ -286,7 +294,7 @@ import SwiftUI
                            onToggleReaction: reactionAction(for: message),
                            pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                            editing: workspaces.messageEditing,
-                           onQuoteJump: { quoteTarget = $0 },
+                           onQuoteJump: jumpToQuote,
                            streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
           }
         }
