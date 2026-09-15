@@ -424,7 +424,10 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className={cn(
-        "mt-2 max-w-full rounded-md",
+        // `w-auto` so the width follows the capped height through the
+        // remembered natural size; a bare `width` attribute would keep the
+        // natural width and stretch the image flat.
+        "mt-2 w-auto max-w-full rounded-md",
         // Until the first load the box is the cap itself: link previews are
         // wide, so nearly all of them land there, and the row does not grow
         // under a reader scrolling past it.
