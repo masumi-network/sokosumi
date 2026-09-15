@@ -150,9 +150,7 @@ function currentPeriodBucketWhere(now: Date, scope: Record<string, unknown>) {
     AND: [
       { OR: [{ activatesAt: null }, { activatesAt: { lte: now } }] },
       scope,
-      {
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
+      { expiresAt: { gt: now } },
     ],
   };
 }
@@ -575,9 +573,7 @@ describe("getCurrentSubscriptionCredits", () => {
               lt: now,
             },
           }),
-          {
-            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-          },
+          { expiresAt: { gt: now } },
         ],
       },
     });

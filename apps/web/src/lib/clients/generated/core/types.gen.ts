@@ -22912,7 +22912,7 @@ export type GetUsersByIdCreditsResponses = {
                     } | null;
                 } | null;
                 /**
-                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see extra.enterprise for pool)
+                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see top-level enterprise for the pool)
                  */
                 buffer: number;
                 /**
@@ -23619,7 +23619,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                     } | null;
                 } | null;
                 /**
-                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see extra.enterprise for pool)
+                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see top-level enterprise for the pool)
                  */
                 buffer: number;
                 /**

@@ -122,9 +122,8 @@ export async function getCurrentSubscriptionCredits(params: {
     AND: [
       creditBucketActivatesAtOrBefore(now),
       currentPeriodBucketScope,
-      {
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
+      // Period scope already requires expiresAt in (periodStart, periodEnd].
+      { expiresAt: { gt: now } },
     ],
   };
 

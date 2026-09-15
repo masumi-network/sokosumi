@@ -1,8 +1,11 @@
 import type { SessionUser } from "@sokosumi/utils";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+import type {
+  GetUsersByIdCreditsResponse,
+  MemberWithOrganization,
+} from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
 
-export type CreditWalletScope = "organization" | "personal";
+export type CreditWalletScope = GetUsersByIdCreditsResponse["data"]["scope"];
 
 export interface AccountSummaryCreditProps {
   planName: string | null;
