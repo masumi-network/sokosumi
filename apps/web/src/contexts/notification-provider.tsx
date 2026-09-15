@@ -21,6 +21,7 @@ import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
+import { createNotificationReadQueue } from "./notification-read-queue";
 import {
   NOTIFICATION_LIST_LIMIT,
   type NotificationAction,
@@ -340,13 +341,17 @@ export function NotificationProvider({
     }
   }, [dispatch]);
 
+  const readQueue = useRef(createNotificationReadQueue());
+
   const markAllRead = useCallback(async () => {
     // Paint read state immediately so mark-all-read clicks stay within good INP.
     dispatch({ type: "mark_all_read" });
     dismissAllNotificationToasts();
 
     try {
-      await notificationsBrowserClient.patchNotificationsReadAll();
+      await readQueue.current.enqueue(null, () =>
+        notificationsBrowserClient.patchNotificationsReadAll(),
+      );
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
       void fetchNotifications();
@@ -363,21 +368,22 @@ export function NotificationProvider({
       dismissNotificationToast(id);
 
       try {
-        const response = await notificationsBrowserClient.patchNotificationRead(
-          { id },
-        );
+        await readQueue.current.enqueue([id], async (isCurrent) => {
+          const response =
+            await notificationsBrowserClient.patchNotificationRead({ id });
 
-        if (deletedIds.current.has(id)) return;
-        if (generation !== clearGeneration.current) {
-          // The row may have survived clear. Reconcile its read state without
-          // charging a deleted row's response against the new unread count.
-          await fetchNotifications();
-          return;
-        }
-        dispatch({
-          type: "mark_read_success",
-          id,
-          updated: response.data,
+          if (!isCurrent(id) || deletedIds.current.has(id)) return;
+          if (generation !== clearGeneration.current) {
+            // The row may have survived clear. Reconcile its read state without
+            // charging a deleted row's response against the new unread count.
+            await fetchNotifications();
+            return;
+          }
+          dispatch({
+            type: "mark_read_success",
+            id,
+            updated: response.data,
+          });
         });
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
@@ -390,18 +396,26 @@ export function NotificationProvider({
 
   const markUnread = useCallback(
     async (id: string) => {
+      const generation = clearGeneration.current;
       // Optimistic, like the read path, so the row and the badge answer the
       // click before the round-trip.
       dispatch({ type: "mark_unread_optimistic", id });
 
       try {
-        const response =
-          await notificationsBrowserClient.patchNotificationUnread({ id });
+        await readQueue.current.enqueue([id], async (isCurrent) => {
+          const response =
+            await notificationsBrowserClient.patchNotificationUnread({ id });
 
-        dispatch({
-          type: "mark_unread_success",
-          id,
-          updated: response.data,
+          if (!isCurrent(id) || deletedIds.current.has(id)) return;
+          if (generation !== clearGeneration.current) {
+            await fetchNotifications();
+            return;
+          }
+          dispatch({
+            type: "mark_unread_success",
+            id,
+            updated: response.data,
+          });
         });
       } catch (error) {
         console.error("Failed to mark notification as unread:", error);
