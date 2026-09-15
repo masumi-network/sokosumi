@@ -402,10 +402,7 @@ export function SokoBotConsole({
                                 {schedule.enabled
                                   ? format.dateTime(
                                       new Date(schedule.nextRunAt),
-                                      {
-                                        dateStyle: "short",
-                                        timeStyle: "short",
-                                      },
+                                      "dateTimeShort",
                                     )
                                   : t("Schedules.disabled")}
                               </span>
@@ -438,10 +435,10 @@ export function SokoBotConsole({
                       <p className="text-muted-foreground text-xs">
                         {t("Memory.updated")}{" "}
                         <span className="text-foreground tabular-nums">
-                          {format.dateTime(new Date(bot.memory.createdAt), {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
+                          {format.dateTime(
+                            new Date(bot.memory.createdAt),
+                            "dateTimeMedium",
+                          )}
                         </span>
                       </p>
                       <Markdown className="prose prose-sm dark:prose-invert max-h-80 max-w-none overflow-y-auto text-sm">

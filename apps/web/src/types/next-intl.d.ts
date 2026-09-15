@@ -5,6 +5,7 @@ import {
   useTranslations,
 } from "next-intl";
 
+import type { createFormats } from "@/i18n/time-format";
 import en from "@/messages/en.json";
 
 type Messages = typeof en;
@@ -25,6 +26,13 @@ type SokosumiIntlValue =
 type SokosumiIntlMessages = {
   [id: string]: SokosumiIntlValue;
 };
+
+declare module "next-intl" {
+  interface AppConfig {
+    // Named formats type-check by name; see `createFormats`.
+    Formats: ReturnType<typeof createFormats>;
+  }
+}
 
 declare global {
   // Use type safe message keys with `next-intl`

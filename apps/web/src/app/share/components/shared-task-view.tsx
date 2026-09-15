@@ -62,8 +62,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
       getTranslations("Share.Tasks.Page"),
       getTranslations("App.Tasks.Filters.statusOptions"),
     ]);
-  const formatDate = (date: Date) =>
-    formatter.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
+  const formatDate = (date: Date) => formatter.dateTime(date, "dateTimeMedium");
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const visibleEvents = [...task.events]
     .filter((event) => event.status !== TaskStatus.AUTHENTICATION_REQUIRED)

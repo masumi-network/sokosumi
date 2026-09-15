@@ -6,12 +6,9 @@ import {
   type Locale,
 } from "date-fns";
 import { de, enUS, es } from "date-fns/locale";
-import { useTimeZone } from "next-intl";
+import { useFormatter, useLocale } from "next-intl";
 import { Suspense, use } from "react";
 import { browser } from "react-dom";
-
-import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
-import { formatShortDateTime } from "@/lib/utils/datetime";
 
 /**
  * Maps the app's next-intl locales to their date-fns counterparts so the
@@ -35,11 +32,6 @@ interface TimeAgoProps {
    * to false.
    */
   strict?: boolean;
-  /**
-   * Active UI locale. Drives both the SSR-stable absolute-date fallback and
-   * the post-hydration relative string. Defaults to `"en"`.
-   */
-  locale?: string;
   className?: string;
 }
 
@@ -99,22 +91,23 @@ function TimeAgoRelative({
  * yields different text than the first client render and triggers a hydration
  * mismatch (Sentry SOKOSUMI-A). `use(browser())` opts the relative string out
  * of SSR; the nearest Suspense fallback is an absolute date in the request's
- * zone (see `TimeZoneSync`) so the initial HTML stays deterministic.
+ * zone and hour cycle (see `TimeZoneSync`, `TimeFormatSync`) so the initial
+ * HTML stays deterministic.
  */
 export function TimeAgo({
   date,
   addSuffix = true,
   strict = false,
-  locale = "en",
   className,
 }: TimeAgoProps) {
-  const timeZone = useTimeZone() ?? DEFAULT_TIME_ZONE;
+  const format = useFormatter();
+  const locale = useLocale();
   const dateObj = typeof date === "string" ? new Date(date) : date;
   if (Number.isNaN(dateObj.getTime())) {
     return <span className={className}>—</span>;
   }
 
-  const absolute = formatShortDateTime(dateObj, locale, timeZone);
+  const absolute = format.dateTime(dateObj, "dateTime");
 
   return (
     <Suspense

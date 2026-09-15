@@ -482,18 +482,6 @@ export function isMessageContinuation(
 }
 
 /**
- * Wall-clock HH:mm in the runtime default locale/TZ. Only call after
- * `useClientLocalCalendarReady()` (see MessageWallClockTime) — `undefined`
- * locale + local TZ diverge between Vercel SSR and the browser (SOKOSUMI-A).
- */
-export function formatMessageTime(value: Date | string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-/**
  * Local calendar day bucket. Runtime-TZ sensitive — gate separator insertion
  * with `useClientLocalCalendarReady()` so SSR (UTC) and hydrate agree.
  */

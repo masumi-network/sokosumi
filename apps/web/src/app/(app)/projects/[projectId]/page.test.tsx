@@ -21,12 +21,14 @@ vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
 }));
 
-vi.mock("next-intl/server", () => ({
-  getLocale: async () => "en",
-  getTimeZone: async () => "UTC",
-  getTranslations: async (namespace: string) => (key: string) =>
-    `${namespace}.${key}`,
-}));
+vi.mock("next-intl/server", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  return {
+    getFormatter: async () => createTestFormatter(),
+    getTranslations: async (namespace: string) => (key: string) =>
+      `${namespace}.${key}`,
+  };
+});
 
 vi.mock("@/lib/calendar-beta-access.server", () => ({
   hasCurrentUserCalendarBetaAccess: () =>

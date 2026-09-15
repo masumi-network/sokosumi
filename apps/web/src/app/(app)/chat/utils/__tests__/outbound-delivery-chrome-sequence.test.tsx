@@ -21,9 +21,14 @@ import {
   markOutboundSentTick,
 } from "../outbound-sent-tick";
 
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-}));
+vi.mock("next-intl", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  const formatter = createTestFormatter();
+  return {
+    useFormatter: () => formatter,
+    useTranslations: () => (key: string) => key,
+  };
+});
 
 vi.mock("@/components/markdown", () => ({
   default: ({ children }: { children: ReactNode }) => <span>{children}</span>,

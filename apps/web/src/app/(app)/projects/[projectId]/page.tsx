@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import {
   ProjectBrandCard,
@@ -19,7 +19,6 @@ import {
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
-import { formatShortDateTime } from "@/lib/utils/datetime";
 
 export default async function ProjectDetailPage({
   params,
@@ -36,15 +35,14 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [attention, t, tHistory, tListStats, tTaskFilters, locale, timeZone] =
+  const [attention, t, tHistory, tListStats, tTaskFilters, formatter] =
     await Promise.all([
       projectService.getProjectNeedsAttention(project.id),
       getTranslations("App.Projects.Detail"),
       getTranslations("App.History.Row"),
       getTranslations("App.Projects.list.stats"),
       getTranslations("App.Tasks.Filters"),
-      getLocale(),
-      getTimeZone(),
+      getFormatter(),
     ]);
 
   const taskStatusLabels = buildTaskStatusLabels((key) =>
@@ -69,19 +67,11 @@ export default async function ProjectDetailPage({
               metadata={[
                 {
                   label: t("header.updated"),
-                  value: formatShortDateTime(
-                    project.updatedAt,
-                    locale,
-                    timeZone,
-                  ),
+                  value: formatter.dateTime(project.updatedAt, "dateTime"),
                 },
                 {
                   label: t("header.created"),
-                  value: formatShortDateTime(
-                    project.createdAt,
-                    locale,
-                    timeZone,
-                  ),
+                  value: formatter.dateTime(project.createdAt, "dateTime"),
                 },
               ]}
               actions={
@@ -159,7 +149,6 @@ export default async function ProjectDetailPage({
                   job: tHistory("kind.job"),
                 },
                 taskStatus: taskStatusLabels,
-                locale,
               }}
             />
 

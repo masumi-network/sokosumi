@@ -27,7 +27,6 @@ export interface ProjectNeedsAttentionLabels {
     job: string;
   };
   taskStatus: Record<TaskStatus, string>;
-  locale: string;
 }
 
 interface ProjectNeedsAttentionSectionProps {
@@ -129,7 +128,7 @@ function ProjectNeedsAttentionRow({
             <JobStatusBadge status={item.status} className="shrink-0" />
           )}
           <span className="text-muted-foreground shrink-0">
-            <TimeAgo date={item.updatedAt} locale={labels.locale} />
+            <TimeAgo date={item.updatedAt} />
           </span>
         </div>
       </Link>

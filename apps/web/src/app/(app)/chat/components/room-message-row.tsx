@@ -135,7 +135,6 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
-  formatMessageTime,
   formatRoomComposerTooLongFailure,
   isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
@@ -168,10 +167,7 @@ function MessageEditedLabel({ editedAt, className }: MessageEditedLabelProps) {
   const format = useFormatter();
   const localCalendarReady = useClientLocalCalendarReady();
   const when = localCalendarReady
-    ? format.dateTime(new Date(editedAt), {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
+    ? format.dateTime(new Date(editedAt), "dateTimeMedium")
     : null;
   const editedWhen = when ? t("Edit.editedAt", { when }) : undefined;
 
@@ -204,8 +200,9 @@ function MessagePinnedLabel({ className }: MessagePinnedLabelProps) {
 }
 
 /**
- * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
- * matches hydrate; then fills with `formatMessageTime` (SOKOSUMI-A).
+ * Wall-clock time for a message in the viewer's zone and hour cycle. Empty
+ * until mount, like the day separators it sits under, which bucket by the
+ * browser's local calendar (SOKOSUMI-A).
  */
 function MessageWallClockTime({
   value,
@@ -216,9 +213,12 @@ function MessageWallClockTime({
   className?: string;
   title?: string;
 }) {
+  const format = useFormatter();
   const localCalendarReady = useClientLocalCalendarReady();
   const dateTime = new Date(value).toISOString();
-  const label = localCalendarReady ? formatMessageTime(value) : null;
+  const label = localCalendarReady
+    ? format.dateTime(new Date(value), "time")
+    : null;
 
   return (
     <time

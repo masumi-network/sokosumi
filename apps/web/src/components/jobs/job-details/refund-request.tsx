@@ -184,10 +184,10 @@ function makeTitleAndDescription(
 
   if (job.status === SokosumiJobStatus.FAILED && job.submitResultTime != null) {
     // For failed jobs, use submitResultTime as the unlock time for refunds
-    const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    const submitResultTimeFormatted = formatter.dateTime(
+      job.submitResultTime,
+      "dateTimeMedium",
+    );
 
     return {
       title: t("Tooltip.failed.title"),
@@ -198,10 +198,10 @@ function makeTitleAndDescription(
   }
 
   // For other statuses, use unlockTime for available/unavailable tooltips
-  const unlockTimeFormatted = formatter.dateTime(job.unlockTime, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const unlockTimeFormatted = formatter.dateTime(
+    job.unlockTime,
+    "dateTimeMedium",
+  );
 
   if (!isEnabled) {
     return {
