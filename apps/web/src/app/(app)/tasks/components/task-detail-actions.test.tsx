@@ -31,6 +31,7 @@ const {
   browserCoreClientMock,
   isMobileMock,
   showCalendarClientUpgradeModalMock,
+  createRelatedVisibilityMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
@@ -39,6 +40,9 @@ const {
   },
   isMobileMock: vi.fn(),
   showCalendarClientUpgradeModalMock: vi.fn(),
+  createRelatedVisibilityMock: {
+    current: undefined as "PUBLIC" | "PRIVATE" | undefined,
+  },
 }));
 
 vi.mock("@/components/modals/global-modals-context", () => ({
@@ -399,6 +403,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
       assigneeSokoBotId: string | null;
       assigneeUserId?: string | null;
       status: TaskStatus;
+      visibility?: "PUBLIC" | "PRIVATE";
       context: {
         brand: {
           enabled: boolean;
@@ -429,6 +434,9 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             assigneeSokoBotId: null,
             assigneeUserId: initialValues?.assigneeUserId ?? null,
             status: TaskStatus.READY,
+            ...(createRelatedVisibilityMock.current
+              ? { visibility: createRelatedVisibilityMock.current }
+              : {}),
             context: {
               brand: { enabled: true, source: "default", custom: null },
               briefingEnabled: true,
@@ -631,6 +639,7 @@ function renderActions(
 describe("TaskDetailActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    createRelatedVisibilityMock.current = undefined;
     isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();
     vi.mocked(setTaskStatusFromDrag).mockReset();
@@ -1566,6 +1575,39 @@ describe("TaskDetailActions", () => {
     });
 
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-created");
+  });
+
+  it("forwards private visibility from create related to createTaskAndLink", async () => {
+    const user = userEvent.setup();
+    const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
+    createRelatedVisibilityMock.current = "PRIVATE";
+    createTaskAndLinkMock.mockResolvedValue(
+      createTaskAndLinkSuccess({
+        taskId: "task-1",
+        createdTaskId: "task-created",
+        linkId: "link-created",
+        name: "Created related task",
+      }),
+    );
+
+    renderActions({ taskVisibility: "PRIVATE" });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Create related" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Submit related task" }),
+    );
+
+    await waitFor(() => {
+      expect(createTaskAndLinkMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visibility: "PRIVATE",
+        }),
+      );
+    });
   });
 
   it("passes the DESIGN.md picker into create-related and forwards skip false", async () => {

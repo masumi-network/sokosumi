@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import mountGet from "./get";
@@ -99,6 +100,7 @@ describe("Drive Tasks workspace context for task read", () => {
         id: "tsk_123",
         archivedAt: null,
         workspaceId: "ws_personal",
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
     });
   });

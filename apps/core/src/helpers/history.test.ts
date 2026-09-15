@@ -12,7 +12,7 @@ import {
   mapHistoryRow,
 } from "./history";
 
-type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job">;
+type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job" | "task">;
 
 const orgAuthContext: UserAuthenticationContext = {
   actor: "user",
@@ -25,11 +25,13 @@ function createHistoryPrismaClient(
   overrides: {
     $queryRaw?: HistoryPrismaClient["$queryRaw"];
     job?: Pick<HistoryPrismaClient["job"], "findMany">;
+    task?: Pick<HistoryPrismaClient["task"], "findMany">;
   } = {},
 ): HistoryPrismaClient {
   return {
     $queryRaw: vi.fn(),
     job: { findMany: vi.fn() },
+    task: { findMany: vi.fn() },
     ...overrides,
   } as unknown as HistoryPrismaClient;
 }
@@ -319,6 +321,69 @@ describe("findJobHistoryEntityIdsMatchingStatuses", () => {
 
     expect(entityIds).toEqual(["job_123"]);
     expect(queryRawMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("buildHistoryWhere", () => {
+  it("excludes other members' private tasks and their jobs in workspace scope", async () => {
+    const taskFindManyMock = vi
+      .fn()
+      .mockResolvedValue([{ id: "task_private" }]);
+    const jobFindManyMock = vi.fn().mockResolvedValue([{ id: "job_hidden" }]);
+    const { buildHistoryWhere } = await import("./history");
+
+    const where = await buildHistoryWhere(
+      {
+        scope: "workspace",
+        types: [HistoryKind.TASK, HistoryKind.JOB],
+        userContext: { source: "session", ...orgAuthContext },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      },
+      createHistoryPrismaClient({
+        task: { findMany: taskFindManyMock },
+        job: { findMany: jobFindManyMock },
+      }),
+    );
+
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        visibility: "PRIVATE",
+        ownerId: { not: "user_123" },
+      },
+      select: { id: true },
+    });
+    expect(where).toEqual({
+      AND: [
+        { archivedAt: null },
+        {
+          OR: [
+            {
+              kind: { in: [HistoryKind.TASK, HistoryKind.JOB] },
+              workspaceId: "11111111-1111-7111-8111-111111111111",
+            },
+          ],
+        },
+        {
+          NOT: {
+            OR: [
+              {
+                kind: HistoryKind.TASK,
+                entityId: { in: ["task_private"] },
+              },
+              {
+                kind: HistoryKind.JOB,
+                entityId: { in: ["job_hidden"] },
+              },
+            ],
+          },
+        },
+      ],
+    });
   });
 });
 

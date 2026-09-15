@@ -385,6 +385,8 @@ export function CreateTaskModal({
             taskCreatedHint: t("taskCreatedHint"),
             goToTask: t("goToTask"),
             createAnother: t("createAnother"),
+            privateLabel: t("privateLabel"),
+            privateDescription: t("privateDescription"),
           }}
           coworkerOptions={coworkerOptions}
           projectOptions={projectOptions}

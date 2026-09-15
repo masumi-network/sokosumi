@@ -154,10 +154,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    // Delegated coworkers only see jobs whose task is assigned to them.
-    const coworkerId = isCoworkerAuthContext(c.var.authContext)
-      ? c.var.authContext.coworkerId
-      : undefined;
+    // Delegated coworkers only see jobs on Tasks assigned to them or on
+    // private Tasks assigned to a same-vendor sibling.
+    const coworkerAuth = isCoworkerAuthContext(c.var.authContext)
+      ? {
+          coworkerId: c.var.authContext.coworkerId,
+          coworkerVendorId: c.var.authContext.vendorId,
+        }
+      : {};
 
     const { jobs, count, hasMore } = await getUserJobs(
       {
@@ -167,7 +171,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       {
         agentId: id,
         scope,
-        coworkerId,
+        ...coworkerAuth,
         sokoBotId: isSokoBotAuthContext(c.var.authContext)
           ? c.var.authContext.sokoBotId
           : undefined,

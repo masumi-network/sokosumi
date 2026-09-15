@@ -14,6 +14,7 @@ import {
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectStatsBatchSchema } from "@/schemas/project.schema";
+import { resolveProjectReaderVisibility } from "@/types/project";
 
 const projectIdsQuerySchema = z
   .preprocess(
@@ -58,6 +59,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { projectIds } = c.req.valid("query");
+    const visibility = await resolveProjectReaderVisibility(
+      c.var.authContext,
+      workspaceContext.workspaceId,
+    );
 
     const projects = await prisma.project.findMany({
       where: {
@@ -71,6 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const projectStats = await getProjectStatsByProjectIds(
       workspaceContext.workspaceId,
       workspaceProjectIds,
+      visibility,
     );
 
     return ok(

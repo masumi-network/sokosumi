@@ -93,13 +93,32 @@ describe("requireJobShareCollaboration", () => {
       ),
     ).resolves.toMatchObject({ id: "job_123" });
 
-    // The whole policy is in this where clause: owner OR workspace member.
+    // Owner OR workspace member, and parent Task must be readable (SOK-1046).
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
         id: "job_123",
-        OR: [
-          { ownerId: "member_456" },
-          { workspaceId: organizationWorkspaceId },
+        AND: [
+          {
+            OR: [
+              { ownerId: "member_456" },
+              { workspaceId: organizationWorkspaceId },
+            ],
+          },
+          {
+            OR: [
+              { taskId: null },
+              {
+                task: {
+                  is: {
+                    OR: [
+                      { visibility: "PUBLIC" },
+                      { visibility: "PRIVATE", ownerId: "member_456" },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
         ],
       },
     });
@@ -134,7 +153,29 @@ describe("requireJobShareCollaboration", () => {
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
         id: "job_of_another_user",
-        OR: [{ ownerId: "member_456" }, { workspaceId: personalWorkspaceId }],
+        AND: [
+          {
+            OR: [
+              { ownerId: "member_456" },
+              { workspaceId: personalWorkspaceId },
+            ],
+          },
+          {
+            OR: [
+              { taskId: null },
+              {
+                task: {
+                  is: {
+                    OR: [
+                      { visibility: "PUBLIC" },
+                      { visibility: "PRIVATE", ownerId: "member_456" },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        ],
       },
     });
   });
@@ -155,8 +196,43 @@ describe("requireJobShareCollaboration", () => {
     ).resolves.toMatchObject({ id: "job_123" });
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", OR: [{ ownerId: "member_456" }] },
+      where: {
+        id: "job_123",
+        AND: [
+          {
+            OR: [{ ownerId: "member_456" }],
+          },
+          {
+            OR: [
+              { taskId: null },
+              {
+                task: {
+                  is: {
+                    OR: [
+                      { visibility: "PUBLIC" },
+                      { visibility: "PRIVATE", ownerId: "member_456" },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
     });
+  });
+
+  it("denies sharing a job under another member's private task", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobShareCollaboration(
+        varsFor(organizationWorkspaceContext),
+        "job_under_private_task",
+        tx,
+      ),
+    ).rejects.toThrow("Job not found");
   });
 
   it("denies a non-owner with no workspace context", async () => {

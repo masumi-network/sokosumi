@@ -3,6 +3,7 @@ import {
   HistoryKind,
   type Prisma,
   TaskStatus,
+  TaskVisibility,
 } from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
@@ -42,7 +43,7 @@ export interface BuildHistoryWhereParams {
   workspaceContext: WorkspaceContext;
 }
 
-type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job">;
+type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job" | "task">;
 
 const ARCHIVED_STATUS = "archived";
 const ACTIVE_STATUS = "active";
@@ -246,6 +247,54 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
   return rows.map((row) => row.entityId);
 }
 
+async function buildHumanHistoryVisibilityWhere(
+  workspaceId: string,
+  userId: string,
+  prismaClient: Pick<HistoryPrismaClient, "task" | "job">,
+): Promise<Prisma.HistoryWhereInput> {
+  const hiddenTasks = await prismaClient.task.findMany({
+    where: {
+      workspaceId,
+      visibility: TaskVisibility.PRIVATE,
+      ownerId: { not: userId },
+    },
+    select: { id: true },
+  });
+  const hiddenTaskIds = hiddenTasks.map((task) => task.id);
+
+  if (hiddenTaskIds.length === 0) {
+    return {};
+  }
+
+  const hiddenJobs = await prismaClient.job.findMany({
+    where: {
+      workspaceId,
+      taskId: { in: hiddenTaskIds },
+    },
+    select: { id: true },
+  });
+  const hiddenJobIds = hiddenJobs.map((job) => job.id);
+
+  return {
+    NOT: {
+      OR: [
+        {
+          kind: HistoryKind.TASK,
+          entityId: { in: hiddenTaskIds },
+        },
+        ...(hiddenJobIds.length > 0
+          ? [
+              {
+                kind: HistoryKind.JOB,
+                entityId: { in: hiddenJobIds },
+              },
+            ]
+          : []),
+      ],
+    },
+  };
+}
+
 export async function buildHistoryWhere(
   params: BuildHistoryWhereParams,
   prismaClient: HistoryPrismaClient,
@@ -311,6 +360,16 @@ export async function buildHistoryWhere(
         { description: { contains: params.q, mode: "insensitive" } },
       ],
     });
+  }
+
+  if (params.scope === "workspace") {
+    andClauses.push(
+      await buildHumanHistoryVisibilityWhere(
+        params.workspaceContext.workspaceId,
+        params.userContext.userId,
+        prismaClient,
+      ),
+    );
   }
 
   return { AND: andClauses };

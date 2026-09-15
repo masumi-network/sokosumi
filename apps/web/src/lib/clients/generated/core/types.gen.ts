@@ -1115,6 +1115,7 @@ export type Task = {
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
+    visibility: TaskVisibility;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -1224,6 +1225,16 @@ export type TaskCreatorSokoBot = {
     id: string;
     sokoBot: SokoBotSummary;
 };
+
+/**
+ * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
+ */
+export const TaskVisibility = { PUBLIC: 'PUBLIC', PRIVATE: 'PRIVATE' } as const;
+
+/**
+ * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
+ */
+export type TaskVisibility = typeof TaskVisibility[keyof typeof TaskVisibility];
 
 export type TaskEvent = {
     id: string;
@@ -5498,6 +5509,7 @@ export type TaskListItem = {
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
+    visibility: TaskVisibility;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -32707,6 +32719,21 @@ export type PutJobsByIdShareData = {
 
 export type PutJobsByIdShareErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -38318,6 +38345,10 @@ export type GetTasksData = {
          */
         sort?: 'nextRunAt';
         /**
+         * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
+         */
+        visibility?: 'PUBLIC' | 'PRIVATE';
+        /**
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;
@@ -38431,6 +38462,10 @@ export type PostTasksData = {
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
+        /**
+         * Omit or PUBLIC for workspace-visible Tasks. PRIVATE is allowed only in organization workspaces and is immutable after create.
+         */
+        visibility?: 'PUBLIC' | 'PRIVATE';
     };
     headers?: {
         /**
@@ -40213,6 +40248,21 @@ export type PutTasksByIdShareData = {
 };
 
 export type PutTasksByIdShareErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

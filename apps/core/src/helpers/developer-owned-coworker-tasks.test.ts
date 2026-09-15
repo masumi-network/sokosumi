@@ -40,12 +40,15 @@ const accessibleCoworkerWhere = {
 };
 
 describe("buildDeveloperOwnedCoworkerTaskWhere", () => {
-  it("scopes to non-archived tasks for accessible assignee or creator coworkers", () => {
+  it("scopes to non-archived tasks for accessible assignee or public creator coworkers", () => {
     expect(buildDeveloperOwnedCoworkerTaskWhere("user_123")).toEqual({
       archivedAt: null,
       OR: [
         { assignee: accessibleCoworkerWhere },
-        { creatorCoworker: accessibleCoworkerWhere },
+        {
+          visibility: "PUBLIC",
+          creatorCoworker: accessibleCoworkerWhere,
+        },
       ],
     });
   });
@@ -54,7 +57,13 @@ describe("buildDeveloperOwnedCoworkerTaskWhere", () => {
     expect(buildDeveloperOwnedCoworkerTaskWhere("user_123", "cow_456")).toEqual(
       {
         archivedAt: null,
-        OR: [{ assigneeId: "cow_456" }, { creatorCoworkerId: "cow_456" }],
+        OR: [
+          { assigneeId: "cow_456" },
+          {
+            visibility: "PUBLIC",
+            creatorCoworkerId: "cow_456",
+          },
+        ],
       },
     );
   });

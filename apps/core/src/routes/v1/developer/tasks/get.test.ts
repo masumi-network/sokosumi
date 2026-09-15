@@ -150,7 +150,10 @@ describe("GET /developer/tasks", () => {
           archivedAt: null,
           OR: [
             { assignee: accessibleCoworkerWhere },
-            { creatorCoworker: accessibleCoworkerWhere },
+            {
+              visibility: "PUBLIC",
+              creatorCoworker: accessibleCoworkerWhere,
+            },
           ],
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -202,7 +205,13 @@ describe("GET /developer/tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          OR: [{ assigneeId: "cow_owned" }, { creatorCoworkerId: "cow_owned" }],
+          OR: [
+            { assigneeId: "cow_owned" },
+            {
+              visibility: "PUBLIC",
+              creatorCoworkerId: "cow_owned",
+            },
+          ],
         },
       }),
     );
