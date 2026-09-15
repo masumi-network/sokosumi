@@ -858,6 +858,15 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(sendFollowUpsMock).toHaveBeenCalledTimes(1);
+    // The run's own tests pass these in by hand, so they prove the loop obeys
+    // them and not that the route hands them over. Without both, a backlog
+    // pages on past the lock and the deadline decides nothing.
+    expect(sendFollowUpsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        abortSignal: expect.any(AbortSignal),
+        shouldContinue: expect.any(Function),
+      }),
+    );
   });
 
   it("returns 401 for missing cron auth on x402 header purge sync", async () => {

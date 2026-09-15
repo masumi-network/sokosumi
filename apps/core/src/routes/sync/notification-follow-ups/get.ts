@@ -26,12 +26,9 @@ export default function mount(app: Hono) {
           durationMs: Date.now() - startedAt,
           examined: result.examined,
           sent: result.sent,
-          // False means the run stopped early, on the deadline or on an abort,
-          // which for this caller is the same deadline. It does not say rows
-          // were waiting: a run aborted before its first read reports false
-          // and knows nothing about who was left. Nor does it say reminders
-          // were lost, which depends on how far through the window it got. It
-          // says the deadline is deciding how much gets done.
+          // What false does and does not mean is on the field itself, in
+          // `SendFollowUpsResult`. It is logged because it says the deadline
+          // is deciding how much this run gets done.
           reachedEnd: result.reachedEnd,
         });
       },

@@ -731,6 +731,13 @@ describe("NotificationFollowUpSyncService", () => {
     expect(written.map((one) => one.eventId)).toEqual([
       "follow-up:notification-2",
     ]);
+    // As with a failed write, the report is the only place this one is named.
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        extra: expect.objectContaining({ notificationId: "notification-1" }),
+      }),
+    );
   });
 
   /**
@@ -881,7 +888,8 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE);
     expect(notificationFindManyMock).toHaveBeenCalledTimes(1);
-    // Rows were left waiting, and this is the field the route logs to say so.
+    // Rows were left waiting here. The field does not say that on its own,
+    // only that the deadline ended the run, which is what the route logs.
     expect(result.reachedEnd).toBe(false);
   });
 

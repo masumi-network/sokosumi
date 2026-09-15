@@ -64,8 +64,10 @@ export interface SendFollowUpsOptions {
    */
   abortSignal?: AbortSignal;
   /**
-   * Asked before each read and each row, so a run stops on the handler's
-   * deadline at a page boundary or inside one.
+   * Asked at the same three places as `abortSignal`: before every read,
+   * before every row, and again after the reader's preferences come back. A
+   * run therefore stops on the handler's deadline at a page boundary or
+   * inside one.
    *
    * With neither this nor `abortSignal`, a run reads every eligible row. That
    * is bounded by the window rather than by anything here, so the cron route
@@ -103,9 +105,9 @@ export interface SendFollowUpsResult {
    * the run got, which this does not say: it is the signal that the deadline,
    * not the work, is deciding how much gets done.
    *
-   * True does not mean nothing was lost. A row whose write throws is caught,
-   * reported to Sentry, and left out of `sent` while the run carries on to the
-   * end.
+   * True does not mean nothing was lost. A row whose preferences or whose
+   * write throws is caught, reported to Sentry, and left out of `sent` while
+   * the run carries on to the end.
    */
   reachedEnd: boolean;
 }
@@ -190,8 +192,9 @@ function toFollowUpInput(
  * uniqueness the notification table already enforces is what stops the second,
  * and this needs no record of its own that a run happened.
  *
- * A write that throws costs that one reminder and nothing else: the run carries
- * on through the rest. Whether the next run finds that row again depends on
+ * A row whose preferences or whose write throws costs that one reminder and
+ * nothing else: both sit inside the same try, and the run carries on through
+ * the rest. Whether the next run finds that row again depends on
  * where in the window it sits: rows in the newer half are read again, rows in
  * the older half are not. Sentry is told about each.
  */
