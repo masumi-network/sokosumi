@@ -803,6 +803,7 @@
       "markReadTooltip": "Mark as read",
       "markUnread": "Mark notification as unread: {message}",
       "markUnreadTooltip": "Mark as unread",
+      "unreadIndicator": "Unread",
       "deleteError": "Failed to delete notification",
       "clearAll": "Clear all",
       "clearAllError": "Failed to clear notifications",

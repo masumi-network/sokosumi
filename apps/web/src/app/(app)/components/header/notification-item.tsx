@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationMenuItem } from "@/components/notifications/delete-notification-menu-item";
 import { MarkNotificationReadMenuItem } from "@/components/notifications/mark-notification-read-menu-item";
@@ -27,6 +28,7 @@ export function NotificationItem({
   onClick,
   formatTime,
 }: NotificationItemProps) {
+  const t = useTranslations("Components.NotificationCenter");
   const formatMessage = useNotificationMessage();
   const Icon = getNotificationIcon(notification);
   const message = formatMessage(
@@ -42,8 +44,16 @@ export function NotificationItem({
   // The row is the highlight unit: it spans the panel edge to edge and tints
   // as one surface whenever the body or the delete control is highlighted.
   // Unread is the icon's colour and the weight, so the tint is free to mean "here".
-  const rowClassName =
-    "group/row has-data-highlighted:bg-accent flex w-full items-start";
+  //
+  // Unread also carries a bar on the leading edge. The bar is a border rather
+  // than a tint, so it stays legible while the row is highlighted, and it lines
+  // up down the list so several unread rows read as a group at a glance. A read
+  // row keeps the same border width in transparent, so no text shifts when a
+  // row changes state under the reader.
+  const rowClassName = cn(
+    "group/row has-data-highlighted:bg-accent flex w-full items-start border-l-2",
+    notification.isRead ? "border-l-transparent" : "border-l-primary",
+  );
 
   const itemClassName = cn(
     "flex min-w-0 flex-1 cursor-pointer flex-col items-start gap-1 rounded-none py-3 pr-1 pl-3 focus:bg-transparent",
@@ -66,6 +76,12 @@ export function NotificationItem({
         <Icon className="size-4" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {/* The bar and the icon tint are colour only, and the weight is
+            presentation, so none of the three reach a screen reader. This
+            names the state in the reading order, ahead of the message. */}
+        {notification.isRead ? null : (
+          <span className="sr-only">{t("unreadIndicator")}</span>
+        )}
         {showPendingAccessActions ? (
           <button
             type="button"
