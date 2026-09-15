@@ -10,27 +10,53 @@ import {
   canonicalTaskScheduleInput,
   createTaskScheduleRequestFingerprint,
 } from "@/helpers/task-schedule-operation";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import type { CreateScheduledTaskInput } from "./task-schedule-create.service";
 import {
   createScheduledTaskInTransaction,
   requireScheduledTaskCreator,
+  requireScheduledTaskCreatorOrRequestGrant,
 } from "./task-schedule-create.service";
 
 const {
   createTaskForActorMock,
   lockCalendarScopeMock,
+  prismaVendorGrantFindUniqueMock,
   replaceTaskSchedulePlannedOccurrencesMock,
+  requestWorkspaceGrantCommittedMock,
   requireCoworkerCapabilityMock,
 } = vi.hoisted(() => ({
   createTaskForActorMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
+  prismaVendorGrantFindUniqueMock: vi.fn(),
   replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  requestWorkspaceGrantCommittedMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerCapability: requireCoworkerCapabilityMock,
+vi.mock("@/helpers/access-control", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/access-control")>();
+  return {
+    ...actual,
+    requireCoworkerCapability: requireCoworkerCapabilityMock,
+  };
+});
+
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/vendor-grants")>();
+  return {
+    ...actual,
+    requestWorkspaceGrantCommitted: requestWorkspaceGrantCommittedMock,
+  };
+});
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    vendorGrant: { findUnique: prismaVendorGrantFindUniqueMock },
+  },
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -542,5 +568,124 @@ describe("requireScheduledTaskCreator", () => {
         tx,
       ),
     ).rejects.toThrow("Vendor workspace access is required");
+  });
+});
+
+describe("requireScheduledTaskCreatorOrRequestGrant", () => {
+  const VENDOR_ID = "33333333-3333-7333-8333-333333333333";
+
+  function createCoworkerAuthContext(): AuthenticationContext {
+    return {
+      actor: "coworker",
+      coworkerId: "creator_coworker",
+      vendorId: VENDOR_ID,
+      context: { userId: "user_123", organizationId: "org_123" },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
+  });
+
+  it("returns a user creator without touching workspace grants", async () => {
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+          role: "user",
+        },
+        WORKSPACE_ID,
+      ),
+    ).resolves.toMatchObject({
+      actor: { kind: "user", userId: "user_123" },
+    });
+
+    expect(prismaVendorGrantFindUniqueMock).not.toHaveBeenCalled();
+    expect(requestWorkspaceGrantCommittedMock).not.toHaveBeenCalled();
+  });
+
+  it("commits a pending request for a Coworker without a grant, then reports grant_required", async () => {
+    prismaVendorGrantFindUniqueMock.mockResolvedValue(null);
+    requestWorkspaceGrantCommittedMock.mockResolvedValue({
+      grant: { id: "grant_123", status: VendorGrantStatus.PENDING },
+      created: true,
+    });
+
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        createCoworkerAuthContext(),
+        WORKSPACE_ID,
+      ),
+    ).rejects.toThrow("Vendor workspace access is required");
+
+    expect(requestWorkspaceGrantCommittedMock).toHaveBeenCalledWith({
+      vendorId: VENDOR_ID,
+      workspaceId: WORKSPACE_ID,
+      requestedByUserId: "user_123",
+    });
+  });
+
+  it("keeps an existing pending grant and still reports grant_required", async () => {
+    prismaVendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.PENDING,
+    });
+    requestWorkspaceGrantCommittedMock.mockResolvedValue({
+      grant: { id: "grant_123", status: VendorGrantStatus.PENDING },
+      created: false,
+    });
+
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        createCoworkerAuthContext(),
+        WORKSPACE_ID,
+      ),
+    ).rejects.toThrow("Vendor workspace access is required");
+
+    expect(requestWorkspaceGrantCommittedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the Coworker creator after approval grants access on retry", async () => {
+    prismaVendorGrantFindUniqueMock.mockResolvedValue(null);
+    requestWorkspaceGrantCommittedMock.mockResolvedValue({
+      grant: { id: "grant_123", status: VendorGrantStatus.GRANTED },
+      created: true,
+    });
+
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        createCoworkerAuthContext(),
+        WORKSPACE_ID,
+      ),
+    ).resolves.toMatchObject({
+      actor: {
+        kind: "coworker",
+        coworkerId: "creator_coworker",
+        enforceWorkspaceGrant: false,
+      },
+      assigneeAuthorization: { kind: "user", userId: "user_123" },
+    });
+
+    expect(requestWorkspaceGrantCommittedMock).toHaveBeenCalledTimes(1);
+    expect(prismaVendorGrantFindUniqueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps denied and revoked grants blocked without requesting again", async () => {
+    prismaVendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.REVOKED,
+    });
+
+    await expect(
+      requireScheduledTaskCreatorOrRequestGrant(
+        createCoworkerAuthContext(),
+        WORKSPACE_ID,
+      ),
+    ).rejects.toThrow("Vendor workspace access was revoked");
+
+    expect(requestWorkspaceGrantCommittedMock).not.toHaveBeenCalled();
   });
 });
