@@ -1,6 +1,7 @@
 {
   "root": false,
   "extends": "//",
+  "plugins": ["./biome-plugins/named-clock-formats.grit"],
   "files": {
     "includes": [
       "**",

@@ -12,11 +12,6 @@ import { Label } from "@/components/ui/label";
 import { previewEnterpriseContractPeriodsAction } from "@/lib/actions/enterprise-contract/action";
 import type { EnterpriseContractPreview } from "@/lib/clients/generated/core/types.gen";
 
-const dateTimeOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-} as const;
-
 interface PreviewSchedulePanelProps {
   contractId: string;
 }
@@ -93,13 +88,13 @@ export function PreviewSchedulePanel({
               <div>
                 <dt className="text-muted-foreground">Activated at</dt>
                 <dd className="font-medium">
-                  {formatter.dateTime(preview.activatedAt, dateTimeOptions)}
+                  {formatter.dateTime(preview.activatedAt, "dateTimeMedium")}
                 </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Contract ends</dt>
                 <dd className="font-medium">
-                  {formatter.dateTime(preview.endsAt, dateTimeOptions)}
+                  {formatter.dateTime(preview.endsAt, "dateTimeMedium")}
                 </dd>
               </div>
             </dl>

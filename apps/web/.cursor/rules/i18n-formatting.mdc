@@ -40,7 +40,7 @@ function CreditsCell({ credits }: { credits: number }) {
 }
 ```
 
-For dates in client components, prefer `formatter.dateTime(value, options)` (see `job-meta-details.tsx`, `personal-subscription-section.tsx`).
+For dates in client components, use `formatter.dateTime(value, options)` for date-only labels (see `personal-subscription-section.tsx`). A label that shows a clock time names a format from `createFormats` in `src/i18n/time-format.ts` instead, such as `formatter.dateTime(value, "dateTime")` (see `job-meta-details.tsx`), so it follows the viewer's 12-hour / 24-hour preference. A third argument may still override `year` or `timeZone`. Biome's `named-clock-formats` plugin (`biome-plugins/`) flags clock options written inline.
 
 **Server components** — use `getFormatter()` from `next-intl/server`:
 

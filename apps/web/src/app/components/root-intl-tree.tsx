@@ -6,6 +6,7 @@ import { GlobalModalsContextProvider } from "@/components/modals/global-modals-c
 import { Toaster } from "@/components/ui/sonner";
 import { GLOBAL_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { pickMessages } from "@/i18n/pick-messages";
+import { TimeFormatSync } from "@/i18n/time-format-sync";
 import { TimeZoneSync } from "@/i18n/time-zone-sync";
 
 import { DocumentLocale } from "./document-locale";
@@ -21,6 +22,7 @@ function RootProviders({ children, locale, messages }: RootProvidersProps) {
     <NextIntlClientProvider locale={locale} messages={messages}>
       <DocumentLocale />
       <TimeZoneSync />
+      <TimeFormatSync />
       <GlobalModalsContextProvider>
         <div className="bg-background">{children}</div>
       </GlobalModalsContextProvider>

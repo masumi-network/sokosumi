@@ -10,6 +10,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "@/../messages/en.json";
+import { createFormats, type HourCycle } from "@/i18n/time-format";
 import type { TaskScheduleOccurrence } from "@/lib/clients/generated/core/types.gen";
 
 const refreshMock = vi.fn();
@@ -61,9 +62,14 @@ function occurrence(
 
 function renderOccurrences(
   overrides: Partial<React.ComponentProps<typeof TaskScheduleOccurrences>> = {},
+  hourCycle?: HourCycle,
 ) {
   return render(
-    <NextIntlClientProvider locale="en" messages={messages}>
+    <NextIntlClientProvider
+      locale="en"
+      messages={messages}
+      formats={createFormats(hourCycle)}
+    >
       <TaskScheduleOccurrences
         taskId="task_1"
         scheduleRevision={4}
@@ -170,6 +176,20 @@ describe("TaskScheduleOccurrences", () => {
       },
     });
 
+    expect(screen.getByText("Sep 10, 9:00 AM")).toBeInTheDocument();
+  });
+
+  it("writes run times in the viewer's hour cycle", () => {
+    const upcoming = {
+      occurrences: [occurrence({ id: "occ_1" })],
+      nextCursor: null,
+    };
+
+    const { unmount } = renderOccurrences({ upcoming }, "h23");
+    expect(screen.getByText("Sep 10, 09:00")).toBeInTheDocument();
+    unmount();
+
+    renderOccurrences({ upcoming }, "h12");
     expect(screen.getByText("Sep 10, 9:00 AM")).toBeInTheDocument();
   });
 
