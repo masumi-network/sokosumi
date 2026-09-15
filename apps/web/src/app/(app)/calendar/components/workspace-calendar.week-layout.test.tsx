@@ -16,13 +16,14 @@ vi.mock("@fullcalendar/react", () => ({
   },
 }));
 
-vi.mock("next-intl", () => ({
-  useFormatter: () => ({
-    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
-      new Intl.DateTimeFormat("en-US", options).format(value),
-  }),
-  useTranslations: () => (key: string) => key,
-}));
+vi.mock("next-intl", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  const formatter = createTestFormatter({ locale: "en-US" });
+  return {
+    useFormatter: () => formatter,
+    useTranslations: () => (key: string) => key,
+  };
+});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),

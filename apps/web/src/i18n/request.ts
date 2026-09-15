@@ -8,6 +8,12 @@ import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 
 import {
+  createFormats,
+  DETECTED_TIME_FORMAT_COOKIE_NAME,
+  resolveRequestHourCycle,
+  TIME_FORMAT_COOKIE_NAME,
+} from "@/i18n/time-format";
+import {
   resolveRequestTimeZone,
   TIME_ZONE_COOKIE_NAME,
 } from "@/i18n/time-zone";
@@ -35,6 +41,12 @@ export default getRequestConfig(async () => {
     messages: messagesByLocale[locale],
     timeZone: resolveRequestTimeZone(
       cookieStore.get(TIME_ZONE_COOKIE_NAME)?.value,
+    ),
+    formats: createFormats(
+      resolveRequestHourCycle({
+        preference: cookieStore.get(TIME_FORMAT_COOKIE_NAME)?.value,
+        detected: cookieStore.get(DETECTED_TIME_FORMAT_COOKIE_NAME)?.value,
+      }),
     ),
   };
 });

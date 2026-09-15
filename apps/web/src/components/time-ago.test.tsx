@@ -5,10 +5,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { TimeAgo } from "@/components/time-ago";
+import { createFormats } from "@/i18n/time-format";
+import type { TestFormatterOptions } from "@/test/intl-formatter";
 
-function intl(children: ReactNode, timeZone = "UTC") {
+function intl(
+  children: ReactNode,
+  { locale = "en", timeZone = "UTC", hourCycle }: TestFormatterOptions = {},
+) {
   return (
-    <NextIntlClientProvider locale="en" timeZone={timeZone}>
+    <NextIntlClientProvider
+      locale={locale}
+      timeZone={timeZone}
+      formats={createFormats(hourCycle)}
+    >
       {children}
     </NextIntlClientProvider>
   );
@@ -39,7 +48,7 @@ describe("TimeAgo", () => {
   it("localizes the post-mount relative string to the active locale", () => {
     const date = new Date(Date.now() - 60_000);
 
-    render(intl(<TimeAgo date={date} strict locale="de" />));
+    render(intl(<TimeAgo date={date} strict />, { locale: "de" }));
 
     // German "vor 1 Minute" rather than the English "1 minute ago".
     expect(screen.getByText(/^vor /)).toBeInTheDocument();
@@ -49,7 +58,7 @@ describe("TimeAgo", () => {
     const date = new Date("2026-04-15T10:00:00.000Z");
 
     const markup = renderToStaticMarkup(
-      intl(<TimeAgo date={date} strict locale="de" />),
+      intl(<TimeAgo date={date} strict />, { locale: "de" }),
     );
 
     // German formatting drops the comma the English "Apr 15, 10:00" uses.
@@ -61,10 +70,31 @@ describe("TimeAgo", () => {
     const date = new Date("2026-04-15T10:00:00.000Z");
 
     const markup = renderToStaticMarkup(
-      intl(<TimeAgo date={date} strict />, "Europe/Berlin"),
+      intl(<TimeAgo date={date} strict />, { timeZone: "Europe/Berlin" }),
     );
 
     expect(markup).toContain("Apr 15, 12:00");
+  });
+
+  it("writes the SSR-stable absolute fallback in the viewer's hour cycle", () => {
+    // 14:50 UTC is 16:50 in Berlin during CEST.
+    const date = new Date("2026-09-15T14:50:00.000Z");
+
+    const markup24h = renderToStaticMarkup(
+      intl(<TimeAgo date={date} strict />, {
+        timeZone: "Europe/Berlin",
+        hourCycle: "h23",
+      }),
+    );
+    const markup12h = renderToStaticMarkup(
+      intl(<TimeAgo date={date} strict />, {
+        timeZone: "Europe/Berlin",
+        hourCycle: "h12",
+      }),
+    );
+
+    expect(markup24h).toContain("Sep 15, 16:50");
+    expect(markup12h).toContain("Sep 15, 4:50 PM");
   });
 
   it("renders an em dash for an invalid date", () => {

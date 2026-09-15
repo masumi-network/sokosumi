@@ -1,16 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PublicSharedTask } from "@/lib/clients/generated/core";
+import { createTestFormatter } from "@/test/intl-formatter";
 import { SharedTaskView } from "./shared-task-view";
+
+const getFormatterMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "en"),
-  getFormatter: vi.fn(async () => ({
-    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
-      new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" }).format(
-        value,
-      ),
-  })),
+  getFormatter: () => getFormatterMock(),
   getTranslations: vi.fn(async () => (key: string) => key),
 }));
 
@@ -48,6 +46,10 @@ const task = {
 } as unknown as PublicSharedTask;
 
 describe("SharedTaskView", () => {
+  beforeEach(() => {
+    getFormatterMock.mockResolvedValue(createTestFormatter());
+  });
+
   it("strips project context attachment links from the public description", async () => {
     render(await SharedTaskView({ task }));
 
@@ -65,5 +67,26 @@ describe("SharedTaskView", () => {
 
     expect(aside).not.toBeNull();
     expect(aside?.className.split(/\s+/)).toContain("md:pt-4");
+  });
+
+  it("writes the created time in the viewer's hour cycle", async () => {
+    // 14:50 UTC is 16:50 in Berlin during CEST.
+    const sharedTask = {
+      ...task,
+      createdAt: new Date("2026-09-15T14:50:00.000Z"),
+    };
+
+    getFormatterMock.mockResolvedValue(
+      createTestFormatter({ timeZone: "Europe/Berlin", hourCycle: "h23" }),
+    );
+    const { unmount } = render(await SharedTaskView({ task: sharedTask }));
+    expect(screen.getByText("Sep 15, 2026, 16:50")).toBeInTheDocument();
+    unmount();
+
+    getFormatterMock.mockResolvedValue(
+      createTestFormatter({ timeZone: "Europe/Berlin", hourCycle: "h12" }),
+    );
+    render(await SharedTaskView({ task: sharedTask }));
+    expect(screen.getByText("Sep 15, 2026, 4:50 PM")).toBeInTheDocument();
   });
 });

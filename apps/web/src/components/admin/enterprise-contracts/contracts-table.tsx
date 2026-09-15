@@ -47,11 +47,6 @@ const enterpriseContractFilterParsers = {
 
 const columnHelper = createAppColumnHelper<EnterpriseContract>();
 
-const dateTimeOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-} as const;
-
 function getColumns(
   t: ReturnType<typeof useTranslations<"App.Admin.EnterpriseContracts">>,
   formatter: ReturnType<typeof useFormatter>,
@@ -145,7 +140,7 @@ function getColumns(
       ),
       cell: ({ row }) =>
         row.original.endsAt
-          ? formatter.dateTime(row.original.endsAt, dateTimeOptions)
+          ? formatter.dateTime(row.original.endsAt, "dateTimeMedium")
           : "—",
       enableSorting: false,
       enableHiding: false,

@@ -104,8 +104,7 @@ export default async function AdminX402PaymentsPage({
     getTranslations("App.Admin.X402Payments"),
     getFormatter(),
   ]);
-  const formatDate = (date: Date) =>
-    formatter.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
+  const formatDate = (date: Date) => formatter.dateTime(date, "dateTimeMedium");
 
   return (
     <div className="min-h-full w-full">
