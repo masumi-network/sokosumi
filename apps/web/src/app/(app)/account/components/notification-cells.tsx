@@ -102,7 +102,7 @@ export interface EmailChoice {
  * and on focus, and it is the cell's own description, because a native title
  * waits a second, never opens on a phone, and never opens on focus.
  */
-export function DeadCell({
+function DeadCell({
   icon: Icon,
   label,
   hint,
