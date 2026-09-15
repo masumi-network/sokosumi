@@ -207,7 +207,9 @@ import SwiftUI
     private func jumpToQuote(_ id: String) {
       Task { @MainActor in
         do {
-          _ = try await workspaces.openMessage(id, auth: auth)
+          if try await workspaces.openMessage(id, auth: auth) == .unavailable {
+            jumpError = "This message is no longer available."
+          }
         } catch { jumpError = friendlyMessage(for: error) }
       }
     }

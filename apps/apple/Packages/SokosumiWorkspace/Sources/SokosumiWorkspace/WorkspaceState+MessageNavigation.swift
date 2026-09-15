@@ -3,56 +3,61 @@ import Foundation
 import SokosumiAuth
 import SokosumiChat
 
+/// Distinguishes a missing target from a jump the reader already replaced.
+public enum MessageNavigationResult: Equatable, Sendable {
+  case opened
+  case unavailable
+  case superseded
+}
+
+private struct NavigationGuard {
+  let request: UUID
+  let generation: Int
+}
+
 public extension WorkspaceState {
   /// Navigate within the current workspace. Membership-visible rooms remain the authority.
   @discardableResult
-  func openChatLink(_ link: ChatLink, auth: AuthState) async throws -> Bool {
-    guard rooms.contains(where: { $0.id == link.roomId }) else { return false }
+  func openChatLink(_ link: ChatLink, auth: AuthState) async throws -> MessageNavigationResult {
+    guard rooms.contains(where: { $0.id == link.roomId }) else { return .unavailable }
     selectRoom(link.roomId, auth: auth)
     let request = UUID()
     messageNavigationRequest = request
     let generation = timeline.generation
     await transcriptLoadTask?.value
-    guard messageNavigationRequest == request, generation == timeline.generation, transcriptRoomId == link.roomId, !Task.isCancelled else { return false }
+    guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == link.roomId else { return .superseded }
     guard let messageId = link.messageId else { thread.close()
-      return true
+      return .opened
     }
     return try await openMessage(messageId, auth: auth)
   }
 
   /// Quotes and links resolve replies before choosing the existing context loader.
   @discardableResult
-  func openMessage(_ messageId: String, auth: AuthState) async throws -> Bool {
-    guard let roomId = transcriptRoomId, let client = resolveClient(auth: auth) else { return false }
+  func openMessage(_ messageId: String, auth: AuthState) async throws -> MessageNavigationResult {
+    guard let roomId = transcriptRoomId, let client = resolveClient(auth: auth) else { return .unavailable }
     let request = UUID()
     messageNavigationRequest = request
     let initialThreadGeneration = thread.timeline.generation
     let generation = timeline.generation
     let slug = selection?.workspace.organizationSlug
+    let navigation = NavigationGuard(request: request, generation: generation)
     do {
       let message = try await navigationMessage(messageId, roomId: roomId, client: client, organizationSlug: slug)
-      guard messageNavigationRequest == request, initialThreadGeneration == thread.timeline.generation,
-            generation == timeline.generation, !Task.isCancelled else { return false }
+      guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       if let message {
-        guard message.roomId == roomId else { return false }
+        guard message.roomId == roomId else { return .unavailable }
         if message.parentMessageId != nil {
           return try await navigateReply(message, request: request, auth: auth)
         }
       }
-      guard try await jumpToMessage(messageId, auth: auth), messageNavigationRequest == request,
-            initialThreadGeneration == thread.timeline.generation, generation == timeline.generation, !Task.isCancelled else { return false }
+      guard try await jumpToMessage(messageId, auth: auth),
+            isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       thread.close()
       messageJump = MessageJump(roomId: roomId, messageId: messageId)
-      return true
+      return .opened
     } catch {
-      guard messageNavigationRequest == request, generation == timeline.generation, !Task.isCancelled else { return false }
-      if let failure = error as? ChatServiceError {
-        signOutIfUnauthorized(failure, auth: auth)
-        if case let .unprocessable(status, _) = failure, status == 403 || status == 404 {
-          return false
-        }
-      }
-      throw error
+      return try currentNavigationFailure(error, navigation: navigation, auth: auth)
     }
   }
 
@@ -78,7 +83,7 @@ public extension WorkspaceState {
   /// Open the parent first, reuse its normal initial load, then fetch a context
   /// window only if the result is outside loaded replies. Every suspension is
   /// guarded against room/thread changes.
-  func openMessageReply(_ hit: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws -> Bool {
+  func openMessageReply(_ hit: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws -> MessageNavigationResult {
     let request = UUID()
     messageNavigationRequest = request
     return try await navigateReply(hit, request: request, auth: auth)
@@ -90,38 +95,69 @@ public extension WorkspaceState {
     }
   }
 
-  private func navigateReply(_ hit: Components.Schemas.ChatRoomMessage, request: UUID, auth: AuthState) async throws -> Bool {
-    guard hit.roomId == transcriptRoomId, let parentId = hit.parentMessageId else { return false }
+  private func navigateReply(_ hit: Components.Schemas.ChatRoomMessage, request: UUID, auth: AuthState) async throws -> MessageNavigationResult {
+    guard hit.roomId == transcriptRoomId, let parentId = hit.parentMessageId else { return .unavailable }
     guard let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unauthorized("Sign in to view this reply.")
     }
     let initialThreadGeneration = thread.timeline.generation
     let generation = timeline.generation
     let slug = selection?.workspace.organizationSlug
+    let navigation = NavigationGuard(request: request, generation: generation)
     do {
       let parent = try await messageParent(parentId, roomId: hit.roomId, client: client, organizationSlug: slug)
-      guard messageNavigationRequest == request, initialThreadGeneration == thread.timeline.generation,
-            generation == timeline.generation, !Task.isCancelled,
-            parent.id == parentId, parent.roomId == hit.roomId, parent.parentMessageId == nil else { return false }
+      guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
+      guard parent.id == parentId, parent.roomId == hit.roomId, parent.parentMessageId == nil else { return .unavailable }
       openThread(parent, auth: auth)
       let threadGeneration = thread.timeline.generation
       await thread.loadTask?.value
-      guard messageNavigationRequest == request, generation == timeline.generation, threadGeneration == thread.timeline.generation,
-            thread.parent?.id == parentId, !Task.isCancelled else { return false }
-      if !thread.timeline.messages.contains(where: { $0.id == hit.id }) {
-        guard try await thread.timeline.loadPage(.around(hit.id), client: client, organizationSlug: slug,
-                                                 generation: threadGeneration) else { return false }
+      guard isCurrent(navigation, threadGeneration: threadGeneration),
+            thread.parent?.id == parentId else { return .superseded }
+      if let stopped = try await loadReplyIfNeeded(hit, client: client, organizationSlug: slug, generation: threadGeneration) {
+        return stopped
       }
-      guard messageNavigationRequest == request, generation == timeline.generation, threadGeneration == thread.timeline.generation, !Task.isCancelled else { return false }
+      guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
       thread.requestJump(to: hit.id)
-      return thread.jumpTarget?.messageId == hit.id
+      return thread.jumpTarget?.messageId == hit.id ? .opened : .unavailable
     } catch {
-      guard messageNavigationRequest == request, generation == timeline.generation, !Task.isCancelled else { return false }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
-      }
-      throw error
+      return try currentNavigationFailure(error, navigation: navigation, auth: auth, mapRefusal: false)
     }
+  }
+
+  private func loadReplyIfNeeded(
+    _ hit: Components.Schemas.ChatRoomMessage,
+    client: Client,
+    organizationSlug: String?,
+    generation: Int
+  ) async throws -> MessageNavigationResult? {
+    guard !thread.timeline.messages.contains(where: { $0.id == hit.id }) else { return nil }
+    guard try await thread.timeline.loadPage(.around(hit.id), client: client, organizationSlug: organizationSlug,
+                                             generation: generation) else { return .superseded }
+    return nil
+  }
+
+  private func isCurrent(_ navigation: NavigationGuard, threadGeneration: Int? = nil) -> Bool {
+    guard messageNavigationRequest == navigation.request, navigation.generation == timeline.generation, !Task.isCancelled else { return false }
+    if let threadGeneration {
+      return threadGeneration == thread.timeline.generation
+    }
+    return true
+  }
+
+  private func currentNavigationFailure(
+    _ error: Error,
+    navigation: NavigationGuard,
+    auth: AuthState,
+    mapRefusal: Bool = true
+  ) throws -> MessageNavigationResult {
+    guard isCurrent(navigation) else { return .superseded }
+    if let failure = error as? ChatServiceError {
+      signOutIfUnauthorized(failure, auth: auth)
+      if mapRefusal, case let .unprocessable(status, _) = failure, status == 403 || status == 404 {
+        return .unavailable
+      }
+    }
+    throw error
   }
 
   private func messageParent(_ id: String, roomId: String, client: Client, organizationSlug: String?) async throws -> Components.Schemas.ChatRoomMessage {

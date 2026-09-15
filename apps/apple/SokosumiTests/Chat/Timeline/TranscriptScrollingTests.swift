@@ -45,7 +45,7 @@
       @Test func messageLinkWaitsForPreparedTranscript() async throws {
         let state = try fixtureState(thread: false, media: false)
         let auth = AuthState()
-        #expect(try await state.openMessage("fixture-2", auth: auth))
+        #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
         let host = NSHostingView(rootView: RoomTimelineView(roomId: "fixture")
           .environmentObject(state).environmentObject(auth))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)

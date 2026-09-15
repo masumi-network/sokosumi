@@ -229,7 +229,9 @@ import SwiftUI
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in Task {
                                    do {
-                                     _ = try await workspaces.openMessage(id, auth: auth)
+                                     if try await workspaces.openMessage(id, auth: auth) == .unavailable {
+                                       jumpError = "This message is no longer available."
+                                     }
                                    } catch { jumpError = friendlyMessage(for: error) }
                                  } },
                                  horizontalInset: 12,
@@ -368,15 +370,19 @@ import SwiftUI
       jumpCompletion = nil
     }
 
-    private func jumpToMessage(_ id: String) async throws -> Bool {
+    private func jumpToMessage(_ id: String) async throws -> MessageNavigationResult {
       let expectedRoom = roomId
       scrollIntent.readOlder()
-      guard try await workspaces.openMessage(id, auth: auth), workspaces.transcriptRoomId == expectedRoom else { return false }
+      let result = try await workspaces.openMessage(id, auth: auth)
+      guard result == .opened, workspaces.transcriptRoomId == expectedRoom else {
+        return result == .opened ? .superseded : result
+      }
       jumpCompletion?.resume(returning: false)
-      return await withCheckedContinuation { completion in
+      let landed = await withCheckedContinuation { completion in
         jumpCompletion = completion
         quoteTarget = id
       }
+      return landed ? .opened : .superseded
     }
 
     private func transcriptError(_ error: String, retryOlder: Bool) -> some View {

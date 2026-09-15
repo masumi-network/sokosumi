@@ -26,7 +26,7 @@ struct ChatRootView: View {
       linkTask?.cancel()
       linkTask = Task { @MainActor in
         do {
-          if try await !workspaces.openChatLink(link, auth: auth), !Task.isCancelled {
+          if try await workspaces.openChatLink(link, auth: auth) == .unavailable, !Task.isCancelled {
             linkError = "This message or conversation is no longer available in this workspace."
           }
         } catch {

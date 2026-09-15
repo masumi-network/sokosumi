@@ -8,7 +8,7 @@ import SwiftUI
   /// One native inspector shared by room search, pins and threads.
   struct RoomToolsModifier: ViewModifier {
     let roomId: String
-    let jump: (String) async throws -> Bool
+    let jump: (String) async throws -> MessageNavigationResult
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     @StateObject private var search = RoomSearch()
@@ -200,16 +200,19 @@ import SwiftUI
           }
         }
         do {
-          let success = if hit.parentMessageId != nil {
+          let result = if hit.parentMessageId != nil {
             try await workspaces.openMessageReply(hit, auth: auth)
           } else {
             try await jump(hit.id)
           }
           guard expectedScope == scope, jumpRequestId == requestId, !Task.isCancelled else { return }
-          if success {
+          switch result {
+          case .opened:
             showsSearch = false
-          } else {
-            jumpError = "Couldn’t jump to this message. Try again."
+          case .unavailable:
+            jumpError = "This message is no longer available."
+          case .superseded:
+            break
           }
         } catch {
           if expectedScope == scope, jumpRequestId == requestId, !Task.isCancelled {
