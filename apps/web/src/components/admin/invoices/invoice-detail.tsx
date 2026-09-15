@@ -57,7 +57,7 @@ export function InvoiceDetail({ invoice: initialInvoice }: InvoiceDetailProps) {
             {t("Result.credits")}
           </dt>
           <dd className="text-sm font-medium">
-            {invoice.credits.toLocaleString("en-US")}
+            {formatter.number(invoice.credits)}
           </dd>
         </div>
         <div className="space-y-1">
