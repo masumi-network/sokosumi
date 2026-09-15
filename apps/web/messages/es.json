@@ -6057,7 +6057,8 @@
         "current": "Imagen actual",
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
-        "loadError": "No se pudieron cargar las imágenes."
+        "loadError": "No se pudieron cargar las imágenes.",
+        "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."
       },
       "Skills": {
         "builtIn": "Incluidos",

@@ -20,4 +20,19 @@ describe("AuthenticatedAppFrame session hydration", () => {
     expect(providerOpen).toBeGreaterThan(hydratorOpen);
     expect(headerOpen).toBeGreaterThan(providerOpen);
   });
+
+  /**
+   * Heal follows userId, but the provider also holds that reader's inbox.
+   * The identity key remounts it when the session user changes.
+   */
+  it("remounts NotificationProvider when the session user changes", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "../authenticated-app-frame.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      "<NotificationProvider key={session.user.id} userId={session.user.id}>",
+    );
+  });
 });

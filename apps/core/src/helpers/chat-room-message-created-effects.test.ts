@@ -59,9 +59,14 @@ vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
 }));
 
+import * as Sentry from "@sentry/node";
+
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 
-import { emitChatRoomMessageCreatedEffects } from "./chat-room-message-created-effects";
+import {
+  emitChatRoomMessageCreatedEffects,
+  invalidateChatRoomMessageReaders,
+} from "./chat-room-message-created-effects";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
@@ -366,6 +371,37 @@ describe("emitChatRoomMessageCreatedEffects", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * The roster read sits above the pair below, so a failure there reaches
+   * neither of them. Both are scheduled after the reader has been answered,
+   * so a rejection here would arrive as an unhandled one that names nothing.
+   */
+  it("reports a failed roster read instead of rejecting", async () => {
+    const failure = new Error("pool exhausted");
+    membershipFindManyMock.mockRejectedValueOnce(failure);
+
+    await expect(emit({ memberUserIds: undefined })).resolves.toBeUndefined();
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(failure, {
+      tags: { context: "chat_room_message_effects" },
+      extra: { roomId: ROOM_ID, messageId: MESSAGE_ID },
+    });
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  /** A settled failure is reported, not only written to a console nobody reads. */
+  it("reports a failed effect instead of only logging it", async () => {
+    const failure = new Error("readers unavailable");
+    userFindManyMock.mockRejectedValueOnce(failure);
+
+    await expect(emit()).resolves.toBeUndefined();
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(failure, {
+      tags: { context: "chat_room_message_effects" },
+      extra: { roomId: ROOM_ID, messageId: MESSAGE_ID },
+    });
+  });
+
   it("never notifies the author of their own message", async () => {
     userFindManyMock.mockResolvedValue([subscriber(AUTHOR_ID)]);
 
@@ -379,4 +415,18 @@ describe("emitChatRoomMessageCreatedEffects", () => {
       collections: ["active"],
     });
   });
+});
+
+it("reports a reader lookup failure without rejecting invalidation", async () => {
+  const error = new Error("reader lookup failed");
+  membershipFindManyMock.mockRejectedValueOnce(error);
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  await expect(
+    invalidateChatRoomMessageReaders({ roomId: ROOM_ID }),
+  ).resolves.toBeUndefined();
+  expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+    tags: { context: "chat_room_reader_invalidation" },
+    extra: { roomId: ROOM_ID },
+  });
+  log.mockRestore();
 });
