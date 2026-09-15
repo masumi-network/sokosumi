@@ -6,9 +6,11 @@ import {
   type Locale,
 } from "date-fns";
 import { de, enUS, es } from "date-fns/locale";
+import { useTimeZone } from "next-intl";
 import { Suspense, use } from "react";
 import { browser } from "react-dom";
 
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
 /**
@@ -96,8 +98,8 @@ function TimeAgoRelative({
  * server render and the client hydration. Computing it during SSR therefore
  * yields different text than the first client render and triggers a hydration
  * mismatch (Sentry SOKOSUMI-A). `use(browser())` opts the relative string out
- * of SSR; the nearest Suspense fallback is a UTC-pinned absolute date so the
- * initial HTML stays deterministic.
+ * of SSR; the nearest Suspense fallback is an absolute date in the request's
+ * zone (see `TimeZoneSync`) so the initial HTML stays deterministic.
  */
 export function TimeAgo({
   date,
@@ -106,12 +108,13 @@ export function TimeAgo({
   locale = "en",
   className,
 }: TimeAgoProps) {
+  const timeZone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const dateObj = typeof date === "string" ? new Date(date) : date;
   if (Number.isNaN(dateObj.getTime())) {
     return <span className={className}>—</span>;
   }
 
-  const absolute = formatShortDateTime(dateObj, locale);
+  const absolute = formatShortDateTime(dateObj, locale, timeZone);
 
   return (
     <Suspense

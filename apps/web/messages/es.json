@@ -1701,6 +1701,8 @@
           "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
+          "changeStatus": "Cambiar estado…",
+          "noStatusMatches": "Ningún estado coincide",
           "moveToWorkspace": "Mover a otro espacio de trabajo",
           "moveToWorkspaceTitle": "Mover la tarea a otro espacio de trabajo",
           "moveToWorkspaceDescription": "Selecciona el espacio de trabajo al que quieres mover esta tarea.",
@@ -1876,6 +1878,8 @@
         "statusDraft": "Borrador",
         "statusQueued": "En cola",
         "statusReady": "Listo",
+        "changeStatus": "Cambiar estado…",
+        "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
         "back": "Atrás",
@@ -1925,6 +1929,8 @@
         "statusDescription": "Elige el estado de este Task",
         "statusDraft": "Borrador",
         "statusReady": "Listo",
+        "changeStatus": "Cambiar estado…",
+        "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
         "back": "Atrás",
@@ -2722,7 +2728,7 @@
           "totalCount": "{count, plural, one {# usuario} other {# usuarios}}",
           "empty": "No se encontraron usuarios.",
           "user": "Usuario",
-          "credits": "Créditos",
+          "credits": "Créditos personales",
           "subscription": "Suscripción",
           "startedTasks": "Tareas iniciadas",
           "registered": "Registrado",
@@ -2768,8 +2774,8 @@
             "enterprisePool": "Pool enterprise: {credits} créditos"
           },
           "credits": {
-            "title": "Créditos totales",
-            "description": "Créditos disponibles combinados para esta organización.",
+            "title": "Créditos de la organización",
+            "description": "Créditos disponibles en el fondo de la organización, incluidos los extras y el fondo del contrato enterprise si existe.",
             "perMember": "Los créditos se muestran por miembro a continuación."
           },
           "members": {

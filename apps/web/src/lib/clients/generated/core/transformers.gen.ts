@@ -1398,6 +1398,17 @@ export const getUsersByIdCreditsResponseTransformer = async (data: any): Promise
         }
     }
     data.data.extra = creditsResponseExtraSchemaResponseTransformer(data.data.extra);
+    if (data.data.enterprise) {
+        data.data.enterprise.activatedAt = new Date(data.data.enterprise.activatedAt);
+        data.data.enterprise.endsAt = new Date(data.data.enterprise.endsAt);
+        if (data.data.enterprise.currentPeriodEnd) {
+            data.data.enterprise.currentPeriodEnd = new Date(data.data.enterprise.currentPeriodEnd);
+        }
+        if (data.data.enterprise.nextActivationAt) {
+            data.data.enterprise.nextActivationAt = new Date(data.data.enterprise.nextActivationAt);
+        }
+        data.data.enterprise.buckets = data.data.enterprise.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    }
     if (data.data.credits.subscription) {
         if (data.data.credits.subscription.periodStart) {
             data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);
@@ -1466,6 +1477,17 @@ export const getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer
         }
     }
     data.data.extra = creditsResponseExtraSchemaResponseTransformer(data.data.extra);
+    if (data.data.enterprise) {
+        data.data.enterprise.activatedAt = new Date(data.data.enterprise.activatedAt);
+        data.data.enterprise.endsAt = new Date(data.data.enterprise.endsAt);
+        if (data.data.enterprise.currentPeriodEnd) {
+            data.data.enterprise.currentPeriodEnd = new Date(data.data.enterprise.currentPeriodEnd);
+        }
+        if (data.data.enterprise.nextActivationAt) {
+            data.data.enterprise.nextActivationAt = new Date(data.data.enterprise.nextActivationAt);
+        }
+        data.data.enterprise.buckets = data.data.enterprise.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    }
     if (data.data.credits.subscription) {
         if (data.data.credits.subscription.periodStart) {
             data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);

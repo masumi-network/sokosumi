@@ -25,6 +25,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
+  useTimeZone: () => "UTC",
   useLocale: () => "en",
   useFormatter: () => ({
     dateTime: () => "",

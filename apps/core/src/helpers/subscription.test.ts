@@ -16,11 +16,15 @@ const {
   getLatestSubscriptionByReferenceIdMock,
   listAvailableBucketsWithBalancesMock,
   listEnterprisePoolBucketsWithBalancesMock,
+  resolveOrganizationBillingPlanMock,
+  getEnterpriseContractBillingSummaryMock,
 } = vi.hoisted(() => ({
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   getLatestSubscriptionByReferenceIdMock: vi.fn(),
   listAvailableBucketsWithBalancesMock: vi.fn(),
   listEnterprisePoolBucketsWithBalancesMock: vi.fn(),
+  resolveOrganizationBillingPlanMock: vi.fn(),
+  getEnterpriseContractBillingSummaryMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/user", () => ({
@@ -40,6 +44,21 @@ vi.mock("@sokosumi/database/repositories", () => ({
     listEnterprisePoolBucketsWithBalances: (...args: unknown[]) =>
       listEnterprisePoolBucketsWithBalancesMock(...args),
   },
+}));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    resolveOrganizationBillingPlan: (...args: unknown[]) =>
+      resolveOrganizationBillingPlanMock(...args),
+  };
+});
+
+vi.mock("@/helpers/enterprise-contract-summary", () => ({
+  getEnterpriseContractBillingSummary: (...args: unknown[]) =>
+    getEnterpriseContractBillingSummaryMock(...args),
 }));
 
 function createSubscriptionRecord(
@@ -63,32 +82,76 @@ function createSubscriptionRecord(
   };
 }
 
+interface PeriodBucketFixture {
+  amountCents: bigint;
+  id: string;
+  lifetimeUsedCents: bigint;
+  periodUsedCents: bigint;
+}
+
 function createTransactionClient(params?: {
+  buckets?: PeriodBucketFixture[];
   totalCents?: bigint | null;
   usedCents?: bigint | null;
 }): {
-  aggregateBuckets: ReturnType<typeof vi.fn>;
-  aggregateConsumptions: ReturnType<typeof vi.fn>;
+  findManyBuckets: ReturnType<typeof vi.fn>;
+  groupByConsumptions: ReturnType<typeof vi.fn>;
   tx: Prisma.TransactionClient;
 } {
-  const aggregateBuckets = vi.fn().mockResolvedValue({
-    _sum: { amount: params?.totalCents ?? null },
-  });
-  const aggregateConsumptions = vi.fn().mockResolvedValue({
-    _sum: { amount: params?.usedCents ?? null },
-  });
+  const buckets: PeriodBucketFixture[] =
+    params?.buckets ??
+    (params?.totalCents != null && params.totalCents > 0n
+      ? [
+          {
+            amountCents: params.totalCents,
+            id: "bucket_1",
+            lifetimeUsedCents: params.usedCents ?? 0n,
+            periodUsedCents: params.usedCents ?? 0n,
+          },
+        ]
+      : []);
+
+  const findManyBuckets = vi.fn().mockResolvedValue(
+    buckets.map((bucket) => ({
+      amount: bucket.amountCents,
+      id: bucket.id,
+    })),
+  );
+  const groupByConsumptions = vi
+    .fn()
+    .mockImplementation(async (args: { where?: { createdAt?: unknown } }) => {
+      const periodOnly = args.where?.createdAt != null;
+      return buckets.map((bucket) => ({
+        _sum: {
+          amount: periodOnly
+            ? bucket.periodUsedCents
+            : bucket.lifetimeUsedCents,
+        },
+        bucketId: bucket.id,
+      }));
+    });
 
   return {
-    aggregateBuckets,
-    aggregateConsumptions,
+    findManyBuckets,
+    groupByConsumptions,
     tx: {
       creditBucket: {
-        aggregate: aggregateBuckets,
+        findMany: findManyBuckets,
       },
       creditConsumption: {
-        aggregate: aggregateConsumptions,
+        groupBy: groupByConsumptions,
       },
     } as unknown as Prisma.TransactionClient,
+  };
+}
+
+function currentPeriodBucketWhere(now: Date, scope: Record<string, unknown>) {
+  return {
+    AND: [
+      { OR: [{ activatesAt: null }, { activatesAt: { lte: now } }] },
+      scope,
+      { expiresAt: { gt: now } },
+    ],
   };
 }
 
@@ -165,7 +228,7 @@ describe("getCreditSummary", () => {
 
 describe("getCurrentSubscriptionCredits", () => {
   it("returns null when subscription does not exist", async () => {
-    const { aggregateBuckets, aggregateConsumptions, tx } =
+    const { findManyBuckets, groupByConsumptions, tx } =
       createTransactionClient({
         totalCents: convertCreditsToCents(10),
         usedCents: convertCreditsToCents(3),
@@ -180,12 +243,12 @@ describe("getCurrentSubscriptionCredits", () => {
       }),
     ).resolves.toBeNull();
 
-    expect(aggregateBuckets).not.toHaveBeenCalled();
-    expect(aggregateConsumptions).not.toHaveBeenCalled();
+    expect(findManyBuckets).not.toHaveBeenCalled();
+    expect(groupByConsumptions).not.toHaveBeenCalled();
   });
 
   it("returns null when period start is missing", async () => {
-    const { aggregateBuckets, aggregateConsumptions, tx } =
+    const { findManyBuckets, groupByConsumptions, tx } =
       createTransactionClient({
         totalCents: convertCreditsToCents(10),
         usedCents: convertCreditsToCents(3),
@@ -200,12 +263,12 @@ describe("getCurrentSubscriptionCredits", () => {
       }),
     ).resolves.toBeNull();
 
-    expect(aggregateBuckets).not.toHaveBeenCalled();
-    expect(aggregateConsumptions).not.toHaveBeenCalled();
+    expect(findManyBuckets).not.toHaveBeenCalled();
+    expect(groupByConsumptions).not.toHaveBeenCalled();
   });
 
   it("returns null when period end is missing", async () => {
-    const { aggregateBuckets, aggregateConsumptions, tx } =
+    const { findManyBuckets, groupByConsumptions, tx } =
       createTransactionClient({
         totalCents: convertCreditsToCents(10),
         usedCents: convertCreditsToCents(3),
@@ -220,13 +283,13 @@ describe("getCurrentSubscriptionCredits", () => {
       }),
     ).resolves.toBeNull();
 
-    expect(aggregateBuckets).not.toHaveBeenCalled();
-    expect(aggregateConsumptions).not.toHaveBeenCalled();
+    expect(findManyBuckets).not.toHaveBeenCalled();
+    expect(groupByConsumptions).not.toHaveBeenCalled();
   });
 
   it("returns null when subscription period is not current", async () => {
     const now = new Date("2025-01-15T12:00:00.000Z");
-    const { aggregateBuckets, aggregateConsumptions, tx } =
+    const { findManyBuckets, groupByConsumptions, tx } =
       createTransactionClient({
         totalCents: convertCreditsToCents(10),
         usedCents: convertCreditsToCents(3),
@@ -258,15 +321,15 @@ describe("getCurrentSubscriptionCredits", () => {
       }),
     ).resolves.toBeNull();
 
-    expect(aggregateBuckets).not.toHaveBeenCalled();
-    expect(aggregateConsumptions).not.toHaveBeenCalled();
+    expect(findManyBuckets).not.toHaveBeenCalled();
+    expect(groupByConsumptions).not.toHaveBeenCalled();
   });
 
   it("aggregates personal subscription credits for current period", async () => {
     const now = new Date("2025-01-15T12:00:00.000Z");
     const periodStart = new Date("2025-01-01T00:00:00.000Z");
     const periodEnd = new Date("2025-02-01T00:00:00.000Z");
-    const { aggregateBuckets, aggregateConsumptions, tx } =
+    const { findManyBuckets, groupByConsumptions, tx } =
       createTransactionClient({
         totalCents: convertCreditsToCents(10),
         usedCents: convertCreditsToCents(3),
@@ -286,7 +349,7 @@ describe("getCurrentSubscriptionCredits", () => {
       remaining: 7,
     });
 
-    const bucketScope = {
+    const bucketWhere = currentPeriodBucketWhere(now, {
       referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       userId: "user_1",
       organizationId: null,
@@ -297,41 +360,35 @@ describe("getCurrentSubscriptionCredits", () => {
       createdAt: {
         lt: now,
       },
-    };
-    const bucketWhere = {
-      AND: [
-        { OR: [{ activatesAt: null }, { activatesAt: { lte: now } }] },
-        bucketScope,
-      ],
-    };
+    });
 
-    expect(aggregateBuckets).toHaveBeenCalledWith({
-      _sum: {
+    expect(findManyBuckets).toHaveBeenCalledWith({
+      select: {
         amount: true,
+        id: true,
       },
       where: bucketWhere,
     });
-    expect(aggregateConsumptions).toHaveBeenCalledWith({
-      _sum: {
-        amount: true,
-      },
-      where: {
-        createdAt: {
-          gte: periodStart,
-          lt: now,
+    expect(groupByConsumptions).toHaveBeenCalledTimes(2);
+    expect(groupByConsumptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ["bucketId"],
+        where: {
+          bucketId: { in: ["bucket_1"] },
+          createdAt: {
+            gte: periodStart,
+            lt: now,
+          },
         },
-        bucket: {
-          is: bucketWhere,
-        },
-      },
-    });
+      }),
+    );
   });
 
   it("aggregates organization subscription credits for current period", async () => {
     const now = new Date("2025-01-15T12:00:00.000Z");
     const periodStart = new Date("2025-01-01T00:00:00.000Z");
     const periodEnd = new Date("2025-02-01T00:00:00.000Z");
-    const { aggregateBuckets, aggregateConsumptions, tx } =
+    const { findManyBuckets, groupByConsumptions, tx } =
       createTransactionClient({
         totalCents: convertCreditsToCents(20),
         usedCents: convertCreditsToCents(11),
@@ -351,44 +408,94 @@ describe("getCurrentSubscriptionCredits", () => {
       remaining: 9,
     });
 
-    const bucketScope = {
-      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      organizationId: "org_1",
-      userId: null,
-      expiresAt: {
-        gt: periodStart,
-        lte: periodEnd,
-      },
-      createdAt: {
-        lt: now,
-      },
-    };
-    const bucketWhere = {
-      AND: [
-        { OR: [{ activatesAt: null }, { activatesAt: { lte: now } }] },
-        bucketScope,
-      ],
-    };
-
-    expect(aggregateBuckets).toHaveBeenCalledWith({
-      _sum: {
+    expect(findManyBuckets).toHaveBeenCalledWith({
+      select: {
         amount: true,
+        id: true,
       },
-      where: bucketWhere,
-    });
-    expect(aggregateConsumptions).toHaveBeenCalledWith({
-      _sum: {
-        amount: true,
-      },
-      where: {
+      where: currentPeriodBucketWhere(now, {
+        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+        organizationId: "org_1",
+        userId: null,
+        expiresAt: {
+          gt: periodStart,
+          lte: periodEnd,
+        },
         createdAt: {
-          gte: periodStart,
           lt: now,
         },
-        bucket: {
-          is: bucketWhere,
+      }),
+    });
+    expect(groupByConsumptions).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not count leftover migrated period tombstones in the monthly bar", async () => {
+    const now = new Date("2026-09-15T12:00:00.000Z");
+    const { tx } = createTransactionClient({
+      buckets: [
+        {
+          amountCents: convertCreditsToCents(1500),
+          id: "live_grant",
+          lifetimeUsedCents: 0n,
+          periodUsedCents: 0n,
         },
-      },
+        {
+          amountCents: convertCreditsToCents(750),
+          id: "migrated_tombstone",
+          lifetimeUsedCents: convertCreditsToCents(750),
+          periodUsedCents: 0n,
+        },
+      ],
+    });
+
+    await expect(
+      getCurrentSubscriptionCredits({
+        now,
+        organizationId: "org_1",
+        subscription: createSubscriptionRecord({
+          periodEnd: new Date("2026-10-14T11:10:33.000Z"),
+          periodStart: new Date("2026-09-14T11:10:33.000Z"),
+        }),
+        tx,
+        userId: "user_1",
+      }),
+    ).resolves.toEqual({
+      remaining: 1500,
+      total: 1500,
+      used: 0,
+    });
+  });
+
+  it("keeps this-period usage on the live grant and still ignores empty leftovers", async () => {
+    const { tx } = createTransactionClient({
+      buckets: [
+        {
+          amountCents: convertCreditsToCents(1500),
+          id: "live_grant",
+          lifetimeUsedCents: convertCreditsToCents(736.45),
+          periodUsedCents: convertCreditsToCents(736.45),
+        },
+        {
+          amountCents: convertCreditsToCents(750),
+          id: "migrated_tombstone",
+          lifetimeUsedCents: convertCreditsToCents(750),
+          periodUsedCents: 0n,
+        },
+      ],
+    });
+
+    await expect(
+      getCurrentSubscriptionCredits({
+        now: new Date("2025-01-15T12:00:00.000Z"),
+        organizationId: "org_1",
+        subscription: createSubscriptionRecord(),
+        tx,
+        userId: "user_1",
+      }),
+    ).resolves.toEqual({
+      remaining: 763.55,
+      total: 1500,
+      used: 736.45,
     });
   });
 
@@ -440,7 +547,7 @@ describe("getCurrentSubscriptionCredits", () => {
     const now = new Date("2025-01-15T12:00:00.000Z");
     const periodStart = new Date("2025-01-01T00:00:00.000Z");
     const periodEnd = new Date("2025-02-01T00:00:00.000Z");
-    const { aggregateBuckets, tx } = createTransactionClient({
+    const { findManyBuckets, tx } = createTransactionClient({
       totalCents: convertCreditsToCents(10),
       usedCents: convertCreditsToCents(3),
     });
@@ -453,9 +560,10 @@ describe("getCurrentSubscriptionCredits", () => {
       now,
     });
 
-    expect(aggregateBuckets).toHaveBeenCalledWith({
-      _sum: {
+    expect(findManyBuckets).toHaveBeenCalledWith({
+      select: {
         amount: true,
+        id: true,
       },
       where: {
         AND: [
@@ -465,6 +573,7 @@ describe("getCurrentSubscriptionCredits", () => {
               lt: now,
             },
           }),
+          { expiresAt: { gt: now } },
         ],
       },
     });
@@ -479,6 +588,14 @@ describe("buildCreditsPayload", () => {
     listEnterprisePoolBucketsWithBalancesMock.mockReset();
     listAvailableBucketsWithBalancesMock.mockResolvedValue([]);
     listEnterprisePoolBucketsWithBalancesMock.mockResolvedValue([]);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "starter",
+      purchasedSeats: 1,
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+    getEnterpriseContractBillingSummaryMock.mockReset();
   });
 
   it("uses the latest active subscription when one exists", async () => {
@@ -497,7 +614,7 @@ describe("buildCreditsPayload", () => {
         activeSubscription,
       );
 
-      const { aggregateBuckets, aggregateConsumptions, tx } =
+      const { findManyBuckets, groupByConsumptions, tx } =
         createTransactionClient({
           totalCents: convertCreditsToCents(10),
           usedCents: convertCreditsToCents(4),
@@ -519,6 +636,9 @@ describe("buildCreditsPayload", () => {
           tx,
         }),
       ).resolves.toEqual({
+        scope: "personal",
+        spendable: 25,
+        enterprise: null,
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -575,8 +695,8 @@ describe("buildCreditsPayload", () => {
         tx,
       );
       expect(getLatestSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
-      expect(aggregateBuckets).toHaveBeenCalledTimes(1);
-      expect(aggregateConsumptions).toHaveBeenCalledTimes(1);
+      expect(findManyBuckets).toHaveBeenCalledTimes(1);
+      expect(groupByConsumptions).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
@@ -599,7 +719,7 @@ describe("buildCreditsPayload", () => {
         }),
       );
 
-      const { aggregateBuckets, aggregateConsumptions, tx } =
+      const { findManyBuckets, groupByConsumptions, tx } =
         createTransactionClient({
           totalCents: convertCreditsToCents(10),
           usedCents: convertCreditsToCents(4),
@@ -621,6 +741,9 @@ describe("buildCreditsPayload", () => {
           tx,
         }),
       ).resolves.toEqual({
+        scope: "personal",
+        spendable: 25,
+        enterprise: null,
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -680,8 +803,8 @@ describe("buildCreditsPayload", () => {
         "user_1",
         tx,
       );
-      expect(aggregateBuckets).toHaveBeenCalledTimes(1);
-      expect(aggregateConsumptions).toHaveBeenCalledTimes(1);
+      expect(findManyBuckets).toHaveBeenCalledTimes(1);
+      expect(groupByConsumptions).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
@@ -723,6 +846,9 @@ describe("buildCreditsPayload", () => {
           tx,
         }),
       ).resolves.toEqual({
+        scope: "organization",
+        spendable: 10,
+        enterprise: null,
         subscription: null,
         extra: {
           credits: {
@@ -795,6 +921,9 @@ describe("buildCreditsPayload", () => {
         tx,
       });
 
+      expect(payload.scope).toBe("organization");
+      expect(payload.spendable).toBe(100);
+      expect(payload.enterprise).toBeNull();
       expect(payload.extra.enterprise).toEqual({
         credits: {
           total: 50,
@@ -814,5 +943,69 @@ describe("buildCreditsPayload", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("exposes the enterprise contract on the top-level enterprise wallet", async () => {
+    getCreditsMock.mockResolvedValue(100);
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      purchasedSeats: 10,
+      activatedAt: new Date("2026-07-01T00:00:00.000Z"),
+      endsAt: new Date("2027-07-01T00:00:00.000Z"),
+      isConsumable: true,
+    });
+    const activatedAt = new Date("2026-07-01T00:00:00.000Z");
+    const endsAt = new Date("2027-07-01T00:00:00.000Z");
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt,
+      endsAt,
+      currentPeriodEnd: null,
+      isConsumable: true,
+      monthlyCredits: 60_000,
+      nextActivationAt: null,
+      poolRemainingCredits: 30,
+      purchasedSeats: 10,
+    });
+    listEnterprisePoolBucketsWithBalancesMock.mockResolvedValue([
+      {
+        totalCents: convertCreditsToCents(50),
+        remainingCents: convertCreditsToCents(30),
+        expiresAt: null,
+      },
+    ]);
+
+    const { tx } = createTransactionClient();
+    const payload = await buildCreditsPayload({
+      organizationId: "org_1",
+      referenceId: "org_1",
+      tx,
+      userId: "user_1",
+    });
+
+    expect(payload.spendable).toBe(100);
+    expect(payload.enterprise).toEqual({
+      activatedAt,
+      buckets: [
+        {
+          expiresAt: null,
+          remaining: 30,
+          total: 50,
+        },
+      ],
+      credits: {
+        remaining: 30,
+        total: 50,
+        used: 20,
+      },
+      currentPeriodEnd: null,
+      endsAt,
+      isConsumable: true,
+      monthlyCredits: 60_000,
+      nextActivationAt: null,
+      purchasedSeats: 10,
+    });
   });
 });

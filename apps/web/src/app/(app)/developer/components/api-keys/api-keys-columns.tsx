@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, EyeOff, Trash2 } from "lucide-react";
-import type { useTranslations } from "next-intl";
+import type { useFormatter, useTranslations } from "next-intl";
 
 import {
   createAppColumnHelper,
@@ -15,6 +15,7 @@ const columnHelper = createAppColumnHelper<ApiKeyRecord>();
 
 export function getApiKeyColumns(
   t: ReturnType<typeof useTranslations>,
+  formatter: ReturnType<typeof useFormatter>,
   onToggleStatus: (apiKey: ApiKeyRecord) => Promise<void>,
   onDeleteClick: (apiKey: ApiKeyRecord) => void,
 ) {
@@ -78,7 +79,9 @@ export function getApiKeyColumns(
       ),
       cell: ({ row }) => (
         <div className="text-muted-foreground text-center">
-          {new Date(row.original.createdAt).toLocaleDateString()}
+          {formatter.dateTime(new Date(row.original.createdAt), {
+            dateStyle: "medium",
+          })}
         </div>
       ),
       enableSorting: true,

@@ -5,7 +5,7 @@ import {
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
@@ -409,16 +409,25 @@ async function TaskMetadataSection({
   sessionPromise: Promise<SessionResult>;
   projectPromise: Promise<ProjectResult>;
 }) {
-  const [project, session, hasAssignedSeat, t, tTasks, tStatus, locale] =
-    await Promise.all([
-      projectPromise,
-      sessionPromise,
-      hasAssignedSeatPromise,
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("App.Tasks"),
-      getTranslations("App.Tasks.Filters.statusOptions"),
-      getLocale(),
-    ]);
+  const [
+    project,
+    session,
+    hasAssignedSeat,
+    t,
+    tTasks,
+    tStatus,
+    locale,
+    timeZone,
+  ] = await Promise.all([
+    projectPromise,
+    sessionPromise,
+    hasAssignedSeatPromise,
+    getTranslations("App.Tasks.Detail"),
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Filters.statusOptions"),
+    getLocale(),
+    getTimeZone(),
+  ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
@@ -436,6 +445,7 @@ async function TaskMetadataSection({
       editable={!isReadOnly}
       task={{
         status: task.status,
+        selectableStatuses: task.selectableStatuses,
         owner: task.owner,
         organization: task.organization,
         assignee: task.assignee,
@@ -445,8 +455,8 @@ async function TaskMetadataSection({
         nextRunAt: task.nextRunAt,
       }}
       project={project ? { id: project.id, name: project.name } : null}
-      createdAtLabel={formatShortDateTime(task.createdAt, locale)}
-      updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
+      createdAtLabel={formatShortDateTime(task.createdAt, locale, timeZone)}
+      updatedAtLabel={formatShortDateTime(task.updatedAt, locale, timeZone)}
       labels={{
         status: t("status"),
         statusLabels,
@@ -465,6 +475,8 @@ async function TaskMetadataSection({
       }}
       statusFieldLabels={{
         statusLabels,
+        changeStatus: t("actions.changeStatus"),
+        noStatusMatches: t("actions.noStatusMatches"),
         reopenToReadyTitle: t("actions.reopenToReadyTitle"),
         reopenToReadyDescription: t("actions.reopenToReadyDescription"),
         reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),

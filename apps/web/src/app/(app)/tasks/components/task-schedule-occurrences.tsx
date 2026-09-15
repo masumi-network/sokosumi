@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -20,13 +20,13 @@ import { loadMoreTaskScheduleOccurrences } from "@/app/tasks/actions";
 import { OccurrenceTimeDialog } from "@/components/schedules/occurrence-time-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import { mutateTaskOccurrence } from "@/lib/actions/task/action";
 import type {
   TaskScheduleOccurrence,
   TaskScheduleOccurrenceView,
 } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
-import { HYDRATION_STABLE_TIME_ZONE } from "@/lib/utils/datetime";
 import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 
 export interface TaskScheduleOccurrencesPageData {
@@ -100,6 +100,7 @@ export function TaskScheduleOccurrences({
   const t = useTranslations("App.Tasks.Detail.ScheduleSeries");
   const tSeries = useTranslations("App.Tasks.Schedule.series");
   const format = useFormatter();
+  const viewerTimeZone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const router = useRouter();
   const [upcomingPage, setUpcomingPage] = useState(upcoming);
   const [historyPage, setHistoryPage] = useState(history);
@@ -166,7 +167,7 @@ export function TaskScheduleOccurrences({
       action: "reschedule",
       occurrenceId: occurrence.id,
       scheduledAt: occurrence.effectiveScheduledAt,
-      timeZone: occurrence.timezone ?? HYDRATION_STABLE_TIME_ZONE,
+      timeZone: occurrence.timezone ?? viewerTimeZone,
     });
   }
 
@@ -178,7 +179,7 @@ export function TaskScheduleOccurrences({
       action: "restore",
       occurrenceId: occurrence.id,
       scheduledAt: occurrence.originalScheduledAt,
-      timeZone: occurrence.timezone ?? HYDRATION_STABLE_TIME_ZONE,
+      timeZone: occurrence.timezone ?? viewerTimeZone,
     });
   }
 
@@ -496,7 +497,7 @@ function resolveOccurrenceState(
 /**
  * Rendered in the timezone the rule was captured with, so server and client
  * agree regardless of where either sits. Legacy rows without one fall back to
- * the same hydration-stable zone the rest of the app uses.
+ * the formatter's configured zone: the viewer's (see `TimeZoneSync`).
  *
  * History pages backwards without bound, so a run outside the current year
  * carries its year. "Current" is judged in the same captured zone, not in the
@@ -507,7 +508,8 @@ function formatOccurrenceTime(
   value: Date,
   occurrence: TaskScheduleOccurrence,
 ): string {
-  const timeZone = occurrence.timezone ?? HYDRATION_STABLE_TIME_ZONE;
+  // `undefined` lets `format` apply its configured viewer zone.
+  const timeZone = occurrence.timezone ?? undefined;
   const year = format.dateTime(value, { year: "numeric", timeZone });
   const currentYear = format.dateTime(new Date(), {
     year: "numeric",

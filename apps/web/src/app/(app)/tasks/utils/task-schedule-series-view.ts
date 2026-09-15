@@ -4,7 +4,6 @@ import {
 } from "@sokosumi/utils";
 
 import type { ScheduleTitleInput } from "@/components/schedules/format";
-import { HYDRATION_STABLE_TIME_ZONE } from "@/lib/utils/datetime";
 
 export interface TaskScheduleSeriesViewInput {
   metadata: string | null | undefined;
@@ -15,6 +14,8 @@ export interface TaskScheduleSeriesViewInput {
   project: { id: string; name: string } | null;
   /** Already-translated workspace Calendar name. */
   workspaceName: string;
+  /** Zone the viewer reads dates in; stands in when the rule captured none. */
+  viewerTimeZone: string;
 }
 
 export interface TaskScheduleSeriesView {
@@ -44,6 +45,7 @@ export function buildTaskScheduleSeriesView({
   scheduleRevision,
   project,
   workspaceName,
+  viewerTimeZone,
 }: TaskScheduleSeriesViewInput): TaskScheduleSeriesView | null {
   const isActive = hasActiveTaskSchedule(metadata, nextRunAt);
   if (!isActive && (scheduleRevision ?? 0) === 0) {
@@ -73,7 +75,7 @@ export function buildTaskScheduleSeriesView({
             scheduleMetadata.mode === "recurring"
               ? scheduleMetadata.expr
               : null,
-          timezone: timezone ?? HYDRATION_STABLE_TIME_ZONE,
+          timezone: timezone ?? viewerTimeZone,
         }
       : null,
     timezone,
