@@ -468,6 +468,12 @@ model Notification {
   /// for: editing or deleting a message has to find the copy of it that its
   /// notifications carry, across every recipient at once.
   @@index([kind, referenceId])
+  /// SOK-916: reads every notification that is a day old, whoever it is for.
+  /// The follow-up sync is the one reader that asks across users, so no index
+  /// leading with `userId` can serve it and without this it scans the table
+  /// once an hour. The window is the selective part: the run range-scans two
+  /// hours of rows and filters read state and message key off the heap.
+  @@index([createdAt])
   @@map("notification")
 }
 
