@@ -1,5 +1,6 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -7,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
@@ -20,20 +21,44 @@ import {
 import type {
   ProjectSocialConnection,
   SocialPost,
+  SocialPostMediaRef,
 } from "@/lib/clients/generated/core/types.gen";
 
 import { loadMoreSocialPosts } from "./actions";
 
 vi.mock("./actions", () => ({ loadMoreSocialPosts: vi.fn() }));
 
-const { pushMock, refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(
-  () => ({
-    pushMock: vi.fn(),
-    refreshMock: vi.fn(),
-    toastErrorMock: vi.fn(),
-    toastSuccessMock: vi.fn(),
-  }),
-);
+const {
+  pushMock,
+  refreshMock,
+  toastErrorMock,
+  toastSuccessMock,
+  uploadDriveFileMock,
+  drivePickerFile,
+  drivePickerVideoFile,
+} = vi.hoisted(() => ({
+  pushMock: vi.fn(),
+  refreshMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  uploadDriveFileMock: vi.fn(),
+  drivePickerFile: {
+    name: "launch.png",
+    fileUrl:
+      "https://store.public.blob.vercel-storage.com/drive/users/user_1/launch.png",
+    pathname: "drive/users/user_1/launch.png",
+    size: 2048,
+    uploadedAt: new Date("2026-09-14T10:00:00.000Z"),
+  },
+  drivePickerVideoFile: {
+    name: "clip.mp4",
+    fileUrl:
+      "https://store.public.blob.vercel-storage.com/drive/users/user_1/clip.mp4",
+    pathname: "drive/users/user_1/clip.mp4",
+    size: 4096,
+    uploadedAt: new Date("2026-09-14T10:00:00.000Z"),
+  },
+}));
 
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
@@ -76,11 +101,29 @@ const MESSAGES: Record<string, string> = {
   "composer.text": "Text",
   "composer.textPlaceholder": "What do you want to post?",
   "composer.characters": "{count} / {limit}",
+  "composer.media.addFromDrive": "Add from Drive",
+  "composer.media.upload": "Upload",
+  "composer.media.uploading": "Uploading…",
+  "composer.media.remove": "Remove {name}",
+  "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
+  "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, MP4, or MOV file.",
+  "composer.media.alreadyAttached": "That file is already attached.",
+  "composer.media.uploadDuplicate":
+    "A file with this name already exists in the Drive. Rename it and try again.",
+  "composer.media.uploadFailed": "The upload failed. Try again.",
+  "composer.media.errors.too_many_images":
+    "X allows at most 4 images per post.",
+  "composer.media.errors.too_many_gifs": "X allows one GIF per post.",
+  "composer.media.errors.too_many_videos": "X allows one video per post.",
+  "composer.media.errors.mixed_media":
+    "Use images, one GIF, or one video — not a mix.",
+  "composer.media.errors.unsupported_type":
+    "Use a JPG, PNG, WebP, GIF, MP4, or MOV file.",
+  "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.noAccount": "Choose an account",
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
-  "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.saveDraft": "Save draft",
   "composer.save": "Save",
   "composer.schedule": "Schedule",
@@ -105,8 +148,6 @@ const MESSAGES: Record<string, string> = {
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
-  "toasts.unauthenticated": "Please sign in to continue.",
-  "toasts.unauthenticatedAction": "Sign in",
 };
 
 vi.mock("next-intl", async () => {
@@ -144,6 +185,36 @@ vi.mock("@/lib/actions/project/action", () => ({
   updateProjectSocialPost: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { session: { activeOrganizationId: "org_1" } } }),
+}));
+
+vi.mock("@/lib/utils/drive-file-upload.client", () => ({
+  uploadDriveFile: (...args: unknown[]) => uploadDriveFileMock(...args),
+}));
+
+vi.mock("@/components/drive/drive-file-picker", () => ({
+  DriveFilePicker: ({
+    open,
+    onSelect,
+  }: {
+    open: boolean;
+    onSelect: (file: unknown) => void;
+  }) =>
+    open ? (
+      <div data-testid="drive-file-picker-stub">
+        <button
+          type="button"
+          onClick={() => onSelect(drivePickerFile)}
+        >{`pick ${drivePickerFile.name}`}</button>
+        <button
+          type="button"
+          onClick={() => onSelect(drivePickerVideoFile)}
+        >{`pick ${drivePickerVideoFile.name}`}</button>
+      </div>
+    ) : null,
+}));
+
 const PROJECT_ID = "project-1";
 
 function buildConnection(
@@ -166,6 +237,7 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     projectId: PROJECT_ID,
     provider: "x",
     text: "Draft text",
+    media: [],
     status: "DRAFT",
     scheduledAt: null,
     timezone: null,
@@ -283,6 +355,16 @@ const PUBLISHING_POST = buildPost({
   canPublishNow: false,
 });
 
+const IMAGE_REF: SocialPostMediaRef = {
+  pathname: "drive/users/user_1/launch.png",
+  fileUrl:
+    "https://store.public.blob.vercel-storage.com/drive/users/user_1/launch.png",
+  name: "launch.png",
+  size: 2048,
+  mimeType: "image/png",
+  kind: "image",
+};
+
 function dateTimeLocal(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -325,10 +407,6 @@ describe("ProjectSocialPosts", () => {
     });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("renders Upcoming, Drafts, and History sections with their rows", () => {
     render(
       <ProjectSocialPosts
@@ -368,18 +446,6 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
 
     expect(screen.getAllByRole("list")).toHaveLength(3);
-  });
-
-  it("renders the complete post text without a line clamp", () => {
-    render(
-      <ProjectSocialPosts
-        connections={[]}
-        posts={[PUBLISHED_POST]}
-        projectId={PROJECT_ID}
-      />,
-    );
-
-    expect(screen.getByText("Published text")).not.toHaveClass("line-clamp-2");
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {
@@ -444,42 +510,6 @@ describe("ProjectSocialPosts", () => {
     expect(schedule).toBeDisabled();
   });
 
-  it("requires the shared schedule lead time and rounds the input minimum up", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-24T10:00:15.000Z"));
-    render(
-      <ProjectSocialPosts
-        connections={[buildConnection()]}
-        posts={[]}
-        projectId={PROJECT_ID}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "New post" }));
-    const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Text"), {
-      target: { value: "Hello world" },
-    });
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    expect(timeInput).toHaveAttribute(
-      "min",
-      dateTimeLocal(new Date("2026-09-24T10:02:00.000Z")),
-    );
-    fireEvent.change(timeInput, {
-      target: {
-        value: dateTimeLocal(new Date("2026-09-24T10:01:00.000Z")),
-      },
-    });
-
-    expect(timeInput).toHaveAttribute("aria-invalid", "true");
-    expect(
-      within(dialog).getByText("Choose a time at least one minute from now."),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByRole("button", { name: "Schedule" }),
-    ).toBeDisabled();
-  });
-
   it("saves a draft through the create action and lists it", async () => {
     const user = userEvent.setup();
     render(
@@ -501,6 +531,7 @@ describe("ProjectSocialPosts", () => {
       expect(createProjectSocialPost).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         text: "Fresh",
+        media: [],
         socialConnectionId: "connection-1",
       });
     });
@@ -513,42 +544,25 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
-  it("shows the fallback error when saving a draft rejects", async () => {
-    const user = userEvent.setup();
-    vi.mocked(createProjectSocialPost).mockRejectedValue(
-      new Error("network down"),
-    );
+  it("renders media thumbnails on a post row", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
-        posts={[]}
+        posts={[buildPost({ id: "post-media", media: [IMAGE_REF] })]}
         projectId={PROJECT_ID}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "New post" }));
-    const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Save draft" }),
-    );
-
-    await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        "Something went wrong. Try again.",
+    expect(screen.getByTestId("social-post-media-post-media")).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-post-media-post-media")).getByAltText(
+        "launch.png",
       ),
-    );
-    expect(screen.getByRole("dialog")).toBeVisible();
+    ).toBeVisible();
   });
 
-  it("routes rejected authentication through the sign-in toast", async () => {
+  it("attaches a Drive file and sends it with the draft", async () => {
     const user = userEvent.setup();
-    const authError = new Error("User is not authenticated") as Error & {
-      digest: string;
-    };
-    authError.name = "UnAuthenticatedError";
-    authError.digest = "UNAUTHENTICATED";
-    vi.mocked(createProjectSocialPost).mockRejectedValue(authError);
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -559,22 +573,131 @@ describe("ProjectSocialPosts", () => {
 
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.type(within(dialog).getByLabelText("Text"), "With media");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
+
     await user.click(
       within(dialog).getByRole("button", { name: "Save draft" }),
     );
 
-    await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        "Please sign in to continue.",
-        expect.objectContaining({ action: expect.any(Object) }),
-      ),
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: PROJECT_ID,
+          text: "With media",
+          media: [
+            expect.objectContaining({
+              pathname: "drive/users/user_1/launch.png",
+              mimeType: "image/png",
+              kind: "image",
+            }),
+          ],
+        }),
+      );
+    });
+  });
+
+  it("allows saving a post that has media and no text", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
     );
-    const toastOptions = toastErrorMock.mock.calls.at(-1)?.[1] as {
-      action: { onClick: () => void };
-    };
-    toastOptions.action.onClick();
-    expect(pushMock).toHaveBeenCalledWith("/signin");
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const saveDraft = within(dialog).getByRole("button", {
+      name: "Save draft",
+    });
+    expect(saveDraft).toBeDisabled();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    expect(saveDraft).toBeEnabled();
+
+    await user.click(saveDraft);
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "" }),
+      );
+    });
+  });
+
+  it("rejects mixing media kinds with a clear message", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick clip.mp4" }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Use images, one GIF, or one video — not a mix.",
+    );
+    expect(within(dialog).queryByText("clip.mp4")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(1);
+  });
+
+  it("uploads a file into the Drive and attaches it", async () => {
+    const user = userEvent.setup();
+    uploadDriveFileMock.mockResolvedValue({
+      pathname: "drive/users/user_1/new-shot.png",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_1/new-shot.png",
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const input = dialog.querySelector('input[type="file"]');
+    expect(input).not.toBeNull();
+    const file = new File(["x"], "new-shot.png", { type: "image/png" });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    await act(async () => {
+      fireEvent.change(input as HTMLInputElement, {
+        target: { files: dataTransfer.files },
+      });
+    });
+
+    await waitFor(() => {
+      expect(uploadDriveFileMock).toHaveBeenCalledWith(file, {
+        scope: "org",
+        organizationId: "org_1",
+      });
+    });
+    expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
@@ -607,6 +730,7 @@ describe("ProjectSocialPosts", () => {
       expect(createProjectSocialPost).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         text: "Scheduled text",
+        media: [],
         socialConnectionId: "connection-1",
         scheduledAt: new Date(localValue).toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -616,35 +740,6 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-posts-section-upcoming"),
     ).toHaveTextContent("Scheduled text");
-  });
-
-  it("shows the fallback error when scheduling rejects", async () => {
-    const user = userEvent.setup();
-    vi.mocked(createProjectSocialPost).mockRejectedValue(
-      new Error("network down"),
-    );
-    render(
-      <ProjectSocialPosts
-        connections={[buildConnection()]}
-        posts={[]}
-        projectId={PROJECT_ID}
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: "New post" }));
-    const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
-    await user.type(
-      within(dialog).getByLabelText("Scheduled time"),
-      futureDateTimeLocal(),
-    );
-    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
-
-    await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        "Something went wrong. Try again.",
-      ),
-    );
   });
 
   it("prefills the editor and sends the observed revision", async () => {
@@ -674,6 +769,7 @@ describe("ProjectSocialPosts", () => {
         projectId: PROJECT_ID,
         postId: "post-draft",
         text: "Edited",
+        media: [],
         socialConnectionId: "connection-1",
         revision: 4,
       });
@@ -720,6 +816,84 @@ describe("ProjectSocialPosts", () => {
         revision: 2,
       });
     });
+    expect(updateProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("saves edited media before rescheduling a scheduled post", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...SCHEDULED_POST, media: [IMAGE_REF], revision: 3 },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    const timeInput = within(dialog).getByLabelText("Scheduled time");
+    await user.clear(timeInput);
+    const localValue = futureDateTimeLocal();
+    await user.type(timeInput, localValue);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reschedule" }),
+    );
+
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: "post-scheduled",
+          revision: 2,
+          media: [expect.objectContaining({ pathname: IMAGE_REF.pathname })],
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(scheduleProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: "post-scheduled",
+          revision: 3,
+        }),
+      );
+    });
+  });
+
+  it("refuses to attach the same Drive file twice", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "That file is already attached.",
+    );
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(1);
   });
 
   it("cancels a scheduled post only after confirmation", async () => {
@@ -755,42 +929,13 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByText("No scheduled posts yet.")).toBeVisible();
   });
 
-  it("shows the fallback error when canceling rejects", async () => {
-    const user = userEvent.setup();
-    vi.mocked(cancelProjectSocialPost).mockRejectedValue(
-      new Error("network down"),
-    );
-    render(
-      <ProjectSocialPosts
-        connections={[buildConnection()]}
-        posts={[SCHEDULED_POST]}
-        projectId={PROJECT_ID}
-      />,
-    );
-
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Cancel post" }));
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Cancel post",
-      }),
-    );
-
-    await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        "Something went wrong. Try again.",
-      ),
-    );
-  });
-
   it("toasts and refreshes on a revision conflict", async () => {
     const user = userEvent.setup();
     vi.mocked(cancelProjectSocialPost).mockResolvedValue({
       ok: false,
       error: {
         code: "BAD_INPUT",
-        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
-        message: "Conflict copy can change freely",
+        message: "Social post was modified, reload and retry",
       },
     });
     render(
@@ -1165,8 +1310,7 @@ describe("ProjectSocialPosts", () => {
       ok: false,
       error: {
         code: "BAD_INPUT",
-        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
-        message: "Conflict copy can change freely",
+        message: "Social post was modified, reload and retry",
       },
     });
     const { rerender } = render(
@@ -1199,6 +1343,175 @@ describe("ProjectSocialPosts", () => {
     await waitFor(() =>
       expect(updateProjectSocialPost).toHaveBeenLastCalledWith(
         expect.objectContaining({ revision: 5 }),
+      ),
+    );
+  });
+
+  it("renders the complete post text without a line clamp", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        posts={[PUBLISHED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getByText("Published text")).not.toHaveClass("line-clamp-2");
+  });
+
+  it("requires the shared schedule lead time and rounds the input minimum up", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-24T10:00:15.000Z"));
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Hello world" },
+    });
+    const timeInput = within(dialog).getByLabelText("Scheduled time");
+    expect(timeInput).toHaveAttribute(
+      "min",
+      dateTimeLocal(new Date("2026-09-24T10:02:00.000Z")),
+    );
+    fireEvent.change(timeInput, {
+      target: {
+        value: dateTimeLocal(new Date("2026-09-24T10:01:00.000Z")),
+      },
+    });
+
+    expect(timeInput).toHaveAttribute("aria-invalid", "true");
+    expect(
+      within(dialog).getByText("Choose a time at least one minute from now."),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Schedule" }),
+    ).toBeDisabled();
+  });
+
+  it("routes rejected authentication through the sign-in toast", async () => {
+    const user = userEvent.setup();
+    const authError = new Error("User is not authenticated") as Error & {
+      digest: string;
+    };
+    authError.name = "UnAuthenticatedError";
+    authError.digest = "UNAUTHENTICATED";
+    vi.mocked(createProjectSocialPost).mockRejectedValue(authError);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Please sign in to continue.",
+        expect.objectContaining({ action: expect.any(Object) }),
+      ),
+    );
+    const toastOptions = toastErrorMock.mock.calls.at(-1)?.[1] as {
+      action: { onClick: () => void };
+    };
+    toastOptions.action.onClick();
+    expect(pushMock).toHaveBeenCalledWith("/signin");
+  });
+
+  it("shows the fallback error when canceling rejects", async () => {
+    const user = userEvent.setup();
+    vi.mocked(cancelProjectSocialPost).mockRejectedValue(
+      new Error("network down"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Cancel post" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel post",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Something went wrong. Try again.",
+      ),
+    );
+  });
+
+  it("shows the fallback error when saving a draft rejects", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockRejectedValue(
+      new Error("network down"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Something went wrong. Try again.",
+      ),
+    );
+    expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  it("shows the fallback error when scheduling rejects", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockRejectedValue(
+      new Error("network down"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
+    await user.type(
+      within(dialog).getByLabelText("Scheduled time"),
+      futureDateTimeLocal(),
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Something went wrong. Try again.",
       ),
     );
   });

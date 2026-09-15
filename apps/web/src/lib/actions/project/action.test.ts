@@ -556,6 +556,34 @@ describe("project actions", () => {
       );
     });
 
+    it("passes attached Drive media through to the service", async () => {
+      projectServiceMock.createSocialPost.mockResolvedValue(post);
+      const media = [
+        {
+          pathname: "drive/users/user_1/launch.png",
+          fileUrl:
+            "https://store.public.blob.vercel-storage.com/drive/users/user_1/launch.png",
+          name: "launch.png",
+          size: 2048,
+          mimeType: "image/png",
+          kind: "image" as const,
+        },
+      ];
+
+      const { createProjectSocialPost } = await import("./action");
+      const result = await createProjectSocialPost({
+        projectId: "project-1",
+        text: "",
+        media,
+      });
+
+      expect(projectServiceMock.createSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        { text: "", media },
+      );
+      expect(result).toMatchObject({ ok: true });
+    });
+
     it("rejects invalid social post input before calling the service", async () => {
       const { createProjectSocialPost, scheduleProjectSocialPost } =
         await import("./action");
