@@ -205,9 +205,8 @@ describe("glyph identity", () => {
   /**
    * One pair shares a glyph on purpose. PAYMENT_PENDING and STARTED are one
    * stage seen twice, and to the reader it is one stage, so the badge is meant
-   * to look the same in both. Their labels are what should tell them apart,
-   * and today both read the same word. A later change in this stack gives
-   * them labels of their own and pins the split.
+   * to look the same in both. Their labels are what tell them apart, and
+   * job-status-label.test.ts pins those as distinct.
    *
    * The assertion is an equality, not an allowlist membership, so it fails in
    * both directions: a new collision fails, and separating this pair fails
