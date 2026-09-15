@@ -149,6 +149,7 @@ import SwiftUI
         }
         .help("Threads")
         .accessibilityLabel(roomThreadsAccessibilityLabel(unreadCount: workspaces.threadOverview.unreadCount))
+        .accessibilityValue(showsThreads && workspaces.thread.parent == nil ? "Expanded" : "Collapsed")
       }
       if room?.kind == .channel {
         ToolbarItem {

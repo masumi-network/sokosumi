@@ -17,7 +17,7 @@ struct RoomThreadOverviewView: View {
         Text("Threads").font(.headline)
         Spacer()
         if overview.items.contains(where: { $0.unreadReplyCount > 0 }) {
-          Button("Mark all read", action: markAllRead)
+          Button("Mark all as read", action: markAllRead)
             .disabled(overview.isMarkingRead || overview.isLoading)
         }
         Button("Close threads", systemImage: "xmark", action: close)
@@ -29,8 +29,10 @@ struct RoomThreadOverviewView: View {
           if overview.isLoading, overview.items.isEmpty {
             ProgressView("Loading threads…").frame(maxWidth: .infinity).padding()
           } else if let failure = overview.failure {
-            Text(friendlyMessage(for: failure)).foregroundStyle(.secondary)
-            Button("Retry", action: retry)
+            VStack(alignment: .leading, spacing: 8) {
+              Text(friendlyMessage(for: failure)).foregroundStyle(.secondary)
+              Button("Retry", action: retry)
+            }.padding()
           } else if overview.items.isEmpty {
             Text("No threads yet").foregroundStyle(.secondary).padding()
           }
