@@ -269,6 +269,26 @@ describe("NotificationItem mark unread", () => {
     ).toBeInTheDocument();
   });
 
+  it("explains the control on hover, in words", async () => {
+    // An envelope is a guess until something says what it does. The tooltip
+    // is the only explanation a sighted mouse user gets.
+    const user = userEvent.setup();
+
+    renderInOpenDropdown(
+      createJobNotification({
+        isRead: true,
+        readAt: new Date("2026-06-18T09:30:00.000Z"),
+      }),
+      vi.fn(),
+    );
+
+    await user.hover(
+      await screen.findByRole("menuitem", { name: /markUnread/ }),
+    );
+
+    expect(await screen.findByText("markUnreadTooltip")).toBeInTheDocument();
+  });
+
   it("does not offer it on a row that is already unread", async () => {
     const notification = createJobNotification();
 
