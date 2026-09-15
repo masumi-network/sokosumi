@@ -47,7 +47,7 @@ Read [README.md](README.md#architecture-and-navigation) for the dependency map a
 
 ## App-Specific Commands
 
-Xcode 26+ required (`swift-tools-version: 6.2`). Install pinned lint tooling once from this directory (Mint itself comes from Homebrew; the tool versions come from `Mintfile`):
+Xcode 27+ required (`swift-tools-version: 6.4`). Install pinned lint tooling once from this directory (Mint itself comes from Homebrew; the tool versions come from `Mintfile`):
 
 ```bash
 brew install mint && mint bootstrap
@@ -75,7 +75,7 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 
 - Swift package tests run via `swift test --package-path Packages/<name>`; app-target tests via `xcodebuild test -only-testing:SokosumiTests`.
 - Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `macos-26` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with that same PR/dispatch gate, plus path-filtered pushes to `main` so the Mint binary cache is saved on the default branch.
+- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `xcode-27` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with that same PR/dispatch gate, plus path-filtered pushes to `main` so the Mint binary cache is saved on the default branch.
 
 ## App-Specific Gotchas
 
