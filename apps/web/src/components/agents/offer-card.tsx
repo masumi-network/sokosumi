@@ -61,7 +61,7 @@ function defaultTypeLabel(type: OutputKind): string {
   return DEFAULT_OUTPUT_LABEL[type];
 }
 /** An offer's outputs, defaulting to a single text output when none are set. */
-export function offerOutputs(offer: CoworkerOffer): OfferOutput[] {
+function offerOutputs(offer: CoworkerOffer): OfferOutput[] {
   const outs = offer.outputs ?? [];
   return outs.length ? outs : [{ type: "text" }];
 }
@@ -73,11 +73,11 @@ const OFFICE_EXT: Partial<Record<OutputKind, string>> = {
   slides: "pptx",
   sheet: "xlsx",
 };
-export function isOfficeType(type: OutputKind): boolean {
+function isOfficeType(type: OutputKind): boolean {
   return type in OFFICE_EXT;
 }
 
-export function OutputTypeIcon({
+function OutputTypeIcon({
   type,
   className,
 }: {
@@ -465,7 +465,7 @@ export function OfferCard({
 
 /** Detail preview — one output embedded for real (PDF/Office/image), or a text
  *  placeholder. Fills its container so a dialog can give it a large viewport. */
-export function OfferEmbed({
+function OfferEmbed({
   output,
   title,
   pendingLabel,
