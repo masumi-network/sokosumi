@@ -41,8 +41,10 @@ export const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
  * now the time the run actually has rather than a fixed number, and
  * `completed` on the result says when a run ended with rows still waiting.
  *
- * Sized to keep one read and the writes that follow it short, so the deadline
- * lands between pages rather than deep inside one.
+ * The deadline can land anywhere, page boundary or not, which is why it is
+ * asked about per row and not only per page. The number below is the row cap
+ * this used to have, kept as the page size because it was already far above
+ * the rate this is expected to see. Nothing here was measured.
  */
 export const NOTIFICATION_FOLLOW_UP_PAGE_SIZE = 500;
 
@@ -50,7 +52,13 @@ export interface SendFollowUpsOptions {
   now?: Date;
   /** When already aborted (sync deadline), read nothing and write nothing. */
   abortSignal?: AbortSignal;
-  /** Asked before each write, so a run stops on the handler's deadline. */
+  /**
+   * Asked before each write, so a run stops on the handler's deadline.
+   *
+   * With neither this nor `abortSignal`, a run reads every eligible row. That
+   * is bounded by the window rather than by anything here, so the cron route
+   * passes both.
+   */
   shouldContinue?: () => boolean;
 }
 
@@ -64,8 +72,12 @@ export interface SendFollowUpsResult {
    *
    * False when the deadline or an abort ended it first. Those rows fall out of
    * the window before the next run, so this is the difference between "nobody
-   * was waiting" and "we ran out of time and some reminders were lost". Logged
-   * by the route so the loss is visible rather than silent.
+   * was waiting" and "we ran out of time".
+   *
+   * True is not "nothing was lost". A row whose write throws is counted in
+   * `examined`, never reaches `sent`, and is reported to Sentry; the run
+   * carries on and still finishes. The gap between the two counts is where
+   * those show up, not here.
    */
   completed: boolean;
 }

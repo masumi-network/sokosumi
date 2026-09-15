@@ -95,6 +95,42 @@ function row(overrides: RowOverrides = {}): StoredNotification {
   };
 }
 
+/** One term of the service's `orderBy`, in the order it lists them. */
+type OrderByClause = { createdAt: "asc" } | { id: "asc" };
+
+/**
+ * Two stored rows, compared by the terms the query actually asked for.
+ *
+ * Read off the query rather than fixed here. Sorting by `createdAt` and `id`
+ * regardless would give the service an order it never asked for, and dropping
+ * `id` from its `orderBy` would then break nothing.
+ *
+ * Rows the terms cannot separate come back in the reverse of the order they
+ * were stored in. The real table promises no order at all for those, and
+ * returning them in the order they were written would quietly settle the one
+ * thing the query left open. Reversing is the cheapest order that is not the
+ * one a test would have assumed.
+ */
+function compareBy(
+  a: StoredNotification,
+  b: StoredNotification,
+  orderBy: OrderByClause[],
+  stored: readonly StoredNotification[],
+): number {
+  for (const term of orderBy) {
+    const difference =
+      "createdAt" in term
+        ? a.createdAt.getTime() - b.createdAt.getTime()
+        : a.id.localeCompare(b.id);
+
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+
+  return stored.indexOf(b) - stored.indexOf(a);
+}
+
 /** One branch of the service's "after this row" paging filter. */
 type AfterClause =
   | { createdAt: { gt: Date } }
@@ -149,6 +185,7 @@ function seed(stored: readonly StoredNotification[]) {
         messageKey: { in: string[] };
         OR: AfterClause[];
       }>;
+      orderBy?: OrderByClause[];
       take?: number;
     }) => {
       const { where } = query;
@@ -175,11 +212,7 @@ function seed(stored: readonly StoredNotification[]) {
             (where.OR === undefined ||
               where.OR.some((clause) => isAfter(one, clause))),
         )
-        .sort(
-          (a, b) =>
-            a.createdAt.getTime() - b.createdAt.getTime() ||
-            a.id.localeCompare(b.id),
-        )
+        .sort((a, b) => compareBy(a, b, query.orderBy ?? [], stored))
         .slice(0, query.take ?? stored.length);
     },
   );
