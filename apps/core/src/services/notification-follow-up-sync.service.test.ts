@@ -699,14 +699,26 @@ describe("NotificationFollowUpSyncService", () => {
   });
 
   /**
-   * A room counts its messages onto one unread row, so the reminder is about
-   * the room rather than about each message in it. The count is one of the
-   * words the reminder says, so it has to survive the copy.
+   * The reminder says what the original said, so every parameter the original
+   * carried reaches it unchanged and none is added.
+   *
+   * This test used to claim more than it proved. It was called "reminds a
+   * reader once about a room, however many messages it holds", and it seeded
+   * one row carrying a `count`. One row in and one row out proves nothing
+   * about many messages, and the seeded row could not exist: `count` is
+   * written only by `countOntoUnreadRow`, whose one caller passes the
+   * every-message-in-a-room key, and that key gets no follow-up. The mention
+   * and direct-message keys that do get one are written one row per message
+   * (`chat-notification-fanout.ts`, `eventId: params.messageId`).
+   *
+   * So SOK-916 user story 26, one reminder per room rather than per message,
+   * is NOT satisfied for the keys this feature follows up, and no test here
+   * covers it. Saying so is the honest state; the old name hid it.
    */
-  it("reminds a reader once about a room, however many messages it holds", async () => {
+  it("copies the original's message parameters verbatim", async () => {
     seed([
       row({
-        messageParams: { authorName: "Ada", count: 12, roomName: "Design" },
+        messageParams: { authorName: "Ada", roomName: "Design" },
       }),
     ]);
 
@@ -715,7 +727,7 @@ describe("NotificationFollowUpSyncService", () => {
     expect(written).toHaveLength(1);
     expect(firstFollowUpInput()).toEqual(
       expect.objectContaining({
-        messageParams: { authorName: "Ada", count: 12, roomName: "Design" },
+        messageParams: { authorName: "Ada", roomName: "Design" },
       }),
     );
   });
