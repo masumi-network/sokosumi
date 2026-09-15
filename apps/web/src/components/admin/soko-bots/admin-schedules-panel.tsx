@@ -21,9 +21,7 @@ export async function AdminSchedulesPanel({
     getFormatter(),
   ]);
   const dateTime = (date: Date | null) =>
-    date
-      ? format.dateTime(date, { dateStyle: "short", timeStyle: "short" })
-      : "—";
+    date ? format.dateTime(date, "dateTimeShort") : "—";
 
   return (
     <Panel

@@ -985,6 +985,30 @@ export async function requireTaskReadForRouteVars(
   return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
 }
 
+/**
+ * Read access for a series' Schedule ledger: human owners keep the stricter
+ * {@link requireTaskOwnership}, while agent actors (assigned coworker, vendor
+ * sibling, or Soko Bot) use the Task read gate of `GET /tasks/{id}` — the
+ * access they had before the human-only Calendar guard.
+ */
+export async function requireTaskScheduleReadAccess(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const { authContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    return await requireTaskOwnership(
+      requireUserContext(authContext),
+      taskId,
+      tx,
+    );
+  }
+
+  return await requireTaskReadForRouteVars(vars, taskId, tx);
+}
+
 const taskWorkspaceMappingInclude = {
   workspace: { select: { organizationId: true } },
 } as const;

@@ -66,10 +66,7 @@ export async function LegacyHistory({
                 dateTime={message.createdAt.toISOString()}
                 className="text-muted-foreground block text-xs tabular-nums"
               >
-                {format.dateTime(message.createdAt, {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}
+                {format.dateTime(message.createdAt, "dateTimeShort")}
               </time>
             </div>
             <div className="min-w-0 space-y-2">

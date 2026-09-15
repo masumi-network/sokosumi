@@ -10,6 +10,7 @@ import { parseTaskScheduleMetadata } from "@sokosumi/utils";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
+import { assertWorkspaceInContextScope } from "@/helpers/context-organization-scope";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import {
@@ -30,7 +31,6 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { type AuthenticationContext } from "@/middleware/auth";
-import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   workspaceCalendarItemSchema,
   workspaceCalendarQuerySchema,
@@ -460,12 +460,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id: workspaceId } = c.req.valid("param");
-    if (userContext.source === "context") {
-      const activeWorkspace = requireWorkspaceContext(c.var.workspaceContext);
-      if (activeWorkspace.workspaceId !== workspaceId) {
-        throw forbidden("You can only access the active workspace calendar");
-      }
-    }
+    assertWorkspaceInContextScope(
+      userContext,
+      c.var.workspaceContext,
+      workspaceId,
+    );
     const query = c.req.valid("query");
     const calendarQuery = parseWorkspaceCalendarQuery(query);
 

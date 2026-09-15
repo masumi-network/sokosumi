@@ -196,16 +196,10 @@ function InviteLinkRow({
       </TableCell>
       <TableCell className="tabular-nums">{usesLabel}</TableCell>
       <TableCell>
-        {formatter.dateTime(link.expiresAt, {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}
+        {formatter.dateTime(link.expiresAt, "dateTimeMedium")}
       </TableCell>
       <TableCell>
-        {formatter.dateTime(link.createdAt, {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}
+        {formatter.dateTime(link.createdAt, "dateTimeMedium")}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-end gap-1">

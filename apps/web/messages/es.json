@@ -4013,6 +4013,17 @@
           "es": "Español"
         }
       },
+      "TimeFormat": {
+        "title": "Formato de hora",
+        "description": "Elige cómo se muestran las horas. Automático sigue a tu navegador.",
+        "selectAriaLabel": "Seleccionar formato de hora",
+        "auto": "Automático",
+        "autoResolved": "Automático ({timeFormat})",
+        "options": {
+          "12h": "12 horas",
+          "24h": "24 horas"
+        }
+      },
       "SocialAccounts": {
         "connected": "está conectado",
         "notConnected": "no está conectado",

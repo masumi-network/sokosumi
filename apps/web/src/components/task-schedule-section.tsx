@@ -1,7 +1,7 @@
 "use client";
 
 import { CronExpressionParser as cronParser } from "cron-parser";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -238,6 +238,7 @@ interface TaskScheduleSectionProps {
 
 export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   const t = useTranslations("App.Tasks.Schedule");
+  const formatter = useFormatter();
   const timezoneOptions = useMemo(
     () => getTimezoneOptions(props.initialSelection?.timezone),
     [props.initialSelection?.timezone],
@@ -599,7 +600,9 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           if (nextDate > endOnDate) break;
         }
         results.push(
-          nextDate.toLocaleString(undefined, { timeZone: timezone }),
+          formatter.dateTime(nextDate, "dateTimeMedium", {
+            timeZone: timezone,
+          }),
         );
         safety--;
       }
@@ -608,6 +611,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       return [];
     }
   }, [
+    formatter,
     timezone,
     mode,
     endsMode,

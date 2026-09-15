@@ -4044,6 +4044,17 @@
           "es": "Español"
         }
       },
+      "TimeFormat": {
+        "title": "Time format",
+        "description": "Choose how times are shown. Auto follows your browser.",
+        "selectAriaLabel": "Select time format",
+        "auto": "Auto",
+        "autoResolved": "Auto ({timeFormat})",
+        "options": {
+          "12h": "12-hour",
+          "24h": "24-hour"
+        }
+      },
       "SocialAccounts": {
         "connected": "is connected",
         "notConnected": "is not connected",

@@ -20,11 +20,10 @@ import { requireScheduledTaskCreator } from "@/services/task-schedule-create.ser
 
 async function isScheduledTaskCreationAllowed(
   authContext: AuthenticationContext,
-  workspaceId: string,
   organizationId: string | null,
 ): Promise<boolean> {
   try {
-    const creator = await requireScheduledTaskCreator(authContext, workspaceId);
+    const creator = await requireScheduledTaskCreator(authContext);
     await requireAssignedOrganizationSeat(
       creator.userContext.userId,
       organizationId,
@@ -65,7 +64,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceId = workspaceContext.workspaceId;
     const isSchedulable = await isScheduledTaskCreationAllowed(
       c.var.authContext,
-      workspaceId,
       workspaceContext.organizationId,
     );
 

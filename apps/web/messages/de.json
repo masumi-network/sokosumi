@@ -4013,6 +4013,17 @@
           "es": "Español"
         }
       },
+      "TimeFormat": {
+        "title": "Zeitformat",
+        "description": "Wähle, wie Uhrzeiten angezeigt werden. Automatisch folgt deinem Browser.",
+        "selectAriaLabel": "Zeitformat auswählen",
+        "auto": "Automatisch",
+        "autoResolved": "Automatisch ({timeFormat})",
+        "options": {
+          "12h": "12-Stunden",
+          "24h": "24-Stunden"
+        }
+      },
       "SocialAccounts": {
         "connected": "ist verbunden",
         "notConnected": "ist nicht verbunden",

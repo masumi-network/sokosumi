@@ -24,12 +24,6 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
   const formatter = useFormatter();
   const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
   const taskHref = job.taskId ? `/tasks/${job.taskId}` : null;
-  const dateTimeOptions = {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  } as const;
 
   return (
     <div className="space-y-4">
@@ -76,14 +70,14 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
 
         <KeyValueRow label={t("started")}>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {formatter.dateTime(job.createdAt, dateTimeOptions)}
+            {formatter.dateTime(job.createdAt, "dateTime")}
           </span>
         </KeyValueRow>
 
         <KeyValueRow label={t("finished")}>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
             {job.completedAt
-              ? formatter.dateTime(job.completedAt, dateTimeOptions)
+              ? formatter.dateTime(job.completedAt, "dateTime")
               : "—"}
           </span>
         </KeyValueRow>

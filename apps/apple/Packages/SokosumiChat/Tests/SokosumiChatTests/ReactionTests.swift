@@ -55,6 +55,23 @@ import Testing
     #expect(deleted.deletedAt != nil)
   }
 
+  @Test func quickReactionsUseRankedHistoryAndUniqueDefaults() throws {
+    let suite = "quick-reactions-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let history = ReactionEmojiHistory(defaults: defaults)
+    #expect(history.quickReactions.map(\.emoji) == ["👍", "❤️", "😂"])
+    history.record("❤️")
+    #expect(history.quickReactions.map(\.emoji) == ["❤️", "👍", "😂"])
+    history.record("🎉")
+    history.record("🎉")
+    #expect(history.quickReactions.map(\.emoji) == ["🎉", "❤️", "👍"])
+    history.record("👀")
+    history.record("👀")
+    history.record("👀")
+    #expect(ReactionEmojiHistory(defaults: defaults).quickReactions.map(\.emoji) == ["👀", "🎉", "❤️"])
+  }
+
   @Test func categoriesAndUsageHistorySupportGroupedPicker() throws {
     #expect(ReactionEmoji.matching("grinning").first { $0.emoji == "😀" }?.category == .people)
     #expect(ReactionEmoji.matching("pizza").first?.category == .foodAndDrink)

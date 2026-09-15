@@ -45,6 +45,13 @@ actor SuspendedTokenTransport: TokenEndpointTransport {
 }
 
 struct SessionRaceTests {
+  @Test func signingOutInvalidatesWaitingRequestGeneration() async throws {
+    let session = try session(store: InMemoryTokenStore(), transport: SuspendedTokenTransport())
+    let generation = await session.generation
+    #expect(await session.signOut())
+    #expect(await session.generation != generation)
+  }
+
   private func session(store: any TokenStore, transport: any TokenEndpointTransport) throws -> OAuthSession {
     try OAuthSession(
       configuration: OAuthConfiguration(

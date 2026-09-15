@@ -366,10 +366,7 @@ export function PasskeySettings({
                           {t("createdAt", {
                             date: formatter.dateTime(
                               new Date(passkey.createdAt),
-                              {
-                                dateStyle: "medium",
-                                timeStyle: "short",
-                              },
+                              "dateTimeMedium",
                             ),
                           })}
                         </p>

@@ -115,6 +115,7 @@ export function formatTaskScheduleSelectionLabel(
     if (!runAt) return t("option.oneTime");
 
     return t("footer.oneTimeAt", {
+      // biome-ignore lint/plugin/named-clock-formats: schedule rule labels keep their own formatting, like the recurring ones from `@/lib/schedules/cron`, until both move to the time format preference together.
       datetime: formatter.dateTime(runAt, {
         month: "short",
         day: "numeric",

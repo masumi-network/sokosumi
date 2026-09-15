@@ -1,4 +1,5 @@
 import SokosumiAuth
+import SokosumiChat
 import SokosumiRealtime
 import SokosumiWorkspace
 import SwiftUI
@@ -9,7 +10,8 @@ struct SokosumiApp: App {
   @StateObject private var workspaces: WorkspaceState
 
   init() {
-    let workspaces = WorkspaceState(clientProvider: { $0.coreClient() })
+    let cooldown = ChatReadCooldown()
+    let workspaces = WorkspaceState(clientProvider: { $0.coreClient(cooldown: cooldown) })
     // Live room updates over Ably (SOK-976). The state drives the socket;
     // without this factory it stays HTTP-only.
     workspaces.realtimeConnectionFactory = { AblyRealtimeConnection() }

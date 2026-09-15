@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { type Prisma, TaskScheduleOccurrenceState } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, hasActiveTaskSchedule } from "@sokosumi/utils";
 
-import { requireTaskOwnership } from "@/helpers/access-control";
+import { requireTaskScheduleReadAccess } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, conflict } from "@/helpers/error";
@@ -21,7 +21,7 @@ import {
 } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireOwnerUserContext } from "@/middleware/auth";
+import { resolveUserContext } from "@/middleware/auth";
 import {
   type TaskScheduleOccurrenceView,
   taskScheduleOccurrencePageSchema,
@@ -193,26 +193,27 @@ function buildCursorWhere(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const userContext = requireOwnerUserContext(authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
+    const userContext = resolveUserContext(c.var.authContext);
+    if (userContext) {
+      await requireCalendarBetaAccess(userContext.userId, prisma);
+    }
     const { id } = c.req.valid("param");
     const query = c.req.valid("query");
     const { view } = query;
     const { cursor: requestedCursor, take: limit } =
       parseCursorPagination(query);
 
-    // Ownership only: this is the read half of the collaboration audience
-    // (`requireOwnerUserContext` already rejected non-human actors), without
-    // the parked-task guard that belongs to the series mutations. Inspecting
-    // history is not modifying the Task.
+    // Human owners keep ownership-only access (no parked-task guard belongs on
+    // a read); agent actors use the Task read gate, which is the access they
+    // had before the human-only Calendar guard. Inspecting history is not
+    // modifying the Task.
     //
     // The ledger outlives its series: a removed schedule still answers with the
     // preserved history and the Task's current revision.
     const now = new Date();
     const result = await prisma.$transaction(
       async (tx) => {
-        const task = await requireTaskOwnership(userContext, id, tx);
+        const task = await requireTaskScheduleReadAccess(c.var, id, tx);
         const { scheduleRevision } = task;
         const cursor = requestedCursor
           ? decodeTaskScheduleOccurrenceCursor(requestedCursor)

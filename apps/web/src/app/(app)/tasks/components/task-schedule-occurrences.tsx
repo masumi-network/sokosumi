@@ -516,12 +516,9 @@ function formatOccurrenceTime(
     timeZone,
   });
 
-  return format.dateTime(value, {
-    year: year === currentYear ? undefined : "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-  });
+  return format.dateTime(
+    value,
+    year === currentYear ? "dateTime" : "dateTimeWithYear",
+    { timeZone },
+  );
 }
