@@ -112,7 +112,7 @@ export function CreditsCycleOverview({
       {formattedExtra !== null ? (
         <div className="space-y-1" data-testid="credits-additional">
           <p
-            id={monthly === null ? headingId : undefined}
+            id={monthly !== null ? undefined : headingId}
             className="text-muted-foreground text-xs font-medium"
           >
             {tCredit("additionalCreditsLabel")}

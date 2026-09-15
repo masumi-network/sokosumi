@@ -2722,7 +2722,7 @@
           "totalCount": "{count, plural, one {# usuario} other {# usuarios}}",
           "empty": "No se encontraron usuarios.",
           "user": "Usuario",
-          "credits": "Créditos",
+          "credits": "Créditos personales",
           "subscription": "Suscripción",
           "startedTasks": "Tareas iniciadas",
           "registered": "Registrado",
@@ -2757,8 +2757,8 @@
             "enterprisePool": "Pool enterprise: {credits} créditos"
           },
           "credits": {
-            "title": "Créditos totales",
-            "description": "Créditos disponibles combinados para esta organización.",
+            "title": "Créditos de la organización",
+            "description": "Créditos disponibles en el fondo de la organización, incluidos los extras y el fondo del contrato enterprise si existe.",
             "perMember": "Los créditos se muestran por miembro a continuación."
           },
           "members": {

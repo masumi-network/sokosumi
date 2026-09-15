@@ -168,7 +168,7 @@ describe("buildAdminOrganizationOverviewDetail", () => {
     );
   });
 
-  it("keeps the enterprise pool remaining credits path", async () => {
+  it("adds leftover non-enterprise remaining to the enterprise pool", async () => {
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "enterprise_contract",
       plan: "enterprise",
@@ -190,8 +190,11 @@ describe("buildAdminOrganizationOverviewDetail", () => {
       {} as Prisma.TransactionClient,
     );
 
-    expect(detail?.totalCredits).toBe(1_200);
-    expect(sumOrganizationOwnedCreditBalancesMock).not.toHaveBeenCalled();
+    expect(detail?.totalCredits).toBe(91_446);
+    expect(sumOrganizationOwnedCreditBalancesMock).toHaveBeenCalledWith(
+      "org_1",
+      expect.anything(),
+    );
   });
 });
 
