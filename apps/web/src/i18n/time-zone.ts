@@ -1,5 +1,7 @@
 import { isValidTimezone } from "@sokosumi/utils";
 
+import { browserCookieFlags } from "@/i18n/locales";
+
 export const TIME_ZONE_COOKIE_NAME = "sokosumi.timezone";
 export const DEFAULT_TIME_ZONE = "UTC";
 
@@ -20,5 +22,5 @@ export function resolveRequestTimeZone(
 }
 
 export function serializeTimeZoneCookie(timeZone: string): string {
-  return `${TIME_ZONE_COOKIE_NAME}=${encodeURIComponent(timeZone)}; path=/; max-age=${TIME_ZONE_COOKIE_MAX_AGE}; SameSite=Lax`;
+  return `${TIME_ZONE_COOKIE_NAME}=${encodeURIComponent(timeZone)}; ${browserCookieFlags(TIME_ZONE_COOKIE_MAX_AGE)}`;
 }

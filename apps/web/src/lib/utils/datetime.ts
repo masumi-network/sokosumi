@@ -1,5 +1,3 @@
-import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
-
 const SECOND_IN_MS = 1000;
 const MINUTE_IN_MS = 60 * SECOND_IN_MS;
 const HOUR_IN_MS = 60 * MINUTE_IN_MS;
@@ -66,8 +64,8 @@ function getDayDifferenceFromNow(dateObj: Date, now: Date): number {
 
 export function formatShortDate(
   date: string | Date,
-  locale: string = "en",
-  timeZone?: string,
+  locale: string,
+  timeZone: string,
 ): string {
   try {
     const dateObj = new Date(date);
@@ -77,7 +75,7 @@ export function formatShortDate(
     return new Intl.DateTimeFormat(locale, {
       month: "short",
       day: "numeric",
-      timeZone: timeZone ?? DEFAULT_TIME_ZONE,
+      timeZone,
     }).format(dateObj);
   } catch {
     return "—";
@@ -86,8 +84,8 @@ export function formatShortDate(
 
 export function formatShortDateTime(
   date: string | Date,
-  locale: string = "en",
-  timeZone?: string,
+  locale: string,
+  timeZone: string,
 ): string {
   try {
     const dateObj = new Date(date);
@@ -100,7 +98,7 @@ export function formatShortDateTime(
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
-      timeZone: timeZone ?? DEFAULT_TIME_ZONE,
+      timeZone,
     }).format(dateObj);
   } catch {
     return "—";

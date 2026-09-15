@@ -3,6 +3,7 @@
 import { useLocale, useTimeZone } from "next-intl";
 import { useMemo } from "react";
 
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import {
   formatShortDate,
   formatShortDateTime,
@@ -12,7 +13,7 @@ import {
 
 export function useLocalizedDateTime() {
   const locale = useLocale();
-  const timeZone = useTimeZone();
+  const timeZone = useTimeZone() ?? DEFAULT_TIME_ZONE;
 
   return useMemo(
     () => ({
