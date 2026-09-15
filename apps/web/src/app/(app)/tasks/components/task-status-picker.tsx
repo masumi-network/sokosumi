@@ -134,9 +134,11 @@ export function TaskStatusPicker({
             )}
           >
             {isPending ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
             ) : (
-              <Icon className="size-3" aria-hidden />
+              // 12px turns a circled glyph into sub-pixel strokes; 14px keeps
+              // the inner mark crisp next to text-xs.
+              <Icon className="size-3.5" aria-hidden />
             )}
             <span>{labels.statusLabels[value]}</span>
             <ChevronDown className="size-3 opacity-70" aria-hidden />
