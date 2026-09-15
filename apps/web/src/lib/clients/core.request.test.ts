@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CoreApiRequestError,
   executeCoreOperation,
+  executeCoreOperationWithResponse,
 } from "@/lib/clients/core.request";
 import { CORE_REQUEST_ID_HEADER } from "@/lib/clients/utils/core-request-id";
 
@@ -129,5 +130,46 @@ describe("executeCoreOperation", () => {
     ).catch((thrown: unknown) => thrown);
     expect(error).toBeInstanceOf(CoreApiRequestError);
     expect((error as CoreApiRequestError).retryAfterSeconds).toBeUndefined();
+  });
+});
+
+describe("executeCoreOperationWithResponse", () => {
+  it("returns the data with the raw response for header reads", async () => {
+    const response = new Response(null, { status: 201 });
+    // The Response constructor drops forbidden set-cookie headers, so append.
+    response.headers.append("set-cookie", "session_token=abc; Path=/");
+
+    const result = await executeCoreOperationWithResponse(
+      async () => ({}) as never,
+      async () => ({ data: { ok: true }, response }),
+      "fallback",
+    );
+
+    expect(result.data).toEqual({ ok: true });
+    expect(result.response).toBe(response);
+    expect(result.response?.headers.getSetCookie()).toEqual([
+      "session_token=abc; Path=/",
+    ]);
+  });
+
+  it("rejects with the same error shape as executeCoreOperation", async () => {
+    await expect(
+      executeCoreOperationWithResponse(
+        async () => ({}) as never,
+        async () => ({
+          error: {
+            error: "Conflict",
+            message: "already impersonating",
+            meta: { requestId: "req_1" },
+          },
+          response: new Response(null, { status: 409 }),
+        }),
+        "fallback",
+      ),
+    ).rejects.toMatchObject({
+      message: "already impersonating",
+      status: 409,
+      requestId: "req_1",
+    });
   });
 });

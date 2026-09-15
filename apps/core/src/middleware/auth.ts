@@ -1,5 +1,8 @@
 import * as Sentry from "@sentry/node";
-import { hasCoreApiOAuthScope } from "@sokosumi/utils";
+import {
+  hasAdminRole as checkAdminRole,
+  hasCoreApiOAuthScope,
+} from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
@@ -26,6 +29,12 @@ export interface UserAuthenticationContext {
   role: string;
   /** Credential class used to authenticate this request. */
   authenticationMethod?: "session" | "api_key" | "oauth";
+  /**
+   * Admin user id when this session impersonates another user (Better Auth
+   * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
+   * effective (target) user.
+   */
+  impersonatedBy?: string;
 }
 
 /**
@@ -74,10 +83,17 @@ function syncSentryUser(context: AuthVariables) {
   }
 
   if (context.authContext.actor === "user") {
+    const user = context.authContext;
     scope.setUser({
-      id: context.authContext.userId,
-      organizationId: context.authContext.organizationId || undefined,
+      id: user.userId,
+      organizationId: user.organizationId || undefined,
     });
+    if (user.impersonatedBy) {
+      scope.setContext("impersonation", {
+        by: user.impersonatedBy,
+        target: user.userId,
+      });
+    }
     return;
   }
 
@@ -121,6 +137,7 @@ function syncRequestLogger(context: AuthVariables) {
       actor: "user",
       userId: authContext.userId,
       organizationId: authContext.organizationId,
+      impersonatedBy: authContext.impersonatedBy,
     });
     return;
   }
@@ -370,11 +387,10 @@ export function requireAgentAuthContext(
   return authContext;
 }
 
+// Canonical logic lives in @sokosumi/utils (shared with web); this keeps
+// the existing Core import surface stable.
 export function hasAdminRole(role: string | null | undefined): boolean {
-  return (
-    role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
-    false
-  );
+  return checkAdminRole(role);
 }
 
 export function requireAdminAuthContext(
@@ -662,6 +678,9 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       organizationId: session.activeOrganizationId ?? null,
       role: user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "session",
+      ...(session.impersonatedBy
+        ? { impersonatedBy: session.impersonatedBy }
+        : {}),
     },
   });
   return await next();

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { hasAdminRole } from "@sokosumi/utils";
 import { coreClient } from "@/lib/clients/core.client";
 
 export interface AdminUserOption {
@@ -21,6 +22,8 @@ export interface AdminUserOverviewItem {
   subscriptionStatus: string | null;
   /** Number of tasks the user has started (status beyond DRAFT). */
   startedTaskCount: number;
+  /** True for platform-admin rows, which must not be impersonated. */
+  isAdmin: boolean;
 }
 
 export interface AdminUserOverviewPage {
@@ -61,6 +64,7 @@ export const adminUserService = {
         subscriptionPlan: user.subscriptionPlan,
         subscriptionStatus: user.subscriptionStatus,
         startedTaskCount: user.startedTaskCount,
+        isAdmin: hasAdminRole(user.role),
       })),
       total: result.meta.pagination.total,
       nextCursor: result.meta.pagination.nextCursor,

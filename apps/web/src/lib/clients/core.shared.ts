@@ -393,7 +393,9 @@ import {
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
+  startAdminImpersonation as coreStartAdminImpersonation,
   startMySokoBotTurn as coreStartMySokoBotTurn,
+  stopAdminImpersonation as coreStopAdminImpersonation,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
@@ -407,6 +409,7 @@ import {
 import {
   CoreApiRequestError,
   executeCoreOperation,
+  executeCoreOperationWithResponse,
   type GetCoreClient,
 } from "./core.request";
 import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
@@ -1510,6 +1513,34 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to list users",
+    );
+  }
+
+  async function startAdminImpersonation(body: {
+    userId: string;
+    reason: string;
+  }) {
+    return executeCoreOperationWithResponse(
+      getClient,
+      (client) =>
+        coreStartAdminImpersonation({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to start impersonation",
+    );
+  }
+
+  async function stopAdminImpersonation() {
+    return executeCoreOperationWithResponse(
+      getClient,
+      (client) =>
+        coreStopAdminImpersonation({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to stop impersonation",
     );
   }
 
@@ -5043,6 +5074,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteCoworkerImage,
     searchAdminUsers,
     listAdminUsers,
+    startAdminImpersonation,
+    stopAdminImpersonation,
     listAdminAgents,
     getAdminAgent,
     patchAdminAgentMetadataOverride,
