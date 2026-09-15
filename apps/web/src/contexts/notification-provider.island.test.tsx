@@ -679,6 +679,45 @@ describe("NotificationProvider deleting", () => {
     expect(currentNotifications.notifications).toHaveLength(2);
   });
 
+  it("a pending auto-read must not overwrite later deliberate unread", async () => {
+    let completeBatch!: () => void;
+    let serverRow = { ...UNREAD_ROW };
+    patchNotificationsReadMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          completeBatch = () => {
+            serverRow = { ...serverRow, isRead: true };
+            resolve({ data: { count: 1 } });
+          };
+        }),
+    );
+    patchNotificationUnreadMock.mockImplementationOnce(async () => {
+      serverRow = { ...serverRow, isRead: false };
+      return { data: serverRow };
+    });
+    await renderLoaded();
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = currentNotifications.markManyRead(["notification-unread"]);
+    });
+    // Reopen the bell while the auto-read is in flight; optimistic state exposes mark-unread.
+    expect(
+      currentNotifications.notifications.find(
+        (row) => row.id === "notification-unread",
+      )?.isRead,
+    ).toBe(true);
+    let pendingUnread!: Promise<void>;
+    await act(async () => {
+      pendingUnread = currentNotifications.markUnread("notification-unread");
+    });
+    await act(async () => {
+      completeBatch();
+      await pending;
+      await pendingUnread;
+    });
+    expect(serverRow.isRead).toBe(false);
+  });
+
   it("puts a read row back and adds it to the bell", async () => {
     patchNotificationUnreadMock.mockResolvedValue({
       data: { ...READ_ROW, isRead: false, readAt: null },
