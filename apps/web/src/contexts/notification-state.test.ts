@@ -298,6 +298,63 @@ describe("notificationReducer", () => {
     expect(afterSuccess.unreadCount).toBe(0);
   });
 
+  it("keeps a browser-only row off the badge when the server confirms it unread", () => {
+    // A CHAT row outside the feed's exceptions never counted towards the
+    // in-app badge, so confirming it unread must not add it to one.
+    const browserOnly = createNotification({
+      id: "notification-chat",
+      kind: "CHAT",
+      messageKey: "Notifications.Chat.directMessage",
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
+    });
+
+    const after = notificationReducer(
+      { notifications: [browserOnly], unreadCount: 0 },
+      {
+        type: "mark_unread_success",
+        id: browserOnly.id,
+        updated: { ...browserOnly, isRead: false, readAt: null },
+      },
+    );
+
+    expect(after.unreadCount).toBe(0);
+    expect(after.notifications[0]?.isRead).toBe(true);
+  });
+
+  it("puts a read row back on the badge once and only once", () => {
+    const read = createNotification({
+      id: "notification-read",
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
+    });
+
+    const afterOptimistic = notificationReducer(
+      { notifications: [read], unreadCount: 0 },
+      { type: "mark_unread_optimistic", id: read.id },
+    );
+
+    expect(afterOptimistic.notifications[0]?.isRead).toBe(false);
+    expect(afterOptimistic.unreadCount).toBe(1);
+
+    const serverUpdated = createNotification({
+      id: read.id,
+      isRead: false,
+      readAt: null,
+    });
+
+    // The optimistic pass already counted it, so the server's confirmation
+    // must not count it a second time.
+    const afterSuccess = notificationReducer(afterOptimistic, {
+      type: "mark_unread_success",
+      id: read.id,
+      updated: serverUpdated,
+    });
+
+    expect(afterSuccess.notifications[0]).toEqual(serverUpdated);
+    expect(afterSuccess.unreadCount).toBe(1);
+  });
+
   it("is a no-op when optimistically marking an already-read notification", () => {
     const readNotification = createNotification({
       id: "notification-read",
