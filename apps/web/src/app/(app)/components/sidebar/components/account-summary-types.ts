@@ -12,7 +12,6 @@ export interface AccountSummaryCreditProps {
   totalCredits: number | null;
   extraCredits: number | null;
   creditUsage: CreditUsage | null;
-  creditScope?: CreditWalletScope | null;
   subscriptionPeriodEndMs: number | null;
   currentTimestampMs: number;
   lowCreditsThreshold: number;

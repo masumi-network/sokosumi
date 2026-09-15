@@ -3816,10 +3816,6 @@
       "balanceDescriptionPersonal": "Deine aktuellen Credits im persönlichen Account.",
       "balanceDescriptionOrganization": "Aktuelle Credits für {organization}. {purchased, plural, =1 {# gekaufter Seat} other {# gekaufte Seats}}, {assigned, plural, =1 {# zugewiesen} other {# zugewiesen}}, {unused, plural, =1 {# ungenutzt} other {# ungenutzt}}, {members, plural, =1 {# Mitglied} other {# Mitglieder}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Keine Credits} =1 {# Credit} other {# Credits}}",
-      "personalCredits": "Persönliche Credits",
-      "organizationCredits": "Organisations-Credits",
-      "personalCreditsLabel": "{credits, plural, =0 {Keine persönlichen Credits} =1 {# persönliches Credit} other {# persönliche Credits}}",
-      "organizationCreditsLabel": "{credits, plural, =0 {Keine Organisations-Credits} =1 {# Organisations-Credit} other {# Organisations-Credits}}",
       "stripeCustomerIdLabel": "Stripe-Kunden-ID",
       "tabs": {
         "subscription": "Abonnement",

@@ -113,17 +113,6 @@ describe("SidebarAccountChip", () => {
     expect(screen.getByText("PT")).toBeInTheDocument();
   });
 
-  it("labels organization credits from the credits payload scope", () => {
-    renderChip({ creditScope: "organization" });
-
-    expect(
-      screen.getByText(/planAndCredits Pro organizationCreditsLabel 15750/),
-    ).toBeInTheDocument();
-
-    openChip();
-    expect(screen.getByText("organizationCredits")).toBeInTheDocument();
-  });
-
   it("keeps name line-height above 1 so truncate does not clip descenders", () => {
     renderChip({
       sessionUser: {

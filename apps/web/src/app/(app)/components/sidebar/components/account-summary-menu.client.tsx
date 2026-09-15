@@ -15,7 +15,6 @@ import { useSelfPresence } from "@/hooks/use-self-presence";
 import { getInitials } from "@/lib/utils/text";
 
 import { AccountPopoverDrill } from "./account-popover-drill.client";
-import { resolveWalletHeadingKey } from "./account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
   AccountPopoverPanel,
@@ -39,7 +38,6 @@ export function AccountSummaryMenu({
   planName,
   extraCredits,
   creditUsage,
-  creditScope,
   subscriptionPeriodEndMs,
   currentTimestampMs,
   buyCreditsLabel,
@@ -48,7 +46,6 @@ export function AccountSummaryMenu({
   adminSettingsChrome,
 }: AccountSummaryMenuProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
-  const tBilling = useTranslations("App.Billing");
   const tCredit = useTranslations("Components.UserAvatar");
   const tPresence = useTranslations("App.Channels.Presence");
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
@@ -63,9 +60,6 @@ export function AccountSummaryMenu({
     sessionUser.email,
   );
   const presenceLabel = tPresence(presence);
-  const walletHeadingKey = resolveWalletHeadingKey(creditScope);
-  const walletHeading =
-    walletHeadingKey === null ? null : tBilling(walletHeadingKey);
 
   function handleBuyCredits() {
     onRequestClose();
@@ -165,7 +159,6 @@ export function AccountSummaryMenu({
             extraCredits={extraCredits}
             subscriptionPeriodEndMs={subscriptionPeriodEndMs}
             currentTimestampMs={currentTimestampMs}
-            walletHeading={walletHeading}
           />
           {(extraCredits !== null && extraCredits > 0) ||
           creditUsage !== null ? (

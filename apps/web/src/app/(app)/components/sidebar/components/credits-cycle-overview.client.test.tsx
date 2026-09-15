@@ -160,19 +160,4 @@ describe("CreditsCycleOverview", () => {
     expect(screen.queryByText("monthlyUsageLimit")).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
-
-  it("names the wallet when a heading is provided", () => {
-    render(
-      <CreditsCycleOverview
-        creditUsage={remainingUsage}
-        extraCredits={null}
-        subscriptionPeriodEndMs={null}
-        currentTimestampMs={1_700_000_000_000}
-        walletHeading="Organization credits"
-      />,
-    );
-
-    expect(screen.getByText("Organization credits")).toBeInTheDocument();
-    expect(screen.getByText("monthlyUsageLimit")).toBeInTheDocument();
-  });
 });
