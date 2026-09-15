@@ -1,13 +1,14 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
 
 const fullCalendarMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@fullcalendar/react", () => ({
-  default: ({ initialView }: FullCalendarProps) => {
-    fullCalendarMock({ initialView });
+  default: (props: FullCalendarProps) => {
+    fullCalendarMock(props);
     return null;
   },
 }));
@@ -28,6 +29,10 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 import { WorkspaceCalendar } from "./workspace-calendar";
 
 interface FullCalendarProps {
+  eventContent?: (info: {
+    event: { id: string; title: string };
+    timeText?: string;
+  }) => ReactNode;
   initialView?: string;
 }
 
@@ -66,5 +71,32 @@ describe("WorkspaceCalendar week layout", () => {
         ([props]) => (props as FullCalendarProps).initialView,
       ),
     ).toContain("dayGridWeek");
+  });
+
+  // Two stacked rows: the day-grid column is too narrow for one line, so the
+  // time sits above the task name and the title keeps the full width.
+  it("renders week events as a time line above the task name", () => {
+    render(
+      <NuqsTestingAdapter>
+        <WorkspaceCalendar initialDate="2026-08-18" items={[WEEK_ITEM]} />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = fullCalendarMock.mock.lastCall?.[0] as
+      | FullCalendarProps
+      | undefined;
+    render(
+      <>
+        {props?.eventContent?.({
+          event: { id: WEEK_ITEM.id, title: WEEK_ITEM.taskName },
+          timeText: "9:00a",
+        })}
+      </>,
+    );
+
+    const event = screen.getByRole("button", { name: "event.accessibleName" });
+    const [metaLine, titleLine] = Array.from(event.children);
+    expect(metaLine).toHaveTextContent("9:00a");
+    expect(titleLine).toHaveTextContent("Prepare release notes");
   });
 });

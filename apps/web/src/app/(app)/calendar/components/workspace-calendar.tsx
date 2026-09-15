@@ -271,6 +271,29 @@ function CalendarEvent({
 }) {
   const t = useTranslations("App.Calendar");
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
+  const sourceMarker = (
+    <SourceMarker decorative source={source} sourceName={sourceName} />
+  );
+  const accuracyMarker =
+    item.sourceAccuracy !== "EXACT" ? (
+      <span
+        aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+        className="text-muted-foreground shrink-0"
+        role="img"
+      >
+        ~
+      </span>
+    ) : null;
+  const sourceDetails = showDetails ? (
+    <>
+      <span className="text-muted-foreground shrink-0">{sourceName}</span>
+      {item.sourceAccuracy !== "EXACT" ? (
+        <span className="text-muted-foreground shrink-0">
+          {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+        </span>
+      ) : null}
+    </>
+  ) : null;
 
   return (
     <DropdownMenu>
@@ -280,37 +303,30 @@ function CalendarEvent({
             source: sourceName,
             task: item.taskName,
           })}
-          className="bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2"
+          className={`bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2 ${
+            timeText ? "flex-col items-start gap-0.5" : "items-center gap-1"
+          }`}
           type="button"
         >
-          <SourceMarker decorative source={source} sourceName={sourceName} />
           {timeText ? (
-            <span className="text-muted-foreground shrink-0 tabular-nums">
-              {timeText}
-            </span>
-          ) : null}
-          {item.sourceAccuracy !== "EXACT" ? (
-            <span
-              aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-              className="text-muted-foreground shrink-0"
-              role="img"
-            >
-              ~
-            </span>
-          ) : null}
-          <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
-          {showDetails ? (
             <>
-              <span className="text-muted-foreground shrink-0">
-                {sourceName}
-              </span>
-              {item.sourceAccuracy !== "EXACT" ? (
-                <span className="text-muted-foreground shrink-0">
-                  {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+              <span className="flex w-full min-w-0 items-center gap-1">
+                {sourceMarker}
+                <span className="text-muted-foreground shrink-0 tabular-nums">
+                  {timeText}
                 </span>
-              ) : null}
+                {accuracyMarker}
+              </span>
+              <span className="w-full min-w-0 truncate">{item.taskName}</span>
             </>
-          ) : null}
+          ) : (
+            <>
+              {sourceMarker}
+              {accuracyMarker}
+              <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
+              {sourceDetails}
+            </>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
