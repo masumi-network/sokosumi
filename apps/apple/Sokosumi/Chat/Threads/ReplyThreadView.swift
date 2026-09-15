@@ -26,7 +26,13 @@ import SwiftUI
       return preparedTranscript?.input.messages ?? []
     }
 
-    // Remove the page boundary together with prepared replies, including empty final pages.
+    private var readyJump: ThreadSession.JumpTarget? {
+      guard let target = workspaces.thread.jumpTarget,
+            preparedMessages.contains(where: { $0.id == target.messageId }) else { return nil }
+      return target
+    }
+
+    // Update the header controls together with prepared replies, including empty final pages.
     @State private var preparedHasMore = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var olderBoundaryVisible = false
@@ -94,7 +100,27 @@ import SwiftUI
                              onQuoteJump: { quoteTarget = $0 })
                 .id(parent.id)
               Divider()
-              Text("^[\(parent.threadReplyCount) reply](inflect: true)").font(.caption).foregroundStyle(.secondary)
+              HStack {
+                Text("^[\(parent.threadReplyCount) reply](inflect: true)").foregroundStyle(.secondary)
+                Spacer()
+                if preparedHasMore {
+                  Button("Load older replies") {
+                    scrollIntent.readOlder()
+                    workspaces.loadThreadPage(.older, auth: auth)
+                  }
+                  .buttonStyle(.link)
+                  .controlSize(.small)
+                  .disabled(workspaces.thread.timeline.isLoadingOlder || workspaces.directStream.isBusy)
+                  .opacity(workspaces.thread.timeline.isLoadingOlder ? 0 : 1)
+                  .overlay {
+                    if workspaces.thread.timeline.isLoadingOlder {
+                      ProgressView().controlSize(.small)
+                    }
+                  }
+                }
+              }
+              .font(.caption)
+              .frame(minHeight: 24)
               replies(channels: channels, room: currentRoom)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
@@ -105,6 +131,12 @@ import SwiftUI
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
+          .task(id: readyJump) {
+            guard let target = readyJump else { return }
+            scrollIntent.readOlder()
+            pendingBottomAlignment = false
+            proxy.scrollTo(target.messageId, anchor: .center)
+          }
           .onChange(of: quoteTarget) { _, target in
             guard let target else { return }
             quoteTarget = nil
@@ -119,6 +151,9 @@ import SwiftUI
           }
           .onScrollPhaseChange { _, phase in
             userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+            if phase == .interacting {
+              Task { @MainActor in workspaces.thread.clearJump() }
+            }
             loadOlderRepliesAutomatically()
           }
           .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
@@ -143,6 +178,10 @@ import SwiftUI
           .overlay(alignment: .bottom) {
             if !scrollIntent.followsLatest {
               JumpToLatestButton {
+                workspaces.thread.clearJump()
+                if workspaces.thread.timeline.historicalAnchor != nil {
+                  workspaces.loadThreadPage(.returnToLatest, auth: auth)
+                }
                 scrollIntent.followLatest()
                 proxy.scrollTo("thread-bottom", anchor: .bottom)
               }
@@ -187,19 +226,6 @@ import SwiftUI
       if timeline.isLoading {
         ProgressView("Loading replies…")
       } else {
-        if preparedHasMore {
-          Button("Load older replies") {
-            scrollIntent.readOlder()
-            workspaces.loadThreadPage(.older, auth: auth)
-          }
-          .disabled(timeline.isLoadingOlder || workspaces.directStream.isBusy)
-          .opacity(timeline.isLoadingOlder ? 0 : 1)
-          .overlay {
-            if timeline.isLoadingOlder {
-              ProgressView().controlSize(.small)
-            }
-          }
-        }
         if let error = timeline.errorMessage {
           Text(error).foregroundStyle(.secondary)
           Button("Retry") { workspaces.loadThreadPage(timeline.failedPage ?? .initial, auth: auth) }
@@ -221,14 +247,25 @@ import SwiftUI
       channels: [ComposerChannel],
       room: Components.Schemas.ChatRoom?
     ) -> some View {
-      ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-        let previous = index > 0 ? messages[index - 1] : nil
+      let gaps = workspaces.thread.timeline.historyGapMessageIds
+      return ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+        let hasGap = gaps.contains(message.id)
+        let previous = index > 0 && !hasGap ? messages[index - 1] : nil
         let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
         let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
         let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
         let outbox = workspaces.thread.outbox
         let shell = outbox.shells.first { $0.id == message.id }
         VStack(alignment: .leading, spacing: 0) {
+          if hasGap {
+            Button("Load messages in this gap") {
+              workspaces.loadThreadPage(.boundary(message.id), auth: auth)
+            }
+            .buttonStyle(.link)
+            .disabled(workspaces.thread.timeline.isRefreshing)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+          }
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
             DaySeparatorRow(label: label)
           }
@@ -243,6 +280,7 @@ import SwiftUI
                              quoteFocusRequest = UUID().uuidString
                            } : nil,
                            onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                           isHighlighted: workspaces.thread.jumpTarget?.messageId == message.id,
                            onDelete: deletionAction(for: message),
                            onRemoveUnfurl: unfurlAction(for: message),
                            onToggleReaction: reactionAction(for: message),

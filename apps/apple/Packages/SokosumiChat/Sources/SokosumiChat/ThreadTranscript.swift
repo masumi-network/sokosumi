@@ -5,11 +5,12 @@ public extension ChatService {
   func listThreadMessages(
     client: Client, roomId: String, parentMessageId: String,
     cursor: String? = nil,
+    around: String? = nil,
     organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
     let response = try await client.getChatsRoomsIdThreadsParentMessageIdMessages(
       .init(path: .init(id: roomId, parentMessageId: parentMessageId),
-            query: .init(cursor: cursor, limit: 100),
+            query: .init(cursor: cursor, limit: around == nil ? 100 : 30, around: around),
             headers: .init(xOrganizationSlug: organizationSlug))
     )
     switch response {

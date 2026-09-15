@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 
 import {
   ProjectBrandCard,
@@ -36,7 +36,7 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [attention, t, tHistory, tListStats, tTaskFilters, locale] =
+  const [attention, t, tHistory, tListStats, tTaskFilters, locale, timeZone] =
     await Promise.all([
       projectService.getProjectNeedsAttention(project.id),
       getTranslations("App.Projects.Detail"),
@@ -44,6 +44,7 @@ export default async function ProjectDetailPage({
       getTranslations("App.Projects.list.stats"),
       getTranslations("App.Tasks.Filters"),
       getLocale(),
+      getTimeZone(),
     ]);
 
   const taskStatusLabels = buildTaskStatusLabels((key) =>
@@ -68,11 +69,19 @@ export default async function ProjectDetailPage({
               metadata={[
                 {
                   label: t("header.updated"),
-                  value: formatShortDateTime(project.updatedAt, locale),
+                  value: formatShortDateTime(
+                    project.updatedAt,
+                    locale,
+                    timeZone,
+                  ),
                 },
                 {
                   label: t("header.created"),
-                  value: formatShortDateTime(project.createdAt, locale),
+                  value: formatShortDateTime(
+                    project.createdAt,
+                    locale,
+                    timeZone,
+                  ),
                 },
               ]}
               actions={

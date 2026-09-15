@@ -23,27 +23,33 @@ afterEach(() => {
 });
 
 describe("datetime formatting", () => {
-  it("keeps short task dates stable across server and browser time zones", () => {
-    const timestampNearMidnight = "2026-06-08T22:30:00.000Z";
+  it("renders short date-times in the viewer's zone, not the server's", () => {
+    // 14:50 UTC is 16:50 in Berlin during CEST.
+    const timestamp = "2026-09-15T14:50:00.000Z";
 
-    const serverDate = withTimeZone("UTC", () =>
-      formatShortDate(timestampNearMidnight, "de-DE"),
+    expect(formatShortDateTime(timestamp, "en", "Europe/Berlin")).toBe(
+      "Sep 15, 4:50 PM",
     );
-    const browserDate = withTimeZone("Europe/Berlin", () =>
-      formatShortDate(timestampNearMidnight, "de-DE"),
-    );
-
-    expect(browserDate).toBe(serverDate);
+    expect(formatShortDateTime(timestamp, "en", "UTC")).toBe("Sep 15, 2:50 PM");
   });
 
-  it("keeps short date-times stable across server and browser time zones", () => {
+  it("renders short dates in the viewer's zone across midnight", () => {
+    const timestampNearMidnight = "2026-06-08T22:30:00.000Z";
+
+    expect(formatShortDate(timestampNearMidnight, "en", "Europe/Berlin")).toBe(
+      "Jun 9",
+    );
+    expect(formatShortDate(timestampNearMidnight, "en", "UTC")).toBe("Jun 8");
+  });
+
+  it("ignores the process time zone so server and browser agree", () => {
     const timestampNearMidnight = "2026-06-08T22:30:00.000Z";
 
     const serverDateTime = withTimeZone("UTC", () =>
-      formatShortDateTime(timestampNearMidnight, "de-DE"),
+      formatShortDateTime(timestampNearMidnight, "de-DE", "Europe/Berlin"),
     );
-    const browserDateTime = withTimeZone("Europe/Berlin", () =>
-      formatShortDateTime(timestampNearMidnight, "de-DE"),
+    const browserDateTime = withTimeZone("America/New_York", () =>
+      formatShortDateTime(timestampNearMidnight, "de-DE", "Europe/Berlin"),
     );
 
     expect(browserDateTime).toBe(serverDateTime);

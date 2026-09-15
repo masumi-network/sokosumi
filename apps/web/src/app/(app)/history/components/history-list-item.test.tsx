@@ -14,6 +14,7 @@ const iconMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl", () => ({
+  useTimeZone: () => "UTC",
   useLocale: () => "en",
   useTranslations: () => (key: string) => key,
 }));
