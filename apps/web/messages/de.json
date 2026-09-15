@@ -1616,6 +1616,7 @@
       "Detail": {
         "back": "Zurück zu Tasks",
         "privateBadge": "Privat",
+        "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",

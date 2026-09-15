@@ -689,8 +689,87 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         visibility: "PRIVATE",
+        assigneeUserId: null,
       }),
     );
+  });
+
+  it("hides the private checkbox when another human is assigned", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-2",
+            slug: "bob@example.com",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        initialValues={{ assigneeUserId: "user-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Private task")).not.toBeInTheDocument();
+  });
+
+  it("shows the private checkbox for the current user, a coworker, and a bot", () => {
+    const { unmount: unmountSelf } = render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "me@example.com",
+            name: "Me",
+            kind: "user",
+          }),
+        ]}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Private task")).toBeInTheDocument();
+    unmountSelf();
+
+    const { unmount: unmountCoworker } = render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Private task")).toBeInTheDocument();
+    unmountCoworker();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          mockCoworkerOption({
+            id: "bot-1",
+            slug: "soko-bots",
+            name: "Ada",
+            kind: "sokoBot",
+          }),
+        ]}
+        initialValues={{ assigneeSokoBotId: "bot-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Private task")).toBeInTheDocument();
   });
 
   it("submits Ready when the dropdown is set to Ready", async () => {

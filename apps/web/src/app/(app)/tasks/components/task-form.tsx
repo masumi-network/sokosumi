@@ -27,7 +27,10 @@ import {
 import { toast } from "sonner";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
-import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
+import {
+  isOtherHumanAssignee,
+  resolveTaskAssigneeFields,
+} from "@/app/tasks/utils/coworker-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -777,14 +780,28 @@ export function TaskForm({
             desiredStatus === TaskStatus.QUEUED)
         ) {
           const createTaskHandler = onCreateTask ?? createTask;
+          const assigneeFields = resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownSokoBotId,
+            initialValues?.assigneeUserId,
+          );
+          const createPrivateUnassigned =
+            canCreatePrivateTask &&
+            isPrivate &&
+            !isOtherHumanAssignee(
+              assigneeFields.assigneeUserId,
+              session?.user.id,
+            );
           const result = await createTaskHandler({
             description: trimmedDescription,
-            ...resolveTaskAssigneeFields(
-              assigneeId,
-              coworkerOptions,
-              knownSokoBotId,
-              initialValues?.assigneeUserId,
-            ),
+            ...assigneeFields,
+            ...(createPrivateUnassigned
+              ? {
+                  visibility: "PRIVATE" as const,
+                  assigneeUserId: null,
+                }
+              : {}),
             context: {
               brand: {
                 enabled: contextSelection.brand.enabled,
@@ -802,9 +819,6 @@ export function TaskForm({
               "DRAFT" | "READY" | "QUEUED"
             >,
             schedule: scheduleSelection,
-            ...(canCreatePrivateTask && isPrivate
-              ? { visibility: "PRIVATE" as const }
-              : {}),
           });
           if (!result.ok) {
             const feedbackKey = taskScheduleSeriesFeedbackKey(
@@ -823,12 +837,6 @@ export function TaskForm({
           const createdTask = result.value;
           // Confirm success in place and let the user choose when to navigate;
           // the redirect target is prefetched so it lands fast.
-          const assigneeFields = resolveTaskAssigneeFields(
-            assigneeId,
-            coworkerOptions,
-            knownSokoBotId,
-            initialValues?.assigneeUserId,
-          );
           const createdStatus = resolveCelebrationStatus({
             desiredStatus,
             isAgent: isAgentAssigneeFields(assigneeFields),
@@ -948,6 +956,7 @@ export function TaskForm({
       contextSelection,
       canCreatePrivateTask,
       isPrivate,
+      session?.user.id,
       labels.projectRequired,
       labels.statusDraft,
       labels.statusQueued,
@@ -1075,6 +1084,14 @@ export function TaskForm({
   );
   const isSchedulableAssignee =
     isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
+  const showPrivateControl =
+    mode === "create" &&
+    canCreatePrivateTask &&
+    Boolean(labels.privateLabel) &&
+    !isOtherHumanAssignee(
+      selectedAssigneeFields.assigneeUserId,
+      session?.user.id,
+    );
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
@@ -1468,9 +1485,7 @@ export function TaskForm({
                     onSelectionChange={setContextSelection}
                   />
                 ) : null}
-                {mode === "create" &&
-                canCreatePrivateTask &&
-                labels.privateLabel ? (
+                {showPrivateControl ? (
                   <div className="flex items-start gap-2">
                     <Checkbox
                       id="task-private"

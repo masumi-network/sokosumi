@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { BackToTasksButton } from "./back-to-tasks-button";
 
 interface TaskDetailHeaderProps {
@@ -6,7 +5,6 @@ interface TaskDetailHeaderProps {
   backLabel: string;
   parentLink?: React.ReactNode;
   actions?: React.ReactNode;
-  privateLabel?: string | null;
 }
 
 export function TaskDetailHeader({
@@ -14,7 +12,6 @@ export function TaskDetailHeader({
   backLabel,
   parentLink,
   actions,
-  privateLabel = null,
 }: TaskDetailHeaderProps) {
   return (
     <div className="space-y-4">
@@ -24,14 +21,9 @@ export function TaskDetailHeader({
         {actions}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-xl leading-tight font-semibold tracking-tight">
-          {taskName}
-        </h1>
-        {privateLabel ? (
-          <Badge variant="secondary">{privateLabel}</Badge>
-        ) : null}
-      </div>
+      <h1 className="text-xl leading-tight font-semibold tracking-tight">
+        {taskName}
+      </h1>
       {parentLink}
     </div>
   );
