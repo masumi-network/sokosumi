@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { assertOrganizationInContextScope } from "@/helpers/context-organization-scope";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -29,7 +30,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/organizations/{organizationId}/credits",
     description:
-      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`.",
+      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`. Coworker and Soko Bot callers must target the organization their context is bound to.",
     tags: ["Users"],
     request: {
       params,
@@ -105,7 +106,11 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     const { organizationId } = c.req.valid("param");
-    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
+    const { resolvedUserId, userContext } = requireUserRouteContext(
+      c.var.userRouteContext,
+    );
+
+    assertOrganizationInContextScope(userContext, organizationId);
 
     const { organization } = await resolveMemberOrganizationById({
       id: organizationId,
