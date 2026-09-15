@@ -80,7 +80,7 @@ Optional Core-only smoke:
 Prefer the helper over hand-rolled browser clicks. `auto` (default):
 
 1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
-2. If the fixture works: UI Enter-submit, then Core cookie bootstrap.
+2. If the fixture works: UI Enter-submit. Cookie bootstrap runs **only if UI fails**, not as a second step on success.
 3. If the fixture fails: coworker vault `agent-browser auth login sokosumi` with `[data-testid="auth-field-email"]` / `[data-testid="auth-field-currentPassword"]`. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
 
 ```bash
