@@ -21,6 +21,10 @@ import type {
   PatchNotificationsReadAllErrors,
   PatchNotificationsReadAllResponse,
   PatchNotificationsReadAllResponses,
+  PatchNotificationsReadForReferenceData,
+  PatchNotificationsReadForReferenceErrors,
+  PatchNotificationsReadForReferenceResponse,
+  PatchNotificationsReadForReferenceResponses,
 } from "@/lib/clients/generated/core/types.gen";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
@@ -140,6 +144,33 @@ export const notificationsBrowserClient = {
           responseTransformer: transformMetaTimestampResponse,
         }),
       "Failed to mark all notifications as read",
+    );
+  },
+
+  /**
+   * Mark every unread notification about one task or job read.
+   *
+   * Called when the reader opens the thing itself, so that dealing with a task
+   * from its own page counts as reading what it was notified about. Without
+   * this the row stays unread and the follow-up sync reminds them a day later
+   * about work they already finished (SOK-916).
+   */
+  async patchNotificationsReadForReference(
+    body: PatchNotificationsReadForReferenceData["body"],
+  ): Promise<PatchNotificationsReadForReferenceResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.patch<
+          PatchNotificationsReadForReferenceResponses,
+          PatchNotificationsReadForReferenceErrors
+        >({
+          url: "/notifications/read-for-reference",
+          body,
+          cache: "no-store",
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to mark notifications as read",
     );
   },
 

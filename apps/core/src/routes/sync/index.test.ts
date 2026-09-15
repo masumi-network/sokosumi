@@ -14,6 +14,7 @@ const {
   syncStripeCustomersMock,
   syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
+  sendFollowUpsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
   syncDueTaskSchedulesMock,
   reconcileScheduleHistoryMock,
@@ -31,6 +32,7 @@ const {
   syncStripeCustomersMock: vi.fn(),
   syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
+  sendFollowUpsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
   syncDueTaskSchedulesMock: vi.fn(),
   reconcileScheduleHistoryMock: vi.fn(),
@@ -43,6 +45,12 @@ vi.mock("@/config/env", () => ({
     LOCK_TIMEOUT: 5000,
     LOCK_TIMEOUT_BUFFER: 1000,
   }),
+}));
+
+vi.mock("@/services/notification-follow-up-sync.service", () => ({
+  notificationFollowUpSyncService: {
+    sendFollowUps: sendFollowUpsMock,
+  },
 }));
 
 vi.mock("@/services/sync-lock.service", () => ({
@@ -186,6 +194,7 @@ describe("sync routes", () => {
     });
     syncStripeCustomersMock.mockResolvedValue(undefined);
     expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 0 });
+    sendFollowUpsMock.mockResolvedValue({ examined: 0, sent: 0 });
     syncDueTaskSchedulesMock.mockResolvedValue({
       promoted: 0,
       cloned: 0,
@@ -795,6 +804,56 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 401 for missing cron auth on follow-up notification sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/notification-follow-ups",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(sendFollowUpsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the follow-up notification lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/notification-follow-ups",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(sendFollowUpsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and starts the follow-up notification sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/notification-follow-ups",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "notification-follow-ups-sync",
+    );
+
+    await flushMicrotasks();
+    expect(sendFollowUpsMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns 401 for missing cron auth on x402 header purge sync", async () => {

@@ -91,8 +91,22 @@ const CHAT_ROOM_MESSAGES_KEY = "Notifications.Chat.roomMessages";
 const CHAT_ROOM_MESSAGE_GROUP_KEY = "Notifications.Chat.roomMessageGroup";
 const CHAT_ROOM_MESSAGES_GROUP_KEY = "Notifications.Chat.roomMessagesGroup";
 
+/** Mirrors the chat follow-up keys in @sokosumi/utils. */
+const CHAT_MENTION_FOLLOW_UP_KEY = "Notifications.Chat.mentionedFollowUp";
+const CHAT_MENTION_DIRECT_FOLLOW_UP_KEY =
+  "Notifications.Chat.mentionedDirectFollowUp";
+
 /** Mirrors countedMessageKey in lib/utils/notification-message. */
 function countedMessageKey(messageKey, params, count) {
+  // Asked first, and never counted. A follow-up stands for one notification
+  // however many messages that notification had already taken, so "3 messages"
+  // would say a day-old count rather than what is waiting.
+  if (messageKey === CHAT_MENTION_FOLLOW_UP_KEY) {
+    return params.isDirect === true
+      ? CHAT_MENTION_DIRECT_FOLLOW_UP_KEY
+      : messageKey;
+  }
+
   const group = params.isGroup === true;
   const pair = messageKey === CHAT_MENTION_KEY && params.isDirect === true;
 

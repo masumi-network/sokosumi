@@ -3,6 +3,7 @@ import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  isFollowUpMessageKey,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
@@ -101,11 +102,21 @@ export interface NotificationDelivery {
  * Null means the defaults apply and nothing is stored against it: a chat key
  * added later that nobody mapped, and BILLING, which no producer emits yet. A
  * row would be a switch that controls nothing, so there is none.
+ *
+ * Follow-ups are the one exception to the split-by-key rule, and they break it
+ * in the other direction: every follow-up key, whatever its kind, answers to
+ * the single `FOLLOW_UP` row. See `notification-follow-up.ts`.
  */
 export function toNotificationCategory(
   kind: NotificationKind,
   messageKey: string,
 ): NotificationCategory | null {
+  // Asked before the kind, because a follow-up exists for three of them and
+  // the reader decides about reminders once rather than once per kind.
+  if (isFollowUpMessageKey(messageKey)) {
+    return "FOLLOW_UP";
+  }
+
   switch (kind) {
     case "JOB":
       if (JOB_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {
