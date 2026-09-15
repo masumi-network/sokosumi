@@ -2,6 +2,8 @@
 
 ## Resume checkpoint
 
+- Composer boundary follow-up (2026-09-15): the user reports only the console warning, not visible scrolling stutter. The shared composer now paints its system background after its outer padding, covering transcript content behind the side and bottom gaps in both rooms and threads. Signed build, the full app test suite, and pinned lint/format pass. The user visually verified the fix on 2026-09-15; a fresh screenshot also shows clean side and bottom gaps. The agent-launched instance was stopped.
+
 - Geometry warning reproduction: [standalone diagnostic](docs/scroll-geometry-warning.md) now reproduces the exact fault without chat-specific code. Growing the composer inset during initial positioning triggers it; a stable initial inset did not in the comparison. Application fix remains pending.
 
 - Current verification (2026-09-15): pushed commit `2b6a1cb0b` has green CI. The local reading-position follow-up distinguishes viewport movement from size changes and retains pending bottom alignment until scrolling ends. Final local verification passed all 65 app tests (111 parameterized cases), strict SwiftLint, and SwiftFormat; no test-host apps remain running. The runtime geometry warning remains unresolved and is documented in [the investigation](docs/scroll-geometry-warning.md). All failed probes were reverted; no warning-suppression or alternate-layout experiment is retained.
