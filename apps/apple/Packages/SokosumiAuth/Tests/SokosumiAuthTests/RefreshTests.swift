@@ -65,6 +65,7 @@ struct RefreshTests {
     )
     try await signIn(session: session, transport: transport)
     clock.now = clock.now.addingTimeInterval(8000)
+    let generation = await session.generation
     transport.response = .success(
       status: 200,
       json: "{\"access_token\":\"access-2\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-2\"}"
@@ -72,6 +73,7 @@ struct RefreshTests {
 
     let token = try await session.validAccessToken()
     #expect(token == "access-2")
+    #expect(await session.generation == generation)
     #expect(await session.isSignedIn)
     #expect(await store.saved?.refreshToken == "refresh-2")
     let request = try #require(transport.lastRequest)
