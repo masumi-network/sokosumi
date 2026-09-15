@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useTimeZone } from "next-intl";
 import { useEffect } from "react";
 
-import { serializeTimeZoneCookie } from "@/i18n/time-zone";
+import {
+  serializeTimeZoneCookie,
+  TIME_ZONE_COOKIE_NAME,
+} from "@/i18n/time-zone";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 
 /**
@@ -22,6 +25,12 @@ export function TimeZoneSync() {
       return;
     }
     document.cookie = serializeTimeZoneCookie(browserTimeZone);
+    const cookieStuck = document.cookie
+      .split("; ")
+      .some((part) => part.startsWith(`${TIME_ZONE_COOKIE_NAME}=`));
+    if (!cookieStuck) {
+      return;
+    }
     router.refresh();
   }, [renderedTimeZone, router]);
 

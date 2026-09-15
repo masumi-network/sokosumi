@@ -14,6 +14,7 @@ describe("resolveRequestTimeZone", () => {
     expect(resolveRequestTimeZone(undefined)).toBe("UTC");
     expect(resolveRequestTimeZone("")).toBe("UTC");
     expect(resolveRequestTimeZone("Mars/Olympus")).toBe("UTC");
+    expect(resolveRequestTimeZone("Factory")).toBe("UTC");
   });
 });
 
