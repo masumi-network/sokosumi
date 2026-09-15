@@ -39,7 +39,12 @@ vi.mock("@/lib/ably/publish", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { $transaction: prismaTransactionMock },
+  default: {
+    $transaction: prismaTransactionMock,
+    chatRoomUserMember: { findMany: membershipFindManyMock },
+    chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
+  },
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -50,9 +55,6 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock, updateMany: roomUpdateManyMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
-  chatRoomUserMember: { findMany: membershipFindManyMock },
-  chatRoomReadState: { findMany: readStateFindManyMock },
-  chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   $queryRaw: queryRawMock,
 };
 
@@ -180,6 +182,9 @@ describe("POST /chats/rooms/{id}/restore", () => {
         collections: ["active", "archived"],
         roomId: ROOM_ID,
       });
+      // Mapping uses the default prisma client, not the interactive tx.
+      expect(membershipFindManyMock).toHaveBeenCalled();
+      expect(readStateFindManyMock).toHaveBeenCalled();
     },
   );
 
