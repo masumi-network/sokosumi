@@ -109,10 +109,14 @@ import SwiftUI
 
     private func toggleReaction(_ emoji: String) {
       guard let onToggleReaction else { return }
+      // Match web: adding teaches quick reactions; removing does not.
+      let isAdding = !message.reactions.contains { $0.emoji == emoji && $0.reactedByCurrentUser }
       Task { @MainActor in
         do {
           try await onToggleReaction(emoji)
-          ReactionEmojiHistory().record(emoji)
+          if isAdding {
+            ReactionEmojiHistory().record(emoji)
+          }
         } catch {
           reactionError = friendlyMessage(for: error)
           showsReactionError = true
