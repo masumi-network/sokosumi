@@ -762,7 +762,9 @@ describe("NotificationProvider deleting", () => {
   });
 
   it("refetches when the batch write fails", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     await renderLoaded();
     const fetchCallsBefore = getNotificationsMock.mock.calls.length;
     patchNotificationsReadMock.mockRejectedValueOnce(new Error("offline"));
