@@ -2,7 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
+import type {
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@/lib/clients/generated/core";
 
 const fullCalendarMock = vi.hoisted(() => vi.fn());
 
@@ -14,7 +17,10 @@ vi.mock("@fullcalendar/react", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useFormatter: () => ({ dateTime: () => "" }),
+  useFormatter: () => ({
+    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat("en-US", options).format(value),
+  }),
   useTranslations: () => (key: string) => key,
 }));
 
@@ -30,11 +36,19 @@ import { WorkspaceCalendar } from "./workspace-calendar";
 
 interface FullCalendarProps {
   eventContent?: (info: {
-    event: { id: string; title: string };
-    timeText?: string;
+    event: { id: string; title: string; start?: Date | null };
   }) => ReactNode;
   initialView?: string;
 }
+
+const WEEK_SOURCE: WorkspaceCalendarSource = {
+  sourceId: "workspace:workspace-1",
+  sourceType: "WORKSPACE",
+  displayName: "Ada's workspace",
+  logoUrl: null,
+  paletteToken: "blue",
+  isSchedulable: true,
+};
 
 const WEEK_ITEM: WorkspaceCalendarItem = {
   id: "occurrence-1",
@@ -74,11 +88,16 @@ describe("WorkspaceCalendar week layout", () => {
   });
 
   // Two stacked rows: the day-grid column is too narrow for one line, so the
-  // time sits above the task name and the title keeps the full width.
+  // localized time and its source sit above the task name, which keeps the
+  // full width.
   it("renders week events as a time line above the task name", () => {
     render(
-      <NuqsTestingAdapter>
-        <WorkspaceCalendar initialDate="2026-08-18" items={[WEEK_ITEM]} />
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[WEEK_ITEM]}
+          sources={[WEEK_SOURCE]}
+        />
       </NuqsTestingAdapter>,
     );
 
@@ -88,15 +107,19 @@ describe("WorkspaceCalendar week layout", () => {
     render(
       <>
         {props?.eventContent?.({
-          event: { id: WEEK_ITEM.id, title: WEEK_ITEM.taskName },
-          timeText: "9:00a",
+          event: {
+            id: WEEK_ITEM.id,
+            title: WEEK_ITEM.taskName,
+            start: WEEK_ITEM.scheduledAt,
+          },
         })}
       </>,
     );
 
     const event = screen.getByRole("button", { name: "event.accessibleName" });
     const [metaLine, titleLine] = Array.from(event.children);
-    expect(metaLine).toHaveTextContent("9:00a");
+    expect(metaLine).toHaveTextContent("9:00 AM");
+    expect(metaLine).toHaveTextContent("Ada's workspace");
     expect(titleLine).toHaveTextContent("Prepare release notes");
   });
 });

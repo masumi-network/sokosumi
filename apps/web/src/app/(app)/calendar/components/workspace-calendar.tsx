@@ -316,6 +316,9 @@ function CalendarEvent({
                   {timeText}
                 </span>
                 {accuracyMarker}
+                <span className="text-muted-foreground min-w-0 truncate">
+                  {sourceName}
+                </span>
               </span>
               <span className="w-full min-w-0 truncate">{item.taskName}</span>
             </>
@@ -372,6 +375,7 @@ function CalendarView({
   view: (typeof CALENDAR_VIEWS)[number];
 }) {
   const router = useRouter();
+  const formatDate = useFormatter().dateTime;
   const tSeries = useTranslations("App.Tasks.Schedule.series");
   const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
   // Optimistic overlay for an in-flight drop: the event renders at the time it
@@ -477,7 +481,11 @@ function CalendarView({
         eventDrop={(info) => void handleEventDrop(info)}
         eventContent={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
-          return item ? (
+          if (!item) {
+            return eventInfo.event.title;
+          }
+          const start = eventInfo.event.start;
+          return (
             <CalendarEvent
               item={item}
               onEditSchedule={onEventEdit}
@@ -487,10 +495,18 @@ function CalendarView({
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
               )}
-              timeText={view === "week" ? eventInfo.timeText : undefined}
+              // FullCalendar's own timeText is en-US shorthand ("8a") in every
+              // locale; format the instant in the calendar zone ourselves.
+              timeText={
+                view === "week" && start
+                  ? formatDate(start, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      timeZone,
+                    })
+                  : undefined
+              }
             />
-          ) : (
-            eventInfo.event.title
           );
         }}
         dateClick={(dateInfo) => onDateClick(dateInfo.date)}

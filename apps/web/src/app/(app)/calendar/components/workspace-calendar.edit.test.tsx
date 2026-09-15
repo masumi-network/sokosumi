@@ -26,7 +26,9 @@ interface FullCalendarProps {
     span: Record<string, never>,
     movingEvent: { id: string } | null,
   ) => boolean;
-  eventContent?: (info: { event: { id: string; title: string } }) => ReactNode;
+  eventContent?: (info: {
+    event: { id: string; title: string; start?: Date | null };
+  }) => ReactNode;
   eventDrop?: (info: {
     event: { id: string; start: Date | null };
     revert: () => void;
@@ -120,7 +122,9 @@ vi.mock("@fullcalendar/react", () => ({
         </button>
         {props.events?.map((event) => (
           <div key={event.id}>
-            {props.eventContent?.({ event }) ?? event.title}
+            {props.eventContent?.({
+              event: { ...event, start: new Date(event.start) },
+            }) ?? event.title}
           </div>
         ))}
       </div>
