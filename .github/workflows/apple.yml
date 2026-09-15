@@ -126,6 +126,15 @@ jobs:
             xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/SokosumiTests.xcresult"
           fi
 
+      - name: Preserve failed app test results
+        if: failure() && matrix.package == ''
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: SokosumiTests-results
+          path: ${{ runner.temp }}/SokosumiTests.xcresult
+          retention-days: 3
+          if-no-files-found: ignore
+
       - name: Test Swift package
         if: matrix.package != ''
         env:
