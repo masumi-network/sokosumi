@@ -329,7 +329,12 @@ describe("GET /projects/{id}/calendar", () => {
             {
               OR: [
                 {
-                  state: TaskScheduleOccurrenceState.PLANNED,
+                  state: {
+                    in: [
+                      TaskScheduleOccurrenceState.PLANNED,
+                      TaskScheduleOccurrenceState.SKIPPED,
+                    ],
+                  },
                   seriesTask: {
                     is: buildHumanTaskVisibilityWhere("user_123"),
                   },
