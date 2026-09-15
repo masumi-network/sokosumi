@@ -2,6 +2,7 @@
 
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationMenuItem } from "@/components/notifications/delete-notification-menu-item";
+import { MarkNotificationReadMenuItem } from "@/components/notifications/mark-notification-read-menu-item";
 import { MarkNotificationUnreadMenuItem } from "@/components/notifications/mark-notification-unread-menu-item";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import {
@@ -114,14 +115,20 @@ export function NotificationItem({
     />
   );
 
-  // Only on a read row: unread is already the state this would reach, and a
-  // control that does nothing still costs the reader a look.
-  const markUnreadControl = notification.isRead ? (
+  // One control per row, never both: each row is in one state, and the only
+  // move worth offering is the one that changes it. A control that does
+  // nothing still costs the reader a look.
+  const markReadControl = notification.isRead ? (
     <MarkNotificationUnreadMenuItem
       notificationId={notification.id}
       notificationMessage={message}
     />
-  ) : null;
+  ) : (
+    <MarkNotificationReadMenuItem
+      notificationId={notification.id}
+      notificationMessage={message}
+    />
+  );
 
   // A group rather than a plain div: a menu owns items and groups of items,
   // and the row pairs its body with its delete control.
@@ -134,7 +141,7 @@ export function NotificationItem({
         >
           {body}
         </DropdownMenuItem>
-        {markUnreadControl}
+        {markReadControl}
         {deleteControl}
       </DropdownMenuGroup>
     );
@@ -145,7 +152,7 @@ export function NotificationItem({
       <DropdownMenuItem className={itemClassName} onClick={onClick}>
         {body}
       </DropdownMenuItem>
-      {markUnreadControl}
+      {markReadControl}
       {deleteControl}
     </DropdownMenuGroup>
   );

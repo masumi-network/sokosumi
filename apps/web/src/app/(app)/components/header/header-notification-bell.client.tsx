@@ -25,48 +25,31 @@ import {
 
 export function HeaderNotificationBell() {
   const t = useTranslations("Components.NotificationCenter");
-  const { notifications, unreadCount, markManyRead } = useNotifications();
+  const { unreadCount } = useNotifications();
   const { notice } = useAccountNotice();
   const bellRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const hasAccountNotice = notice !== null;
-  const badgeCount = isOpen ? 0 : unreadCount;
   const indicator = getNotificationIndicator(
-    badgeCount,
+    unreadCount,
     hasAccountNotice,
     notice?.tone,
   );
 
-  // Opening the bell is the reader seeing the rows, so closing it commits
-  // that. Held until close so the list does not go grey under the cursor
-  // while they are still reading it. Safe to call twice for one close: the
-  // provider drops rows it has already painted read, so the second call
-  // writes nothing.
-  function commitRead() {
-    markManyRead(notifications.map((notification) => notification.id)).catch(
-      () => {
-        // markManyRead already logged and refetched. A failed write leaves
-        // the rows unread, which is the safe way to be wrong.
-      },
-    );
-  }
-
-  // Radix calls onOpenChange for the closes it drives itself (Escape, a click
-  // outside, a menu item). A child closing the panel through this prop writes
-  // `open` from the parent instead, which Radix does not report, so the commit
-  // has to hang off both paths.
+  // Reading a row is the reader's move, not the panel's. Closing the bell
+  // writes nothing: each row carries its own mark read control, and the
+  // header still offers mark all as read.
   function closeBell() {
     setIsOpen(false);
-    commitRead();
   }
 
   const ariaLabel =
-    badgeCount > 0 && hasAccountNotice
-      ? t("unreadBadgeWithAccountNotice", { count: badgeCount })
-      : badgeCount > 0
-        ? t("unreadBadge", { count: badgeCount })
+    unreadCount > 0 && hasAccountNotice
+      ? t("unreadBadgeWithAccountNotice", { count: unreadCount })
+      : unreadCount > 0
+        ? t("unreadBadge", { count: unreadCount })
         : hasAccountNotice
           ? t("accountNoticeIndicator")
           : t("notifications");
@@ -79,9 +62,7 @@ export function HeaderNotificationBell() {
           setIsOpen(open);
           if (open) {
             setIsTooltipOpen(false);
-            return;
           }
-          commitRead();
         }}
       >
         <Tooltip

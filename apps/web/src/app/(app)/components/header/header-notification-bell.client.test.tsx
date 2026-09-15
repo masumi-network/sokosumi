@@ -6,7 +6,6 @@ import { HeaderNotificationBell } from "@/app/components/header/header-notificat
 
 const useNotificationsMock = vi.fn();
 const useAccountNoticeMock = vi.fn();
-const markManyReadMock = vi.fn();
 
 function notificationRow(id: string, isRead: boolean) {
   return { id, isRead };
@@ -65,28 +64,36 @@ vi.mock("@/app/components/header/notification-dropdown-content", () => ({
   ),
 }));
 
+const markReadMock = vi.fn();
+const markAllReadMock = vi.fn();
+
 describe("HeaderNotificationBell", () => {
   beforeEach(() => {
     useNotificationsMock.mockReset();
+    markReadMock.mockReset();
+    markAllReadMock.mockReset();
     useAccountNoticeMock.mockReset();
-    markManyReadMock.mockReset();
-    markManyReadMock.mockResolvedValue(undefined);
     useNotificationsMock.mockReturnValue({
       unreadCount: 0,
       notifications: [],
-      markManyRead: markManyReadMock,
+      markRead: markReadMock,
+      markAllRead: markAllReadMock,
     });
     useAccountNoticeMock.mockReturnValue({ notice: null });
   });
 
-  it("opening clears badge without reading rows", async () => {
+  it("keeps the badge while the panel is open, because opening reads nothing", async () => {
+    // The badge counts unread rows. Opening the panel does not read them any
+    // more, so hiding the count while open would state a clear that no write
+    // backs, and the number would come straight back on close.
     useNotificationsMock.mockReturnValue({
       unreadCount: 2,
       notifications: [
         notificationRow("n1", false),
         notificationRow("n2", false),
       ],
-      markManyRead: markManyReadMock,
+      markRead: markReadMock,
+      markAllRead: markAllReadMock,
     });
     const user = userEvent.setup();
     render(<HeaderNotificationBell />);
@@ -96,10 +103,9 @@ describe("HeaderNotificationBell", () => {
     expect(
       screen.getByTestId("notification-dropdown-content"),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("notification-unread-badge"),
-    ).not.toBeInTheDocument();
-    expect(markManyReadMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("notification-unread-badge")).toHaveTextContent(
+      "2",
+    );
   });
 
   it("renders a notifications control with tooltip copy as the accessible name", () => {
@@ -120,7 +126,8 @@ describe("HeaderNotificationBell", () => {
     useNotificationsMock.mockReturnValue({
       unreadCount: 12,
       notifications: [],
-      markManyRead: markManyReadMock,
+      markRead: markReadMock,
+      markAllRead: markAllReadMock,
     });
 
     render(<HeaderNotificationBell />);
@@ -162,7 +169,9 @@ describe("HeaderNotificationBell", () => {
     ).toBeInTheDocument();
   });
 
-  it("marks the rows it showed read when the reader dismisses the panel", async () => {
+  it("writes no read when the reader dismisses the panel", async () => {
+    // The panel used to commit a read for every row it had shown. It no
+    // longer decides for the reader: each row carries its own control.
     useNotificationsMock.mockReturnValue({
       unreadCount: 2,
       notifications: [
@@ -170,7 +179,8 @@ describe("HeaderNotificationBell", () => {
         notificationRow("notif_already_read", true),
         notificationRow("notif_unread_2", false),
       ],
-      markManyRead: markManyReadMock,
+      markRead: markReadMock,
+      markAllRead: markAllReadMock,
     });
     const user = userEvent.setup();
     render(<HeaderNotificationBell />);
@@ -178,30 +188,25 @@ describe("HeaderNotificationBell", () => {
     await user.click(
       screen.getByRole("button", { name: "2 unread notifications" }),
     );
-    expect(markManyReadMock).not.toHaveBeenCalled();
-
     await user.keyboard("{Escape}");
 
-    // Every row it showed, not just the unread ones: the provider owns which
-    // of them still need a write, and which the reader put back by hand and
-    // wants left alone.
     await waitFor(() =>
-      expect(markManyReadMock).toHaveBeenCalledWith([
-        "notif_unread_1",
-        "notif_already_read",
-        "notif_unread_2",
-      ]),
+      expect(
+        screen.queryByTestId("notification-dropdown-content"),
+      ).not.toBeInTheDocument(),
     );
+    expect(markReadMock).not.toHaveBeenCalled();
+    expect(markAllReadMock).not.toHaveBeenCalled();
   });
 
-  it("marks them read when a child closes the panel instead of the reader", async () => {
-    // "View all" and the permission primer close the panel through onClose,
-    // which writes `open` from the parent. Radix does not report that as an
-    // open change, so a commit hung only off onOpenChange would never run.
+  it("writes no read when a child closes the panel instead of the reader", async () => {
+    // "View all" and the permission primer close through onClose, which
+    // writes `open` from the parent. That path must stay silent too.
     useNotificationsMock.mockReturnValue({
       unreadCount: 1,
       notifications: [notificationRow("notif_unread_1", false)],
-      markManyRead: markManyReadMock,
+      markRead: markReadMock,
+      markAllRead: markAllReadMock,
     });
     const user = userEvent.setup();
     render(<HeaderNotificationBell />);
@@ -212,8 +217,12 @@ describe("HeaderNotificationBell", () => {
     await user.click(screen.getByRole("button", { name: "close-panel" }));
 
     await waitFor(() =>
-      expect(markManyReadMock).toHaveBeenCalledWith(["notif_unread_1"]),
+      expect(
+        screen.queryByTestId("notification-dropdown-content"),
+      ).not.toBeInTheDocument(),
     );
+    expect(markReadMock).not.toHaveBeenCalled();
+    expect(markAllReadMock).not.toHaveBeenCalled();
   });
 });
 
@@ -221,7 +230,8 @@ it("restores focus to the bell after canceling clear", async () => {
   useNotificationsMock.mockReturnValue({
     unreadCount: 0,
     notifications: [],
-    markManyRead: markManyReadMock,
+    markRead: markReadMock,
+    markAllRead: markAllReadMock,
   });
   useAccountNoticeMock.mockReturnValue({ notice: null });
   const user = userEvent.setup();
