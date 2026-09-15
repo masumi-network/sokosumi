@@ -25,7 +25,7 @@ import {
 
 export function HeaderNotificationBell() {
   const t = useTranslations("Components.NotificationCenter");
-  const { unreadCount } = useNotifications();
+  const { notifications, unreadCount, markManyRead } = useNotifications();
   const { notice } = useAccountNotice();
   const bellRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -55,7 +55,19 @@ export function HeaderNotificationBell() {
           setIsOpen(open);
           if (open) {
             setIsTooltipOpen(false);
+            return;
           }
+          // Opening the bell is the reader seeing the rows, so closing it
+          // commits that. Held until close so the list does not go grey
+          // under the cursor while they are still reading it.
+          void markManyRead(
+            notifications
+              .filter((notification) => !notification.isRead)
+              .map((notification) => notification.id),
+          ).catch(() => {
+            // markManyRead already logged and refetched. A failed write
+            // leaves the rows unread, which is the safe way to be wrong.
+          });
         }}
       >
         <Tooltip

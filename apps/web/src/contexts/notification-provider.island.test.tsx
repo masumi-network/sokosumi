@@ -11,6 +11,7 @@ const getNotificationsMock = vi.fn();
 const patchNotificationReadMock = vi.fn();
 const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
+const patchNotificationsReadMock = vi.fn();
 const deleteNotificationMock = vi.fn();
 const deleteNotificationsMock = vi.fn();
 const getNotificationsUnreadCountMock = vi.fn();
@@ -34,6 +35,8 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
       patchNotificationUnreadMock(...args),
     patchNotificationsReadAll: (...args: unknown[]) =>
       patchNotificationsReadAllMock(...args),
+    patchNotificationsRead: (...args: unknown[]) =>
+      patchNotificationsReadMock(...args),
     deleteNotification: (...args: unknown[]) => deleteNotificationMock(...args),
     deleteNotifications: (...args: unknown[]) =>
       deleteNotificationsMock(...args),
@@ -134,6 +137,8 @@ describe("NotificationProvider island", () => {
     patchNotificationReadMock.mockReset();
     patchNotificationUnreadMock.mockReset();
     patchNotificationsReadAllMock.mockReset();
+    patchNotificationsReadMock.mockReset();
+    patchNotificationsReadMock.mockResolvedValue({ data: { count: 1 } });
     getNotificationsUnreadCountMock.mockReset();
     useNotificationRealtimeMock.mockReset();
     healPushSubscriptionMock.mockReset();
@@ -718,6 +723,53 @@ describe("NotificationProvider deleting", () => {
     await act(async () => {
       await expect(
         currentNotifications.markUnread("notification-read"),
+      ).rejects.toThrow("offline");
+    });
+
+    expect(getNotificationsMock.mock.calls.length).toBeGreaterThan(
+      fetchCallsBefore,
+    );
+    consoleError.mockRestore();
+  });
+
+  it("marks many rows read in one write and takes them off the bell", async () => {
+    await renderLoaded();
+
+    await act(async () => {
+      await currentNotifications.markManyRead([
+        "notification-unread",
+        "notification-read",
+      ]);
+    });
+
+    // The already-read row is dropped, so the write carries only what it
+    // changes and the badge cannot dip below the server's count.
+    expect(patchNotificationsReadMock).toHaveBeenCalledTimes(1);
+    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
+      ids: ["notification-unread"],
+    });
+    expect(currentNotifications.unreadCount).toBe(0);
+  });
+
+  it("writes nothing when every named row is already read", async () => {
+    await renderLoaded();
+
+    await act(async () => {
+      await currentNotifications.markManyRead(["notification-read"]);
+    });
+
+    expect(patchNotificationsReadMock).not.toHaveBeenCalled();
+  });
+
+  it("refetches when the batch write fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    await renderLoaded();
+    const fetchCallsBefore = getNotificationsMock.mock.calls.length;
+    patchNotificationsReadMock.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await expect(
+        currentNotifications.markManyRead(["notification-unread"]),
       ).rejects.toThrow("offline");
     });
 
