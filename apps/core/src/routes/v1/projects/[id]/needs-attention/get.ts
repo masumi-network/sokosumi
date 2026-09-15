@@ -45,13 +45,14 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireAuthorizedUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
     const dto = await getProjectNeedsAttention({
       workspaceId: workspaceContext.workspaceId,
       projectId: id,
+      readerUserId: userContext.userId,
     });
 
     if (!dto) {

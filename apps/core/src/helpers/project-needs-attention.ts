@@ -7,6 +7,10 @@ import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { loadAgentPreviewsByIds } from "@/helpers/history";
+import {
+  buildHumanParentTaskVisibilityWhere,
+  buildHumanTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { HistoryItem } from "@/schemas/history.schema";
 import {
@@ -141,6 +145,7 @@ export function rankNeedsAttentionItems(
 export interface GetProjectNeedsAttentionParams {
   workspaceId: string;
   projectId: string;
+  readerUserId: string;
 }
 
 function mapTaskToHistoryItem(task: {
@@ -193,6 +198,7 @@ export const PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT = 50;
 export function unsettledProjectJobsQuery(params: {
   projectId: string;
   workspaceId: string;
+  readerUserId: string;
   now: Date;
 }) {
   return {
@@ -200,6 +206,18 @@ export function unsettledProjectJobsQuery(params: {
       projectId: params.projectId,
       workspaceId: params.workspaceId,
       ...unsettledProjectJobsWhere(params.now),
+      AND: [
+        {
+          OR: [
+            { taskId: null },
+            {
+              task: {
+                is: buildHumanParentTaskVisibilityWhere(params.readerUserId),
+              },
+            },
+          ],
+        },
+      ],
     },
     orderBy: [{ updatedAt: "desc" as const }, { id: "desc" as const }],
     take: PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT,
@@ -272,6 +290,7 @@ export async function getProjectNeedsAttention(
         workspaceId: params.workspaceId,
         archivedAt: null,
         status: { in: TASK_ATTENTION_STATUSES },
+        AND: [buildHumanTaskVisibilityWhere(params.readerUserId)],
       },
       select: {
         id: true,
@@ -289,6 +308,7 @@ export async function getProjectNeedsAttention(
       ...unsettledProjectJobsQuery({
         projectId: params.projectId,
         workspaceId: params.workspaceId,
+        readerUserId: params.readerUserId,
         now: new Date(),
       }),
       select: {

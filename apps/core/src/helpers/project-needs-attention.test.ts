@@ -1,13 +1,13 @@
 import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
-import { describe, expect, it } from "vitest";
-
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import type { HistoryItem } from "@/schemas/history.schema";
-
 import { PROJECT_NEEDS_ATTENTION_LIMIT } from "@/schemas/project.schema";
 
 import {
   compareNeedsAttention,
+  getProjectNeedsAttention,
   jobAttentionUpdatedAt,
   jobNeedsAttentionTier,
   PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT,
@@ -16,6 +16,22 @@ import {
   unsettledProjectJobsQuery,
   unsettledProjectJobsWhere,
 } from "./project-needs-attention";
+
+const { projectFindFirstMock, taskFindManyMock, jobFindManyMock } = vi.hoisted(
+  () => ({
+    projectFindFirstMock: vi.fn(),
+    taskFindManyMock: vi.fn(),
+    jobFindManyMock: vi.fn(),
+  }),
+);
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    project: { findFirst: projectFindFirstMock },
+    task: { findMany: taskFindManyMock },
+    job: { findMany: jobFindManyMock },
+  },
+}));
 
 function task(
   overrides: Partial<HistoryItem> & {
@@ -244,6 +260,7 @@ describe("unsettledProjectJobsQuery", () => {
     const query = unsettledProjectJobsQuery({
       projectId: "project-1",
       workspaceId: "workspace-1",
+      readerUserId: "user_123",
       now,
     });
 
@@ -254,6 +271,70 @@ describe("unsettledProjectJobsQuery", () => {
       projectId: "project-1",
       workspaceId: "workspace-1",
       ...unsettledProjectJobsWhere(now),
+      AND: [
+        {
+          OR: [
+            { taskId: null },
+            {
+              task: {
+                is: buildHumanTaskVisibilityWhere("user_123"),
+              },
+            },
+          ],
+        },
+      ],
     });
+  });
+});
+
+describe("getProjectNeedsAttention", () => {
+  const WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+  const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      _count: { tasks: 0, jobs: 0 },
+    });
+    taskFindManyMock.mockResolvedValue([]);
+    jobFindManyMock.mockResolvedValue([]);
+  });
+
+  it("hides other members' private tasks and jobs under those tasks", async () => {
+    await getProjectNeedsAttention({
+      workspaceId: WORKSPACE_ID,
+      projectId: PROJECT_ID,
+      readerUserId: "user_123",
+    });
+
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          AND: [buildHumanTaskVisibilityWhere("user_123")],
+        }),
+      }),
+    );
+    expect(jobFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                { taskId: null },
+                {
+                  task: {
+                    is: buildHumanTaskVisibilityWhere("user_123"),
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
   });
 });
