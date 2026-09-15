@@ -35,6 +35,11 @@ The four semantic ramps carry all three plus a `-foreground` for a label on the
 solid fill. The `status-*` ramps carry the base and `-quaternary`, which is what
 a badge needs: a vivid glyph and a tinted pill.
 
+Six ramps carry one more step, `-label`, for the status badge. The base of a
+ramp is tuned to 3:1, which is what a glyph needs. Badge text is `text-xs`, so
+it is normal text and needs 4.5:1 on the same tint, and on several roles the
+base misses it. `-label` is the same hue at the lightness that clears it.
+
 `--semantic-destructive` splits in two. `--semantic-destructive-solid` is the
 fill that carries a near-white label, and `--semantic-destructive` is the red
 that reads as text on the page. In dark mode those pull opposite ways, so one
