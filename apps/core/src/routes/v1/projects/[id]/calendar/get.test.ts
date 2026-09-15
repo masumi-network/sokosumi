@@ -307,7 +307,12 @@ describe("GET /projects/{id}/calendar", () => {
             {
               OR: [
                 {
-                  state: TaskScheduleOccurrenceState.PLANNED,
+                  state: {
+                    in: [
+                      TaskScheduleOccurrenceState.PLANNED,
+                      TaskScheduleOccurrenceState.SKIPPED,
+                    ],
+                  },
                   seriesTask: { is: { archivedAt: null } },
                 },
                 {
@@ -364,7 +369,12 @@ describe("GET /projects/{id}/calendar", () => {
             {
               OR: [
                 {
-                  state: TaskScheduleOccurrenceState.PLANNED,
+                  state: {
+                    in: [
+                      TaskScheduleOccurrenceState.PLANNED,
+                      TaskScheduleOccurrenceState.SKIPPED,
+                    ],
+                  },
                   seriesTask: { is: taskFilter },
                 },
                 {
@@ -426,7 +436,12 @@ describe("GET /projects/{id}/calendar", () => {
             expect.objectContaining({
               OR: expect.arrayContaining([
                 expect.objectContaining({
-                  state: TaskScheduleOccurrenceState.PLANNED,
+                  state: {
+                    in: [
+                      TaskScheduleOccurrenceState.PLANNED,
+                      TaskScheduleOccurrenceState.SKIPPED,
+                    ],
+                  },
                   seriesTask: {
                     is: expect.objectContaining({
                       archivedAt: null,

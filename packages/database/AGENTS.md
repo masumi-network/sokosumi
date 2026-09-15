@@ -37,7 +37,7 @@ import { Prisma, Agent, User, Job } from "@sokosumi/database";
 ### Client Export (`@sokosumi/database/client`)
 
 - **Purpose**: Factory function to create Prisma client instances
-- **Includes**: `createPrismaClient(databaseUrl: string)` function
+- **Includes**: `createPrismaClient(databaseUrl: string)` and `PrismaRaw` (client Prisma namespace for tagged SQL)
 - **Use in**: Server-side code only
 
 ```typescript
@@ -64,6 +64,14 @@ const user = await userRepository.getUserById("user-id", prisma);
 
 ```typescript
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
+```
+
+### Job Types Export (`@sokosumi/database/types/job`)
+
+- **Purpose**: Job include/payload types without pulling the full package surface when needed as a subpath
+
+```typescript
+import type { JobWithEvents } from "@sokosumi/database/types/job";
 ```
 
 ## Key Conventions

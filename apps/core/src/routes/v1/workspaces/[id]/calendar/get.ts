@@ -289,7 +289,12 @@ export async function readWorkspaceCalendar(
     taskFilters.map((taskWhere) => ({
       OR: [
         {
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: {
+            in: [
+              TaskScheduleOccurrenceState.PLANNED,
+              TaskScheduleOccurrenceState.SKIPPED,
+            ],
+          },
           seriesTask: { is: taskWhere },
         },
         {
@@ -330,6 +335,7 @@ export async function readWorkspaceCalendar(
     state: {
       in: [
         TaskScheduleOccurrenceState.PLANNED,
+        TaskScheduleOccurrenceState.SKIPPED,
         TaskScheduleOccurrenceState.RELEASED,
       ],
     },
@@ -410,7 +416,7 @@ export async function readWorkspaceCalendar(
         id: occurrence.id,
         taskId: task.id,
         canEditSchedule,
-        canMoveOccurrence:
+        canMutateOccurrence:
           canEditSchedule &&
           (occurrence.scheduleVersion === 2 || schedule?.mode === "once"),
         scheduleRevision: occurrence.seriesTask.scheduleRevision,

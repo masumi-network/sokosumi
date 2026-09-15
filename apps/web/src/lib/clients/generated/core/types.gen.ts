@@ -4537,9 +4537,9 @@ export type WorkspaceCalendarItem = {
      */
     canEditSchedule: boolean;
     /**
-     * Whether this indexed occurrence can be moved through the revision-safe occurrence contract
+     * Whether this indexed occurrence can be changed through the revision-safe occurrence contract
      */
-    canMoveOccurrence: boolean;
+    canMutateOccurrence: boolean;
     /**
      * Schedule revision observed with this occurrence
      */
@@ -5574,18 +5574,20 @@ export type CreateTaskContext = {
 
 export type CreateScheduledTaskRequest = {
     operationId: string;
-    source: {
-        type: 'workspace';
-    } | {
-        type: 'project';
-        projectId: string;
-    };
+    source: CalendarTaskScheduleSource;
     name?: string;
     description?: string | null;
     assigneeId?: string | null;
     assigneeUserId?: string | null;
     context?: CreateTaskContext;
     schedule: TaskScheduleInput;
+};
+
+export type CalendarTaskScheduleSource = {
+    type: 'workspace';
+} | {
+    type: 'project';
+    projectId: string;
 };
 
 export const UserWritableTaskLinkRelation = {
@@ -5601,6 +5603,29 @@ export type UserWritableTaskLinkRelation = typeof UserWritableTaskLinkRelation[k
 
 export type TaskLinkDeleted = {
     deleted: true;
+};
+
+export type TaskScheduleSourceMutation = {
+    previousSource: CalendarTaskScheduleSource;
+    source: CalendarTaskScheduleSource;
+    scheduleRevision: number;
+    canceledFutureExceptionCount: number;
+};
+
+export type PutCalendarTaskScheduleSourceRequest = {
+    /**
+     * Idempotency identity for this source move
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    /**
+     * Confirms that future occurrence exceptions from the old source may be canceled
+     */
+    discardFutureExceptions: true;
+    source: CalendarTaskScheduleSource;
 };
 
 export type PutCalendarTaskScheduleRequest = {
@@ -5739,25 +5764,50 @@ export type TaskScheduleOccurrenceView = typeof TaskScheduleOccurrenceView[keyof
 
 export type TaskScheduleOccurrenceMutation = {
     /**
-     * Series revision after the move
+     * Series revision after the occurrence mutation
      */
     scheduleRevision: number;
     occurrence: TaskScheduleOccurrence;
 };
 
-export type RescheduleTaskScheduleOccurrenceRequest = {
+export type MutateTaskScheduleOccurrenceRequest = {
     /**
-     * Idempotency identity for this occurrence move
+     * Idempotency identity for this occurrence mutation
      */
     operationId: string;
     /**
      * Schedule revision observed by the caller
      */
     expectedScheduleRevision: number;
+    action: 'reschedule';
     /**
      * New absolute time for the occurrence. Strictly future and inside the projection horizon.
      */
     scheduledAt: Date;
+} | {
+    /**
+     * Idempotency identity for this occurrence mutation
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    action: 'skip';
+} | {
+    /**
+     * Idempotency identity for this occurrence mutation
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    action: 'restore';
+    /**
+     * New absolute time for the occurrence. Strictly future and inside the projection horizon.
+     */
+    scheduledAt?: Date;
 };
 
 export type TaskWorkspace = {
@@ -39324,6 +39374,126 @@ export type PatchTasksByIdResponses = {
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
 
+export type PutTasksByIdCalendarSourceData = {
+    body?: PutCalendarTaskScheduleSourceRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/calendar-source';
+};
+
+export type PutTasksByIdCalendarSourceErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutTasksByIdCalendarSourceError = PutTasksByIdCalendarSourceErrors[keyof PutTasksByIdCalendarSourceErrors];
+
+export type PutTasksByIdCalendarSourceResponses = {
+    /**
+     * Calendar source moved
+     */
+    200: {
+        data: TaskScheduleSourceMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdCalendarSourceResponse = PutTasksByIdCalendarSourceResponses[keyof PutTasksByIdCalendarSourceResponses];
+
 export type PutTasksByIdCalendarScheduleData = {
     body?: PutCalendarTaskScheduleRequest;
     path: {
@@ -39813,7 +39983,7 @@ export type GetTasksByIdScheduleOccurrencesResponses = {
 export type GetTasksByIdScheduleOccurrencesResponse = GetTasksByIdScheduleOccurrencesResponses[keyof GetTasksByIdScheduleOccurrencesResponses];
 
 export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdData = {
-    body?: RescheduleTaskScheduleOccurrenceRequest;
+    body?: MutateTaskScheduleOccurrenceRequest;
     path: {
         id: string;
         occurrenceId: string;
@@ -39919,7 +40089,7 @@ export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdError = PatchTasksByI
 
 export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdResponses = {
     /**
-     * Schedule occurrence rescheduled
+     * Schedule occurrence mutated
      */
     200: {
         data: TaskScheduleOccurrenceMutation;

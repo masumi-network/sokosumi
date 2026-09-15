@@ -139,7 +139,7 @@ export default app;
 Use Prisma directly with type-safe includes:
 
 ```typescript
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 
 const user = await prisma.user.findUnique({
   where: { id: userId },

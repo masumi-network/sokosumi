@@ -2,10 +2,13 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
+  CalendarTaskScheduleSource,
+  MutateTaskScheduleOccurrenceRequest,
   Task,
   TaskScheduleInput,
   TaskScheduleOccurrence,
   TaskScheduleOccurrenceView,
+  TaskScheduleSourceMutation,
 } from "@/lib/clients/generated/core/types.gen";
 
 export interface ListTaskScheduleOccurrencesParams {
@@ -96,6 +99,25 @@ export const taskScheduleService = (() => {
     return result.data;
   }
 
+  async function moveCalendarSeriesSource(
+    taskId: string,
+    precondition: TaskScheduleSeriesPrecondition,
+    source: CalendarTaskScheduleSource,
+  ): Promise<TaskScheduleSourceMutation> {
+    const result = await coreClient.putTaskCalendarSource(taskId, {
+      operationId: precondition.operationId,
+      expectedScheduleRevision: precondition.expectedScheduleRevision,
+      discardFutureExceptions: true,
+      source,
+    });
+
+    if (!result.data) {
+      throw new Error("Failed to move Calendar task source");
+    }
+
+    return result.data;
+  }
+
   /**
    * Reads one page of the occurrence ledger. Core failures surface as
    * {@link CoreApiRequestError} with their stable `kind` intact — callers match
@@ -133,28 +155,19 @@ export const taskScheduleService = (() => {
     };
   }
 
-  /**
-   * Moves one unreleased occurrence to a new absolute time. Core keeps the
-   * occurrence's original identity and audits the move; the series revision
-   * advances so occurrence cursors refresh.
-   */
-  async function rescheduleOccurrence(
+  /** Changes one unreleased occurrence without changing its stable identity. */
+  async function mutateOccurrence(
     taskId: string,
     occurrenceId: string,
-    precondition: TaskScheduleSeriesPrecondition,
-    scheduledAt: Date,
+    mutation: MutateTaskScheduleOccurrenceRequest,
   ): Promise<{
     scheduleRevision: number;
     occurrence: TaskScheduleOccurrence;
   }> {
-    const result = await coreClient.rescheduleTaskScheduleOccurrence(
+    const result = await coreClient.mutateTaskScheduleOccurrence(
       taskId,
       occurrenceId,
-      {
-        operationId: precondition.operationId,
-        expectedScheduleRevision: precondition.expectedScheduleRevision,
-        scheduledAt,
-      },
+      mutation,
     );
 
     return {
@@ -165,10 +178,11 @@ export const taskScheduleService = (() => {
 
   return {
     editCalendarSeries,
+    moveCalendarSeriesSource,
     setSchedule,
     removeCalendarSeries,
     listOccurrences,
     readSeriesState,
-    rescheduleOccurrence,
+    mutateOccurrence,
   };
 })();
