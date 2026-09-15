@@ -179,7 +179,7 @@ describe("PATCH /notifications/read", () => {
   });
 
   it("rejects more ids than one request may carry", async () => {
-    const ids = Array.from({ length: 101 }, (_, index) => `notif_${index}`);
+    const ids = Array.from({ length: 26 }, (_, index) => `notif_${index}`);
 
     const response = await patchRead(createApp(), { ids });
 

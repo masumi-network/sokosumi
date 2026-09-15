@@ -1,13 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { NotificationKind } from "@sokosumi/database";
-import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
-import { notificationFeedWhere } from "@/helpers/notification-feed";
+import { markNotificationsRead } from "@/helpers/notification-read";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -15,11 +12,11 @@ import {
 import { requireOwnerUserContext } from "@/middleware/auth";
 
 /**
- * Upper bound on one request. The notification bell holds ten rows, so this
- * leaves room for a longer caller without letting one request mark an
- * unbounded set read.
+ * Upper bound on one request. The notification center holds ten rows, so a
+ * caller asking for more than this has lost track of what it is reading, and
+ * the reader has `read-all` for the rest.
  */
-const MAX_NOTIFICATION_IDS = 100;
+const MAX_NOTIFICATION_IDS = 25;
 
 const requestSchema = z
   .object({
@@ -64,8 +61,8 @@ const route = withOrganizationSlugHeaderParameter(
           requestId: "550e8400-e29b-41d4-a716-446655440000",
         },
       }),
-      422: jsonErrorResponse("Unprocessable Entity"),
       401: jsonErrorResponse("Unauthorized"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -76,34 +73,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { ids } = c.req.valid("json");
 
-    // Return the changed rows so arrivals during this request also get a
-    // clear event if this write marks them read.
-    const clearedRows = await prisma.notification.updateManyAndReturn({
-      where: {
-        id: { in: ids },
-        userId: userContext.userId,
-        isRead: false,
-        ...notificationFeedWhere(),
-      },
-      data: {
-        isRead: true,
-        readAt: new Date(),
-      },
-      select: { id: true, kind: true, messageKey: true },
-    });
-
-    const clearedNotificationIds = clearedRows
-      .filter(
-        (row) =>
-          row.kind === NotificationKind.CHAT &&
-          row.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-      )
-      .map((row) => row.id);
+    const { count, clearedRoomIds } = await markNotificationsRead(
+      userContext.userId,
+      { id: { in: ids } },
+    );
 
     // Scheduled rather than awaited, for the same reason the single-row route
     // schedules it: a failed publish must not cost the reader the read.
-    waitUntil(publishClearedNotifications(clearedNotificationIds));
+    waitUntil(publishClearedNotifications(clearedRoomIds));
 
-    return ok(c, responseSchema.parse({ count: clearedRows.length }));
+    return ok(c, responseSchema.parse({ count }));
   });
 }

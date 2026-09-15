@@ -16264,7 +16264,7 @@ export const MarkNotificationsReadRequestSchema = {
                 type: 'string'
             },
             minItems: 1,
-            maxItems: 100,
+            maxItems: 25,
             description: 'Notification IDs to mark as read',
             example: [
                 'cm123456789abcdefghij'
