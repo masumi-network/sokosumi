@@ -38,6 +38,13 @@ export function HeaderNotificationBell() {
     notice?.tone,
   );
 
+  // Reading a row is the reader's move, not the panel's. Closing the bell
+  // writes nothing: each row carries its own mark read control, and the
+  // header still offers mark all as read.
+  function closeBell() {
+    setIsOpen(false);
+  }
+
   const ariaLabel =
     unreadCount > 0 && hasAccountNotice
       ? t("unreadBadgeWithAccountNotice", { count: unreadCount })
@@ -109,7 +116,7 @@ export function HeaderNotificationBell() {
           align="end"
         >
           <NotificationDropdownContent
-            onClose={() => setIsOpen(false)}
+            onClose={closeBell}
             onClearAll={() => setIsClearDialogOpen(true)}
           />
         </DropdownMenuContent>

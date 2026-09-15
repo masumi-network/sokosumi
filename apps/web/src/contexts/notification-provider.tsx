@@ -67,6 +67,7 @@ interface NotificationContextValue {
   markRead: (id: string) => Promise<void>;
   /** Put one row back to unread, the reader's way out of a read they did not mean. */
   markUnread: (id: string) => Promise<void>;
+  /** Mark several rows read in one write, for a surface the reader has seen. */
   markAllRead: () => Promise<void>;
   /** Delete one notification for good, in Core and in local feed state. */
   deleteNotification: (
