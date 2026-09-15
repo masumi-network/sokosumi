@@ -103,4 +103,29 @@ describe("ProjectModuleTiles", () => {
     expect(links).toContain(fileBrowserLink);
     expect(links).toContain(calendar);
   });
+
+  it("links the Social Media tile when a social href is provided", () => {
+    const { container } = render(
+      <ProjectModuleTiles
+        calendarHref="/projects/project-1/calendar"
+        labels={LABELS}
+        projectId={PROJECT_ID}
+        socialHref="/projects/project-1/social"
+      />,
+    );
+
+    const socialLink = screen.getByRole("link", { name: /Social Media/i });
+    expect(socialLink).toHaveAttribute("href", "/projects/project-1/social");
+    expect(socialLink).not.toHaveAttribute("aria-disabled");
+    expect(socialLink).not.toHaveTextContent("Coming soon");
+
+    const disabledTiles = [
+      ...container.querySelectorAll('[aria-disabled="true"]'),
+    ];
+    expect(
+      disabledTiles.map((tile) => tile.querySelector("h3")?.textContent),
+    ).toEqual(["SEO", "Email", "Paid Advertising", "Content", "PR"]);
+    expect(screen.getAllByText("Coming soon")).toHaveLength(5);
+    expect(screen.getAllByRole("link")).toHaveLength(3);
+  });
 });
