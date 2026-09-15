@@ -4,37 +4,36 @@ import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 describe("TaskStatusBadge", () => {
-  it("applies status text color to warning icons", () => {
+  it("applies the warning ramp to the approval-required icon", () => {
     const { container } = render(
       <TaskStatusBadge status={TaskStatus.APPROVAL_REQUIRED} />,
     );
 
     expect(container.querySelector("svg")).toHaveClass(
       "size-3",
-      "text-amber-600",
-      "dark:text-amber-400",
+      "text-semantic-warning",
     );
   });
 
-  it("applies destructive text color to input required warning icon", () => {
+  it("applies the destructive ramp to the input-required icon", () => {
     const { container } = render(
       <TaskStatusBadge status={TaskStatus.INPUT_REQUIRED} />,
     );
 
     expect(container.querySelector("svg")).toHaveClass(
       "size-3",
-      "text-destructive",
+      "text-semantic-destructive",
     );
   });
 
-  it("applies destructive text color to out of credits warning icon", () => {
+  it("applies the destructive ramp to the out-of-credits icon", () => {
     const { container } = render(
       <TaskStatusBadge status={TaskStatus.OUT_OF_CREDITS} />,
     );
 
     expect(container.querySelector("svg")).toHaveClass(
       "size-3",
-      "text-destructive",
+      "text-semantic-destructive",
     );
   });
 });

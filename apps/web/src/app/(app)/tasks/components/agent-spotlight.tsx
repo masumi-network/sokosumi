@@ -360,7 +360,7 @@ export function AgentSpotlight({
         </div>
 
         {current.description ? (
-          <p className="text-foreground/80 text-sm leading-relaxed text-pretty">
+          <p className="text-foreground text-sm leading-relaxed text-pretty">
             {current.description}
           </p>
         ) : null}
