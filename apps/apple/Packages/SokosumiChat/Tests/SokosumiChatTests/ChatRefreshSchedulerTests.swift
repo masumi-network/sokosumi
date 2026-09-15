@@ -4,6 +4,24 @@ import Testing
 
 @MainActor
 struct ChatRefreshSchedulerTests {
+  @Test func stoppingCancelsAReadWaitingForCooldown() async {
+    let scheduler = ChatRefreshScheduler()
+    var started = false
+    var cancelled = false
+    scheduler.start(foreground: true, healthy: true, refreshOnMount: true) {
+      started = true
+      do {
+        try await Task.sleep(for: .seconds(300))
+      } catch is CancellationError {
+        cancelled = true
+      } catch {}
+    }
+    await waitUntil { started }
+    scheduler.stop()
+    await waitUntil { cancelled }
+    #expect(!scheduler.isRefreshing)
+  }
+
   @Test func stopBeforeTaskStartsPreventsRead() async {
     let clock = RefreshClock()
     let scheduler = ChatRefreshScheduler(sleep: clock.sleep)

@@ -1702,6 +1702,8 @@
           "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
+          "changeStatus": "Change status…",
+          "noStatusMatches": "No status matches",
           "moveToWorkspace": "Move to workspace",
           "moveToWorkspaceTitle": "Move task to another workspace",
           "moveToWorkspaceDescription": "Select the workspace you want to move this task to.",
@@ -1887,6 +1889,8 @@
         "statusDraft": "Draft",
         "statusQueued": "Queued",
         "statusReady": "Ready",
+        "changeStatus": "Change status…",
+        "noStatusMatches": "No status matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "back": "Back",
@@ -1925,6 +1929,8 @@
         "statusDescription": "Choose the status for this task",
         "statusDraft": "Draft",
         "statusReady": "Ready",
+        "changeStatus": "Change status…",
+        "noStatusMatches": "No status matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "back": "Back",
@@ -2905,7 +2911,7 @@
           "totalCount": "{count, plural, one {# user} other {# users}}",
           "empty": "No users found.",
           "user": "User",
-          "credits": "Credits",
+          "credits": "Personal credits",
           "subscription": "Subscription",
           "startedTasks": "Started tasks",
           "registered": "Registered",
@@ -2951,8 +2957,8 @@
             "enterprisePool": "Enterprise pool: {credits} credits"
           },
           "credits": {
-            "title": "Total credits",
-            "description": "Combined available credits for this organization.",
+            "title": "Organization credits",
+            "description": "Available credits in this organization's pool, including extras and the enterprise contract pool when present.",
             "perMember": "Credits are listed per member below."
           },
           "members": {

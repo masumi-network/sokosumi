@@ -30,6 +30,7 @@ function build(
     nextRunAt: new Date("2026-09-10T07:00:00.000Z"),
     scheduleRevision: 4,
     project: null,
+    viewerTimeZone: "America/New_York",
     workspaceName: "Acme Corp",
     ...overrides,
   });
@@ -91,14 +92,14 @@ describe("buildTaskScheduleSeriesView", () => {
     });
   });
 
-  it("reports no captured time zone for a legacy one-time rule", () => {
+  it("falls back to the viewer zone for a legacy one-time rule", () => {
     const view = build({ metadata: ONCE_V1 });
 
     expect(view?.timezone).toBeNull();
     expect(view?.rule).toEqual({
       scheduleType: "ONE_TIME",
       cron: null,
-      timezone: "UTC",
+      timezone: "America/New_York",
     });
   });
 });

@@ -244,6 +244,9 @@ describe("core.client", () => {
     getUsersByIdCreditsMock.mockResolvedValue({
       data: {
         data: {
+          scope: "personal",
+          spendable: 42,
+          enterprise: null,
           subscription: null,
           credits: {
             subscription: null,

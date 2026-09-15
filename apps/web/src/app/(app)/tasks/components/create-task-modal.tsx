@@ -357,6 +357,8 @@ export function CreateTaskModal({
             status: t("status"),
             statusDescription: t("statusDescription"),
             statusDraft: t("statusDraft"),
+            changeStatus: t("changeStatus"),
+            noStatusMatches: t("noStatusMatches"),
             statusQueued: t("statusQueued"),
             statusReady: t("statusReady"),
             untitledTask: t("untitledTask"),

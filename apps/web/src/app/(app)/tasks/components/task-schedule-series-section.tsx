@@ -1,4 +1,4 @@
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getTimeZone, getTranslations } from "next-intl/server";
 
 import { TaskScheduleOccurrences } from "@/app/tasks/components/task-schedule-occurrences";
 import { TaskScheduleSeries } from "@/app/tasks/components/task-schedule-series";
@@ -13,7 +13,6 @@ import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.ser
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
-import { HYDRATION_STABLE_TIME_ZONE } from "@/lib/utils/datetime";
 
 interface TaskScheduleSeriesSectionProps {
   task: Pick<Task, "id" | "metadata" | "nextRunAt" | "scheduleRevision">;
@@ -41,6 +40,7 @@ export async function TaskScheduleSeriesSection({
     return null;
   }
 
+  const viewerTimeZone = await getTimeZone();
   const project = await projectPromise;
   const view = buildTaskScheduleSeriesView({
     metadata: task.metadata,
@@ -48,6 +48,7 @@ export async function TaskScheduleSeriesSection({
     scheduleRevision: task.scheduleRevision,
     project,
     workspaceName,
+    viewerTimeZone,
   });
 
   if (!view) {
@@ -133,7 +134,7 @@ export async function TaskScheduleSeriesSection({
               day: "numeric",
               hour: "numeric",
               minute: "2-digit",
-              timeZone: view.timezone ?? HYDRATION_STABLE_TIME_ZONE,
+              timeZone: view.timezone ?? viewerTimeZone,
             })
           : null
       }

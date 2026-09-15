@@ -143,6 +143,7 @@ function createTaskApi(projectId: string | null = null) {
     share: null,
     links: [],
     files: [],
+    selectableStatuses: [],
   };
 }
 

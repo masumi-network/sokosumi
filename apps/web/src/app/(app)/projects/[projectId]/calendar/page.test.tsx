@@ -25,6 +25,7 @@ vi.mock("next/server", () => ({
 
 vi.mock("next-intl/server", () => ({
   getLocale: async () => "en",
+  getTimeZone: async () => "UTC",
   getTranslations: async () => (key: string) => key,
 }));
 

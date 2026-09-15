@@ -1,23 +1,26 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
+import type {
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@/lib/clients/generated/core";
 
 const fullCalendarMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@fullcalendar/react", () => ({
-  default: ({
-    allDaySlot,
-    initialView,
-    slotEventOverlap,
-  }: FullCalendarProps) => {
-    fullCalendarMock({ allDaySlot, initialView, slotEventOverlap });
+  default: (props: FullCalendarProps) => {
+    fullCalendarMock(props);
     return null;
   },
 }));
 
 vi.mock("next-intl", () => ({
-  useFormatter: () => ({ dateTime: () => "" }),
+  useFormatter: () => ({
+    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat("en-US", options).format(value),
+  }),
   useTranslations: () => (key: string) => key,
 }));
 
@@ -32,10 +35,20 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 import { WorkspaceCalendar } from "./workspace-calendar";
 
 interface FullCalendarProps {
-  allDaySlot?: boolean;
+  eventContent?: (info: {
+    event: { id: string; title: string; start?: Date | null };
+  }) => ReactNode;
   initialView?: string;
-  slotEventOverlap?: boolean;
 }
+
+const WEEK_SOURCE: WorkspaceCalendarSource = {
+  sourceId: "workspace:workspace-1",
+  sourceType: "WORKSPACE",
+  displayName: "Ada's workspace",
+  logoUrl: null,
+  paletteToken: "blue",
+  isSchedulable: true,
+};
 
 const WEEK_ITEM: WorkspaceCalendarItem = {
   id: "occurrence-1",
@@ -58,25 +71,55 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
 };
 
 describe("WorkspaceCalendar week layout", () => {
-  it("puts concurrent timed events in separate lanes", () => {
+  // Stacked day-grid rows keep every concurrent task full width and visible;
+  // a time grid would squeeze them into side-by-side lanes.
+  it("stacks the week in a day grid by default", () => {
     render(
-      <NuqsTestingAdapter searchParams="?view=week">
+      <NuqsTestingAdapter>
         <WorkspaceCalendar initialDate="2026-08-18" items={[WEEK_ITEM]} />
       </NuqsTestingAdapter>,
     );
-
-    const weekProps = fullCalendarMock.mock.calls
-      .map(([props]) => props as FullCalendarProps)
-      .find((props) => props.initialView === "timeGridWeek");
 
     expect(
       fullCalendarMock.mock.calls.map(
         ([props]) => (props as FullCalendarProps).initialView,
       ),
-    ).toContain("timeGridWeek");
-    expect(weekProps).toMatchObject({
-      allDaySlot: false,
-      slotEventOverlap: false,
-    });
+    ).toContain("dayGridWeek");
+  });
+
+  // Two stacked rows: the day-grid column is too narrow for one line, so the
+  // localized time and its source sit above the task name, which keeps the
+  // full width.
+  it("renders week events as a time line above the task name", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[WEEK_ITEM]}
+          sources={[WEEK_SOURCE]}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = fullCalendarMock.mock.lastCall?.[0] as
+      | FullCalendarProps
+      | undefined;
+    render(
+      <>
+        {props?.eventContent?.({
+          event: {
+            id: WEEK_ITEM.id,
+            title: WEEK_ITEM.taskName,
+            start: WEEK_ITEM.scheduledAt,
+          },
+        })}
+      </>,
+    );
+
+    const event = screen.getByRole("button", { name: "event.accessibleName" });
+    const [metaLine, titleLine] = Array.from(event.children);
+    expect(metaLine).toHaveTextContent("9:00 AM");
+    expect(metaLine).toHaveTextContent("Ada's workspace");
+    expect(titleLine).toHaveTextContent("Prepare release notes");
   });
 });

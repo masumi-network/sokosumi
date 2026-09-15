@@ -1701,6 +1701,8 @@
           "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
+          "changeStatus": "Status ändern…",
+          "noStatusMatches": "Kein Status passt",
           "moveToWorkspace": "In anderen Arbeitsbereich verschieben",
           "moveToWorkspaceTitle": "Task in einen anderen Arbeitsbereich verschieben",
           "moveToWorkspaceDescription": "Wählen Sie den Arbeitsbereich, in den Sie diese Aufgabe verschieben möchten.",
@@ -1876,6 +1878,8 @@
         "statusDraft": "Entwurf",
         "statusQueued": "In Warteschlange",
         "statusReady": "Bereit",
+        "changeStatus": "Status ändern…",
+        "noStatusMatches": "Kein Status passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
         "back": "Zurück",
@@ -1925,6 +1929,8 @@
         "statusDescription": "Wähle den Status für diesen Task",
         "statusDraft": "Entwurf",
         "statusReady": "Bereit",
+        "changeStatus": "Status ändern…",
+        "noStatusMatches": "Kein Status passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
         "back": "Zurück",
@@ -2722,7 +2728,7 @@
           "totalCount": "{count, plural, one {# Benutzer} other {# Benutzer}}",
           "empty": "Keine Benutzer gefunden.",
           "user": "Benutzer",
-          "credits": "Guthaben",
+          "credits": "Persönliches Guthaben",
           "subscription": "Abonnement",
           "startedTasks": "Gestartete Aufgaben",
           "registered": "Registriert",
@@ -2768,8 +2774,8 @@
             "enterprisePool": "Enterprise-Pool: {credits} Credits"
           },
           "credits": {
-            "title": "Guthaben gesamt",
-            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
+            "title": "Organisations-Guthaben",
+            "description": "Verfügbare Credits im Organisations-Pool, inklusive Extra-Credits und dem Enterprise-Vertrags-Pool, falls vorhanden.",
             "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
           },
           "members": {

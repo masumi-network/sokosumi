@@ -1,3 +1,5 @@
+import { isValidTimezone } from "@sokosumi/utils";
+
 const FALLBACK_TIMEZONES = [
   "UTC",
   "America/Los_Angeles",
@@ -30,7 +32,8 @@ export function getTimezoneOptions(preferred?: string | null): string[] {
 
 export function getDefaultTimezone(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return isValidTimezone(timeZone) ? timeZone : "UTC";
   } catch {
     return "UTC";
   }
