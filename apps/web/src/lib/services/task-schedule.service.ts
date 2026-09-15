@@ -2,11 +2,13 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
+  CalendarTaskScheduleSource,
   MutateTaskScheduleOccurrenceRequest,
   Task,
   TaskScheduleInput,
   TaskScheduleOccurrence,
   TaskScheduleOccurrenceView,
+  TaskScheduleSourceMutation,
 } from "@/lib/clients/generated/core/types.gen";
 
 export interface ListTaskScheduleOccurrencesParams {
@@ -97,6 +99,25 @@ export const taskScheduleService = (() => {
     return result.data;
   }
 
+  async function moveCalendarSeriesSource(
+    taskId: string,
+    precondition: TaskScheduleSeriesPrecondition,
+    source: CalendarTaskScheduleSource,
+  ): Promise<TaskScheduleSourceMutation> {
+    const result = await coreClient.putTaskCalendarSource(taskId, {
+      operationId: precondition.operationId,
+      expectedScheduleRevision: precondition.expectedScheduleRevision,
+      discardFutureExceptions: true,
+      source,
+    });
+
+    if (!result.data) {
+      throw new Error("Failed to move Calendar task source");
+    }
+
+    return result.data;
+  }
+
   /**
    * Reads one page of the occurrence ledger. Core failures surface as
    * {@link CoreApiRequestError} with their stable `kind` intact — callers match
@@ -157,6 +178,7 @@ export const taskScheduleService = (() => {
 
   return {
     editCalendarSeries,
+    moveCalendarSeriesSource,
     setSchedule,
     removeCalendarSeries,
     listOccurrences,

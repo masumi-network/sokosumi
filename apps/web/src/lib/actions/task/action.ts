@@ -18,6 +18,7 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import {
+  type CalendarTaskScheduleSource,
   type CreateScheduledTaskRequest,
   type CreateTaskContext,
   type Task,
@@ -111,6 +112,13 @@ interface ClearTaskScheduleParameters
   taskId: string;
 }
 
+interface MoveCalendarTaskSourceParameters
+  extends AuthenticatedRequest,
+    TaskScheduleSeriesPrecondition {
+  taskId: string;
+  source: CalendarTaskScheduleSource;
+}
+
 interface TaskOccurrenceMutationBase
   extends AuthenticatedRequest,
     TaskScheduleSeriesPrecondition {
@@ -161,6 +169,10 @@ type SaveTaskScheduleResult = TaskMutationActionResult<{
 }>;
 type ClearTaskScheduleResult = TaskMutationActionResult<{
   taskId: string;
+}>;
+type MoveCalendarTaskSourceResult = TaskMutationActionResult<{
+  taskId: string;
+  scheduleRevision: number;
 }>;
 type MutateTaskOccurrenceResult = TaskMutationActionResult<{
   taskId: string;
@@ -375,6 +387,19 @@ function revalidateCalendarTaskMutationRoutes(task: Task) {
 
   if (task.projectId) {
     revalidatePath(`/projects/${task.projectId}/calendar`);
+  }
+}
+
+function revalidateCalendarSourceMoveRoutes(
+  taskId: string,
+  projectIds: Array<string | null>,
+) {
+  revalidatePath("/calendar");
+  revalidatePath("/projects");
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  for (const projectId of new Set(projectIds.filter(Boolean))) {
+    revalidatePath(`/projects/${projectId}/calendar`);
   }
 }
 
@@ -851,6 +876,45 @@ export const clearTaskSchedule = withSession<
       error,
       "Failed to clear task schedule",
       "Failed to clear task schedule",
+    );
+  }
+});
+
+export const moveCalendarTaskSource = withSession<
+  MoveCalendarTaskSourceParameters,
+  MoveCalendarTaskSourceResult
+>(async ({ taskId, operationId, expectedScheduleRevision, source }) => {
+  const normalizedTaskId = taskId.trim();
+  if (!normalizedTaskId) {
+    throw new Error("Task required");
+  }
+  requireOperationId(operationId);
+
+  try {
+    const result = await taskScheduleService.moveCalendarSeriesSource(
+      normalizedTaskId,
+      { operationId, expectedScheduleRevision },
+      source,
+    );
+    revalidateCalendarSourceMoveRoutes(normalizedTaskId, [
+      result.previousSource.type === "project"
+        ? result.previousSource.projectId
+        : null,
+      result.source.type === "project" ? result.source.projectId : null,
+    ]);
+    return taskMutationSuccess({
+      taskId: normalizedTaskId,
+      scheduleRevision: result.scheduleRevision,
+    });
+  } catch (error) {
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to move Calendar task source",
+      "Failed to move Calendar task source",
     );
   }
 });
