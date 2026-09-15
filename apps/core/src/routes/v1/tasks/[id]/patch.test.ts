@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   mapTaskMock,
   notifyTaskHumanAssigneeMock,
   prismaTransactionMock,
@@ -28,6 +29,7 @@ const {
   requireTaskOwnershipMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   mapTaskMock: vi.fn(),
   notifyTaskHumanAssigneeMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -38,6 +40,10 @@ const {
   requireTaskAssignableUserMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   taskUpdateMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -283,6 +289,9 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     expect(projectFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: PROJECT_ID,

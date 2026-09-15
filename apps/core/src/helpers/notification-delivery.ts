@@ -44,7 +44,6 @@ export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.approvalRequired",
   "Notifications.Task.authenticationRequired",
   "Notifications.Task.outOfCredits",
-  "Notifications.Task.scheduleRemovedByOperator",
 ];
 
 /**
@@ -121,6 +120,8 @@ export function toNotificationCategory(
       return messageKey === TASK_COMPLETED_MESSAGE_KEY
         ? "TASK_COMPLETED"
         : "TASK_UPDATE";
+    case "PROJECT":
+      return "PROJECT_UPDATE";
     case "SYSTEM":
       return "SYSTEM";
     case "CHAT":

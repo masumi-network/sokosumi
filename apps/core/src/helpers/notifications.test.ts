@@ -75,6 +75,8 @@ function createNotificationRecord(
   return {
     id: "notification_123",
     userId: notificationInput.userId,
+    workspaceId: null,
+    organizationId: null,
     kind: notificationInput.kind,
     referenceId: notificationInput.referenceId,
     eventId: notificationInput.eventId,
@@ -91,12 +93,18 @@ function createNotificationRecord(
 
 function createPrismaMock() {
   return {
+    $executeRaw: vi.fn().mockResolvedValue(0),
+    $queryRaw: vi.fn().mockResolvedValue([]),
     notification: {
       create: vi.fn(),
+      findMany: notificationFindManyMock,
       findUnique: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
+    },
+    workspace: {
+      findFirst: vi.fn().mockResolvedValue({ id: "workspace_123" }),
     },
   };
 }
@@ -155,6 +163,28 @@ describe("createNotification", () => {
     });
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
+  });
+
+  it("persists the workspace scope used for access cleanup", async () => {
+    const notification = createNotificationRecord({
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+    });
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(notification);
+
+    await createNotification(
+      {
+        ...notificationInput,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(prismaMock.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      }),
+    });
   });
 
   it("returns the existing row unchanged on duplicate emits", async () => {

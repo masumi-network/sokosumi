@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -107,56 +108,47 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const user = requireOwnerUserContext(c.var.authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
-    return ok(
-      c,
-      projectCloseStatusSchema.parse(
-        await requestProjectClose(
-          {
-            projectId: id,
-            workspaceId: workspace.workspaceId,
-            actorUserId: user.userId,
-          },
-          c.req.valid("json"),
-        ),
-      ),
+    const status = await requestProjectClose(
+      {
+        projectId: id,
+        workspaceId: workspace.workspaceId,
+        actorUserId: user.userId,
+      },
+      c.req.valid("json"),
     );
+    await deliverCalendarInvalidationsNow(workspace.workspaceId);
+    return ok(c, projectCloseStatusSchema.parse(status));
   });
 
   app.openapi(retryRoute, async (c) => {
     const user = requireOwnerUserContext(c.var.authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
-    return ok(
-      c,
-      projectCloseStatusSchema.parse(
-        await retryProjectClose(
-          {
-            projectId: id,
-            workspaceId: workspace.workspaceId,
-            actorUserId: user.userId,
-          },
-          c.req.valid("json"),
-        ),
-      ),
+    const status = await retryProjectClose(
+      {
+        projectId: id,
+        workspaceId: workspace.workspaceId,
+        actorUserId: user.userId,
+      },
+      c.req.valid("json"),
     );
+    await deliverCalendarInvalidationsNow(workspace.workspaceId);
+    return ok(c, projectCloseStatusSchema.parse(status));
   });
 
   app.openapi(cancelOwedRoute, async (c) => {
     const user = requireOwnerUserContext(c.var.authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
-    return ok(
-      c,
-      projectCloseStatusSchema.parse(
-        await cancelProjectCloseOwedWork(
-          {
-            projectId: id,
-            workspaceId: workspace.workspaceId,
-            actorUserId: user.userId,
-          },
-          c.req.valid("json"),
-        ),
-      ),
+    const status = await cancelProjectCloseOwedWork(
+      {
+        projectId: id,
+        workspaceId: workspace.workspaceId,
+        actorUserId: user.userId,
+      },
+      c.req.valid("json"),
     );
+    await deliverCalendarInvalidationsNow(workspace.workspaceId);
+    return ok(c, projectCloseStatusSchema.parse(status));
   });
 }

@@ -6,6 +6,7 @@ const {
   resolveDeliveryMock,
   publishNotificationRowMock,
   workspaceFindUniqueMock,
+  organizationMemberFindManyMock,
   membershipFindManyMock,
   messageFindUniqueMock,
   notificationFindFirstMock,
@@ -14,7 +15,9 @@ const {
   notificationFindUniqueMock,
   captureExceptionMock,
   transactionMock,
+  executeRawMock,
   queryRawMock,
+  workspaceFindFirstAccessMock,
   loadChatMentionNamesMock,
   loadDirectRoomNamesByReaderMock,
 } = vi.hoisted(() => ({
@@ -22,6 +25,7 @@ const {
   resolveDeliveryMock: vi.fn(),
   publishNotificationRowMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
+  organizationMemberFindManyMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   messageFindUniqueMock: vi.fn(),
   notificationFindFirstMock: vi.fn(),
@@ -30,16 +34,21 @@ const {
   notificationFindUniqueMock: vi.fn(),
   captureExceptionMock: vi.fn(),
   transactionMock: vi.fn(),
+  executeRawMock: vi.fn(),
   queryRawMock: vi.fn(),
+  workspaceFindFirstAccessMock: vi.fn(),
   loadChatMentionNamesMock: vi.fn(),
   loadDirectRoomNamesByReaderMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
-  createNotification: (...args: unknown[]) => createNotificationMock(...args),
+  createNotification: (input: unknown) => createNotificationMock(input),
   resolveDelivery: (...args: unknown[]) => resolveDeliveryMock(...args),
-  publishNotificationRow: (...args: unknown[]) =>
-    publishNotificationRowMock(...args),
+  publishNotificationRow: (
+    notification: unknown,
+    delivery: unknown,
+    created: unknown,
+  ) => publishNotificationRowMock(notification, delivery, created),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -48,6 +57,7 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: {
       findUnique: workspaceFindUniqueMock,
     },
+    member: { findMany: organizationMemberFindManyMock },
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
     },
@@ -115,21 +125,46 @@ function messageSays(content: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  queryRawMock.mockResolvedValue([]);
+  executeRawMock.mockResolvedValue(0);
+  queryRawMock.mockImplementation((strings: TemplateStringsArray) =>
+    Promise.resolve(
+      strings.join("").includes('FROM "chat_room_user_member"')
+        ? [{ access: "member", mutedAt: null }]
+        : [],
+    ),
+  );
   transactionMock.mockImplementation(async (callback) =>
     callback({
+      $executeRaw: executeRawMock,
       $queryRaw: queryRawMock,
       chatRoomMessage: { findUnique: messageFindUniqueMock },
       notification: {
+        findFirst: notificationFindFirstMock,
         findMany: notificationFindManyMock,
         updateMany: notificationUpdateManyMock,
         findUnique: notificationFindUniqueMock,
       },
+      workspace: { findFirst: workspaceFindFirstAccessMock },
     }),
   );
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
-  membershipFindManyMock.mockResolvedValue([]);
+  workspaceFindFirstAccessMock.mockResolvedValue({ id: "workspace_1" });
+  organizationMemberFindManyMock.mockResolvedValue([
+    { userId: AUTHOR_ID },
+    { userId: ALICE_ID },
+    { userId: BOB_ID },
+  ]);
+  membershipFindManyMock.mockImplementation(
+    ({ where }: { where: { userId: { in: string[] } } }) =>
+      Promise.resolve(
+        where.userId.in.map((userId) => ({
+          access: "member",
+          mutedAt: null,
+          userId,
+        })),
+      ),
+  );
   notificationFindFirstMock.mockResolvedValue(null);
   notificationFindManyMock.mockResolvedValue([]);
   messageSays("ship it");
@@ -230,6 +265,7 @@ describe("fanOutChatNotifications", () => {
       referenceId: ROOM_ID,
       eventId: MESSAGE_ID,
       messageKey: "Notifications.Chat.roomMessage",
+      workspaceId: "workspace_1",
       messageParams: {
         authorName: "Patrick",
         roomName: "general",
@@ -237,6 +273,36 @@ describe("fanOutChatNotifications", () => {
       },
       metadata: { messageId: MESSAGE_ID, workspaceId: "workspace_1" },
     });
+  });
+
+  it("keeps external guest notifications outside the host membership scope", async () => {
+    organizationMemberFindManyMock.mockResolvedValue([]);
+    membershipFindManyMock.mockResolvedValue([
+      { access: "guest", mutedAt: null, userId: ALICE_ID },
+    ]);
+    queryRawMock.mockResolvedValue([{ access: "guest", mutedAt: null }]);
+
+    await fanOutChatNotifications(params());
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ workspaceId: expect.anything() }),
+    );
+  });
+
+  it("drops a host member removed after the recipient snapshot", async () => {
+    workspaceFindFirstAccessMock.mockResolvedValue(null);
+
+    await fanOutChatNotifications(params());
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("drops a recipient whose room membership disappears before delivery", async () => {
+    queryRawMock.mockResolvedValue([]);
+
+    await fanOutChatNotifications(params({ organizationId: null }));
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   it("drops the author and repeats, so one reader gets one notification", async () => {
@@ -268,7 +334,10 @@ describe("fanOutChatNotifications", () => {
   });
 
   it("does not notify a reader who muted the room", async () => {
-    membershipFindManyMock.mockResolvedValue([{ userId: BOB_ID }]);
+    membershipFindManyMock.mockResolvedValue([
+      { access: "member", mutedAt: null, userId: ALICE_ID },
+      { access: "member", mutedAt: new Date(), userId: BOB_ID },
+    ]);
 
     await fanOutChatNotifications(
       params({ recipientUserIds: [ALICE_ID, BOB_ID] }),
@@ -278,6 +347,15 @@ describe("fanOutChatNotifications", () => {
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: ALICE_ID }),
     );
+  });
+
+  it("drops a snapshotted recipient who has since left the room", async () => {
+    membershipFindManyMock.mockResolvedValue([]);
+
+    await fanOutChatNotifications(params());
+
+    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   /**
@@ -399,7 +477,9 @@ describe("fanOutChatNotifications", () => {
   });
 
   it("stops before the workspace lookup when nobody is left to notify", async () => {
-    membershipFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
+    membershipFindManyMock.mockResolvedValue([
+      { access: "member", mutedAt: new Date(), userId: ALICE_ID },
+    ]);
 
     await fanOutChatNotifications(params());
 
@@ -743,6 +823,7 @@ describe("fanOutChatNotifications, counting per room", () => {
         messageKey: "Notifications.Chat.roomMessage",
         isRead: false,
         inApp: true,
+        workspaceId: "workspace_1",
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
@@ -772,11 +853,11 @@ describe("fanOutChatNotifications, counting per room", () => {
 
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
-    expect(publishNotificationRowMock).toHaveBeenCalledTimes(1);
-    expect(publishNotificationRowMock.mock.calls[0]?.[1]).toEqual({
-      inApp: true,
-      osBanner: false,
-    });
+    expect(publishNotificationRowMock).toHaveBeenCalledWith(
+      { id: "notification_1" },
+      { inApp: true, osBanner: false },
+      false,
+    );
   });
 
   it("keeps a banner-only message out of an existing in-app row", async () => {

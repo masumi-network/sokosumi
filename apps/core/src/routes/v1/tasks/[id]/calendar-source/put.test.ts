@@ -20,6 +20,7 @@ const {
   lockCalendarScopeMock,
   lockTaskRowsMock,
   memberFindFirstMock,
+  notifyTaskCalendarActionMock,
   prismaMock,
   projectFindManyMock,
   quarantineFindUniqueMock,
@@ -38,6 +39,7 @@ const {
     lockCalendarScopeMock: vi.fn(),
     lockTaskRowsMock: vi.fn(),
     memberFindFirstMock,
+    notifyTaskCalendarActionMock: vi.fn(),
     prismaMock: {
       member: { findFirst: memberFindFirstMock },
       project: { findMany: projectFindManyMock },
@@ -63,6 +65,9 @@ vi.mock("@/helpers/calendar-locks", () => ({
 }));
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
+}));
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskCalendarAction: notifyTaskCalendarActionMock,
 }));
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   TaskScheduleOccurrenceLimitError: class TaskScheduleOccurrenceLimitError extends Error {},
@@ -102,6 +107,8 @@ function createMetadata() {
 function mockCurrentTask(overrides: Record<string, unknown> = {}) {
   requireTaskCollaborationMock.mockResolvedValue({
     id: TASK_ID,
+    ownerId: "user_123",
+    name: "Scheduled task",
     status: TaskStatus.QUEUED,
     assigneeId: "coworker-1",
     assigneeSokoBotId: null,
@@ -289,6 +296,7 @@ describe("PUT /tasks/{id}/calendar-source", () => {
       canceledFutureExceptionCount: 2,
     };
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_1",
       schedulePayload: {
         requestFingerprint: createTaskScheduleRequestFingerprint({
           action: "move_source",
@@ -309,6 +317,12 @@ describe("PUT /tasks/{id}/calendar-source", () => {
     expect(await response.json()).toMatchObject({ data: storedResponse });
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(retireTaskScheduleFutureOccurrencesMock).not.toHaveBeenCalled();
+    expect(notifyTaskCalendarActionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: "evt_1",
+        messageKey: "Notifications.Task.scheduleSourceChangedByMember",
+      }),
+    );
   });
 
   it("rejects a stale schedule revision", async () => {

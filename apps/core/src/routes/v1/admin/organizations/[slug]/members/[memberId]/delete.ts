@@ -3,6 +3,7 @@ import { OrganizationOwnerRetentionError } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
+import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   applyOrganizationExitChatRevocation,
   type OrganizationExitChatRevocationResult,
@@ -62,6 +63,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // trigger (covers BA leaveOrganization, which has no hooks) — no-op
       // when app already cleaned.
       chatRevocation = await prisma.$transaction(async (tx) => {
+        // Calendar/chat fanout locks Member before room membership. Match that
+        // order so removal cannot deadlock while a notification is publishing.
+        await tx.$queryRaw`
+          SELECT id
+          FROM "member"
+          WHERE id = ${memberId}
+            AND "organizationId" = ${organization.id}
+          FOR UPDATE
+        `;
         const revocation = await applyOrganizationExitChatRevocation(
           tx,
           member.userId,
@@ -77,7 +87,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
-    await publishOrganizationExitChatRevocation(member.userId, chatRevocation);
+    await Promise.all([
+      publishOrganizationExitChatRevocation(member.userId, chatRevocation),
+      deliverOrganizationCalendarInvalidationsNow(
+        organization.id,
+        member.userId,
+      ),
+    ]);
 
     return c.body(null, 204);
   });

@@ -10,6 +10,7 @@ const lockCalendarScopeMock = vi.hoisted(() => vi.fn());
 const lockTaskRowsMock = vi.hoisted(() => vi.fn());
 const createNotificationMock = vi.hoisted(() => vi.fn());
 const accessibleTaskFindFirstMock = vi.hoisted(() => vi.fn());
+const deliverCalendarInvalidationsNowMock = vi.hoisted(() => vi.fn());
 const removeTaskSchedulePlannedOccurrencesMock = vi.hoisted(() => vi.fn());
 const replaceTaskSchedulePlannedOccurrencesMock = vi.hoisted(() => vi.fn());
 const TaskScheduleOccurrenceLimitErrorMock = vi.hoisted(
@@ -44,6 +45,10 @@ vi.mock("@/helpers/calendar-locks", () => ({
   lockTaskRows: lockTaskRowsMock,
 }));
 
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverTaskCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
+}));
+
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
 }));
@@ -58,7 +63,9 @@ vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    task: { findFirst: accessibleTaskFindFirstMock },
+    task: {
+      findFirst: accessibleTaskFindFirstMock,
+    },
   },
 }));
 
@@ -106,6 +113,7 @@ describe("task schedule quarantine operations", () => {
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
     createNotificationMock.mockResolvedValue({ created: true });
+    deliverCalendarInvalidationsNowMock.mockResolvedValue(undefined);
     accessibleTaskFindFirstMock.mockResolvedValue({
       owner: { notificationsOptIn: true },
     });
@@ -137,8 +145,10 @@ describe("task schedule quarantine operations", () => {
       taskName: "Quarantined task",
       eventId: "event-1",
       ownerId: "owner-1",
+      actorUserId: "admin-1",
       replayed: false,
     });
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith("task-1");
     expect(taskUpdateMock).toHaveBeenCalledWith({
       where: { id: "task-1" },
       data: {
@@ -238,6 +248,7 @@ describe("task schedule quarantine operations", () => {
       taskName: "Quarantined task",
       eventId: "event-1",
       ownerId: "owner-1",
+      actorUserId: "admin-1",
       replayed: false,
     });
     expect(taskUpdateMock).toHaveBeenCalledWith({
@@ -271,6 +282,7 @@ describe("task schedule quarantine operations", () => {
   it("replays an exact audited removal without repeating side effects", async () => {
     taskEventFindFirstMock.mockResolvedValue({
       id: "event-existing",
+      userId: "owner-1",
       taskId: "task-1",
       schedulePayload: {
         action: "remove_quarantined_schedule",
@@ -297,16 +309,19 @@ describe("task schedule quarantine operations", () => {
       taskName: "Quarantined task",
       eventId: "event-existing",
       ownerId: "owner-1",
+      actorUserId: "owner-1",
       replayed: true,
     });
     expect(quarantineFindUniqueMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   it("replays a repair when jsonb returns schedule keys in a different order", async () => {
     taskEventFindFirstMock.mockResolvedValue({
       id: "event-existing",
+      userId: "admin-1",
       schedulePayload: {
         taskName: "Quarantined task",
         ownerId: "owner-1",

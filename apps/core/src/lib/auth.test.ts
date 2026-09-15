@@ -57,6 +57,7 @@ const {
   deleteStripeCustomerBestEffortMock,
   listOrganizationExitChatRoomIdsForAblyMock,
   publishOrganizationExitChatRevocationMock,
+  deliverOrganizationCalendarInvalidationsNowMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
@@ -164,6 +165,7 @@ const {
     deleteStripeCustomerBestEffortMock: vi.fn(),
     listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
     publishOrganizationExitChatRevocationMock: vi.fn(),
+    deliverOrganizationCalendarInvalidationsNowMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
     syncUserEmailWithStripeMock: vi.fn(),
@@ -383,6 +385,11 @@ vi.mock("@/helpers/chat-room-organization-exit", () => ({
     listOrganizationExitChatRoomIdsForAblyMock(...args),
   publishOrganizationExitChatRevocation: (...args: unknown[]) =>
     publishOrganizationExitChatRevocationMock(...args),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverOrganizationCalendarInvalidationsNow: (...args: unknown[]) =>
+    deliverOrganizationCalendarInvalidationsNowMock(...args),
 }));
 
 vi.mock("@/services/stripe-user-email.service", () => ({
@@ -2496,6 +2503,34 @@ describe("core auth config", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("delivers the committed Calendar revocation after leaving an organization", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            after: (ctx: {
+              body?: Record<string, unknown>;
+              context: Record<string, unknown>;
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.hooks.after({
+      body: { organizationId: "org-1" },
+      context: { session: { user: { id: "user-1" } } },
+      path: "/organization/leave",
+    });
+
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).toHaveBeenCalledWith("org-1", "user-1");
+  });
+
   it("creates a personal workspace before accepting an organization invitation", async () => {
     getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
     await import("./auth");
@@ -2677,6 +2712,9 @@ describe("core auth config", () => {
       "user-1",
       { revokedRoomIds: ["room-a", "room-b"], statusMessages: [] },
     );
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).toHaveBeenCalledWith("org-1", "user-1");
   });
 
   it("creates a Stripe customer when an organization is created", async () => {

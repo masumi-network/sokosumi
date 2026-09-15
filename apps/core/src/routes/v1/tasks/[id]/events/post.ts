@@ -23,6 +23,7 @@ import {
   isCardanoV2SourceReady,
 } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   conflict,
   errorResponseWithExtensionsSchema,
@@ -573,6 +574,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
+        workspaceId: task.workspaceId,
         projectId: task.projectId,
         masumiPayment: payment,
         taskPaymentClaimId,
@@ -592,6 +594,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       event,
       userId,
+      workspaceId,
       projectId,
       masumiPayment,
       taskPaymentClaimId,
@@ -617,6 +620,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (event.status) {
+      await deliverCalendarInvalidationsNow(workspaceId);
       waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
     }
 

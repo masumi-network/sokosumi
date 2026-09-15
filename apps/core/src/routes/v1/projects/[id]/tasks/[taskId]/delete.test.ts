@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
   projectFindFirstMock,
@@ -26,6 +27,7 @@ const {
   taskFindUniqueMock,
   taskUpdateManyMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -34,6 +36,10 @@ const {
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -171,6 +177,9 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
