@@ -342,7 +342,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toHaveLength(1);
-    expect(result).toEqual({ examined: 1, sent: 1, completed: true });
+    expect(result).toEqual({ examined: 1, sent: 1, reachedEnd: true });
     expect(firstFollowUpInput()).toEqual({
       userId: "reader-1",
       kind: NotificationKind.CHAT,
@@ -423,7 +423,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
-    expect(result).toEqual({ examined: 0, sent: 0, completed: true });
+    expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: true });
   });
 
   /**
@@ -466,7 +466,7 @@ describe("NotificationFollowUpSyncService", () => {
       });
 
       expect(written).toEqual([]);
-      expect(result).toEqual({ examined: 0, sent: 0, completed: true });
+      expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: true });
     },
   );
 
@@ -494,7 +494,7 @@ describe("NotificationFollowUpSyncService", () => {
     // The row was considered and the run was cut off, so it is counted and
     // the run says it did not finish. Reporting this one as finished would
     // hide the case the flag exists for.
-    expect(result).toEqual({ examined: 1, sent: 0, completed: false });
+    expect(result).toEqual({ examined: 1, sent: 0, reachedEnd: false });
   });
 
   /**
@@ -659,7 +659,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
-    expect(result).toEqual({ examined: 1, sent: 0, completed: true });
+    expect(result).toEqual({ examined: 1, sent: 0, reachedEnd: true });
   });
 
   it("still reminds a reader who wants reminders only on their device", async () => {
@@ -682,11 +682,11 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1, completed: true });
+    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
     expect(written.map((one) => one.eventId)).toEqual([
       "follow-up:notification-2",
     ]);
-    // Survived is not enough. `completed` stays true through this, so the
+    // Survived is not enough. `reachedEnd` stays true through this, so the
     // report is the only place the lost reminder is named.
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
@@ -697,9 +697,12 @@ describe("NotificationFollowUpSyncService", () => {
   });
 
   /**
-   * A reader whose preferences will not read costs that one reminder. The
-   * read is an await like any other, so letting it throw past here would end
-   * the run and cost every reminder behind it.
+   * A reader whose preferences will not read costs that one reminder.
+   *
+   * `resolveDelivery` documents itself as never throwing, so this pins the
+   * loop against a future version that does rather than against today's. The
+   * read is an await like any other, and letting one throw past here would
+   * end the run and cost every reminder behind it.
    */
   it("carries on after one reader's preferences fail to read", async () => {
     seed([
@@ -710,7 +713,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1, completed: true });
+    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
     expect(written.map((one) => one.eventId)).toEqual([
       "follow-up:notification-2",
     ]);
@@ -733,7 +736,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1, completed: true });
+    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
     expect(written.map((one) => one.eventId)).toEqual([
       "follow-up:notification-2",
     ]);
@@ -764,6 +767,12 @@ describe("NotificationFollowUpSyncService", () => {
       `follow-up:notification-${waitingCount - 1}`,
     );
     expect(notificationFindManyMock).toHaveBeenCalledTimes(3);
+    // The bound on the read itself, not only on what the run does with the
+    // rows. Paging in memory over an unbounded read passes every count above
+    // and loads the whole backlog off the table.
+    for (const [query] of notificationFindManyMock.mock.calls) {
+      expect(query.take).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
+    }
     // Each row once. Every page starts after the last row of the one before,
     // so a position that did not advance the whole way would show up here as
     // rows handled twice long before it showed up as a slow run.
@@ -807,8 +816,8 @@ describe("NotificationFollowUpSyncService", () => {
   /**
    * A backlog that is exactly one page is a finished run, not a truncated one.
    *
-   * The route treats `completed: false` as the sign that reminders are being
-   * left behind. A full last page must not raise that on a run that in fact
+   * The run reports `reachedEnd`, and false there is what says the deadline
+   * ended it. A full last page must not report that on a run that in fact
    * reached the end of the eligible rows.
    */
   it("reports a backlog of exactly one page as finished", async () => {
@@ -831,7 +840,7 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE);
-    expect(result.completed).toBe(true);
+    expect(result.reachedEnd).toBe(true);
     expect(notificationFindManyMock).toHaveBeenCalledTimes(1);
   });
 
@@ -858,9 +867,8 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE);
     expect(notificationFindManyMock).toHaveBeenCalledTimes(1);
-    // Rows were left waiting. One run is survivable; this is what the route
-    // logs so that two in a row can be noticed.
-    expect(result.completed).toBe(false);
+    // Rows were left waiting, and this is the field the route logs to say so.
+    expect(result.reachedEnd).toBe(false);
   });
 
   /**
@@ -877,7 +885,21 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(written).toHaveLength(1);
-    expect(result).toEqual({ examined: 1, sent: 1, completed: false });
+    expect(result).toEqual({ examined: 1, sent: 1, reachedEnd: false });
+  });
+
+  /**
+   * The handler's deadline, not an abort. The two reach the loop by different
+   * options, and only one of them used to be asked before the first read.
+   */
+  it("does not read at all when the deadline had already passed", async () => {
+    const result = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+      shouldContinue: () => false,
+    });
+
+    expect(notificationFindManyMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: false });
   });
 
   it("does not read at all when the run was aborted before it started", async () => {
@@ -890,6 +912,6 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(notificationFindManyMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ examined: 0, sent: 0, completed: false });
+    expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: false });
   });
 });

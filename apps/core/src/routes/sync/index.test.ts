@@ -197,7 +197,7 @@ describe("sync routes", () => {
     sendFollowUpsMock.mockResolvedValue({
       examined: 0,
       sent: 0,
-      completed: true,
+      reachedEnd: true,
     });
     syncDueTaskSchedulesMock.mockResolvedValue({
       promoted: 0,

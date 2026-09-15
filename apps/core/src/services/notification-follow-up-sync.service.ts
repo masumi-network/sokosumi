@@ -41,8 +41,9 @@ export const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
  * one hour, the newer half, so a row left behind in the newer half is read
  * again by the next run and a row left behind in the older half is not. The
  * run goes oldest first, so it reaches the older half first: losing those
- * takes a run too short to finish the oldest hour. `completed` on the result
- * says when a run ended with rows still waiting.
+ * takes a run too short to finish the oldest hour. `reachedEnd` on the result
+ * says when the deadline ended a run, which is not the same as saying rows
+ * were left: a run aborted before its first read reports it too.
  *
  * The deadline can land anywhere, page boundary or not, which is why it is
  * asked about per row and not only per page. The number below is the row cap
@@ -98,7 +99,7 @@ export interface SendFollowUpsResult {
    * reported to Sentry, and left out of `sent` while the run carries on to the
    * end.
    */
-  completed: boolean;
+  reachedEnd: boolean;
 }
 
 /**
@@ -320,7 +321,7 @@ export async function sendFollowUps(
     after = { createdAt: last.createdAt, id: last.id };
   }
 
-  return { examined, sent, completed: !stopped };
+  return { examined, sent, reachedEnd: !stopped };
 }
 
 export const notificationFollowUpSyncService = {

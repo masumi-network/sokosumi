@@ -32,7 +32,7 @@ export default function mount(app: Hono) {
           // and knows nothing about who was left. Nor does it say reminders
           // were lost, which depends on how far through the window it got. It
           // says the deadline is deciding how much gets done.
-          completed: result.completed,
+          reachedEnd: result.reachedEnd,
         });
       },
     );
