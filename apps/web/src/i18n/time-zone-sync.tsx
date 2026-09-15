@@ -5,6 +5,7 @@ import { useTimeZone } from "next-intl";
 import { useEffect } from "react";
 
 import { serializeTimeZoneCookie } from "@/i18n/time-zone";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 
 /**
  * Keeps the server-side render zone in step with the browser's. The first
@@ -16,8 +17,8 @@ export function TimeZoneSync() {
   const renderedTimeZone = useTimeZone();
 
   useEffect(() => {
-    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!browserTimeZone || browserTimeZone === renderedTimeZone) {
+    const browserTimeZone = getDefaultTimezone();
+    if (browserTimeZone === renderedTimeZone) {
       return;
     }
     document.cookie = serializeTimeZoneCookie(browserTimeZone);

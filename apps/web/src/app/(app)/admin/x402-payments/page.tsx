@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import { X402PaymentAction } from "@/components/admin/x402-payments/x402-payment-action";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +94,7 @@ export default async function AdminX402PaymentsPage({
     caip2Network: firstValue(raw.caip2Network)?.trim() || undefined,
   };
   const cursor = firstValue(raw.cursor);
-  const [page, rollups, t, locale] = await Promise.all([
+  const [page, rollups, t, formatter] = await Promise.all([
     adminTaskX402PaymentService.listPayments({
       ...filters,
       cursor,
@@ -102,12 +102,10 @@ export default async function AdminX402PaymentsPage({
     }),
     adminTaskX402PaymentService.aggregatePayments(filters),
     getTranslations("App.Admin.X402Payments"),
-    getLocale(),
+    getFormatter(),
   ]);
-  const dateFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const formatDate = (date: Date) =>
+    formatter.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
 
   return (
     <div className="min-h-full w-full">
@@ -230,9 +228,7 @@ export default async function AdminX402PaymentsPage({
                 ) : (
                   page.payments.map((payment: AdminTaskX402Payment) => (
                     <TableRow key={payment.id}>
-                      <TableCell>
-                        {dateFormatter.format(payment.createdAt)}
-                      </TableCell>
+                      <TableCell>{formatDate(payment.createdAt)}</TableCell>
                       <TableCell>
                         <Badge variant={statusVariant(payment.status)}>
                           {t(`Statuses.${payment.status}`)}
@@ -256,9 +252,7 @@ export default async function AdminX402PaymentsPage({
                         payment.signRiskExpiresAt ? (
                           <div className="mt-1 text-muted-foreground">
                             {t("Payments.resolveAfter", {
-                              date: dateFormatter.format(
-                                payment.signRiskExpiresAt,
-                              ),
+                              date: formatDate(payment.signRiskExpiresAt),
                             })}
                           </div>
                         ) : null}

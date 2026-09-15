@@ -5,7 +5,7 @@ import {
 } from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { APP_MAIN_MOBILE_PT_CLASS } from "@/app/components/app-shell-safe-area";
 import { TaskFiles } from "@/app/tasks/components/task-files";
@@ -49,24 +49,21 @@ interface SharedTaskViewProps {
   task: PublicSharedTask;
 }
 
-function formatDate(date: Date, locale: string) {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
-
 function getLinkedJobStatus(status: string): SokosumiJobStatus {
   return status as SokosumiJobStatus;
 }
 
 export async function SharedTaskView({ task }: SharedTaskViewProps) {
-  const [locale, tTaskDetail, tTaskShare, tStatus] = await Promise.all([
-    getLocale(),
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("Share.Tasks.Page"),
-    getTranslations("App.Tasks.Filters.statusOptions"),
-  ]);
+  const [locale, formatter, tTaskDetail, tTaskShare, tStatus] =
+    await Promise.all([
+      getLocale(),
+      getFormatter(),
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("Share.Tasks.Page"),
+      getTranslations("App.Tasks.Filters.statusOptions"),
+    ]);
+  const formatDate = (date: Date) =>
+    formatter.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const visibleEvents = [...task.events]
     .filter((event) => event.status !== TaskStatus.AUTHENTICATION_REQUIRED)
@@ -116,7 +113,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             {tTaskDetail("created")}
           </span>
           <span className="text-sm text-muted-foreground">
-            {formatDate(task.createdAt, locale)}
+            {formatDate(task.createdAt)}
           </span>
         </div>
       </div>
@@ -125,7 +122,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           {tTaskDetail("updated")}
         </span>
         <span className="text-sm text-muted-foreground">
-          {formatDate(task.updatedAt, locale)}
+          {formatDate(task.updatedAt)}
         </span>
       </div>
     </section>
@@ -189,13 +186,13 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                           <span>{job.agentName}</span>
                           <span>
                             {tTaskShare("jobCreatedAt", {
-                              date: formatDate(job.createdAt, locale),
+                              date: formatDate(job.createdAt),
                             })}
                           </span>
                           {job.completedAt ? (
                             <span>
                               {tTaskShare("jobCompletedAt", {
-                                date: formatDate(job.completedAt, locale),
+                                date: formatDate(job.completedAt),
                               })}
                             </span>
                           ) : null}
