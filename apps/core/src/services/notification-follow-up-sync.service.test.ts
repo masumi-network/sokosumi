@@ -96,7 +96,7 @@ function row(overrides: RowOverrides = {}): StoredNotification {
 }
 
 /** One term of the service's `orderBy`, in the order it lists them. */
-type OrderByClause = { createdAt: "asc" } | { id: "asc" };
+type OrderByClause = { createdAt: "asc" | "desc" } | { id: "asc" | "desc" };
 
 /**
  * Two stored rows, compared by the terms the query actually asked for.
@@ -118,13 +118,19 @@ function compareBy(
   stored: readonly StoredNotification[],
 ): number {
   for (const term of orderBy) {
+    const ascending =
+      "createdAt" in term ? term.createdAt === "asc" : term.id === "asc";
     const difference =
       "createdAt" in term
         ? a.createdAt.getTime() - b.createdAt.getTime()
         : compareIds(a.id, b.id);
 
     if (difference !== 0) {
-      return difference;
+      // The direction is read, not assumed. Reading only the field would let
+      // the service ask for newest first and still be served oldest first,
+      // and the paging filter, which only ever looks forward, would then walk
+      // away from the rows it had not reached.
+      return ascending ? difference : -difference;
     }
   }
 
@@ -133,8 +139,8 @@ function compareBy(
 
 /** One branch of the service's "after this row" paging filter. */
 type AfterClause =
-  | { createdAt: { gt: Date } }
-  | { createdAt: Date; id: { gt: string } };
+  | { createdAt: Partial<{ gt: Date; lt: Date }> }
+  | { createdAt: Date; id: Partial<{ gt: string; lt: string }> };
 
 /**
  * Two ids, in the one order this fake uses.
@@ -151,16 +157,59 @@ function compareIds(a: string, b: string): number {
   return a < b ? -1 : 1;
 }
 
-/** Whether a stored row sits after the position one branch names. */
+/**
+ * Whether a stored row satisfies one branch of the paging filter.
+ *
+ * The operator is read off the branch rather than assumed to be `gt`. Assuming
+ * it would let the service page backwards and still be served the rows it
+ * would have got by paging forwards, so the one direction this filter has
+ * would go untested.
+ */
 function isAfter(one: StoredNotification, clause: AfterClause): boolean {
   if ("id" in clause) {
-    return (
-      one.createdAt.getTime() === clause.createdAt.getTime() &&
-      compareIds(one.id, clause.id.gt) > 0
+    if (one.createdAt.getTime() !== clause.createdAt.getTime()) {
+      return false;
+    }
+
+    return compare(
+      clause.id.gt === undefined ? undefined : compareIds(one.id, clause.id.gt),
+      clause.id.lt,
+      (bound: string) => compareIds(one.id, bound),
     );
   }
 
-  return one.createdAt > clause.createdAt.gt;
+  return compare(
+    clause.createdAt.gt === undefined
+      ? undefined
+      : one.createdAt.getTime() - clause.createdAt.gt.getTime(),
+    clause.createdAt.lt,
+    (bound: Date) => one.createdAt.getTime() - bound.getTime(),
+  );
+}
+
+/**
+ * One comparison against whichever bound the branch carries.
+ *
+ * `greater` is the row's position against a `gt` bound, already worked out,
+ * or undefined when the branch has no `gt`. `lessBound` is a `lt` bound when
+ * the branch carries one. A branch with neither matches nothing, which is
+ * what an operator this fake does not model should do: fail loudly rather
+ * than pass every row.
+ */
+function compare<T>(
+  greater: number | undefined,
+  lessBound: T | undefined,
+  against: (bound: T) => number,
+): boolean {
+  if (greater !== undefined) {
+    return greater > 0;
+  }
+
+  if (lessBound !== undefined) {
+    return against(lessBound) < 0;
+  }
+
+  return false;
 }
 
 /**
@@ -176,7 +225,13 @@ function firstFollowUpInput() {
 }
 
 /** Every follow-up the run wrote, in the order it wrote them. */
-let written: { eventId: string; messageKey: string; userId: string }[] = [];
+let written: {
+  eventId: string;
+  kind: string;
+  messageKey: string;
+  referenceId: string;
+  userId: string;
+}[] = [];
 
 /**
  * The notification table, in memory.
@@ -185,8 +240,9 @@ let written: { eventId: string; messageKey: string; userId: string }[] = [];
  * the reader ends up with. Asserting the shape of the query instead would pass
  * for a service that asked the right question and then ignored the answer.
  *
- * The write refuses a second row for a tuple it already holds, which is what
- * the table's own `@@unique([userId, kind, referenceId, eventId, messageKey])`
+ * The write that goes with this is `createNotificationMock` in `beforeEach`.
+ * It refuses a second row for a tuple it already holds, which is what the
+ * table's own `@@unique([userId, kind, referenceId, eventId, messageKey])`
  * does. That constraint is the whole of this feature's idempotency, so a fake
  * without it would leave the one property most worth proving untested.
  */
@@ -250,7 +306,9 @@ describe("NotificationFollowUpSyncService", () => {
         const taken = written.some(
           (one) =>
             one.eventId === input.eventId &&
+            one.kind === input.kind &&
             one.messageKey === input.messageKey &&
+            one.referenceId === input.referenceId &&
             one.userId === input.userId,
         );
 
@@ -260,7 +318,9 @@ describe("NotificationFollowUpSyncService", () => {
 
         written.push({
           eventId: input.eventId,
+          kind: input.kind,
           messageKey: input.messageKey,
+          referenceId: input.referenceId,
           userId: input.userId,
         });
 
@@ -602,6 +662,10 @@ describe("NotificationFollowUpSyncService", () => {
       `follow-up:notification-${NOTIFICATION_FOLLOW_UP_PAGE_SIZE}`,
     );
     expect(notificationFindManyMock).toHaveBeenCalledTimes(2);
+    // Each row once. The second page starts after the last row of the first,
+    // so a position that did not advance the whole way would show up here as
+    // rows handled twice long before it showed up as a slow run.
+    expect(result.examined).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
   });
 
   /**

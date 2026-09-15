@@ -66,7 +66,13 @@ export interface SendFollowUpsOptions {
 }
 
 export interface SendFollowUpsResult {
-  /** Notifications this run looked at. */
+  /**
+   * Notifications this run considered writing a follow-up for.
+   *
+   * Not the number of rows read. Each page reads one row past itself to learn
+   * whether another page follows, and that row is counted by the page that
+   * actually handles it.
+   */
   examined: number;
   /**
    * Follow-ups this run actually wrote.
@@ -180,10 +186,6 @@ function toFollowUpInput(
 export async function sendFollowUps(
   options: SendFollowUpsOptions = {},
 ): Promise<SendFollowUpsResult> {
-  if (options.abortSignal?.aborted) {
-    return { examined: 0, sent: 0, completed: false };
-  }
-
   const now = options.now ?? new Date();
   const waitedUntil = new Date(now.getTime() - NOTIFICATION_FOLLOW_UP_DELAY_MS);
   const windowOpened = new Date(
