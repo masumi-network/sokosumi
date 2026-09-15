@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { getProjectStatsByProjectIds } from "@/helpers/project-stats";
-import { resolveProjectReaderVisibility } from "@/types/project";
 import {
   deduplicateQueryValues,
   preprocessMultiValueQueryInput,
@@ -15,6 +14,7 @@ import {
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectStatsBatchSchema } from "@/schemas/project.schema";
+import { resolveProjectReaderVisibility } from "@/types/project";
 
 const projectIdsQuerySchema = z
   .preprocess(

@@ -4,13 +4,13 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { getProjectNeedsAttention } from "@/helpers/project-needs-attention";
 import { ok } from "@/helpers/response";
-import { resolveProjectReaderVisibility } from "@/types/project";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectNeedsAttentionSchema } from "@/schemas/project.schema";
+import { resolveProjectReaderVisibility } from "@/types/project";
 
 const paramsSchema = z.object({
   id: z

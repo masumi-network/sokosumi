@@ -134,16 +134,8 @@ export async function getProjectStatsByProjectIds(
 ): Promise<ProjectStatsEntry[]> {
   const uniqueProjectIds = Array.from(new Set(projectIds));
   const [taskStatsByProjectId, jobStatsByProjectId] = await Promise.all([
-    getProjectTaskStatsByProjectIds(
-      workspaceId,
-      uniqueProjectIds,
-      visibility,
-    ),
-    getProjectJobStatsByProjectIds(
-      workspaceId,
-      uniqueProjectIds,
-      visibility,
-    ),
+    getProjectTaskStatsByProjectIds(workspaceId, uniqueProjectIds, visibility),
+    getProjectJobStatsByProjectIds(workspaceId, uniqueProjectIds, visibility),
   ]);
 
   return uniqueProjectIds.map((projectId) => ({

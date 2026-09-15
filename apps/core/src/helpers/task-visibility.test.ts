@@ -61,9 +61,9 @@ describe("task visibility helpers", () => {
     expect(
       buildSokoBotAudienceTaskVisibilityWhere("user_a", "ASSISTANT"),
     ).toEqual({ visibility: TaskVisibility.PUBLIC });
-    expect(buildSokoBotAudienceTaskVisibilityWhere("user_a", undefined)).toEqual(
-      { visibility: TaskVisibility.PUBLIC },
-    );
+    expect(
+      buildSokoBotAudienceTaskVisibilityWhere("user_a", undefined),
+    ).toEqual({ visibility: TaskVisibility.PUBLIC });
     expect(buildSokoBotAudienceTaskVisibilityWhere("user_a", "OWNER")).toEqual(
       buildSokoBotOwnerTaskVisibilityWhere("user_a"),
     );

@@ -2,9 +2,8 @@ import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { getProjectStatsByProjectIds } from "./project-stats";
 import { humanProjectReaderVisibility } from "@/types/project";
+import { getProjectStatsByProjectIds } from "./project-stats";
 import {
   buildHumanJobParentVisibilityWhere,
   buildHumanTaskVisibilityWhere,
