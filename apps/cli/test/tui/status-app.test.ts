@@ -162,6 +162,7 @@ test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () 
       stdout: terminal.stdout,
       exitOnCtrlC: false,
       patchConsole: false,
+      interactive: true,
     });
     instance = nextInstance;
     return nextInstance;
@@ -234,6 +235,7 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
       stdout: terminal.stdout,
       exitOnCtrlC: false,
       patchConsole: false,
+      interactive: true,
     });
     instance = nextInstance;
     return nextInstance;
@@ -243,7 +245,7 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
     env: {},
     loginFn: async () => {
       loginCalls += 1;
-      const deferred = Promise.withResolvers<OAuthCredentials>();
+      const deferred = createDeferred<OAuthCredentials>();
       loginResolvers.push(deferred.resolve);
       return deferred.promise;
     },
@@ -304,10 +306,20 @@ async function waitForOutput(
 }
 
 async function waitForNextImmediate(): Promise<void> {
-  const { promise, resolve } = Promise.withResolvers<void>();
-  setImmediate(resolve);
-  await promise;
+  await new Promise<void>((resolve) => setImmediate(resolve));
 }
+
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+} {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 async function sendInput(stdin: PassThrough, input: string): Promise<void> {
   stdin.write(input);
   stdin.emit("readable");
@@ -367,6 +379,7 @@ test("TestV57 explicit preprod target skips OAuth target picker", async () => {
       stdout: terminal.stdout,
       exitOnCtrlC: false,
       patchConsole: false,
+      interactive: true,
     });
     instance = nextInstance;
     return nextInstance;
@@ -408,12 +421,13 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
       stdout: terminal.stdout,
       exitOnCtrlC: false,
       patchConsole: false,
+      interactive: true,
     });
     instance = nextInstance;
     return nextInstance;
   };
 
-  const loginRequestResolvers = Promise.withResolvers<BrowserLoginOptions>();
+  const loginRequestResolvers = createDeferred<BrowserLoginOptions>();
   const loginRequestPromise = loginRequestResolvers.promise;
   const cliPromise = runCli(
     ["--client-id", "flag-client", "--oauth-port", "53683"],
