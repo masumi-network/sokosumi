@@ -1,6 +1,9 @@
 "use client";
 
-import { userTaskStatusTransitionRequiresComment } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  userTaskStatusTransitionRequiresComment,
+} from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -63,6 +66,15 @@ export function TaskMetadataStatusField({
         });
         if (!result.ok) {
           setCurrentStatus(previousStatus);
+          if (
+            result.error.kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE
+          ) {
+            // The offered list went stale (assignee or schedule changed
+            // elsewhere); refresh so the picker shows what Core allows now.
+            toast.error(labels.updateStatusError);
+            router.refresh();
+            return;
+          }
           showCalendarClientUpgradeModal();
           return;
         }

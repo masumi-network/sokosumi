@@ -441,6 +441,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ) {
           throw unprocessableEntity(
             "This status is not selectable for this task",
+            { kind: CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE },
           );
         }
 

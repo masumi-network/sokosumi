@@ -633,6 +633,7 @@ describe("POST /{id}/events", () => {
         organizationId: null,
         role: "user",
       });
+      app.onError(errorHandler);
 
       const response = await app.request(`http://localhost/${TASK_ID}/events`, {
         method: "POST",
@@ -641,6 +642,8 @@ describe("POST /{id}/events", () => {
       });
 
       expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body.kind).toBe(CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE);
       expect(tx.taskEvent.create).not.toHaveBeenCalled();
       expect(tx.task.updateMany).not.toHaveBeenCalled();
     },

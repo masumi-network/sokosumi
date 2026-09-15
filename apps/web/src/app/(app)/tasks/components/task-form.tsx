@@ -323,7 +323,8 @@ export function TaskForm({
       (initialValues?.nextRunAt && initialValues.nextRunAt.length > 0),
   );
   // A live series owns the Task's status and Calendar source: Core rejects
-  // status changes with `schedule_active`, and moving the source is SOK-887.
+  // status changes with `schedule_active` (except Ready → Queued, which is
+  // how a scheduled Task is normalized), and moving the source is SOK-887.
   const hasActiveSeries = mode === "edit" && hadSchedule;
   const hasProjectSelection = projectOptions !== undefined && !hasActiveSeries;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
