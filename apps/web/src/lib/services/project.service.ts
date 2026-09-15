@@ -3,6 +3,8 @@ import "server-only";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  CancelSocialPostRequest,
+  CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
   InitiateProjectSocialConnectionRequest,
@@ -15,7 +17,10 @@ import type {
   ProjectNeedsAttention,
   ProjectSocialConnection,
   ProjectStatsEntry,
+  ScheduleSocialPostRequest,
+  SocialPost,
   TaskListItem,
+  UpdateSocialPostRequest,
 } from "@/lib/clients/generated/core/types.gen";
 
 interface ListProjectsParams {
@@ -206,6 +211,72 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function listSocialPosts(projectId: string): Promise<SocialPost[]> {
+    const result = await coreClient.getProjectsByIdSocialPosts(projectId);
+    return result.data;
+  }
+
+  async function getSocialPost(
+    projectId: string,
+    postId: string,
+  ): Promise<SocialPost> {
+    const result = await coreClient.getProjectsByIdSocialPostsByPostId(
+      projectId,
+      postId,
+    );
+    return result.data;
+  }
+
+  async function createSocialPost(
+    projectId: string,
+    input: CreateSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPosts(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function updateSocialPost(
+    projectId: string,
+    postId: string,
+    input: UpdateSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.patchProjectsByIdSocialPostsByPostId(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function scheduleSocialPost(
+    projectId: string,
+    postId: string,
+    input: ScheduleSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdSchedule(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function cancelSocialPost(
+    projectId: string,
+    postId: string,
+    input: CancelSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdCancel(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -314,6 +385,12 @@ export const projectService = (() => {
     initiateSocialConnection,
     finalizeSocialConnection,
     disconnectSocialConnection,
+    listSocialPosts,
+    getSocialPost,
+    createSocialPost,
+    updateSocialPost,
+    scheduleSocialPost,
+    cancelSocialPost,
     listProjectJobs,
     listProjectTasks,
     addJob,
