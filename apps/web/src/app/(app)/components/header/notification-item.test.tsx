@@ -311,7 +311,6 @@ describe("NotificationItem mark unread", () => {
     expect(screen.queryByRole("menuitem", { name: /markUnread/ })).toBeNull();
   });
 });
-
 describe("NotificationItem mark read", () => {
   beforeEach(() => {
     markReadMock.mockReset();
@@ -383,5 +382,54 @@ describe("NotificationItem mark read", () => {
       await screen.findByRole("menuitem", { name: /markUnread/ }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /^markRead/ })).toBeNull();
+  });
+});
+
+describe("NotificationItem unread indicator", () => {
+  it("carries the accent bar on an unread row and names the state", async () => {
+    renderInOpenDropdown(createJobNotification(), vi.fn());
+
+    const row = await screen.findByRole("group");
+
+    expect(row.className).toContain("border-l-primary");
+    // Colour and weight reach no screen reader, so the state is also text.
+    const state = screen.getByText("unreadIndicator");
+    // Hidden from sight, or the row says "Unread" twice over to everyone else.
+    expect(state.className).toContain("sr-only");
+    // Ahead of the message, so the state frames what follows rather than
+    // trailing it. DOCUMENT_POSITION_FOLLOWING means the message comes after.
+    const message = screen.getByText(/Notifications\.Job\.completed/);
+    expect(state.compareDocumentPosition(message)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("keeps the bar's width on a read row, in transparent, and says nothing", async () => {
+    // The width has to stay, or the message shifts sideways the moment a row
+    // is read under the reader's cursor.
+    renderInOpenDropdown(
+      createJobNotification({
+        isRead: true,
+        readAt: new Date("2026-06-18T09:30:00.000Z"),
+      }),
+      vi.fn(),
+    );
+
+    const row = await screen.findByRole("group");
+
+    expect(row.className).toContain("border-l-2");
+    expect(row.className).toContain("border-l-transparent");
+    expect(row.className).not.toContain("border-l-primary");
+    expect(screen.queryByText("unreadIndicator")).toBeNull();
+  });
+
+  it("carries both on an unread row with pending access actions", async () => {
+    // That branch renders its own row shape, so the signal has to be in both.
+    renderInOpenDropdown(createPendingVendorGrantNotification(), vi.fn());
+
+    const row = await screen.findByRole("group");
+
+    expect(row.className).toContain("border-l-primary");
+    expect(screen.getByText("unreadIndicator").className).toContain("sr-only");
   });
 });

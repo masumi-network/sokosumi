@@ -787,6 +787,7 @@
       "markReadTooltip": "Als gelesen markieren",
       "markUnread": "Benachrichtigung als ungelesen markieren: {message}",
       "markUnreadTooltip": "Als ungelesen markieren",
+      "unreadIndicator": "Ungelesen",
       "deleteError": "Benachrichtigung konnte nicht gelöscht werden",
       "clearAll": "Alle löschen",
       "clearAllError": "Benachrichtigungen konnten nicht gelöscht werden",
