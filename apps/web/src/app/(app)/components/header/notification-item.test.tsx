@@ -16,6 +16,7 @@ const approveMyVendorGrantMock = vi.fn();
 const approveOrganizationVendorGrantMock = vi.fn();
 const removeNotificationMock = vi.fn();
 const deleteNotificationMock = vi.fn();
+const markUnreadMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => {
@@ -37,6 +38,7 @@ vi.mock("@/contexts/notification-provider", () => ({
   useNotifications: () => ({
     removeNotification: removeNotificationMock,
     deleteNotification: deleteNotificationMock,
+    markUnread: markUnreadMock,
   }),
 }));
 
@@ -96,6 +98,8 @@ describe("NotificationItem vendor-grant Accept", () => {
     removeNotificationMock.mockReset();
     deleteNotificationMock.mockReset();
     deleteNotificationMock.mockResolvedValue(undefined);
+    markUnreadMock.mockReset();
+    markUnreadMock.mockResolvedValue(undefined);
     approveMyVendorGrantMock.mockResolvedValue({
       ok: true,
       value: { grantId: "grant-1" },
@@ -221,5 +225,76 @@ describe("NotificationItem delete", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("deleteError");
     });
+  });
+});
+
+describe("NotificationItem mark unread", () => {
+  beforeEach(() => {
+    markUnreadMock.mockReset();
+    markUnreadMock.mockResolvedValue(undefined);
+  });
+
+  it("offers the way back on a read row and puts it back when used", async () => {
+    const user = userEvent.setup();
+    const notification = createJobNotification({
+      id: "notification-read",
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
+    });
+
+    renderInOpenDropdown(notification, vi.fn());
+
+    const control = await screen.findByRole("menuitem", {
+      name: /markUnread/,
+    });
+    await user.click(control);
+
+    await waitFor(() =>
+      expect(markUnreadMock).toHaveBeenCalledWith("notification-read"),
+    );
+  });
+
+  it("offers it on a read row that carries pending access actions too", async () => {
+    // That branch renders its own row shape, so the control has to be placed
+    // in both or it goes missing on exactly the rows a reader lingers over.
+    const notification = createPendingVendorGrantNotification({
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
+    });
+
+    renderInOpenDropdown(notification, vi.fn());
+
+    expect(
+      await screen.findByRole("menuitem", { name: /markUnread/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("explains the control on hover, in words", async () => {
+    // An envelope is a guess until something says what it does. The tooltip
+    // is the only explanation a sighted mouse user gets.
+    const user = userEvent.setup();
+
+    renderInOpenDropdown(
+      createJobNotification({
+        isRead: true,
+        readAt: new Date("2026-06-18T09:30:00.000Z"),
+      }),
+      vi.fn(),
+    );
+
+    await user.hover(
+      await screen.findByRole("menuitem", { name: /markUnread/ }),
+    );
+
+    expect(await screen.findByText("markUnreadTooltip")).toBeInTheDocument();
+  });
+
+  it("does not offer it on a row that is already unread", async () => {
+    const notification = createJobNotification();
+
+    renderInOpenDropdown(notification, vi.fn());
+
+    await screen.findByRole("menuitem", { name: /delete/ });
+    expect(screen.queryByRole("menuitem", { name: /markUnread/ })).toBeNull();
   });
 });
