@@ -829,20 +829,20 @@ export class ContextPacketBuilder {
         scope: organizationId ? "organization" : "personal",
         plan: sanitizeText(
           billing.subscription?.plan ??
-            (billing.extra.enterprise ? "enterprise" : "free"),
+            (billing.enterprise ? "enterprise" : "free"),
           TEXT_LIMITS.billingLabel,
         ),
         subscriptionStatus: sanitizeText(
           billing.subscription?.status ?? null,
           TEXT_LIMITS.billingLabel,
         ),
-        availableCredits: finiteNonNegative(billing.credits.total),
-        bufferCredits: finiteNonNegative(billing.credits.buffer),
+        availableCredits: finiteNonNegative(billing.spendable),
+        bufferCredits: finiteNonNegative(billing.extra.credits.remaining),
         subscriptionRemainingCredits: finiteNonNegative(
           billing.subscription?.credits?.remaining,
         ),
         enterpriseRemainingCredits: finiteNonNegative(
-          billing.extra.enterprise?.credits.remaining,
+          billing.enterprise?.credits.remaining,
         ),
       },
       projects: projects.map((project) => ({

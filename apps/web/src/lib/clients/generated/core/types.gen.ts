@@ -856,7 +856,7 @@ export type AdminOrganizationOverviewDetail = {
         isEnterpriseContract: boolean;
     };
     /**
-     * Organization pool remaining credits for both billing modes
+     * Spendable organization remaining credits (non-enterprise org buckets plus enterprise pool when present)
      */
     totalCredits: number;
 };
@@ -3666,7 +3666,9 @@ export type CreditsResponseExtra = {
      */
     buckets: Array<CreditBucketBreakdown>;
     /**
-     * Enterprise contract shared pool for assigned members; null when not applicable
+     * Deprecated: credits and buckets for the enterprise pool when those buckets exist. Prefer top-level `enterprise`. Null when there are no enterprise pool buckets.
+     *
+     * @deprecated
      */
     enterprise: {
         credits: CreditsResponseExtraCredits & unknown;
@@ -22883,6 +22885,14 @@ export type GetUsersByIdCreditsResponses = {
     200: {
         data: {
             /**
+             * Which credit wallet this payload is for: the user's personal credits, or the organization credit pool
+             */
+            scope: 'organization' | 'personal';
+            /**
+             * Current available total for this wallet (same value as deprecated `credits.total`)
+             */
+            spendable: number;
+            /**
              * Active subscription and period credit breakdown for the billing context
              */
             subscription: {
@@ -22908,7 +22918,24 @@ export type GetUsersByIdCreditsResponses = {
             } | null;
             extra: CreditsResponseExtra;
             /**
-             * Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).
+             * Enterprise contract wallet for this organization context; null when the org is not on an enterprise contract
+             */
+            enterprise: {
+                activatedAt: Date;
+                endsAt: Date;
+                currentPeriodEnd: Date | null;
+                isConsumable: boolean;
+                monthlyCredits: number | null;
+                nextActivationAt: Date | null;
+                purchasedSeats: number;
+                credits: CreditsResponseExtraCredits & unknown;
+                /**
+                 * Enterprise pool buckets with remaining balance for the assigned member
+                 */
+                buckets: Array<CreditBucketBreakdown>;
+            } | null;
+            /**
+             * Deprecated: prefer `spendable`, top-level `subscription`, and `extra.credits`. `total` equals `spendable`; `buffer` is extra remaining with the enterprise pool stripped.
              *
              * @deprecated
              */
@@ -22935,7 +22962,7 @@ export type GetUsersByIdCreditsResponses = {
                     } | null;
                 } | null;
                 /**
-                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see extra.enterprise for pool)
+                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see top-level enterprise for the pool)
                  */
                 buffer: number;
                 /**
@@ -23565,6 +23592,14 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
     200: {
         data: {
             /**
+             * Which credit wallet this payload is for: the user's personal credits, or the organization credit pool
+             */
+            scope: 'organization' | 'personal';
+            /**
+             * Current available total for this wallet (same value as deprecated `credits.total`)
+             */
+            spendable: number;
+            /**
              * Active subscription and period credit breakdown for the billing context
              */
             subscription: {
@@ -23590,7 +23625,24 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
             } | null;
             extra: CreditsResponseExtra;
             /**
-             * Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).
+             * Enterprise contract wallet for this organization context; null when the org is not on an enterprise contract
+             */
+            enterprise: {
+                activatedAt: Date;
+                endsAt: Date;
+                currentPeriodEnd: Date | null;
+                isConsumable: boolean;
+                monthlyCredits: number | null;
+                nextActivationAt: Date | null;
+                purchasedSeats: number;
+                credits: CreditsResponseExtraCredits & unknown;
+                /**
+                 * Enterprise pool buckets with remaining balance for the assigned member
+                 */
+                buckets: Array<CreditBucketBreakdown>;
+            } | null;
+            /**
+             * Deprecated: prefer `spendable`, top-level `subscription`, and `extra.credits`. `total` equals `spendable`; `buffer` is extra remaining with the enterprise pool stripped.
              *
              * @deprecated
              */
@@ -23617,7 +23669,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                     } | null;
                 } | null;
                 /**
-                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see extra.enterprise for pool)
+                 * Current available credit balance excluding subscription-period and enterprise pool buckets (see top-level enterprise for the pool)
                  */
                 buffer: number;
                 /**

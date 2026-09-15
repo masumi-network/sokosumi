@@ -216,10 +216,12 @@ export async function buildAdminOrganizationOverviewDetail(
         )
       : null;
 
+  const nonEnterpriseRemaining = await resolveSelfServePoolRemainingCredits(
+    organization.id,
+    tx,
+  );
   const totalCredits =
-    billingPlan.mode === "enterprise_contract"
-      ? (enterpriseContract?.poolRemainingCredits ?? 0)
-      : await resolveSelfServePoolRemainingCredits(organization.id, tx);
+    nonEnterpriseRemaining + (enterpriseContract?.poolRemainingCredits ?? 0);
 
   return {
     organization: {
