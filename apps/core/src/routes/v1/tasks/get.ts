@@ -110,7 +110,7 @@ const taskVisibilityQuerySchema = z
   .openapi({
     param: { name: "visibility", in: "query" },
     description:
-      "Filter by task visibility. Human lists default omitted to PUBLIC. Coworker and Soko Bot lists keep their access helpers unless this is set. PRIVATE still respects the caller visibility predicate.",
+      "Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.",
     example: TaskVisibility.PUBLIC,
   });
 
@@ -303,7 +303,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
-          visibility: visibility ?? TaskVisibility.PUBLIC,
+          ...requestedVisibility,
           AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
           ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
           ...(assigneeId ? { assigneeId } : {}),

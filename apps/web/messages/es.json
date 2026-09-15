@@ -1585,7 +1585,6 @@
           "CANCELED": "Cancelado"
         },
         "visibilityLabel": "Visibilidad",
-        "visibilityPublic": "Público",
         "visibilityPrivate": "Privado"
       },
       "ProjectSwitcher": {

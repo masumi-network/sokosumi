@@ -173,7 +173,6 @@ const labels = {
     coworkerLabel: "Coworker",
     statusLabel: "Status",
     visibilityLabel: "Visibility",
-    visibilityPublic: "Public",
     visibilityPrivate: "Private",
     statusOptions: {} as Record<TaskStatus, string>,
   },
@@ -243,7 +242,7 @@ const EMPTY_FILTERS: TasksFilters = {
   assigneeUserId: null,
   status: null,
   projectId: null,
-  visibility: "PUBLIC",
+  visibility: null,
 };
 
 const EMPTY_JOBS_FILTERS: JobsListFilters = {

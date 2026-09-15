@@ -149,7 +149,7 @@ export const taskService = (() => {
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
-      visibility: params.visibility,
+      ...(params.visibility ? { visibility: params.visibility } : {}),
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       sort: params.sort,

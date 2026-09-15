@@ -208,7 +208,6 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           status: {
             in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
@@ -248,7 +247,6 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           name: {
             contains: "review",
@@ -270,7 +268,6 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
@@ -287,7 +284,6 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
@@ -308,7 +304,6 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId,
         },
@@ -327,7 +322,6 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId: null,
         },
@@ -516,18 +510,20 @@ describe("GET /tasks", () => {
       }),
     );
   });
-  it("defaults omitted visibility to PUBLIC", async () => {
+  it("omitted human visibility does not restrict to PUBLIC", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?scope=workspace");
 
     expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
+    const where = taskFindManyMock.mock.calls[0]?.[0]?.where;
+    expect(where).toEqual(
       expect.objectContaining({
-        where: expect.objectContaining({
-          visibility: TaskVisibility.PUBLIC,
-        }),
+        archivedAt: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        AND: [...HUMAN_TASK_VISIBILITY_AND],
       }),
     );
+    expect(where).not.toHaveProperty("visibility");
   });
 
   it("does not default coworker lists to PUBLIC visibility", async () => {
