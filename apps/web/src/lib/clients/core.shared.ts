@@ -42,6 +42,7 @@ import type {
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
+  MutateTaskScheduleOccurrenceRequest,
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
@@ -80,6 +81,7 @@ import type {
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
   PutCalendarTaskScheduleRequest,
+  PutCalendarTaskScheduleSourceRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
@@ -87,7 +89,6 @@ import type {
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
-  RescheduleTaskScheduleOccurrenceRequest,
   ResolveAdminTaskX402PaymentData,
   ResolveSokoBotDecisionRequest,
   SokoBotLabIngestRequest,
@@ -369,6 +370,7 @@ import {
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
+  putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
   putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -3417,6 +3419,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function putTaskCalendarSource(
+    id: string,
+    body: PutCalendarTaskScheduleSourceRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdCalendarSource({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to move Calendar task source",
+    );
+  }
+
   /**
    * Series removal has no body, so its idempotency identity and observed
    * revision travel as request metadata. A custom revision header avoids
@@ -3465,10 +3483,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function rescheduleTaskScheduleOccurrence(
+  async function mutateTaskScheduleOccurrence(
     id: string,
     occurrenceId: string,
-    body: RescheduleTaskScheduleOccurrenceRequest,
+    body: MutateTaskScheduleOccurrenceRequest,
   ) {
     return executeCoreOperation(
       getClient,
@@ -3479,7 +3497,7 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
           cache: "no-store",
         }),
-      "Failed to reschedule task schedule occurrence",
+      "Failed to mutate task schedule occurrence",
     );
   }
 
@@ -5173,9 +5191,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchTask,
     putJobShare,
     putTaskCalendarSchedule,
+    putTaskCalendarSource,
     putTaskSchedule,
     putTaskShare,
-    rescheduleTaskScheduleOccurrence,
+    mutateTaskScheduleOccurrence,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,
