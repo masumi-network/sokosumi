@@ -114,10 +114,10 @@ import SwiftUI
             userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
             loadOlderRepliesAutomatically()
           }
-          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
-            if userIsScrolling {
+          .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
+            if userIsScrolling || (oldEdges.hasSameSize(as: edges) && oldEdges.nearBottom != edges.nearBottom) {
               scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
-            } else if scrollIntent.followsLatest, edges.needsBottomAlignment {
+            } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment {
               Task { @MainActor in
                 guard scrollIntent.followsLatest, !userIsScrolling else { return }
                 proxy.scrollTo("thread-bottom", anchor: .bottom)

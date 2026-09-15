@@ -315,11 +315,11 @@ import SwiftUI
             proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
-        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
+        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
           if workspaces.timeline.historicalAnchor == nil,
-             userIsScrolling {
+             userIsScrolling || (oldEdges.hasSameSize(as: edges) && oldEdges.nearBottom != edges.nearBottom) {
             scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
-          } else if scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
+          } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
             Task { @MainActor in
               guard scrollIntent.followsLatest, !userIsScrolling, workspaces.timeline.historicalAnchor == nil else { return }
               proxy.scrollTo("timeline-bottom", anchor: .bottom)
