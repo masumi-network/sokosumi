@@ -38126,6 +38126,10 @@ export type GetTasksData = {
          */
         sort?: 'nextRunAt';
         /**
+         * Filter by task visibility. Human lists default omitted to PUBLIC. Coworker and Soko Bot lists keep their access helpers unless this is set. PRIVATE still respects the caller visibility predicate.
+         */
+        visibility?: 'PUBLIC' | 'PRIVATE';
+        /**
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;

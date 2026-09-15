@@ -208,6 +208,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           status: {
             in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
@@ -247,6 +248,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           name: {
             contains: "review",
@@ -268,6 +270,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
@@ -284,6 +287,7 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
@@ -304,6 +308,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId,
         },
@@ -322,6 +327,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          visibility: TaskVisibility.PUBLIC,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId: null,
         },
@@ -509,5 +515,117 @@ describe("GET /tasks", () => {
         }),
       }),
     );
+  });
+  it("defaults omitted visibility to PUBLIC", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?scope=workspace");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          visibility: TaskVisibility.PUBLIC,
+        }),
+      }),
+    );
+  });
+
+  it("does not default coworker lists to PUBLIC visibility", async () => {
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          AND: [COWORKER_SIBLING_LIST_FILTER],
+        },
+      }),
+    );
+  });
+
+  it("does not default soko bot lists to PUBLIC visibility", async () => {
+    const response = await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
+      "http://localhost/",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
+          status: { not: TaskStatus.DRAFT },
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
+        },
+      }),
+    );
+  });
+
+  it("applies explicit visibility on coworker lists", async () => {
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
+    const response = await app.request("http://localhost/?visibility=PRIVATE");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          visibility: TaskVisibility.PRIVATE,
+          AND: [COWORKER_SIBLING_LIST_FILTER],
+        },
+      }),
+    );
+  });
+
+  it("applies explicit visibility on soko bot lists", async () => {
+    const response = await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
+      "http://localhost/?visibility=PRIVATE",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
+          status: { not: TaskStatus.DRAFT },
+          visibility: TaskVisibility.PRIVATE,
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
+        },
+      }),
+    );
+  });
+
+  it("filters to PRIVATE when visibility=PRIVATE is provided", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?scope=workspace&visibility=PRIVATE",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          visibility: TaskVisibility.PRIVATE,
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
+        },
+      }),
+    );
+  });
+
+  it("rejects invalid visibility query values", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?visibility=NOT_A_VISIBILITY",
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 });

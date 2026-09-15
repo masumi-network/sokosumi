@@ -35,6 +35,9 @@ const labels = {
   scopeWorkspace: "Workspace",
   coworkerLabel: "Coworker",
   statusLabel: "Status",
+  visibilityLabel: "Visibility",
+  visibilityPublic: "Public",
+  visibilityPrivate: "Private",
   statusOptions: {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.QUEUED]: "Queued",
@@ -93,12 +96,13 @@ describe("TasksViewFilters", () => {
     expect(props.buttonLabel).toBe("Filters");
     expect(props.sections.map((section) => section.id)).toEqual([
       "scope",
+      "visibility",
       "coworker",
       "status",
     ]);
   });
 
-  it("only hides the scope section in personal context", () => {
+  it("hides scope and visibility sections in personal context", () => {
     const props = renderTasksViewFilters(null);
 
     expect(props.sections.map((section) => section.id)).toEqual([

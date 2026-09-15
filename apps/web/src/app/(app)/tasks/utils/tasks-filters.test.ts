@@ -13,8 +13,9 @@ import {
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
+  sanitizeTasksVisibilityInput,
 } from "@/app/tasks/utils/tasks-filters";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
@@ -29,6 +30,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -41,6 +43,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -52,6 +55,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -106,6 +110,7 @@ describe("tasks-filters", () => {
       assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
 
     expect(
@@ -117,6 +122,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
 
     expect(
@@ -128,6 +134,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -137,6 +144,7 @@ describe("tasks-filters", () => {
       assigneeUserId: "user-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
 
     expect(
@@ -150,6 +158,7 @@ describe("tasks-filters", () => {
       assigneeUserId: "user-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
 
     expect(
@@ -163,6 +172,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -184,6 +194,7 @@ describe("tasks-filters", () => {
       assigneeUserId: "user-1",
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -201,6 +212,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
 
     expect(
@@ -217,6 +229,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -228,6 +241,7 @@ describe("tasks-filters", () => {
           assigneeId: "coworker-1",
           status: TaskStatus.READY,
           projectId: PROJECT_ID,
+          visibility: TaskVisibility.PUBLIC,
         },
         "org-1",
       ),
@@ -238,6 +252,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -249,6 +264,7 @@ describe("tasks-filters", () => {
           assigneeId: ["coworker-1", "coworker-2"],
           status: [TaskStatus.READY, TaskStatus.FAILED],
           projectId: [PROJECT_ID, "44444444-4444-4444-8444-444444444444"],
+          visibility: TaskVisibility.PUBLIC,
         },
         "org-1",
       ),
@@ -259,6 +275,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -277,6 +294,7 @@ describe("tasks-filters", () => {
         assigneeUserId: null,
         status: TaskStatus.READY,
         projectId: PROJECT_ID,
+        visibility: TaskVisibility.PUBLIC,
       },
       "org-1",
     );
@@ -302,6 +320,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     });
   });
 
@@ -310,6 +329,7 @@ describe("tasks-filters", () => {
       assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+      visibility: TaskVisibility.PUBLIC,
     });
 
     const nextSearchParams = buildTasksFiltersSearchParams(
@@ -321,6 +341,7 @@ describe("tasks-filters", () => {
         assigneeUserId: null,
         status: null,
         projectId: null,
+        visibility: TaskVisibility.PUBLIC,
       },
       "org-1",
     );
@@ -339,11 +360,12 @@ describe("tasks-filters", () => {
           assigneeUserId: null,
           status: TaskStatus.READY,
           projectId: PROJECT_ID,
+          visibility: TaskVisibility.PUBLIC,
         },
         "org-1",
       ),
     ).toBe(
-      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333",
+      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333:PUBLIC",
     );
   });
 
@@ -361,6 +383,7 @@ describe("tasks-filters", () => {
           assigneeUserId: null,
           status: null,
           projectId: null,
+          visibility: TaskVisibility.PUBLIC,
         },
         "org-1",
       ),
@@ -376,6 +399,7 @@ describe("tasks-filters", () => {
           assigneeUserId: null,
           status: null,
           projectId: null,
+          visibility: TaskVisibility.PUBLIC,
         },
         "org-1",
       ),
@@ -391,6 +415,7 @@ describe("tasks-filters", () => {
           assigneeUserId: null,
           status: null,
           projectId: null,
+          visibility: TaskVisibility.PUBLIC,
         },
         null,
       ),
@@ -405,6 +430,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     };
 
     it("shows the indicator for org boards with owned scope", () => {
@@ -489,6 +515,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     };
     const ownedFilters = {
       scope: "owned" as const,
@@ -497,6 +524,7 @@ describe("tasks-filters", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: TaskVisibility.PUBLIC,
     };
 
     it("disallows drag when the URL implies owned but the server list was still workspace (coworker task)", () => {
@@ -531,6 +559,7 @@ describe("tasks-filters", () => {
         assigneeUserId: null,
         status: null,
         projectId: null,
+        visibility: TaskVisibility.PUBLIC,
       });
     });
 
@@ -552,6 +581,7 @@ describe("tasks-filters", () => {
         assigneeUserId: null,
         status: null,
         projectId: null,
+        visibility: TaskVisibility.PUBLIC,
       });
     });
 
@@ -565,6 +595,7 @@ describe("tasks-filters", () => {
           assigneeUserId: null,
           status: null,
           projectId: null,
+          visibility: TaskVisibility.PUBLIC,
         },
         "org-1",
       );
@@ -582,6 +613,7 @@ describe("tasks-filters", () => {
           assigneeUserId: "user-1",
           status: null,
           projectId: null,
+          visibility: TaskVisibility.PUBLIC,
         },
         "org-1",
       );
@@ -602,5 +634,85 @@ describe("tasks-filters", () => {
         ),
       ).toBe(true);
     });
+  });
+  describe("sanitizeTasksVisibilityInput", () => {
+    it("defaults to PUBLIC for non-strings, unknown labels, and personal context", () => {
+      expect(sanitizeTasksVisibilityInput(undefined, "org-1")).toBe(
+        TaskVisibility.PUBLIC,
+      );
+      expect(sanitizeTasksVisibilityInput("PRIVATE", null)).toBe(
+        TaskVisibility.PUBLIC,
+      );
+      expect(sanitizeTasksVisibilityInput("not-valid", "org-1")).toBe(
+        TaskVisibility.PUBLIC,
+      );
+    });
+
+    it("accepts PUBLIC and PRIVATE in organization context", () => {
+      expect(sanitizeTasksVisibilityInput("PUBLIC", "org-1")).toBe(
+        TaskVisibility.PUBLIC,
+      );
+      expect(sanitizeTasksVisibilityInput(" PRIVATE ", "org-1")).toBe(
+        TaskVisibility.PRIVATE,
+      );
+    });
+  });
+
+  it("omits PUBLIC visibility from the URL and writes PRIVATE", () => {
+    const publicParams = buildTasksFiltersSearchParams(
+      new URLSearchParams(),
+      {
+        scope: "workspace",
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        status: null,
+        projectId: null,
+        visibility: TaskVisibility.PUBLIC,
+      },
+      "org-1",
+    );
+    expect(publicParams.has("visibility")).toBe(false);
+
+    const privateParams = buildTasksFiltersSearchParams(
+      new URLSearchParams(),
+      {
+        scope: "workspace",
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        status: null,
+        projectId: null,
+        visibility: TaskVisibility.PRIVATE,
+      },
+      "org-1",
+    );
+    expect(privateParams.get("visibility")).toBe("PRIVATE");
+  });
+
+  it("parses visibility=PRIVATE and falls back invalid values to PUBLIC", () => {
+    expect(
+      parseTasksFilters({ visibility: "PRIVATE" }, "org-1").visibility,
+    ).toBe(TaskVisibility.PRIVATE);
+    expect(parseTasksFilters({ visibility: "NOPE" }, "org-1").visibility).toBe(
+      TaskVisibility.PUBLIC,
+    );
+  });
+
+  it("treats PRIVATE as an active non-scope filter", () => {
+    expect(
+      hasActiveTasksFilters(
+        {
+          scope: "workspace",
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+          status: null,
+          projectId: null,
+          visibility: TaskVisibility.PRIVATE,
+        },
+        "org-1",
+      ),
+    ).toBe(true);
   });
 });

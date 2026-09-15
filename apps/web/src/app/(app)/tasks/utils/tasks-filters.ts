@@ -1,5 +1,5 @@
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
@@ -12,6 +12,8 @@ export interface TasksFilters {
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
+  /** Organization boards only; product default is PUBLIC. */
+  visibility: TaskVisibility;
 }
 
 export interface ProjectFilterOption {
@@ -35,6 +37,7 @@ export interface TasksFiltersSearchParams {
   coworkerId?: TasksFilterQueryParam;
   status?: TasksFilterQueryParam;
   projectId?: TasksFilterQueryParam;
+  visibility?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -46,7 +49,10 @@ export const TASKS_FILTER_PARAM_KEYS = {
   coworkerId: "coworkerId",
   status: "status",
   projectId: "projectId",
+  visibility: "visibility",
 } as const;
+
+export const DEFAULT_TASKS_VISIBILITY = TaskVisibility.PUBLIC;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 const UUID_PATTERN =
@@ -103,6 +109,31 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 
   const normalized = raw.trim();
   return UUID_PATTERN.test(normalized) ? normalized : null;
+}
+
+/**
+ * Validates `visibility` from untrusted input (URL / server-action JSON).
+ * Personal workspaces always stay on PUBLIC (no Visibility filter).
+ * Invalid values fall back to PUBLIC.
+ */
+export function sanitizeTasksVisibilityInput(
+  raw: unknown,
+  activeOrganizationId: string | null,
+): TaskVisibility {
+  if (activeOrganizationId === null) {
+    return DEFAULT_TASKS_VISIBILITY;
+  }
+  if (typeof raw !== "string") {
+    return DEFAULT_TASKS_VISIBILITY;
+  }
+  const normalized = raw.trim();
+  if (
+    normalized === TaskVisibility.PUBLIC ||
+    normalized === TaskVisibility.PRIVATE
+  ) {
+    return normalized;
+  }
+  return DEFAULT_TASKS_VISIBILITY;
 }
 
 export function getDefaultTasksScope(
@@ -164,6 +195,8 @@ export function getTasksFiltersFromSearchParams(
       status: searchParams.get(TASKS_FILTER_PARAM_KEYS.status) ?? undefined,
       projectId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.projectId) ?? undefined,
+      visibility:
+        searchParams.get(TASKS_FILTER_PARAM_KEYS.visibility) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -235,6 +268,10 @@ export function parseTasksFilters(
   const projectId = sanitizeProjectIdFilterInput(
     normalizeOptionalString(searchParams.projectId),
   );
+  const visibility = sanitizeTasksVisibilityInput(
+    firstQueryString(searchParams.visibility),
+    activeOrganizationId,
+  );
 
   return {
     scope,
@@ -243,6 +280,7 @@ export function parseTasksFilters(
     assigneeUserId,
     status,
     projectId,
+    visibility,
   };
 }
 
@@ -296,6 +334,15 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.status);
   }
 
+  if (filters.visibility === DEFAULT_TASKS_VISIBILITY) {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.visibility);
+  } else {
+    nextSearchParams.set(
+      TASKS_FILTER_PARAM_KEYS.visibility,
+      filters.visibility,
+    );
+  }
+
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
 }
 
@@ -336,7 +383,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility}`;
 }
 
 /**
@@ -360,7 +407,8 @@ export function hasActiveTasksFilters(
     filters.assigneeId ||
       filters.assigneeSokoBotId ||
       filters.assigneeUserId ||
-      filters.status,
+      filters.status ||
+      filters.visibility === TaskVisibility.PRIVATE,
   );
 
   if (activeOrganizationId !== null) {
