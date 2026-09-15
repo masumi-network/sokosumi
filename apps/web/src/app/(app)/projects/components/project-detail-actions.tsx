@@ -76,6 +76,7 @@ export function ProjectDetailActions({
     operationId: string;
     reason?: string;
   } | null>(null);
+  const deleteAttemptRef = useRef<string | null>(null);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
@@ -93,9 +94,12 @@ export function ProjectDetailActions({
   }, [isClosingOrClosed]);
 
   function handleDeleteProject() {
+    const operationId = deleteAttemptRef.current ?? crypto.randomUUID();
+    deleteAttemptRef.current = operationId;
     startDeleteTransition(async () => {
       try {
-        await deleteProject({ projectId });
+        await deleteProject({ projectId, operationId });
+        deleteAttemptRef.current = null;
         setIsDeleteDialogOpen(false);
         router.replace("/projects");
         router.refresh();
@@ -251,6 +255,9 @@ export function ProjectDetailActions({
         onOpenChange={(open) => {
           if (open || !isDeleting) {
             setIsDeleteDialogOpen(open);
+            if (!open) {
+              deleteAttemptRef.current = null;
+            }
           }
         }}
       >

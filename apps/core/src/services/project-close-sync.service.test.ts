@@ -180,7 +180,10 @@ describe("project close sync", () => {
 
   it("releases owed rows by effective time, retires equality/later, and closes", async () => {
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: recurringTask.id })
+      .mockResolvedValueOnce({
+        id: recurringTask.id,
+        ownerId: recurringTask.ownerId,
+      })
       .mockResolvedValueOnce(recurringTask)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
@@ -214,6 +217,12 @@ describe("project close sync", () => {
       closed: 1,
       failed: 0,
     });
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      WORKSPACE_ID,
+      [PROJECT_ID],
+      recurringTask.ownerId,
+    );
     expect(retireTaskScheduleFutureOccurrencesMock).toHaveBeenCalledWith(
       expect.any(Object),
       recurringTask.id,
@@ -267,7 +276,10 @@ describe("project close sync", () => {
 
   it("keeps a series cursor fixed while a bounded owed batch remains", async () => {
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: recurringTask.id })
+      .mockResolvedValueOnce({
+        id: recurringTask.id,
+        ownerId: recurringTask.ownerId,
+      })
       .mockResolvedValueOnce(recurringTask);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
     taskScheduleOccurrenceFindFirstMock.mockResolvedValue({
@@ -317,7 +329,10 @@ describe("project close sync", () => {
       }),
     };
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: oneTimeTask.id })
+      .mockResolvedValueOnce({
+        id: oneTimeTask.id,
+        ownerId: oneTimeTask.ownerId,
+      })
       .mockResolvedValueOnce(oneTimeTask)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
@@ -370,7 +385,10 @@ describe("project close sync", () => {
       nextRunAt: CUTOFF,
     };
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: oneTimeTask.id })
+      .mockResolvedValueOnce({
+        id: oneTimeTask.id,
+        ownerId: oneTimeTask.ownerId,
+      })
       .mockResolvedValueOnce(oneTimeTask)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
@@ -394,7 +412,7 @@ describe("project close sync", () => {
   it("clears a human recurring Calendar rule without releasing clones", async () => {
     const humanTask = { ...recurringTask, status: TaskStatus.READY };
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: humanTask.id })
+      .mockResolvedValueOnce({ id: humanTask.id, ownerId: humanTask.ownerId })
       .mockResolvedValueOnce(humanTask)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
@@ -432,7 +450,7 @@ describe("project close sync", () => {
       }),
     };
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: humanTask.id })
+      .mockResolvedValueOnce({ id: humanTask.id, ownerId: humanTask.ownerId })
       .mockResolvedValueOnce(humanTask)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
@@ -479,7 +497,10 @@ describe("project close sync", () => {
         metadata,
       };
       taskFindFirstMock
-        .mockResolvedValueOnce({ id: terminalTask.id })
+        .mockResolvedValueOnce({
+          id: terminalTask.id,
+          ownerId: terminalTask.ownerId,
+        })
         .mockResolvedValueOnce(terminalTask)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null);
@@ -501,7 +522,10 @@ describe("project close sync", () => {
 
   it("backs off transient failures and exposes the failed series after exhaustion", async () => {
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: recurringTask.id })
+      .mockResolvedValueOnce({
+        id: recurringTask.id,
+        ownerId: recurringTask.ownerId,
+      })
       .mockResolvedValueOnce({ ...recurringTask, metadata: "invalid" });
     projectCloseOperationFindFirstMock.mockResolvedValue({
       attempts: 2,
@@ -533,7 +557,10 @@ describe("project close sync", () => {
 
   it("does not notify for a retryable close batch failure", async () => {
     taskFindFirstMock
-      .mockResolvedValueOnce({ id: recurringTask.id })
+      .mockResolvedValueOnce({
+        id: recurringTask.id,
+        ownerId: recurringTask.ownerId,
+      })
       .mockResolvedValueOnce({ ...recurringTask, metadata: "invalid" });
     projectCloseOperationFindFirstMock.mockResolvedValue({
       attempts: 0,

@@ -31687,11 +31687,15 @@ export type GetProjectsByIdNeedsAttentionResponse = GetProjectsByIdNeedsAttentio
 
 export type DeleteProjectsByIdData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Idempotency identity for this Project deletion
+         */
+        'idempotency-key': string;
     };
     path: {
         id: string;
@@ -31750,6 +31754,21 @@ export type DeleteProjectsByIdErrors = {
      * Conflict
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

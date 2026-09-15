@@ -219,6 +219,7 @@ describe("PUT /tasks/{id}/calendar-source", () => {
       expect.any(Object),
       WORKSPACE_ID,
       [OLD_PROJECT_ID, NEW_PROJECT_ID],
+      "user_123",
     );
     expect(taskUpdateMock).toHaveBeenCalledWith({
       where: { id: TASK_ID },
