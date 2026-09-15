@@ -37,9 +37,11 @@ export interface CreateNotificationResult {
 /**
  * Where this notification goes: the app, the OS banner, both, or neither.
  *
- * Exported for the chat fan-out, which writes a room's row itself once the
- * reader already has an unread one, and has to ask the same question before it
- * publishes.
+ * Exported for the two callers that have to ask before they write. The chat
+ * fan-out writes a room's row itself once the reader already has an unread
+ * one, and asks the same question before it publishes. The follow-up sync asks
+ * so it can skip a silenced reader rather than store a row nobody sees, and
+ * hands the answer back through `deliveryOverride` below.
  *
  * Read once, before the row is written, because the in-app answer is stored on
  * the row itself. That costs one read per notification on the bulk job and task
