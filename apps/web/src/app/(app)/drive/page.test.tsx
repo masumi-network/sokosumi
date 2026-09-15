@@ -33,6 +33,7 @@ const formatDateTime = () => "Aug 25, 2026";
 const formatNumber = (value: number) => String(value);
 
 vi.mock("next-intl", () => ({
+  useTimeZone: () => "UTC",
   useTranslations: () => translate,
   useFormatter: () => ({
     dateTime: formatDateTime,
