@@ -30,24 +30,7 @@ public extension WorkspaceState {
     let generation = timeline.generation
     let slug = selection?.workspace.organizationSlug
     do {
-      let message: Components.Schemas.ChatRoomMessage?
-      if let loaded = (displayedTranscript + displayedThreadReplies).first(where: { $0.id == messageId }) {
-        message = loaded
-      } else {
-        do {
-          message = try await ChatService().getMessage(client: client, roomId: roomId, messageId: messageId, organizationSlug: slug)
-        } catch {
-          if let failure = error as? ChatServiceError {
-            switch failure {
-            case .unauthorized: throw failure
-            case let .unprocessable(status, _) where status == 403 || status == 404: return false
-            default: break
-            }
-          }
-          // Web retries a transient lookup failure through the room context endpoint.
-          message = nil
-        }
-      }
+      let message = try await navigationMessage(messageId, roomId: roomId, client: client, organizationSlug: slug)
       guard messageNavigationRequest == request, initialThreadGeneration == thread.timeline.generation,
             generation == timeline.generation, !Task.isCancelled else { return false }
       if let message {
@@ -70,6 +53,25 @@ public extension WorkspaceState {
         }
       }
       throw error
+    }
+  }
+
+  /// A transient lookup may recover through the context endpoint; a refusal must not.
+  private func navigationMessage(_ id: String, roomId: String, client: Client, organizationSlug: String?) async throws -> Components.Schemas.ChatRoomMessage? {
+    if let loaded = (displayedTranscript + displayedThreadReplies).first(where: { $0.id == id }) {
+      return loaded
+    }
+    do {
+      return try await ChatService().getMessage(client: client, roomId: roomId, messageId: id, organizationSlug: organizationSlug)
+    } catch {
+      if let failure = error as? ChatServiceError {
+        switch failure {
+        case .unauthorized: throw failure
+        case let .unprocessable(status, _) where status == 403 || status == 404: throw failure
+        default: break
+        }
+      }
+      return nil
     }
   }
 
