@@ -25,6 +25,10 @@ import type {
   PatchNotificationsReadAllErrors,
   PatchNotificationsReadAllResponse,
   PatchNotificationsReadAllResponses,
+  PatchNotificationsReadData,
+  PatchNotificationsReadErrors,
+  PatchNotificationsReadResponse,
+  PatchNotificationsReadResponses,
 } from "@/lib/clients/generated/core/types.gen";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
@@ -163,6 +167,25 @@ export const notificationsBrowserClient = {
           responseTransformer: transformMetaTimestampResponse,
         }),
       "Failed to mark all notifications as read",
+    );
+  },
+
+  async patchNotificationsRead(
+    body: PatchNotificationsReadData["body"],
+  ): Promise<PatchNotificationsReadResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.patch<
+          PatchNotificationsReadResponses,
+          PatchNotificationsReadErrors
+        >({
+          url: "/notifications/read",
+          body,
+          cache: "no-store",
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to mark notifications as read",
     );
   },
 

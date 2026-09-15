@@ -67,6 +67,8 @@ interface NotificationContextValue {
   markRead: (id: string) => Promise<void>;
   /** Put one row back to unread, the reader's way out of a read they did not mean. */
   markUnread: (id: string) => Promise<void>;
+  /** Mark several rows read in one write, for a surface the reader has seen. */
+  markManyRead: (ids: string[]) => Promise<void>;
   markAllRead: () => Promise<void>;
   /** Delete one notification for good, in Core and in local feed state. */
   deleteNotification: (
@@ -106,6 +108,7 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   unreadCount: 0,
   markRead: noopAsync,
   markUnread: noopAsync,
+  markManyRead: noopAsync,
   markAllRead: noopAsync,
   deleteNotification: noopAsync,
   clearNotifications: noopAsync,
@@ -451,6 +454,38 @@ export function NotificationProvider({
     [dispatch, fetchNotifications],
   );
 
+  const markManyRead = useCallback(
+    async (ids: string[]) => {
+      // Paint every row before the round-trip, for the same reason the
+      // single-row path does: the reader must not watch the list settle.
+      // Rows already read, and rows this list no longer holds, are dropped by
+      // the reducer, so the badge cannot go below what the server will report.
+      const unreadIds = ids.filter((id) =>
+        confirmedState.current.notifications.some(
+          (notification) => notification.id === id && !notification.isRead,
+        ),
+      );
+
+      if (unreadIds.length === 0) return;
+
+      for (const id of unreadIds) {
+        dispatch({ type: "mark_read_optimistic", id });
+        dismissNotificationToast(id);
+      }
+
+      try {
+        await notificationsBrowserClient.patchNotificationsRead({
+          ids: unreadIds,
+        });
+      } catch (error) {
+        console.error("Failed to mark notifications as read:", error);
+        void fetchNotifications();
+        throw error;
+      }
+    },
+    [dispatch, fetchNotifications],
+  );
+
   const deleteNotification = useCallback(
     async (id: string, options?: { isRead: boolean }) => {
       if (
@@ -620,6 +655,7 @@ export function NotificationProvider({
     unreadCount: state.unreadCount,
     markRead,
     markUnread,
+    markManyRead,
     markAllRead,
     deleteNotification,
     clearNotifications,

@@ -6,6 +6,11 @@ import { HeaderNotificationBell } from "@/app/components/header/header-notificat
 
 const useNotificationsMock = vi.fn();
 const useAccountNoticeMock = vi.fn();
+const markManyReadMock = vi.fn();
+
+function notificationRow(id: string, isRead: boolean) {
+  return { id, isRead };
+}
 
 vi.mock("next-intl", () => ({
   useTranslations: () => {
@@ -64,7 +69,13 @@ describe("HeaderNotificationBell", () => {
   beforeEach(() => {
     useNotificationsMock.mockReset();
     useAccountNoticeMock.mockReset();
-    useNotificationsMock.mockReturnValue({ unreadCount: 0 });
+    markManyReadMock.mockReset();
+    markManyReadMock.mockResolvedValue(undefined);
+    useNotificationsMock.mockReturnValue({
+      unreadCount: 0,
+      notifications: [],
+      markManyRead: markManyReadMock,
+    });
     useAccountNoticeMock.mockReturnValue({ notice: null });
   });
 
@@ -83,7 +94,11 @@ describe("HeaderNotificationBell", () => {
   });
 
   it("shows a capped count badge when there are unread notifications", () => {
-    useNotificationsMock.mockReturnValue({ unreadCount: 12 });
+    useNotificationsMock.mockReturnValue({
+      unreadCount: 12,
+      notifications: [],
+      markManyRead: markManyReadMock,
+    });
 
     render(<HeaderNotificationBell />);
 
@@ -123,10 +138,62 @@ describe("HeaderNotificationBell", () => {
       screen.getByTestId("notification-dropdown-content"),
     ).toBeInTheDocument();
   });
+
+  it("marks the rows it showed read when the panel closes", async () => {
+    useNotificationsMock.mockReturnValue({
+      unreadCount: 2,
+      notifications: [
+        notificationRow("notif_unread_1", false),
+        notificationRow("notif_already_read", true),
+        notificationRow("notif_unread_2", false),
+      ],
+      markManyRead: markManyReadMock,
+    });
+    const user = userEvent.setup();
+    render(<HeaderNotificationBell />);
+
+    await user.click(
+      screen.getByRole("button", { name: "2 unread notifications" }),
+    );
+    expect(markManyReadMock).not.toHaveBeenCalled();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(markManyReadMock).toHaveBeenCalledWith([
+        "notif_unread_1",
+        "notif_unread_2",
+      ]),
+    );
+  });
+
+  it("does not write when the open panel held nothing unread", async () => {
+    useNotificationsMock.mockReturnValue({
+      unreadCount: 0,
+      notifications: [notificationRow("notif_already_read", true)],
+      markManyRead: markManyReadMock,
+    });
+    const user = userEvent.setup();
+    render(<HeaderNotificationBell />);
+
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+    await user.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId("notification-dropdown-content"),
+      ).not.toBeInTheDocument(),
+    );
+    expect(markManyReadMock).toHaveBeenCalledWith([]);
+  });
 });
 
 it("restores focus to the bell after canceling clear", async () => {
-  useNotificationsMock.mockReturnValue({ unreadCount: 0 });
+  useNotificationsMock.mockReturnValue({
+    unreadCount: 0,
+    notifications: [],
+    markManyRead: markManyReadMock,
+  });
   useAccountNoticeMock.mockReturnValue({ notice: null });
   const user = userEvent.setup();
   render(<HeaderNotificationBell />);
