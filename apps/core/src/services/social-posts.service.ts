@@ -1,10 +1,19 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
+  isVercelBlobPublicHost,
+  SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  socialPostMediaKindForMime,
+  type SocialPostMediaRef,
+  type SocialPostMediaValidationReason,
+  type SocialPostProvider,
+  validateSocialPostMedia,
 } from "@sokosumi/utils";
 
+import { assertDriveStoreMatchesWorkspace } from "@/helpers/drive-file-access";
+import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import {
   badRequest,
   conflict,
@@ -15,6 +24,7 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 
@@ -87,6 +97,7 @@ export interface SocialPostSummary {
   projectId: string;
   provider: string;
   text: string;
+  media: SocialPostMediaRef[];
   status: SocialPostStatus;
   scheduledAt: Date | null;
   timezone: string | null;
@@ -132,18 +143,29 @@ export interface GetSocialPostInput extends ProjectScope {
   postId: string;
 }
 
-export interface CreateSocialPostInput extends ProjectScope {
+/** Active workspace owner: `null` for a personal workspace. Binds media refs to that Drive. */
+interface WorkspaceOwnerScope {
+  organizationId: string | null;
+}
+
+export interface CreateSocialPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
   userId: string;
   text: string;
+  media?: SocialPostMediaRef[];
   socialConnectionId?: string;
   scheduledAt?: Date;
   timezone?: string;
 }
 
-export interface UpdateSocialPostInput extends ProjectScope {
+export interface UpdateSocialPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
   userId: string;
   postId: string;
   text?: string;
+  media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
 }
@@ -182,6 +204,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     projectId: record.projectId,
     provider: record.provider,
     text: record.text,
+    media: parseSocialPostMedia(record.media, record.id),
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -238,14 +261,26 @@ async function requireScopedPost(
   return post;
 }
 
-function requireTextWithinLimit(text: string, provider: string): string {
-  const trimmed = text.trim();
-  const limit =
-    SOCIAL_POST_TEXT_LIMITS[provider as keyof typeof SOCIAL_POST_TEXT_LIMITS];
-  if (limit === undefined) {
+function isSocialPostProvider(value: string): value is SocialPostProvider {
+  return value in SOCIAL_POST_TEXT_LIMITS;
+}
+
+function requireProvider(provider: string): SocialPostProvider {
+  if (!isSocialPostProvider(provider)) {
     throw badRequest(`Unsupported social provider: ${provider}`);
   }
-  if (trimmed.length === 0) {
+  return provider;
+}
+
+/** Text is optional once media is attached; the post still needs one of the two. */
+function requireTextWithinLimit(
+  text: string,
+  provider: string,
+  hasMedia: boolean,
+): string {
+  const trimmed = text.trim();
+  const limit = SOCIAL_POST_TEXT_LIMITS[requireProvider(provider)];
+  if (trimmed.length === 0 && !hasMedia) {
     throw badRequest("Text is required");
   }
   if (trimmed.length > limit) {
@@ -254,6 +289,100 @@ function requireTextWithinLimit(text: string, provider: string): string {
     );
   }
   return trimmed;
+}
+
+interface NormalizeMediaInput extends WorkspaceOwnerScope {
+  userId: string;
+  provider: string;
+  media: readonly SocialPostMediaRef[];
+}
+
+function providerLabel(provider: SocialPostProvider): string {
+  return provider === "x" ? "X" : provider;
+}
+
+/** Human-readable reason for a media rule violation, keyed by the shared reason. */
+function mediaValidationMessage(
+  provider: SocialPostProvider,
+  reason: SocialPostMediaValidationReason,
+): string {
+  const label = providerLabel(provider);
+  switch (reason) {
+    case "too_many_images":
+      return `${label} allows at most ${SOCIAL_POST_MEDIA_RULES[provider].maxImages} images per post`;
+    case "too_many_gifs":
+      return `${label} allows one GIF per post`;
+    case "too_many_videos":
+      return `${label} allows one video per post`;
+    case "mixed_media":
+      return `${label} does not allow a post that mixes images, a GIF, or a video`;
+    case "unsupported_type":
+      return `${label} does not accept this file type`;
+    case "too_large":
+      return `A file is too large for ${label}`;
+  }
+}
+
+function requireDriveFileUrl(ref: SocialPostMediaRef): string {
+  let url: URL;
+  let decodedPathname: string;
+  try {
+    url = new URL(ref.fileUrl);
+    decodedPathname = decodeURIComponent(url.pathname);
+  } catch {
+    throw badRequest(`Media file "${ref.name}" has an invalid URL`);
+  }
+  if (
+    url.protocol !== "https:" ||
+    !isVercelBlobPublicHost(url.hostname) ||
+    decodedPathname !== `/${ref.pathname}`
+  ) {
+    throw badRequest(`Media file "${ref.name}" is not a Drive file`);
+  }
+  return url.toString();
+}
+
+/**
+ * Pins every ref to a Drive file in the active workspace store, checks its
+ * declared type, and applies the provider's media rules. Returns the refs as
+ * they will be stored.
+ */
+function normalizeSocialPostMedia(
+  input: NormalizeMediaInput,
+): SocialPostMediaRef[] {
+  const provider = requireProvider(input.provider);
+  const media = input.media.map((ref): SocialPostMediaRef => {
+    const { scope, ownerId } = parseDriveFilePathname(
+      ref.pathname,
+      input.userId,
+    );
+    assertDriveStoreMatchesWorkspace(input, scope, ownerId);
+    const fileUrl = requireDriveFileUrl(ref);
+    const mimeType = ref.mimeType.trim().toLowerCase();
+    if (socialPostMediaKindForMime(mimeType) !== ref.kind) {
+      throw badRequest(
+        `Media file "${ref.name}" is not a file type ${providerLabel(provider)} accepts`,
+      );
+    }
+    return {
+      pathname: ref.pathname,
+      fileUrl,
+      name: ref.name,
+      size: ref.size,
+      mimeType,
+      kind: ref.kind,
+    };
+  });
+  const validation = validateSocialPostMedia(provider, media);
+  if (!validation.ok) {
+    throw badRequest(mediaValidationMessage(provider, validation.reason));
+  }
+  return media;
+}
+
+/** Prisma Json input wants a plain JSON value; refs are plain objects already. */
+function mediaJson(media: SocialPostMediaRef[]): Prisma.InputJsonValue {
+  return media.map((ref) => ({ ...ref }));
 }
 
 function requireFutureScheduledAt(scheduledAt: Date): void {
@@ -397,7 +526,13 @@ export async function createSocialPost(
   }
 
   const provider = connection?.provider ?? "x";
-  const text = requireTextWithinLimit(input.text, provider);
+  const media = normalizeSocialPostMedia({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    provider,
+    media: input.media ?? [],
+  });
+  const text = requireTextWithinLimit(input.text, provider, media.length > 0);
   const scheduled = input.scheduledAt !== undefined;
 
   const post = await prisma.socialPost.create({
@@ -407,6 +542,7 @@ export async function createSocialPost(
       socialConnectionId: connection?.id ?? null,
       provider,
       text,
+      media: mediaJson(media),
       status: scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
@@ -429,8 +565,22 @@ export async function updateSocialPost(
   requireRevision(post, input.revision);
 
   const data: Prisma.SocialPostUncheckedUpdateManyInput = {};
-  if (input.text !== undefined) {
-    data.text = requireTextWithinLimit(input.text, post.provider);
+  let media = parseSocialPostMedia(post.media, post.id);
+  if (input.media !== undefined) {
+    media = normalizeSocialPostMedia({
+      userId: input.userId,
+      organizationId: input.organizationId,
+      provider: post.provider,
+      media: input.media,
+    });
+    data.media = mediaJson(media);
+  }
+  if (input.text !== undefined || input.media !== undefined) {
+    data.text = requireTextWithinLimit(
+      input.text ?? post.text,
+      post.provider,
+      media.length > 0,
+    );
   }
 
   if (input.socialConnectionId === null) {
@@ -470,6 +620,17 @@ export async function scheduleSocialPost(
   }
   requireRevision(post, input.revision);
   requireFutureScheduledAt(input.scheduledAt);
+  const media = parseSocialPostMedia(post.media, post.id);
+  const validation = validateSocialPostMedia(
+    requireProvider(post.provider),
+    media,
+  );
+  if (!validation.ok) {
+    throw badRequest(
+      mediaValidationMessage(requireProvider(post.provider), validation.reason),
+    );
+  }
+  requireTextWithinLimit(post.text, post.provider, media.length > 0);
   const connection = await requireActiveProjectConnection(
     input.projectId,
     input.socialConnectionId ?? post.socialConnectionId,

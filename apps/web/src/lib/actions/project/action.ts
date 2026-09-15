@@ -1,6 +1,6 @@
 "use server";
 
-import { normalizeWebsiteUrl } from "@sokosumi/utils";
+import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
 
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
@@ -27,6 +27,7 @@ import type {
   ProjectContextMd,
   ProjectSocialConnection,
   SocialPost,
+  SocialPostMediaRef,
 } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
@@ -93,6 +94,7 @@ interface DisconnectProjectSocialConnectionParameters
 interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   text: string;
+  media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
   scheduledAt?: string | null;
@@ -103,6 +105,7 @@ interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
   text?: string;
+  media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
 }
@@ -518,21 +521,49 @@ const optionalTimezone = z.string().trim().min(1).nullish();
 const isoTimestamp = z.iso.datetime({ offset: true });
 const revisionSchema = z.number().int().nonnegative();
 
-const createProjectSocialPostSchema = z.object({
-  projectId: trimmedId,
-  text: z.string().min(1),
-  socialConnectionId: optionalConnectionId,
-  scheduledAt: isoTimestamp.nullish(),
-  timezone: optionalTimezone,
+const socialPostMediaRefSchema = z.object({
+  pathname: z.string().min(1),
+  fileUrl: z.string().url(),
+  name: z.string().min(1),
+  size: z.number().int().nonnegative(),
+  mimeType: z.string().min(1),
+  kind: z.enum(["image", "gif", "video"]),
 });
 
-const updateProjectSocialPostSchema = z.object({
-  projectId: trimmedId,
-  postId: trimmedId,
-  text: z.string().min(1).optional(),
-  socialConnectionId: optionalConnectionId,
-  revision: revisionSchema,
-});
+const socialPostMediaSchema = z
+  .array(socialPostMediaRefSchema)
+  .max(SOCIAL_POST_MEDIA_RULES.x.maxImages);
+
+const createProjectSocialPostSchema = z
+  .object({
+    projectId: trimmedId,
+    text: z.string(),
+    media: socialPostMediaSchema.optional(),
+    socialConnectionId: optionalConnectionId,
+    scheduledAt: isoTimestamp.nullish(),
+    timezone: optionalTimezone,
+  })
+  .refine(
+    (value) => value.text.trim().length > 0 || (value.media?.length ?? 0) > 0,
+    { message: "Text or media is required" },
+  );
+
+const updateProjectSocialPostSchema = z
+  .object({
+    projectId: trimmedId,
+    postId: trimmedId,
+    text: z.string().optional(),
+    media: socialPostMediaSchema.optional(),
+    socialConnectionId: optionalConnectionId,
+    revision: revisionSchema,
+  })
+  .refine(
+    (value) =>
+      value.text === undefined ||
+      value.text.trim().length > 0 ||
+      (value.media?.length ?? 0) > 0,
+    { message: "Text or media is required" },
+  );
 
 const scheduleProjectSocialPostSchema = z.object({
   projectId: trimmedId,
@@ -569,44 +600,59 @@ function badSocialPostInput(
 export const createProjectSocialPost = withSession<
   CreateProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, text, socialConnectionId, scheduledAt, timezone }) => {
-  const parsed = createProjectSocialPostSchema.safeParse({
+>(
+  async ({
     projectId,
     text,
+    media,
     socialConnectionId,
     scheduledAt,
     timezone,
-  });
-  if (!parsed.success) {
-    return badSocialPostInput(parsed);
-  }
-
-  try {
-    const post = await projectService.createSocialPost(parsed.data.projectId, {
-      text: parsed.data.text,
-      ...(parsed.data.socialConnectionId
-        ? { socialConnectionId: parsed.data.socialConnectionId }
-        : {}),
-      ...(parsed.data.scheduledAt
-        ? { scheduledAt: new Date(parsed.data.scheduledAt) }
-        : {}),
-      ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+  }) => {
+    const parsed = createProjectSocialPostSchema.safeParse({
+      projectId,
+      text,
+      media,
+      socialConnectionId,
+      scheduledAt,
+      timezone,
     });
-    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
-    return toActionResult(ok(post));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
+    if (!parsed.success) {
+      return badSocialPostInput(parsed);
+    }
+
+    try {
+      const post = await projectService.createSocialPost(
+        parsed.data.projectId,
+        {
+          text: parsed.data.text,
+          ...(parsed.data.media ? { media: parsed.data.media } : {}),
+          ...(parsed.data.socialConnectionId
+            ? { socialConnectionId: parsed.data.socialConnectionId }
+            : {}),
+          ...(parsed.data.scheduledAt
+            ? { scheduledAt: new Date(parsed.data.scheduledAt) }
+            : {}),
+          ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+        },
+      );
+      revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+      return toActionResult(ok(post));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
 
 export const updateProjectSocialPost = withSession<
   UpdateProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, postId, text, socialConnectionId, revision }) => {
+>(async ({ projectId, postId, text, media, socialConnectionId, revision }) => {
   const parsed = updateProjectSocialPostSchema.safeParse({
     projectId,
     postId,
     text,
+    media,
     socialConnectionId,
     revision,
   });
@@ -620,6 +666,9 @@ export const updateProjectSocialPost = withSession<
       parsed.data.postId,
       {
         ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
+        ...(parsed.data.media !== undefined
+          ? { media: parsed.data.media }
+          : {}),
         ...(parsed.data.socialConnectionId !== undefined
           ? { socialConnectionId: parsed.data.socialConnectionId }
           : {}),
