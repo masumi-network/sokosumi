@@ -34,14 +34,14 @@ export async function AgentDetailReviews({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {t("customerReviews")}
       </h2>
       {hasRatings ? (
         <>
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
             <div className="space-y-4">
-              <div className="bg-muted/20 border-border/50 space-y-3 rounded-lg border p-3">
+              <div className="bg-card-background border-border space-y-3 rounded-lg border p-3">
                 <StarRating
                   averageRating={ratingStats.average ?? 0}
                   totalRatings={ratingStats.total}
@@ -58,7 +58,7 @@ export async function AgentDetailReviews({
             </div>
           </div>
           {canRate ? (
-            <div className="border-border/50 rounded-lg border p-3">
+            <div className="border-border rounded-lg border p-3">
               <AgentRatingForm
                 agentId={agentId}
                 existingRating={existingRating?.rating ?? null}
@@ -74,7 +74,7 @@ export async function AgentDetailReviews({
               <p className="text-muted-foreground mb-4 text-center text-sm">
                 {t("beFirstToReview")}
               </p>
-              <div className="border-border/50 rounded-lg border p-3">
+              <div className="border-border rounded-lg border p-3">
                 <AgentRatingForm
                   agentId={agentId}
                   existingRating={existingRating?.rating ?? null}

@@ -45,7 +45,7 @@ export function ConnectionsTabs({
       }}
       className="flex flex-col gap-5"
     >
-      <TabsList className="bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1">
+      <TabsList className="bg-card-background flex w-full items-center gap-1 self-start rounded-lg p-1">
         <TabsTrigger value="connected-apps" className={TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.connectedApps")}
         </TabsTrigger>

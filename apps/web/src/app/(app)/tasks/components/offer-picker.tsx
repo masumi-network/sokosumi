@@ -27,10 +27,10 @@ interface OfferPickerProps {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/40 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 // Mirrors OfferCard's outer shell so "Start from scratch" is the exact same size.
 const CARD_SHELL =
-  "group bg-card border-border/60 flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]";
+  "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]";
 
 /** Ready-to-run task cards (reusing the agents-page OfferCard) plus an
  *  equal-sized "Start from scratch" card. Each task card has a preview button to
@@ -56,8 +56,8 @@ export function OfferPicker({
           onClick={onStartFromScratch}
           className={cn(CARD_SHELL, FOCUS_RING)}
         >
-          <div className="bg-muted/40 relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b">
-            <span className="bg-background/90 text-muted-foreground group-hover:text-primary flex size-10 items-center justify-center rounded-full shadow-sm transition-colors">
+          <div className="bg-card-background relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b">
+            <span className="bg-surface-glass text-muted-foreground group-hover:text-primary flex size-10 items-center justify-center rounded-full shadow-sm transition-colors">
               <PenLine className="size-5" />
             </span>
           </div>
@@ -88,7 +88,7 @@ export function OfferPicker({
               title={labels.previewExample}
               onClick={() => onPreviewOffer(offer)}
               className={cn(
-                "bg-background/90 text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors",
+                "bg-surface-glass text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors",
                 FOCUS_RING,
               )}
             >

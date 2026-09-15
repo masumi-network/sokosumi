@@ -100,14 +100,14 @@ export function SokoBotMessageFooter({ metadata }: { metadata: unknown }) {
   // The footer always has something to show now: at minimum, the thumbs.
 
   const chip =
-    "border-border bg-card hover:border-foreground/30 hover:bg-muted/40 inline-flex max-w-full items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
+    "border-border bg-card hover:border-tertiary hover:bg-card-background inline-flex max-w-full items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
 
   return (
     <div className="mt-2 flex flex-wrap gap-2">
       {pending > 0 ? (
         <Link
           href={`${SOKO_BOT_ROUTE}?turn=${encodeURIComponent(info.turn_id)}`}
-          className={`${chip} border-primary/40 text-foreground`}
+          className={`${chip} border-primary-tertiary text-foreground`}
         >
           <ShieldCheck aria-hidden className="text-primary size-3.5" />
           <span className="font-medium">

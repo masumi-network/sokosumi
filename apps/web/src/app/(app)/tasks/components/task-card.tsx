@@ -48,7 +48,7 @@ export function TaskCard({
             "hover:border-primary hover:shadow-sm",
             "active:scale-[0.99]",
             dragHandleProps?.isDragging &&
-              "border-primary/30 ring-primary/10 shadow-lg ring-2",
+              "border-primary-tertiary ring-ring-halo shadow-lg ring-2",
           )}
         >
           <div className="space-y-2.5">
@@ -67,7 +67,7 @@ export function TaskCard({
 
             {!compact && (task.descriptionPlain || task.description) ? (
               <div className="space-y-1.5">
-                <p className="text-muted-foreground/80 line-clamp-2 text-xs leading-relaxed break-all">
+                <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed break-all">
                   {task.descriptionPlain ?? task.description}
                 </p>
               </div>

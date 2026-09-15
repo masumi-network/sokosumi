@@ -291,7 +291,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
       {selectedTargetId ? (
         <section
           aria-labelledby="invoice-recipient-billing"
-          className="bg-muted/30 space-y-4 rounded-lg border p-4"
+          className="bg-card-background space-y-4 rounded-lg border p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">

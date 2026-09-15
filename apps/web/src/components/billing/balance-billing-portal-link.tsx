@@ -22,10 +22,10 @@ export function BalanceBillingPortalLink({
     <Button
       asChild
       variant="ghost"
-      className="group h-auto w-full justify-start gap-3 rounded-lg p-3 text-left hover:bg-accent/60 has-[>svg]:px-3"
+      className="group h-auto w-full justify-start gap-3 rounded-lg p-3 text-left hover:bg-card-background has-[>svg]:px-3"
     >
       <a href={href} target="_blank" rel="noopener noreferrer">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-quinary text-primary">
           <ReceiptText className="size-5" />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">

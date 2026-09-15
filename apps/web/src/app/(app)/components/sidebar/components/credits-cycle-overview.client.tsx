@@ -83,7 +83,7 @@ export function CreditsCycleOverview({
           </p>
         ) : null}
         <Progress
-          className="bg-primary/20 h-1.5"
+          className="bg-primary-quaternary h-1.5"
           value={remainingPercent}
           aria-label={tCredit("creditsAllowanceProgressAria")}
         />
