@@ -28,6 +28,7 @@ const {
   lockCalendarScopeMock,
   lockTaskRowsMock,
   findNextReleaseableOccurrenceMock,
+  replaceTaskSchedulePlannedOccurrencesMock,
   occurrenceFindFirstMock,
   occurrenceFindUniqueOrThrowMock,
   occurrenceUpdateMock,
@@ -41,6 +42,7 @@ const {
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   findNextReleaseableOccurrenceMock: vi.fn(),
+  replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
   occurrenceFindFirstMock: vi.fn(),
   occurrenceFindUniqueOrThrowMock: vi.fn(),
   occurrenceUpdateMock: vi.fn(),
@@ -61,6 +63,8 @@ vi.mock("@/helpers/calendar-locks", () => ({
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   CALENDAR_OCCURRENCE_HORIZON_MS: 90 * 24 * 60 * 60 * 1000,
   findNextReleaseableOccurrence: findNextReleaseableOccurrenceMock,
+  replaceTaskSchedulePlannedOccurrences:
+    replaceTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/lib/db/transaction", () => ({
@@ -174,6 +178,7 @@ function body(overrides: Record<string, unknown> = {}) {
   return {
     operationId: OPERATION_ID,
     expectedScheduleRevision: SCHEDULE_REVISION,
+    action: "reschedule",
     scheduledAt: TARGET.toISOString(),
     ...overrides,
   };
@@ -262,7 +267,10 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
 
     expect(occurrenceUpdateMock).toHaveBeenCalledWith({
       where: { id: OCCURRENCE_ID },
-      data: { effectiveScheduledAt: TARGET },
+      data: {
+        effectiveScheduledAt: TARGET,
+        actorUserId: "user_123",
+      },
       include: {
         releasedTask: {
           select: { id: true, name: true, status: true, archivedAt: true },
@@ -281,9 +289,200 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
         taskId: TASK_ID,
         scheduleKind: "OCCURRENCE_RESCHEDULED",
         scheduleOperationId: OPERATION_ID,
+        schedulePayload: expect.objectContaining({
+          response: expect.objectContaining({
+            scheduleRevision: SCHEDULE_REVISION + 1,
+            occurrence: expect.objectContaining({
+              state: "PLANNED",
+              effectiveScheduledAt: TARGET.toISOString(),
+            }),
+          }),
+        }),
       }),
       select: { id: true },
     });
+  });
+
+  it("skips a future planned occurrence and advances to the next release", async () => {
+    const nextRunAt = new Date("2026-06-13T09:00:00.000Z");
+    occurrenceUpdateMock.mockResolvedValue(
+      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+    );
+    findNextReleaseableOccurrenceMock.mockResolvedValue({
+      id: "33333333-3333-7333-8333-333333333332",
+      epochId: EPOCH_ID,
+      originalScheduledAt: nextRunAt,
+      effectiveScheduledAt: nextRunAt,
+    });
+
+    const response = await createApp().request(
+      ...request(body({ action: "skip", scheduledAt: undefined })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      ((await response.json()) as { data: { occurrence: { state: string } } })
+        .data.occurrence.state,
+    ).toBe("SKIPPED");
+    expect(occurrenceUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: OCCURRENCE_ID },
+        data: expect.objectContaining({
+          state: TaskScheduleOccurrenceState.SKIPPED,
+          actorUserId: "user_123",
+        }),
+      }),
+    );
+    expect(taskUpdateMock).toHaveBeenCalledWith({
+      where: { id: TASK_ID },
+      data: {
+        nextRunAt,
+        scheduleRevision: { increment: 1 },
+      },
+    });
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        scheduleKind: "OCCURRENCE_SKIPPED",
+        scheduleOperationId: OPERATION_ID,
+      }),
+      select: { id: true },
+    });
+  });
+
+  it("replenishes an after-N series so a skipped slot does not consume a release", async () => {
+    const finiteMetadata = {
+      ...recurringMetadata,
+      endsMode: "after" as const,
+      targetReleaseCount: 3,
+    };
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: SCHEDULE_REVISION,
+      metadata: JSON.stringify(finiteMetadata),
+      nextRunAt: ORIGINAL,
+    });
+    occurrenceUpdateMock.mockResolvedValue(
+      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+    );
+
+    const response = await createApp().request(
+      ...request(body({ action: "skip", scheduledAt: undefined })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        id: TASK_ID,
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        schedule: finiteMetadata,
+        nextRunAt: ORIGINAL,
+      },
+      NOW,
+    );
+  });
+
+  it("restores a skipped occurrence to its original time", async () => {
+    occurrenceFindFirstMock.mockResolvedValue(
+      createRow({
+        state: TaskScheduleOccurrenceState.SKIPPED,
+        effectiveScheduledAt: TARGET,
+      }),
+    );
+    occurrenceUpdateMock.mockResolvedValue(createRow());
+    findNextReleaseableOccurrenceMock.mockResolvedValue({
+      id: OCCURRENCE_ID,
+      epochId: EPOCH_ID,
+      originalScheduledAt: ORIGINAL,
+      effectiveScheduledAt: ORIGINAL,
+    });
+
+    const response = await createApp().request(
+      ...request(body({ action: "restore", scheduledAt: undefined })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(occurrenceUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: OCCURRENCE_ID },
+        data: expect.objectContaining({
+          state: TaskScheduleOccurrenceState.PLANNED,
+          effectiveScheduledAt: ORIGINAL,
+          actorUserId: "user_123",
+        }),
+      }),
+    );
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        scheduleKind: "OCCURRENCE_RESTORED",
+        scheduleOperationId: OPERATION_ID,
+      }),
+      select: { id: true },
+    });
+  });
+
+  it("restores a skipped occurrence to a new future time", async () => {
+    occurrenceFindFirstMock.mockResolvedValue(
+      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+    );
+    occurrenceUpdateMock.mockResolvedValue(
+      createRow({ effectiveScheduledAt: TARGET }),
+    );
+
+    const response = await createApp().request(
+      ...request(body({ action: "restore" })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(occurrenceUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          state: TaskScheduleOccurrenceState.PLANNED,
+          effectiveScheduledAt: TARGET,
+        }),
+      }),
+    );
+  });
+
+  it("reconciles an after-N series when restoring a skipped slot", async () => {
+    const finiteMetadata = {
+      ...recurringMetadata,
+      endsMode: "after" as const,
+      targetReleaseCount: 3,
+    };
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      workspaceId: WORKSPACE_ID,
+      projectId: null,
+      scheduleRevision: SCHEDULE_REVISION,
+      metadata: JSON.stringify(finiteMetadata),
+      nextRunAt: ORIGINAL,
+    });
+    occurrenceFindFirstMock.mockResolvedValue(
+      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+    );
+
+    const response = await createApp().request(
+      ...request(body({ action: "restore", scheduledAt: undefined })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        id: TASK_ID,
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        schedule: finiteMetadata,
+        nextRunAt: ORIGINAL,
+      },
+      NOW,
+    );
   });
 
   it("moves a version 2 one-time schedule and updates its effective wake time", async () => {
@@ -312,6 +511,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
         where: { id: OCCURRENCE_ID },
         data: {
           effectiveScheduledAt: TARGET,
+          actorUserId: "user_123",
           ruleSnapshot: updatedMetadata,
         },
       }),
@@ -371,6 +571,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     );
     expect(occurrenceUpdate.data).toEqual({
       effectiveScheduledAt: TARGET,
+      actorUserId: "user_123",
       scheduleVersion: 2,
       epochId: upgradedMetadata.epochId,
       timezone: "UTC",
@@ -405,6 +606,48 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     expect(response.status).toBe(409);
     const json = (await response.json()) as { kind?: string };
     expect(json.kind).toBe("schedule_occurrence_not_reschedulable");
+    expect(occurrenceUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid skip and restore state transitions with a stable error", async () => {
+    occurrenceFindFirstMock.mockResolvedValue(
+      createRow({ state: TaskScheduleOccurrenceState.RELEASED }),
+    );
+    const skippedReleased = await createApp().request(
+      ...request(body({ action: "skip", scheduledAt: undefined })),
+    );
+    expect(skippedReleased.status).toBe(409);
+    expect(((await skippedReleased.json()) as { kind?: string }).kind).toBe(
+      "schedule_occurrence_state_conflict",
+    );
+
+    occurrenceFindFirstMock.mockResolvedValue(createRow());
+    const restoredPlanned = await createApp().request(
+      ...request(body({ action: "restore", scheduledAt: undefined })),
+    );
+    expect(restoredPlanned.status).toBe(409);
+    expect(((await restoredPlanned.json()) as { kind?: string }).kind).toBe(
+      "schedule_occurrence_state_conflict",
+    );
+    expect(occurrenceUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects restoring to an original time that is no longer future", async () => {
+    occurrenceFindFirstMock.mockResolvedValue(
+      createRow({
+        state: TaskScheduleOccurrenceState.SKIPPED,
+        originalScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
+      }),
+    );
+
+    const response = await createApp().request(
+      ...request(body({ action: "restore", scheduledAt: undefined })),
+    );
+
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { kind?: string }).kind).toBe(
+      "schedule_occurrence_target_invalid",
+    );
     expect(occurrenceUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -485,6 +728,53 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       ...request(body({ scheduledAt: NOW.toISOString() })),
     );
     expect(response.status).toBe(200);
+    expect(occurrenceUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("replays an exact skip without duplicating its audit event", async () => {
+    const storedOccurrence = createRow({
+      state: TaskScheduleOccurrenceState.SKIPPED,
+    });
+    taskEventFindUniqueMock.mockResolvedValue({
+      schedulePayload: {
+        requestFingerprint: createTaskScheduleRequestFingerprint({
+          action: "skip_occurrence",
+          taskId: TASK_ID,
+          occurrenceId: OCCURRENCE_ID,
+          scheduledAt: null,
+        }),
+        response: {
+          scheduleRevision: SCHEDULE_REVISION + 1,
+          occurrence: {
+            ...storedOccurrence,
+            sourceId: `workspace:${WORKSPACE_ID}`,
+            isMissed: false,
+          },
+        },
+      },
+    });
+    occurrenceFindUniqueOrThrowMock.mockResolvedValue(
+      createRow({
+        state: TaskScheduleOccurrenceState.RELEASED,
+        releasedTaskId: "tsk_released",
+      }),
+    );
+
+    const response = await createApp().request(
+      ...request(body({ action: "skip", scheduledAt: undefined })),
+    );
+
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as {
+      data: { scheduleRevision: number; occurrence: { state: string } };
+    };
+    expect(json.data).toMatchObject({
+      scheduleRevision: SCHEDULE_REVISION + 1,
+      occurrence: { state: "SKIPPED" },
+    });
+    expect(occurrenceFindUniqueOrThrowMock).not.toHaveBeenCalled();
     expect(occurrenceUpdateMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(taskEventCreateMock).not.toHaveBeenCalled();

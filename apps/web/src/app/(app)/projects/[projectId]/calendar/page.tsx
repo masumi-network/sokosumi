@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-create-task-modal";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
@@ -58,24 +58,32 @@ export default async function ProjectCalendarPage({
   const initialDate = resolveCalendarDate(date, now);
   const latestCalendarDate = getLatestCalendarDate(now);
   const range = getCalendarRange(initialDate);
-  const [{ items, pagination }, sources, coworkers, memberOptions, t, locale] =
-    await Promise.all([
-      projectService.getProjectCalendar(project.id, {
-        ...range,
-        assigneeId,
-        assigneeUserId,
-        limit: 100,
-        scope: scope === "owned" ? "owned" : "workspace",
-        status: calendarStatus,
-      }),
-      taskService.getWorkspaceCalendarSources().catch(() => []),
-      coworkerService.listCoworkers().catch(() => []),
-      listTaskAssigneeMemberOptions(
-        session?.session?.activeOrganizationId ?? null,
-      ),
-      getTranslations("App.Projects.Detail"),
-      getLocale(),
-    ]);
+  const [
+    { items, pagination },
+    sources,
+    coworkers,
+    memberOptions,
+    t,
+    locale,
+    timeZone,
+  ] = await Promise.all([
+    projectService.getProjectCalendar(project.id, {
+      ...range,
+      assigneeId,
+      assigneeUserId,
+      limit: 100,
+      scope: scope === "owned" ? "owned" : "workspace",
+      status: calendarStatus,
+    }),
+    taskService.getWorkspaceCalendarSources().catch(() => []),
+    coworkerService.listCoworkers().catch(() => []),
+    listTaskAssigneeMemberOptions(
+      session?.session?.activeOrganizationId ?? null,
+    ),
+    getTranslations("App.Projects.Detail"),
+    getLocale(),
+    getTimeZone(),
+  ]);
   const sourceId = `project:${project.id}`;
   const projectSource = sources.find((source) => source.sourceId === sourceId);
   const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
@@ -99,11 +107,11 @@ export default async function ProjectCalendarPage({
           metadata={[
             {
               label: t("header.updated"),
-              value: formatShortDateTime(project.updatedAt, locale),
+              value: formatShortDateTime(project.updatedAt, locale, timeZone),
             },
             {
               label: t("header.created"),
-              value: formatShortDateTime(project.createdAt, locale),
+              value: formatShortDateTime(project.createdAt, locale, timeZone),
             },
           ]}
           projectLogo={project.logo}

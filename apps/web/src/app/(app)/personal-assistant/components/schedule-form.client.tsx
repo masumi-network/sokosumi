@@ -10,16 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createSokoBotScheduleAction } from "@/lib/actions/soko-bot/action";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 
 const DEFAULT_CRON = "0 9 * * 1-5";
-
-function browserTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
-}
 
 /** Minimal create form: name, cron, timezone, prompt. Collapsed until opened. */
 export function ScheduleForm() {
@@ -45,7 +38,7 @@ export function ScheduleForm() {
         variant="outline"
         size="sm"
         onClick={() => {
-          setTimezone((current) => current || browserTimezone());
+          setTimezone((current) => current || getDefaultTimezone());
           setOpen(true);
         }}
       >

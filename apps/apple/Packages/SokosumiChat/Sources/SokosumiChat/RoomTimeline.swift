@@ -100,14 +100,16 @@ public final class RoomTimeline: ObservableObject {
       }
     }
     guard !Task.isCancelled else { return false }
-    let page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?)
     do {
       let around: String? = if case let .around(messageId) = kind {
         messageId
       } else {
         nil
       }
-      page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, around: around, organizationSlug: organizationSlug)
+      let page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, around: around, organizationSlug: organizationSlug)
+      guard generation == expectedGeneration, !Task.isCancelled else { return false }
+      try applyPage(page, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
+      return true
     } catch {
       if generation == expectedGeneration, !Task.isCancelled {
         failedPage = kind
@@ -115,9 +117,6 @@ public final class RoomTimeline: ObservableObject {
       }
       throw error
     }
-    guard generation == expectedGeneration, !Task.isCancelled else { return false }
-    try applyPage(page, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
-    return true
   }
 
   private func applyPage(
@@ -134,11 +133,7 @@ public final class RoomTimeline: ObservableObject {
       historicalAnchor = nil
     }
     let nextCursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
-    if parentMessageId == nil {
-      mergeRoomHistory(rows, kind: kind, requestedCursor: requestedCursor, nextCursor: nextCursor)
-    } else if kind != .latest {
-      cursor = nextCursor
-    }
+    mergeHistory(rows, kind: kind, requestedCursor: requestedCursor, nextCursor: nextCursor)
     messages = mergeRealtimePage(messages: messages, page: rows)
     hasLoadedHistory = true
     hasMore = cursor != nil
@@ -146,8 +141,8 @@ public final class RoomTimeline: ObservableObject {
     failedPage = nil
   }
 
-  private func mergeRoomHistory(_ rows: [Components.Schemas.ChatRoomMessage], kind: Page,
-                                requestedCursor: String?, nextCursor: String?) {
+  private func mergeHistory(_ rows: [Components.Schemas.ChatRoomMessage], kind: Page,
+                            requestedCursor: String?, nextCursor: String?) {
     var contiguousRows = rows
     if let requestedCursor, let cursorRow = messages.first(where: { $0.id == requestedCursor }),
        !rows.contains(where: { $0.id == requestedCursor }) {
@@ -158,7 +153,10 @@ public final class RoomTimeline: ObservableObject {
     if kind == .older, let first = messages.first, !contiguousRows.contains(where: { $0.id == first.id }) {
       contiguousRows.append(first)
     }
-    historyRanges.merge(existing: messages, page: contiguousRows, nextCursor: nextCursor,
+    // A refresh overlapping the oldest loaded row must not replace the
+    // cursor belonging to its original page with the refresh page's cursor.
+    let mergedCursor = kind == .latest && rows.contains(where: { $0.id == messages.first?.id }) ? cursor : nextCursor
+    historyRanges.merge(existing: messages, page: contiguousRows, nextCursor: mergedCursor,
                         reachesPresent: kind == .initial || kind == .latest || kind == .returnToLatest)
     cursor = historyRanges.oldestCursor
   }
@@ -169,7 +167,7 @@ public final class RoomTimeline: ObservableObject {
     if let parentMessageId {
       return try await ChatService().listThreadMessages(
         client: client, roomId: roomId, parentMessageId: parentMessageId,
-        cursor: cursor, organizationSlug: organizationSlug
+        cursor: cursor, around: around, organizationSlug: organizationSlug
       )
     }
     return try await ChatService().listMessages(

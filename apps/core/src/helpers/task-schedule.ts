@@ -309,6 +309,53 @@ export function buildTaskScheduleMetadataV2(
   };
 }
 
+/**
+ * Starts a fresh mutable epoch without changing the series rule. Finite
+ * schedules carry only the releases still owed into the new epoch.
+ */
+export function rebuildTaskScheduleMetadataV2ForNewEpoch(
+  current: TaskScheduleMetadata,
+  createdAt: Date,
+  epochId: string,
+): TaskScheduleMetadataV2 {
+  if (current.mode === "once") {
+    return buildTaskScheduleMetadataV2(
+      {
+        mode: "once",
+        runAt: current.version === 1 ? current.runAt : current.sourceRunAt,
+      },
+      createdAt,
+      epochId,
+    );
+  }
+
+  const remainingOccurrences =
+    current.version === 1
+      ? current.occurrences
+      : current.targetReleaseCount == null
+        ? undefined
+        : current.targetReleaseCount - current.epochReleaseCount;
+
+  return buildTaskScheduleMetadataV2(
+    {
+      mode: "recurring",
+      expr: current.expr,
+      timezone: current.timezone,
+      endsMode: current.endsMode,
+      ...(current.endsOn ? { endsOn: current.endsOn } : {}),
+      ...(remainingOccurrences != null
+        ? { occurrences: remainingOccurrences }
+        : {}),
+      ...(current.intervalDays != null
+        ? { intervalDays: current.intervalDays }
+        : {}),
+      ...(current.anchorAt ? { anchorAt: current.anchorAt } : {}),
+    },
+    createdAt,
+    epochId,
+  );
+}
+
 function taskScheduleRuleMatchesInput(
   metadata: TaskScheduleMetadataV2,
   input: TaskScheduleInput,

@@ -5,7 +5,6 @@ import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
 import listPlugin from "@fullcalendar/react/list";
 import classicTheme from "@fullcalendar/react/themes/classic";
-import timeGridPlugin from "@fullcalendar/react/timegrid";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
@@ -40,12 +39,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import {
-  type MouseEvent,
-  type PointerEvent as ReactPointerEvent,
-  useRef,
-  useState,
-} from "react";
+import { type MouseEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
@@ -54,7 +48,7 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
-import { MoveOccurrenceDialog } from "@/components/schedules/move-occurrence-dialog";
+import { OccurrenceTimeDialog } from "@/components/schedules/occurrence-time-dialog";
 import { TaskScheduleSection } from "@/components/task-schedule-section";
 import {
   AlertDialog,
@@ -84,7 +78,7 @@ import {
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
-  rescheduleTaskOccurrence,
+  mutateTaskOccurrence,
   saveCalendarTaskSchedule,
 } from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -101,6 +95,7 @@ import {
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
+import { cn } from "@/lib/utils";
 import {
   getTaskScheduleOperationId,
   hasTaskScheduleChanged,
@@ -255,61 +250,106 @@ function SourceMarker({
  * is history, and a row the caller cannot edit must not be draggable either.
  */
 function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return item.canMoveOccurrence;
+  return item.canMutateOccurrence && item.state === "PLANNED";
+}
+
+function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
+  return (
+    item.canMutateOccurrence &&
+    item.state === "SKIPPED" &&
+    item.originalScheduledAt !== null
+  );
 }
 
 function CalendarEvent({
   item,
   onEditSchedule,
   onMoveOccurrence,
+  onRestoreOccurrence,
+  onSkipOccurrence,
   onOpenTask,
   showDetails,
   source,
+  timeText,
 }: {
   item: WorkspaceCalendarItem;
   onEditSchedule: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
+  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
+  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
+  timeText?: string;
 }) {
   const t = useTranslations("App.Calendar");
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
+  const sourceMarker = (
+    <SourceMarker decorative source={source} sourceName={sourceName} />
+  );
+  const accuracyMarker =
+    item.sourceAccuracy !== "EXACT" ? (
+      <span
+        aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+        className="text-muted-foreground shrink-0"
+        role="img"
+      >
+        ~
+      </span>
+    ) : null;
+  const sourceDetails = showDetails ? (
+    <>
+      <span className="text-muted-foreground shrink-0">{sourceName}</span>
+      {item.sourceAccuracy !== "EXACT" ? (
+        <span className="text-muted-foreground shrink-0">
+          {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+        </span>
+      ) : null}
+    </>
+  ) : null;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          aria-label={t("event.accessibleName", {
-            source: sourceName,
-            task: item.taskName,
-          })}
-          className="bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2"
+          aria-label={t(
+            item.state === "SKIPPED"
+              ? "event.accessibleNameSkipped"
+              : "event.accessibleName",
+            {
+              source: sourceName,
+              task: item.taskName,
+            },
+          )}
+          className={cn(
+            "bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2",
+            timeText ? "flex-col items-start gap-0.5" : "items-center gap-1",
+            item.state === "SKIPPED" && "text-muted-foreground line-through",
+          )}
           type="button"
         >
-          <SourceMarker decorative source={source} sourceName={sourceName} />
-          {item.sourceAccuracy !== "EXACT" ? (
-            <span
-              aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-              className="text-muted-foreground shrink-0"
-              role="img"
-            >
-              ~
-            </span>
-          ) : null}
-          <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
-          {showDetails ? (
+          {timeText ? (
             <>
-              <span className="text-muted-foreground shrink-0">
-                {sourceName}
-              </span>
-              {item.sourceAccuracy !== "EXACT" ? (
-                <span className="text-muted-foreground shrink-0">
-                  {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+              <span className="flex w-full min-w-0 items-center gap-1">
+                {sourceMarker}
+                <span className="text-muted-foreground shrink-0 tabular-nums">
+                  {timeText}
                 </span>
-              ) : null}
+                {accuracyMarker}
+                <span className="text-muted-foreground min-w-0 truncate">
+                  {sourceName}
+                </span>
+              </span>
+              <span className="w-full min-w-0 truncate">{item.taskName}</span>
             </>
-          ) : null}
+          ) : (
+            <>
+              {sourceMarker}
+              {accuracyMarker}
+              <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
+              {sourceDetails}
+            </>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
@@ -319,8 +359,18 @@ function CalendarEvent({
           </DropdownMenuItem>
         ) : null}
         {isMovableCalendarItem(item) ? (
-          <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
-            {t("event.moveOccurrence")}
+          <>
+            <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
+              {t("event.moveOccurrence")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSkipOccurrence(item)}>
+              {t("event.skipOccurrence")}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+        {isRestorableCalendarItem(item) ? (
+          <DropdownMenuItem onSelect={() => onRestoreOccurrence(item)}>
+            {t("event.restoreOccurrence")}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
@@ -338,6 +388,8 @@ function CalendarView({
   onDateClick,
   onEventEdit,
   onMoveOccurrence,
+  onRestoreOccurrence,
+  onSkipOccurrence,
   onOpenTask,
   sources,
   timeZone,
@@ -349,21 +401,23 @@ function CalendarView({
   onDateClick: (date: Date) => void;
   onEventEdit: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
+  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
+  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
 }) {
   const router = useRouter();
+  const formatDate = useFormatter().dateTime;
   const tSeries = useTranslations("App.Tasks.Schedule.series");
   const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
-  const slotHighlightRef = useRef<HTMLDivElement>(null);
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
   const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
   const pluginView = {
     month: "dayGridMonth",
-    week: "timeGridWeek",
+    week: "dayGridWeek",
     agenda: "listMonth",
   }[view];
 
@@ -387,11 +441,12 @@ function CalendarView({
 
     try {
       // Every drop is its own attempt; a retry is a new drag, not a replay.
-      const result = await rescheduleTaskOccurrence({
+      const result = await mutateTaskOccurrence({
         taskId: item.taskId,
         occurrenceId,
         operationId: crypto.randomUUID(),
         expectedScheduleRevision: item.scheduleRevision,
+        action: "reschedule",
         scheduledAt: scheduledAt.toISOString(),
       });
 
@@ -421,71 +476,22 @@ function CalendarView({
     }
   }
 
-  function hideSlotHighlight() {
-    if (slotHighlightRef.current) {
-      slotHighlightRef.current.style.opacity = "0";
-    }
-  }
-
-  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!canCreate || view !== "week" || event.pointerType === "touch") {
-      hideSlotHighlight();
-      return;
-    }
-
-    const elements = document
-      .elementsFromPoint(event.clientX, event.clientY)
-      .filter((element) => event.currentTarget.contains(element));
-    const dayCell = elements.find(
-      (element): element is HTMLElement =>
-        element instanceof HTMLElement &&
-        element.matches('[role="gridcell"][data-date]'),
-    );
-    const timeSlot = elements.find(
-      (element): element is HTMLElement =>
-        element instanceof HTMLElement && element.matches("[data-time]"),
-    );
-    const highlight = slotHighlightRef.current;
-    if (!dayCell || !timeSlot || !highlight) {
-      hideSlotHighlight();
-      return;
-    }
-
-    const calendarBounds = event.currentTarget.getBoundingClientRect();
-    const dayBounds = dayCell.getBoundingClientRect();
-    const verticalBounds = timeSlot.getBoundingClientRect();
-    highlight.style.height = `${verticalBounds.height}px`;
-    highlight.style.left = `${dayBounds.left - calendarBounds.left - event.currentTarget.clientLeft + event.currentTarget.scrollLeft}px`;
-    highlight.style.opacity = "1";
-    highlight.style.top = `${verticalBounds.top - calendarBounds.top - event.currentTarget.clientTop + event.currentTarget.scrollTop}px`;
-    highlight.style.width = `${dayBounds.width}px`;
-  }
-
   return (
     <div
-      className="workspace-calendar-theme relative overflow-x-auto rounded-xl border border-border bg-background"
+      className="workspace-calendar-theme overflow-x-auto rounded-xl border border-border bg-background"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
-      onPointerLeave={hideSlotHighlight}
-      onPointerMove={handlePointerMove}
-      onScrollCapture={hideSlotHighlight}
     >
       <FullCalendar
         borderless
         dayCellClass={
-          canCreate && view === "month"
+          canCreate && view !== "agenda"
             ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
             : undefined
         }
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
-        plugins={[
-          classicTheme,
-          dayGridPlugin,
-          interactionPlugin,
-          timeGridPlugin,
-          listPlugin,
-        ]}
+        plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
         initialDate={getCalendarDayKey(date)}
         initialView={pluginView}
         events={items.map((item) => ({
@@ -497,8 +503,6 @@ function CalendarView({
           durationEditable: false,
         }))}
         timeZone={timeZone}
-        allDaySlot={false}
-        slotEventOverlap={false}
         headerToolbar={false}
         height="auto"
         editable={false}
@@ -512,35 +516,38 @@ function CalendarView({
         eventDrop={(info) => void handleEventDrop(info)}
         eventContent={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
-          return item ? (
+          if (!item) {
+            return eventInfo.event.title;
+          }
+          const start = eventInfo.event.start;
+          return (
             <CalendarEvent
               item={item}
               onEditSchedule={onEventEdit}
               onMoveOccurrence={onMoveOccurrence}
+              onRestoreOccurrence={onRestoreOccurrence}
+              onSkipOccurrence={onSkipOccurrence}
               onOpenTask={onOpenTask}
               showDetails={view === "agenda"}
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
               )}
+              // FullCalendar's own timeText is en-US shorthand ("8a") in every
+              // locale; format the instant in the calendar zone ourselves.
+              timeText={
+                view === "week" && start
+                  ? formatDate(start, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      timeZone,
+                    })
+                  : undefined
+              }
             />
-          ) : (
-            eventInfo.event.title
           );
         }}
-        dateClick={(dateInfo) => {
-          hideSlotHighlight();
-          onDateClick(dateInfo.date);
-        }}
+        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
       />
-      {canCreate && view === "week" ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute z-10 bg-primary-quaternary opacity-0 ring-1 ring-primary-tertiary ring-inset motion-safe:transition-opacity motion-safe:duration-150 motion-safe:ease-out"
-          data-testid="calendar-slot-highlight"
-          ref={slotHighlightRef}
-          style={{ opacity: 0 }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -811,6 +818,11 @@ interface CalendarEditState {
   futureExceptionCount: number | null;
 }
 
+interface OccurrenceTimeState {
+  action: "reschedule" | "restore";
+  item: WorkspaceCalendarItem;
+}
+
 export function WorkspaceCalendar({
   activeOrganizationId = null,
   initialDate,
@@ -824,6 +836,7 @@ export function WorkspaceCalendar({
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
@@ -833,7 +846,7 @@ export function WorkspaceCalendar({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
-  const [moveItem, setMoveItem] = useState<WorkspaceCalendarItem | null>(null);
+  const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const eventRequestId = useRef(0);
@@ -883,7 +896,7 @@ export function WorkspaceCalendar({
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
-  const view = state.view ?? "month";
+  const view = state.view ?? "week";
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -1048,7 +1061,41 @@ export function WorkspaceCalendar({
   }
 
   function handleMoveOccurrence(item: WorkspaceCalendarItem) {
-    setMoveItem(item);
+    setTimeState({ action: "reschedule", item });
+  }
+
+  function handleRestoreOccurrence(item: WorkspaceCalendarItem) {
+    setTimeState({ action: "restore", item });
+  }
+
+  async function handleSkipOccurrence(item: WorkspaceCalendarItem) {
+    try {
+      const result = await mutateTaskOccurrence({
+        taskId: item.taskId,
+        occurrenceId: item.id,
+        operationId: crypto.randomUUID(),
+        expectedScheduleRevision: item.scheduleRevision,
+        action: "skip",
+      });
+      if (!result.ok) {
+        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
+        toast.error(
+          feedbackKey ? tSeries(feedbackKey) : t("event.mutationError"),
+          { duration: Infinity },
+        );
+        if (
+          result.error.kind ===
+            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
+          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
+        ) {
+          router.refresh();
+        }
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error(t("event.mutationError"), { duration: Infinity });
+    }
   }
 
   async function handleLoadMore() {
@@ -1199,7 +1246,7 @@ export function WorkspaceCalendar({
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 pb-6">
+    <div className="flex w-full flex-col gap-5 pb-6">
       <div className="flex items-center gap-1">
         <Button
           aria-label={t("previous")}
@@ -1224,10 +1271,7 @@ export function WorkspaceCalendar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div
-          className="hidden gap-1 md:flex"
-          data-testid="desktop-calendar-views"
-        >
+        <div className="flex gap-1" data-testid="calendar-views">
           {CALENDAR_VIEWS.map((calendarView) => (
             <Button
               key={calendarView}
@@ -1238,23 +1282,6 @@ export function WorkspaceCalendar({
               {t(`view.${calendarView}`)}
             </Button>
           ))}
-        </div>
-        <div
-          className="flex gap-1 md:hidden"
-          data-testid="mobile-calendar-views"
-        >
-          {CALENDAR_VIEWS.filter((calendarView) => calendarView !== "week").map(
-            (calendarView) => (
-              <Button
-                key={calendarView}
-                size="sm"
-                variant={view === calendarView ? "primary" : "outline"}
-                onClick={() => handleViewChange(calendarView)}
-              >
-                {t(`view.${calendarView}`)}
-              </Button>
-            ),
-          )}
         </div>
         <FilterDropdownMenu
           buttonLabel={tFilters("title")}
@@ -1296,6 +1323,8 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
           onMoveOccurrence={handleMoveOccurrence}
+          onRestoreOccurrence={handleRestoreOccurrence}
+          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1311,6 +1340,8 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
           onMoveOccurrence={handleMoveOccurrence}
+          onRestoreOccurrence={handleRestoreOccurrence}
+          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1354,15 +1385,21 @@ export function WorkspaceCalendar({
           futureExceptionCount={editState.futureExceptionCount}
         />
       ) : null}
-      {moveItem ? (
-        <MoveOccurrenceDialog
-          key={`${moveItem.id}:${moveItem.scheduledAt.toISOString()}`}
-          occurrenceId={moveItem.id}
-          expectedScheduleRevision={moveItem.scheduleRevision}
-          scheduledAt={moveItem.scheduledAt}
-          taskId={moveItem.taskId}
+      {timeState ? (
+        <OccurrenceTimeDialog
+          key={`${timeState.action}:${timeState.item.id}`}
+          action={timeState.action}
+          occurrenceId={timeState.item.id}
+          expectedScheduleRevision={timeState.item.scheduleRevision}
+          scheduledAt={
+            timeState.action === "restore"
+              ? (timeState.item.originalScheduledAt ??
+                timeState.item.scheduledAt)
+              : timeState.item.scheduledAt
+          }
+          taskId={timeState.item.taskId}
           timeZone={timeZone}
-          onClose={() => setMoveItem(null)}
+          onClose={() => setTimeState(null)}
         />
       ) : null}
     </div>

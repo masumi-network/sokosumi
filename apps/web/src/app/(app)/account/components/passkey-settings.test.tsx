@@ -44,6 +44,12 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
+  useFormatter: () => ({
+    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" }).format(
+        value,
+      ),
+  }),
   useTranslations: (namespace?: string) => {
     return (
       key: string,

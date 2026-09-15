@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/developer-loading-view";
@@ -19,10 +19,11 @@ export function ApiKeysList({
   onDeleteClick,
 }: ApiKeysListProps) {
   const t = useTranslations("App.Account.ApiKeys");
+  const formatter = useFormatter();
 
   const columns = useMemo(
-    () => getApiKeyColumns(t, onToggleStatus, onDeleteClick),
-    [t, onToggleStatus, onDeleteClick],
+    () => getApiKeyColumns(t, formatter, onToggleStatus, onDeleteClick),
+    [t, formatter, onToggleStatus, onDeleteClick],
   );
 
   if (isInitialLoading) {

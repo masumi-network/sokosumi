@@ -26,7 +26,9 @@ interface FullCalendarProps {
     span: Record<string, never>,
     movingEvent: { id: string } | null,
   ) => boolean;
-  eventContent?: (info: { event: { id: string; title: string } }) => ReactNode;
+  eventContent?: (info: {
+    event: { id: string; title: string; start?: Date | null };
+  }) => ReactNode;
   eventDrop?: (info: {
     event: { id: string; start: Date | null };
     revert: () => void;
@@ -56,7 +58,7 @@ const {
   openCreateTaskModalMock,
   pushMock,
   refreshMock,
-  rescheduleTaskOccurrenceMock,
+  mutateTaskOccurrenceMock,
   saveCalendarTaskScheduleMock,
   taskScheduleSectionMock,
   toastErrorMock,
@@ -75,7 +77,7 @@ const {
   openCreateTaskModalMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
-  rescheduleTaskOccurrenceMock: vi.fn(),
+  mutateTaskOccurrenceMock: vi.fn(),
   saveCalendarTaskScheduleMock: vi.fn(),
   taskScheduleSectionMock: vi.fn(),
   toastErrorMock: vi.fn(),
@@ -86,14 +88,6 @@ vi.mock("@fullcalendar/react", () => ({
     fullCalendarMock(props);
     return (
       <div>
-        <div
-          data-date="2030-01-02"
-          data-testid="hover-day-cell"
-          role="gridcell"
-        >
-          <span data-testid="hover-target">hover target</span>
-        </div>
-        <div data-time="09:00:00" data-testid="hover-time-slot" />
         <button
           type="button"
           onClick={() =>
@@ -128,7 +122,9 @@ vi.mock("@fullcalendar/react", () => ({
         </button>
         {props.events?.map((event) => (
           <div key={event.id}>
-            {props.eventContent?.({ event }) ?? event.title}
+            {props.eventContent?.({
+              event: { ...event, start: new Date(event.start) },
+            }) ?? event.title}
           </div>
         ))}
       </div>
@@ -142,15 +138,21 @@ vi.mock("@fullcalendar/react/interaction", () => ({
 }));
 vi.mock("@fullcalendar/react/list", () => ({ default: {} }));
 vi.mock("@fullcalendar/react/themes/classic", () => ({ default: {} }));
-vi.mock("@fullcalendar/react/timegrid", () => ({ default: {} }));
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({
     dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
       new Intl.DateTimeFormat("en-US", options).format(value),
   }),
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    key === "event.accessibleName" ? `${values?.task}, ${values?.source}` : key,
+  useTranslations: () => (key: string, values?: Record<string, string>) => {
+    if (key === "event.accessibleName") {
+      return `${values?.task}, ${values?.source}`;
+    }
+    if (key === "event.accessibleNameSkipped") {
+      return `${values?.task}, ${values?.source}, skipped`;
+    }
+    return key;
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -253,7 +255,7 @@ vi.mock("@/components/task-schedule-section", () => ({
 
 vi.mock("@/lib/actions/task/action", () => ({
   clearTaskSchedule: clearTaskScheduleMock,
-  rescheduleTaskOccurrence: rescheduleTaskOccurrenceMock,
+  mutateTaskOccurrence: mutateTaskOccurrenceMock,
   saveCalendarTaskSchedule: saveCalendarTaskScheduleMock,
 }));
 
@@ -284,7 +286,7 @@ const ITEM: WorkspaceCalendarItem = {
   id: "occurrence-1",
   taskId: "task-1",
   canEditSchedule: true,
-  canMoveOccurrence: true,
+  canMutateOccurrence: true,
   scheduleRevision: 3,
   taskName: "Prepare release notes",
   taskStatus: "QUEUED",
@@ -317,13 +319,19 @@ const SECOND_ITEM: WorkspaceCalendarItem = {
 const READ_ONLY_ITEM: WorkspaceCalendarItem = {
   ...ITEM,
   canEditSchedule: false,
-  canMoveOccurrence: false,
+  canMutateOccurrence: false,
 };
 
 const RELEASED_ITEM: WorkspaceCalendarItem = {
   ...READ_ONLY_ITEM,
   id: "occurrence-released-1",
   state: "RELEASED",
+};
+
+const SKIPPED_ITEM: WorkspaceCalendarItem = {
+  ...ITEM,
+  id: "occurrence-skipped-1",
+  state: "SKIPPED",
 };
 
 const SOURCES: WorkspaceCalendarSource[] = [
@@ -427,7 +435,7 @@ describe("WorkspaceCalendar editing", () => {
       ok: true,
       value: { taskId: "task-1" },
     });
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task-1", scheduleRevision: 4 },
     });
@@ -471,132 +479,14 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.plugins).toContain(interactionPluginMock);
   });
 
-  it("colors the actual month cell on hover without an overlay", () => {
+  it("colors the actual day cell on hover without an overlay", () => {
     renderCalendar();
 
-    const calendar = screen.getAllByTestId("calendar-month")[0];
     const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
     expect(props.dayCellClass).toContain("hover:bg-primary-quaternary");
     expect(props.dayCellClass).toContain("motion-safe:transition-colors");
     expect(props.dayCellClass).toContain("motion-safe:duration-150");
     expect(props.dayCellClass).toContain("motion-safe:ease-out");
-    expect(
-      within(calendar).queryByTestId("calendar-slot-highlight"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("eases the hovered week slot and event highlight, then clears it", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    const calendar = screen.getAllByTestId("calendar-week")[0];
-    const dayCell = within(calendar).getByTestId("hover-day-cell");
-    const timeSlot = within(calendar).getByTestId("hover-time-slot");
-    const hoverTarget = within(calendar).getByTestId("hover-target");
-    const highlight = within(calendar).getByTestId("calendar-slot-highlight");
-    const event = within(calendar).getByRole("button", {
-      name: "Prepare release notes, Release planning",
-    });
-
-    Object.defineProperty(document, "elementsFromPoint", {
-      configurable: true,
-      value: vi.fn(() => [dayCell, timeSlot]),
-    });
-    vi.spyOn(calendar, "getBoundingClientRect").mockReturnValue({
-      bottom: 800,
-      height: 700,
-      left: 50,
-      right: 850,
-      top: 100,
-      width: 800,
-      x: 50,
-      y: 100,
-      toJSON: () => ({}),
-    });
-    Object.defineProperties(calendar, {
-      clientLeft: { configurable: true, value: 1 },
-      clientTop: { configurable: true, value: 1 },
-    });
-    vi.spyOn(dayCell, "getBoundingClientRect").mockReturnValue({
-      bottom: 720,
-      height: 600,
-      left: 150,
-      right: 250,
-      top: 120,
-      width: 100,
-      x: 150,
-      y: 120,
-      toJSON: () => ({}),
-    });
-    vi.spyOn(timeSlot, "getBoundingClientRect").mockReturnValue({
-      bottom: 240,
-      height: 20,
-      left: 50,
-      right: 850,
-      top: 220,
-      width: 800,
-      x: 50,
-      y: 220,
-      toJSON: () => ({}),
-    });
-
-    fireEvent.pointerMove(hoverTarget, { clientX: 175, clientY: 225 });
-
-    expect(highlight).toHaveStyle({
-      height: "20px",
-      left: "99px",
-      opacity: "1",
-      top: "119px",
-      width: "100px",
-    });
-    expect(highlight).toHaveClass(
-      "motion-safe:transition-opacity",
-      "motion-safe:duration-150",
-      "motion-safe:ease-out",
-    );
-    expect(event).toHaveClass(
-      "cursor-pointer",
-      "hover:bg-primary/20",
-      "focus-visible:bg-primary/20",
-      "motion-safe:transition-colors",
-      "motion-safe:duration-150",
-      "motion-safe:ease-out",
-    );
-
-    fireEvent.pointerLeave(calendar);
-    expect(highlight).toHaveStyle({ opacity: "0" });
-
-    fireEvent.pointerMove(event, { clientX: 175, clientY: 225 });
-    expect(highlight).toHaveStyle({ opacity: "1" });
-
-    await user.click(
-      within(calendar).getByRole("button", { name: "empty calendar slot" }),
-    );
-    expect(highlight).toHaveStyle({ opacity: "0" });
-  });
-
-  it("does not render a slot highlight for an unschedulable calendar", () => {
-    renderCalendar({
-      sources: SOURCES.map((source) => ({
-        ...source,
-        isSchedulable: false,
-      })),
-    });
-
-    expect(
-      within(screen.getAllByTestId("calendar-month")[0]).queryByTestId(
-        "calendar-slot-highlight",
-      ),
-    ).not.toBeInTheDocument();
   });
 
   it("shows a source filter only on the top-level Calendar and includes Projects in pagination", async () => {
@@ -1504,7 +1394,7 @@ describe("WorkspaceCalendar editing", () => {
     });
 
     expect(revert).toHaveBeenCalledOnce();
-    expect(rescheduleTaskOccurrenceMock).not.toHaveBeenCalled();
+    expect(mutateTaskOccurrenceMock).not.toHaveBeenCalled();
   });
 
   it("moves a dropped occurrence optimistically and sends its new time", async () => {
@@ -1512,7 +1402,7 @@ describe("WorkspaceCalendar editing", () => {
       ok: true;
       value: { taskId: string; scheduleRevision: number };
     }>();
-    rescheduleTaskOccurrenceMock.mockReturnValue(request.promise);
+    mutateTaskOccurrenceMock.mockReturnValue(request.promise);
     renderCalendar();
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
@@ -1526,13 +1416,14 @@ describe("WorkspaceCalendar editing", () => {
       });
     });
 
-    expect(rescheduleTaskOccurrenceMock).toHaveBeenCalledWith({
+    expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
       taskId: ITEM.taskId,
       occurrenceId: ITEM.id,
       operationId: expect.stringMatching(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
       ),
       expectedScheduleRevision: 3,
+      action: "reschedule",
       scheduledAt: droppedAt.toISOString(),
     });
     const optimistic = (
@@ -1552,7 +1443,7 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("rolls a failed drop back and shows the mapped copy", async () => {
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: false,
       error: { kind: "schedule_occurrence_not_reschedulable" },
     });
@@ -1583,7 +1474,7 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("refreshes the route when a drop hits a stale series", async () => {
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: false,
       error: { kind: "schedule_revision_conflict" },
     });
@@ -1630,6 +1521,63 @@ describe("WorkspaceCalendar editing", () => {
     expect(
       screen.queryByRole("menuitem", { name: "event.moveOccurrence" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("skips a planned occurrence from its event menu", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[0],
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.skipOccurrence" }),
+    );
+
+    await waitFor(() =>
+      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
+        taskId: ITEM.taskId,
+        occurrenceId: ITEM.id,
+        operationId: expect.any(String),
+        expectedScheduleRevision: 3,
+        action: "skip",
+      }),
+    );
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("crosses out a skipped occurrence and offers restore at its original time", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ items: [SKIPPED_ITEM] });
+
+    const event = screen.getAllByRole("button", {
+      name: "Prepare release notes, Release planning, skipped",
+    })[0];
+    expect(event).toHaveClass("line-through");
+    await user.click(event);
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.restoreOccurrence" }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("label")).toHaveValue(
+      "2030-01-02T09:00",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "confirm" }));
+
+    await waitFor(() =>
+      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: SKIPPED_ITEM.taskId,
+          occurrenceId: SKIPPED_ITEM.id,
+          expectedScheduleRevision: 3,
+          action: "restore",
+          scheduledAt: "2030-01-02T09:00:00.000Z",
+        }),
+      ),
+    );
   });
 
   it("keeps the newest event selection when an earlier event fetch resolves last", async () => {

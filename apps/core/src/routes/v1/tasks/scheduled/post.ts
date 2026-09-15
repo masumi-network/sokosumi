@@ -27,7 +27,10 @@ import {
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
-import { taskScheduleInputSchema } from "@/schemas/task-schedule.schema";
+import {
+  calendarTaskScheduleSourceSchema,
+  taskScheduleInputSchema,
+} from "@/schemas/task-schedule.schema";
 import {
   createScheduledTaskInTransaction,
   findScheduledTaskCreateOperation,
@@ -36,18 +39,10 @@ import {
 } from "@/services/task-schedule-create.service";
 import { taskInclude } from "@/types/task";
 
-const scheduledTaskSourceSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("workspace") }),
-  z.object({
-    type: z.literal("project"),
-    projectId: z.string().uuid(),
-  }),
-]);
-
 export const createScheduledTaskRequestSchema = z
   .object({
     operationId: z.string().uuid(),
-    source: scheduledTaskSourceSchema,
+    source: calendarTaskScheduleSourceSchema,
     name: z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH).optional(),
     description: z.string().nullish(),
     assigneeId: z.string().min(1).nullish(),

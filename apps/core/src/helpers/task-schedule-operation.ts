@@ -52,18 +52,17 @@ export interface TaskScheduleOperationIdentity {
 }
 
 /**
- * Reports whether this series operation was already applied to the Task, using
- * the `(taskId, scheduleOperationId)` uniqueness the schedule audit trail
- * already carries. Callers replay by re-reading the Task rather than by
- * storing a rendered response.
+ * Reads the audit payload when this series operation was already applied to the
+ * Task, using the `(taskId, scheduleOperationId)` uniqueness the schedule audit
+ * trail already carries. Callers can replay a stored response from the payload.
  *
  * @throws 409 `idempotency_conflict` when the identity was reused for a
  * materially different request.
  */
-export async function isTaskScheduleOperationReplay(
+export async function readTaskScheduleOperationReplay(
   tx: TaskScheduleOperationClient,
   operation: TaskScheduleOperationIdentity,
-): Promise<boolean> {
+): Promise<Prisma.JsonObject | null> {
   const existing = await tx.taskEvent.findUnique({
     where: {
       taskId_scheduleOperationId: {
@@ -74,20 +73,28 @@ export async function isTaskScheduleOperationReplay(
     select: { schedulePayload: true },
   });
   if (!existing) {
-    return false;
+    return null;
   }
 
   const payload = existing.schedulePayload;
-  const recordedFingerprint =
-    typeof payload === "object" && payload !== null && !Array.isArray(payload)
-      ? payload.requestFingerprint
-      : undefined;
-  if (recordedFingerprint !== operation.requestFingerprint) {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload) ||
+    payload.requestFingerprint !== operation.requestFingerprint
+  ) {
     throw conflict(
       "This operation identity was already used for a different schedule operation on this Task",
       { kind: CORE_API_ERROR_KINDS.IDEMPOTENCY_CONFLICT },
     );
   }
 
-  return true;
+  return payload;
+}
+
+export async function isTaskScheduleOperationReplay(
+  tx: TaskScheduleOperationClient,
+  operation: TaskScheduleOperationIdentity,
+): Promise<boolean> {
+  return (await readTaskScheduleOperationReplay(tx, operation)) !== null;
 }
