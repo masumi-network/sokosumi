@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import NotFound from "./not-found";
+import NotFound, { NotFoundImpersonationBanner } from "./not-found";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -36,7 +36,25 @@ vi.mock("@/lib/auth/route-session", () => ({
   readRouteSession: (...args: unknown[]) => readRouteSessionMock(...args),
 }));
 
-describe("NotFound impersonation banner", () => {
+describe("NotFound", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("keeps the boundary synchronous (async breaks every route, SOK-1080)", () => {
+    expect(NotFound.constructor.name).toBe("Function");
+  });
+
+  it("renders the card", () => {
+    render(<NotFound />);
+
+    expect(screen.getByText("title")).toBeInTheDocument();
+    expect(screen.getByText("message")).toBeInTheDocument();
+    expect(screen.getByText("returnHome")).toBeInTheDocument();
+  });
+});
+
+describe("NotFoundImpersonationBanner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -58,23 +76,30 @@ describe("NotFound impersonation banner", () => {
       },
     });
 
-    render(await NotFound());
+    render(await NotFoundImpersonationBanner());
 
     const banner = screen.getByTestId("impersonation-banner");
     expect(banner).toHaveAttribute("data-name", "Ada Lovelace");
     expect(banner).toHaveAttribute("data-email", "ada@example.com");
     expect(banner).toHaveAttribute("data-impersonated-by", "user_admin");
-    expect(screen.getByText("title")).toBeInTheDocument();
   });
 
   it("mounts no banner when signed out", async () => {
     readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
 
-    render(await NotFound());
+    const { container } = render(await NotFoundImpersonationBanner());
 
-    expect(
-      screen.queryByTestId("impersonation-banner"),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("title")).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("mounts no banner when the session read is unavailable", async () => {
+    readRouteSessionMock.mockResolvedValue({
+      status: "unavailable",
+      reason: "timeout",
+    });
+
+    const { container } = render(await NotFoundImpersonationBanner());
+
+    expect(container).toBeEmptyDOMElement();
   });
 });
