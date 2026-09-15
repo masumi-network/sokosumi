@@ -175,7 +175,7 @@
     }
   }
 
-  private final class ThreadPageProtocol: URLProtocol, @unchecked Sendable {
+  private final nonisolated class ThreadPageProtocol: URLProtocol, @unchecked Sendable {
     static let responses = Mutex<[Data]>([])
     static let requests = Mutex(0)
     static let fails = Mutex(false)
