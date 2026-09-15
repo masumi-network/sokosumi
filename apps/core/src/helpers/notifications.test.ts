@@ -363,26 +363,25 @@ describe("createNotification push gating", () => {
   it("uses the delivery the caller resolved instead of reading again", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(createChatRecord());
+    // Reading the reader would answer `{ inApp: true, osBanner: true }`, so
+    // every assertion below fails if this asks rather than uses what it was
+    // handed.
     mockReader({ pushOptIn: true, preferences: bannerOn("CHAT_MENTION") });
 
     await createNotification(
       chatInput,
       prismaMock as unknown as typeof prisma,
-      { inApp: true, osBanner: false },
+      { inApp: false, osBanner: false },
     );
 
     expect(userFindUniqueMock).not.toHaveBeenCalled();
     expect(prismaMock.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ inApp: true }),
+        data: expect.objectContaining({ inApp: false }),
       }),
     );
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        push: false,
-        notification: expect.objectContaining({ osBanner: false }),
-      }),
-    );
+    // Nothing to render and nothing to interrupt with, so nothing published.
+    expect(publishNotificationEventMock).not.toHaveBeenCalled();
   });
 
   // Every kind pushes now, not chat alone, so the gate is the opt-in and

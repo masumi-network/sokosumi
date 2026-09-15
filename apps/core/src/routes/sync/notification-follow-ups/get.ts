@@ -26,10 +26,9 @@ export default function mount(app: Hono) {
           durationMs: Date.now() - startedAt,
           examined: result.examined,
           sent: result.sent,
-          // False means the deadline ended the run with rows still waiting,
-          // and those rows leave the eligibility window before the next run.
-          // True does not mean nothing was lost: a write that throws is
-          // counted in `examined`, never in `sent`, and goes to Sentry.
+          // False means the run ended before the eligible rows ran out. One
+          // is survivable, because the window is twice the interval. False on
+          // consecutive runs is the warning worth acting on.
           completed: result.completed,
         });
       },

@@ -35,11 +35,14 @@ export const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
  * oldest first, so a backlog larger than one read is no longer left behind by
  * a row count that had nothing to do with how much time the run had.
  *
- * This does not promise every eligible row a reminder. The handler's deadline
- * still ends a run wherever it falls, and a row the run never reached is out
- * of the moving window by the next one and loses its reminder. The bound is
- * now the time the run actually has rather than a fixed number, and
- * `completed` on the result says when a run ended with rows still waiting.
+ * This still does not promise every eligible row a reminder. The handler's
+ * deadline ends a run wherever it falls. What a truncated run leaves behind is
+ * the newest of the eligible rows, because it goes oldest first, and the
+ * window is two hours against an hourly schedule, so those rows are read again
+ * by the next run. A backlog that outlasts the deadline for two runs running
+ * is what loses reminders, not a single short run. `completed` on the result
+ * says when a run ended with rows still waiting, which is the signal that the
+ * two-run case is being approached.
  *
  * The deadline can land anywhere, page boundary or not, which is why it is
  * asked about per row and not only per page. The number below is the row cap
@@ -65,19 +68,26 @@ export interface SendFollowUpsOptions {
 export interface SendFollowUpsResult {
   /** Notifications this run looked at. */
   examined: number;
-  /** Follow-ups this run actually wrote. */
+  /**
+   * Follow-ups this run actually wrote.
+   *
+   * Far below `examined` in ordinary running, and not a count of failures. A
+   * source row stays unread after its follow-up, so the next run reads it
+   * again and the write is refused as a duplicate. Readers who silenced the
+   * category are skipped before the write too.
+   */
   sent: number;
   /**
    * Whether the run reached the end of the eligible rows.
    *
-   * False when the deadline or an abort ended it first. Those rows fall out of
-   * the window before the next run, so this is the difference between "nobody
-   * was waiting" and "we ran out of time".
+   * False when the deadline or an abort ended it first, including an abort
+   * that arrived before the first read, where nothing is known about who was
+   * waiting. Repeated across consecutive runs it is the warning that rows are
+   * being left long enough to leave the window.
    *
-   * True is not "nothing was lost". A row whose write throws is counted in
-   * `examined`, never reaches `sent`, and is reported to Sentry; the run
-   * carries on and still finishes. The gap between the two counts is where
-   * those show up, not here.
+   * True does not mean nothing was lost. A row whose write throws is caught,
+   * reported to Sentry, and left out of `sent` while the run carries on to the
+   * end.
    */
   completed: boolean;
 }
@@ -224,10 +234,6 @@ export async function sendFollowUps(
       take: NOTIFICATION_FOLLOW_UP_PAGE_SIZE,
     });
 
-    if (sources.length === 0) {
-      break;
-    }
-
     for (const source of sources) {
       if (outOfTime()) {
         stopped = true;
@@ -278,13 +284,9 @@ export async function sendFollowUps(
       }
     }
 
-    if (sources.length < NOTIFICATION_FOLLOW_UP_PAGE_SIZE) {
-      break;
-    }
-
     const last = sources.at(-1);
 
-    if (!last) {
+    if (stopped || !last || sources.length < NOTIFICATION_FOLLOW_UP_PAGE_SIZE) {
       break;
     }
 
