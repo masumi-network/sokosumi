@@ -14,12 +14,19 @@ interface JobStatusBadgeProps {
   status: SokosumiJobStatus;
   className?: string;
   variant?: "badge" | "dot";
+  /**
+   * Glyph colour for the `dot` variant, for rows that paint their own
+   * background. The role colours are measured against the card surface and
+   * none of them clears 3:1 on a filled selection.
+   */
+  tone?: string;
 }
 
 export function JobStatusBadge({
   status,
   className,
   variant = "badge",
+  tone,
 }: JobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.StatusBadge");
   const label = t(getJobStatusBadgeLabelKey(status));
@@ -38,10 +45,17 @@ export function JobStatusBadge({
   // nothing to it.
   if (variant === "dot") {
     return (
-      <span aria-label={label} className={cn("inline-flex", className)}>
+      // `role="img"` because ARIA forbids `aria-label` on a generic element,
+      // and the glyph inside is aria-hidden, so without it the mark has no
+      // accessible name of its own.
+      <span
+        role="img"
+        aria-label={label}
+        className={cn("inline-flex shrink-0", className)}
+      >
         <StatusMarker
           spec={marker}
-          className={STATUS_ROLE_STYLES[marker.role].onSurface}
+          tone={tone ?? STATUS_ROLE_STYLES[marker.role].onSurface}
         />
       </span>
     );
