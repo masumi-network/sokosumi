@@ -4,6 +4,11 @@ import { CoworkerAccessNotificationActions } from "@/components/notifications/co
 import { DeleteNotificationMenuItem } from "@/components/notifications/delete-notification-menu-item";
 import { MarkNotificationReadMenuItem } from "@/components/notifications/mark-notification-read-menu-item";
 import { MarkNotificationUnreadMenuItem } from "@/components/notifications/mark-notification-unread-menu-item";
+import { NotificationRowIcon } from "@/components/notifications/notification-row-icon";
+import {
+  NotificationUnreadLabel,
+  NotificationUnreadRail,
+} from "@/components/notifications/notification-unread-signal";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import {
   DropdownMenuGroup,
@@ -12,7 +17,6 @@ import {
 import type { NotificationItem as NotificationItemType } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
-import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
@@ -28,7 +32,6 @@ export function NotificationItem({
   formatTime,
 }: NotificationItemProps) {
   const formatMessage = useNotificationMessage();
-  const Icon = getNotificationIcon(notification);
   const message = formatMessage(
     notification.messageKey,
     notification.messageParams ?? {},
@@ -41,7 +44,14 @@ export function NotificationItem({
 
   // The row is the highlight unit: it spans the panel edge to edge and tints
   // as one surface whenever the body or the delete control is highlighted.
-  // Unread is the icon's colour and the weight, so the tint is free to mean "here".
+  // Unread is the icon's colour and a bar on the leading edge, so the tint is
+  // free to mean "here".
+  //
+  // The rail is its own element rather than a tint, so it stays legible while
+  // the row is highlighted, and it lines up down the list so several unread
+  // rows read as a group at a glance. Its geometry and its forced colors
+  // behaviour live in the shared component, which the notifications page
+  // renders too.
   const rowClassName =
     "group/row has-data-highlighted:bg-accent flex w-full items-start";
 
@@ -52,38 +62,27 @@ export function NotificationItem({
 
   const body = (
     <div className="flex w-full items-start gap-3">
-      <span
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full",
-          // Translucent, so the circle survives the row's hover tint, which
-          // is the same colour as the muted surface.
-          notification.isRead
-            ? "bg-foreground/10 text-muted-foreground"
-            : "bg-primary/15 text-primary",
-        )}
-        aria-hidden
-      >
-        <Icon className="size-4" />
-      </span>
+      <NotificationRowIcon notification={notification} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <NotificationUnreadLabel isRead={notification.isRead} />
+        {/* The message keeps one weight in both states. A heavier unread
+            message re-wraps the moment the row is marked read, and every row
+            below it moves. The bar and the icon tint carry the state instead,
+            and neither changes a glyph's width. */}
         {showPendingAccessActions ? (
           <button
             type="button"
             className="hover:bg-accent/50 -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={onClick}
           >
-            <p className={cn("text-sm", !notification.isRead && "font-medium")}>
-              {message}
-            </p>
+            <p className="text-sm">{message}</p>
             <p className="text-muted-foreground text-xs">
               {formatTime(notification.createdAt)}
             </p>
           </button>
         ) : (
           <>
-            <p className={cn("text-sm", !notification.isRead && "font-medium")}>
-              {message}
-            </p>
+            <p className="text-sm">{message}</p>
             <p className="text-muted-foreground text-xs">
               {formatTime(notification.createdAt)}
             </p>
@@ -135,6 +134,7 @@ export function NotificationItem({
   if (showPendingAccessActions) {
     return (
       <DropdownMenuGroup className={rowClassName}>
+        <NotificationUnreadRail isRead={notification.isRead} />
         <DropdownMenuItem
           className={itemClassName}
           onSelect={(event) => event.preventDefault()}
@@ -149,6 +149,7 @@ export function NotificationItem({
 
   return (
     <DropdownMenuGroup className={rowClassName}>
+      <NotificationUnreadRail isRead={notification.isRead} />
       <DropdownMenuItem className={itemClassName} onClick={onClick}>
         {body}
       </DropdownMenuItem>
