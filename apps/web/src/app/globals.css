@@ -90,16 +90,13 @@
 
   --color-risk-high: var(--risk-high);
   --color-risk-high-foreground: var(--risk-high-foreground);
-  --color-status-queued: var(--status-queued);
-  --color-status-queued-quaternary: var(--status-queued-quaternary);
-  --color-status-active: var(--status-active);
-  --color-status-active-quaternary: var(--status-active-quaternary);
-  --color-status-active-tertiary: var(--status-active-tertiary);
-  --color-status-waiting: var(--status-waiting);
-  --color-status-waiting-quaternary: var(--status-waiting-quaternary);
-  --color-status-queued-label: var(--status-queued-label);
-  --color-status-active-label: var(--status-active-label);
-  --color-status-waiting-label: var(--status-waiting-label);
+  --color-status-working: var(--status-working);
+  --color-status-working-tertiary: var(--status-working-tertiary);
+  --color-status-working-quaternary: var(--status-working-quaternary);
+  --color-status-working-label: var(--status-working-label);
+  --color-status-external: var(--status-external);
+  --color-status-external-quaternary: var(--status-external-quaternary);
+  --color-status-external-label: var(--status-external-label);
   --color-status-done: var(--status-done);
   --color-status-done-quaternary: var(--status-done-quaternary);
   --color-status-done-tertiary: var(--status-done-tertiary);
@@ -365,23 +362,33 @@
   --risk-high: hsla(32, 92%, 50%, 1);
   --risk-high-foreground: hsla(0, 0%, 4%, 1);
 
-  /* Status roles. Colour carries urgency; the glyph carries identity. Hues
-     sit at least 25 degrees apart and every pair across the whole status and
-     semantic set clears OKLab dE 10.6, against a worst pair of 4.0 before.
-     queued 212, active 186, waiting 238, plus the four semantic hues and the
-     brand at 263.5. */
-  --status-queued: hsla(212, 55.0%, 36.0%, 1);
-  --status-active: hsla(186, 80.0%, 34.0%, 1);
-  --status-waiting: hsla(238, 60.0%, 40.0%, 1);
+  /* Status roles. Colour says what the reader must do; the glyph says which
+     status it is. Two hues carry the waiting half: working 205 for "we are
+     working, wait" and external 240 for "someone else must act". The amber
+     semantic hue carries "you must act", green carries a result to read, red
+     a fault (tinted while it may still resolve, solid once it failed), and
+     grey carries the states nobody owes anything on. The two blues sit 35
+     degrees apart, and 240 sits 23.5 from the brand at 263.5.
+
+     The badge fill is a tint step, and -quaternary rather than -quinary: the
+     quinary steps sit at OKLab dE 4.4 to 6.6 from the light page, too close
+     to carry an edge on either channel. The neutral -quaternary step reaches
+     1.50:1 in light and 2.18:1 in dark.
+
+     The six role tints the status badge paints run from 1.11 to 1.54:1 in
+     light and 1.33 to 2.18:1 in dark. The five chromatic ones lean on hue
+     rather than on lightness: they sit at OKLab dE 7.1 to 15.5 from the light
+     page, and the label on top still clears 4.5:1. A grey at that luminance
+     would be invisible. */
+  --status-working: hsla(205, 60.0%, 38.0%, 1);
+  --status-external: hsla(240, 60.0%, 40.0%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
-  --status-active-tertiary: hsla(186, 41.2%, 81.5%, 1);
-  --status-queued-quaternary: hsla(212, 100.0%, 90.0%, 1);
-  --status-active-quaternary: hsla(186, 100.0%, 90.0%, 1);
-  --status-waiting-quaternary: hsla(238, 100.0%, 90.0%, 1);
-  --status-queued-label: hsla(212, 95.0%, 40.0%, 1);
-  --status-active-label: hsla(186, 95.0%, 26.8%, 1);
-  --status-waiting-label: hsla(238, 95.0%, 58.0%, 1);
+  --status-working-tertiary: hsla(205, 41.2%, 81.5%, 1);
+  --status-working-quaternary: hsla(205, 100.0%, 90.0%, 1);
+  --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
+  --status-working-label: hsla(205, 95.0%, 35.4%, 1);
+  --status-external-label: hsla(240, 95.0%, 58.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 90.1%, 1);
   --status-ready: hsla(217, 91.0%, 47.0%, 1);
   --status-ready-quaternary: hsla(217, 80.7%, 94.8%, 1);
@@ -394,20 +401,6 @@
   --status-topped-up-quaternary: hsla(174, 39.5%, 93.2%, 1);
   --status-auth: hsla(263, 70.0%, 50.0%, 1);
   --status-auth-quaternary: hsla(263, 70.0%, 95.0%, 1);
-
-  /* Categorical statuses. Distinct purposes, so distinct hues rather than
-     four shades of one. Carried by the dot, which needs 3:1 not 4.5:1.
-
-     The tint step is -quaternary, not -quinary. Every quinary step measures
-     between 1.13 and 1.21:1 against the light page, so the badge had no
-     visible edge at all. -quaternary raises the alpha and reaches 1.25 to
-     1.50:1 in light and 1.33 to 2.18:1 in dark.
-
-     The six role tints the status badge paints are the exception: they run
-     1.11 to 1.52:1 in light, below that floor, because they trade luminance
-     for hue. They sit at OKLab dE 6.6 to 15.1 from the page, so the edge is
-     carried by colour rather than by lightness, and the label on top still
-     clears 4.5:1. A grey at that luminance would be invisible. */
 }
 
 .dark {
@@ -491,20 +484,19 @@
   --semantic-info-quaternary: hsla(189, 74.3%, 14.1%, 1);
   --semantic-info-quinary: hsla(189, 59.8%, 9.5%, 1);
 
-  /* Categorical statuses. Distinct purposes, so distinct hues rather than
-     four shades of one. Carried by the dot, which needs 3:1 not 4.5:1. */
-  --status-queued: hsla(212, 95.0%, 70.0%, 1);
-  --status-active: hsla(186, 95.0%, 70.0%, 1);
-  --status-waiting: hsla(238, 95.0%, 70.0%, 1);
+  /* Status roles, dark. Same vocabulary as light: colour says what the reader
+     must do, the glyph says which status it is. The -label steps are badge
+     text and clear 4.5:1 on their own fill; the plain step is the glyph and
+     clears 3:1. */
+  --status-working: hsla(205, 95.0%, 70.0%, 1);
+  --status-external: hsla(240, 95.0%, 70.0%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
-  --status-active-tertiary: hsla(186, 37.5%, 30.4%, 1);
-  --status-queued-quaternary: hsla(212, 35.0%, 21.2%, 1);
-  --status-active-quaternary: hsla(186, 35.0%, 21.2%, 1);
-  --status-waiting-quaternary: hsla(238, 35.0%, 21.2%, 1);
-  --status-queued-label: hsla(212, 95.0%, 70.0%, 1);
-  --status-active-label: hsla(186, 95.0%, 70.0%, 1);
-  --status-waiting-label: hsla(238, 95.0%, 75.0%, 1);
+  --status-working-tertiary: hsla(205, 37.5%, 30.4%, 1);
+  --status-working-quaternary: hsla(205, 35.0%, 21.2%, 1);
+  --status-external-quaternary: hsla(240, 35.0%, 21.2%, 1);
+  --status-working-label: hsla(205, 95.0%, 70.0%, 1);
+  --status-external-label: hsla(240, 95.0%, 74.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 19.6%, 1);
   --status-ready: hsla(213, 94.0%, 68.0%, 1);
   --status-ready-quaternary: hsla(213, 35.8%, 16.8%, 1);

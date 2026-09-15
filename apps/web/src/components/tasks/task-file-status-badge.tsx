@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  * the solid fill.
  */
 const FILE_STATUS_MARKERS: Partial<Record<TaskFileStatus, StatusMarkerSpec>> = {
-  [TaskFileStatus.PENDING]: { role: "queued", icon: MARKER_ICONS.queued },
+  [TaskFileStatus.PENDING]: { role: "working", icon: MARKER_ICONS.queued },
   [TaskFileStatus.FAILED]: { role: "failure", icon: MARKER_ICONS.failed },
 };
 

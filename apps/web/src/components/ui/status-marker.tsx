@@ -28,26 +28,34 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Colour carries urgency. The glyph carries identity.
+ * Colour says what the reader must do. The glyph says which status it is.
  *
  * The old system asked hue to name eleven categories, which no palette can do:
  * `status-running` and `status-awaiting` measured OKLab ΔE 4.0 apart in light
  * mode, barely past the 2.0 just-noticeable difference, and five pairs sat
- * under ΔE 10. Draft and canceled were byte-identical. Collapsing to nine
- * roles removes the crowding, and the glyph separates states inside a role
- * with no crowding limit at all. Every badge now reads in greyscale, which is
- * what WCAG 2.2 SC 1.4.1 asks for.
+ * under ΔE 10. Draft and canceled were byte-identical.
+ *
+ * So hue answers one question instead: what is owed, and by whom. Seven roles
+ * cover both the task and the job scale. Statuses that ask the same thing of
+ * the reader share a hue and are told apart by the glyph and the word, which
+ * have no crowding limit. Every badge also reads in greyscale, which is what
+ * WCAG 2.2 SC 1.4.1 asks for.
  */
 export type StatusRole =
-  | "idle"
-  | "queued"
-  | "active"
-  | "waiting"
+  /** Nobody owes anything: a draft nobody submitted, a case already closed. */
+  | "inert"
+  /** We have it. Wait. Queued, starting, running, resuming. */
+  | "working"
+  /** Someone outside owes the next move: a vendor, a payer, a system. */
+  | "external"
+  /** You owe the next move, and nothing proceeds until you make it. */
   | "action"
+  /** Something is wrong and may still resolve. */
   | "problem"
+  /** It failed. Hire again. */
   | "failure"
-  | "success"
-  | "closed";
+  /** There is a result to read. */
+  | "success";
 
 interface RoleStyle {
   /** Badge fill. */
@@ -65,7 +73,17 @@ interface RoleStyle {
    * field because it cannot be derived from `marker`: a solid-fill role's
    * marker is the colour of the label ON that fill, so `failure` would yield a
    * near-white dot. Measured on --card-background it came to 1.06:1 in light
-   * mode, which is invisible. Every dot below clears 3:1 on that surface.
+   * mode, which is invisible. Every dot below clears 3:1 on that surface: the
+   * range is 4.56 to 10.37 in light and 3.31 to 10.61 in dark.
+   *
+   * One surface still misses. On --muted, the hover fill of the agent job
+   * list row, the mark is the glyph and reads `onSurface` rather than this
+   * field; both resolve to the same token, and in dark `failure` measures
+   * 2.78:1 there, because --semantic-destructive-solid is darker than the
+   * tint base. The tint base would measure 3.99, but the two roles already
+   * paint the same dot in light mode, so moving it would erase the
+   * tint-to-solid escalation in dark as well. Left as it is, and written
+   * down here rather than left to be rediscovered.
    */
   dot: string;
   /**
@@ -79,8 +97,8 @@ interface RoleStyle {
 }
 
 /**
- * Two questions decide the role: what must the reader do now, and is this a
- * fault. They are separate axes, so `action` (you are blocked and only you can
+ * Two questions decide the role: who owes the next move, and is this a fault.
+ * They are separate axes, so `action` (you are blocked and only you can
  * unblock it) is not the same role as `problem` (something went wrong and it
  * may still resolve without you).
  *
@@ -89,37 +107,38 @@ interface RoleStyle {
  * matters because the warm arc is already full at amber and red. It also
  * matches how the risk tiers escalate.
  *
- * `idle` and `closed` share the neutral ramp on purpose: neither has a state
- * worth a hue, and pencil against slash already separates them.
+ * The escalation lives in the fill only. `--semantic-destructive` and
+ * `--semantic-destructive-solid` hold the same value in light mode, so the
+ * two roles paint the same `dot` and the same `onSurface` there. In light
+ * mode a caller that shows a mark with no fill therefore separates the two by
+ * glyph, not by colour. In dark mode the two values differ, so colour still
+ * separates them there.
+ *
+ * The two waiting roles are split by who is holding the task, not by what
+ * stage it is at, because that is the only difference the reader can act on:
+ * `working` means wait for us, `external` means wait for someone else.
  */
 export const STATUS_ROLE_STYLES: Record<StatusRole, RoleStyle> = {
-  idle: {
+  inert: {
     bg: "bg-quaternary",
     text: "text-foreground",
     marker: "text-status-done",
     dot: "bg-status-done",
     onSurface: "text-status-done",
   },
-  queued: {
-    bg: "bg-status-queued-quaternary",
-    text: "text-status-queued-label",
-    marker: "text-status-queued",
-    dot: "bg-status-queued",
-    onSurface: "text-status-queued",
+  working: {
+    bg: "bg-status-working-quaternary",
+    text: "text-status-working-label",
+    marker: "text-status-working",
+    dot: "bg-status-working",
+    onSurface: "text-status-working",
   },
-  active: {
-    bg: "bg-status-active-quaternary",
-    text: "text-status-active-label",
-    marker: "text-status-active",
-    dot: "bg-status-active",
-    onSurface: "text-status-active",
-  },
-  waiting: {
-    bg: "bg-status-waiting-quaternary",
-    text: "text-status-waiting-label",
-    marker: "text-status-waiting",
-    dot: "bg-status-waiting",
-    onSurface: "text-status-waiting",
+  external: {
+    bg: "bg-status-external-quaternary",
+    text: "text-status-external-label",
+    marker: "text-status-external",
+    dot: "bg-status-external",
+    onSurface: "text-status-external",
   },
   action: {
     bg: "bg-semantic-warning-quaternary",
@@ -148,13 +167,6 @@ export const STATUS_ROLE_STYLES: Record<StatusRole, RoleStyle> = {
     marker: "text-semantic-success",
     dot: "bg-semantic-success",
     onSurface: "text-semantic-success",
-  },
-  closed: {
-    bg: "bg-quaternary",
-    text: "text-foreground",
-    marker: "text-status-done",
-    dot: "bg-status-done",
-    onSurface: "text-status-done",
   },
 };
 
@@ -195,10 +207,21 @@ export const MARKER_ICONS = {
 
 export function StatusMarker({
   spec,
-  className,
+  tone,
 }: {
   spec: StatusMarkerSpec;
-  className?: string;
+  /**
+   * Colour class for the glyph, replacing the role's own. Callers that paint
+   * the glyph on something other than its fill pass their own colour here.
+   *
+   * It replaces rather than adds so the glyph has exactly one colour class in
+   * the markup. `cn` would in fact resolve a duplicate, because tailwind-merge
+   * keeps the last class of the text-colour group and drops the earlier ones,
+   * but that is a property of the merge helper rather than of CSS: the same
+   * two classes on a plain `className` would be settled by stylesheet order.
+   * One value, named, is what makes the override readable at the call site.
+   */
+  tone?: string;
 }) {
   const Icon = spec.icon;
   return (
@@ -206,15 +229,14 @@ export function StatusMarker({
       aria-hidden
       // 14px, not 12px, and a heavier stroke. A light stroke on a dark ground
       // erodes optically, so the dark glyph read as missing even though it
-      // measured 3.61 to 7.45 against its own fill, above the light side's
-      // floor of 3.13. Only the floor: light waiting reaches 7.57, past the
+      // measured 3.59 to 6.65 against its own fill, above the light side's
+      // floor of 3.18. Only the floor: light external reaches 7.04, past the
       // dark ceiling.
       strokeWidth={2.25}
       className={cn(
         "size-3.5 shrink-0",
-        STATUS_ROLE_STYLES[spec.role].marker,
+        tone ?? STATUS_ROLE_STYLES[spec.role].marker,
         spec.spin && "animate-spin motion-reduce:animate-none",
-        className,
       )}
     />
   );
