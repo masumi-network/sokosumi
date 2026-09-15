@@ -505,10 +505,16 @@ describe("NotificationFollowUpSyncService", () => {
   it("writes under the delivery it already read", async () => {
     seed([row()]);
     const delivery = { inApp: true, osBanner: true };
-    resolveDeliveryMock.mockResolvedValue(delivery);
+    // The first answer says yes and every answer after it says no, which is
+    // the reader switching the category off between two reads. A second read
+    // would therefore change what is written, so the answer below pins that
+    // the run asks once and carries that one answer into the write.
+    resolveDeliveryMock.mockResolvedValue({ inApp: false, osBanner: false });
+    resolveDeliveryMock.mockResolvedValueOnce(delivery);
 
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
+    expect(resolveDeliveryMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({ eventId: "follow-up:notification-1" }),
       expect.anything(),
@@ -737,27 +743,29 @@ describe("NotificationFollowUpSyncService", () => {
    * full.
    */
   it("reads past the first page to reach every waiting notification", async () => {
-    const waiting = Array.from(
-      { length: NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1 },
-      (_unused, index) =>
-        row({
-          id: `notification-${index}`,
-          createdAt: new Date(WAITING.getTime() + index),
-        }),
+    // Three pages rather than two. A position that moved once and then stood
+    // still reads the same page for ever, which two pages cannot tell apart
+    // from a position that moves every time.
+    const waitingCount = NOTIFICATION_FOLLOW_UP_PAGE_SIZE * 2 + 1;
+    const waiting = Array.from({ length: waitingCount }, (_unused, index) =>
+      row({
+        id: `notification-${index}`,
+        createdAt: new Date(WAITING.getTime() + index),
+      }),
     );
     seed(waiting);
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
+    expect(result.sent).toBe(waitingCount);
     expect(written.map((one) => one.eventId)).toContain(
-      `follow-up:notification-${NOTIFICATION_FOLLOW_UP_PAGE_SIZE}`,
+      `follow-up:notification-${waitingCount - 1}`,
     );
-    expect(notificationFindManyMock).toHaveBeenCalledTimes(2);
-    // Each row once. The second page starts after the last row of the first,
+    expect(notificationFindManyMock).toHaveBeenCalledTimes(3);
+    // Each row once. Every page starts after the last row of the one before,
     // so a position that did not advance the whole way would show up here as
     // rows handled twice long before it showed up as a slow run.
-    expect(result.examined).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
+    expect(result.examined).toBe(waitingCount);
   });
 
   /**
