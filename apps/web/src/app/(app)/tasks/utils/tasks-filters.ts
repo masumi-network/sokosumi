@@ -14,7 +14,6 @@ export interface TasksFilters {
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
-  /** Organization boards only; null = all accessible tasks. */
   visibility: TasksVisibilityFilter;
 }
 
@@ -111,11 +110,6 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
   return UUID_PATTERN.test(normalized) ? normalized : null;
 }
 
-/**
- * Validates `visibility` from untrusted input (URL / server-action JSON).
- * Personal workspaces always stay on null (no Visibility filter).
- * PUBLIC, invalid values, and omitted input sanitize to null (all accessible).
- */
 export function sanitizeTasksVisibilityInput(
   raw: unknown,
   activeOrganizationId: string | null,
