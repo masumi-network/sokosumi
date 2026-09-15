@@ -71,8 +71,9 @@ public final class RoomThreadOverview: ObservableObject {
       var seen = Set<String>()
       let incoming = page.items.filter { $0.parentMessage.roomId == roomId && seen.insert($0.parentMessage.id).inserted }
       let labels = await Task.detached {
-        Dictionary(uniqueKeysWithValues: incoming.map { item in
-          (item.parentMessage.id, Self.preview(item.parentMessage.content, mentions: mentions))
+        let names = mentions?.previewNames ?? [:]
+        return Dictionary(uniqueKeysWithValues: incoming.map { item in
+          (item.parentMessage.id, ChatMessagePreview.text(item.parentMessage.content, names: names))
         })
       }.value
       guard request == loadGeneration, !Task.isCancelled else { return }
@@ -90,37 +91,6 @@ public final class RoomThreadOverview: ObservableObject {
       failure = error
       throw error
     }
-  }
-
-  private nonisolated static func preview(_ content: String, mentions: MessageMentions?) -> String {
-    func text(_ blocks: [MessageMarkdownBlock]) -> [String] {
-      blocks.flatMap { block -> [String] in
-        if case .codeBlock = block.kind {
-          return []
-        }
-        return [String(block.text.characters)] + text(block.children)
-      }
-    }
-    var readable = text(MessageMarkdown(content, mentions: mentions).blocks).joined(separator: " ")
-    // Match web's readable thread labels: raw addresses carry no useful title.
-    let addresses = try? NSRegularExpression(pattern: #"(?i)(?:(?:https?|ftps?)://|(?<![A-Za-z0-9_])www\.)[A-Za-z0-9\-._~:/?#@!$&*+,;=%\[\]]+"#)
-    for match in addresses?.matches(in: readable, range: NSRange(readable.startIndex..., in: readable)).reversed() ?? [] {
-      guard let range = Range(match.range, in: readable) else { continue }
-      let punctuation = readable[range].reversed().prefix { ".,;:!?)]}'\"".contains($0) }.reversed()
-      readable.replaceSubrange(range, with: punctuation)
-    }
-    readable = readable.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-    guard readable.unicodeScalars.count > 128 else { return readable }
-    var result = ""
-    var count = 0
-    for character in readable {
-      let size = character.unicodeScalars.count
-      guard count + size <= 127 else { break }
-      result.append(character)
-      count += size
-    }
-    result = result.trimmingCharacters(in: .whitespacesAndNewlines)
-    return result.isEmpty ? "" : result + "…"
   }
 
   public func markAllRead(client: Client, roomId: String, organizationSlug: String?, mentions: MessageMentions? = nil) async throws {
