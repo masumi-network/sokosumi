@@ -139,7 +139,7 @@ describe("HeaderNotificationBell", () => {
     ).toBeInTheDocument();
   });
 
-  it("marks the rows it showed read when the panel closes", async () => {
+  it("marks the rows it showed read when the reader dismisses the panel", async () => {
     useNotificationsMock.mockReturnValue({
       unreadCount: 2,
       notifications: [
@@ -159,32 +159,37 @@ describe("HeaderNotificationBell", () => {
 
     await user.keyboard("{Escape}");
 
+    // Every row it showed, not just the unread ones: the provider owns which
+    // of them still need a write.
     await waitFor(() =>
       expect(markManyReadMock).toHaveBeenCalledWith([
         "notif_unread_1",
+        "notif_already_read",
         "notif_unread_2",
       ]),
     );
   });
 
-  it("does not write when the open panel held nothing unread", async () => {
+  it("marks them read when a child closes the panel instead of the reader", async () => {
+    // "View all" and the permission primer close the panel through onClose,
+    // which writes `open` from the parent. Radix does not report that as an
+    // open change, so a commit hung only off onOpenChange would never run.
     useNotificationsMock.mockReturnValue({
-      unreadCount: 0,
-      notifications: [notificationRow("notif_already_read", true)],
+      unreadCount: 1,
+      notifications: [notificationRow("notif_unread_1", false)],
       markManyRead: markManyReadMock,
     });
     const user = userEvent.setup();
     render(<HeaderNotificationBell />);
 
-    await user.click(screen.getByRole("button", { name: "Notifications" }));
-    await user.keyboard("{Escape}");
+    await user.click(
+      screen.getByRole("button", { name: "1 unread notifications" }),
+    );
+    await user.click(screen.getByRole("button", { name: "close-panel" }));
 
     await waitFor(() =>
-      expect(
-        screen.queryByTestId("notification-dropdown-content"),
-      ).not.toBeInTheDocument(),
+      expect(markManyReadMock).toHaveBeenCalledWith(["notif_unread_1"]),
     );
-    expect(markManyReadMock).toHaveBeenCalledWith([]);
   });
 });
 
