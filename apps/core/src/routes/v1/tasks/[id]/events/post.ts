@@ -51,11 +51,7 @@ import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  type AuthenticationContext,
-  isAgentAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
 import { sourceImportService } from "@/services/source-import.service";
@@ -73,14 +69,6 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
-
-function getAgentActorData(authContext: AuthenticationContext) {
-  if (!isAgentAuthContext(authContext)) {
-    throw new Error("getAgentActorData called without agent auth context");
-  }
-
-  return resolveTaskEventActorFields(authContext);
-}
 
 interface SettleTaskEventChargeParams {
   task: {
@@ -421,12 +409,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      const actorData =
-        status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
-          ? resolveTaskEventActorFields(authContext)
-          : credits != null || masumiPayment != null
-            ? getAgentActorData(authContext)
-            : resolveTaskEventActorFields(authContext);
+      const actorData = resolveTaskEventActorFields(authContext);
 
       const createdEvent = await tx.taskEvent.create({
         data: {

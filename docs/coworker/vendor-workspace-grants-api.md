@@ -177,12 +177,14 @@ returns the original Task without creating another occurrence ledger.
 | PATCH | `/v1/tasks/{id}` (+ schedule, etc.) | Collaborators cannot mutate parked tasks. |
 | PUT | `/v1/tasks/{id}/schedule` | Coworker collaborators may edit the series. No Calendar beta gate; organization seat applies to the effective user. |
 | DELETE | `/v1/tasks/{id}/schedule` | Coworker collaborators may remove the series. Deliberately no Calendar beta or seat gate (escape hatch). |
-| PUT/PATCH/GET | `/v1/tasks/{id}/calendar-schedule`, `/calendar-source`, `/schedule/occurrences*` | Coworker collaborators may move the series and mutate or read occurrences. Calendar beta follows the effective user; series writes also require their organization seat. |
+| PUT | `/v1/tasks/{id}/calendar-schedule`, `/calendar-source` | Coworker collaborators may replace or move the series. Calendar beta follows the effective user, and so does their organization seat. |
+| PATCH/GET | `/v1/tasks/{id}/schedule/occurrences*` | Coworker collaborators may mutate or read occurrences. Calendar beta follows the effective user; no seat gate. |
 | GET | `/v1/jobs/{id}` | Sibling read uses workspace grant gate; writes blocked if parent task parked. |
 
 On these Task-collaboration routes, a standalone Coworker key (no
 `X-Context-*` headers) skips the user-scoped gates and is scoped by the Task
-relationship (assignee or vendor sibling).
+relationship: mutations require the Task to be assigned to the calling
+Coworker, and reads may also use the vendor-sibling baseline.
 
 ---
 

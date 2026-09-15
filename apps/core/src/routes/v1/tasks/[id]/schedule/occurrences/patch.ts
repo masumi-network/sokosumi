@@ -124,6 +124,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    const actorFields = resolveTaskEventActorFields(authContext);
     const userContext = resolveUserContext(authContext);
     if (userContext) {
       await requireCalendarBetaAccess(userContext.userId, prisma);
@@ -300,7 +301,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : action === "restore"
               ? { state: TaskScheduleOccurrenceState.PLANNED }
               : {}),
-          actorUserId: resolveTaskEventActorFields(authContext).userId,
+          actorUserId: actorFields.userId,
         },
         include: {
           releasedTask: {
@@ -359,7 +360,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.taskEvent.create({
         data: {
           taskId: id,
-          ...resolveTaskEventActorFields(authContext),
+          ...actorFields,
           scheduleKind:
             action === "skip"
               ? TaskScheduleEventKind.OCCURRENCE_SKIPPED
