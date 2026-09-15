@@ -2991,11 +2991,11 @@ describe("ChatMessageRow quick reactions", () => {
     ]);
   });
 
-  it("leads with the reader's most recently used emojis", async () => {
+  it("leads with the reader's most used emojis", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(
       FREQUENTLY_USED_STORAGE_KEY,
-      JSON.stringify(["🚀", "✅"]),
+      JSON.stringify(["✅", "🚀", "🚀"]),
     );
     renderReactableRow();
 
@@ -3006,6 +3006,63 @@ describe("ChatMessageRow quick reactions", () => {
       "✅",
       "👍",
     ]);
+  });
+
+  it("names each quick reaction by its shortcode", async () => {
+    const user = userEvent.setup();
+    renderReactableRow();
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(
+      quickReactionButtons().map((button) => button.getAttribute("title")),
+    ).toEqual([":+1:", ":heart:", ":joy:"]);
+  });
+
+  it("marks the emojis the reader already reacted with", async () => {
+    const user = userEvent.setup();
+    renderReactableRow(
+      userMessage({
+        reactions: [
+          {
+            emoji: "👍",
+            count: 2,
+            reactedByCurrentUser: true,
+            reactors: [{ id: "user-1", name: "Ada" }],
+          },
+          {
+            emoji: "❤️",
+            count: 1,
+            reactedByCurrentUser: false,
+            reactors: [{ id: "user-2", name: "Bob" }],
+          },
+        ],
+      }),
+    );
+
+    await user.hover(screen.getByRole("article"));
+
+    expect(
+      quickReactionButtons().map((button) =>
+        button.getAttribute("aria-pressed"),
+      ),
+    ).toEqual(["true", "false", "false"]);
+  });
+
+  it("keeps the order still until the pointer leaves the pill", async () => {
+    const user = userEvent.setup();
+    renderReactableRow();
+    const order = () =>
+      quickReactionButtons().map((button) => button.textContent);
+
+    await user.hover(screen.getByRole("article"));
+    await user.click(quickReactionButtons()[2]);
+
+    expect(order()).toEqual(["👍", "❤️", "😂"]);
+
+    await user.unhover(hoverPill() as HTMLElement);
+
+    expect(order()).toEqual(["😂", "👍", "❤️"]);
   });
 
   it("reacts in one click and remembers the emoji", async () => {

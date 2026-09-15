@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  recordFrequentlyUsedEmojiPick,
+  recordEmojiUse,
   useFrequentlyUsedEmojis,
 } from "./use-frequently-used-emojis";
 
@@ -33,19 +33,31 @@ describe("useFrequentlyUsedEmojis", () => {
     expect(result.current).toEqual([]);
   });
 
-  it("moves a pick to the front, persists it, and updates subscribers", () => {
+  it("logs a use, persists it, and updates subscribers", () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(["🚀", "✅"]));
     const { result } = renderHook(() => useFrequentlyUsedEmojis());
 
     act(() => {
-      recordFrequentlyUsedEmojiPick("✅");
+      recordEmojiUse("✅");
     });
 
     expect(result.current).toEqual(["✅", "🚀"]);
     expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "")).toEqual([
       "✅",
       "🚀",
+      "✅",
     ]);
+  });
+
+  it("keeps an often-used emoji ahead of a one-off newer one", () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(["👍", "👍"]));
+    const { result } = renderHook(() => useFrequentlyUsedEmojis());
+
+    act(() => {
+      recordEmojiUse("🦄");
+    });
+
+    expect(result.current).toEqual(["👍", "🦄"]);
   });
 
   it("follows picks made in another tab", () => {

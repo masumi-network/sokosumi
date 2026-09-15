@@ -12,10 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useEmojiPickerMaxHeight } from "@/hooks/use-emoji-picker-max-height";
-import {
-  recordFrequentlyUsedEmojiPick,
-  useFrequentlyUsedEmojis,
-} from "@/hooks/use-frequently-used-emojis";
+import { useFrequentlyUsedEmojis } from "@/hooks/use-frequently-used-emojis";
 import { cn } from "@/lib/utils";
 import {
   type EmojiCatalogEntry,
@@ -35,6 +32,7 @@ type NavTargetId =
   | EmojiCategoryId;
 
 export interface EmojiPickerProps {
+  /** The consumer records the use (`recordEmojiUse`) once it acts on the pick. */
   onPick: (emoji: string) => void;
   title: string;
   ariaLabel: string;
@@ -192,11 +190,6 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
     focusSearch();
   }, []);
 
-  function handlePick(emoji: string) {
-    recordFrequentlyUsedEmojiPick(emoji);
-    onPick(emoji);
-  }
-
   function handleScrollToSection(sectionId: NavTargetId) {
     if (sectionId === SEARCH_NAV_ID) {
       setActiveNavId(SEARCH_NAV_ID);
@@ -275,7 +268,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
                 <EmojiGridButton
                   key={entry.emoji}
                   entry={entry}
-                  onPick={handlePick}
+                  onPick={onPick}
                 />
               ))}
             </div>
@@ -309,7 +302,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
                       <EmojiGridButton
                         key={entry.emoji}
                         entry={entry}
-                        onPick={handlePick}
+                        onPick={onPick}
                       />
                     ))}
                   </div>

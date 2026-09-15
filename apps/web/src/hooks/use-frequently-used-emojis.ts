@@ -2,19 +2,25 @@
 
 import { useSyncExternalStore } from "react";
 
-import { recordFrequentlyUsedEmoji } from "@/lib/utils/emoji-shortcodes";
+import {
+  appendEmojiUse,
+  rankFrequentlyUsedEmojis,
+} from "@/lib/utils/emoji-shortcodes";
 
 /**
- * The reader's emoji history, most recent first. The emoji picker's
- * "Frequently used" section and the message quick reactions read the same
- * per-browser list, so a pick in either place shows up in both.
+ * The reader's emoji use log, newest first, stored per browser. The emoji
+ * picker's "Frequently used" section and the message quick reactions both
+ * read its ranking, so a use anywhere shows up in both. The picker only
+ * reads; whoever consumes a pick (reaction, composer) calls
+ * {@link recordEmojiUse} once.
  */
 const FREQUENTLY_USED_STORAGE_KEY = "sokosumi.emoji-picker.recent.v1";
 const NO_EMOJIS: readonly string[] = [];
 
 const listeners = new Set<() => void>();
 let cachedRaw: string | null = null;
-let cachedEmojis: readonly string[] = NO_EMOJIS;
+let cachedLog: readonly string[] = NO_EMOJIS;
+let cachedRanking: readonly string[] = NO_EMOJIS;
 
 function readRaw(): string | null {
   try {
@@ -24,7 +30,7 @@ function readRaw(): string | null {
   }
 }
 
-function parseEmojis(raw: string | null): readonly string[] {
+function parseLog(raw: string | null): readonly string[] {
   if (!raw) return NO_EMOJIS;
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -36,13 +42,18 @@ function parseEmojis(raw: string | null): readonly string[] {
 }
 
 /** Re-parses only when the stored string changes, so the snapshot stays referentially stable. */
-function getSnapshot(): readonly string[] {
+function syncCache(): void {
   const raw = readRaw();
   if (raw !== cachedRaw) {
     cachedRaw = raw;
-    cachedEmojis = parseEmojis(raw);
+    cachedLog = parseLog(raw);
+    cachedRanking = rankFrequentlyUsedEmojis(cachedLog);
   }
-  return cachedEmojis;
+}
+
+function getSnapshot(): readonly string[] {
+  syncCache();
+  return cachedRanking;
 }
 
 function getServerSnapshot(): readonly string[] {
@@ -74,12 +85,14 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
+/** Distinct emojis, most used first. */
 export function useFrequentlyUsedEmojis(): readonly string[] {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-export function recordFrequentlyUsedEmojiPick(emoji: string): void {
-  const next = recordFrequentlyUsedEmoji(getSnapshot(), emoji);
+export function recordEmojiUse(emoji: string): void {
+  syncCache();
+  const next = appendEmojiUse(cachedLog, emoji);
   try {
     localStorage.setItem(FREQUENTLY_USED_STORAGE_KEY, JSON.stringify(next));
   } catch {
