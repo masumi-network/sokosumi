@@ -2,9 +2,9 @@
 
 import {
   Download,
+  Ellipsis,
   ExternalLink,
   FileText,
-  MoreVertical,
   Pencil,
   RefreshCw,
   Trash2,
@@ -108,7 +108,7 @@ export function DesignMdFileRow({
               aria-label={labels.actionsMenu}
               disabled={isRemoving}
             >
-              <MoreVertical className="size-4" />
+              <Ellipsis className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
