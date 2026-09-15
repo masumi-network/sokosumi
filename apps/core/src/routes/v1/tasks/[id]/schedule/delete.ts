@@ -8,6 +8,7 @@ import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import { isSchedulableTaskStatus } from "@/helpers/task-schedule";
 import { retireTaskScheduleFutureOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import {
@@ -17,7 +18,6 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -78,10 +78,9 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    // Removal still requires an interactive human with Task collaboration, but
-    // deliberately not Calendar beta access: it is the escape hatch for every
-    // schedule, including the ones the un-gated legacy route still creates.
-    const userContext = requireOwnerUserContext(authContext);
+    // Removal requires Task collaboration, but deliberately not Calendar beta
+    // access: it is the escape hatch for every schedule, including the ones the
+    // un-gated legacy route still creates.
     const { id } = c.req.valid("param");
     const {
       "idempotency-key": operationId,
@@ -183,7 +182,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.taskEvent.create({
         data: {
           taskId: id,
-          userId: userContext.userId,
+          ...resolveTaskEventActorFields(authContext),
           scheduleKind: TaskScheduleEventKind.REMOVED,
           scheduleOperationId: operationId,
           schedulePayload: {

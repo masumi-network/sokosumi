@@ -27,6 +27,7 @@ helper at the top of the handler:
 | `requireAuthorizedUserContext` | `@/helpers/coworker-user-context-binding` | **Default** for user-scoped routes (profile, credits, projects, org metadata, …). Coworker must pass binding: DENIED/REVOKED → reject; GRANTED → allow; else baseline assignee/sibling task; else reject. |
 | `requireOwnerUserContext` | `@/middleware/auth` | Human/owner-only surfaces (notifications, history, billing, member lists, …). Interactive user session only; no coworker. |
 | `requireUserAuthContext` | `@/middleware/auth` | Must be the real interactive session user (admin role, consent). Rejects coworker. |
+| `resolveUserContext` | `@/middleware/auth` | Task-collaboration routes that accept standalone coworker keys but still apply user-scoped gates (organization seat, Calendar beta). Returns the effective user, or `null` for a standalone coworker key. |
 
 Policy details and decision order: `src/helpers/coworker-user-context-binding.ts`
 and the `UserContext` JSDoc in `src/middleware/auth.ts`. Vendor grant semantics
