@@ -105,9 +105,9 @@ export interface SendFollowUpsResult {
    * the run got, which this does not say: it is the signal that the deadline,
    * not the work, is deciding how much gets done.
    *
-   * True does not mean nothing was lost. A row whose preferences or whose
-   * write throws is caught, reported to Sentry, and left out of `sent` while
-   * the run carries on to the end.
+   * True does not mean nothing was lost. A row whose write throws is caught,
+   * reported to Sentry, and left out of `sent` while the run carries on to
+   * the end.
    */
   reachedEnd: boolean;
 }
@@ -192,9 +192,10 @@ function toFollowUpInput(
  * uniqueness the notification table already enforces is what stops the second,
  * and this needs no record of its own that a run happened.
  *
- * A row whose preferences or whose write throws costs that one reminder and
- * nothing else: both sit inside the same try, and the run carries on through
- * the rest. Whether the next run finds that row again depends on
+ * A row whose write throws costs that one reminder and nothing else: the run
+ * carries on through the rest. The preference read sits inside the same try,
+ * so it is covered too, but `resolveDelivery` answers with a fallback rather
+ * than throwing, so everything Sentry sees from here today is a failed write. Whether the next run finds that row again depends on
  * where in the window it sits: rows in the newer half are read again, rows in
  * the older half are not. Sentry is told about each.
  */
@@ -220,7 +221,9 @@ export async function sendFollowUps(
   let stopped = false;
 
   // Every way out is a `break`, so the condition is not the thing that ends
-  // this. The flag above is read only by `reachedEnd` at the end.
+  // this. The flag carries the reason out instead: an inner `break` leaves
+  // only the page, and the guard after the page reads the flag to end the
+  // run as well. `reachedEnd` then reports it.
   while (true) {
     if (outOfTime()) {
       stopped = true;

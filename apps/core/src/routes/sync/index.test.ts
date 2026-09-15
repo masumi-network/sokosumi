@@ -905,8 +905,9 @@ describe("sync routes", () => {
       await vi.advanceTimersByTimeAsync(0);
 
       const options = sendFollowUpsMock.mock.calls[0]?.[0];
-      // Exactly these two. An extra option, `now` above all, would fix the
-      // window at a stale instant and the run would find nothing for ever.
+      // Exactly these two, which is all this pins. A third option would be
+      // one the run was never meant to get from here, and `now` is the one
+      // that would move the window rather than add to it.
       expect(Object.keys(options).sort()).toEqual([
         "abortSignal",
         "shouldContinue",
