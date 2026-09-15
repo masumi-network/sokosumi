@@ -1,6 +1,6 @@
 import type { CategoryStyles, CategoryStyleTheme } from "@/lib/types/category";
 
-export function getThemeAwareStyles(
+function getThemeAwareStyles(
   categoryStyles: CategoryStyles,
   theme: "light" | "dark",
 ): CategoryStyleTheme | undefined {

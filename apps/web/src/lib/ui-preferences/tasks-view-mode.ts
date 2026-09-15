@@ -5,7 +5,7 @@ export const TASKS_VIEW_MODE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 /** Kanban is the desktop default; list is easier on narrow screens. */
 export const DEFAULT_TASKS_VIEW_MODE_DESKTOP: TasksViewMode = "board";
-export const DEFAULT_TASKS_VIEW_MODE_MOBILE: TasksViewMode = "list";
+const DEFAULT_TASKS_VIEW_MODE_MOBILE: TasksViewMode = "list";
 
 export function parseTasksViewMode(
   value: string | null | undefined,
