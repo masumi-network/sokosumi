@@ -8,7 +8,6 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import { Skeleton } from "@/components/ui/skeleton";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import type { GalleryFilterState } from "@/lib/agents/gallery-filter";
@@ -81,8 +80,4 @@ function FilteredAgentsInner({
       )}
     </div>
   );
-}
-
-export function CategoryHeadingSkeleton() {
-  return <Skeleton className="h-6 w-32 md:h-7 md:w-40" />;
 }
