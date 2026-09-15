@@ -20,6 +20,28 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * Stop the current impersonation and restore the admin session via Set-Cookie. Callable only while impersonating (the caller holds the target's non-admin role, so this deliberately skips the admin-router guard). Audit-logs the stop.
+ */
+export const stopAdminImpersonation = <ThrowOnError extends boolean = false>(options?: Options<StopAdminImpersonationData, ThrowOnError>): RequestResult<StopAdminImpersonationResponses, StopAdminImpersonationErrors, ThrowOnError> => (options?.client ?? client).delete<StopAdminImpersonationResponses, StopAdminImpersonationErrors, ThrowOnError>({
+    responseTransformer: stopAdminImpersonationResponseTransformer,
+    url: '/admin/impersonation',
+    ...options
+});
+
+/**
+ * Start impersonating a non-admin user (admin only). Returns the target user and switches the browser session to them via Set-Cookie. Requires a reason, rejects nested impersonations with 409, and audit-logs the start. Sessions expire after one hour.
+ */
+export const startAdminImpersonation = <ThrowOnError extends boolean = false>(options?: Options<StartAdminImpersonationData, ThrowOnError>): RequestResult<StartAdminImpersonationResponses, StartAdminImpersonationErrors, ThrowOnError> => (options?.client ?? client).post<StartAdminImpersonationResponses, StartAdminImpersonationErrors, ThrowOnError>({
+    responseTransformer: startAdminImpersonationResponseTransformer,
+    url: '/admin/impersonation',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
  * Paginated list of all agents with registry identity and override summary (admin only).
  */
 export const listAdminAgents = <ThrowOnError extends boolean = false>(options?: Options<ListAdminAgentsData, ThrowOnError>): RequestResult<ListAdminAgentsResponses, ListAdminAgentsErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminAgentsResponses, ListAdminAgentsErrors, ThrowOnError>({
@@ -592,28 +614,6 @@ export const patchAdminVendor = <ThrowOnError extends boolean = false>(options: 
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
-    }
-});
-
-/**
- * Stop the current impersonation and restore the admin session via Set-Cookie. Callable only while impersonating (the caller holds the target's non-admin role, so this deliberately skips the admin-router guard). Audit-logs the stop.
- */
-export const stopAdminImpersonation = <ThrowOnError extends boolean = false>(options?: Options<StopAdminImpersonationData, ThrowOnError>): RequestResult<StopAdminImpersonationResponses, StopAdminImpersonationErrors, ThrowOnError> => (options?.client ?? client).delete<StopAdminImpersonationResponses, StopAdminImpersonationErrors, ThrowOnError>({
-    responseTransformer: stopAdminImpersonationResponseTransformer,
-    url: '/admin/impersonation',
-    ...options
-});
-
-/**
- * Start impersonating a non-admin user (admin only). Returns the target user and switches the browser session to them via Set-Cookie. Requires a reason, rejects nested impersonations with 409, and audit-logs the start. Sessions expire after one hour.
- */
-export const startAdminImpersonation = <ThrowOnError extends boolean = false>(options?: Options<StartAdminImpersonationData, ThrowOnError>): RequestResult<StartAdminImpersonationResponses, StartAdminImpersonationErrors, ThrowOnError> => (options?.client ?? client).post<StartAdminImpersonationResponses, StartAdminImpersonationErrors, ThrowOnError>({
-    responseTransformer: startAdminImpersonationResponseTransformer,
-    url: '/admin/impersonation',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers
     }
 });
 

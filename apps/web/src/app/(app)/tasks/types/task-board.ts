@@ -1,6 +1,7 @@
 import type {
   TaskEvent,
   TaskShare,
+  TaskVisibility,
   UserSummary,
 } from "@/lib/clients/generated/core/types.gen";
 import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
@@ -23,6 +24,7 @@ export interface TaskWithCoworker {
   id: string;
   name: string;
   status: TaskStatus;
+  visibility: TaskVisibility;
   ownerId: string;
   owner: UserSummary;
   createdAt: string;

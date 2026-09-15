@@ -3,6 +3,7 @@ import {
   MemberRole,
   type Prisma,
   TaskStatus,
+  TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
@@ -39,6 +40,7 @@ import {
   requireTaskStatusWriteAccess,
   requireTaskWorkspaceMapping,
 } from "./access-control";
+import { buildHumanTaskVisibilityWhere } from "./task-visibility";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 const {
@@ -243,6 +245,7 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_parked",
         status: TaskStatus.GRANT_PENDING,
         ownerId: "user_other",
+        visibility: TaskVisibility.PUBLIC,
         workspace: { organizationId: "org_123" },
       } as never);
 
@@ -261,6 +264,27 @@ describe("requireTaskArchiveAccess", () => {
     );
   });
 
+  it("hides private parked tasks from org owner/admin non-owners", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_parked_private",
+        status: TaskStatus.GRANT_PENDING,
+        ownerId: "user_other",
+        visibility: TaskVisibility.PRIVATE,
+        workspace: { organizationId: "org_123" },
+      } as never);
+
+    await expect(
+      requireTaskArchiveAccess(archiveAccessVars(), "tsk_parked_private", tx),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: "Task not found",
+    });
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
   it("keeps parked+scheduled archive OWNER/ADMIN-only for non-owners", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst)
@@ -269,6 +293,7 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_parked_scheduled",
         status: TaskStatus.GRANT_PENDING,
         ownerId: "user_other",
+        visibility: TaskVisibility.PUBLIC,
         metadata: scheduledTaskMetadata,
         nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
         workspace: { organizationId: "org_123" },
@@ -339,6 +364,7 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_scheduled",
         archivedAt: null,
         workspaceId,
+        ...buildHumanTaskVisibilityWhere("user_member"),
       },
     });
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
@@ -371,6 +397,7 @@ describe("requireTaskArchiveAccess", () => {
         id: "tsk_scheduled",
         archivedAt: null,
         workspaceId,
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
     });
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
@@ -537,6 +564,7 @@ describe("requireTaskCollaboration", () => {
         assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
+        ...buildHumanTaskVisibilityWhere(sokoBotAuthContext.userId),
       },
     });
   });
@@ -633,6 +661,31 @@ describe("requireTaskReadForRouteVars", () => {
         id: "tsk_123",
         archivedAt: null,
         workspaceId,
+        ...buildHumanTaskVisibilityWhere("user_123"),
+      },
+    });
+  });
+
+  it("returns not found for another member's private task", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_private", tx),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_private",
+        archivedAt: null,
+        workspaceId,
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
     });
   });
@@ -674,6 +727,7 @@ describe("requireTaskReadForRouteVars", () => {
         assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
+        ...buildHumanTaskVisibilityWhere(sokoBotAuthContext.userId),
       },
     });
   });
@@ -964,6 +1018,7 @@ describe("requireTaskWorkspaceMapping", () => {
       where: {
         id: "tsk_other",
         archivedAt: null,
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
     });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
@@ -1000,6 +1055,36 @@ describe("requireTaskWorkspaceMapping", () => {
     ).resolves.toMatchObject({
       name: "Personal task",
       workspace: { organizationId: null },
+    });
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("omits another member's private task as not found", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskWorkspaceMapping(vars, "tsk_private", tx),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      select: {
+        name: true,
+        ownerId: true,
+        workspaceId: true,
+        workspace: { select: { organizationId: true } },
+      },
+      where: {
+        id: "tsk_private",
+        archivedAt: null,
+        ...buildHumanTaskVisibilityWhere("user_123"),
+      },
     });
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
@@ -1124,6 +1209,7 @@ describe("requireTaskCommentAccess", () => {
         id: "tsk_123",
         archivedAt: null,
         workspaceId,
+        ...buildHumanTaskVisibilityWhere("user_member"),
       },
     });
   });
@@ -1319,6 +1405,7 @@ describe("requireTaskCancelAccess", () => {
         id: "tsk_123",
         archivedAt: null,
         workspaceId,
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
     });
   });
@@ -2134,6 +2221,38 @@ describe("requireJobRead", () => {
     });
   });
 
+  it("hides jobs whose parent task is private to another member", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
+
+    await requireJobRead(jobReadWorkspaceContext, "job_123", tx, "user_123");
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        workspaceId,
+        OR: [
+          { taskId: null },
+          {
+            task: {
+              is: {
+                OR: [
+                  { visibility: TaskVisibility.PUBLIC },
+                  {
+                    visibility: TaskVisibility.PRIVATE,
+                    ownerId: "user_123",
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
   it("returns not found when workspace id is empty and no job matches", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
@@ -2209,7 +2328,26 @@ describe("requireJobReadForRouteVars", () => {
     await requireJobReadForRouteVars(vars, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", workspaceId },
+      where: {
+        id: "job_123",
+        workspaceId,
+        OR: [
+          { taskId: null },
+          {
+            task: {
+              is: {
+                OR: [
+                  { visibility: TaskVisibility.PUBLIC },
+                  {
+                    visibility: TaskVisibility.PRIVATE,
+                    ownerId: "user_123",
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
     });
     expect(tx.coworker.findFirst).not.toHaveBeenCalled();
   });
@@ -2258,6 +2396,7 @@ describe("requireJobReadForRouteVars", () => {
         assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
+        ...buildHumanTaskVisibilityWhere(sokoBotAuthContext.userId),
       },
     });
   });

@@ -5,6 +5,7 @@ import {
   type Prisma,
   type Task,
   TaskStatus,
+  TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
 import { hasActiveTaskSchedule } from "@sokosumi/utils";
@@ -29,6 +30,12 @@ import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
 import { taskAssigneeKind } from "./task";
+import {
+  buildHumanParentTaskVisibilityWhere,
+  buildHumanTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+  isPrivateTaskVisibleToCoworker,
+} from "./task-visibility";
 import {
   getWorkspaceGrant,
   requestWorkspaceGrantCommitted,
@@ -149,6 +156,11 @@ export async function requireTaskArchiveAccess(
   const isScheduled = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
   if (isParked) {
+    // Org OWNER/ADMIN may archive public parked Tasks; private remains
+    // owner-only (SOK-1046) — already handled by the owned lookup above.
+    if (task.visibility === TaskVisibility.PRIVATE) {
+      throw notFound("Task not found");
+    }
     await resolveMemberOrganizationById({
       id: organizationId,
       userId: userContext.userId,
@@ -169,6 +181,7 @@ export async function requireTaskArchiveAccess(
     workspace,
     taskId,
     tx,
+    userContext.userId,
   );
 
   if (workspace.organizationId !== null) {
@@ -531,6 +544,32 @@ async function requireCoworkerTaskRead(
     throw notFound("Task not found");
   }
 
+  if (task.visibility === TaskVisibility.PRIVATE) {
+    const assignee =
+      task.assigneeId != null
+        ? await tx.coworker.findUnique({
+            where: { id: task.assigneeId },
+            select: { vendorId: true },
+          })
+        : null;
+
+    if (
+      !isPrivateTaskVisibleToCoworker(
+        {
+          visibility: task.visibility,
+          assigneeId: task.assigneeId,
+          assignee,
+        },
+        {
+          coworkerId: authContext.coworkerId,
+          vendorId: authContext.vendorId,
+        },
+      )
+    ) {
+      throw notFound("Task not found");
+    }
+  }
+
   const grant = await getWorkspaceGrant(
     {
       vendorId: authContext.vendorId,
@@ -578,12 +617,14 @@ async function requireCoworkerAssignedTaskRead(
 
 async function requireSokoBotTaskRead(
   sokoBotId: string,
+  ownerUserId: string,
   taskId: string,
   workspaceId: string,
   tx?: Prisma.TransactionClient,
 ): Promise<Task>;
 async function requireSokoBotTaskRead<I extends Prisma.TaskInclude>(
   sokoBotId: string,
+  ownerUserId: string,
   taskId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient,
@@ -591,6 +632,7 @@ async function requireSokoBotTaskRead<I extends Prisma.TaskInclude>(
 ): Promise<Prisma.TaskGetPayload<{ include: I }>>;
 async function requireSokoBotTaskRead(
   sokoBotId: string,
+  ownerUserId: string,
   taskId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -603,6 +645,7 @@ async function requireSokoBotTaskRead(
       assigneeSokoBotId: sokoBotId,
       status: { not: TaskStatus.DRAFT },
       archivedAt: null,
+      ...buildSokoBotOwnerTaskVisibilityWhere(ownerUserId),
     },
     ...(include ? { include } : {}),
   });
@@ -661,6 +704,7 @@ export async function requireTaskCollaboration(
   if (isSokoBotAuthContext(authContext)) {
     const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
+      authContext.userId,
       taskId,
       authContext.workspaceId,
       tx,
@@ -702,11 +746,12 @@ export async function requireTaskCommentAccess(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    requireUserContext(authContext);
+    const userContext = requireUserContext(authContext);
     const task = await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
+      userContext.userId,
     );
     requireTaskNotParked(task);
     return task;
@@ -715,6 +760,7 @@ export async function requireTaskCommentAccess(
   if (isSokoBotAuthContext(authContext)) {
     const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
+      authContext.userId,
       taskId,
       authContext.workspaceId,
       tx,
@@ -750,7 +796,12 @@ export async function requireTaskCancelAccess(
   if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     const workspace = requireWorkspaceContext(workspaceContext);
-    const task = await requireTaskReadForWorkspace(workspace, taskId, tx);
+    const task = await requireTaskReadForWorkspace(
+      workspace,
+      taskId,
+      tx,
+      userContext.userId,
+    );
     requireTaskNotParked(task);
 
     if (task.ownerId === userContext.userId) {
@@ -781,8 +832,14 @@ export async function requireTaskStatusWriteAccess(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
+    const userContext = requireUserContext(authContext);
     const workspace = requireWorkspaceContext(workspaceContext);
-    const task = await requireTaskReadForWorkspace(workspace, taskId, tx);
+    const task = await requireTaskReadForWorkspace(
+      workspace,
+      taskId,
+      tx,
+      userContext.userId,
+    );
     requireTaskNotParked(task);
 
     const assigneeKind = taskAssigneeKind(task);
@@ -802,23 +859,29 @@ export async function requireTaskStatusWriteAccess(
 
 /**
  * Workspace-scoped task read: task must belong to the active workspace.
- * Call from handlers after `requireWorkspaceContext`. For user or coworker reads from route vars, use `requireTaskReadForRouteVars`.
+ * When `readerUserId` is set (human reads), private Tasks owned by other
+ * members are not found (SOK-1046). Call from handlers after
+ * `requireWorkspaceContext`. For user or coworker reads from route vars, use
+ * `requireTaskReadForRouteVars`.
  */
 export async function requireTaskReadForWorkspace(
   workspaceContext: WorkspaceContext,
   taskId: string,
   tx?: Prisma.TransactionClient,
+  readerUserId?: string,
 ): Promise<Task>;
 export async function requireTaskReadForWorkspace<I extends Prisma.TaskInclude>(
   workspaceContext: WorkspaceContext,
   taskId: string,
   tx: Prisma.TransactionClient,
+  readerUserId: string | undefined,
   include: I,
 ): Promise<Prisma.TaskGetPayload<{ include: I }>>;
 export async function requireTaskReadForWorkspace(
   workspaceContext: WorkspaceContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  readerUserId?: string,
   include?: Prisma.TaskInclude,
 ): Promise<Task> {
   const { workspaceId } = workspaceContext;
@@ -828,6 +891,7 @@ export async function requireTaskReadForWorkspace(
       id: taskId,
       archivedAt: null,
       workspaceId,
+      ...(readerUserId ? buildHumanTaskVisibilityWhere(readerUserId) : {}),
     },
     ...(include ? { include } : {}),
   });
@@ -863,18 +927,30 @@ export async function requireTaskReadForRouteVars(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    requireUserContext(authContext);
+    const userContext = requireUserContext(authContext);
     const workspace = requireWorkspaceContext(workspaceContext);
     if (include) {
-      return await requireTaskReadForWorkspace(workspace, taskId, tx, include);
+      return await requireTaskReadForWorkspace(
+        workspace,
+        taskId,
+        tx,
+        userContext.userId,
+        include,
+      );
     }
-    return await requireTaskReadForWorkspace(workspace, taskId, tx);
+    return await requireTaskReadForWorkspace(
+      workspace,
+      taskId,
+      tx,
+      userContext.userId,
+    );
   }
 
   if (isSokoBotAuthContext(authContext)) {
     if (include) {
       return await requireSokoBotTaskRead(
         authContext.sokoBotId,
+        authContext.userId,
         taskId,
         authContext.workspaceId,
         tx,
@@ -883,6 +959,7 @@ export async function requireTaskReadForRouteVars(
     }
     return await requireSokoBotTaskRead(
       authContext.sokoBotId,
+      authContext.userId,
       taskId,
       authContext.workspaceId,
       tx,
@@ -968,6 +1045,7 @@ export async function requireTaskWorkspaceMapping(
       where: {
         id: taskId,
         archivedAt: null,
+        ...buildHumanTaskVisibilityWhere(authContext.userId),
       },
       select: {
         name: true,
@@ -1016,6 +1094,7 @@ export async function requireJobRead(
   workspaceContext: WorkspaceContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
+  readerUserId?: string,
 ): Promise<Job> {
   const { workspaceId } = workspaceContext;
 
@@ -1023,6 +1102,18 @@ export async function requireJobRead(
     where: {
       id: jobId,
       workspaceId,
+      ...(readerUserId
+        ? {
+            OR: [
+              { taskId: null },
+              {
+                task: {
+                  is: buildHumanParentTaskVisibilityWhere(readerUserId),
+                },
+              },
+            ],
+          }
+        : {}),
     },
   });
 
@@ -1081,6 +1172,7 @@ async function assertCoworkerCanReadJob(
 
 async function assertSokoBotCanAccessJob(
   sokoBotId: string,
+  ownerUserId: string,
   workspaceId: string,
   job: Job,
   tx: Prisma.TransactionClient = prisma,
@@ -1089,7 +1181,13 @@ async function assertSokoBotCanAccessJob(
     throw forbidden("You can only access jobs assigned to your Soko Bot");
   }
 
-  await requireSokoBotTaskRead(sokoBotId, job.taskId, workspaceId, tx);
+  await requireSokoBotTaskRead(
+    sokoBotId,
+    ownerUserId,
+    job.taskId,
+    workspaceId,
+    tx,
+  );
 }
 
 /**
@@ -1103,11 +1201,12 @@ export async function requireJobReadForRouteVars(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    requireUserContext(authContext);
+    const userContext = requireUserContext(authContext);
     return await requireJobRead(
       requireWorkspaceContext(workspaceContext),
       jobId,
       tx,
+      userContext.userId,
     );
   }
 
@@ -1120,6 +1219,7 @@ export async function requireJobReadForRouteVars(
     }
     await assertSokoBotCanAccessJob(
       authContext.sokoBotId,
+      authContext.userId,
       authContext.workspaceId,
       job,
       tx,
@@ -1198,6 +1298,7 @@ export async function requireJobCollaboration(
     }
     await assertSokoBotCanAccessJob(
       authContext.sokoBotId,
+      authContext.userId,
       authContext.workspaceId,
       job,
       tx,

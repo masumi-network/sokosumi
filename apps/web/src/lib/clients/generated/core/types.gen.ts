@@ -4,6 +4,42 @@ export type ClientOptions = {
     baseUrl: `${string}://openapi-core.snapshot.json` | (string & {});
 };
 
+export type AdminUserOption = {
+    id: string;
+    name: string;
+    email: string;
+};
+
+export type PaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Total number of items
+     */
+    total: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
+export type StartImpersonationBody = {
+    /**
+     * ID of the non-admin user to impersonate
+     */
+    userId: string;
+    /**
+     * Why this impersonation is started (Linear-id convention, e.g. SOK-123: reproduce). Stored in the audit log.
+     */
+    reason: string;
+};
+
 export type AdminAgentList = Array<AdminAgentListItem>;
 
 export type AdminAgentListItem = {
@@ -27,25 +63,6 @@ export const AgentStatus = {
 } as const;
 
 export type AgentStatus = typeof AgentStatus[keyof typeof AgentStatus];
-
-export type PaginationMetadata = {
-    /**
-     * Cursor for the current page
-     */
-    cursor: string | null;
-    /**
-     * Number of items returned
-     */
-    limit: number;
-    /**
-     * Total number of items
-     */
-    total: number;
-    /**
-     * Cursor for the next page
-     */
-    nextCursor: string | null;
-};
 
 export type AdminAgentDetail = {
     registry: AdminAgentRegistry;
@@ -160,12 +177,6 @@ export type PatchAdminAgentMetadataOverrideBody = {
     image?: string | null;
     tags?: Array<string>;
     exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
-};
-
-export type AdminUserOption = {
-    id: string;
-    name: string;
-    email: string;
 };
 
 export type AdminOrganizationOption = {
@@ -1115,6 +1126,7 @@ export type Task = {
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
+    visibility: TaskVisibility;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -1224,6 +1236,16 @@ export type TaskCreatorSokoBot = {
     id: string;
     sokoBot: SokoBotSummary;
 };
+
+/**
+ * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
+ */
+export const TaskVisibility = { PUBLIC: 'PUBLIC', PRIVATE: 'PRIVATE' } as const;
+
+/**
+ * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
+ */
+export type TaskVisibility = typeof TaskVisibility[keyof typeof TaskVisibility];
 
 export type TaskEvent = {
     id: string;
@@ -1812,17 +1834,6 @@ export type PatchVendorRequest = {
     name?: string;
     slug?: string;
     logos?: VendorLogosInput;
-};
-
-export type StartImpersonationBody = {
-    /**
-     * ID of the non-admin user to impersonate
-     */
-    userId: string;
-    /**
-     * Why this impersonation is started (Linear-id convention, e.g. SOK-123: reproduce). Stored in the audit log.
-     */
-    reason: string;
 };
 
 export type AgentListItem = CardanoAgentListItem | X402Agent;
@@ -5509,6 +5520,7 @@ export type TaskListItem = {
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
+    visibility: TaskVisibility;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -6191,6 +6203,227 @@ export type ContextUserId = string;
  * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
  */
 export type ContextOrganizationId = string;
+
+export type StopAdminImpersonationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/impersonation';
+};
+
+export type StopAdminImpersonationErrors = {
+    /**
+     * Bad Request - not currently impersonating
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StopAdminImpersonationError = StopAdminImpersonationErrors[keyof StopAdminImpersonationErrors];
+
+export type StopAdminImpersonationResponses = {
+    /**
+     * The restored admin user
+     */
+    200: {
+        data: AdminUserOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StopAdminImpersonationResponse = StopAdminImpersonationResponses[keyof StopAdminImpersonationResponses];
+
+export type StartAdminImpersonationData = {
+    body?: StartImpersonationBody;
+    path?: never;
+    query?: never;
+    url: '/admin/impersonation';
+};
+
+export type StartAdminImpersonationErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - admin access required or target is an admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - target user does not exist
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - already impersonating a user
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartAdminImpersonationError = StartAdminImpersonationErrors[keyof StartAdminImpersonationErrors];
+
+export type StartAdminImpersonationResponses = {
+    /**
+     * The user now being impersonated
+     */
+    201: {
+        data: AdminUserOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartAdminImpersonationResponse = StartAdminImpersonationResponses[keyof StartAdminImpersonationResponses];
 
 export type ListAdminAgentsData = {
     body?: never;
@@ -11261,227 +11494,6 @@ export type PatchAdminVendorResponses = {
 };
 
 export type PatchAdminVendorResponse = PatchAdminVendorResponses[keyof PatchAdminVendorResponses];
-
-export type StopAdminImpersonationData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/admin/impersonation';
-};
-
-export type StopAdminImpersonationErrors = {
-    /**
-     * Bad Request - not currently impersonating
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type StopAdminImpersonationError = StopAdminImpersonationErrors[keyof StopAdminImpersonationErrors];
-
-export type StopAdminImpersonationResponses = {
-    /**
-     * The restored admin user
-     */
-    200: {
-        data: AdminUserOption;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type StopAdminImpersonationResponse = StopAdminImpersonationResponses[keyof StopAdminImpersonationResponses];
-
-export type StartAdminImpersonationData = {
-    body?: StartImpersonationBody;
-    path?: never;
-    query?: never;
-    url: '/admin/impersonation';
-};
-
-export type StartAdminImpersonationErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - admin access required or target is an admin
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - target user does not exist
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - already impersonating a user
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity - validation failed
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type StartAdminImpersonationError = StartAdminImpersonationErrors[keyof StartAdminImpersonationErrors];
-
-export type StartAdminImpersonationResponses = {
-    /**
-     * The user now being impersonated
-     */
-    201: {
-        data: AdminUserOption;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type StartAdminImpersonationResponse = StartAdminImpersonationResponses[keyof StartAdminImpersonationResponses];
 
 export type GetAgentsData = {
     body?: never;
@@ -32939,6 +32951,21 @@ export type PutJobsByIdShareData = {
 
 export type PutJobsByIdShareErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -38550,6 +38577,10 @@ export type GetTasksData = {
          */
         sort?: 'nextRunAt';
         /**
+         * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
+         */
+        visibility?: 'PUBLIC' | 'PRIVATE';
+        /**
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;
@@ -38663,6 +38694,10 @@ export type PostTasksData = {
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
+        /**
+         * Omit or PUBLIC for workspace-visible Tasks. PRIVATE is allowed only in organization workspaces and is immutable after create.
+         */
+        visibility?: 'PUBLIC' | 'PRIVATE';
     };
     headers?: {
         /**
@@ -40445,6 +40480,21 @@ export type PutTasksByIdShareData = {
 };
 
 export type PutTasksByIdShareErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

@@ -11,6 +11,7 @@ function buildTask(
     id,
     name: overrides.name ?? `Task ${id}`,
     status: overrides.status ?? TaskStatus.READY,
+    visibility: "PUBLIC" as const,
     ownerId: "user-1",
     owner: { id: "user-1", name: "Test User", image: null },
     createdAt: "2026-03-01T00:00:00.000Z",

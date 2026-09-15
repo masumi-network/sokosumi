@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import { type Prisma, TaskVisibility } from "@sokosumi/database";
 import { notFound } from "@/helpers/error";
 import { buildAccessibleCoworkersWhere } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
@@ -14,7 +14,13 @@ export function buildDeveloperOwnedCoworkerTaskWhere(
   if (coworkerId) {
     return {
       ...base,
-      OR: [{ assigneeId: coworkerId }, { creatorCoworkerId: coworkerId }],
+      OR: [
+        { assigneeId: coworkerId },
+        {
+          visibility: TaskVisibility.PUBLIC,
+          creatorCoworkerId: coworkerId,
+        },
+      ],
     };
   }
 
@@ -24,7 +30,10 @@ export function buildDeveloperOwnedCoworkerTaskWhere(
     ...base,
     OR: [
       { assignee: accessibleCoworkerWhere },
-      { creatorCoworker: accessibleCoworkerWhere },
+      {
+        visibility: TaskVisibility.PUBLIC,
+        creatorCoworker: accessibleCoworkerWhere,
+      },
     ],
   };
 }

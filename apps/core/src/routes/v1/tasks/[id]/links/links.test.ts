@@ -2,6 +2,7 @@ import { Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -460,10 +461,11 @@ describe("GET /tasks/{id}/links", () => {
         linksFrom: {
           where: {
             toTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
           include: {
@@ -489,10 +491,11 @@ describe("GET /tasks/{id}/links", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_123"),
+              }),
             },
           },
           include: {
@@ -567,10 +570,11 @@ describe("GET /tasks/{id}/links", () => {
         linksFrom: {
           where: {
             toTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_456"),
+              }),
             },
           },
           include: {
@@ -596,10 +600,11 @@ describe("GET /tasks/{id}/links", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
+              is: expect.objectContaining({
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
-              },
+                ...buildHumanTaskVisibilityWhere("user_456"),
+              }),
             },
           },
           include: {

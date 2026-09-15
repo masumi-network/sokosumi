@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
@@ -483,6 +483,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
+    // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
+    visibility: task.visibility ?? TaskVisibility.PUBLIC,
     // Grant parking fields are intentional API surface while GRANT_PENDING so
     // coworkers and web can correlate the task with the blocking vendor grant.
     grantResumeStatus:

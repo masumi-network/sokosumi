@@ -11,8 +11,8 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
   },
 }));
 
+import type { FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
-
 import { TasksViewFilters } from "./tasks-view-filters";
 
 const replaceMock = vi.fn();
@@ -35,6 +35,8 @@ const labels = {
   scopeWorkspace: "Workspace",
   coworkerLabel: "Coworker",
   statusLabel: "Status",
+  visibilityLabel: "Visibility",
+  visibilityPrivate: "Private",
   statusOptions: {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.QUEUED]: "Queued",
@@ -77,7 +79,7 @@ function renderTasksViewFilters(activeOrganizationId: string | null) {
 
   return filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
     buttonLabel: string;
-    sections: Array<{ id: string; label: string }>;
+    sections: FilterDropdownMenuSection[];
   };
 }
 
@@ -93,12 +95,25 @@ describe("TasksViewFilters", () => {
     expect(props.buttonLabel).toBe("Filters");
     expect(props.sections.map((section) => section.id)).toEqual([
       "scope",
+      "visibility",
       "coworker",
       "status",
     ]);
   });
 
-  it("only hides the scope section in personal context", () => {
+  it("visibility section supports All and Private only", () => {
+    const props = renderTasksViewFilters("org-1");
+    const visibilitySection = props.sections.find(
+      (section) => section.id === "visibility",
+    );
+
+    expect(visibilitySection?.allLabel).toBe("All");
+    expect(visibilitySection?.options).toEqual([
+      { value: "PRIVATE", label: "Private" },
+    ]);
+  });
+
+  it("hides scope and visibility sections in personal context", () => {
     const props = renderTasksViewFilters(null);
 
     expect(props.sections.map((section) => section.id)).toEqual([

@@ -1,9 +1,11 @@
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
 export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
+
+export type TasksVisibilityFilter = typeof TaskVisibility.PRIVATE | null;
 
 export interface TasksFilters {
   scope: TasksScope;
@@ -12,6 +14,7 @@ export interface TasksFilters {
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
+  visibility: TasksVisibilityFilter;
 }
 
 export interface ProjectFilterOption {
@@ -35,6 +38,7 @@ export interface TasksFiltersSearchParams {
   coworkerId?: TasksFilterQueryParam;
   status?: TasksFilterQueryParam;
   projectId?: TasksFilterQueryParam;
+  visibility?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -46,6 +50,7 @@ export const TASKS_FILTER_PARAM_KEYS = {
   coworkerId: "coworkerId",
   status: "status",
   projectId: "projectId",
+  visibility: "visibility",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
@@ -103,6 +108,23 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 
   const normalized = raw.trim();
   return UUID_PATTERN.test(normalized) ? normalized : null;
+}
+
+export function sanitizeTasksVisibilityInput(
+  raw: unknown,
+  activeOrganizationId: string | null,
+): TasksVisibilityFilter {
+  if (activeOrganizationId === null) {
+    return null;
+  }
+  if (typeof raw !== "string") {
+    return null;
+  }
+  const normalized = raw.trim();
+  if (normalized === TaskVisibility.PRIVATE) {
+    return TaskVisibility.PRIVATE;
+  }
+  return null;
 }
 
 export function getDefaultTasksScope(
@@ -164,6 +186,8 @@ export function getTasksFiltersFromSearchParams(
       status: searchParams.get(TASKS_FILTER_PARAM_KEYS.status) ?? undefined,
       projectId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.projectId) ?? undefined,
+      visibility:
+        searchParams.get(TASKS_FILTER_PARAM_KEYS.visibility) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -235,6 +259,10 @@ export function parseTasksFilters(
   const projectId = sanitizeProjectIdFilterInput(
     normalizeOptionalString(searchParams.projectId),
   );
+  const visibility = sanitizeTasksVisibilityInput(
+    firstQueryString(searchParams.visibility),
+    activeOrganizationId,
+  );
 
   return {
     scope,
@@ -243,6 +271,7 @@ export function parseTasksFilters(
     assigneeUserId,
     status,
     projectId,
+    visibility,
   };
 }
 
@@ -296,6 +325,15 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.status);
   }
 
+  if (filters.visibility === null) {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.visibility);
+  } else {
+    nextSearchParams.set(
+      TASKS_FILTER_PARAM_KEYS.visibility,
+      filters.visibility,
+    );
+  }
+
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
 }
 
@@ -336,7 +374,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}`;
 }
 
 /**
@@ -360,7 +398,8 @@ export function hasActiveTasksFilters(
     filters.assigneeId ||
       filters.assigneeSokoBotId ||
       filters.assigneeUserId ||
-      filters.status,
+      filters.status ||
+      filters.visibility === TaskVisibility.PRIVATE,
   );
 
   if (activeOrganizationId !== null) {

@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import { buildVisibleTaskLinksInclude } from "./task-link";
@@ -117,12 +117,45 @@ describe("buildVisibleTaskLinksInclude", () => {
       assigneeSokoBotId: "30000000-0000-4000-8000-000000000001",
       status: { not: TaskStatus.DRAFT },
       archivedAt: null,
+      AND: [
+        {
+          OR: [
+            { visibility: TaskVisibility.PUBLIC },
+            { visibility: TaskVisibility.PRIVATE, ownerId: "user_1" },
+          ],
+        },
+      ],
     };
     expect(include.linksFrom?.where).toEqual({
       toTask: { is: peerWhere },
     });
     expect(include.linksTo?.where).toEqual({
       fromTask: { is: peerWhere },
+    });
+  });
+
+  it("scopes human peers to public tasks and private tasks owned by the reader", () => {
+    const include = buildVisibleTaskLinksInclude(
+      {
+        actor: "user",
+        userId: "user_reader",
+        organizationId: "org_1",
+        role: "user",
+      },
+      "ws_org",
+    );
+
+    expect(include.linksFrom?.where).toEqual({
+      toTask: {
+        is: {
+          workspaceId: "ws_org",
+          archivedAt: null,
+          OR: [
+            { visibility: TaskVisibility.PUBLIC },
+            { visibility: TaskVisibility.PRIVATE, ownerId: "user_reader" },
+          ],
+        },
+      },
     });
   });
 });

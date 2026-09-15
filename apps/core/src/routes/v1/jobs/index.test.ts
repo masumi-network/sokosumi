@@ -50,6 +50,7 @@ describe("jobs routes OpenAPI scope contract", () => {
     });
 
     expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("200");
+    expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("400");
     expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
     expect(doc.paths?.["/{id}/workspace"]?.put?.responses).toHaveProperty(
       "409",

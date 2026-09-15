@@ -433,6 +433,7 @@ async function TaskMetadataSection({
       editable={!isReadOnly}
       task={{
         status: task.status,
+        visibility: task.visibility,
         selectableStatuses: task.selectableStatuses,
         owner: task.owner,
         organization: task.organization,
@@ -446,6 +447,8 @@ async function TaskMetadataSection({
       createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
       updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
       labels={{
+        visibility: t("visibility"),
+        privateBadge: t("privateBadge"),
         status: t("status"),
         statusLabels,
         owner: t("owner"),
@@ -576,6 +579,7 @@ async function TaskDetailActionsSlot({
       share={taskWithCoworker.share ?? null}
       taskId={taskId}
       status={taskWithCoworker.status}
+      taskVisibility={taskWithCoworker.visibility}
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
