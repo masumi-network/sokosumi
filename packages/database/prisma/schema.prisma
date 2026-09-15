@@ -80,6 +80,8 @@ model User {
 
   ownedTasks              Task[]                   @relation("TaskOwner")
   createdTasks            Task[]                   @relation("TaskCreatorUser")
+  createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorUser")
+  scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByUser")
   assignedTasks           Task[]                   @relation("TaskAssigneeUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
@@ -272,10 +274,11 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs                     Job[]
-  tasks                    Task[]
-  projects                 Project[]
-  scheduleOccurrences      TaskScheduleOccurrence[]
+  jobs                    Job[]
+  tasks                   Task[]
+  socialPosts             SocialPost[]
+  projects                Project[]
+  scheduleOccurrences     TaskScheduleOccurrence[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
   notifications            Notification[]
   vendorGrants             VendorGrant[]
@@ -508,6 +511,7 @@ model Project {
   stars                 ProjectStar[]
 
   socialConnections       ProjectSocialConnection[]
+  socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
   @@index([workspaceId])
@@ -559,6 +563,7 @@ model ProjectSocialConnection {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   audits  ProjectSocialConnectionAudit[]
   intents ProjectSocialConnectionIntent[]
+  socialPosts SocialPost[]
 
   @@unique([projectId, activeExternalAccountKey])
   @@map("project_social_connection")
@@ -600,6 +605,75 @@ model ProjectSocialConnectionAudit {
 
   @@index([projectSocialConnectionId, createdAt])
   @@map("project_social_connection_audit")
+}
+
+enum SocialPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  MISSED
+  CANCELED
+}
+
+/// One piece of content a Project intends to publish through exactly one
+/// Project social connection at one planned time. Not a Task.
+model SocialPost {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  socialConnectionId String?                  @db.Uuid
+  socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+
+  /// Social provider key, e.g. "x".
+  provider String
+  text     String
+
+  status      SocialPostStatus @default(DRAFT)
+  scheduledAt DateTime?
+  /// IANA zone the scheduling human used. Display only.
+  timezone    String?
+
+  /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
+  /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
+  creatorUserId String?
+  creatorUser   User?   @relation("SocialPostCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("SocialPostCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("SocialPostCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  scheduledByUserId String?
+  scheduledByUser   User?   @relation("SocialPostScheduledByUser", fields: [scheduledByUserId], references: [id], onDelete: SetNull)
+
+  canceledAt          DateTime?
+  publishedAt         DateTime?
+  publishedExternalId String?
+  publishedUrl        String?
+  lastError           String?
+
+  /// Optimistic-lock counter bumped on every edit/schedule/cancel.
+  revision Int @default(0)
+
+  @@index([projectId, status, scheduledAt])
+  @@index([status, scheduledAt])
+  @@index([workspaceId, scheduledAt])
+  @@index([socialConnectionId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorSokoBotId])
+  @@index([scheduledByUserId])
+  @@map("social_post")
 }
 
 model Member {
@@ -1702,6 +1776,7 @@ model Coworker {
 
   assignedTasks       Task[]                   @relation("TaskAssignee")
   createdTasks        Task[]                   @relation("TaskCreatorCoworker")
+  createdSocialPosts  SocialPost[]             @relation("SocialPostCreatorCoworker")
   taskEvents          TaskEvent[]
   uploadedTaskFiles   TaskFile[]               @relation("TaskFileUploadedByCoworker")
   coworkerUsages      CoworkerUsage[]
@@ -1966,15 +2041,16 @@ model SokoBot {
   lastSeenInboxAt       DateTime?
   consecutivePollErrors Int       @default(0)
 
-  createdTasks      Task[]                   @relation("TaskCreatorSokoBot")
-  taskEvents        TaskEvent[]
-  uploadedTaskFiles TaskFile[]               @relation("TaskFileUploadedBySokoBot")
-  sokoBotUsages     SokoBotUsage[]
-  turns             SokoBotTurn[]
-  memoryRevisions   SokoBotMemoryRevision[]
-  legacyMessages    SokoBotLegacyMessage[]
-  pendingDecisions  SokoBotPendingDecision[]
-  schedules         SokoBotSchedule[]
+  createdTasks       Task[]                   @relation("TaskCreatorSokoBot")
+  createdSocialPosts SocialPost[]             @relation("SocialPostCreatorSokoBot")
+  taskEvents         TaskEvent[]
+  uploadedTaskFiles  TaskFile[]               @relation("TaskFileUploadedBySokoBot")
+  sokoBotUsages      SokoBotUsage[]
+  turns              SokoBotTurn[]
+  memoryRevisions    SokoBotMemoryRevision[]
+  legacyMessages     SokoBotLegacyMessage[]
+  pendingDecisions   SokoBotPendingDecision[]
+  schedules          SokoBotSchedule[]
 
   @@index([archivedAt])
   @@index([lastPolledAt])
