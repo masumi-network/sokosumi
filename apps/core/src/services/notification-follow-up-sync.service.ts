@@ -198,6 +198,7 @@ export async function sendFollowUps(
 
   /** Whether the handler still wants this run to do more work. */
   const outOfTime = () =>
+    options.abortSignal?.aborted === true ||
     options.shouldContinue?.() === false;
 
   let examined = 0;
