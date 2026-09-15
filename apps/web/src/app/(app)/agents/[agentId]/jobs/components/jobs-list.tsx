@@ -309,13 +309,13 @@ export function JobRow({
           several statuses share a hue by design. The glyph is what
           separates them, and the badge carries the status as an aria-label
           for readers who get none of it from colour. Payment pending and
-          started are the exception: one role, one glyph and one label,
-          until a later change in this stack gives them labels of their own.
-          Two pairs go the other way: refund and dispute each share a glyph
-          across two roles, so on an unselected row only colour separates
-          them. On a selected row every glyph is painted in the selected
-          foreground, so there the accessible name is the only cue for those
-          pairs too.
+          started share a role and a glyph on purpose, so in this row only
+          the accessible name separates them; the visible mark is the same
+          for both. Two pairs go the other way: refund and dispute each
+          share a glyph across two roles, so on an unselected row only
+          colour separates them. On a selected row every glyph is painted in
+          the selected foreground, so there the accessible name is the only
+          cue for those pairs too.
         */}
         <JobStatusBadge
           status={job.status}
