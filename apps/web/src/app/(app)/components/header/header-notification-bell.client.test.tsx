@@ -160,7 +160,8 @@ describe("HeaderNotificationBell", () => {
     await user.keyboard("{Escape}");
 
     // Every row it showed, not just the unread ones: the provider owns which
-    // of them still need a write.
+    // of them still need a write, and which the reader put back by hand and
+    // wants left alone.
     await waitFor(() =>
       expect(markManyReadMock).toHaveBeenCalledWith([
         "notif_unread_1",

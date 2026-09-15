@@ -371,7 +371,14 @@ export function NotificationProvider({
     }
   }, [dispatch]);
 
+  // Rows the reader put back by hand. An unread they asked for outranks the
+  // read that closing the notification center would write for them, so the
+  // batch commit skips these. They leave the set only through another
+  // deliberate act: opening the row, or marking everything read.
+  const deliberatelyUnread = useRef(new Set<string>());
+
   const markAllRead = useCallback(async () => {
+    deliberatelyUnread.current.clear();
     // Paint read state immediately so mark-all-read clicks stay within good INP.
     dispatch({ type: "mark_all_read" });
     dismissAllNotificationToasts();
@@ -389,6 +396,7 @@ export function NotificationProvider({
 
   const markRead = useCallback(
     async (id: string) => {
+      deliberatelyUnread.current.delete(id);
       const generation = clearGeneration.current;
       // Optimistic update paints before the network round-trip, which keeps
       // notification clicks from blocking Interaction to Next Paint.
@@ -425,6 +433,7 @@ export function NotificationProvider({
   const markUnread = useCallback(
     async (id: string) => {
       const generation = clearGeneration.current;
+      deliberatelyUnread.current.add(id);
       // Optimistic, like the read path, so the row and the badge answer the
       // click before the round-trip.
       dispatch({ type: "mark_unread_optimistic", id });
@@ -460,10 +469,12 @@ export function NotificationProvider({
       // single-row path does: the reader must not watch the list settle.
       // Rows already read, and rows this list no longer holds, are dropped by
       // the reducer, so the badge cannot go below what the server will report.
-      const unreadIds = ids.filter((id) =>
-        confirmedState.current.notifications.some(
-          (notification) => notification.id === id && !notification.isRead,
-        ),
+      const unreadIds = ids.filter(
+        (id) =>
+          !deliberatelyUnread.current.has(id) &&
+          confirmedState.current.notifications.some(
+            (notification) => notification.id === id && !notification.isRead,
+          ),
       );
 
       if (unreadIds.length === 0) return;
