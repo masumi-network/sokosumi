@@ -3,18 +3,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "./generated/prisma/client.js";
 
 /**
- * Creates a new Prisma client instance with the provided database URL.
- * This factory function follows the common npm package pattern for dependency injection.
- *
- * @param databaseUrl - The database connection URL (e.g., postgresql://user:password@host:port/database)
- * @returns A configured PrismaClient instance with PostgreSQL adapter
- *
- * @example
- * ```typescript
- * import { createPrismaClient } from '@sokosumi/database/client';
- *
- * const prisma = createPrismaClient(process.env.DATABASE_URL);
- * ```
+ * Prisma client with TCP keepAlive (initial delay 10s).
+ * OS default keepalive is ~7200s, longer than cron idle gaps, so probes would never fire in time.
  */
 export function createPrismaClient(databaseUrl: string): PrismaClient {
   const adapter = new PrismaPg({
