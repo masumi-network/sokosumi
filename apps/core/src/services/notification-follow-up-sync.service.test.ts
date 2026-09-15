@@ -545,6 +545,20 @@ describe("NotificationFollowUpSyncService", () => {
   });
 
   /**
+   * One millisecond short of the day. The test above pins that the due
+   * instant is inside the window; on its own it leaves a run free to remind
+   * everyone a moment early, because the row six hours short is excluded for
+   * a reason that says nothing about the edge.
+   */
+  it("leaves a notification a millisecond short of the day alone", async () => {
+    seed([row({ createdAt: new Date(JUST_A_DAY.getTime() + 1) })]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toEqual([]);
+  });
+
+  /**
    * Exactly at the far edge. The window is open at that instant rather than
    * closed on it, so this row belonged to the previous run and is not read
    * again here.
