@@ -324,6 +324,10 @@ async function sendInput(stdin: PassThrough, input: string): Promise<void> {
   stdin.write(input);
   stdin.emit("readable");
   await waitForNextImmediate();
+  // Ink 7 buffers a trailing ESC for 20ms so CSI sequences can complete.
+  if (input === "\u001b") {
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+  }
 }
 
 function createTestAuthManager(): AuthManager {
