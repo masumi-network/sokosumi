@@ -24,14 +24,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 // `@/helpers/access-control` stays real so the route's access chain is the one
-// under test: ownership without the mutation-only parked-task guard.
+// under test: human ownership without the mutation-only parked-task guard, and
+// the Task read gate for agent actors.
 const {
+  coworkerFindFirstMock,
   memberFindFirstMock,
   taskFindFirstMock,
   occurrenceCountMock,
   occurrenceFindManyMock,
   transactionMock,
 } = vi.hoisted(() => ({
+  coworkerFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   occurrenceCountMock: vi.fn(),
@@ -42,6 +45,7 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    coworker: { findFirst: coworkerFindFirstMock },
     member: { findFirst: memberFindFirstMock },
     task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: {
@@ -192,6 +196,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     occurrenceFindManyMock.mockResolvedValue([]);
     transactionMock.mockImplementation((callback) =>
       callback({
+        coworker: { findFirst: coworkerFindFirstMock },
         member: { findFirst: memberFindFirstMock },
         task: { findFirst: taskFindFirstMock },
         taskScheduleOccurrence: {
@@ -206,7 +211,13 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     vi.useRealTimers();
   });
 
-  it("rejects agent actors so only an interactive human reads the ledger", async () => {
+  it("reads the ledger for a collaborating coworker acting with user context", async () => {
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      slug: "coworker",
+      baseURL: null,
+    });
+
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
@@ -216,9 +227,9 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     const response = await app.request(request());
 
-    expect(response.status).toBe(403);
-    expect(taskFindFirstMock).not.toHaveBeenCalled();
-    expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).toHaveBeenCalled();
+    expect(occurrenceFindManyMock).toHaveBeenCalled();
   });
 
   it("requires Calendar beta access", async () => {

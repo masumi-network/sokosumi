@@ -303,6 +303,33 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     });
   });
 
+  it("reschedules for a standalone coworker agent without Calendar beta", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+    });
+
+    const response = await app.request(...request(body()));
+
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
+    expect(occurrenceUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ actorUserId: null }),
+      }),
+    );
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: TASK_ID,
+        userId: null,
+        coworkerId: "cow_123",
+        sokoBotId: null,
+      }),
+      select: { id: true },
+    });
+  });
+
   it("skips a future planned occurrence and advances to the next release", async () => {
     const nextRunAt = new Date("2026-06-13T09:00:00.000Z");
     occurrenceUpdateMock.mockResolvedValue(
