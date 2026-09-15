@@ -36,6 +36,7 @@ const route = createRoute({
   },
   responses: {
     200: jsonSuccessResponse(taskShareSchema, "Create or update a task share"),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),

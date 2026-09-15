@@ -149,6 +149,7 @@ describe("tasks routes OpenAPI query contract", () => {
     });
 
     expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("200");
+    expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("400");
     expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
   });
 

@@ -20,7 +20,8 @@ import { buildHumanParentTaskVisibilityWhere } from "./task-visibility";
  * while a personal workspace admits only its owner.
  *
  * Jobs whose parent Task is private follow SOK-1046: only the private Task's
- * human reader (owner) can create or manage a job share.
+ * human reader (owner) can reach the job for share revoke. Public share
+ * create is rejected by PUT /jobs/{id}/share.
  *
  * `workspaceContext` is not client-controlled. It comes from the session's
  * active organization, or, when the session carries none, from an
