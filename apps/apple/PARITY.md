@@ -2,6 +2,8 @@
 
 ## Resume checkpoint
 
+- Toolchain follow-up (2026-09-15): #4577 merged as `d940e030d` with green CI; the composer edge fix was visually accepted. Active branch `codex/apple-swift6-migration` enables Swift 6 language mode for the app and app tests using Xcode 27 / Swift 6.4. Packages already use tools version 6.4. Deployment targets and dependencies remain unchanged. See [SDK audit](docs/swift6-migration.md). Room search follows this separate migration after human merge.
+
 - Composer boundary follow-up (2026-09-15): the user reports only the console warning, not visible scrolling stutter. The shared composer now paints its system background after its outer padding, covering transcript content behind the side and bottom gaps in both rooms and threads. Signed build, the full app test suite, and pinned lint/format pass. The user visually verified the fix on 2026-09-15; a fresh screenshot also shows clean side and bottom gaps. The agent-launched instance was stopped.
 
 - Geometry warning reproduction: [standalone diagnostic](docs/scroll-geometry-warning.md) now reproduces the exact fault without chat-specific code. Growing the composer inset during initial positioning triggers it; a stable initial inset did not in the comparison. Application fix remains pending.

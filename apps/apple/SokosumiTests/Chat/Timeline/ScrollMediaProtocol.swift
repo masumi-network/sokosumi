@@ -4,9 +4,9 @@
   import Synchronization
 
   /// Deterministic delayed media for transcript image views; never reaches the network.
-  final class ScrollMediaProtocol: URLProtocol, @unchecked Sendable {
+  final nonisolated class ScrollMediaProtocol: URLProtocol, @unchecked Sendable {
     private static let completions = Mutex(0)
-    private let pending = Mutex<DispatchWorkItem?>(nil)
+    private let pending = Mutex<Task<Void, Never>?>(nil)
     static var completedRequests: Int {
       completions.withLock { $0 }
     }
@@ -26,7 +26,8 @@
       let shape = query.first { $0.name == "shape" }?.value
       let failure = query.contains { $0.name == "failure" }
       let delay = query.first { $0.name == "delay" }?.value.flatMap(Double.init) ?? 0.05
-      let work = DispatchWorkItem { [self] in
+      let work = Task { @Sendable [self] in
+        do { try await Task.sleep(for: .seconds(delay)) } catch { return }
         defer { pending.withLock { $0 = nil } }
         guard let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: failure ? 500 : 200, httpVersion: nil,
@@ -37,7 +38,6 @@
         Self.completions.withLock { $0 += 1 }
       }
       pending.withLock { $0 = work }
-      DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     private static func svgData(shape: String?) -> Data {
