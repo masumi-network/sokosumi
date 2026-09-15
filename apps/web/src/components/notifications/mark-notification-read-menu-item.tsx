@@ -1,9 +1,14 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { MailOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useNotifications } from "@/contexts/notification-provider";
 
 interface MarkNotificationReadMenuItemProps {
@@ -23,6 +28,10 @@ interface MarkNotificationReadMenuItemProps {
  * A menu item of its own rather than a button inside the row's item, for the
  * same reason the delete control is one: arrow keys reach it, and each element
  * in the menu keeps one role.
+ *
+ * The icon is an opened envelope, the state the control produces, so it and
+ * the sealed envelope on the way back read as one pair. The tooltip says the
+ * same thing in words, because an icon alone is a guess.
  */
 export function MarkNotificationReadMenuItem({
   notificationId,
@@ -32,20 +41,28 @@ export function MarkNotificationReadMenuItem({
   const { markRead } = useNotifications();
 
   return (
-    <DropdownMenuItem
-      aria-label={t("markRead", { message: notificationMessage })}
-      className="text-muted-foreground focus:bg-foreground/10 focus:text-foreground my-2 size-7 shrink-0 justify-center p-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-has-[[data-highlighted]]/row:opacity-100"
-      onSelect={(event) => {
-        // The menu stays open: clearing one row is not a reason to take the
-        // rest of the list away, and the reader may want to clear several.
-        event.preventDefault();
-        markRead(notificationId).catch(() => {
-          // The provider logged it and refetched. The row stays unread, which
-          // is the visible, recoverable way to be wrong.
-        });
-      }}
-    >
-      <Check className="size-4" />
-    </DropdownMenuItem>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <DropdownMenuItem
+          aria-label={t("markRead", { message: notificationMessage })}
+          className="text-muted-foreground focus:bg-foreground/10 focus:text-foreground my-2 size-7 shrink-0 justify-center p-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-has-[[data-highlighted]]/row:opacity-100"
+          onSelect={(event) => {
+            // The menu stays open: clearing one row is not a reason to take
+            // the rest of the list away, and the reader may want to clear
+            // several.
+            event.preventDefault();
+            markRead(notificationId).catch(() => {
+              // The provider logged it and refetched. The row stays unread,
+              // which is the visible, recoverable way to be wrong.
+            });
+          }}
+        >
+          <MailOpen className="size-4" />
+        </DropdownMenuItem>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={6}>
+        {t("markReadTooltip")}
+      </TooltipContent>
+    </Tooltip>
   );
 }

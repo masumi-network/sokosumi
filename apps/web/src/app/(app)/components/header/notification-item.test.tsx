@@ -216,6 +216,17 @@ describe("NotificationItem delete", () => {
     ).toBeInTheDocument();
   });
 
+  it("explains the control on hover, in words", async () => {
+    // A bin glyph is a guess until something says what it does.
+    const user = userEvent.setup();
+
+    renderInOpenDropdown(createJobNotification(), vi.fn());
+
+    await user.hover(await screen.findByRole("menuitem", { name: /^delete/ }));
+
+    expect(await screen.findByText("deleteTooltip")).toBeInTheDocument();
+  });
+
   it("tells the reader when the delete fails", async () => {
     const user = userEvent.setup();
     deleteNotificationMock.mockRejectedValue(new Error("network down"));
@@ -342,6 +353,19 @@ describe("NotificationItem mark read", () => {
     expect(
       await screen.findByRole("menuitem", { name: /^markRead/ }),
     ).toBeInTheDocument();
+  });
+
+  it("explains the control on hover, in words", async () => {
+    // An envelope is a guess until something says what it does.
+    const user = userEvent.setup();
+
+    renderInOpenDropdown(createJobNotification(), vi.fn());
+
+    await user.hover(
+      await screen.findByRole("menuitem", { name: /^markRead/ }),
+    );
+
+    expect(await screen.findByText("markReadTooltip")).toBeInTheDocument();
   });
 
   it("gives a read row the way back instead, never both", async () => {
