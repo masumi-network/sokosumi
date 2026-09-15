@@ -26,6 +26,10 @@ export default function mount(app: Hono) {
           durationMs: Date.now() - startedAt,
           examined: result.examined,
           sent: result.sent,
+          // False means the deadline ended the run with rows still waiting.
+          // Those rows leave the eligibility window before the next run, so
+          // this is the line that says reminders were lost.
+          completed: result.completed,
         });
       },
     );

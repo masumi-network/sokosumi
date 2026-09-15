@@ -95,6 +95,23 @@ function row(overrides: RowOverrides = {}): StoredNotification {
   };
 }
 
+/** One branch of the service's "after this row" paging filter. */
+type AfterClause =
+  | { createdAt: { gt: Date } }
+  | { createdAt: Date; id: { gt: string } };
+
+/** Whether a stored row sits after the position one branch names. */
+function isAfter(one: StoredNotification, clause: AfterClause): boolean {
+  if ("id" in clause) {
+    return (
+      one.createdAt.getTime() === clause.createdAt.getTime() &&
+      one.id > clause.id.gt
+    );
+  }
+
+  return one.createdAt > clause.createdAt.gt;
+}
+
 /**
  * The input of the first follow-up this run wrote.
  *
@@ -125,13 +142,12 @@ let written: { eventId: string; messageKey: string; userId: string }[] = [];
 function seed(stored: readonly StoredNotification[]) {
   notificationFindManyMock.mockImplementation(
     async (query: {
-      cursor?: { id: string };
-      skip?: number;
       where: Partial<{
         createdAt: Partial<{ gt: Date; lte: Date }>;
         inApp: boolean;
         isRead: boolean;
         messageKey: { in: string[] };
+        OR: AfterClause[];
       }>;
       take?: number;
     }) => {
@@ -141,7 +157,11 @@ function seed(stored: readonly StoredNotification[]) {
       // narrows nothing, the way it would against the real table. Required,
       // a dropped clause would read as `undefined` and match no row, and the
       // whole file would fail rather than the one test that is about it.
-      const matching = stored
+      //
+      // The paging clause is applied as a filter, exactly as the service
+      // writes it. A service that paged without one would read the same page
+      // forever, which this reproduces rather than quietly moving on.
+      return stored
         .filter(
           (one) =>
             (where.isRead === undefined || one.isRead === where.isRead) &&
@@ -151,25 +171,16 @@ function seed(stored: readonly StoredNotification[]) {
             (where.createdAt?.gt === undefined ||
               one.createdAt > where.createdAt.gt) &&
             (where.createdAt?.lte === undefined ||
-              one.createdAt <= where.createdAt.lte),
+              one.createdAt <= where.createdAt.lte) &&
+            (where.OR === undefined ||
+              where.OR.some((clause) => isAfter(one, clause))),
         )
         .sort(
           (a, b) =>
             a.createdAt.getTime() - b.createdAt.getTime() ||
             a.id.localeCompare(b.id),
-        );
-
-      // The real cursor continues from a row's position in this order, and
-      // `skip` steps past the row itself. A service that paged without one
-      // would read the same page forever, which this reproduces rather than
-      // silently returning the next rows anyway.
-      const from =
-        query.cursor === undefined
-          ? 0
-          : matching.findIndex((one) => one.id === query.cursor?.id) +
-            (query.skip ?? 0);
-
-      return matching.slice(from, from + (query.take ?? matching.length));
+        )
+        .slice(0, query.take ?? stored.length);
     },
   );
 }
@@ -216,7 +227,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toHaveLength(1);
-    expect(result).toEqual({ examined: 1, sent: 1 });
+    expect(result).toEqual({ examined: 1, sent: 1, completed: true });
     expect(firstFollowUpInput()).toEqual({
       userId: "reader-1",
       kind: NotificationKind.CHAT,
@@ -297,7 +308,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
-    expect(result).toEqual({ examined: 0, sent: 0 });
+    expect(result).toEqual({ examined: 0, sent: 0, completed: true });
   });
 
   /**
@@ -340,7 +351,7 @@ describe("NotificationFollowUpSyncService", () => {
       });
 
       expect(written).toEqual([]);
-      expect(result).toEqual({ examined: 0, sent: 0 });
+      expect(result).toEqual({ examined: 0, sent: 0, completed: true });
     },
   );
 
@@ -485,7 +496,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
-    expect(result).toEqual({ examined: 1, sent: 0 });
+    expect(result).toEqual({ examined: 1, sent: 0, completed: true });
   });
 
   it("still reminds a reader who wants reminders only on their device", async () => {
@@ -503,7 +514,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1 });
+    expect(result).toEqual({ examined: 2, sent: 1, completed: true });
     expect(written.map((one) => one.eventId)).toEqual([
       "follow-up:notification-2",
     ]);
@@ -535,6 +546,80 @@ describe("NotificationFollowUpSyncService", () => {
   });
 
   /**
+   * Two rows stored in the same instant, split across a page boundary.
+   *
+   * The position the next page continues after is a pair, `createdAt` and
+   * `id`. On `createdAt` alone the second of the two reads as "not after" the
+   * first and is never reached, so the reader loses that reminder.
+   */
+  it("reaches the second of two notifications stored in the same instant", async () => {
+    const shared = new Date(WAITING.getTime() + 1000);
+    const waiting = Array.from(
+      { length: NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1 },
+      (_unused, index) =>
+        row({
+          // Ids are compared as text, so they are padded to sort the way the
+          // numbers do.
+          id: `notification-${String(index).padStart(4, "0")}`,
+          // The last row of the first page and the first of the second share
+          // an instant.
+          createdAt:
+            index >= NOTIFICATION_FOLLOW_UP_PAGE_SIZE - 1
+              ? shared
+              : new Date(WAITING.getTime() + index),
+        }),
+    );
+    seed(waiting);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
+    expect(written.map((one) => one.eventId)).toContain(
+      `follow-up:notification-${String(NOTIFICATION_FOLLOW_UP_PAGE_SIZE).padStart(4, "0")}`,
+    );
+  });
+
+  /**
+   * The page boundary is a position this run holds, not a row it looks up.
+   *
+   * A source row stays unread after its follow-up, so it is still in the query
+   * when the next page is read. A reader who opens exactly that row in between
+   * takes it out of the query. Asking the table to continue "after row X"
+   * would then have nothing to anchor to, and the rest of the backlog would go
+   * unreminded for good.
+   */
+  it("keeps its place when the reader opens the row the page ended on", async () => {
+    const waiting = Array.from(
+      { length: NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1 },
+      (_unused, index) =>
+        row({
+          id: `notification-${index}`,
+          createdAt: new Date(WAITING.getTime() + index),
+        }),
+    );
+    seed(waiting);
+
+    // The reader opens the last row of the first page, the instant that page
+    // is done with it.
+    resolveDeliveryMock.mockImplementation(async () => {
+      const boundary = waiting[NOTIFICATION_FOLLOW_UP_PAGE_SIZE - 1];
+
+      if (boundary && written.length === NOTIFICATION_FOLLOW_UP_PAGE_SIZE - 1) {
+        boundary.isRead = true;
+      }
+
+      return { inApp: true, osBanner: false };
+    });
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.completed).toBe(true);
+    expect(written.map((one) => one.eventId)).toContain(
+      `follow-up:notification-${NOTIFICATION_FOLLOW_UP_PAGE_SIZE}`,
+    );
+  });
+
+  /**
    * The deadline is what ends a run now, so it has to end one mid-backlog and
    * not only mid-page. Without the check between pages, a run that is already
    * over still issues one more read.
@@ -557,6 +642,8 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE);
     expect(notificationFindManyMock).toHaveBeenCalledTimes(1);
+    // Rows were left waiting, and they leave the window before the next run.
+    expect(result.completed).toBe(false);
   });
 
   /**
@@ -573,7 +660,7 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(written).toHaveLength(1);
-    expect(result).toEqual({ examined: 1, sent: 1 });
+    expect(result).toEqual({ examined: 1, sent: 1, completed: false });
   });
 
   it("does not read at all when the run was aborted before it started", async () => {
@@ -586,6 +673,6 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(notificationFindManyMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ examined: 0, sent: 0 });
+    expect(result).toEqual({ examined: 0, sent: 0, completed: false });
   });
 });

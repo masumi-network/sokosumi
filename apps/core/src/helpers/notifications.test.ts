@@ -354,23 +354,33 @@ describe("createNotification push gating", () => {
    * A caller that already asked hands the answer in, and this must not ask
    * again. The follow-up sync reads delivery to decide whether a reminder is
    * worth writing at all, and a second read could disagree with the first.
+   *
+   * The reader here wants the banner, and the answer handed in is the quieter
+   * one. A test that went the other way would be asserting that an override
+   * can push to someone who opted out, which is the one thing an override must
+   * never be used for.
    */
   it("uses the delivery the caller resolved instead of reading again", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(createChatRecord());
-    mockReader({ pushOptIn: false });
+    mockReader({ pushOptIn: true, preferences: bannerOn("CHAT_MENTION") });
 
     await createNotification(
       chatInput,
       prismaMock as unknown as typeof prisma,
-      { inApp: true, osBanner: true },
+      { inApp: true, osBanner: false },
     );
 
     expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ inApp: true }),
+      }),
+    );
     expect(publishNotificationEventMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        push: true,
-        notification: expect.objectContaining({ osBanner: true }),
+        push: false,
+        notification: expect.objectContaining({ osBanner: false }),
       }),
     );
   });

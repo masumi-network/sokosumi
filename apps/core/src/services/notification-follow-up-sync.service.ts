@@ -31,11 +31,15 @@ export const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
 /**
  * How many notifications one read returns.
  *
- * A page, not a cap on the run. The run walks every eligible row, oldest
- * first, and stops on the handler's deadline rather than on a row count.
- * A fixed cap would be a silent loss instead: the window moves with the clock,
- * so a row left above the cap is out of range by the next run and never gets
- * its reminder.
+ * A page, not a cap on the run. The run pages through every eligible row,
+ * oldest first, so a backlog larger than one read is no longer left behind by
+ * a row count that had nothing to do with how much time the run had.
+ *
+ * This does not promise every eligible row a reminder. The handler's deadline
+ * still ends a run wherever it falls, and a row the run never reached is out
+ * of the moving window by the next one and loses its reminder. The bound is
+ * now the time the run actually has rather than a fixed number, and
+ * `completed` on the result says when a run ended with rows still waiting.
  *
  * Sized to keep one read and the writes that follow it short, so the deadline
  * lands between pages rather than deep inside one.
@@ -55,6 +59,15 @@ export interface SendFollowUpsResult {
   examined: number;
   /** Follow-ups this run actually wrote. */
   sent: number;
+  /**
+   * Whether the run reached the end of the eligible rows.
+   *
+   * False when the deadline or an abort ended it first. Those rows fall out of
+   * the window before the next run, so this is the difference between "nobody
+   * was waiting" and "we ran out of time and some reminders were lost". Logged
+   * by the route so the loss is visible rather than silent.
+   */
+  completed: boolean;
 }
 
 /**
@@ -67,6 +80,9 @@ export interface SendFollowUpsResult {
  */
 const FOLLOW_UP_SOURCE_COLUMNS = {
   id: true,
+  // Not built into the follow-up. Read because the next page continues after
+  // this row's position, and the position is (createdAt, id).
+  createdAt: true,
   userId: true,
   kind: true,
   referenceId: true,
@@ -141,19 +157,29 @@ export async function sendFollowUps(
   options: SendFollowUpsOptions = {},
 ): Promise<SendFollowUpsResult> {
   if (options.abortSignal?.aborted) {
-    return { examined: 0, sent: 0 };
+    return { examined: 0, sent: 0, completed: false };
   }
 
   const now = options.now ?? new Date();
   const waitedUntil = new Date(now.getTime() - NOTIFICATION_FOLLOW_UP_DELAY_MS);
+  const windowOpened = new Date(
+    waitedUntil.getTime() - NOTIFICATION_FOLLOW_UP_WINDOW_MS,
+  );
+
+  /** Whether the handler still wants this run to do more work. */
+  const outOfTime = () =>
+    options.abortSignal?.aborted === true ||
+    options.shouldContinue?.() === false;
 
   let examined = 0;
   let sent = 0;
-  let cursor: string | undefined;
+  /** The last row this run finished, and where the next page starts after. */
+  let after: { createdAt: Date; id: string } | undefined;
   let stopped = false;
 
   while (!stopped) {
-    if (options.abortSignal?.aborted || options.shouldContinue?.() === false) {
+    if (outOfTime()) {
+      stopped = true;
       break;
     }
 
@@ -163,20 +189,27 @@ export async function sendFollowUps(
         isRead: false,
         inApp: true,
         messageKey: { in: [...FOLLOW_UP_SOURCE_MESSAGE_KEYS] },
-        createdAt: {
-          gt: new Date(
-            waitedUntil.getTime() - NOTIFICATION_FOLLOW_UP_WINDOW_MS,
-          ),
-          lte: waitedUntil,
-        },
+        createdAt: { gt: windowOpened, lte: waitedUntil },
+        // Where the last page ended, said as a plain filter rather than
+        // Prisma's `cursor`. A follow-up leaves its source row unread, so the
+        // next page cannot be "whatever still matches" and has to continue
+        // from a position. `cursor` would resolve that position by looking the
+        // row up, and a reader who opens that one notification between two
+        // pages takes it out of this query's reach. The pair of values below
+        // is held here, so nothing the reader does can lose the place.
+        ...(after === undefined
+          ? {}
+          : {
+              OR: [
+                { createdAt: { gt: after.createdAt } },
+                { createdAt: after.createdAt, id: { gt: after.id } },
+              ],
+            }),
       },
       // `createdAt` alone leaves the order of two rows in the same instant to
-      // chance, and the cursor below would then skip or repeat them.
+      // chance, and the filter above would then skip or repeat them.
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: NOTIFICATION_FOLLOW_UP_PAGE_SIZE,
-      // A follow-up leaves its source row unread, so the next page cannot be
-      // "whatever still matches". It has to continue from where this one ended.
-      ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
     });
 
     if (sources.length === 0) {
@@ -184,10 +217,7 @@ export async function sendFollowUps(
     }
 
     for (const source of sources) {
-      if (
-        options.abortSignal?.aborted ||
-        options.shouldContinue?.() === false
-      ) {
+      if (outOfTime()) {
         stopped = true;
         break;
       }
@@ -209,10 +239,7 @@ export async function sendFollowUps(
         // Asked again. The read above is itself an await, so it can be the
         // thing that crosses the deadline, and the check at the top of the
         // loop answered for a moment that has passed.
-        if (
-          options.abortSignal?.aborted ||
-          options.shouldContinue?.() === false
-        ) {
+        if (outOfTime()) {
           stopped = true;
           break;
         }
@@ -243,10 +270,16 @@ export async function sendFollowUps(
       break;
     }
 
-    cursor = sources[sources.length - 1].id;
+    const last = sources.at(-1);
+
+    if (!last) {
+      break;
+    }
+
+    after = { createdAt: last.createdAt, id: last.id };
   }
 
-  return { examined, sent };
+  return { examined, sent, completed: !stopped };
 }
 
 export const notificationFollowUpSyncService = {

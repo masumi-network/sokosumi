@@ -350,6 +350,10 @@ export async function publishClearedNotifications(
  * writes one, and passing that answer here stores the row under the decision
  * the caller acted on. Resolving a second time would let preferences change
  * between the two reads and store a hidden row the caller counted as sent.
+ *
+ * Pass only an answer that came from `resolveDelivery`. It carries the push
+ * opt-in and the reader's per-category choices, and nothing here checks them
+ * again: a hand-built value would push to a reader who switched push off.
  */
 export async function createNotification(
   input: CreateNotificationInput,
