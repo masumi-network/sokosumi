@@ -260,6 +260,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await notifyTaskHumanAssignee(task.id, task.assigneeUserId);
     }
 
-    return created(c, taskSchema.parse(mapTask(task)));
+    return created(c, taskSchema.parse(mapTask(task, c.var.authContext)));
   });
 }

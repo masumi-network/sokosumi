@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  isAgentOnlyTaskStatus,
+  CORE_API_ERROR_KINDS,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
@@ -9,19 +9,16 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
-import {
-  canSelectQueuedTaskStatus,
-  getManualTaskStatusSelectOptions,
-} from "@/lib/utils/task-status-order";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
-import { TaskStatusPillSelectTrigger } from "./task-status-pill-select-trigger";
+import { TaskStatusPicker } from "./task-status-picker";
 
 export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
+  changeStatus: string;
+  noStatusMatches: string;
   reopenToReadyTitle: string;
   reopenToReadyDescription: string;
   reopenToReadyCommentLabel: string;
@@ -36,16 +33,15 @@ export interface TaskMetadataStatusFieldLabels {
 interface TaskMetadataStatusFieldProps {
   taskId: string;
   status: TaskStatus;
-  hasSchedule: boolean;
-  isAgentAssignee: boolean;
+  /** Statuses Core lets this viewer move the Task to (ADR 0029). */
+  selectableStatuses: readonly TaskStatus[];
   labels: TaskMetadataStatusFieldLabels;
 }
 
 export function TaskMetadataStatusField({
   taskId,
   status,
-  hasSchedule,
-  isAgentAssignee,
+  selectableStatuses,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
@@ -55,10 +51,6 @@ export function TaskMetadataStatusField({
   const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
-  const isQueuedSelectable = canSelectQueuedTaskStatus({
-    hasSchedule,
-    isAgent: isAgentAssignee,
-  });
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
     const previousStatus = currentStatus;
@@ -74,6 +66,15 @@ export function TaskMetadataStatusField({
         });
         if (!result.ok) {
           setCurrentStatus(previousStatus);
+          if (
+            result.error.kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE
+          ) {
+            // The offered list went stale (assignee or schedule changed
+            // elsewhere); refresh so the picker shows what Core allows now.
+            toast.error(labels.updateStatusError);
+            router.refresh();
+            return;
+          }
           showCalendarClientUpgradeModal();
           return;
         }
@@ -115,36 +116,22 @@ export function TaskMetadataStatusField({
 
   const displayStatus =
     isPending && pendingStatus ? pendingStatus : currentStatus;
-  const displayLabel = labels.statusLabels[displayStatus];
 
   return (
     <>
-      <Select
+      <TaskStatusPicker
         value={displayStatus}
-        onValueChange={(value) => handleStatusSelect(value as TaskStatus)}
-        disabled={isPending}
-      >
-        <TaskStatusPillSelectTrigger
-          status={displayStatus}
-          label={displayLabel}
-          ariaLabel={displayLabel}
-          isPending={isPending}
-        />
-        <SelectContent align="end">
-          {getManualTaskStatusSelectOptions(displayStatus).map((option) => (
-            <SelectItem
-              key={option}
-              value={option}
-              disabled={
-                (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
-                (option === TaskStatus.QUEUED && !isQueuedSelectable)
-              }
-            >
-              {labels.statusLabels[option]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        options={selectableStatuses}
+        labels={{
+          statusLabels: labels.statusLabels,
+          ariaLabel: labels.statusLabels[displayStatus],
+          searchPlaceholder: labels.changeStatus,
+          noResults: labels.noStatusMatches,
+        }}
+        onSelect={handleStatusSelect}
+        isPending={isPending}
+        openShortcutKey="s"
+      />
 
       <TaskReopenToReadyDialog
         open={isReopenDialogOpen}

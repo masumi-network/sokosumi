@@ -181,6 +181,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include: taskInclude,
     });
 
-    return created(c, taskSchema.parse(mapTask(task)));
+    return created(c, taskSchema.parse(mapTask(task, c.var.authContext)));
   });
 }

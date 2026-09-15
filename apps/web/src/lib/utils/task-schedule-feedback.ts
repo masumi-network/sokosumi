@@ -16,6 +16,7 @@ export const TASK_MUTATION_ERROR_KINDS = [
   CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_STATE_CONFLICT,
   CORE_API_ERROR_KINDS.SCHEDULE_OCCURRENCE_TARGET_INVALID,
   CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE,
+  CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE,
 ] as const;
 
 export type TaskMutationErrorKind = (typeof TASK_MUTATION_ERROR_KINDS)[number];
@@ -52,6 +53,9 @@ const SERIES_FEEDBACK_KEY: Record<
   // A cursor minted at an older revision describes a series that has moved on,
   // exactly like a revision conflict: the recovery is to reload and retry.
   schedule_cursor_stale: "revisionConflict",
+  // Not a series problem: the picker offered a stale list. Callers toast the
+  // generic status error and refresh.
+  status_not_selectable: null,
 };
 
 export function taskScheduleSeriesFeedbackKey(

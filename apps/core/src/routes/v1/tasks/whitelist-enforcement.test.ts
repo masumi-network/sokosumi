@@ -336,6 +336,7 @@ describe("task coworker whitelist enforcement", () => {
       share: null,
       links: [],
       files: [],
+      selectableStatuses: [],
       linksFrom: [],
       linksTo: [],
     });
