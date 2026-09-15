@@ -139,6 +139,73 @@ describe("PUT /jobs/{id}/share", () => {
     });
   });
 
+  it("creates a share for a job on a public task", async () => {
+    requireJobShareCollaborationMock.mockResolvedValue({
+      id: "job_123",
+      userId: "user_123",
+      taskId: "tsk_123",
+    });
+    const findUniqueMock = vi.fn().mockResolvedValue({ visibility: "PUBLIC" });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        await callback({
+          task: { findUnique: findUniqueMock },
+        }),
+    );
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123/share", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        allowSearchIndexing: true,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(findUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      select: { visibility: true },
+    });
+    expect(upsertForJobMock).toHaveBeenCalledWith(
+      "job_123",
+      true,
+      expect.any(Object),
+    );
+  });
+
+  it("rejects creating a public share for a job on a private task", async () => {
+    requireJobShareCollaborationMock.mockResolvedValue({
+      id: "job_123",
+      userId: "user_123",
+      taskId: "tsk_123",
+    });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        await callback({
+          task: {
+            findUnique: vi.fn().mockResolvedValue({ visibility: "PRIVATE" }),
+          },
+        }),
+    );
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123/share", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        allowSearchIndexing: true,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(upsertForJobMock).not.toHaveBeenCalled();
+  });
+
   it("creates a share for an owned job", async () => {
     const app = createApp();
 
