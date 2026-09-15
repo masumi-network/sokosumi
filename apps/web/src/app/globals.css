@@ -5,6 +5,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Baseline preview only. This comment is the whole diff against main: the
+   preview deploy is path-filtered to apps/web, and an empty PR never starts
+   it. Every color below is main's, unchanged, so this deployment is the
+   "before" half of the color token stack's screenshot comparison. */
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
