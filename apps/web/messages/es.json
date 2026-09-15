@@ -2282,6 +2282,25 @@
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
           "characters": "{count} / {limit}",
+          "media": {
+            "addFromDrive": "Añadir desde Drive",
+            "upload": "Subir",
+            "uploading": "Subiendo…",
+            "remove": "Quitar {name}",
+            "hint": "Hasta 4 imágenes, o un GIF, o un vídeo.",
+            "unsupported": "Usa un archivo JPG, PNG, WebP, GIF, MP4 o MOV.",
+            "alreadyAttached": "Ese archivo ya está adjunto.",
+            "uploadDuplicate": "Ya existe un archivo con este nombre en el Drive. Cámbialo de nombre e inténtalo de nuevo.",
+            "uploadFailed": "La subida falló. Inténtalo de nuevo.",
+            "errors": {
+              "too_many_images": "X permite como máximo 4 imágenes por publicación.",
+              "too_many_gifs": "X permite un GIF por publicación.",
+              "too_many_videos": "X permite un vídeo por publicación.",
+              "mixed_media": "Usa imágenes, un GIF o un vídeo, no una mezcla.",
+              "unsupported_type": "Usa un archivo JPG, PNG, WebP, GIF, MP4 o MOV.",
+              "too_large": "Un archivo es demasiado grande para X."
+            }
+          },
           "account": "Cuenta",
           "noAccount": "Elige una cuenta",
           "unknownHandle": "Cuenta de X desconocida",

@@ -32,6 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import type { ActionError } from "@/lib/actions/errors";
 import {
   cancelProjectSocialPost,
@@ -40,6 +41,7 @@ import {
 import type {
   ProjectSocialConnection,
   SocialPost,
+  SocialPostMediaRef,
   SocialPostStatus,
 } from "@/lib/clients/generated/core/types.gen";
 
@@ -96,6 +98,42 @@ function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
   const index = posts.findIndex((post) => post.id === next.id);
   if (index === -1) return [next, ...posts];
   return posts.map((post) => (post.id === next.id ? next : post));
+}
+
+/**
+ * Compact row thumbnail. Images and GIFs reuse the shared mini preview;
+ * video shows its first frame in the same 48px frame.
+ */
+function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
+  if (media.kind !== "video") {
+    return (
+      <FileChipMiniPreview
+        fileName={media.name}
+        mediaType={media.mimeType}
+        size={media.size}
+        sizeClass="size-12"
+        url={media.fileUrl}
+      />
+    );
+  }
+
+  return (
+    <a
+      aria-label={media.name}
+      className="bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block size-12 shrink-0 overflow-hidden rounded-xl border outline-none transition"
+      href={media.fileUrl}
+      rel="noreferrer noopener"
+      target="_blank"
+    >
+      <video
+        className="size-full object-cover"
+        muted
+        playsInline
+        preload="metadata"
+        src={media.fileUrl}
+      />
+    </a>
+  );
 }
 
 export function ProjectSocialPosts({
@@ -277,6 +315,19 @@ export function ProjectSocialPosts({
                         <p className="line-clamp-2 text-sm whitespace-pre-wrap">
                           {post.text}
                         </p>
+                        {post.media.length > 0 ? (
+                          <div
+                            className="flex flex-wrap items-center gap-1.5"
+                            data-testid={`social-post-media-${post.id}`}
+                          >
+                            {post.media.map((ref) => (
+                              <SocialPostMediaThumb
+                                key={ref.pathname}
+                                media={ref}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
                         <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                           <span>{handle ?? t("noAccount")}</span>
                           {post.scheduledAt ? (

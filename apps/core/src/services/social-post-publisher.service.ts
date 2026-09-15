@@ -1,9 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
+import type { SocialPostMediaRef } from "@sokosumi/utils";
 
 import { publishXPost } from "@/clients/composio.client";
 import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
 import { badRequest, conflict, notFound } from "@/helpers/error";
+import {
+  downloadSocialPostMedia,
+  requireSocialPostMedia,
+} from "@/helpers/social-post-media";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
 import { projectExecutorUserId } from "@/services/project-social-connections.service";
@@ -74,6 +79,8 @@ interface ClaimedPost {
   id: string;
   projectId: string;
   text: string;
+  /** Raw `media` Json column; parsed strictly at publish time. */
+  media: unknown;
   scheduledAt: Date | null;
   attemptCount: number;
   leaseToken: string;
@@ -202,11 +209,14 @@ async function attemptPublish(
   const attemptCount = post.attemptCount + 1;
 
   let published: { externalId: string };
+  let media: SocialPostMediaRef[] = [];
   try {
+    media = requireSocialPostMedia(post.media, post.id);
     published = await publishXPost({
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
       text: post.text,
+      media: await downloadSocialPostMedia(media),
     });
   } catch (error) {
     const finishedAt = new Date();
@@ -258,7 +268,8 @@ async function attemptPublish(
       finishedAt,
       outcome: "succeeded",
       errorKind: null,
-      providerOutcome: "201 created",
+      providerOutcome:
+        media.length > 0 ? `201 created, ${media.length} media` : "201 created",
       externalId: published.externalId,
     },
   });
@@ -317,6 +328,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       id: candidate.id,
       projectId: candidate.projectId,
       text: candidate.text,
+      media: candidate.media,
       scheduledAt: candidate.scheduledAt,
       attemptCount: candidate.attemptCount,
       leaseToken,
@@ -407,6 +419,7 @@ export async function publishSocialPostNow(
       id: post.id,
       projectId: post.projectId,
       text: post.text,
+      media: post.media,
       scheduledAt: now,
       attemptCount: 0,
       leaseToken,

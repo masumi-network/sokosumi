@@ -1,4 +1,5 @@
 import { Composio } from "@composio/core";
+import type { SocialPostMediaKind } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 
@@ -439,15 +440,244 @@ function toolErrorStatus(value: unknown): number | null {
   return null;
 }
 
+type XPublishToolSlug =
+  | "TWITTER_INITIALIZE_MEDIA_UPLOAD"
+  | "TWITTER_APPEND_MEDIA_UPLOAD"
+  | "TWITTER_FINALIZE_MEDIA_UPLOAD"
+  | "TWITTER_GET_MEDIA_UPLOAD_STATUS"
+  | typeof X_CREATE_POST_TOOL_SLUG;
+
+/** Tools a publish session may execute, with the wording used when each fails. */
+const X_PUBLISH_TOOL_STEPS: Record<
+  XPublishToolSlug,
+  { context: string; refused: string }
+> = {
+  TWITTER_INITIALIZE_MEDIA_UPLOAD: {
+    context: "initialize X media upload",
+    refused: "X refused the media upload",
+  },
+  TWITTER_APPEND_MEDIA_UPLOAD: {
+    context: "append X media upload",
+    refused: "X refused a media chunk",
+  },
+  TWITTER_FINALIZE_MEDIA_UPLOAD: {
+    context: "finalize X media upload",
+    refused: "X refused to finalize the media upload",
+  },
+  TWITTER_GET_MEDIA_UPLOAD_STATUS: {
+    context: "check X media upload status",
+    refused: "X refused the media status check",
+  },
+  [X_CREATE_POST_TOOL_SLUG]: {
+    context: "publish X post",
+    refused: "X refused the post",
+  },
+};
+const X_PUBLISH_TOOL_SLUGS = Object.keys(
+  X_PUBLISH_TOOL_STEPS,
+) as XPublishToolSlug[];
+
+/** X accepts media in chunks of at most 4 MiB. */
+const MEDIA_CHUNK_BYTES = 4 * 1024 * 1024;
+const MEDIA_PROCESSING_DEFAULT_WAIT_MS = 2_000;
+/** X can take up to two minutes to process a video or GIF. */
+const MEDIA_PROCESSING_TIMEOUT_MS = 120_000;
+
+export interface PublishXMediaInput {
+  bytes: Uint8Array;
+  mimeType: string;
+  kind: SocialPostMediaKind;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function mediaCategory(kind: SocialPostMediaKind): string {
+  switch (kind) {
+    case "image":
+      return "tweet_image";
+    case "gif":
+      return "tweet_gif";
+    case "video":
+      return "tweet_video";
+  }
+}
+
 /**
- * Publishes a text post to X through a restricted tool-router session pinned to
- * one connected account with only the create-post tool enabled. The session is
- * deleted once the call settles, whatever the outcome.
+ * X media id from a tool payload. Prefers the string shape: a 17–19 digit id
+ * returned as a JSON number would lose precision.
+ */
+function mediaIdOf(data: Record<string, unknown> | null): string | null {
+  const candidates = [data?.media_id_string, data?.media_id, data?.id];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate) return candidate;
+    if (typeof candidate === "number" && Number.isSafeInteger(candidate)) {
+      return String(candidate);
+    }
+  }
+  return null;
+}
+
+/**
+ * Executes one tool in a publish session and returns the provider payload with
+ * Composio's envelope layers stripped. A refused or unsuccessful execution is
+ * raised as a {@link ComposioToolError}.
+ */
+async function executePublishTool(
+  sessionId: string,
+  toolSlug: XPublishToolSlug,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  const step = X_PUBLISH_TOOL_STEPS[toolSlug];
+  const response = await projectComposioFetch(
+    `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/execute`,
+    { method: "POST", jsonBody: { tool_slug: toolSlug, arguments: args } },
+  );
+  const result = await projectComposioResponse<{
+    data?: unknown;
+    error?: unknown;
+    successful?: boolean;
+  }>(response, step.context);
+  const toolResult = record(result.data);
+  const providerResult = record(toolResult?.data) ?? toolResult;
+  const toolError = result.error ?? toolResult?.error;
+  if (toolError || result.successful === false) {
+    throw new ComposioToolError({
+      message: step.refused,
+      providerMessage: toolErrorMessage(toolError),
+      providerStatus: toolErrorStatus(toolError),
+    });
+  }
+  return record(providerResult?.data) ?? providerResult;
+}
+
+function processingState(
+  data: Record<string, unknown> | null,
+): { state: string; waitMs: number; errorMessage: string | null } | null {
+  const info = record(data?.processing_info);
+  if (!info || typeof info.state !== "string") return null;
+  const checkAfter = info.check_after_secs;
+  return {
+    state: info.state.toLowerCase(),
+    waitMs:
+      typeof checkAfter === "number" && checkAfter >= 0
+        ? checkAfter * 1000
+        : MEDIA_PROCESSING_DEFAULT_WAIT_MS,
+    errorMessage: toolErrorMessage(info.error),
+  };
+}
+
+/** Finalizes a media upload; Composio mirrors X v2 but the id parameter name has varied. */
+async function finalizeMediaUpload(
+  sessionId: string,
+  mediaId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await executePublishTool(
+      sessionId,
+      "TWITTER_FINALIZE_MEDIA_UPLOAD",
+      { id: mediaId },
+    );
+  } catch (error) {
+    if (!(error instanceof ComposioToolError)) throw error;
+    try {
+      const result = await executePublishTool(
+        sessionId,
+        "TWITTER_FINALIZE_MEDIA_UPLOAD",
+        { media_id: mediaId },
+      );
+      console.info(
+        "[composio] TWITTER_FINALIZE_MEDIA_UPLOAD accepted media_id, not id",
+      );
+      return result;
+    } catch {
+      throw error;
+    }
+  }
+}
+
+/** Waits for X to finish processing a media upload, polling within a bounded window. */
+async function awaitMediaProcessing(
+  sessionId: string,
+  mediaId: string,
+  finalizeResult: Record<string, unknown> | null,
+): Promise<void> {
+  let processing = processingState(finalizeResult);
+  const startedAt = Date.now();
+  while (processing && processing.state !== "succeeded") {
+    if (processing.state === "failed") {
+      throw new ComposioToolError({
+        message: "X could not process the media",
+        providerMessage: processing.errorMessage ?? "Media processing failed",
+      });
+    }
+    const remainingMs = MEDIA_PROCESSING_TIMEOUT_MS - (Date.now() - startedAt);
+    if (remainingMs <= 0) {
+      throw new ComposioToolError({
+        message: "X media processing timed out",
+        providerMessage: "Media processing timed out",
+      });
+    }
+    await sleep(Math.min(processing.waitMs, remainingMs));
+    processing = processingState(
+      await executePublishTool(sessionId, "TWITTER_GET_MEDIA_UPLOAD_STATUS", {
+        media_id: mediaId,
+      }),
+    );
+  }
+}
+
+async function uploadXMedia(
+  sessionId: string,
+  media: PublishXMediaInput,
+): Promise<string> {
+  const initialized = await executePublishTool(
+    sessionId,
+    "TWITTER_INITIALIZE_MEDIA_UPLOAD",
+    {
+      media_type: media.mimeType,
+      total_bytes: media.bytes.length,
+      media_category: mediaCategory(media.kind),
+    },
+  );
+  const mediaId = mediaIdOf(initialized);
+  if (!mediaId) {
+    throw new ComposioToolError({
+      message: "X media upload returned no media id",
+    });
+  }
+
+  for (
+    let offset = 0, segment = 0;
+    offset < media.bytes.length;
+    offset += MEDIA_CHUNK_BYTES, segment += 1
+  ) {
+    const chunk = media.bytes.subarray(offset, offset + MEDIA_CHUNK_BYTES);
+    await executePublishTool(sessionId, "TWITTER_APPEND_MEDIA_UPLOAD", {
+      id: mediaId,
+      media: Buffer.from(chunk).toString("base64"),
+      segment_index: segment,
+    });
+  }
+
+  const finalized = await finalizeMediaUpload(sessionId, mediaId);
+  await awaitMediaProcessing(sessionId, mediaId, finalized);
+  return mediaId;
+}
+
+/**
+ * Publishes a post to X through a restricted tool-router session pinned to one
+ * connected account with only the media-upload and create-post tools enabled.
+ * Media bytes are uploaded inside the same session and referenced by id; the
+ * ids never leave this call. The session is deleted once the call settles,
+ * whatever the outcome.
  */
 export async function publishXPost(input: {
   connectedAccountId: string;
   executorUserId: string;
   text: string;
+  media: PublishXMediaInput[];
 }): Promise<PublishedXPost> {
   const createResponse = await projectComposioFetch(
     "/api/v3.1/tool_router/session",
@@ -458,7 +688,7 @@ export async function publishXPost(input: {
         toolkits: ["twitter"],
         connected_accounts: { twitter: [input.connectedAccountId] },
         manage_connections: { enable: false, enable_connection_removal: false },
-        tools: { twitter: { enable: [X_CREATE_POST_TOOL_SLUG] } },
+        tools: { twitter: { enable: [...X_PUBLISH_TOOL_SLUGS] } },
         workbench: { enable: false, enable_proxy_execution: false },
         search: { enable: false },
         execute: { enable_multi_execute: false },
@@ -472,32 +702,18 @@ export async function publishXPost(input: {
   if (!session.session_id)
     projectResponseError(createResponse, "create Project X publish session");
   try {
-    const response = await projectComposioFetch(
-      `/api/v3.1/tool_router/session/${encodeURIComponent(session.session_id)}/execute`,
+    const mediaIds: string[] = [];
+    for (const media of input.media) {
+      mediaIds.push(await uploadXMedia(session.session_id, media));
+    }
+    const post = await executePublishTool(
+      session.session_id,
+      X_CREATE_POST_TOOL_SLUG,
       {
-        method: "POST",
-        jsonBody: {
-          tool_slug: X_CREATE_POST_TOOL_SLUG,
-          arguments: { text: input.text },
-        },
+        ...(input.text ? { text: input.text } : {}),
+        ...(mediaIds.length > 0 ? { media_media_ids: mediaIds } : {}),
       },
     );
-    const result = await projectComposioResponse<{
-      data?: unknown;
-      error?: unknown;
-      successful?: boolean;
-    }>(response, "publish X post");
-    const toolResult = record(result.data);
-    const providerResult = record(toolResult?.data) ?? toolResult;
-    const post = record(providerResult?.data) ?? providerResult;
-    const toolError = result.error ?? toolResult?.error;
-    if (toolError || result.successful === false) {
-      throw new ComposioToolError({
-        message: "X refused the post",
-        providerMessage: toolErrorMessage(toolError),
-        providerStatus: toolErrorStatus(toolError),
-      });
-    }
     if (!post || typeof post.id !== "string" || !post.id) {
       throw new ComposioToolError({
         message: "X publish returned no post id",
