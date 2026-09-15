@@ -52,7 +52,11 @@ export type StatusRole =
 interface RoleStyle {
   /** Badge fill. */
   bg: string;
-  /** Label colour. Solid fills carry their own foreground. */
+  /**
+   * Label colour. The chromatic roles use a `-label` step: the marker hue is
+   * tuned to 3:1 for a glyph, and 12px badge text needs 4.5:1 on the same
+   * fill. Solid fills carry their own foreground.
+   */
   text: string;
   /** Glyph colour. Clears 3:1 on its own fill (WCAG 2.2 SC 1.4.11). */
   marker: string;
@@ -98,35 +102,35 @@ export const STATUS_ROLE_STYLES: Record<StatusRole, RoleStyle> = {
   },
   queued: {
     bg: "bg-status-queued-quaternary",
-    text: "text-foreground",
+    text: "text-status-queued-label",
     marker: "text-status-queued",
     dot: "bg-status-queued",
     onSurface: "text-status-queued",
   },
   active: {
     bg: "bg-status-active-quaternary",
-    text: "text-foreground",
+    text: "text-status-active-label",
     marker: "text-status-active",
     dot: "bg-status-active",
     onSurface: "text-status-active",
   },
   waiting: {
     bg: "bg-status-waiting-quaternary",
-    text: "text-foreground",
+    text: "text-status-waiting-label",
     marker: "text-status-waiting",
     dot: "bg-status-waiting",
     onSurface: "text-status-waiting",
   },
   action: {
     bg: "bg-semantic-warning-quaternary",
-    text: "text-foreground",
+    text: "text-semantic-warning-label",
     marker: "text-semantic-warning",
     dot: "bg-semantic-warning",
     onSurface: "text-semantic-warning",
   },
   problem: {
     bg: "bg-semantic-destructive-quaternary",
-    text: "text-foreground",
+    text: "text-semantic-destructive-label",
     marker: "text-semantic-destructive",
     dot: "bg-semantic-destructive",
     onSurface: "text-semantic-destructive",
@@ -140,7 +144,7 @@ export const STATUS_ROLE_STYLES: Record<StatusRole, RoleStyle> = {
   },
   success: {
     bg: "bg-semantic-success-quaternary",
-    text: "text-foreground",
+    text: "text-semantic-success-label",
     marker: "text-semantic-success",
     dot: "bg-semantic-success",
     onSurface: "text-semantic-success",
