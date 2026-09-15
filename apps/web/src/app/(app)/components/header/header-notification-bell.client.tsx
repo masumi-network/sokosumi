@@ -2,7 +2,7 @@
 
 import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
 import {
   DropdownMenu,
@@ -43,23 +43,23 @@ export function HeaderNotificationBell() {
   // while they are still reading it. Safe to call twice for one close: the
   // provider drops rows it has already painted read, so the second call
   // writes nothing.
-  const commitRead = useCallback(() => {
+  function commitRead() {
     markManyRead(notifications.map((notification) => notification.id)).catch(
       () => {
         // markManyRead already logged and refetched. A failed write leaves
         // the rows unread, which is the safe way to be wrong.
       },
     );
-  }, [markManyRead, notifications]);
+  }
 
   // Radix calls onOpenChange for the closes it drives itself (Escape, a click
   // outside, a menu item). A child closing the panel through this prop writes
   // `open` from the parent instead, which Radix does not report, so the commit
   // has to hang off both paths.
-  const closeBell = useCallback(() => {
+  function closeBell() {
     setIsOpen(false);
     commitRead();
-  }, [commitRead]);
+  }
 
   const ariaLabel =
     unreadCount > 0 && hasAccountNotice
