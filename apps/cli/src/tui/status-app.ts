@@ -52,7 +52,7 @@ export interface StatusAppOptions {
     node: React.ReactNode,
     options?: RenderOptions,
   ) => {
-    waitUntilExit(): Promise<void>;
+    waitUntilExit(): Promise<unknown>;
   };
   authManager?: AuthManager;
   authManagerFactory?: AuthManagerFactory;

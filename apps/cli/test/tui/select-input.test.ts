@@ -56,6 +56,7 @@ test("TestV45 q does not select a row; arrows plus Enter remain the only selecto
       stdout,
       exitOnCtrlC: false,
       patchConsole: false,
+      interactive: true,
     },
   );
 
