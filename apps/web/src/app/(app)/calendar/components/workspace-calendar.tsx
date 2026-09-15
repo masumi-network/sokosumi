@@ -5,7 +5,6 @@ import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
 import listPlugin from "@fullcalendar/react/list";
 import classicTheme from "@fullcalendar/react/themes/classic";
-import timeGridPlugin from "@fullcalendar/react/timegrid";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
@@ -40,12 +39,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import {
-  type MouseEvent,
-  type PointerEvent as ReactPointerEvent,
-  useRef,
-  useState,
-} from "react";
+import { type MouseEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
@@ -265,6 +259,7 @@ function CalendarEvent({
   onOpenTask,
   showDetails,
   source,
+  timeText,
 }: {
   item: WorkspaceCalendarItem;
   onEditSchedule: (taskId: string) => void;
@@ -272,6 +267,7 @@ function CalendarEvent({
   onOpenTask: (taskId: string) => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
+  timeText?: string;
 }) {
   const t = useTranslations("App.Calendar");
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
@@ -288,6 +284,11 @@ function CalendarEvent({
           type="button"
         >
           <SourceMarker decorative source={source} sourceName={sourceName} />
+          {timeText ? (
+            <span className="text-muted-foreground shrink-0 tabular-nums">
+              {timeText}
+            </span>
+          ) : null}
           {item.sourceAccuracy !== "EXACT" ? (
             <span
               aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
@@ -357,13 +358,12 @@ function CalendarView({
   const router = useRouter();
   const tSeries = useTranslations("App.Tasks.Schedule.series");
   const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
-  const slotHighlightRef = useRef<HTMLDivElement>(null);
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
   const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
   const pluginView = {
     month: "dayGridMonth",
-    week: "timeGridWeek",
+    week: "dayGridWeek",
     agenda: "listMonth",
   }[view];
 
@@ -421,71 +421,22 @@ function CalendarView({
     }
   }
 
-  function hideSlotHighlight() {
-    if (slotHighlightRef.current) {
-      slotHighlightRef.current.style.opacity = "0";
-    }
-  }
-
-  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!canCreate || view !== "week" || event.pointerType === "touch") {
-      hideSlotHighlight();
-      return;
-    }
-
-    const elements = document
-      .elementsFromPoint(event.clientX, event.clientY)
-      .filter((element) => event.currentTarget.contains(element));
-    const dayCell = elements.find(
-      (element): element is HTMLElement =>
-        element instanceof HTMLElement &&
-        element.matches('[role="gridcell"][data-date]'),
-    );
-    const timeSlot = elements.find(
-      (element): element is HTMLElement =>
-        element instanceof HTMLElement && element.matches("[data-time]"),
-    );
-    const highlight = slotHighlightRef.current;
-    if (!dayCell || !timeSlot || !highlight) {
-      hideSlotHighlight();
-      return;
-    }
-
-    const calendarBounds = event.currentTarget.getBoundingClientRect();
-    const dayBounds = dayCell.getBoundingClientRect();
-    const verticalBounds = timeSlot.getBoundingClientRect();
-    highlight.style.height = `${verticalBounds.height}px`;
-    highlight.style.left = `${dayBounds.left - calendarBounds.left - event.currentTarget.clientLeft + event.currentTarget.scrollLeft}px`;
-    highlight.style.opacity = "1";
-    highlight.style.top = `${verticalBounds.top - calendarBounds.top - event.currentTarget.clientTop + event.currentTarget.scrollTop}px`;
-    highlight.style.width = `${dayBounds.width}px`;
-  }
-
   return (
     <div
-      className="workspace-calendar-theme relative overflow-x-auto rounded-xl border border-border bg-background"
+      className="workspace-calendar-theme overflow-x-auto rounded-xl border border-border bg-background"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
-      onPointerLeave={hideSlotHighlight}
-      onPointerMove={handlePointerMove}
-      onScrollCapture={hideSlotHighlight}
     >
       <FullCalendar
         borderless
         dayCellClass={
-          canCreate && view === "month"
+          canCreate && view !== "agenda"
             ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
             : undefined
         }
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
-        plugins={[
-          classicTheme,
-          dayGridPlugin,
-          interactionPlugin,
-          timeGridPlugin,
-          listPlugin,
-        ]}
+        plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
         initialDate={getCalendarDayKey(date)}
         initialView={pluginView}
         events={items.map((item) => ({
@@ -497,8 +448,6 @@ function CalendarView({
           durationEditable: false,
         }))}
         timeZone={timeZone}
-        allDaySlot={false}
-        slotEventOverlap={false}
         headerToolbar={false}
         height="auto"
         editable={false}
@@ -522,25 +471,14 @@ function CalendarView({
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
               )}
+              timeText={view === "week" ? eventInfo.timeText : undefined}
             />
           ) : (
             eventInfo.event.title
           );
         }}
-        dateClick={(dateInfo) => {
-          hideSlotHighlight();
-          onDateClick(dateInfo.date);
-        }}
+        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
       />
-      {canCreate && view === "week" ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute z-10 bg-primary-quaternary opacity-0 ring-1 ring-primary-tertiary ring-inset motion-safe:transition-opacity motion-safe:duration-150 motion-safe:ease-out"
-          data-testid="calendar-slot-highlight"
-          ref={slotHighlightRef}
-          style={{ opacity: 0 }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -883,7 +821,7 @@ export function WorkspaceCalendar({
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
-  const view = state.view ?? "month";
+  const view = state.view ?? "week";
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -1224,10 +1162,7 @@ export function WorkspaceCalendar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div
-          className="hidden gap-1 md:flex"
-          data-testid="desktop-calendar-views"
-        >
+        <div className="flex gap-1" data-testid="calendar-views">
           {CALENDAR_VIEWS.map((calendarView) => (
             <Button
               key={calendarView}
@@ -1238,23 +1173,6 @@ export function WorkspaceCalendar({
               {t(`view.${calendarView}`)}
             </Button>
           ))}
-        </div>
-        <div
-          className="flex gap-1 md:hidden"
-          data-testid="mobile-calendar-views"
-        >
-          {CALENDAR_VIEWS.filter((calendarView) => calendarView !== "week").map(
-            (calendarView) => (
-              <Button
-                key={calendarView}
-                size="sm"
-                variant={view === calendarView ? "primary" : "outline"}
-                onClick={() => handleViewChange(calendarView)}
-              >
-                {t(`view.${calendarView}`)}
-              </Button>
-            ),
-          )}
         </div>
         <FilterDropdownMenu
           buttonLabel={tFilters("title")}

@@ -6,12 +6,8 @@ import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
 const fullCalendarMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@fullcalendar/react", () => ({
-  default: ({
-    allDaySlot,
-    initialView,
-    slotEventOverlap,
-  }: FullCalendarProps) => {
-    fullCalendarMock({ allDaySlot, initialView, slotEventOverlap });
+  default: ({ initialView }: FullCalendarProps) => {
+    fullCalendarMock({ initialView });
     return null;
   },
 }));
@@ -32,9 +28,7 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 import { WorkspaceCalendar } from "./workspace-calendar";
 
 interface FullCalendarProps {
-  allDaySlot?: boolean;
   initialView?: string;
-  slotEventOverlap?: boolean;
 }
 
 const WEEK_ITEM: WorkspaceCalendarItem = {
@@ -58,25 +52,19 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
 };
 
 describe("WorkspaceCalendar week layout", () => {
-  it("puts concurrent timed events in separate lanes", () => {
+  // Stacked day-grid rows keep every concurrent task full width and visible;
+  // a time grid would squeeze them into side-by-side lanes.
+  it("stacks the week in a day grid by default", () => {
     render(
-      <NuqsTestingAdapter searchParams="?view=week">
+      <NuqsTestingAdapter>
         <WorkspaceCalendar initialDate="2026-08-18" items={[WEEK_ITEM]} />
       </NuqsTestingAdapter>,
     );
-
-    const weekProps = fullCalendarMock.mock.calls
-      .map(([props]) => props as FullCalendarProps)
-      .find((props) => props.initialView === "timeGridWeek");
 
     expect(
       fullCalendarMock.mock.calls.map(
         ([props]) => (props as FullCalendarProps).initialView,
       ),
-    ).toContain("timeGridWeek");
-    expect(weekProps).toMatchObject({
-      allDaySlot: false,
-      slotEventOverlap: false,
-    });
+    ).toContain("dayGridWeek");
   });
 });
