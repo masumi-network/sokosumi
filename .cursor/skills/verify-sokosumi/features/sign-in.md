@@ -12,7 +12,7 @@ Sign in lets a user authenticate with email and password, reach the authenticate
 ## How to get to it (user POV)
 
 - Open `/signin` (or `/login`, which redirects to `/signin`).
-- From a gated page, the app redirects to `/signin?returnUrl=…` (some client flows also show a Login modal).
+- From a gated page, the app redirects to `/signin?returnUrl=…`. Some client flows `router.push('/signin')` (often without `returnUrl`) rather than an in-place login modal.
 
 ## Driving it with agent-browser
 
@@ -37,7 +37,7 @@ export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NA
 # UI-only proof of signin-submit (fixtures only): … sign-in --method ui
 ```
 
-`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, then cookie bootstrap. If Core rejects it: coworker vault `agent-browser auth login` with the email/password testids, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
+`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, and cookie bootstrap **only if UI fails**. If Core rejects it: coworker vault `agent-browser auth login` with the email/password testids, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
 
 ### Manual UI recipe
 
