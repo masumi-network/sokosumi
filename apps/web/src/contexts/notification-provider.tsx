@@ -485,9 +485,9 @@ export function NotificationProvider({
       }
 
       try {
-        await notificationsBrowserClient.patchNotificationsRead({
-          ids: unreadIds,
-        });
+        await readQueue.current.enqueue(unreadIds, () =>
+          notificationsBrowserClient.patchNotificationsRead({ ids: unreadIds }),
+        );
       } catch (error) {
         console.error("Failed to mark notifications as read:", error);
         void fetchNotifications();

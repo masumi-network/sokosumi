@@ -79,6 +79,29 @@ describe("HeaderNotificationBell", () => {
     useAccountNoticeMock.mockReturnValue({ notice: null });
   });
 
+  it("opening clears badge without reading rows", async () => {
+    useNotificationsMock.mockReturnValue({
+      unreadCount: 2,
+      notifications: [
+        notificationRow("n1", false),
+        notificationRow("n2", false),
+      ],
+      markManyRead: markManyReadMock,
+    });
+    const user = userEvent.setup();
+    render(<HeaderNotificationBell />);
+    await user.click(
+      screen.getByRole("button", { name: "2 unread notifications" }),
+    );
+    expect(
+      screen.getByTestId("notification-dropdown-content"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("notification-unread-badge"),
+    ).not.toBeInTheDocument();
+    expect(markManyReadMock).not.toHaveBeenCalled();
+  });
+
   it("renders a notifications control with tooltip copy as the accessible name", () => {
     render(<HeaderNotificationBell />);
 

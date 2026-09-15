@@ -32,8 +32,9 @@ export function HeaderNotificationBell() {
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const hasAccountNotice = notice !== null;
+  const badgeCount = isOpen ? 0 : unreadCount;
   const indicator = getNotificationIndicator(
-    unreadCount,
+    badgeCount,
     hasAccountNotice,
     notice?.tone,
   );
@@ -62,10 +63,10 @@ export function HeaderNotificationBell() {
   }
 
   const ariaLabel =
-    unreadCount > 0 && hasAccountNotice
-      ? t("unreadBadgeWithAccountNotice", { count: unreadCount })
-      : unreadCount > 0
-        ? t("unreadBadge", { count: unreadCount })
+    badgeCount > 0 && hasAccountNotice
+      ? t("unreadBadgeWithAccountNotice", { count: badgeCount })
+      : badgeCount > 0
+        ? t("unreadBadge", { count: badgeCount })
         : hasAccountNotice
           ? t("accountNoticeIndicator")
           : t("notifications");
