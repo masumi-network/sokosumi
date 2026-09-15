@@ -390,9 +390,19 @@ describe("NotificationItem unread indicator", () => {
     renderInOpenDropdown(createJobNotification(), vi.fn());
 
     const row = await screen.findByRole("group");
+    const rail = row.firstElementChild;
 
-    expect(row.className).toContain("border-l-primary");
-    // Colour and weight reach no screen reader, so the state is also text.
+    expect(rail?.className).toContain("bg-primary");
+    // The geometry is the half that must not move between states: a rail
+    // that changes width, collapses under a long message, or renders with no
+    // height puts the reflow back.
+    expect(rail?.className).toContain("w-0.5");
+    expect(rail?.className).toContain("shrink-0");
+    expect(rail?.className).toContain("self-stretch");
+    // Forced colors repaints bg-primary as Canvas, the row's own colour, so
+    // the rail carries a system colour that mode leaves alone.
+    expect(rail?.className).toContain("forced-colors:bg-[Highlight]");
+    // The bar and the icon tint are colour, so the state is also text.
     const state = screen.getByText("unreadIndicator");
     // Hidden from sight, or the row says "Unread" twice over to everyone else.
     expect(state.className).toContain("sr-only");
@@ -416,11 +426,45 @@ describe("NotificationItem unread indicator", () => {
     );
 
     const row = await screen.findByRole("group");
+    const rail = row.firstElementChild;
 
-    expect(row.className).toContain("border-l-2");
-    expect(row.className).toContain("border-l-transparent");
-    expect(row.className).not.toContain("border-l-primary");
+    // The rail keeps the same geometry as the unread one, so the message
+    // does not slide sideways or re-wrap when the row changes state.
+    expect(rail?.className).toContain("w-0.5");
+    expect(rail?.className).toContain("shrink-0");
+    expect(rail?.className).toContain("self-stretch");
+    // Transparent as a background, not a border: forced colors mode keeps a
+    // background's alpha and would repaint a transparent border outright.
+    expect(rail?.className).toContain("bg-transparent");
+    expect(rail?.className).not.toContain("bg-primary");
     expect(screen.queryByText("unreadIndicator")).toBeNull();
+  });
+
+  it("draws the message at one weight in both states", async () => {
+    // A heavier unread message re-wraps the moment the row is marked read,
+    // and every row below it moves. The bar carries the state instead.
+    const unread = renderInOpenDropdown(createJobNotification(), vi.fn());
+    const unreadClassName = (
+      await screen.findByText(/Notifications\.Job\.completed/)
+    ).className;
+    unread.unmount();
+
+    renderInOpenDropdown(
+      createJobNotification({
+        isRead: true,
+        readAt: new Date("2026-06-18T09:30:00.000Z"),
+      }),
+      vi.fn(),
+    );
+    const readClassName = (
+      await screen.findByText(/Notifications\.Job\.completed/)
+    ).className;
+
+    expect(unreadClassName).toBe(readClassName);
+    // Both empty would satisfy the line above and prove nothing.
+    expect(unreadClassName).toContain("text-sm");
+    // Any weight utility at all would reintroduce the reflow.
+    expect(unreadClassName).not.toMatch(/font-/);
   });
 
   it("carries both on an unread row with pending access actions", async () => {
@@ -429,7 +473,15 @@ describe("NotificationItem unread indicator", () => {
 
     const row = await screen.findByRole("group");
 
-    expect(row.className).toContain("border-l-primary");
+    expect(row.firstElementChild?.className).toContain("bg-primary");
     expect(screen.getByText("unreadIndicator").className).toContain("sr-only");
+    // That branch renders its own paragraph, so the weight has to be pinned
+    // there too, or only these rows keep the reflow.
+    const pendingMessageClassName = screen.getByText(
+      new RegExp(VENDOR_GRANT_PENDING_MESSAGE_KEY),
+    ).className;
+    expect(pendingMessageClassName).not.toMatch(/font-/);
+    // An empty class string would satisfy the line above and prove nothing.
+    expect(pendingMessageClassName).toContain("text-sm");
   });
 });
