@@ -834,7 +834,7 @@ describe("NotificationFollowUpSyncService", () => {
    * ended it. A full last page must not report that on a run that in fact
    * reached the end of the eligible rows.
    */
-  it("reports a backlog of exactly one page as finished", async () => {
+  it("reports a backlog of exactly one page as having reached the end", async () => {
     const waiting = Array.from(
       { length: NOTIFICATION_FOLLOW_UP_PAGE_SIZE },
       (_unused, index) =>

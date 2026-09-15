@@ -12,7 +12,7 @@ import { createNotification, resolveDelivery } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 
 /** How long a notification waits on the reader before it is said again. */
-export const NOTIFICATION_FOLLOW_UP_DELAY_MS = 24 * 60 * 60 * 1000;
+const NOTIFICATION_FOLLOW_UP_DELAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * How far back of the day-old mark one run looks.
@@ -26,7 +26,7 @@ export const NOTIFICATION_FOLLOW_UP_DELAY_MS = 24 * 60 * 60 * 1000;
  * outage longer than the window loses the follow-ups inside it, which for a
  * reminder is the cheaper of the two failures.
  */
-export const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
+const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 /**
  * How many notifications one read returns.
@@ -54,10 +54,18 @@ export const NOTIFICATION_FOLLOW_UP_PAGE_SIZE = 500;
 
 export interface SendFollowUpsOptions {
   now?: Date;
-  /** When already aborted (sync deadline), read nothing and write nothing. */
+  /**
+   * Ends the run wherever it has got to, the same as the deadline below.
+   *
+   * Asked before every read, before every row, and again after the reader's
+   * preferences come back. One that arrives before the first read therefore
+   * costs no query at all, and one that arrives mid-run costs only the row
+   * in hand.
+   */
   abortSignal?: AbortSignal;
   /**
-   * Asked before each write, so a run stops on the handler's deadline.
+   * Asked before each read and each row, so a run stops on the handler's
+   * deadline at a page boundary or inside one.
    *
    * With neither this nor `abortSignal`, a run reads every eligible row. That
    * is bounded by the window rather than by anything here, so the cron route
