@@ -30,15 +30,10 @@ describe("TaskDetailHeader", () => {
     expect(back.className).toContain("md:inline-flex");
   });
 
-  it("shows a private badge when provided", () => {
-    render(
-      <TaskDetailHeader
-        taskName="Secret"
-        backLabel="Back"
-        privateLabel="Private"
-      />,
-    );
+  it("renders the task name without a private badge", () => {
+    render(<TaskDetailHeader taskName="Secret" backLabel="Back" />);
 
-    expect(screen.getByText("Private")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Secret" })).toBeInTheDocument();
+    expect(screen.queryByText("Private")).not.toBeInTheDocument();
   });
 });

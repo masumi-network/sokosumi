@@ -10,6 +10,7 @@ import {
   getCoworkerOptions,
   getOwnerSokoBotOption,
   getUserOptions,
+  isOtherHumanAssignee,
   resolveTaskAssigneeFields,
   taskFormAssigneeId,
   withOwnerSokoBotOption,
@@ -231,6 +232,13 @@ describe("owner soko bot option", () => {
         assigneeUserId: "user_1",
       }),
     ).toBe("user_1");
+  });
+
+  it("treats another member as an other-human assignee", () => {
+    expect(isOtherHumanAssignee("user_2", "user_1")).toBe(true);
+    expect(isOtherHumanAssignee("user_1", "user_1")).toBe(false);
+    expect(isOtherHumanAssignee(null, "user_1")).toBe(false);
+    expect(isOtherHumanAssignee(undefined, "user_1")).toBe(false);
   });
 
   it("resolves a user option onto assigneeUserId", () => {

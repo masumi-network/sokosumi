@@ -134,9 +134,6 @@ export async function TaskDetailView({
             <TaskDetailHeader
               taskName={task.name}
               backLabel={t("back")}
-              privateLabel={
-                task.visibility === "PRIVATE" ? t("privateBadge") : null
-              }
               parentLink={
                 parentTask ? (
                   <p className="text-muted-foreground text-sm">
@@ -439,6 +436,7 @@ async function TaskMetadataSection({
       editable={!isReadOnly}
       task={{
         status: task.status,
+        visibility: task.visibility,
         owner: task.owner,
         organization: task.organization,
         assignee: task.assignee,
@@ -451,6 +449,8 @@ async function TaskMetadataSection({
       createdAtLabel={formatShortDateTime(task.createdAt, locale)}
       updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
       labels={{
+        visibility: t("visibility"),
+        privateBadge: t("privateBadge"),
         status: t("status"),
         statusLabels,
         owner: t("owner"),
