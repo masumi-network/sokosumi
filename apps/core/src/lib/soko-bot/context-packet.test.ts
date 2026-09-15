@@ -99,13 +99,18 @@ const CLASSIFICATION = {
 
 function billingSummary() {
   return {
+    spendable: 50,
     subscription: {
       plan: "starter",
       status: "active",
       credits: { total: 100, remaining: 40, used: 60 },
     },
-    extra: { enterprise: null },
-    credits: { total: 50, buffer: 10 },
+    extra: {
+      credits: { total: 10, remaining: 10, used: 0 },
+      buckets: [],
+      enterprise: null,
+    },
+    enterprise: null,
   };
 }
 
