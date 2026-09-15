@@ -5,8 +5,6 @@ const DAY_IN_MS = 24 * HOUR_IN_MS;
 const MONTH_IN_MS = 30 * DAY_IN_MS;
 const YEAR_IN_MS = 365 * DAY_IN_MS;
 
-export const HYDRATION_STABLE_TIME_ZONE = "UTC";
-
 function getRelativeTimeValueAndUnit(diffInMs: number): {
   value: number;
   unit: Intl.RelativeTimeFormatUnit;
@@ -66,7 +64,8 @@ function getDayDifferenceFromNow(dateObj: Date, now: Date): number {
 
 export function formatShortDate(
   date: string | Date,
-  locale: string = "en",
+  locale: string,
+  timeZone: string,
 ): string {
   try {
     const dateObj = new Date(date);
@@ -76,7 +75,7 @@ export function formatShortDate(
     return new Intl.DateTimeFormat(locale, {
       month: "short",
       day: "numeric",
-      timeZone: HYDRATION_STABLE_TIME_ZONE,
+      timeZone,
     }).format(dateObj);
   } catch {
     return "—";
@@ -85,7 +84,8 @@ export function formatShortDate(
 
 export function formatShortDateTime(
   date: string | Date,
-  locale: string = "en",
+  locale: string,
+  timeZone: string,
 ): string {
   try {
     const dateObj = new Date(date);
@@ -98,7 +98,7 @@ export function formatShortDateTime(
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
-      timeZone: HYDRATION_STABLE_TIME_ZONE,
+      timeZone,
     }).format(dateObj);
   } catch {
     return "—";

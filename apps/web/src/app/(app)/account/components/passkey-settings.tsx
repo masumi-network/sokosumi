@@ -3,7 +3,7 @@
 import type { Account } from "@sokosumi/utils";
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   type FormEvent,
   useCallback,
@@ -25,13 +25,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { authClient } from "@/lib/auth/auth.client";
-
-function formatPasskeyDate(date: Date | string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(date));
-}
 
 function getPasskeyErrorMessage(
   fallbackMessage: string,
@@ -66,7 +59,7 @@ export function PasskeySettings({
   canAddPasskey,
 }: PasskeySettingsProps) {
   const t = useTranslations("App.Account.Passkeys");
-  const locale = useLocale();
+  const formatter = useFormatter();
   const router = useRouter();
   const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([]);
   const [hasPasskeyLoadError, setHasPasskeyLoadError] = useState(false);
@@ -371,7 +364,13 @@ export function PasskeySettings({
                         </p>
                         <p className="text-muted-foreground text-xs">
                           {t("createdAt", {
-                            date: formatPasskeyDate(passkey.createdAt, locale),
+                            date: formatter.dateTime(
+                              new Date(passkey.createdAt),
+                              {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              },
+                            ),
                           })}
                         </p>
                       </div>

@@ -374,6 +374,11 @@ export const taskSchema = taskBaseSchema
       example: [],
       description: "Files uploaded to this task (newest first).",
     }),
+    selectableStatuses: z.array(taskStatusSchema).openapi({
+      example: [TaskStatus.DRAFT, TaskStatus.RUNNING, TaskStatus.COMPLETED],
+      description:
+        "Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.",
+    }),
   })
   .openapi("Task");
 

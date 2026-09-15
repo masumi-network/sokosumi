@@ -5,6 +5,12 @@ import { SharedTaskView } from "./shared-task-view";
 
 vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "en"),
+  getFormatter: vi.fn(async () => ({
+    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" }).format(
+        value,
+      ),
+  })),
   getTranslations: vi.fn(async () => (key: string) => key),
 }));
 

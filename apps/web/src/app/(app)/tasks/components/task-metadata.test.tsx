@@ -6,10 +6,6 @@ import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
-import {
-  TASK_STATUS_DISPLAY_ORDER,
-  TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT,
-} from "@/lib/utils/task-status-order";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -40,6 +36,8 @@ const baseStatusLabels = {
 
 const baseStatusFieldLabels = {
   statusLabels: baseStatusLabels,
+  changeStatus: "Change status…",
+  noStatusMatches: "No status matches",
   reopenToReadyTitle: "Reopen task",
   reopenToReadyDescription: "Add a comment",
   reopenToReadyCommentLabel: "Comment",
@@ -81,6 +79,7 @@ function createTask(
     creator?: Task["creator"];
     status?: TaskMetadataTask["status"];
     visibility?: TaskMetadataTask["visibility"];
+    selectableStatuses?: TaskMetadataTask["selectableStatuses"];
   } = {},
 ): TaskMetadataTask {
   const creator: Task["creator"] = overrides.creator ?? {
@@ -112,6 +111,7 @@ function createTask(
   return {
     status: overrides.status ?? TaskStatus.RUNNING,
     visibility: overrides.visibility,
+    selectableStatuses: overrides.selectableStatuses ?? [],
     owner: {
       id: "user_1",
       name: "Andreas Osberghaus",
@@ -379,38 +379,22 @@ describe("TaskMetadata", () => {
     expect(pill?.textContent).toContain("Running");
   });
 
-  const hiddenManualStatusLabels: Partial<Record<TaskStatus, string>> = {
-    [TaskStatus.GRANT_PENDING]: "Grant pending",
-    [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
-    [TaskStatus.OUT_OF_CREDITS]: "Paused: credits needed",
-    [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
-    [TaskStatus.FAILED]: "Failed",
-  };
-
-  function buildStatusLabelsForManualSelectTest(): Record<TaskStatus, string> {
-    return Object.fromEntries(
-      TASK_STATUS_DISPLAY_ORDER.map((status) => [
-        status,
-        hiddenManualStatusLabels[status] ??
-          (status === TaskStatus.DRAFT
-            ? "Draft"
-            : status === TaskStatus.QUEUED
-              ? "Queued"
-              : status === TaskStatus.READY
-                ? "Ready"
-                : status === TaskStatus.RUNNING
-                  ? "Running"
-                  : status),
-      ]),
-    ) as Record<TaskStatus, string>;
-  }
-
-  it("hides internal statuses from the manual status dropdown", async () => {
+  it("offers only the statuses Core marked selectable, in display order", async () => {
     const user = userEvent.setup();
-    const statusLabels = buildStatusLabelsForManualSelectTest();
+
+    const statusLabels = {
+      ...baseStatusLabels,
+      [TaskStatus.DRAFT]: "Draft",
+      [TaskStatus.READY]: "Ready",
+      [TaskStatus.CANCELED]: "Canceled",
+      [TaskStatus.GRANT_PENDING]: "Grant pending",
+    };
 
     renderTaskMetadata({
-      task: createTask({ status: TaskStatus.DRAFT }),
+      task: createTask({
+        status: TaskStatus.DRAFT,
+        selectableStatuses: [TaskStatus.CANCELED, TaskStatus.READY],
+      }),
       editable: true,
       labels: { ...baseLabels, statusLabels },
       statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
@@ -418,166 +402,32 @@ describe("TaskMetadata", () => {
 
     await user.click(screen.getByRole("combobox", { name: "Draft" }));
 
-    for (const status of TASK_STATUSES_HIDDEN_FROM_MANUAL_SELECT) {
-      const label = hiddenManualStatusLabels[status];
-      if (!label) continue;
-      expect(
-        screen.queryByRole("option", { name: label }),
-      ).not.toBeInTheDocument();
-    }
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["Draft1", "Ready2", "Canceled3"]);
+    expect(
+      screen.queryByRole("option", { name: /Grant pending/ }),
+    ).not.toBeInTheDocument();
   });
 
-  it("keeps the current hidden status in the dropdown when already set", async () => {
+  it("keeps the current status visible when Core offers nothing to move to", async () => {
     const user = userEvent.setup();
-    const statusLabels = buildStatusLabelsForManualSelectTest();
+
+    const statusLabels = { ...baseStatusLabels, [TaskStatus.FAILED]: "Failed" };
 
     renderTaskMetadata({
-      task: createTask({ status: TaskStatus.FAILED }),
+      task: createTask({ status: TaskStatus.FAILED, selectableStatuses: [] }),
       editable: true,
       labels: { ...baseLabels, statusLabels },
       statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
     });
-
-    expect(
-      screen.getByRole("combobox", { name: "Failed" }),
-    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "Failed" }));
-    expect(screen.getByRole("option", { name: "Failed" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("option", { name: "Grant pending" }),
-    ).not.toBeInTheDocument();
-  });
 
-  it("disables Queued without a schedule and shows no helper copy (SOK-1033)", async () => {
-    const user = userEvent.setup();
-    const statusLabels = Object.fromEntries(
-      TASK_STATUS_DISPLAY_ORDER.map((status) => [
-        status,
-        status === TaskStatus.DRAFT
-          ? "Draft"
-          : status === TaskStatus.QUEUED
-            ? "Queued"
-            : status === TaskStatus.READY
-              ? "Ready"
-              : status,
-      ]),
-    ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
-
-    renderTaskMetadata({
-      task: createTask({ status: TaskStatus.DRAFT }),
-      editable: true,
-      labels: { ...baseLabels, statusLabels },
-      statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
-    });
-
-    expect(
-      screen.queryByText("Set a schedule before choosing Queued."),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Queued is only available for scheduled agent work."),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("combobox", { name: "Draft" }));
-    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
-      "data-disabled",
-    );
-  });
-
-  it("enables Queued when an agent task has an active schedule", async () => {
-    const user = userEvent.setup();
-    const statusLabels = Object.fromEntries(
-      TASK_STATUS_DISPLAY_ORDER.map((status) => [
-        status,
-        status === TaskStatus.DRAFT
-          ? "Draft"
-          : status === TaskStatus.QUEUED
-            ? "Queued"
-            : status === TaskStatus.READY
-              ? "Ready"
-              : status,
-      ]),
-    ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
-
-    renderTaskMetadata({
-      task: {
-        ...createTask({
-          status: TaskStatus.READY,
-          assignee: {
-            type: "coworker",
-            id: "coworker-1",
-            coworker: {
-              id: "coworker-1",
-              name: "Elena",
-              image: null,
-              slug: "elena",
-            },
-          },
-        }),
-        metadata: JSON.stringify({
-          version: 1,
-          mode: "recurring",
-          expr: "47 13 * * *",
-          timezone: "UTC",
-          endsMode: "never",
-        }),
-      },
-      editable: true,
-      labels: { ...baseLabels, statusLabels },
-      statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
-    });
-
-    await user.click(screen.getByRole("combobox", { name: "Ready" }));
-    expect(screen.getByRole("option", { name: "Queued" })).not.toHaveAttribute(
-      "data-disabled",
-    );
-  });
-
-  it("disables Queued for a human task even with an active schedule", async () => {
-    const user = userEvent.setup();
-    const statusLabels = Object.fromEntries(
-      TASK_STATUS_DISPLAY_ORDER.map((status) => [
-        status,
-        status === TaskStatus.DRAFT
-          ? "Draft"
-          : status === TaskStatus.QUEUED
-            ? "Queued"
-            : status === TaskStatus.READY
-              ? "Ready"
-              : status,
-      ]),
-    ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
-
-    renderTaskMetadata({
-      task: {
-        ...createTask({
-          status: TaskStatus.READY,
-          assignee: {
-            type: "user",
-            id: "user-1",
-            user: {
-              id: "user-1",
-              name: "Bob",
-              image: null,
-            },
-          },
-        }),
-        metadata: JSON.stringify({
-          version: 1,
-          mode: "recurring",
-          expr: "47 13 * * *",
-          timezone: "UTC",
-          endsMode: "never",
-        }),
-      },
-      editable: true,
-      labels: { ...baseLabels, statusLabels },
-      statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
-    });
-
-    await user.click(screen.getByRole("combobox", { name: "Ready" }));
-    expect(screen.getByRole("option", { name: "Queued" })).toHaveAttribute(
-      "data-disabled",
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(screen.getByRole("option", { name: /Failed/ })).toHaveAttribute(
+      "data-current",
+      "true",
     );
   });
 });

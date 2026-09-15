@@ -95,7 +95,7 @@ import {
 import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 import {
   canSelectQueuedTaskStatus,
-  getManualTaskStatusSelectOptions,
+  TASK_STATUS_DISPLAY_ORDER,
 } from "@/lib/utils/task-status-order";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
@@ -108,7 +108,7 @@ import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskScheduleModal } from "./task-schedule-modal";
-import { TaskStatusPillSelectTrigger } from "./task-status-pill-select-trigger";
+import { TaskStatusPicker } from "./task-status-picker";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -146,6 +146,8 @@ export interface TaskFormLabels {
   statusQueued: string;
   statusReady: string;
   statusLabels?: Record<TaskStatus, string>;
+  changeStatus: string;
+  noStatusMatches: string;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -176,6 +178,8 @@ interface TaskFormInitialValues {
   assigneeUserId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
+  /** Statuses Core lets this viewer move the Task to; edit mode only (ADR 0029). */
+  selectableStatuses?: readonly TaskStatus[];
   metadata?: string | null;
   nextRunAt?: string | null;
   schedule?: TaskScheduleSelection;
@@ -329,7 +333,8 @@ export function TaskForm({
       (initialValues?.nextRunAt && initialValues.nextRunAt.length > 0),
   );
   // A live series owns the Task's status and Calendar source: Core rejects
-  // status changes with `schedule_active`, and moving the source is SOK-887.
+  // status changes with `schedule_active` (except Ready → Queued, which is
+  // how a scheduled Task is normalized), and moving the source is SOK-887.
   const hasActiveSeries = mode === "edit" && hadSchedule;
   const hasProjectSelection = projectOptions !== undefined && !hasActiveSeries;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
@@ -706,10 +711,16 @@ export function TaskForm({
   const canUseSubmitShortcut =
     showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
-  const statusOptions =
-    mode === "create"
-      ? CREATE_STATUS_OPTIONS
-      : getManualTaskStatusSelectOptions(status);
+  const statusPickerLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        TASK_STATUS_DISPLAY_ORDER.map((option) => [
+          option,
+          getTaskFormStatusLabel(option, labels),
+        ]),
+      ) as Record<TaskStatus, string>,
+    [labels],
+  );
 
   /**
    * What a save would do to a live series. Replacing the rule always retires
@@ -1052,6 +1063,25 @@ export function TaskForm({
     isAgent: isAgentAssignee,
     hasSchedule,
   });
+  // Edit mode offers what Core marked selectable for the saved Task plus the
+  // saved status itself, so an unsaved pick can be undone before saving. A
+  // schedule staged in this form makes Queued pickable before Core knows.
+  const statusOptions = useMemo<readonly TaskStatus[]>(
+    () =>
+      mode === "create"
+        ? CREATE_STATUS_OPTIONS
+        : [
+            ...(initialValues?.status ? [initialValues.status] : []),
+            ...(initialValues?.selectableStatuses ?? []),
+            ...(isQueuedSelectable ? [TaskStatus.QUEUED] : []),
+          ],
+    [
+      mode,
+      initialValues?.status,
+      initialValues?.selectableStatuses,
+      isQueuedSelectable,
+    ],
+  );
   const isSchedulableAssignee =
     isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
   const showPrivateControl =
@@ -1574,32 +1604,22 @@ export function TaskForm({
                   <span>{seriesError}</span>
                 </p>
               ) : null}
-              <Select
+              <TaskStatusPicker
                 value={status}
-                onValueChange={(value) =>
-                  handleStatusSelect(value as TaskStatus)
+                options={statusOptions}
+                labels={{
+                  statusLabels: statusPickerLabels,
+                  ariaLabel: labels.status,
+                  searchPlaceholder: labels.changeStatus,
+                  noResults: labels.noStatusMatches,
+                }}
+                onSelect={handleStatusSelect}
+                isOptionDisabled={(option) =>
+                  (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
+                  (option === TaskStatus.QUEUED && !isQueuedSelectable)
                 }
-              >
-                <TaskStatusPillSelectTrigger
-                  status={status}
-                  label={getTaskFormStatusLabel(status, labels)}
-                  ariaLabel={labels.status}
-                />
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem
-                      key={option}
-                      value={option}
-                      disabled={
-                        (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
-                        (option === TaskStatus.QUEUED && !isQueuedSelectable)
-                      }
-                    >
-                      {getTaskFormStatusLabel(option, labels)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                align="start"
+              />
               {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
                 <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
                   <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />

@@ -175,6 +175,7 @@ function buildMappedTask() {
     share: null,
     links: [],
     files: [],
+    selectableStatuses: [],
   };
 }
 

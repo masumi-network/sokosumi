@@ -1115,8 +1115,15 @@ export const setTaskStatusFromDrag = withSession<
     if (desiredStatus !== currentStatus) {
       // A live series owns this Task's status. Dropping it in another column
       // used to silently unschedule it; the drag is now refused so the user
-      // decides what happens to the series.
-      if (hasActiveTaskSchedule(task.metadata, task.nextRunAt)) {
+      // decides what happens to the series. Ready → Queued is the one move
+      // Core still accepts (selectableStatuses / events).
+      if (
+        hasActiveTaskSchedule(task.metadata, task.nextRunAt) &&
+        !(
+          currentStatus === TaskStatus.READY &&
+          desiredStatus === TaskStatus.QUEUED
+        )
+      ) {
         return taskMutationFailure(CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE);
       }
 

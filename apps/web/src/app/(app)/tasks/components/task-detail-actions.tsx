@@ -311,6 +311,8 @@ export function TaskDetailActions({
     status: tNewTask("status"),
     statusDescription: tNewTask("statusDescription"),
     statusDraft: tNewTask("statusDraft"),
+    changeStatus: tNewTask("changeStatus"),
+    noStatusMatches: tNewTask("noStatusMatches"),
     statusQueued: tNewTask("statusQueued"),
     statusReady: tNewTask("statusReady"),
     untitledTask: tNewTask("untitledTask"),

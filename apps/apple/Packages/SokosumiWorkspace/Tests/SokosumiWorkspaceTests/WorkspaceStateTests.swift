@@ -1766,3 +1766,65 @@ extension WorkspaceStateTests {
     }
   }
 }
+
+@MainActor
+extension WorkspaceStateTests {
+  @Test func searchWithoutClientReportsFailureForTheSubmittedQuery() async {
+    let state = WorkspaceState(clientProvider: { _ in nil })
+    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    state.timeline.reset(roomId: "room")
+    let search = RoomSearch()
+    await state.searchMessages("  matching  ", roomId: "room", search: search, auth: auth)
+    #expect(search.query == "matching", "The view must show this failure instead of treating the query as pending.")
+    #expect(search.errorMessage != nil)
+    #expect(!search.isLoading)
+  }
+
+  @Test func searchReplyLoadsContextWithoutReplacingRecentReplies() async throws {
+    let parentRow = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let recent = transcriptMessage(id: "recent", roomId: "room", content: "Recent").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let older = transcriptMessage(id: "old", roomId: "room", content: "Old").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parentRow], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [recent], nextCursor: "before-recent")),
+      (200, transcriptPageBody(messages: [older], nextCursor: "before-old"))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "old"
+    hit.parentMessageId = "parent"
+    #expect(try await state.openSearchReply(hit, auth: auth))
+    #expect(state.thread.parent?.id == "parent")
+    #expect(state.thread.jumpTarget?.messageId == "old")
+    #expect(Set(state.thread.timeline.messages.map(\.id)) == ["old", "recent"])
+    #expect(state.thread.timeline.historyGapMessageIds == ["recent"])
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 2)
+  }
+
+  @Test func searchReplyCannotOpenAfterRoomSwitch() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "parent", roomId: "room", content: "Parent")], nextCursor: nil)),
+      (200, createdMessageBody(id: "parent", roomId: "room", content: "Parent"))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "reply"
+    hit.parentMessageId = "parent"
+    state.timeline.reset(roomId: "room")
+    transport.pauseGET = true
+    let request = Task { try await state.openSearchReply(hit, auth: auth) }
+    while transport.operationIDs.count < 2 {
+      await Task.yield()
+    }
+    state.clearTranscript()
+    state.timeline.reset(roomId: "other")
+    transport.releasePausedRequest()
+    #expect(try await request.value == false)
+    #expect(state.thread.parent == nil)
+    #expect(state.thread.jumpTarget == nil)
+  }
+}

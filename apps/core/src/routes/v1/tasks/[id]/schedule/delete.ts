@@ -200,6 +200,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return task;
     }, "Task schedule changed during schedule removal");
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    return ok(c, taskSchema.parse(mapTask(task, authContext)));
   });
 }

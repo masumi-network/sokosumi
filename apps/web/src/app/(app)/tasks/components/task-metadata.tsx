@@ -1,4 +1,4 @@
-import { hasActiveTaskSchedule, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
@@ -39,6 +39,7 @@ interface TaskMetadataLabels {
 interface TaskMetadataTask {
   status: Task["status"];
   visibility?: Task["visibility"];
+  selectableStatuses: Task["selectableStatuses"];
   owner: Task["owner"];
   organization: Task["organization"];
   assignee: Task["assignee"];
@@ -196,10 +197,6 @@ export function TaskMetadata({
     labels.personalAssistantFallback,
   );
   const creator = resolveTaskCreatorDisplay(task, labels);
-  const hasSchedule = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
-  const isAgentAssignee =
-    task.assignee?.type === "coworker" || task.assignee?.type === "sokoBot";
-
   return (
     <section className="space-y-3">
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
@@ -218,8 +215,7 @@ export function TaskMetadata({
             key={`${taskId}-${task.status}`}
             taskId={taskId}
             status={task.status}
-            hasSchedule={hasSchedule}
-            isAgentAssignee={isAgentAssignee}
+            selectableStatuses={task.selectableStatuses}
             labels={statusFieldLabels}
           />
         ) : (
