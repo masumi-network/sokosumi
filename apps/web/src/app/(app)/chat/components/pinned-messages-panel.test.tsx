@@ -99,7 +99,6 @@ function renderPanel(onJump: (messageId: string) => Promise<boolean>) {
       onClose={onClose}
       onJump={onJump}
       onUnpin={vi.fn(async () => true)}
-      onIdsLoaded={vi.fn()}
     />,
   );
   return { onClose };

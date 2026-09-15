@@ -9,6 +9,7 @@ export {
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
+export { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "./auth-captcha.js";
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
@@ -45,8 +46,10 @@ export {
 } from "./chat-membership-revoked.js";
 export {
   buildChatMessagePreview,
+  buildNamedChatMessagePreview,
   CHAT_MENTION_ALL_KEY,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+  canonicalUuidSpelling,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
 } from "./chat-message-preview.js";

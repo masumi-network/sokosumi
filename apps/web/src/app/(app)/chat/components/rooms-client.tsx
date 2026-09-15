@@ -485,18 +485,6 @@ export function RoomsClient({
   }, []);
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const [pinnedListGeneration, setPinnedListGeneration] = useState(0);
-  const [pinnedMessageIds, setPinnedMessageIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const handlePinnedIdsLoaded = useCallback((messageIds: readonly string[]) => {
-    setPinnedMessageIds((current) => {
-      const next = new Set(current);
-      for (const messageId of messageIds) {
-        next.add(messageId);
-      }
-      return next;
-    });
-  }, []);
   const [rosterOpen, setRosterOpen] = useState(false);
   const handleOpenEditChannel = useCallback(() => {
     setEditChannelOpen(true);
@@ -538,7 +526,6 @@ export function RoomsClient({
     setRosterOpen(false);
     setPinnedOpen(false);
     setPinnedListGeneration(0);
-    setPinnedMessageIds(new Set());
     setThreadOpenedFromList(false);
     setEditSession(null);
     threadLoadGenerationRef.current += 1;
@@ -561,9 +548,6 @@ export function RoomsClient({
   }, []);
   const pinToBottomAfterOwnSend = useCallback(() => {
     viewportRef.current?.pinToBottomAfterOwnSend();
-  }, []);
-  const scrollToBottomIfPinned = useCallback(() => {
-    viewportRef.current?.scrollToBottomIfPinned();
   }, []);
   const suppressStickToBottom = useCallback(() => {
     viewportRef.current?.suppressStickToBottom();
@@ -723,15 +707,10 @@ export function RoomsClient({
   if (selectedRoom == null && editChannelOpen) {
     setEditChannelOpen(false);
   }
-
-  useEffect(() => {
-    if (!selectedRoom || selectedRoom.kind !== "channel") {
-      setPinnedOpen(false);
-      setPinnedMessageIds(new Set());
-      return;
-    }
-    setPinnedMessageIds(new Set());
-  }, [selectedRoom?.id, selectedRoom?.kind]);
+  // Pins are Channel-only.
+  if (selectedRoom?.kind !== "channel" && pinnedOpen) {
+    setPinnedOpen(false);
+  }
 
   async function handleOpenDirectMessage(
     profile: ChatParticipantHoverProfile,
@@ -1659,15 +1638,15 @@ export function RoomsClient({
   }
 
   function applyPinnedMutation(messageId: string, pinned: boolean) {
-    setPinnedMessageIds((current) => {
-      const next = new Set(current);
-      if (pinned) {
-        next.add(messageId);
-      } else {
-        next.delete(messageId);
-      }
-      return next;
-    });
+    // Unloaded rows arrive with Core's pinnedAt. The local time stands in
+    // until the next read; only pinned-or-not is shown.
+    setMessagesState((current) =>
+      current.map((message) =>
+        message.id === messageId && (message.pinnedAt != null) !== pinned
+          ? { ...message, pinnedAt: pinned ? new Date() : null }
+          : message,
+      ),
+    );
     setPinnedListGeneration((generation) => generation + 1);
   }
 
@@ -1676,7 +1655,7 @@ export function RoomsClient({
     if (!roomId) {
       return;
     }
-    const alreadyPinned = pinnedMessageIds.has(message.id);
+    const alreadyPinned = message.pinnedAt != null;
     const result = alreadyPinned
       ? await unpinRoomMessageAction(roomId, message.id)
       : await pinRoomMessageAction(roomId, message.id);
@@ -2635,7 +2614,7 @@ export function RoomsClient({
                   : undefined
               }
               showPinButton={!isDirectRoom && !isOutboundLocal}
-              isPinned={pinnedMessageIds.has(message.id)}
+              isPinned={message.pinnedAt != null}
               onStartEdit={
                 isOutboundLocal ? undefined : stableMessageHandlers.onStartEdit
               }
@@ -2809,7 +2788,6 @@ export function RoomsClient({
               pendingQuote={pendingQuote}
               onClearPendingQuote={() => setPendingQuote(null)}
               onRestorePendingQuote={setPendingQuote}
-              onChromeResize={scrollToBottomIfPinned}
               // Autofocus only after history settles. Send stays enabled so
               // optimistic posts work during progressive open (merge into list).
               focusOnMount={!messagesPending}
@@ -2924,7 +2902,6 @@ export function RoomsClient({
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
-                onIdsLoaded={handlePinnedIdsLoaded}
                 onClose={() => {
                   setPinnedOpen(false);
                 }}

@@ -52,6 +52,7 @@ import SwiftUI
 
     var channels: [ComposerChannel] = []
     var room: Components.Schemas.ChatRoom?
+    var preparedDocument: MessageMarkdown?
     let message: Components.Schemas.ChatRoomMessage
     let isContinuation: Bool
     let outbound: OutboundShell?
@@ -61,10 +62,12 @@ import SwiftUI
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
+    var isHighlighted = false
     var isPinned = false
     var isUpdatingPin = false
     var onTogglePin: (() async throws -> Void)?
     var onDelete: (() async throws -> Void)?
+    var onRemoveUnfurl: ((String) async throws -> Void)?
     var onToggleReaction: ((String) async throws -> Void)?
     var pendingReactionEmoji: Set<String> = []
     var editing: MessageEditing?
@@ -122,6 +125,17 @@ import SwiftUI
       }
     }
 
+    private var pinnedLabel: some View {
+      Label {
+        Text("Pinned", tableName: "ChatPins", comment: "A channel message that is pinned.")
+      } icon: {
+        Image(systemName: "pin.fill")
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .fixedSize()
+    }
+
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
         if isContinuation {
@@ -134,8 +148,8 @@ import SwiftUI
         // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
         // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
-          if isPinned {
-            Label("Pinned", systemImage: "pin.fill").font(.caption).foregroundStyle(.secondary)
+          if isContinuation, isPinned, message.deletedAt == nil {
+            pinnedLabel
           }
           if !isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -151,6 +165,9 @@ import SwiftUI
                 Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
+              }
+              if isPinned, message.deletedAt == nil {
+                pinnedLabel
               }
             }
           }
@@ -170,7 +187,13 @@ import SwiftUI
             if let editing, editing.source?.id == message.id {
               MessageEditComposer(editing: editing).id(message.id)
             } else {
-              MessageMarkdownView(source: message.content, room: room, channels: channels)
+              MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
+            }
+            if outbound == nil {
+              ForEach(message.unfurls ?? [], id: \.url) { preview in
+                MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+                  .id(preview.url + (preview.imageUrl ?? ""))
+              }
             }
             if isContinuation, message.editedAt != nil {
               Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
@@ -207,7 +230,13 @@ import SwiftUI
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
-      .background((isHovered || isReplyHovered) && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil) ? Color.primary.opacity(0.04) : .clear)
+      .background {
+        if isHighlighted {
+          Color.accentColor.opacity(0.12)
+        } else if isHovered || isReplyHovered, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+          Color.primary.opacity(0.04)
+        }
+      }
       .overlay(alignment: .topTrailing) {
         if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
           HStack(spacing: 2) {

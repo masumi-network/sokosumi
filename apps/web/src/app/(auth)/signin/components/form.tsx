@@ -9,9 +9,9 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
+import { useAuthCaptcha } from "@/components/auth-captcha";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient, signIn } from "@/lib/auth/auth.client";
 import {
@@ -41,6 +41,11 @@ export default function SignInForm({
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const {
+    widget: captcha,
+    runWithCaptcha,
+    getErrorMessage,
+  } = useAuthCaptcha("signin");
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -78,51 +83,57 @@ export default function SignInForm({
   const handleSubmit = async (values: SignInFormSchemaType) => {
     track("Sign In", { provider: "credential" });
 
-    const result = await signIn.email({
-      email: values.email,
-      password: values.currentPassword,
-      rememberMe: values.rememberMe,
-      // Better Auth hard-redirects to callbackURL on success, before any code
-      // below runs. The callback page fires the `login` GTM event.
-      callbackURL: buildAuthCallbackUrl(
-        "/auth/callback/signin",
-        "credential",
-        effectiveReturnUrl,
-      ),
-    });
+    await runWithCaptcha(async (fetchOptions) => {
+      const result = await signIn.email({
+        fetchOptions,
+        email: values.email,
+        password: values.currentPassword,
+        rememberMe: values.rememberMe,
+        // Better Auth hard-redirects to callbackURL on success, before any code
+        // below runs. The callback page fires the `login` GTM event.
+        callbackURL: buildAuthCallbackUrl(
+          "/auth/callback/signin",
+          "credential",
+          effectiveReturnUrl,
+        ),
+      });
 
-    if (result.error) {
-      const errorCode = "code" in result.error ? result.error.code : undefined;
+      if (result.error) {
+        const errorCode =
+          "code" in result.error ? result.error.code : undefined;
 
-      switch (errorCode) {
-        case AuthErrorCode.TERMS_NOT_ACCEPTED:
-          toast.error(t("Errors.termsNotAccepted"));
-          break;
-        default:
-          toast.error(result.error.message ?? t("error"));
-          break;
+        switch (errorCode) {
+          case AuthErrorCode.TERMS_NOT_ACCEPTED:
+            toast.error(t("Errors.termsNotAccepted"));
+            break;
+          default:
+            toast.error(
+              getErrorMessage(result.error, result.error.message ?? t("error")),
+            );
+            break;
+        }
+        return;
       }
-      return;
-    }
 
-    const oauthRedirect = getAuthOAuthRedirect(result.data);
-    if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
+      const oauthRedirect = getAuthOAuthRedirect(result.data);
+      if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
+        setIsLeaving(true);
+        window.location.href = oauthRedirect.redirectUrl;
+        return;
+      }
+
+      await waitForAuthSession({
+        context: "login",
+        getSession: createAuthSessionGetter(() => authClient.getSession()),
+        logWarning: (message) => {
+          Sentry.captureMessage(message, { level: "warning" });
+        },
+      });
+
+      toast.success(t("success"));
       setIsLeaving(true);
-      window.location.href = oauthRedirect.redirectUrl;
-      return;
-    }
-
-    await waitForAuthSession({
-      context: "login",
-      getSession: createAuthSessionGetter(() => authClient.getSession()),
-      logWarning: (message) => {
-        Sentry.captureMessage(message, { level: "warning" });
-      },
+      router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
     });
-
-    toast.success(t("success"));
-    setIsLeaving(true);
-    router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   };
 
   const email = useWatch({
@@ -160,6 +171,7 @@ export default function SignInForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
+        {captcha}
         <div className="relative">
           {isLastUsedEmailLogin && (
             <span

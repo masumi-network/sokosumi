@@ -2508,6 +2508,10 @@ export type ChatRoomPinnedMessageListItem = {
         createdAt: Date;
         deletedAt: Date | null;
         editedAt: Date | null;
+        /**
+         * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+         */
+        pinnedAt: Date | null;
         sender: ChatRoomMessageSender;
         mentions: Array<ChatRoomMessageMention>;
         reactions: Array<ChatRoomMessageReaction>;
@@ -2712,6 +2716,10 @@ export type ChatRoomMessage = {
     createdAt: Date;
     deletedAt: Date | null;
     editedAt: Date | null;
+    /**
+     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+     */
+    pinnedAt: Date | null;
     sender: ChatRoomMessageSender;
     mentions: Array<ChatRoomMessageMention>;
     reactions: Array<ChatRoomMessageReaction>;
@@ -34912,7 +34920,6 @@ export type ListSokoBotAvatarsData = {
     query?: {
         take?: number;
         exclude?: string;
-        topUp?: 'true' | 'false';
     };
     url: '/soko-bots/avatars';
 };
@@ -34952,6 +34959,97 @@ export type ListSokoBotAvatarsResponses = {
 };
 
 export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
+
+export type TopUpSokoBotAvatarsData = {
+    body: {
+        take?: number;
+        excludeIds?: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/soko-bots/avatars/top-up';
+};
+
+export type TopUpSokoBotAvatarsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSokoBotAvatarsErrors];
+
+export type TopUpSokoBotAvatarsResponses = {
+    /**
+     * Unclaimed mascot avatars, after filling a short pool
+     */
+    200: {
+        data: Array<SokoBotAvatar>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TopUpSokoBotAvatarsResponse = TopUpSokoBotAvatarsResponses[keyof TopUpSokoBotAvatarsResponses];
 
 export type ListMySokoBotIntegrationsData = {
     body?: never;

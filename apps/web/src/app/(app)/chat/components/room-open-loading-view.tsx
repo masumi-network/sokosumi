@@ -63,7 +63,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
             sendAriaLabel="Send"
             withOuterPadding={false}
             withSafeAreaPadding
-            className="px-3 pt-2 md:px-5 md:pt-3"
+            className="px-3 md:px-5"
             aboveEditor={
               formatToolbarOpen ? (
                 <ComposerFormatToolbar

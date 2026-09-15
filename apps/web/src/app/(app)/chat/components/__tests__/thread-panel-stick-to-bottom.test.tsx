@@ -26,11 +26,9 @@ vi.mock("../room-file-drop-zone", () => ({
 vi.mock("../room-session-composer", () => ({
   RoomSessionComposer: ({
     ref,
-    onChromeResize,
     onSend,
   }: {
     ref?: Ref<RoomComposerHandle>;
-    onChromeResize?: () => void;
     onSend?: () => Promise<{ ok: boolean }>;
   }) => {
     useImperativeHandle(ref, () => ({
@@ -39,13 +37,6 @@ vi.mock("../room-session-composer", () => ({
     }));
     return (
       <>
-        <button
-          type="button"
-          data-testid="chrome-resize"
-          onClick={onChromeResize}
-        >
-          chrome-resize
-        </button>
         <button
           type="button"
           data-testid="send-reply"
@@ -81,6 +72,7 @@ function parentMessage(
     content: "Parent",
     createdAt: new Date("2026-07-01T14:35:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],
@@ -137,7 +129,6 @@ function renderThreadPanel(replies: ChatRoomMessage[] = [replyMessage("r1")]) {
 describe("ThreadPanel transcript viewport", () => {
   beforeEach(() => {
     transcriptViewportSpies.pinToBottomAfterOwnSend.mockClear();
-    transcriptViewportSpies.scrollToBottomIfPinned.mockClear();
   });
 
   it("opens the thread on the viewport contract (stub mounts every row)", () => {
@@ -146,16 +137,6 @@ describe("ThreadPanel transcript viewport", () => {
     expect(screen.getByText("Parent")).toBeTruthy();
     expect(screen.getByText("Reply r1")).toBeTruthy();
     expect(screen.getByText("Reply r2")).toBeTruthy();
-  });
-
-  it("asks the viewport to follow chrome resize when pinned", () => {
-    renderThreadPanel();
-
-    act(() => {
-      screen.getByTestId("chrome-resize").click();
-    });
-
-    expect(transcriptViewportSpies.scrollToBottomIfPinned).toHaveBeenCalled();
   });
 
   it("re-pins to the live edge after a successful send", async () => {

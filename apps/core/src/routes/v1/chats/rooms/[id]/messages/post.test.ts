@@ -366,6 +366,7 @@ function createdMessage(
     mentionsAsSource: overrides.mentionsAsSource ?? [],
     reactions: [],
     replies: [],
+    pins: [],
     _count: { replies: 0 },
   };
 }

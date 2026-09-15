@@ -232,7 +232,6 @@ vi.mock("../thread-panel", async () => {
         scrollToMessage: (messageId: string) => boolean;
         scrollToBottom: () => void;
         pinToBottomAfterOwnSend: () => void;
-        scrollToBottomIfPinned: () => void;
         suppressStickToBottom: () => void;
         releaseStickToBottomSuppress: () => void;
       } | null>;
@@ -240,7 +239,6 @@ vi.mock("../thread-panel", async () => {
       useImperativeHandle(viewportRef, () => ({
         scrollToBottom: () => undefined,
         pinToBottomAfterOwnSend: () => undefined,
-        scrollToBottomIfPinned: () => undefined,
         suppressStickToBottom: () => undefined,
         releaseStickToBottomSuppress: () => undefined,
         landOnMessage: (messageId: string) => {
@@ -395,6 +393,7 @@ function sampleMessage(
     content,
     createdAt: new Date("2026-07-01T12:01:00.000Z"),
     editedAt: null,
+    pinnedAt: null,
     deletedAt: null,
     mentions: [],
     reactions: [],

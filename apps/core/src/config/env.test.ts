@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveWebRelatedProjectFallbackHost, validateEnv } from "./env.js";
 
@@ -36,6 +37,7 @@ afterEach(() => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
@@ -114,5 +116,65 @@ describe("Soko Bot deployment environment", () => {
     });
 
     expect(validateEnv().SOKO_BOT_ENABLED).toBe(false);
+  });
+});
+
+describe("Turnstile deployment configuration", () => {
+  let consoleWarn: MockInstance<typeof console.warn>;
+
+  beforeEach(() => {
+    vi.stubEnv("SOKO_BOT_RUNTIME_ADAPTER", "in-process");
+    consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  it.each(["development", "production", "staging"])(
+    "allows an omitted secret in Node %s",
+    (nodeEnv) => {
+      vi.stubEnv("NODE_ENV", nodeEnv);
+      vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
+      expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
+    },
+  );
+  it.each(["production", "preview"])(
+    "allows an omitted secret on Vercel %s",
+    (vercelEnv) => {
+      vi.stubEnv("VERCEL_ENV", vercelEnv);
+      vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
+      expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
+    },
+  );
+  it("preserves a configured secret", () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "test-secret");
+    expect(validateEnv().TURNSTILE_SECRET_KEY).toBe("test-secret");
+  });
+
+  it("warns when the secret is omitted in a deployed environment", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
+
+    validateEnv();
+
+    expect(consoleWarn).toHaveBeenCalledWith(
+      expect.stringContaining("TURNSTILE_SECRET_KEY is unset"),
+    );
+  });
+
+  it("stays silent with a secret in a deployed environment", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "test-secret");
+
+    validateEnv();
+
+    expect(consoleWarn).not.toHaveBeenCalled();
+  });
+
+  it("stays silent without a secret in local development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("VERCEL_ENV", undefined);
+    vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
+
+    validateEnv();
+
+    expect(consoleWarn).not.toHaveBeenCalled();
   });
 });

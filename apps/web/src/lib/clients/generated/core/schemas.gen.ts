@@ -9188,6 +9188,15 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
                 },
+                pinnedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: null,
+                    description: 'When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.'
+                },
                 sender: {
                     $ref: '#/components/schemas/ChatRoomMessageSender'
                 },
@@ -9248,6 +9257,7 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 'createdAt',
                 'deletedAt',
                 'editedAt',
+                'pinnedAt',
                 'sender',
                 'mentions',
                 'reactions',
@@ -9965,6 +9975,15 @@ export const ChatRoomMessageSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        pinnedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.'
+        },
         sender: {
             $ref: '#/components/schemas/ChatRoomMessageSender'
         },
@@ -10025,6 +10044,7 @@ export const ChatRoomMessageSchema = {
         'createdAt',
         'deletedAt',
         'editedAt',
+        'pinnedAt',
         'sender',
         'mentions',
         'reactions',

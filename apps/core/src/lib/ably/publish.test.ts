@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 import {
   buildChatMessagePreview,
@@ -29,6 +30,8 @@ const { envMock, publishMock, batchPublishMock, getMock, getRestClientMock } =
     getMock: vi.fn(),
     getRestClientMock: vi.fn(),
   }));
+
+vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 
 vi.mock("@/config/env", () => ({ getEnv: () => envMock }));
 
@@ -329,6 +332,7 @@ describe("publishChatRoomMessageEvent", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: null,
+      pinnedAt: null,
       sender: {
         type: "user" as const,
         user: {
@@ -373,6 +377,7 @@ describe("publishChatRoomMessageEvent", () => {
       createdAt: "2026-08-03T12:00:00.000Z",
       deletedAt: null,
       editedAt: null,
+      pinnedAt: null,
       sender: {
         type: "coworker" as const,
         coworker: {
@@ -593,4 +598,41 @@ describe("publishChatRoomsChanged", () => {
     expect(log).toHaveBeenCalled();
     log.mockRestore();
   });
+});
+
+describe("chat room invalidation reporting", () => {
+  it.each(["channel", "batch", "client"])(
+    "reports a %s failure once without rejecting",
+    async (failure) => {
+      vi.mocked(Sentry.captureException).mockClear();
+      const error = new Error("invalidation failed");
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      if (failure === "channel") {
+        batchPublishMock.mockResolvedValueOnce({
+          results: [{ channel: "chat_control:user_a", error }],
+        });
+      } else if (failure === "batch") {
+        batchPublishMock.mockRejectedValueOnce(error);
+      } else {
+        getRestClientMock.mockImplementationOnce(() => {
+          throw error;
+        });
+      }
+      await expect(
+        publishChatRoomsChanged({
+          userIds: ["a"],
+          collections: ["active"],
+          roomId: "room",
+        }),
+      ).resolves.toBeUndefined();
+      expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+        tags: { context: "chat_rooms_changed" },
+        extra:
+          failure === "channel"
+            ? { roomId: "room", channel: "chat_control:user_a" }
+            : { roomId: "room" },
+      });
+      log.mockRestore();
+    },
+  );
 });

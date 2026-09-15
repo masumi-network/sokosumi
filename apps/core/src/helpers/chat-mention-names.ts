@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-import { CHAT_MENTION_ALL_KEY, readChatMentionKeys } from "@sokosumi/utils";
+import {
+  CHAT_MENTION_ALL_KEY,
+  canonicalUuidSpelling,
+  readChatMentionKeys,
+} from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 
@@ -8,8 +12,11 @@ type MentionNameClient = Pick<
   "chatRoomUserMember" | "chatRoomCoworkerMember" | "chatRoomSokoBotMember"
 >;
 
+// Hyphens optional, because Postgres parses a uuid written without them and
+// the preview names such a key like any other. A key the column would have
+// matched must not be dropped before it gets there.
 const POSTGRES_UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
 /**
  * The display names the room shows for the members a message mentions.
@@ -18,7 +25,7 @@ const POSTGRES_UUID =
  * agent mentions may include `:<slug>`. Resolve display names from room
  * members by ID so previews reflect the current name. User and coworker
  * ids are text, including 32-character auth ids. SokoBot ids are Postgres
- * uuid, so only hyphenated uuid keys go into that read.
+ * uuid, so only keys that column can parse go into that read.
  *
  * Only the mentioned members are read, not the room's roster: a channel can
  * hold hundreds of people and a message names a handful of them.
@@ -46,10 +53,14 @@ export async function loadChatMentionNames(params: {
     return names;
   }
 
+  // Text IDs require both spellings. Keep raw IDs so legacy auth IDs still win.
+  const textIds = [
+    ...new Set(keys.flatMap((key) => [key, canonicalUuidSpelling(key) ?? key])),
+  ];
   const client = params.client ?? prisma;
 
   const userMembers = await client.chatRoomUserMember.findMany({
-    where: { roomId: params.roomId, userId: { in: keys } },
+    where: { roomId: params.roomId, userId: { in: textIds } },
     select: { user: { select: { id: true, name: true } } },
   });
   for (const member of userMembers) {
@@ -59,7 +70,7 @@ export async function loadChatMentionNames(params: {
   }
 
   const coworkerMembers = await client.chatRoomCoworkerMember.findMany({
-    where: { roomId: params.roomId, coworkerId: { in: keys } },
+    where: { roomId: params.roomId, coworkerId: { in: textIds } },
     select: { coworker: { select: { id: true, name: true } } },
   });
   for (const member of coworkerMembers) {

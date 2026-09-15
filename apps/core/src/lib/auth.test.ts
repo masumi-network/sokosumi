@@ -185,6 +185,7 @@ function getDefaultEnv() {
     BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
     BETTER_AUTH_RP_ID: "example.com",
     BETTER_AUTH_SECRET: "test-secret",
+    TURNSTILE_SECRET_KEY: "test-turnstile-secret",
     BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
     GOOGLE_CLIENT_ID: "google-client-id",
     GOOGLE_CLIENT_SECRET: "google-client-secret",
@@ -219,7 +220,9 @@ vi.mock("@better-auth/prisma-adapter", () => ({
   prismaAdapter: (...args: unknown[]) => prismaAdapterMock(...args),
 }));
 
-vi.mock("better-auth/plugins", () => ({
+vi.mock("better-auth/plugins", async (importOriginal) => ({
+  captcha: (await importOriginal<typeof import("better-auth/plugins")>())
+    .captcha,
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   lastLoginMethod: (...args: unknown[]) => lastLoginMethodPluginMock(...args),
@@ -1025,10 +1028,34 @@ describe("core auth config", () => {
     expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
   });
 
+  it("keeps a session fresh for fifteen minutes", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ session: { freshAge: number } }]
+    >;
+
+    // Better Auth defaults to 24 hours. Passkey registration and account
+    // unlinking read this value, so a day-old session must not pass.
+    expect(config.session.freshAge).toBe(15 * 60);
+  });
+
   it("registers the Better Auth admin plugin", async () => {
     await import("./auth");
 
     expect(betterAuthMock).toHaveBeenCalledTimes(1);
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plugins: expect.arrayContaining([
+          expect.objectContaining({
+            id: "captcha",
+            options: expect.objectContaining({
+              secretKey: "test-turnstile-secret",
+            }),
+          }),
+        ]),
+      }),
+    );
     expect(adminPluginMock).toHaveBeenCalledWith();
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1072,7 +1099,9 @@ describe("core auth config", () => {
         configId: "default",
         references: "user",
         enableMetadata: true,
-        enableSessionForAPIKeys: true,
+        // A key authenticates a request. It must never mint a session, because
+        // that session is fresh enough to register a passkey.
+        enableSessionForAPIKeys: false,
       }),
     );
     expect(jwtPluginMock).toHaveBeenCalledWith({

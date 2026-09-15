@@ -979,6 +979,83 @@ export async function requireTaskReadForRouteVars(
   return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
 }
 
+const taskWorkspaceMappingInclude = {
+  workspace: { select: { organizationId: true } },
+} as const;
+
+interface TaskWorkspaceMapping {
+  name: string;
+  workspaceId: string;
+  workspace: { organizationId: string | null };
+}
+
+/**
+ * Resolve a task's workspace mapping for deep links.
+ *
+ * Session users may map a task in **any** workspace they can access (org
+ * membership or personal-workspace owner). That is the GET used by the web
+ * switch-workspace dialog. Do not replace this with
+ * {@link requireTaskReadForRouteVars} — that helper is active-workspace
+ * scoped and 404s the dialog case.
+ *
+ * Coworkers and Soko Bots keep the assigned-task read gate (not "any task
+ * in the impersonated user's org").
+ */
+export async function requireTaskWorkspaceMapping(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<TaskWorkspaceMapping> {
+  const { authContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    requireUserContext(authContext);
+
+    const task = await tx.task.findFirst({
+      where: {
+        id: taskId,
+        archivedAt: null,
+        ...buildHumanTaskVisibilityWhere(authContext.userId),
+      },
+      select: {
+        name: true,
+        ownerId: true,
+        workspaceId: true,
+        workspace: { select: { organizationId: true } },
+      },
+    });
+
+    if (!task) {
+      throw notFound("Task not found");
+    }
+
+    if (task.workspace.organizationId) {
+      await resolveMemberOrganizationById({
+        id: task.workspace.organizationId,
+        userId: authContext.userId,
+        tx,
+      });
+    } else if (task.ownerId !== authContext.userId) {
+      throw forbidden("You do not have access to this task");
+    }
+
+    return task;
+  }
+
+  const task = await requireTaskReadForRouteVars(
+    vars,
+    taskId,
+    tx,
+    taskWorkspaceMappingInclude,
+  );
+
+  return {
+    name: task.name,
+    workspaceId: task.workspaceId,
+    workspace: task.workspace,
+  };
+}
+
 /**
  * Workspace-scoped job read: job must belong to the active workspace.
  * Pass the context from `requireWorkspaceContext` (workspace middleware).

@@ -33,3 +33,7 @@ export const ACTIVE_SOKO_BOT_TURN_STATUSES = new Set([
 
 /** Action error code when Core answers 409: a turn is still running. */
 export const SOKO_BOT_BUSY_ERROR_CODE = "SOKO_BOT_BUSY";
+
+/** Action error code when Core answers 429: the caller's hourly avatar generation allowance is spent. */
+export const SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE =
+  "SOKO_BOT_AVATAR_RATE_LIMITED";

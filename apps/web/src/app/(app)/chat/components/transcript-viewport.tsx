@@ -19,6 +19,7 @@ import {
 } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
+import { ClampedOverflowProvider } from "@/app/chat/hooks/use-clamped-overflow";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import {
@@ -43,6 +44,15 @@ const OVERSCAN_ROWS = { above: 30, below: 8 };
 const DEFAULT_ROW_HEIGHT_PX = 80;
 
 /**
+ * Finish a virtualizer scroll the browser clamped because a row grew
+ * before the rows below it moved. Larger than any one row we expect to
+ * measure in a single frame (the old 2400px overscan-above window). A
+ * bigger DOM gap is a reader who left the end with a stale offset, not
+ * growth — do not snap them back.
+ */
+const CLAMPED_SCROLL_FINISH_MAX_PX = 2400;
+
+/**
  * How many frames a landing waits for its row to mount after the scroll.
  * The virtualizer re-issues a scroll while rows above the target are still
  * being measured, so the wait covers that.
@@ -54,8 +64,6 @@ export interface TranscriptViewportHandle {
   scrollToBottom: () => void;
   /** Own send: always reveal the new bubble, even after scrolling up. */
   pinToBottomAfterOwnSend: () => void;
-  /** Chrome resize: keep the last row in view only when already there. */
-  scrollToBottomIfPinned: () => void;
   /** A jump is moving the view; stop following new messages until released. */
   suppressStickToBottom: () => void;
   releaseStickToBottomSuppress: () => void;
@@ -182,12 +190,12 @@ export function TranscriptViewport({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
-  // Whether the reader was at the live edge on their last scroll. Read at
-  // scroll time, not when asked: chrome that resizes the scroller moves the
-  // edge away before the caller asks whether to keep it in view.
-  const atEndRef = useRef(true);
-  // The same answer as state, for the jump-to-latest control that shows
-  // whenever the reader is away from the live edge.
+  // How far above the live edge the reader sat at the last scroll or
+  // virtualizer change. Read then, not when asked: chrome that resizes the
+  // scroller moves the edge away before anyone asks.
+  const distanceFromEndRef = useRef(0);
+  // Whether that is near the edge, as state for the jump-to-latest control
+  // that shows whenever the reader is away from it.
   const [atEnd, setAtEnd] = useState(true);
 
   // The previous render's instance, for the look at the old rows below. The
@@ -201,11 +209,12 @@ export function TranscriptViewport({
   const rowHoldRef = useRef<RowHold | null>(null);
   // Prepend does not change the last key, so followOnAppend never runs.
   // A short list at the live edge has the boundary under the top edge;
-  // holding that row would drop the newest off the bottom. Same rule as
-  // before: if we were at the end and nothing holds the view, stay there.
+  // holding that row would drop the newest off the bottom. Only a view
+  // exactly at the end is put back there: a reader a little above it who
+  // gets a refreshed copy of the same rows would otherwise be snapped down.
   const pinToEndAfterRowsChangeRef = useRef(false);
   if (rowsRef.current !== rows) {
-    const pinToEnd = !hold && atEndRef.current;
+    const pinToEnd = !hold && distanceFromEndRef.current < 1;
     rowHoldRef.current =
       !pinToEnd && virtualizerRef.current?.scrollElement
         ? rowHoldAfterRowsChange(virtualizerRef.current, rowsRef.current, rows)
@@ -213,6 +222,17 @@ export function TranscriptViewport({
     pinToEndAfterRowsChangeRef.current = pinToEnd;
     rowsRef.current = rows;
   }
+
+  // Where the reader is relative to the live edge, from the scroller itself.
+  // Called on every scroll and every virtualizer change: a scroll the
+  // virtualizer issues can land short without any scroll event (below),
+  // and the flags must not say "away from the end" while the view is on it.
+  const recordDistance = (element: HTMLElement) => {
+    const distance =
+      element.scrollHeight - element.clientHeight - element.scrollTop;
+    distanceFromEndRef.current = distance;
+    setAtEnd(distance <= STICK_TO_BOTTOM_NEAR_PX);
+  };
 
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
@@ -238,6 +258,30 @@ export function TranscriptViewport({
     // measured it: React refuses that flush and warns.
     directDomUpdates: true,
     useFlushSync: false,
+    onChange: (instance) => {
+      const element = instance.scrollElement;
+      if (!element) {
+        return;
+      }
+      // When a row grows while the view is at the end, the virtualizer
+      // scrolls by the growth before the rows below it are moved down, so
+      // the browser clamps that scroll and no scroll event reports it. The
+      // virtualizer then believes it is at the end while the scroller is
+      // short by the growth. The rows are in place by now: finish the
+      // scroll only when the gap is growth-sized. Any larger mismatch is
+      // a reader who left the end with a stale offset.
+      const max = element.scrollHeight - element.clientHeight;
+      const shortBy = max - element.scrollTop;
+      if (
+        !instance.isScrolling &&
+        (instance.scrollOffset ?? 0) >= max - 1 &&
+        shortBy > 1 &&
+        shortBy <= CLAMPED_SCROLL_FINISH_MAX_PX
+      ) {
+        element.scrollTop = max;
+      }
+      recordDistance(element);
+    },
   });
   virtualizerRef.current = virtualizer;
 
@@ -246,24 +290,54 @@ export function TranscriptViewport({
       return;
     }
     const record = () => {
-      const isAtEnd = virtualizer.isAtEnd(STICK_TO_BOTTOM_NEAR_PX);
-      atEndRef.current = isAtEnd;
-      setAtEnd(isAtEnd);
+      recordDistance(scroller);
     };
     scroller.addEventListener("scroll", record, { passive: true });
     return () => {
       scroller.removeEventListener("scroll", record);
     };
-  }, [scroller, virtualizer]);
+  }, [scroller]);
 
-  // Under a hold an append leaves the view where it was with the new row
-  // below it, and no scroll event says so. Re-read once the rows change.
-  // Without a hold the append pulls the view down, which does scroll.
+  // The scroller changes height when the composer grows or shrinks, the
+  // keyboard opens, or the window resizes. The browser keeps the top edge
+  // still through that, which slides the live edge under the composer. A
+  // reader near the end keeps their distance from it instead.
   useEffect(() => {
-    if (hold) {
-      setAtEnd(virtualizer.isAtEnd(STICK_TO_BOTTOM_NEAR_PX));
+    if (!scroller) {
+      return;
     }
-  }, [hold, rows, virtualizer]);
+    let height = scroller.clientHeight;
+    const observer = new ResizeObserver(() => {
+      const next = scroller.clientHeight;
+      if (next === height) {
+        return;
+      }
+      // Where the reader was before the change, from the height before it:
+      // the recorded distance may already have been refreshed by another
+      // observer in this same delivery. A scroller that grew while the view
+      // was at the end had its scroll clamped by the browser already, which
+      // reads as the growth; that reader was at the end.
+      const clamped =
+        next > height && scroller.scrollTop >= scroller.scrollHeight - next - 1;
+      const before = clamped
+        ? 0
+        : scroller.scrollHeight - height - scroller.scrollTop;
+      height = next;
+      if (before <= STICK_TO_BOTTOM_NEAR_PX) {
+        const offset = scroller.scrollHeight - next - before;
+        // The virtualizer learns of a scroll from the event a frame later.
+        // A row it measures before then would be compensated against the
+        // old offset and undo this write, so it is told the offset now.
+        virtualizer.scrollOffset = offset;
+        scroller.scrollTop = offset;
+        recordDistance(scroller);
+      }
+    });
+    observer.observe(scroller);
+    return () => {
+      observer.disconnect();
+    };
+  }, [scroller, virtualizer]);
 
   // Every render: the container moves whenever a short list grows toward
   // the scroller's height, and the state guard makes a settled margin free.
@@ -339,11 +413,6 @@ export function TranscriptViewport({
           virtualizer.scrollToEnd();
         });
       },
-      scrollToBottomIfPinned: () => {
-        if (atEndRef.current) {
-          virtualizer.scrollToEnd();
-        }
-      },
       suppressStickToBottom: () => {
         setHeld(true);
       },
@@ -408,7 +477,7 @@ export function TranscriptViewport({
   }
 
   return (
-    <>
+    <ClampedOverflowProvider>
       <div ref={attachContainer} className="relative w-full">
         {virtualizer.getVirtualItems().map((item) => {
           const row = rows[item.index];
@@ -447,6 +516,6 @@ export function TranscriptViewport({
           </Button>
         </div>
       )}
-    </>
+    </ClampedOverflowProvider>
   );
 }

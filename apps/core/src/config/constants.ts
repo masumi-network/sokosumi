@@ -21,6 +21,16 @@ export const TIME = {
 
   /** Agent execution metrics lookback period (90 days) */
   AGENT_EXECUTION_METRICS_DAYS: 90,
+
+  /**
+   * How long a session stays "fresh" after sign-in (15 minutes).
+   *
+   * Better Auth measures freshness from `Session.createdAt` and gates passkey
+   * registration, account unlinking and password-less account deletion on it.
+   * A short window keeps a stolen session or a leaked credential from turning
+   * into a new login factor. Becoming fresh again means signing in again.
+   */
+  SESSION_FRESH_AGE: 15 * 60,
 } as const;
 
 /**
@@ -53,6 +63,13 @@ export const LIMITS = {
 
   /** Maximum organization invitations per organization */
   ORGANIZATION_INVITATION_LIMIT: 100,
+
+  /**
+   * Maximum Soko Bot mascot images one user may cause to be generated per hour.
+   * Each image is a paid FAL call, so this bounds what one account can spend.
+   * Four full top-up pages, which is well past what picking one mascot needs.
+   */
+  SOKO_BOT_AVATAR_GENERATION_PER_HOUR: 24,
 
   /**
    * Maximum pending guest invitations per external channel. Bounds email blast

@@ -21,13 +21,35 @@ import SwiftUI
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
-    @State private var scrollTarget: String?
+    @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var quoteFocusRequest: String?
+
+    @State private var preparedTranscript: PreparedTranscript?
+
+    private var preparationScope: [String] {
+      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)]
+    }
+
+    private var preparationInput: PreparedTranscript.Input {
+      .init(scope: preparationScope,
+            messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
+            channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
+    }
+
+    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
+      guard preparedTranscript?.input.scope == preparationScope else { return [] }
+      return preparedTranscript?.input.messages ?? []
+    }
 
     let roomId: String
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
+    }
+
+    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
+      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
@@ -42,6 +64,10 @@ import SwiftUI
 
     var body: some View {
       transcriptBody
+        .task(id: preparationInput) {
+          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+        }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaBar(edge: .bottom, spacing: 0) {
           ChatComposerView(
@@ -91,7 +117,7 @@ import SwiftUI
           jumpCompletion = nil
           pendingQuote = nil
           quoteTarget = nil
-          scrollTarget = nil
+          scrollPosition = ScrollPosition(idType: String.self)
           transcriptWasAwayFromTop = false
           scrollIntent = TimelineScrollIntent()
         }
@@ -113,6 +139,8 @@ import SwiftUI
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+      } else if preparedMessages.isEmpty {
+        ProgressView("Loading messages…").frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         messageList
       }
@@ -121,7 +149,9 @@ import SwiftUI
     private var messageList: some View {
       // Realize nearby rows only: laying out every rich message makes each
       // scroll event expensive. Keep each message unary and anchored by ID.
-      ScrollViewReader { proxy in
+      let transcriptRoom = room
+      let channels = workspaces.composerChannels
+      return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
@@ -148,7 +178,7 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let messages = workspaces.displayedTranscript
+            let messages = preparedMessages
             let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -177,7 +207,7 @@ import SwiftUI
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(channels: workspaces.composerChannels, room: workspaces.rooms.first { $0.id == workspaces.transcriptRoomId },
+                  MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.documents[message.id],
                                  message: message,
                                  isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,
@@ -193,10 +223,12 @@ import SwiftUI
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message.id),
+                                 isHighlighted: highlightedId == message.id,
+                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
                                  onDelete: deletionAction(for: message),
+                                 onRemoveUnfurl: unfurlAction(for: message),
                                  onToggleReaction: reactionAction(for: message),
                                  pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                                  editing: workspaces.messageEditing,
@@ -210,7 +242,6 @@ import SwiftUI
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
                 }
               }
-              .background(highlightedId == message.id ? Color.accentColor.opacity(0.12) : .clear)
               .background {
                 if quoteTarget == message.id {
                   Color.clear.onScrollVisibilityChange(threshold: 0.01) { visible in
@@ -231,7 +262,7 @@ import SwiftUI
           .padding(.top, 8)
         }
         .defaultScrollAnchor(.bottom)
-        .scrollPosition(id: $scrollTarget, anchor: .center)
+        .scrollPosition($scrollPosition)
         .onChange(of: quoteTarget, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
@@ -241,15 +272,15 @@ import SwiftUI
             return
           }
           scrollIntent.readOlder()
-          scrollTarget = target
+          scrollPosition.scrollTo(id: target, anchor: .center)
         }
         .onScrollPhaseChange { _, phase in
-          userIsScrolling = phase == .interacting || phase == .decelerating
-          if phase == .interacting {
+          userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          if phase == .interacting || phase == .tracking {
             highlightedId = nil
           }
         }
-        .onChange(of: workspaces.displayedTranscript.last?.id) { _, _ in
+        .onChange(of: preparedMessages.last?.id) { _, _ in
           if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
@@ -260,7 +291,7 @@ import SwiftUI
               Task { @MainActor in
                 do {
                   if try await workspaces.returnToLatest(auth: auth) {
-                    scrollTarget = nil
+                    scrollPosition = ScrollPosition(idType: String.self)
                     scrollIntent.followLatest()
                     highlightedId = nil
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
@@ -274,19 +305,18 @@ import SwiftUI
           // Closing Pins widens and reflows rich text. Restore the acknowledged
           // target after that layout change, until the reader starts scrolling.
           if old != new, let highlightedId, !userIsScrolling {
-            scrollTarget = highlightedId
+            scrollPosition.scrollTo(id: highlightedId, anchor: .center)
             proxy.scrollTo(highlightedId, anchor: .center)
           }
         }
-        .onScrollGeometryChange(for: [Double].self) { geometry in
-          [geometry.visibleRect.minY, geometry.contentSize.height + geometry.contentInsets.bottom - geometry.visibleRect.maxY]
-        } action: { _, geometry in
-          if userIsScrolling, workspaces.timeline.historicalAnchor == nil {
-            scrollIntent.userScrolled(distanceFromBottom: geometry[1])
-          } else if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
+        .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { _, edges in
+          if workspaces.timeline.historicalAnchor == nil,
+             userIsScrolling {
+            scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
+          } else if scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
-          let isNearTop = geometry[0] < 40
+          let isNearTop = edges.nearTop
           if !isNearTop {
             transcriptWasAwayFromTop = true
             return
@@ -307,7 +337,7 @@ import SwiftUI
 
     private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
-      return { try await workspaces.setPinned(!workspaces.isPinned(message.id), messageId: message.id, auth: auth) }
+      return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id, auth: auth) }
     }
 
     private func completeVisibleJump(_ target: String) {

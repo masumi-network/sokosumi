@@ -19,6 +19,8 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
+import { useAuthCaptcha } from "@/components/auth-captcha";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
@@ -69,6 +71,11 @@ export default function SocialButtons({
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
+  const {
+    widget: captcha,
+    runWithCaptcha,
+    getErrorMessage,
+  } = useAuthCaptcha("magic-link");
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -195,21 +202,29 @@ export default function SocialButtons({
     try {
       // The link lands on the callback page (full page load), which fires the
       // `login` GTM event and then forwards to the return URL.
-      const result = await authClient.signIn.magicLink({
-        email: trimmedEmail,
-        callbackURL: buildAuthCallbackUrl(
-          "/auth/callback/signin",
-          "magic-link",
-          effectiveReturnUrl,
-        ),
+      await runWithCaptcha(async (fetchOptions) => {
+        const result = await authClient.signIn.magicLink({
+          fetchOptions,
+          email: trimmedEmail,
+          callbackURL: buildAuthCallbackUrl(
+            "/auth/callback/signin",
+            "magic-link",
+            effectiveReturnUrl,
+          ),
+        });
+
+        if (result.error) {
+          toast.error(
+            getErrorMessage(
+              result.error,
+              result.error.message ?? t("magicLinkError"),
+            ),
+          );
+          return;
+        }
+
+        setMagicLinkSentTo(trimmedEmail);
       });
-
-      if (result.error) {
-        toast.error(result.error.message ?? t("magicLinkError"));
-        return;
-      }
-
-      setMagicLinkSentTo(trimmedEmail);
     } catch (_error) {
       toast.error(t("magicLinkError"));
     } finally {
@@ -351,6 +366,7 @@ export default function SocialButtons({
             placeholder={t("magicLinkPlaceholder")}
             aria-label={t("magicLinkInputLabel")}
           />
+          {captcha}
           <Button
             type="submit"
             variant="outline"

@@ -37,6 +37,7 @@ private final class ScriptedTransport: ClientTransport {
   var pauseGET = false
   var pauseDELETE = false
   var pauseReaction = false
+  var pauseUnfurl = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
@@ -91,7 +92,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions"), operationID.contains("/messages") {
+    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove"), operationID.contains("/messages") {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -1578,6 +1579,34 @@ extension WorkspaceStateTests {
 }
 
 extension WorkspaceStateTests {
+  @Test func messagePinStatusDoesNotDependOnLoadedPinPages() async throws {
+    let body = transcriptMessage(id: "pin", roomId: "room", content: "Pinned")
+      .replacingOccurrences(of: "\"editedAt\":null", with: "\"editedAt\":null,\"pinnedAt\":\"\(timestamp)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [body], nextCursor: nil))
+    ], visible: false)
+    state.timeline.reset(roomId: "room")
+    try await state.timeline.loadPage(.initial, client: #require(state.resolveClient(auth: auth)),
+                                      organizationSlug: nil, generation: state.timeline.generation)
+    var message = try #require(state.timeline.messages.first)
+    #expect(message.pinnedAt != nil)
+    #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
+    #expect(state.pins.items.isEmpty)
+    #expect(state.isPinned(message))
+    state.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: false)
+    #expect(!state.isPinned(message))
+    message.pinnedAt = nil
+    state.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: true)
+    #expect(state.isPinned(message))
+    state.applyRealtimeEnvelope(.init(eventType: .delete, messageId: message.id, roomId: "room"))
+    let deletedMessage = try #require(state.timeline.messages.first)
+    #expect(deletedMessage.deletedAt != nil)
+    #expect(!state.isPinned(deletedMessage))
+    #expect(state.pins.items.isEmpty)
+    state.timeline.reset(roomId: "other")
+    #expect(!state.isPinned(message))
+  }
+
   @Test func pinMutationsUpdateOnlyAfterSuccess() async throws {
     let (state, auth, transport, _) = try ephemeralState([
       (200, roomsBody(names: ["general"])),
@@ -1588,11 +1617,14 @@ extension WorkspaceStateTests {
     let room = try #require(state.rooms.first)
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
+    var message = chatRoomMessage(from: .init(clientTurnId: "pin", roomId: room.id, content: "Pinned",
+                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
+    message.id = "message"
     try await state.setPinned(true, messageId: "message", auth: auth)
-    #expect(state.isPinned("message"))
+    #expect(state.isPinned(message))
     #expect(state.rooms.first?.pinnedMessageCount == 1)
     await #expect(throws: (any Error).self) { try await state.setPinned(false, messageId: "message", auth: auth) }
-    #expect(state.isPinned("message"))
+    #expect(state.isPinned(message))
     #expect(!state.isUpdatingPin("message"))
     #expect(transport.operationIDs.last == "delete/chats/rooms/{id}/messages/{messageId}/pin")
   }
@@ -1687,5 +1719,50 @@ extension WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     await waitForOutboundIdle(state)
     #expect(state.outboundShells.first?.content == "New message")
+  }
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: ["success", "failure", "switch"])
+  func unfurlRemovalPreservesCurrentMessage(outcome: String) async throws {
+    let response = transcriptMessage(id: "message", roomId: "room", content: "Old content")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
+      (200, roomsBody(names: [])),
+      (outcome == "failure" ? 403 : 200, outcome == "failure" ? #"{"message":"Denied"}"# : "{\"data\":\(response),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}")
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.timeline.reset(roomId: "room")
+    var message = chatRoomMessage(from: .init(clientTurnId: "preview", roomId: "room", content: "New edit https://example.com", sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .offline)))
+    message.id = "message"
+    message.unfurls = [.init(url: "https://example.com", title: "Example", description: "Preview")]
+    state.timeline.messages = [message]
+    #expect(state.thread.open(message))
+    transport.pauseUnfurl = true
+    let request = Task { try await state.removeUnfurl(message, url: "https://example.com", auth: auth) }
+    while transport.operationIDs.last != "post/chats/rooms/{id}/messages/{messageId}/unfurls/remove" {
+      await Task.yield()
+    }
+    #expect(state.timeline.messages.first?.unfurls?.count == 1)
+    if outcome == "switch" {
+      state.timeline.reset(roomId: "other")
+    }
+    transport.releasePausedRequest()
+    if outcome == "failure" {
+      await #expect(throws: (any Error).self) { try await request.value }
+    } else {
+      try await request.value
+    }
+    let requestBody = try #require(transport.bodies.last)
+    #expect(try JSONDecoder().decode([String: String].self, from: requestBody) == ["url": "https://example.com"])
+    if outcome == "switch" {
+      #expect(state.timeline.messages.isEmpty)
+    } else {
+      #expect(state.timeline.messages.first?.content == message.content)
+      #expect(state.timeline.messages.first?.unfurls?.count == (outcome == "failure" ? 1 : 0))
+      #expect(state.thread.parent?.unfurls?.count == (outcome == "failure" ? 1 : 0))
+    }
   }
 }
