@@ -39,6 +39,12 @@ const {
   validateActiveSchedulesMock: vi.fn(),
 }));
 
+/**
+ * What the handler gives a sync run before it cancels it: the mocked lock
+ * timeout less its buffer, which is above the handler's own floor.
+ */
+const SYNC_DEADLINE_MS = 5000 - 1000;
+
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     CRON_SECRET: "test-cron-secret",
@@ -858,15 +864,60 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(sendFollowUpsMock).toHaveBeenCalledTimes(1);
-    // The run's own tests pass these in by hand, so they prove the loop obeys
-    // them and not that the route hands them over. Without both, a backlog
-    // pages on past the lock and the deadline decides nothing.
-    expect(sendFollowUpsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        abortSignal: expect.any(AbortSignal),
-        shouldContinue: expect.any(Function),
-      }),
-    );
+  });
+
+  /**
+   * The run's own tests pass the abort and the deadline in by hand, so they
+   * prove the loop obeys them and never that the route hands over the pair
+   * the lock is actually held under. A run given a signal that never fires,
+   * or a deadline that always answers yes, pages a backlog on past the lock:
+   * the failure the whole arrangement exists to stop. Asserting their shape
+   * is not enough, because a fresh AbortController has the right shape.
+   */
+  it("hands the follow-up run the deadline its lock is held under", async () => {
+    vi.useFakeTimers();
+
+    try {
+      // Held open, so the handler is still inside the operation when the
+      // deadline lands. A run that returned first would clear the timeout
+      // and the signal would never fire.
+      let finishRun: ((result: unknown) => void) | undefined;
+      sendFollowUpsMock.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishRun = resolve;
+          }),
+      );
+
+      const app = await createApp();
+      const response = await app.request(
+        "http://localhost/sync/notification-follow-ups",
+        { headers: { Authorization: "Bearer test-cron-secret" } },
+      );
+
+      expect(response.status).toBe(200);
+      await vi.advanceTimersByTimeAsync(0);
+
+      const options = sendFollowUpsMock.mock.calls[0]?.[0];
+      // Exactly these two. An extra option, `now` above all, would fix the
+      // window at a stale instant and the run would find nothing for ever.
+      expect(Object.keys(options).sort()).toEqual([
+        "abortSignal",
+        "shouldContinue",
+      ]);
+      expect(options.abortSignal.aborted).toBe(false);
+      expect(options.shouldContinue()).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(SYNC_DEADLINE_MS);
+
+      expect(options.abortSignal.aborted).toBe(true);
+      expect(options.shouldContinue()).toBe(false);
+
+      finishRun?.({ examined: 0, sent: 0, reachedEnd: false });
+      await vi.advanceTimersByTimeAsync(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns 401 for missing cron auth on x402 header purge sync", async () => {

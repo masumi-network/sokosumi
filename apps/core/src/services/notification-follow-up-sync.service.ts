@@ -116,7 +116,7 @@ export interface SendFollowUpsResult {
  * The columns a follow-up is built from.
  *
  * Named once and used as the query's `select`, so the read asks for exactly
- * what is read and Prisma types the result from the same list. The interface
+ * what is read and Prisma types `FollowUpSource` from the same list. The type
  * and the read cannot then drift apart, and neither can drift from the schema
  * without a type error.
  */
@@ -216,9 +216,12 @@ export async function sendFollowUps(
   let sent = 0;
   /** The last row this run finished, and where the next page starts after. */
   let after: { createdAt: Date; id: string } | undefined;
+  /** Whether the run ended before the eligible rows did. */
   let stopped = false;
 
-  while (!stopped) {
+  // Every way out is a `break`, so the condition is not the thing that ends
+  // this. `stopped` only records why, for `reachedEnd` below.
+  while (true) {
     if (outOfTime()) {
       stopped = true;
       break;

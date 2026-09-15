@@ -105,7 +105,8 @@ export interface NotificationDelivery {
  *
  * Follow-ups are the one exception to the split-by-key rule, and they break it
  * in the other direction: every follow-up key, whatever its kind, answers to
- * the single `FOLLOW_UP` row. See `notification-follow-up.ts`.
+ * the single `FOLLOW_UP` row. Which keys those are is
+ * `isFollowUpMessageKey` in `@sokosumi/utils`.
  */
 export function toNotificationCategory(
   kind: NotificationKind,
