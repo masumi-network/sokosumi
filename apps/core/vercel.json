@@ -82,6 +82,10 @@
     {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/sync/social-posts-publish",
+      "schedule": "* * * * *"
     }
   ]
 }
