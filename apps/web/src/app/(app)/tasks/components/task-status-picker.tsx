@@ -149,6 +149,7 @@ export function TaskStatusPicker({
             <CommandInput
               autoFocus
               hideIcon
+              className="pl-2"
               placeholder={labels.searchPlaceholder}
               value={search}
               onValueChange={setSearch}
@@ -162,8 +163,9 @@ export function TaskStatusPicker({
               </kbd>
             ) : null}
           </div>
-          {/* p-1 + item px-2 puts row icons on the input text's left edge. */}
-          <CommandList className="p-1">
+          {/* List inset + row padding (8 + 12) meets the input's 12 + 8, so the
+              highlight floats inside the panel and icons sit under the text. */}
+          <CommandList className="p-2">
             <CommandEmpty>{labels.noResults}</CommandEmpty>
             {rows.map(({ status, isDisabled, digit }) => {
               const RowIcon = getTaskStatusIcon(status);
@@ -171,6 +173,7 @@ export function TaskStatusPicker({
               return (
                 <CommandItem
                   key={status}
+                  className="px-3"
                   value={status}
                   keywords={[labels.statusLabels[status]]}
                   disabled={isDisabled}
