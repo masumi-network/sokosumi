@@ -19,7 +19,7 @@ function toneForScore(score: number): string {
   return "text-semantic-destructive";
 }
 
-export interface TurnQualityProps {
+interface TurnQualityProps {
   score: number | null | undefined;
   verdict: SokoBotQualityVerdict | null | undefined;
   /** Judge model that graded the turn. */
