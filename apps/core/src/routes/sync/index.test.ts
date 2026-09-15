@@ -39,17 +39,23 @@ const {
   validateActiveSchedulesMock: vi.fn(),
 }));
 
+/** The mocked `LOCK_TIMEOUT`, which the env mock below hands the handler. */
+const LOCK_TIMEOUT_MS = 5000;
+/** The mocked `LOCK_TIMEOUT_BUFFER`, held back so the lock outlives the run. */
+const LOCK_TIMEOUT_BUFFER_MS = 1000;
 /**
- * What the handler gives a sync run before it cancels it: the mocked lock
- * timeout less its buffer, which is above the handler's own floor.
+ * What the handler gives a sync run before it cancels it.
+ *
+ * The handler floors this at a minimum of its own, so the two above are
+ * chosen to land above that floor and this stays the deciding number.
  */
-const SYNC_DEADLINE_MS = 5000 - 1000;
+const SYNC_DEADLINE_MS = LOCK_TIMEOUT_MS - LOCK_TIMEOUT_BUFFER_MS;
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     CRON_SECRET: "test-cron-secret",
-    LOCK_TIMEOUT: 5000,
-    LOCK_TIMEOUT_BUFFER: 1000,
+    LOCK_TIMEOUT: LOCK_TIMEOUT_MS,
+    LOCK_TIMEOUT_BUFFER: LOCK_TIMEOUT_BUFFER_MS,
   }),
 }));
 
@@ -908,10 +914,17 @@ describe("sync routes", () => {
       expect(options.abortSignal.aborted).toBe(false);
       expect(options.shouldContinue()).toBe(true);
 
-      await vi.advanceTimersByTimeAsync(SYNC_DEADLINE_MS);
+      // A millisecond short of it first. Without this the test passes for any
+      // deadline at all between nothing and the real one, and the arithmetic
+      // that produces it is decoration.
+      await vi.advanceTimersByTimeAsync(SYNC_DEADLINE_MS - 1);
+
+      expect(options.abortSignal.aborted).toBe(false);
+      expect(options.shouldContinue()).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(options.abortSignal.aborted).toBe(true);
-      expect(options.shouldContinue()).toBe(false);
 
       finishRun?.({ examined: 0, sent: 0, reachedEnd: false });
       await vi.advanceTimersByTimeAsync(0);

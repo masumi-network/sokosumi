@@ -399,6 +399,10 @@ describe("NotificationFollowUpSyncService", () => {
         metadata: null,
       }),
     );
+    // A column with nothing in it is not a damaged column. Reading it anyway
+    // parses the word null, finds no object, and reports a row that is fine,
+    // which buries the damaged rows behind a dedupe cap.
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("reminds a reader of a job still waiting on them", async () => {
