@@ -2738,9 +2738,7 @@
           },
           "credits": {
             "title": "Organisations-Guthaben",
-            "description": "Verfügbare Credits im Organisations-Pool, inklusive aktueller Perioden-Gutschrift und Extra-Credits.",
-            "enterpriseTitle": "Enterprise-Pool",
-            "enterpriseDescription": "Verbleibende Credits im Enterprise-Vertrag der Organisation. Extra-Credits der Organisation sind nicht enthalten.",
+            "description": "Verfügbare Credits im Organisations-Pool, inklusive Extra-Credits und dem Enterprise-Vertrags-Pool, falls vorhanden.",
             "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
           },
           "members": {

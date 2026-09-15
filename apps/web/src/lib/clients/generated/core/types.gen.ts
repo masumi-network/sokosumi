@@ -856,7 +856,7 @@ export type AdminOrganizationOverviewDetail = {
         isEnterpriseContract: boolean;
     };
     /**
-     * Organization pool remaining credits for both billing modes
+     * Spendable organization remaining credits (non-enterprise org buckets plus enterprise pool when present)
      */
     totalCredits: number;
 };

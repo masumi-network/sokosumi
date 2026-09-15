@@ -2738,9 +2738,7 @@
           },
           "credits": {
             "title": "Créditos de la organización",
-            "description": "Créditos disponibles en el fondo de la organización, incluida la concesión del periodo actual y los extras.",
-            "enterpriseTitle": "Fondo enterprise",
-            "enterpriseDescription": "Créditos restantes del contrato enterprise de la organización. No incluye créditos extra de la organización.",
+            "description": "Créditos disponibles en el fondo de la organización, incluidos los extras y el fondo del contrato enterprise si existe.",
             "perMember": "Los créditos se muestran por miembro a continuación."
           },
           "members": {

@@ -3676,7 +3676,7 @@ export const AdminOrganizationOverviewDetailSchema = {
         },
         totalCredits: {
             type: 'number',
-            description: 'Organization pool remaining credits for both billing modes',
+            description: 'Spendable organization remaining credits (non-enterprise org buckets plus enterprise pool when present)',
             example: 1200
         }
     },
