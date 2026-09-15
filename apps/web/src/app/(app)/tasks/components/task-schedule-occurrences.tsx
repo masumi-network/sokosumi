@@ -1,5 +1,6 @@
 "use client";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Ban,
   CalendarClock,
@@ -16,15 +17,17 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTaskScheduleOccurrences } from "@/app/tasks/actions";
-import { MoveOccurrenceDialog } from "@/components/schedules/move-occurrence-dialog";
+import { OccurrenceTimeDialog } from "@/components/schedules/occurrence-time-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
+import { mutateTaskOccurrence } from "@/lib/actions/task/action";
 import type {
   TaskScheduleOccurrence,
   TaskScheduleOccurrenceView,
 } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
+import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 
 export interface TaskScheduleOccurrencesPageData {
   occurrences: TaskScheduleOccurrence[];
@@ -54,7 +57,8 @@ interface TaskScheduleOccurrencesProps {
 type Translate = IntlTranslation<"App.Tasks.Detail.ScheduleSeries">;
 type Format = IntlDateFormatter;
 
-interface MoveOccurrenceState {
+interface OccurrenceTimeState {
+  action: "reschedule" | "restore";
   occurrenceId: string;
   scheduledAt: Date;
   timeZone: string;
@@ -72,6 +76,14 @@ function isMovableOccurrence(occurrence: TaskScheduleOccurrence): boolean {
   );
 }
 
+function isRestorableOccurrence(occurrence: TaskScheduleOccurrence): boolean {
+  return (
+    occurrence.state === "SKIPPED" &&
+    occurrence.originalScheduledAt !== null &&
+    occurrence.scheduleVersion === 2
+  );
+}
+
 /**
  * The only client state on the schedule surface: which view is open, and the
  * pages loaded past the server-rendered first one. The parent keys this on the
@@ -86,13 +98,14 @@ export function TaskScheduleOccurrences({
   hasActiveSchedule,
 }: TaskScheduleOccurrencesProps) {
   const t = useTranslations("App.Tasks.Detail.ScheduleSeries");
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const format = useFormatter();
   const viewerTimeZone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const router = useRouter();
   const [upcomingPage, setUpcomingPage] = useState(upcoming);
   const [historyPage, setHistoryPage] = useState(history);
   const [isPending, startTransition] = useTransition();
-  const [moveState, setMoveState] = useState<MoveOccurrenceState | null>(null);
+  const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
   // Latched once a stale cursor sends us back to the server. Nothing clears it:
   // the parent's revision key remounts this island with fresh pages.
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -150,10 +163,55 @@ export function TaskScheduleOccurrences({
   }
 
   function handleMoveOccurrence(occurrence: TaskScheduleOccurrence) {
-    setMoveState({
+    setTimeState({
+      action: "reschedule",
       occurrenceId: occurrence.id,
       scheduledAt: occurrence.effectiveScheduledAt,
       timeZone: occurrence.timezone ?? viewerTimeZone,
+    });
+  }
+
+  function handleRestoreOccurrence(occurrence: TaskScheduleOccurrence) {
+    if (!occurrence.originalScheduledAt) {
+      return;
+    }
+    setTimeState({
+      action: "restore",
+      occurrenceId: occurrence.id,
+      scheduledAt: occurrence.originalScheduledAt,
+      timeZone: occurrence.timezone ?? viewerTimeZone,
+    });
+  }
+
+  function handleSkipOccurrence(occurrence: TaskScheduleOccurrence) {
+    if (isBusy) {
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const result = await mutateTaskOccurrence({
+          taskId,
+          occurrenceId: occurrence.id,
+          operationId: crypto.randomUUID(),
+          expectedScheduleRevision: scheduleRevision,
+          action: "skip",
+        });
+        if (!result.ok) {
+          const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
+          toast.error(feedbackKey ? tSeries(feedbackKey) : t("mutationError"));
+          if (
+            result.error.kind ===
+              CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
+            result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
+          ) {
+            router.refresh();
+          }
+          return;
+        }
+        router.refresh();
+      } catch {
+        toast.error(t("mutationError"));
+      }
     });
   }
 
@@ -175,6 +233,8 @@ export function TaskScheduleOccurrences({
             isPending={isBusy}
             onLoadMore={() => handleLoadMore("upcoming")}
             onMoveOccurrence={handleMoveOccurrence}
+            onRestoreOccurrence={handleRestoreOccurrence}
+            onSkipOccurrence={handleSkipOccurrence}
             t={t}
             format={format}
           />
@@ -188,21 +248,24 @@ export function TaskScheduleOccurrences({
             isPending={isBusy}
             onLoadMore={() => handleLoadMore("history")}
             onMoveOccurrence={handleMoveOccurrence}
+            onRestoreOccurrence={handleRestoreOccurrence}
+            onSkipOccurrence={handleSkipOccurrence}
             t={t}
             format={format}
           />
         </TabsContent>
       </Tabs>
 
-      {moveState ? (
-        <MoveOccurrenceDialog
-          key={moveState.occurrenceId}
-          occurrenceId={moveState.occurrenceId}
+      {timeState ? (
+        <OccurrenceTimeDialog
+          key={`${timeState.action}:${timeState.occurrenceId}`}
+          action={timeState.action}
+          occurrenceId={timeState.occurrenceId}
           expectedScheduleRevision={scheduleRevision}
-          scheduledAt={moveState.scheduledAt}
+          scheduledAt={timeState.scheduledAt}
           taskId={taskId}
-          timeZone={moveState.timeZone}
-          onClose={() => setMoveState(null)}
+          timeZone={timeState.timeZone}
+          onClose={() => setTimeState(null)}
         />
       ) : null}
     </>
@@ -216,6 +279,8 @@ function OccurrenceList({
   isPending,
   onLoadMore,
   onMoveOccurrence,
+  onRestoreOccurrence,
+  onSkipOccurrence,
   t,
   format,
 }: {
@@ -225,6 +290,8 @@ function OccurrenceList({
   isPending: boolean;
   onLoadMore: () => void;
   onMoveOccurrence: (occurrence: TaskScheduleOccurrence) => void;
+  onRestoreOccurrence: (occurrence: TaskScheduleOccurrence) => void;
+  onSkipOccurrence: (occurrence: TaskScheduleOccurrence) => void;
   t: Translate;
   format: Format;
 }) {
@@ -243,6 +310,16 @@ function OccurrenceList({
               onMove={
                 isMovableOccurrence(occurrence)
                   ? () => onMoveOccurrence(occurrence)
+                  : undefined
+              }
+              onRestore={
+                isRestorableOccurrence(occurrence)
+                  ? () => onRestoreOccurrence(occurrence)
+                  : undefined
+              }
+              onSkip={
+                isMovableOccurrence(occurrence)
+                  ? () => onSkipOccurrence(occurrence)
                   : undefined
               }
               t={t}
@@ -276,11 +353,15 @@ function OccurrenceList({
 function OccurrenceRow({
   occurrence,
   onMove,
+  onRestore,
+  onSkip,
   t,
   format,
 }: {
   occurrence: TaskScheduleOccurrence;
   onMove?: () => void;
+  onRestore?: () => void;
+  onSkip?: () => void;
   t: Translate;
   format: Format;
 }) {
@@ -323,16 +404,29 @@ function OccurrenceRow({
           {t("movedFrom", { original: movedFrom })}
         </span>
       ) : null}
-      {onMove ? (
-        <Button
-          className="ms-auto"
-          size="sm"
-          type="button"
-          variant="outline"
-          onClick={onMove}
-        >
-          {t("move")}
-        </Button>
+      {onMove || onRestore || onSkip ? (
+        <span className="ms-auto flex items-center gap-2">
+          {onMove ? (
+            <Button size="sm" type="button" variant="outline" onClick={onMove}>
+              {t("move")}
+            </Button>
+          ) : null}
+          {onSkip ? (
+            <Button size="sm" type="button" variant="outline" onClick={onSkip}>
+              {t("skip")}
+            </Button>
+          ) : null}
+          {onRestore ? (
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={onRestore}
+            >
+              {t("restore")}
+            </Button>
+          ) : null}
+        </span>
       ) : null}
       {released ? (
         <span className="ms-auto flex min-w-0 items-center gap-2">

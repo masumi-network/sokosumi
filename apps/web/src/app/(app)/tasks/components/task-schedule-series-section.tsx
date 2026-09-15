@@ -2,6 +2,7 @@ import { getFormatter, getTimeZone, getTranslations } from "next-intl/server";
 
 import { TaskScheduleOccurrences } from "@/app/tasks/components/task-schedule-occurrences";
 import { TaskScheduleSeries } from "@/app/tasks/components/task-schedule-series";
+import { TaskScheduleSourceMove } from "@/app/tasks/components/task-schedule-source-move";
 import { buildTaskScheduleSeriesView } from "@/app/tasks/utils/task-schedule-series-view";
 import { TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/schedules/format";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 
 interface TaskScheduleSeriesSectionProps {
@@ -39,11 +41,12 @@ export async function TaskScheduleSeriesSection({
   }
 
   const viewerTimeZone = await getTimeZone();
+  const project = await projectPromise;
   const view = buildTaskScheduleSeriesView({
     metadata: task.metadata,
     nextRunAt: task.nextRunAt,
     scheduleRevision: task.scheduleRevision,
-    project: await projectPromise,
+    project,
     workspaceName,
     viewerTimeZone,
   });
@@ -54,22 +57,37 @@ export async function TaskScheduleSeriesSection({
 
   // The summary is derived from the Task alone, so it renders whether or not
   // the ledger answers. Only the occurrence region degrades.
-  const pages = await Promise.all([
-    taskScheduleService.listOccurrences(task.id, {
-      view: "upcoming",
-      limit: TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
+  const [pages, sources] = await Promise.all([
+    Promise.all([
+      taskScheduleService.listOccurrences(task.id, {
+        view: "upcoming",
+        limit: TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
+      }),
+      taskScheduleService.listOccurrences(task.id, {
+        view: "history",
+        limit: TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
+      }),
+    ]).catch((error: unknown) => {
+      console.error("Failed to read task schedule occurrences", {
+        taskId: task.id,
+        error,
+      });
+      return null;
     }),
-    taskScheduleService.listOccurrences(task.id, {
-      view: "history",
-      limit: TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
-    }),
-  ]).catch((error: unknown) => {
-    console.error("Failed to read task schedule occurrences", {
-      taskId: task.id,
-      error,
-    });
-    return null;
-  });
+    view.isActive
+      ? taskService.getWorkspaceCalendarSources().catch((error: unknown) => {
+          console.error("Failed to read Calendar sources", {
+            taskId: task.id,
+            error,
+          });
+          return [];
+        })
+      : Promise.resolve([]),
+  ]);
+  const currentSourceId = project
+    ? `project:${project.id}`
+    : (sources.find((source) => source.sourceType === "WORKSPACE")?.sourceId ??
+      null);
 
   const [t, tSchedule, tSource, formatter] = await Promise.all([
     getTranslations("App.Tasks.Detail.ScheduleSeries"),
@@ -92,6 +110,16 @@ export async function TaskScheduleSeriesSection({
         name: view.calendar.name,
         href: view.calendar.href,
         sourceLabel: tSource(view.calendar.source),
+        action:
+          pages && currentSourceId ? (
+            <TaskScheduleSourceMove
+              taskId={task.id}
+              currentSourceId={currentSourceId}
+              scheduleRevision={pages[0].scheduleRevision}
+              futureExceptionCount={pages[0].futureExceptionCount}
+              sources={sources}
+            />
+          ) : undefined,
       }}
       recurrenceLabel={
         view.rule
