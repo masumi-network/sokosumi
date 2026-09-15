@@ -115,33 +115,72 @@ export async function getCurrentSubscriptionCredits(params: {
       };
 
   const currentPeriodBucketWhere = {
-    AND: [creditBucketActivatesAtOrBefore(now), currentPeriodBucketScope],
+    AND: [
+      creditBucketActivatesAtOrBefore(now),
+      currentPeriodBucketScope,
+      {
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    ],
   };
 
-  const totalAggregateResult = await params.tx.creditBucket.aggregate({
-    _sum: {
+  const buckets = await params.tx.creditBucket.findMany({
+    select: {
       amount: true,
+      id: true,
     },
     where: currentPeriodBucketWhere,
   });
-  const usedAggregateResult = await params.tx.creditConsumption.aggregate({
-    _sum: {
-      amount: true,
-    },
-    where: {
-      createdAt: {
-        gte: period.periodStart,
-        lt: now,
-      },
-      bucket: {
-        is: currentPeriodBucketWhere,
-      },
-    },
-  });
 
-  const normalizedCents = normalizeSubscriptionCents(
-    totalAggregateResult._sum.amount ?? 0n,
-    usedAggregateResult._sum.amount ?? 0n,
+  if (buckets.length === 0) {
+    return {
+      remaining: 0,
+      total: 0,
+      used: 0,
+    };
+  }
+
+  const bucketIds = buckets.map((bucket) => bucket.id);
+  const [lifetimeUsedRows, periodUsedRows] = await Promise.all([
+    params.tx.creditConsumption.groupBy({
+      by: ["bucketId"],
+      where: {
+        bucketId: { in: bucketIds },
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+    params.tx.creditConsumption.groupBy({
+      by: ["bucketId"],
+      where: {
+        bucketId: { in: bucketIds },
+        createdAt: {
+          gte: period.periodStart,
+          lt: now,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+  ]);
+
+  const lifetimeUsedByBucketId = new Map(
+    lifetimeUsedRows.map((row) => [row.bucketId, row._sum.amount ?? 0n]),
+  );
+  const periodUsedByBucketId = new Map(
+    periodUsedRows.map((row) => [row.bucketId, row._sum.amount ?? 0n]),
+  );
+
+  const normalizedCents = summarizeCurrentPeriodSubscriptionBuckets(
+    buckets.map((bucket) =>
+      currentPeriodBucketContribution(
+        bucket.amount,
+        lifetimeUsedByBucketId.get(bucket.id) ?? 0n,
+        periodUsedByBucketId.get(bucket.id) ?? 0n,
+      ),
+    ),
   );
 
   return {
@@ -149,6 +188,35 @@ export async function getCurrentSubscriptionCredits(params: {
     used: convertCentsToCredits(normalizedCents.usedCents),
     remaining: convertCentsToCredits(normalizedCents.remainingCents),
   };
+}
+
+function currentPeriodBucketContribution(
+  amountCents: bigint,
+  lifetimeUsedCents: bigint,
+  periodUsedCents: bigint,
+): { remainingCents: bigint; usedThisPeriodCents: bigint } {
+  const amount = amountCents > 0n ? amountCents : 0n;
+  const lifetimeUsed = lifetimeUsedCents > 0n ? lifetimeUsedCents : 0n;
+  const periodUsed = periodUsedCents > 0n ? periodUsedCents : 0n;
+  const lifetimeCapped = lifetimeUsed > amount ? amount : lifetimeUsed;
+  const remainingCents = amount - lifetimeCapped;
+  const usedThisPeriodCents =
+    periodUsed > lifetimeCapped ? lifetimeCapped : periodUsed;
+
+  return { remainingCents, usedThisPeriodCents };
+}
+
+function summarizeCurrentPeriodSubscriptionBuckets(
+  buckets: Array<{ remainingCents: bigint; usedThisPeriodCents: bigint }>,
+): NormalizedSubscriptionCents {
+  let remainingCents = 0n;
+  let usedCents = 0n;
+  for (const bucket of buckets) {
+    remainingCents += bucket.remainingCents;
+    usedCents += bucket.usedThisPeriodCents;
+  }
+
+  return normalizeSubscriptionCents(remainingCents + usedCents, usedCents);
 }
 
 export function getCreditSummary(params: {
