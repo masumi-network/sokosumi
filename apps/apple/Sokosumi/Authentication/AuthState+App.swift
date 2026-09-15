@@ -15,11 +15,12 @@ extension AuthState {
     )
   }
 
-  func coreClient() -> Client? {
+  func coreClient(cooldown: ChatReadCooldown) -> Client? {
     guard let session = oauthSession else { return nil }
     return Client.connecting(
       to: CoreSettings.baseURL,
       middlewares: [
+        ChatReadCooldownMiddleware(cooldown: cooldown, currentScope: { await session.generation }),
         BearerAuthMiddleware(session: session),
         ExplicitNullPreferredOrganizationMiddleware()
       ]
