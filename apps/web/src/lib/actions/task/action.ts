@@ -58,6 +58,7 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 export interface TaskContextSelectionInput {
@@ -247,6 +248,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
   replaceExistingParent?: boolean;
@@ -544,6 +546,7 @@ async function createTaskFromDescription(input: {
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
@@ -569,6 +572,7 @@ async function createTaskFromDescription(input: {
     projectId: normalizedProjectId ?? null,
     ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
+    ...(input.visibility ? { visibility: input.visibility } : {}),
   });
 
   try {
@@ -727,6 +731,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     context,
     status,
     schedule,
+    visibility,
   }) => {
     try {
       const task = await createTaskFromDescription({
@@ -739,6 +744,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         context,
         status,
         schedule,
+        visibility,
       });
 
       revalidatePath("/tasks");
@@ -1305,6 +1311,7 @@ export const createTaskAndLink = withSession<
     status,
     context,
     schedule,
+    visibility,
     relation,
     note,
     replaceExistingParent,
@@ -1327,6 +1334,7 @@ export const createTaskAndLink = withSession<
         context,
         status,
         schedule,
+        visibility,
       });
 
       const parentLinksToReplace = await collectParentLinksToReplace({

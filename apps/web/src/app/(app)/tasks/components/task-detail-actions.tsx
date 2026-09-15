@@ -128,6 +128,8 @@ interface TaskDetailActionsProps {
   taskId: string;
   share: TaskShare | null;
   status: TaskStatus;
+  /** When PRIVATE, public share controls are hidden. */
+  taskVisibility?: "PUBLIC" | "PRIVATE";
   jobsCount: number;
   taskLinks: TaskLink[];
   coworkerOptions: CoworkerOption[];
@@ -154,6 +156,7 @@ export function TaskDetailActions({
   taskId,
   share,
   status,
+  taskVisibility = "PUBLIC",
   jobsCount,
   taskLinks,
   coworkerOptions,
@@ -332,6 +335,8 @@ export function TaskDetailActions({
     openSchedule: tNewTask("openSchedule"),
     cancel: tNewTask("cancel"),
     ctrl: tNewTask("ctrl"),
+    privateLabel: tNewTask("privateLabel"),
+    privateDescription: tNewTask("privateDescription"),
   };
 
   /**
@@ -530,7 +535,7 @@ export function TaskDetailActions({
 
   return (
     <div className="flex items-center gap-2">
-      {canMutateTask ? (
+      {canMutateTask && taskVisibility !== "PRIVATE" ? (
         <TaskShareButton
           task={{ id: taskId, share }}
           label={labels.share}
@@ -1005,6 +1010,7 @@ export function TaskDetailActions({
               status,
               schedule,
               context,
+              visibility,
             }) => {
               const result = await createTaskAndLink({
                 taskId,
@@ -1016,6 +1022,7 @@ export function TaskDetailActions({
                 status,
                 schedule,
                 context,
+                visibility,
                 relation: selectedCreateRelatedOption.relation,
               });
 

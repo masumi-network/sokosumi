@@ -1583,7 +1583,9 @@
           "COMPLETED": "Completado",
           "FAILED": "Fallido",
           "CANCELED": "Cancelado"
-        }
+        },
+        "visibilityLabel": "Visibilidad",
+        "visibilityPrivate": "Privado"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Proyecto",
@@ -1613,6 +1615,8 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "privateBadge": "Privada",
+        "visibility": "Visibilidad",
         "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
@@ -1908,7 +1912,9 @@
         "taskCreatedHint": "Todo está configurado y listo.",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "privateLabel": "Tarea privada",
+        "privateDescription": "Solo tú, tu Soko Bot y el vendor del coworker asignado pueden ver esta tarea."
       },
       "EditTask": {
         "title": "Editar Task",

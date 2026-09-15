@@ -31,6 +31,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
+import { requireNoHumanAssigneeOnPrivateTask } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -246,6 +247,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         assigneeSokoBotId: nextAssigneeSokoBotId,
         assigneeUserId: nextAssigneeUserId,
       });
+      requireNoHumanAssigneeOnPrivateTask(task.visibility, nextAssigneeUserId);
 
       if (assigneeWrite?.assigneeId) {
         await requireTaskAssignableCoworker(

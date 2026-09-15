@@ -92,6 +92,7 @@ function getCloneTaskData(
       assigneeId: true;
       name: true;
       description: true;
+      visibility: true;
     };
   }>,
 ) {
@@ -103,6 +104,7 @@ function getCloneTaskData(
     assigneeId: template.assigneeId,
     name: template.name,
     description: template.description,
+    visibility: template.visibility,
     status: TaskStatus.READY,
     metadata: null,
     nextRunAt: null,
@@ -295,6 +297,7 @@ async function cloneRecurringOccurrence(
       assigneeId: true;
       name: true;
       description: true;
+      visibility: true;
     };
   }>,
   metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
@@ -418,6 +421,7 @@ async function processDueTask(
           assigneeId: true,
           name: true,
           description: true,
+          visibility: true,
           metadata: true,
           nextRunAt: true,
         },
@@ -460,6 +464,7 @@ async function processDueTask(
             assigneeId: true,
             name: true,
             description: true,
+            visibility: true,
             metadata: true,
             nextRunAt: true,
           },

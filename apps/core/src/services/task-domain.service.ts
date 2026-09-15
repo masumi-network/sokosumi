@@ -5,6 +5,7 @@ import {
   type Task,
   type TaskScheduleEventKind,
   TaskStatus,
+  TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
 import {
@@ -21,7 +22,12 @@ import {
   requireTaskAssignableUser,
   type TaskAssigner,
 } from "@/helpers/access-control";
-import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import {
   isGrantDeniedOrRevoked,
@@ -54,6 +60,11 @@ export interface CreateTaskDomainInput {
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   assigneeAuthorization?: TaskAssigner;
+  /**
+   * Organization workspaces only. Personal workspaces must omit / stay PUBLIC.
+   * Immutable after create.
+   */
+  visibility?: "PUBLIC" | "PRIVATE";
   status:
     | typeof TaskStatus.DRAFT
     | typeof TaskStatus.QUEUED
@@ -101,6 +112,18 @@ function requireAssigneeXor(
     throw unprocessableEntity(
       "Task cannot be assigned to more than one assignee",
     );
+  }
+}
+
+export function requireNoHumanAssigneeOnPrivateTask(
+  visibility: TaskVisibility,
+  assigneeUserId: string | null | undefined,
+): void {
+  if (
+    visibility === TaskVisibility.PRIVATE &&
+    hasAssigneeValue(assigneeUserId)
+  ) {
+    throw badRequest("Private Tasks cannot be assigned to a human teammate");
   }
 }
 
@@ -279,6 +302,17 @@ export async function createTaskForActor(
     input.assigneeSokoBotId,
     input.assigneeUserId,
   );
+  const visibility =
+    input.visibility === "PRIVATE" && input.organizationId != null
+      ? TaskVisibility.PRIVATE
+      : TaskVisibility.PUBLIC;
+
+  if (input.visibility === "PRIVATE" && input.organizationId == null) {
+    throw badRequest(
+      "Private Tasks are only allowed in organization workspaces",
+    );
+  }
+  requireNoHumanAssigneeOnPrivateTask(visibility, input.assigneeUserId);
   await requireTaskReferences(input, tx);
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
@@ -319,6 +353,7 @@ export async function createTaskForActor(
       assigneeUserId: input.assigneeUserId ?? null,
       ...creatorFields(input.actor),
       status,
+      visibility,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       metadata: input.schedule ? JSON.stringify(input.schedule.metadata) : null,
@@ -429,6 +464,7 @@ export async function updateTaskForActor(
     nextAssigneeSokoBotId,
     nextAssigneeUserId,
   );
+  requireNoHumanAssigneeOnPrivateTask(task.visibility, nextAssigneeUserId);
 
   await requireTaskReferences(
     {

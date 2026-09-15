@@ -21,6 +21,10 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
 import {
+  buildHumanTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
+import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -128,10 +132,14 @@ export async function getCalendarTaskWhere(
       workspaceId,
       assigneeSokoBotId: authContext.sokoBotId,
       status: { not: TaskStatus.DRAFT },
+      AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
     };
   }
 
   if (authContext.actor !== "coworker") {
+    if (authContext.actor === "user") {
+      return buildHumanTaskVisibilityWhere(authContext.userId);
+    }
     return undefined;
   }
 

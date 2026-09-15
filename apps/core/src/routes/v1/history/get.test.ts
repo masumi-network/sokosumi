@@ -26,6 +26,7 @@ const {
   jobFindManyMock,
   prismaQueryRawMock,
   prismaTransactionMock,
+  taskFindManyMock,
   userFindManyMock,
 } = vi.hoisted(() => ({
   agentFindManyMock: vi.fn(),
@@ -35,6 +36,7 @@ const {
   jobFindManyMock: vi.fn(),
   prismaQueryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
 }));
 
@@ -52,6 +54,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     job: {
       findMany: jobFindManyMock,
+    },
+    task: {
+      findMany: taskFindManyMock,
     },
     user: {
       findMany: userFindManyMock,
@@ -121,6 +126,7 @@ describe("GET /history", () => {
     historyCountMock.mockResolvedValue(0);
     jobFindManyMock.mockResolvedValue([]);
     agentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
     userFindManyMock.mockResolvedValue([]);
     prismaQueryRawMock.mockResolvedValue([]);
     prismaTransactionMock.mockImplementation(
@@ -195,6 +201,7 @@ describe("GET /history", () => {
                 },
               ],
             },
+            {},
           ],
         },
       }),
