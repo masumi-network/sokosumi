@@ -170,7 +170,10 @@ describe("GET /developer/tasks/{id}", () => {
           archivedAt: null,
           OR: [
             { assignee: accessibleCoworkerWhere },
-            { creatorCoworker: accessibleCoworkerWhere },
+            {
+              visibility: "PUBLIC",
+              creatorCoworker: accessibleCoworkerWhere,
+            },
           ],
         },
       }),
