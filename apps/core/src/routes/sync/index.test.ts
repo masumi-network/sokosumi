@@ -15,6 +15,7 @@ const {
   syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
+  syncProjectClosesMock,
   syncDueTaskSchedulesMock,
   reconcileScheduleHistoryMock,
   validateActiveSchedulesMock,
@@ -32,6 +33,7 @@ const {
   syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
+  syncProjectClosesMock: vi.fn(),
   syncDueTaskSchedulesMock: vi.fn(),
   reconcileScheduleHistoryMock: vi.fn(),
   validateActiveSchedulesMock: vi.fn(),
@@ -114,6 +116,12 @@ vi.mock("@/services/task-schedules-sync", () => ({
   },
 }));
 
+vi.mock("@/services/project-close-sync.service", () => ({
+  projectCloseSyncService: {
+    syncProjectCloses: syncProjectClosesMock,
+  },
+}));
+
 vi.mock("@/services/task-schedule-reconciliation.service", () => ({
   taskScheduleReconciliationService: {
     reconcileScheduleHistory: reconcileScheduleHistoryMock,
@@ -190,6 +198,12 @@ describe("sync routes", () => {
       promoted: 0,
       cloned: 0,
       durationMs: 0,
+    });
+    syncProjectClosesMock.mockResolvedValue({
+      claimed: 0,
+      processedSeries: 0,
+      closed: 0,
+      failed: 0,
     });
     reconcileScheduleHistoryMock.mockResolvedValue({
       scanned: 0,
@@ -313,6 +327,23 @@ describe("sync routes", () => {
     expect(
       validateActiveSchedulesMock.mock.invocationCallOrder[0],
     ).toBeLessThan(reconcileScheduleHistoryMock.mock.invocationCallOrder[0]);
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+  });
+
+  it("runs the leased Project close worker", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/project-closes", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncProjectClosesMock).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 

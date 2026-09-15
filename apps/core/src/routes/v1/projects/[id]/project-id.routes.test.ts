@@ -293,6 +293,7 @@ describe("PATCH /projects/{id}", () => {
         briefing: "Updated briefing",
         briefingUrl:
           "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+        projectRevision: { increment: 1 },
       },
     });
   });
@@ -321,7 +322,11 @@ describe("PATCH /projects/{id}", () => {
     expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
     expect(projectUpdateManyMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      data: { briefing: null, briefingUrl: null },
+      data: {
+        briefing: null,
+        briefingUrl: null,
+        projectRevision: { increment: 1 },
+      },
     });
     expect(deleteProjectBriefingBlobMock).toHaveBeenCalledWith(oldBriefingUrl);
   });
@@ -354,7 +359,11 @@ describe("PATCH /projects/{id}", () => {
     expect(res.status).toBe(200);
     expect(projectUpdateManyMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      data: { briefing: "Updated briefing", briefingUrl: null },
+      data: {
+        briefing: "Updated briefing",
+        briefingUrl: null,
+        projectRevision: { increment: 1 },
+      },
     });
     expect(deleteProjectBriefingBlobMock).toHaveBeenCalledWith(oldBriefingUrl);
   });
@@ -393,7 +402,10 @@ describe("PATCH /projects/{id}", () => {
     expect(res.status).toBe(200);
     expect(projectUpdateManyMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      data: { websiteUrl: "https://new.example.com" },
+      data: {
+        websiteUrl: "https://new.example.com",
+        projectRevision: { increment: 1 },
+      },
     });
   });
 
@@ -464,6 +476,15 @@ describe("DELETE /projects/{id}", () => {
 
     expect(guardedResponse.status).toBe(409);
     expect(guardedBody.kind).toBe("project_has_calendar_history");
+    expect(projectDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        id: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        closingAt: null,
+        closedAt: null,
+        closeOperation: { is: null },
+      },
+    });
     expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
   });
 

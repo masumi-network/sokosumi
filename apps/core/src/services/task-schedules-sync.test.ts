@@ -236,6 +236,117 @@ describe("taskSchedulesSyncService", () => {
     );
   });
 
+  it("does not release a Project schedule when close wins after the pre-read", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+    const candidate = {
+      id: "template-closing",
+      ownerId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: "project-1",
+      assigneeId: "coworker-1",
+      name: "Template",
+      description: null,
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174002",
+        mode: "once",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        sourceRunAt: "2026-06-10T09:00:00.000Z",
+        effectiveRunAt: "2026-06-10T09:00:00.000Z",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    };
+    mockFindMany
+      .mockResolvedValueOnce([{ id: candidate.id }])
+      .mockResolvedValueOnce([]);
+    mockFindFirst.mockResolvedValueOnce(candidate).mockResolvedValueOnce({
+      ...candidate,
+      project: {
+        closingAt: new Date("2026-06-10T09:00:00.000Z"),
+        closedAt: null,
+      },
+    });
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: { findFirst: mockFindFirst },
+      }),
+    );
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result).toMatchObject({ promoted: 0, cloned: 0 });
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "workspace-1",
+      ["project-1"],
+    );
+    expect(mockTaskUpdateMany).not.toHaveBeenCalled();
+    expect(mockTaskCreate).not.toHaveBeenCalled();
+  });
+
+  it("also locks a legacy Project schedule outside the Calendar beta before release", async () => {
+    hasCalendarBetaAccessMock.mockResolvedValue(false);
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+    const candidate = {
+      id: "legacy-template-closing",
+      ownerId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: "project-1",
+      assigneeId: "coworker-1",
+      name: "Legacy template",
+      description: null,
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "once",
+        scheduledAt: "2026-06-10T09:00:00.000Z",
+        runAt: "2026-06-10T09:00:00.000Z",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    };
+    mockFindMany
+      .mockResolvedValueOnce([{ id: candidate.id }])
+      .mockResolvedValueOnce([]);
+    mockFindFirst.mockResolvedValueOnce(candidate).mockResolvedValueOnce({
+      ...candidate,
+      project: {
+        closingAt: new Date("2026-06-10T09:00:00.000Z"),
+        closedAt: null,
+      },
+    });
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({ task: { findFirst: mockFindFirst } }),
+    );
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result).toMatchObject({ promoted: 0, cloned: 0 });
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "workspace-1",
+      ["project-1"],
+    );
+    expect(lockTaskRowsMock).toHaveBeenCalledWith(expect.any(Object), [
+      candidate.id,
+    ]);
+    expect(mockTaskUpdateMany).not.toHaveBeenCalled();
+  });
+
   it("still clones a due organization schedule after the creator is unseated", async () => {
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
