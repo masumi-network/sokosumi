@@ -183,9 +183,8 @@ function toFollowUpInput(
  *
  * A write that throws costs that one reminder and nothing else: the run carries
  * on through the rest. Whether the next run finds that row again depends on
- * where in the window it sits, and the run reaches the half that will not
- * survive first, so a failed write is more often a lost reminder than a
- * retried one. Sentry is told about each.
+ * where in the window it sits: rows in the newer half are read again, rows in
+ * the older half are not. Sentry is told about each.
  */
 export async function sendFollowUps(
   options: SendFollowUpsOptions = {},
@@ -233,10 +232,13 @@ export async function sendFollowUps(
         // Where the last page ended, said as a plain filter rather than
         // Prisma's `cursor`. A follow-up leaves its source row unread, so the
         // next page cannot be "whatever still matches" and has to continue
-        // from a position. `cursor` would resolve that position by looking the
-        // row up, and a reader who opens that one notification between two
-        // pages takes it out of this query's reach. The pair of values below
-        // is held here, so nothing the reader does can lose the place.
+        // from a position. `cursor` names that position by row id and the row
+        // has to still be there for the next page to start; the pair of values
+        // below is held in memory instead, so a row that goes away between two
+        // pages cannot lose the place. Whether `cursor` would in fact stumble
+        // there was not established: the Prisma documentation does not say
+        // whether the cursor row must still match `where`, and no test here
+        // pins it.
         ...(after === undefined
           ? {}
           : {
