@@ -19,9 +19,13 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type {
+  DisconnectProjectSocialConnectionResponse,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
   Project,
   ProjectCloseStatus,
   ProjectContextMd,
+  ProjectSocialConnection,
 } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
@@ -66,6 +70,25 @@ interface RecoverProjectCloseParameters extends AuthenticatedRequest {
   reason: string;
 }
 
+interface InitiateProjectSocialConnectionParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  action: InitiateProjectSocialConnectionRequest["action"];
+  socialConnectionId?: string;
+}
+
+interface FinalizeProjectSocialConnectionParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  connectionId: string;
+}
+
+interface DisconnectProjectSocialConnectionParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  socialConnectionId: string;
+}
+
 function normalizeProjectName(name: string): string {
   return name.trim();
 }
@@ -105,6 +128,11 @@ function revalidateProjectCloseRoutes(projectId: string) {
   revalidatePath(`/projects/${projectId}/calendar`);
   revalidatePath("/calendar");
   revalidatePath("/tasks");
+}
+
+function revalidateProjectSocialConnectionMutationRoutes(projectId: string) {
+  revalidateProjectMutationRoutes(projectId);
+  revalidatePath(`/projects/${projectId}/edit`);
 }
 
 function throwCoreActionError(error: unknown, fallbackMessage: string): never {
@@ -344,5 +372,97 @@ export const cancelProjectCloseOwedWork = withSession<
   } catch (error) {
     console.error("Failed to cancel owed project work", error);
     throwCoreActionError(error, "Failed to cancel owed project work");
+  }
+});
+
+export const initiateProjectSocialConnection = withSession<
+  InitiateProjectSocialConnectionParameters,
+  ActionResultDto<InitiateProjectSocialConnectionResponse, ActionError>
+>(async ({ projectId, action, socialConnectionId }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: "Project required" }),
+    );
+  }
+
+  let input: InitiateProjectSocialConnectionRequest;
+  if (action === "connect") {
+    input = { action, provider: "x" };
+  } else {
+    const normalizedSocialConnectionId = socialConnectionId?.trim();
+    if (!normalizedSocialConnectionId) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Social connection required",
+        }),
+      );
+    }
+    input = { action, socialConnectionId: normalizedSocialConnectionId };
+  }
+
+  try {
+    const connection = await projectService.initiateSocialConnection(
+      normalizedProjectId,
+      input,
+    );
+    return toActionResult(ok(connection));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const finalizeProjectSocialConnection = withSession<
+  FinalizeProjectSocialConnectionParameters,
+  ActionResultDto<ProjectSocialConnection, ActionError>
+>(async ({ projectId, connectionId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedConnectionId = connectionId.trim();
+  if (!normalizedProjectId || !normalizedConnectionId) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Project connection required",
+      }),
+    );
+  }
+
+  try {
+    const connection = await projectService.finalizeSocialConnection(
+      normalizedProjectId,
+      normalizedConnectionId,
+    );
+    revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
+    return toActionResult(ok(connection));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const disconnectProjectSocialConnection = withSession<
+  DisconnectProjectSocialConnectionParameters,
+  ActionResultDto<DisconnectProjectSocialConnectionResponse, ActionError>
+>(async ({ projectId, socialConnectionId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSocialConnectionId = socialConnectionId.trim();
+  if (!normalizedProjectId || !normalizedSocialConnectionId) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Project social connection required",
+      }),
+    );
+  }
+
+  try {
+    const connection = await projectService.disconnectSocialConnection(
+      normalizedProjectId,
+      normalizedSocialConnectionId,
+    );
+    revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
+    return toActionResult(ok(connection));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
