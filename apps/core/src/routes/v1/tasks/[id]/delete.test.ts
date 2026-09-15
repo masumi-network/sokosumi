@@ -237,6 +237,7 @@ const archivedTask = {
   share: null,
   links: [],
   files: [],
+  selectableStatuses: [],
   linksFrom: [],
   linksTo: [],
 };

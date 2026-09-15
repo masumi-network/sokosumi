@@ -29,7 +29,10 @@ import {
   type Dow,
   parseCron,
 } from "@/lib/schedules/cron";
-import { getTimezoneOptions } from "@/lib/schedules/timezones";
+import {
+  getDefaultTimezone,
+  getTimezoneOptions,
+} from "@/lib/schedules/timezones";
 import {
   gregorianDayOfWeek,
   parseDateTimeLocalParts,
@@ -245,8 +248,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   const [scheduleOption, setScheduleOption] =
     useState<ScheduleOption>("one-time");
   const [timezone, setTimezone] = useState<string>(
-    props.initialSelection?.timezone ??
-      Intl.DateTimeFormat().resolvedOptions().timeZone,
+    props.initialSelection?.timezone ?? getDefaultTimezone(),
   );
   const [customCronExpr, setCustomCronExpr] = useState<string>(
     props.initialSelection?.customCronExpr ?? "",

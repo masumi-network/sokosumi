@@ -1,7 +1,7 @@
 "use client";
 
 import type { OAuthConsent, Scope } from "@better-auth/oauth-provider";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,6 +24,7 @@ type OAuthConsentItem = OAuthConsent<Scope[]>;
 
 export function OAuthAuthorizedClients() {
   const t = useTranslations("App.Account.AuthorizedClients");
+  const formatter = useFormatter();
   const [consents, setConsents] = useState<AuthorizedClientWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +147,9 @@ export function OAuthAuthorizedClients() {
                   </p>
                   <p className="text-muted-foreground mt-1 text-xs">
                     {t("authorized", {
-                      date: new Date(consent.createdAt).toLocaleDateString(),
+                      date: formatter.dateTime(new Date(consent.createdAt), {
+                        dateStyle: "medium",
+                      }),
                     })}
                   </p>
                 </div>

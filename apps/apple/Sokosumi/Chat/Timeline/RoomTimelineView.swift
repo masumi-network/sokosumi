@@ -17,7 +17,6 @@ import SwiftUI
     @State private var userIsScrolling = false
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
-    @State private var showsPins = false
     @State private var highlightedId: String?
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
@@ -78,18 +77,7 @@ import SwiftUI
           )
           .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
         }
-        .toolbar {
-          if room?.kind == .channel {
-            Button("Pinned messages", systemImage: "pin") { showsPins.toggle() }.help("Pinned messages")
-          }
-        }
-        .inspector(isPresented: $showsPins) {
-          if let room, room.kind == .channel {
-            PinnedMessagesView(pins: workspaces.pins, room: room,
-                               jump: { try await jumpToMessage($0) }, close: { showsPins = false })
-              .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
-          }
-        }
+        .modifier(RoomToolsModifier(roomId: roomId, jump: { try await jumpToMessage($0) }))
         .task(id: roomId) {
           if room?.kind == .channel {
             try? await workspaces.loadPins(auth: auth)
@@ -112,7 +100,6 @@ import SwiftUI
           jumpCompletion = nil
         }
         .onChange(of: roomId) { _, _ in
-          showsPins = false
           highlightedId = nil
           jumpCompletion?.resume(returning: false)
           jumpCompletion = nil

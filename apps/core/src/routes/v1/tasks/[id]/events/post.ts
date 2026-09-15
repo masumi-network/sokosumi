@@ -46,6 +46,7 @@ import {
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
+import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -432,6 +433,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           metadata: task.metadata,
           nextRunAt: task.nextRunAt,
         });
+
+        // A person may only set what the status picker offered (ADR 0029).
+        if (
+          !isAgent &&
+          !getSelectableTaskStatuses(task, authContext).includes(status)
+        ) {
+          throw unprocessableEntity(
+            "This status is not selectable for this task",
+            { kind: CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE },
+          );
+        }
 
         if (
           !isAgent &&

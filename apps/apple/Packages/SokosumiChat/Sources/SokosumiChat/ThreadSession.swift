@@ -8,6 +8,12 @@ import Foundation
 public final class ThreadSession: ObservableObject {
   public typealias Message = Components.Schemas.ChatRoomMessage
 
+  public struct JumpTarget: Equatable, Sendable {
+    public let messageId: String
+    public let requestId = UUID()
+  }
+
+  @Published public private(set) var jumpTarget: JumpTarget?
   @Published public private(set) var parent: Message?
   public let timeline = RoomTimeline()
   public let outbox = RoomOutbox()
@@ -34,7 +40,17 @@ public final class ThreadSession: ObservableObject {
     return true
   }
 
+  public func requestJump(to messageId: String) {
+    guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
+    jumpTarget = JumpTarget(messageId: messageId)
+  }
+
+  public func clearJump() {
+    jumpTarget = nil
+  }
+
   public func close() {
+    jumpTarget = nil
     loadTask?.cancel()
     loadTask = nil
     recovery.stop()

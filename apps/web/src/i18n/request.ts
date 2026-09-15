@@ -7,6 +7,11 @@ import {
 import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 
+import {
+  resolveRequestTimeZone,
+  TIME_ZONE_COOKIE_NAME,
+} from "@/i18n/time-zone";
+
 import de from "../../messages/de.json";
 import en from "../../messages/en.json";
 import es from "../../messages/es.json";
@@ -28,5 +33,8 @@ export default getRequestConfig(async () => {
   return {
     locale,
     messages: messagesByLocale[locale],
+    timeZone: resolveRequestTimeZone(
+      cookieStore.get(TIME_ZONE_COOKIE_NAME)?.value,
+    ),
   };
 });

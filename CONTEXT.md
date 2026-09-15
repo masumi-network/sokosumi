@@ -86,6 +86,14 @@ _Avoid_: Task board, tasks page, kanban (unless a UI label)
 The two-step flow that creates a Task: pick a Coworker or a ready-to-run task, then compose. It opens in place over the current page; it is not a page of its own.
 _Avoid_: Task form, new task page
 
+**Selectable status**:
+A Task status the acting person or Coworker may move the Task to by hand right now. Core decides the set per Task and per actor; the web only shows it. Input required and Approval required are never selectable by a person: a Coworker sets them.
+_Avoid_: Allowed transition, manual status option, status dropdown values
+
+**Status picker**:
+The control on a Task that changes its status: a searchable list of the selectable statuses with the current one checked.
+_Avoid_: Status select, status dropdown
+
 ### Task payments
 
 **Task payment claim**:

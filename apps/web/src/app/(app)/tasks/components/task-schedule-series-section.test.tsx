@@ -9,6 +9,7 @@ const sourceMoveMock = vi.fn();
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
+  getTimeZone: async () => "UTC",
   getFormatter: async () => ({
     dateTime: () => "Sep 10, 9:00 AM",
   }),
