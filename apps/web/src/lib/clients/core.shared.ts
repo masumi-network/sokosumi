@@ -42,6 +42,7 @@ import type {
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
+  MutateTaskScheduleOccurrenceRequest,
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
@@ -87,7 +88,6 @@ import type {
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
-  RescheduleTaskScheduleOccurrenceRequest,
   ResolveAdminTaskX402PaymentData,
   ResolveSokoBotDecisionRequest,
   SokoBotLabIngestRequest,
@@ -3465,10 +3465,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function rescheduleTaskScheduleOccurrence(
+  async function mutateTaskScheduleOccurrence(
     id: string,
     occurrenceId: string,
-    body: RescheduleTaskScheduleOccurrenceRequest,
+    body: MutateTaskScheduleOccurrenceRequest,
   ) {
     return executeCoreOperation(
       getClient,
@@ -3479,7 +3479,7 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
           cache: "no-store",
         }),
-      "Failed to reschedule task schedule occurrence",
+      "Failed to mutate task schedule occurrence",
     );
   }
 
@@ -5175,7 +5175,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     putTaskCalendarSchedule,
     putTaskSchedule,
     putTaskShare,
-    rescheduleTaskScheduleOccurrence,
+    mutateTaskScheduleOccurrence,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,

@@ -14,7 +14,7 @@ import type { TaskScheduleOccurrence } from "@/lib/clients/generated/core/types.
 
 const refreshMock = vi.fn();
 const loadMoreMock = vi.fn();
-const rescheduleTaskOccurrenceMock = vi.fn();
+const mutateTaskOccurrenceMock = vi.fn();
 const toastErrorMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -31,8 +31,8 @@ vi.mock("@/app/tasks/actions", () => ({
 }));
 
 vi.mock("@/lib/actions/task/action", () => ({
-  rescheduleTaskOccurrence: (...args: unknown[]) =>
-    rescheduleTaskOccurrenceMock(...args),
+  mutateTaskOccurrence: (...args: unknown[]) =>
+    mutateTaskOccurrenceMock(...args),
 }));
 
 import { TaskScheduleOccurrences } from "@/app/tasks/components/task-schedule-occurrences";
@@ -79,7 +79,7 @@ function renderOccurrences(
 describe("TaskScheduleOccurrences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task_1", scheduleRevision: 5 },
     });
@@ -486,13 +486,14 @@ describe("TaskScheduleOccurrences", () => {
     );
 
     await waitFor(() =>
-      expect(rescheduleTaskOccurrenceMock).toHaveBeenCalledWith({
+      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
         taskId: "task_1",
         occurrenceId: "occ_1",
         operationId: expect.stringMatching(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
         ),
         expectedScheduleRevision: 4,
+        action: "reschedule",
         scheduledAt: "2026-09-11T08:30:00.000Z",
       }),
     );
@@ -502,7 +503,7 @@ describe("TaskScheduleOccurrences", () => {
 
   it("keeps the dialog open with the mapped copy when the move is refused", async () => {
     const user = userEvent.setup();
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: false,
       error: { kind: "schedule_occurrence_not_reschedulable" },
     });
@@ -521,7 +522,7 @@ describe("TaskScheduleOccurrences", () => {
 
     await waitFor(() =>
       expect(within(dialog).getByRole("alert")).toHaveTextContent(
-        "This occurrence can no longer be moved.",
+        "This occurrence can no longer be changed.",
       ),
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -556,5 +557,65 @@ describe("TaskScheduleOccurrences", () => {
 
     await user.click(screen.getByRole("tab", { name: "History" }));
     expect(screen.queryByRole("button", { name: "Move" })).toBeNull();
+  });
+
+  it("skips a planned run and refreshes the schedule", async () => {
+    const user = userEvent.setup();
+    renderOccurrences({
+      upcoming: {
+        occurrences: [occurrence({ id: "occ_1" })],
+        nextCursor: null,
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Skip" }));
+
+    await waitFor(() =>
+      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
+        taskId: "task_1",
+        occurrenceId: "occ_1",
+        operationId: expect.any(String),
+        expectedScheduleRevision: 4,
+        action: "skip",
+      }),
+    );
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("restores a skipped run from its original time by default", async () => {
+    const user = userEvent.setup();
+    renderOccurrences({
+      upcoming: {
+        occurrences: [
+          occurrence({
+            id: "occ_1",
+            state: "SKIPPED",
+            originalScheduledAt: new Date("2026-09-10T06:00:00.000Z"),
+          }),
+        ],
+        nextCursor: null,
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Restored time")).toHaveValue(
+      "2026-09-10T08:00",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Restore occurrence" }),
+    );
+
+    await waitFor(() =>
+      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task_1",
+          occurrenceId: "occ_1",
+          expectedScheduleRevision: 4,
+          action: "restore",
+          scheduledAt: "2026-09-10T06:00:00.000Z",
+        }),
+      ),
+    );
   });
 });

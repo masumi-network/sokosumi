@@ -2,6 +2,7 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
+  MutateTaskScheduleOccurrenceRequest,
   Task,
   TaskScheduleInput,
   TaskScheduleOccurrence,
@@ -133,28 +134,19 @@ export const taskScheduleService = (() => {
     };
   }
 
-  /**
-   * Moves one unreleased occurrence to a new absolute time. Core keeps the
-   * occurrence's original identity and audits the move; the series revision
-   * advances so occurrence cursors refresh.
-   */
-  async function rescheduleOccurrence(
+  /** Changes one unreleased occurrence without changing its stable identity. */
+  async function mutateOccurrence(
     taskId: string,
     occurrenceId: string,
-    precondition: TaskScheduleSeriesPrecondition,
-    scheduledAt: Date,
+    mutation: MutateTaskScheduleOccurrenceRequest,
   ): Promise<{
     scheduleRevision: number;
     occurrence: TaskScheduleOccurrence;
   }> {
-    const result = await coreClient.rescheduleTaskScheduleOccurrence(
+    const result = await coreClient.mutateTaskScheduleOccurrence(
       taskId,
       occurrenceId,
-      {
-        operationId: precondition.operationId,
-        expectedScheduleRevision: precondition.expectedScheduleRevision,
-        scheduledAt,
-      },
+      mutation,
     );
 
     return {
@@ -169,6 +161,6 @@ export const taskScheduleService = (() => {
     removeCalendarSeries,
     listOccurrences,
     readSeriesState,
-    rescheduleOccurrence,
+    mutateOccurrence,
   };
 })();

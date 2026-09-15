@@ -1824,7 +1824,10 @@
           "stateReleased": "Lanzada",
           "stateMissed": "Perdida",
           "archivedRun": "Archivada",
-          "move": "Mover"
+          "move": "Mover",
+          "skip": "Omitir",
+          "restore": "Restaurar",
+          "mutationError": "No se pudo cambiar esta ejecución. Inténtalo de nuevo."
         },
         "files": "Archivos",
         "assignee": "Responsable"
@@ -1946,7 +1949,7 @@
           "operationConflict": "Este guardado ya se envió con otros datos. Vuelve a abrir la programación e inténtalo de nuevo.",
           "activeSeries": "Esta tarea se ejecuta según una programación. Cambia o elimina primero su programación.",
           "unknownCount": "No pudimos comprobar qué próximas ejecuciones cancelaría una nueva regla. Recarga la página, vuelve a abrir la programación e inténtalo de nuevo.",
-          "occurrenceLocked": "Esta repetición ya no se puede mover.",
+          "occurrenceLocked": "Esta repetición ya no se puede cambiar.",
           "occurrenceTargetInvalid": "Esa hora no es un destino válido."
         },
         "occurrenceMove": {
@@ -1957,6 +1960,15 @@
           "cancel": "Cancelar",
           "invalid": "Elige una fecha y una hora válidas.",
           "error": "No se pudo mover esta repetición. Inténtalo de nuevo."
+        },
+        "occurrenceRestore": {
+          "title": "Restaurar repetición",
+          "description": "Restaura esta ejecución a su hora original o elige otra hora futura.",
+          "label": "Hora restaurada",
+          "confirm": "Restaurar repetición",
+          "cancel": "Cancelar",
+          "invalid": "Elige una fecha y una hora válidas.",
+          "error": "No se pudo restaurar esta repetición. Inténtalo de nuevo."
         },
         "option": {
           "oneTime": "One-time",
@@ -6141,8 +6153,12 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
+        "accessibleNameSkipped": "{task}, {source}, omitida",
         "editSchedule": "Editar programación",
         "moveOccurrence": "Mover repetición",
+        "skipOccurrence": "Omitir repetición",
+        "restoreOccurrence": "Restaurar repetición",
+        "mutationError": "No se pudo cambiar esta repetición. Inténtalo de nuevo.",
         "openTask": "Abrir tarea"
       },
       "create": {

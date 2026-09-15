@@ -1824,7 +1824,10 @@
           "stateReleased": "Gestartet",
           "stateMissed": "Verpasst",
           "archivedRun": "Archiviert",
-          "move": "Verschieben"
+          "move": "Verschieben",
+          "skip": "Überspringen",
+          "restore": "Wiederherstellen",
+          "mutationError": "Dieser Lauf konnte nicht geändert werden. Bitte versuche es erneut."
         },
         "files": "Dateien",
         "assignee": "Zuständig"
@@ -1946,7 +1949,7 @@
           "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
           "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan.",
           "unknownCount": "Wir konnten nicht prüfen, welche bevorstehenden Läufe eine neue Regel abbrechen würde. Lade die Seite neu, öffne den Zeitplan erneut und versuche es noch einmal.",
-          "occurrenceLocked": "Dieses Vorkommen kann nicht mehr verschoben werden.",
+          "occurrenceLocked": "Dieses Vorkommen kann nicht mehr geändert werden.",
           "occurrenceTargetInvalid": "Dieser Zeitpunkt ist kein gültiges Ziel."
         },
         "occurrenceMove": {
@@ -1957,6 +1960,15 @@
           "cancel": "Abbrechen",
           "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
           "error": "Dieses Vorkommen konnte nicht verschoben werden. Bitte versuche es erneut."
+        },
+        "occurrenceRestore": {
+          "title": "Vorkommen wiederherstellen",
+          "description": "Stelle diesen Lauf zur ursprünglichen Zeit wieder her oder wähle eine andere zukünftige Zeit.",
+          "label": "Wiederhergestellte Zeit",
+          "confirm": "Vorkommen wiederherstellen",
+          "cancel": "Abbrechen",
+          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
+          "error": "Dieses Vorkommen konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
         },
         "option": {
           "oneTime": "One-time",
@@ -6141,8 +6153,12 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
+        "accessibleNameSkipped": "{task}, {source}, übersprungen",
         "editSchedule": "Zeitplan bearbeiten",
         "moveOccurrence": "Vorkommen verschieben",
+        "skipOccurrence": "Vorkommen überspringen",
+        "restoreOccurrence": "Vorkommen wiederherstellen",
+        "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
         "openTask": "Task öffnen"
       },
       "create": {
