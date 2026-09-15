@@ -8,7 +8,7 @@ import { SYNTHETIC_DEFAULT_CATEGORY } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 
 /** The caller's own rating for an agent; consumers only need rating + comment. */
-export interface UserAgentRatingSummary {
+interface UserAgentRatingSummary {
   rating: number;
   comment: string | null;
 }

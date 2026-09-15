@@ -39,8 +39,9 @@ const taskServiceMock = {
 const taskScheduleServiceMock = {
   removeCalendarSeries: vi.fn(),
   editCalendarSeries: vi.fn(),
+  moveCalendarSeriesSource: vi.fn(),
   setSchedule: vi.fn(),
-  rescheduleOccurrence: vi.fn(),
+  mutateOccurrence: vi.fn(),
 };
 const OPERATION_ID = "123e4567-e89b-42d3-a456-426614174000";
 const toCoreApiActionErrorMock = vi.fn();
@@ -1508,6 +1509,51 @@ describe("Calendar schedule actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
   });
 
+  it("moves a series source and revalidates both Project calendars", async () => {
+    taskScheduleServiceMock.moveCalendarSeriesSource.mockResolvedValue({
+      previousSource: { type: "project", projectId: "project-old" },
+      source: { type: "project", projectId: "project-new" },
+      scheduleRevision: 4,
+      canceledFutureExceptionCount: 2,
+    });
+    const { moveCalendarTaskSource } = await import("./action");
+
+    const result = await moveCalendarTaskSource({
+      taskId: "task-1",
+      operationId,
+      expectedScheduleRevision: 3,
+      source: {
+        type: "project",
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+
+    expect(
+      taskScheduleServiceMock.moveCalendarSeriesSource,
+    ).toHaveBeenCalledWith(
+      "task-1",
+      { operationId, expectedScheduleRevision: 3 },
+      {
+        type: "project",
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: { taskId: "task-1", scheduleRevision: 4 },
+    });
+    const { revalidatePath } = await import("next/cache");
+    expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/task-1");
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/projects/project-old/calendar",
+    );
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/projects/project-new/calendar",
+    );
+  });
+
   it("maps a removal revision conflict to an actionable result", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     taskScheduleServiceMock.removeCalendarSeries.mockRejectedValue(
@@ -1622,14 +1668,14 @@ describe("Calendar schedule actions", () => {
   });
 });
 
-describe("rescheduleTaskOccurrence", () => {
+describe("mutateTaskOccurrence", () => {
   const operationId = "123e4567-e89b-42d3-a456-426614174000";
   const scheduledAt = "2030-01-02T10:30:00.000Z";
 
   beforeEach(() => {
     vi.clearAllMocks();
     taskServiceMock.getTaskById.mockReset();
-    taskScheduleServiceMock.rescheduleOccurrence.mockReset();
+    taskScheduleServiceMock.mutateOccurrence.mockReset();
   });
 
   it("uses the UI-observed revision even when the task read is newer", async () => {
@@ -1638,26 +1684,31 @@ describe("rescheduleTaskOccurrence", () => {
       projectId: "project-1",
       scheduleRevision: 8,
     });
-    taskScheduleServiceMock.rescheduleOccurrence.mockResolvedValue({
+    taskScheduleServiceMock.mutateOccurrence.mockResolvedValue({
       scheduleRevision: 4,
       occurrence: { id: "occurrence-1" },
     });
-    const { rescheduleTaskOccurrence } = await import("./action");
+    const { mutateTaskOccurrence } = await import("./action");
 
-    const result = await rescheduleTaskOccurrence({
+    const result = await mutateTaskOccurrence({
       taskId: "task-1",
       occurrenceId: "occurrence-1",
       operationId,
       expectedScheduleRevision: 3,
+      action: "reschedule",
       scheduledAt,
     });
 
     expect(taskServiceMock.getTaskById).toHaveBeenCalledWith("task-1");
-    expect(taskScheduleServiceMock.rescheduleOccurrence).toHaveBeenCalledWith(
+    expect(taskScheduleServiceMock.mutateOccurrence).toHaveBeenCalledWith(
       "task-1",
       "occurrence-1",
-      { operationId, expectedScheduleRevision: 3 },
-      new Date(scheduledAt),
+      {
+        operationId,
+        expectedScheduleRevision: 3,
+        action: "reschedule",
+        scheduledAt: new Date(scheduledAt),
+      },
     );
     expect(result).toEqual({
       ok: true,
@@ -1674,20 +1725,21 @@ describe("rescheduleTaskOccurrence", () => {
       scheduleRevision: 3,
     });
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
-    taskScheduleServiceMock.rescheduleOccurrence.mockRejectedValue(
+    taskScheduleServiceMock.mutateOccurrence.mockRejectedValue(
       new CoreApiRequestError("Only a future unreleased occurrence can move", {
         status: 409,
         kind: "schedule_occurrence_not_reschedulable",
       }),
     );
-    const { rescheduleTaskOccurrence } = await import("./action");
+    const { mutateTaskOccurrence } = await import("./action");
 
     await expect(
-      rescheduleTaskOccurrence({
+      mutateTaskOccurrence({
         taskId: "task-1",
         occurrenceId: "occurrence-1",
         operationId,
         expectedScheduleRevision: 3,
+        action: "reschedule",
         scheduledAt,
       }),
     ).resolves.toEqual({
@@ -1697,18 +1749,58 @@ describe("rescheduleTaskOccurrence", () => {
   });
 
   it("requires a UUID operation identity before reading the task", async () => {
-    const { rescheduleTaskOccurrence } = await import("./action");
+    const { mutateTaskOccurrence } = await import("./action");
 
     await expect(
-      rescheduleTaskOccurrence({
+      mutateTaskOccurrence({
         taskId: "task-1",
         occurrenceId: "occurrence-1",
         operationId: "not-a-uuid",
         expectedScheduleRevision: 3,
+        action: "reschedule",
         scheduledAt,
       }),
     ).rejects.toThrow("Operation ID must be a UUID");
     expect(taskServiceMock.getTaskById).not.toHaveBeenCalled();
-    expect(taskScheduleServiceMock.rescheduleOccurrence).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.mutateOccurrence).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { action: "skip" as const },
+    { action: "restore" as const },
+    { action: "restore" as const, scheduledAt },
+  ])("forwards an $action occurrence mutation", async (mutation) => {
+    taskServiceMock.getTaskById.mockResolvedValue({
+      id: "task-1",
+      scheduleRevision: 3,
+    });
+    taskScheduleServiceMock.mutateOccurrence.mockResolvedValue({
+      scheduleRevision: 4,
+      occurrence: { id: "occurrence-1" },
+    });
+    const { mutateTaskOccurrence } = await import("./action");
+
+    await mutateTaskOccurrence({
+      taskId: "task-1",
+      occurrenceId: "occurrence-1",
+      operationId,
+      expectedScheduleRevision: 3,
+      ...mutation,
+    });
+
+    expect(taskScheduleServiceMock.mutateOccurrence).toHaveBeenCalledWith(
+      "task-1",
+      "occurrence-1",
+      {
+        operationId,
+        expectedScheduleRevision: 3,
+        ...(mutation.scheduledAt
+          ? {
+              action: mutation.action,
+              scheduledAt: new Date(mutation.scheduledAt),
+            }
+          : { action: mutation.action }),
+      },
+    );
   });
 });

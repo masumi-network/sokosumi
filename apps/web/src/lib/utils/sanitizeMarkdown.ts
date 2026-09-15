@@ -51,7 +51,7 @@ function restoreFencedCodeBlocks(
 }
 
 // Handles markdown replacements for custom rules
-export function handleMarkdownReplaces(markdown: string): string {
+function handleMarkdownReplaces(markdown: string): string {
   // Replace lines containing only three or more dashes, asterisks, or underscores (with optional spaces) with '___'
   return markdown.replace(/^( {0,3}(([-*_])\s?){3,})$/gm, "\n___\n");
 }

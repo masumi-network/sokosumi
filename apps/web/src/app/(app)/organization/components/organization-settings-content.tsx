@@ -12,7 +12,7 @@ import { OrganizationSeatSummaryCard } from "@/app/organizations/[organizationSl
 import { OrganizationVendorGrants } from "@/app/organizations/[organizationSlug]/components/organization-vendor-grants";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
-import { MembersTable } from "@/components/members-table";
+import MembersTable from "@/components/members-table/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { coreClient } from "@/lib/clients/core.client";
 import type {

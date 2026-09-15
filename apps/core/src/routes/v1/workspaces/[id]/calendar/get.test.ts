@@ -206,7 +206,7 @@ describe("GET /workspaces/{id}/calendar", () => {
           taskId: "tsk_history",
           taskName: "Released task",
           canEditSchedule: false,
-          canMoveOccurrence: false,
+          canMutateOccurrence: false,
           scheduleRevision: 3,
           taskStatus: "QUEUED",
           taskAssigneeId: null,
@@ -265,7 +265,7 @@ describe("GET /workspaces/{id}/calendar", () => {
       expect.objectContaining({
         taskId: "tsk_other",
         canEditSchedule: false,
-        canMoveOccurrence: false,
+        canMutateOccurrence: false,
       }),
     ]);
   });
@@ -288,8 +288,32 @@ describe("GET /workspaces/{id}/calendar", () => {
       expect.objectContaining({
         taskId: "tsk_history",
         canEditSchedule: true,
-        canMoveOccurrence: true,
+        canMutateOccurrence: true,
         state: "PLANNED",
+      }),
+    ]);
+  });
+
+  it("returns an owner skipped occurrence as restorable", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({ state: TaskScheduleOccurrenceState.SKIPPED }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(WORKSPACE_ID, "user_123", {
+      from: new Date(FROM),
+      scope: "workspace",
+      to: new Date(TO),
+      cursor: null,
+      requestedCursor: null,
+      limit: 20,
+    });
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        taskId: "tsk_history",
+        canEditSchedule: true,
+        canMutateOccurrence: true,
+        state: "SKIPPED",
       }),
     ]);
   });
@@ -304,7 +328,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("excludes skipped and canceled occurrences", async () => {
+  it("includes skipped and excludes canceled occurrences", async () => {
     const response = await requestCalendar(createApp());
 
     expect(response.status).toBe(200);
@@ -314,6 +338,7 @@ describe("GET /workspaces/{id}/calendar", () => {
           state: {
             in: [
               TaskScheduleOccurrenceState.PLANNED,
+              TaskScheduleOccurrenceState.SKIPPED,
               TaskScheduleOccurrenceState.RELEASED,
             ],
           },
@@ -325,6 +350,7 @@ describe("GET /workspaces/{id}/calendar", () => {
         state: {
           in: [
             TaskScheduleOccurrenceState.PLANNED,
+            TaskScheduleOccurrenceState.SKIPPED,
             TaskScheduleOccurrenceState.RELEASED,
           ],
         },
@@ -464,7 +490,12 @@ describe("GET /workspaces/{id}/calendar", () => {
     const occurrenceTaskFilter = {
       OR: [
         {
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: {
+            in: [
+              TaskScheduleOccurrenceState.PLANNED,
+              TaskScheduleOccurrenceState.SKIPPED,
+            ],
+          },
           seriesTask: { is: taskFilter },
         },
         {
@@ -739,12 +770,12 @@ describe("GET /workspaces/{id}/calendar", () => {
       expect.arrayContaining([
         expect.objectContaining({
           taskId: "tsk_v1",
-          canMoveOccurrence: false,
+          canMutateOccurrence: false,
           sourceType: "WORKSPACE",
         }),
         expect.objectContaining({
           taskId: "tsk_v2",
-          canMoveOccurrence: true,
+          canMutateOccurrence: true,
           scheduledAt: "2026-06-03T10:00:00.000Z",
           originalScheduledAt: "2026-06-03T09:00:00.000Z",
           sourceType: "PROJECT",
@@ -752,7 +783,7 @@ describe("GET /workspaces/{id}/calendar", () => {
         }),
         expect.objectContaining({
           taskId: "tsk_v1_once",
-          canMoveOccurrence: true,
+          canMutateOccurrence: true,
         }),
       ]),
     );

@@ -27,26 +27,22 @@ import {
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
-import { taskScheduleInputSchema } from "@/schemas/task-schedule.schema";
+import {
+  calendarTaskScheduleSourceSchema,
+  taskScheduleInputSchema,
+} from "@/schemas/task-schedule.schema";
 import {
   createScheduledTaskInTransaction,
   findScheduledTaskCreateOperation,
   requireScheduledTaskCreator,
+  requireScheduledTaskCreatorOrRequestGrant,
 } from "@/services/task-schedule-create.service";
 import { taskInclude } from "@/types/task";
-
-const scheduledTaskSourceSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("workspace") }),
-  z.object({
-    type: z.literal("project"),
-    projectId: z.string().uuid(),
-  }),
-]);
 
 export const createScheduledTaskRequestSchema = z
   .object({
     operationId: z.string().uuid(),
-    source: scheduledTaskSourceSchema,
+    source: calendarTaskScheduleSourceSchema,
     name: z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH).optional(),
     description: z.string().nullish(),
     assigneeId: z.string().min(1).nullish(),
@@ -100,13 +96,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const body = c.req.valid("json");
-    const preflightCreator = await requireScheduledTaskCreator(
+    await requireAssignedOrganizationSeat(
+      userContext.userId,
+      workspaceContext.organizationId,
+    );
+    const preflightCreator = await requireScheduledTaskCreatorOrRequestGrant(
       c.var.authContext,
       workspaceContext.workspaceId,
-    );
-    await requireAssignedOrganizationSeat(
-      preflightCreator.userContext.userId,
-      workspaceContext.organizationId,
     );
     const scheduledTaskInput = {
       creator: preflightCreator,

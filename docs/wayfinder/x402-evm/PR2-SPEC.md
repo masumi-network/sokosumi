@@ -5,7 +5,7 @@
 > specced. Substrate: [ADR 0001](../../adr/0001-x402-evm-payment-rail.md)
 > (Accepted 2026-08-11) — this spec does not restate it; it binds the ADR's
 > decisions to concrete schema, flow, and rollout. All former node unknowns
-> are resolved ([NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`).
+> are resolved ([ADR 0001](../../adr/0001-x402-evm-payment-rail.md)).
 
 ## 1. Scope
 

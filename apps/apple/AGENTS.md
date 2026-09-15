@@ -47,7 +47,7 @@ Read [README.md](README.md#architecture-and-navigation) for the dependency map a
 
 ## App-Specific Commands
 
-Xcode 26+ required (`swift-tools-version: 6.2`). Install pinned lint tooling once from this directory (Mint itself comes from Homebrew; the tool versions come from `Mintfile`):
+Xcode 27+ required (`swift-tools-version: 6.4`). Install pinned lint tooling once from this directory (Mint itself comes from Homebrew; the tool versions come from `Mintfile`):
 
 ```bash
 brew install mint && mint bootstrap
@@ -75,7 +75,7 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 
 - Swift package tests run via `swift test --package-path Packages/<name>`; app-target tests via `xcodebuild test -only-testing:SokosumiTests`.
 - Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `macos-26` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with that same PR/dispatch gate, plus path-filtered pushes to `main` so the Mint binary cache is saved on the default branch.
+- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `xcode-27` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with that same PR/dispatch gate, plus path-filtered pushes to `main` so the Mint binary cache is saved on the default branch.
 
 ## App-Specific Gotchas
 
@@ -85,6 +85,8 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 - **Hop `@Published` writes off the current view update.** `List(selection:)` setters, `onScrollGeometryChange` / preference callbacks, `onAppear`, and `onChange` schedule `Task { @MainActor in … }` before calling `WorkspaceState` / `AuthState`. Button and Menu actions publish in place. The models stay synchronous so tests call them directly. Lint and `xcodebuild test` do not catch this; a debug run's Issue navigator (purple SwiftUI) or `/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.apple.runtime-issues" AND process == "Sokosumi"'` does. A burst of the same fault in one millisecond is this pattern.
 
 ### Interactive signing
+
+Stop each agent-launched app after its interactive check and before launching another variant. After tests, verify no test-host app remains running; close only instances launched by this task. Do not leave multiple test builds open.
 
 For interactive launches use the configured Apple Development identity and team `Y3ZJFLUYRB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=Y3ZJFLUYRB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
 

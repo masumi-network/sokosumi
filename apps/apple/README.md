@@ -4,7 +4,7 @@ Native SwiftUI chat for macOS 26. iOS 17+ is planned; there is no iOS app target
 
 ## Build and run
 
-Open `Sokosumi.xcodeproj`, select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 26+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
+Open `Sokosumi.xcodeproj`, select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
 
 Configuration resolves environment variables before the corresponding Info.plist keys:
 

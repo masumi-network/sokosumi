@@ -106,7 +106,7 @@ export function AgentDetail({
   );
 }
 
-export function AgentDetailSkeleton({
+function AgentDetailSkeleton({
   className,
 }: {
   className?: string | undefined;

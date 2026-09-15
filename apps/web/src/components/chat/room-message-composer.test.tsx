@@ -1,9 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+  RoomComposerEmojiPicker,
 } from "./room-message-composer";
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 /**
  * True for `p-*`, `py-*`, `pt-*`, `pb-*` under any variant, bracketed ones
@@ -48,5 +55,36 @@ describe("ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME", () => {
     expect(ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME).toContain(
       "empty:before:text-ellipsis",
     );
+  });
+});
+
+describe("RoomComposerEmojiPicker", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("records the picked emoji as a use", async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(
+      <RoomComposerEmojiPicker
+        title="Emoji"
+        ariaLabel="Emoji"
+        onPick={onPick}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Emoji" }));
+    await user.type(await screen.findByRole("searchbox"), "joy");
+    await user.click(
+      await screen.findByRole("button", { name: "face with tears of joy" }),
+    );
+
+    expect(onPick).toHaveBeenCalledWith("😂");
+    expect(
+      JSON.parse(
+        window.localStorage.getItem("sokosumi.emoji-picker.recent.v1") ?? "[]",
+      ),
+    ).toEqual(["😂"]);
   });
 });

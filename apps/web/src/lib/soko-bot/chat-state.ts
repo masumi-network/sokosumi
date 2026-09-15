@@ -235,7 +235,7 @@ function toDelegation(delegation: SokoBotDelegation): ChatDelegation {
   };
 }
 
-export function toChatTurn(turn: SokoBotTurn): ChatTurn {
+function toChatTurn(turn: SokoBotTurn): ChatTurn {
   return {
     id: turn.id,
     source: turn.source,
@@ -310,7 +310,7 @@ function toSchedule(schedule: SokoBotSchedule): ChatSchedule {
   };
 }
 
-export function toChatBot(bot: SokoBot): ChatBot {
+function toChatBot(bot: SokoBot): ChatBot {
   const memory = bot.memory ?? null;
   return {
     id: bot.id,

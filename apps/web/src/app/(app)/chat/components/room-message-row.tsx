@@ -62,6 +62,7 @@ import {
   shouldShowOutboundPendingSpinner,
 } from "@/app/chat/utils/outbound-room-message";
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
+import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
 import {
   type RoomMessageFilesSegment,
   segmentRoomMessageContent,
@@ -107,6 +108,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
+import {
+  recordEmojiUse,
+  useFrequentlyUsedEmojis,
+} from "@/hooks/use-frequently-used-emojis";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import type {
@@ -121,6 +126,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
+import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
@@ -139,7 +145,10 @@ import {
   type RoomMentionParticipant,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
-import { SokoBotChainBadge } from "./soko-bot-chain-badge";
+import {
+  hasSokoBotChainBadge,
+  SokoBotChainBadge,
+} from "./soko-bot-chain-badge";
 import { SokoBotMessageFooter } from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
@@ -415,7 +424,10 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className={cn(
-        "mt-2 max-w-full rounded-md",
+        // `w-auto` so the width follows the capped height through the
+        // remembered natural size; a bare `width` attribute would keep the
+        // natural width and stretch the image flat.
+        "mt-2 w-auto max-w-full rounded-md",
         // Until the first load the box is the cap itself: link previews are
         // wide, so nearly all of them land there, and the row does not grow
         // under a reader scrolling past it.
@@ -778,11 +790,20 @@ function ChannelMessageBody({
   );
 }
 
-const QUICK_MESSAGE_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀"] as const;
+const HOVER_QUICK_REACTION_COUNT = 3;
+const SHEET_QUICK_REACTION_COUNT = 5;
 const LONG_PRESS_DELAY_MS = 450;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 12;
 const TOUCH_MESSAGE_SELECT_NONE_CLASS =
   "[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]";
+
+function readerReactedEmojis(message: ChatRoomMessage): ReadonlySet<string> {
+  return new Set(
+    message.reactions
+      .filter((reaction) => reaction.reactedByCurrentUser)
+      .map((reaction) => reaction.emoji),
+  );
+}
 
 function clearDomTextSelection() {
   window.getSelection()?.removeAllRanges();
@@ -852,6 +873,7 @@ function useLongPress(onLongPress: () => void): {
 
 function MessageActionControls({
   message,
+  quickReactions,
   onToggleReaction,
   onOpenThread,
   onQuote,
@@ -871,6 +893,7 @@ function MessageActionControls({
   onMoreOpenChange,
 }: {
   message: ChatRoomMessage;
+  quickReactions: readonly string[];
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
@@ -894,9 +917,44 @@ function MessageActionControls({
   const showCopy = Boolean(showCopyButton && onCopy);
   const showDelete = Boolean(showDeleteButton && onDelete);
   const showMore = collapseSecondary && (showPin || showCopy || showDelete);
+  const reactedEmojis = readerReactedEmojis(message);
 
   return (
     <>
+      {quickReactions.map((emoji) => {
+        const shortcode = getEmojiShortcodeName(emoji);
+        const reacted = reactedEmojis.has(emoji);
+
+        return (
+          <Button
+            key={emoji}
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "group/quick-reaction size-9 rounded-full text-sm sm:size-7",
+              reacted && "bg-primary/10 hover:bg-primary/15",
+            )}
+            title={
+              shortcode ? `:${shortcode}:` : t("Reactions.toggle", { emoji })
+            }
+            aria-label={t("Reactions.toggle", { emoji })}
+            aria-pressed={reacted}
+            onClick={() => {
+              onToggleReaction(message, emoji);
+              onAfterAction?.();
+            }}
+          >
+            {/* Only the glyph grows, so the hover circle keeps its size. */}
+            <span
+              aria-hidden
+              className="transition-transform duration-100 ease-out motion-safe:group-hover/quick-reaction:scale-115"
+            >
+              {emoji}
+            </span>
+          </Button>
+        );
+      })}
       <EmojiPicker
         title={t("Reactions.add")}
         ariaLabel={t("Reactions.add")}
@@ -1106,6 +1164,20 @@ function MessageActions({
   showDeleteButton: boolean;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const frequentlyUsedEmojis = useFrequentlyUsedEmojis();
+  const liveQuickReactions = resolveQuickReactions(
+    frequentlyUsedEmojis,
+    HOVER_QUICK_REACTION_COUNT,
+  );
+  // A reaction re-ranks the list. Hold the order the pointer found until it
+  // leaves the pill, so the emojis never shift under it.
+  const [heldQuickReactions, setHeldQuickReactions] = useState<
+    readonly string[] | null
+  >(null);
+
+  function holdQuickReactionOrder() {
+    setHeldQuickReactions((held) => held ?? liveQuickReactions);
+  }
 
   return (
     <div
@@ -1115,10 +1187,15 @@ function MessageActions({
         "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
         moreOpen && "[@media(hover:hover)]:opacity-100",
       )}
+      onPointerEnter={holdQuickReactionOrder}
+      onPointerLeave={() => {
+        setHeldQuickReactions(null);
+      }}
     >
       <SokoBotChainBadge metadata={message.metadata} />
       <MessageActionControls
         message={message}
+        quickReactions={heldQuickReactions ?? liveQuickReactions}
         onToggleReaction={onToggleReaction}
         onOpenThread={onOpenThread}
         onQuote={onQuote}
@@ -1321,6 +1398,12 @@ function TouchMessageActionsSheet({
     }
     return [{ emoji: reaction.emoji, whoReactedLabel }];
   });
+  const frequentlyUsedEmojis = useFrequentlyUsedEmojis();
+  const quickReactions = resolveQuickReactions(
+    frequentlyUsedEmojis,
+    SHEET_QUICK_REACTION_COUNT,
+  );
+  const reactedEmojis = readerReactedEmojis(message);
 
   function runAndClose(action: () => void) {
     action();
@@ -1352,14 +1435,18 @@ function TouchMessageActionsSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="flex flex-wrap items-center justify-center gap-2 px-4 pb-4">
-          {QUICK_MESSAGE_REACTIONS.map((emoji) => (
+          {quickReactions.map((emoji) => (
             <Button
               key={emoji}
               type="button"
               variant="ghost"
               size="icon"
-              className="size-11 rounded-full text-xl"
+              className={cn(
+                "size-11 rounded-full text-xl",
+                reactedEmojis.has(emoji) && "bg-primary/10 hover:bg-primary/15",
+              )}
               aria-label={t("Reactions.toggle", { emoji })}
+              aria-pressed={reactedEmojis.has(emoji)}
               onClick={() => {
                 runAndClose(() => {
                   onToggleReaction(message, emoji);
@@ -2225,6 +2312,31 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     setDeleteDialogOpen(false);
   }
 
+  // The parent drops a repeat click while the first toggle is in flight, so
+  // a use counts once per emoji until the message's reactions change.
+  const recordedUsesRef = useRef<{
+    reactions: ChatRoomMessage["reactions"];
+    emojis: Set<string>;
+  } | null>(null);
+
+  // Every reaction path in the row (pill, sheet, picker, existing chips) lands
+  // here, so adding one teaches the quick reactions. Removing one does not.
+  function handleToggleReaction(target: ChatRoomMessage, emoji: string) {
+    if (!readerReactedEmojis(target).has(emoji)) {
+      if (recordedUsesRef.current?.reactions !== target.reactions) {
+        recordedUsesRef.current = {
+          reactions: target.reactions,
+          emojis: new Set(),
+        };
+      }
+      if (!recordedUsesRef.current.emojis.has(emoji)) {
+        recordedUsesRef.current.emojis.add(emoji);
+        recordEmojiUse(emoji);
+      }
+    }
+    onToggleReaction(target, emoji);
+  }
+
   return (
     <article
       id={`message-${message.id}`}
@@ -2236,7 +2348,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // paints outside the row, so the scroller cannot clip it. The styling
         // itself lives in globals.css, keyed on data-search-landed.
         "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
-        reserveHoverActionGutter && "[@media(hover:hover)]:pr-48",
+        // Sized to the widest pill: eight buttons, or the chain badge plus seven.
+        reserveHoverActionGutter &&
+          (hasSokoBotChainBadge(message.metadata)
+            ? "[@media(hover:hover)]:pr-72"
+            : "[@media(hover:hover)]:pr-64"),
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -2483,7 +2599,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         {!isEditing ? (
           <MessageMetaFooter
             message={message}
-            onToggleReaction={onToggleReaction}
+            onToggleReaction={handleToggleReaction}
             onOpenThread={onOpenThread}
             showThreadButton={showThreadButton && !isOutboundLocal}
             isDeleted={isDeleted}
@@ -2507,7 +2623,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           {interacted ? (
             <MessageActions
               message={message}
-              onToggleReaction={onToggleReaction}
+              onToggleReaction={handleToggleReaction}
               onOpenThread={onOpenThread}
               onQuote={onQuote}
               onPin={onPin}
@@ -2528,7 +2644,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               open={sheetOpen}
               onOpenChange={setSheetOpen}
               message={message}
-              onToggleReaction={onToggleReaction}
+              onToggleReaction={handleToggleReaction}
               onOpenThread={onOpenThread}
               onQuote={onQuote}
               onPin={onPin}

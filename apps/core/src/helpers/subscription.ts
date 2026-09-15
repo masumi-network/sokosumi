@@ -1,11 +1,15 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import { creditBucketActivatesAtOrBefore } from "@sokosumi/database/helpers";
+import {
+  creditBucketActivatesAtOrBefore,
+  resolveOrganizationBillingPlan,
+} from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
+import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary";
 import { getCredits } from "@/helpers/user";
 
 interface SubscriptionPeriodRecord {
@@ -115,33 +119,71 @@ export async function getCurrentSubscriptionCredits(params: {
       };
 
   const currentPeriodBucketWhere = {
-    AND: [creditBucketActivatesAtOrBefore(now), currentPeriodBucketScope],
+    AND: [
+      creditBucketActivatesAtOrBefore(now),
+      currentPeriodBucketScope,
+      // Period scope already requires expiresAt in (periodStart, periodEnd].
+      { expiresAt: { gt: now } },
+    ],
   };
 
-  const totalAggregateResult = await params.tx.creditBucket.aggregate({
-    _sum: {
+  const buckets = await params.tx.creditBucket.findMany({
+    select: {
       amount: true,
+      id: true,
     },
     where: currentPeriodBucketWhere,
   });
-  const usedAggregateResult = await params.tx.creditConsumption.aggregate({
-    _sum: {
-      amount: true,
-    },
-    where: {
-      createdAt: {
-        gte: period.periodStart,
-        lt: now,
-      },
-      bucket: {
-        is: currentPeriodBucketWhere,
-      },
-    },
-  });
 
-  const normalizedCents = normalizeSubscriptionCents(
-    totalAggregateResult._sum.amount ?? 0n,
-    usedAggregateResult._sum.amount ?? 0n,
+  if (buckets.length === 0) {
+    return {
+      remaining: 0,
+      total: 0,
+      used: 0,
+    };
+  }
+
+  const bucketIds = buckets.map((bucket) => bucket.id);
+  const [lifetimeUsedRows, periodUsedRows] = await Promise.all([
+    params.tx.creditConsumption.groupBy({
+      by: ["bucketId"],
+      where: {
+        bucketId: { in: bucketIds },
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+    params.tx.creditConsumption.groupBy({
+      by: ["bucketId"],
+      where: {
+        bucketId: { in: bucketIds },
+        createdAt: {
+          gte: period.periodStart,
+          lt: now,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+  ]);
+
+  const lifetimeUsedByBucketId = new Map(
+    lifetimeUsedRows.map((row) => [row.bucketId, row._sum.amount ?? 0n]),
+  );
+  const periodUsedByBucketId = new Map(
+    periodUsedRows.map((row) => [row.bucketId, row._sum.amount ?? 0n]),
+  );
+
+  const normalizedCents = summarizeCurrentPeriodSubscriptionBuckets(
+    buckets.map((bucket) =>
+      currentPeriodBucketContribution(
+        bucket.amount,
+        lifetimeUsedByBucketId.get(bucket.id) ?? 0n,
+        periodUsedByBucketId.get(bucket.id) ?? 0n,
+      ),
+    ),
   );
 
   return {
@@ -149,6 +191,35 @@ export async function getCurrentSubscriptionCredits(params: {
     used: convertCentsToCredits(normalizedCents.usedCents),
     remaining: convertCentsToCredits(normalizedCents.remainingCents),
   };
+}
+
+function currentPeriodBucketContribution(
+  amountCents: bigint,
+  lifetimeUsedCents: bigint,
+  periodUsedCents: bigint,
+): { remainingCents: bigint; usedThisPeriodCents: bigint } {
+  const amount = amountCents > 0n ? amountCents : 0n;
+  const lifetimeUsed = lifetimeUsedCents > 0n ? lifetimeUsedCents : 0n;
+  const periodUsed = periodUsedCents > 0n ? periodUsedCents : 0n;
+  const lifetimeCapped = lifetimeUsed > amount ? amount : lifetimeUsed;
+  const remainingCents = amount - lifetimeCapped;
+  const usedThisPeriodCents =
+    periodUsed > lifetimeCapped ? lifetimeCapped : periodUsed;
+
+  return { remainingCents, usedThisPeriodCents };
+}
+
+function summarizeCurrentPeriodSubscriptionBuckets(
+  buckets: Array<{ remainingCents: bigint; usedThisPeriodCents: bigint }>,
+): NormalizedSubscriptionCents {
+  let remainingCents = 0n;
+  let usedCents = 0n;
+  for (const bucket of buckets) {
+    remainingCents += bucket.remainingCents;
+    usedCents += bucket.usedThisPeriodCents;
+  }
+
+  return normalizeSubscriptionCents(remainingCents + usedCents, usedCents);
 }
 
 export function getCreditSummary(params: {
@@ -197,32 +268,41 @@ export interface CreditsPayload {
   total: number;
 }
 
+interface CreditAmountPayload {
+  remaining: number;
+  total: number;
+  used: number;
+}
+
+interface CreditBucketPayload {
+  expiresAt: Date | null;
+  remaining: number;
+  total: number;
+}
+
 export interface CreditsApiPayload {
+  scope: "organization" | "personal";
+  spendable: number;
   subscription: ReturnType<typeof mapSubscription>;
   extra: {
-    credits: {
-      total: number;
-      remaining: number;
-      used: number;
-    };
-    buckets: Array<{
-      total: number;
-      remaining: number;
-      expiresAt: Date | null;
-    }>;
+    credits: CreditAmountPayload;
+    buckets: CreditBucketPayload[];
     enterprise: {
-      credits: {
-        total: number;
-        remaining: number;
-        used: number;
-      };
-      buckets: Array<{
-        total: number;
-        remaining: number;
-        expiresAt: Date | null;
-      }>;
+      credits: CreditAmountPayload;
+      buckets: CreditBucketPayload[];
     } | null;
   };
+  enterprise: {
+    activatedAt: Date;
+    buckets: CreditBucketPayload[];
+    credits: CreditAmountPayload;
+    currentPeriodEnd: Date | null;
+    endsAt: Date;
+    isConsumable: boolean;
+    monthlyCredits: number | null;
+    nextActivationAt: Date | null;
+    purchasedSeats: number;
+  } | null;
   credits: CreditsPayload;
 }
 
@@ -335,6 +415,8 @@ export async function buildCreditsPayload(params: {
   };
 
   return {
+    scope: params.organizationId ? "organization" : "personal",
+    spendable: total,
     subscription,
     extra: {
       credits: {
@@ -345,6 +427,48 @@ export async function buildCreditsPayload(params: {
       buckets,
       enterprise,
     },
+    enterprise: await resolveEnterpriseWallet({
+      extraEnterprise: enterprise,
+      organizationId: params.organizationId,
+      tx: params.tx,
+    }),
     credits,
+  };
+}
+
+async function resolveEnterpriseWallet(params: {
+  extraEnterprise: CreditsApiPayload["extra"]["enterprise"];
+  organizationId: string | null;
+  tx: Prisma.TransactionClient;
+}): Promise<CreditsApiPayload["enterprise"]> {
+  if (!params.organizationId) {
+    return null;
+  }
+
+  const billingPlan = await resolveOrganizationBillingPlan(
+    params.organizationId,
+    params.tx,
+  );
+  if (billingPlan.mode !== "enterprise_contract") {
+    return null;
+  }
+
+  const summary = await getEnterpriseContractBillingSummary(
+    billingPlan,
+    params.organizationId,
+    params.tx,
+  );
+  const emptyCredits = { remaining: 0, total: 0, used: 0 };
+
+  return {
+    activatedAt: summary.activatedAt,
+    buckets: params.extraEnterprise?.buckets ?? [],
+    credits: params.extraEnterprise?.credits ?? emptyCredits,
+    currentPeriodEnd: summary.currentPeriodEnd,
+    endsAt: summary.endsAt,
+    isConsumable: summary.isConsumable,
+    monthlyCredits: summary.monthlyCredits,
+    nextActivationAt: summary.nextActivationAt,
+    purchasedSeats: summary.purchasedSeats,
   };
 }

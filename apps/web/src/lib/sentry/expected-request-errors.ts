@@ -11,7 +11,7 @@ const NEXT_ROUTER_HOOKS_MISMATCH =
 
 /** Next.js masks real RSC failures in production; the client surfaces them as
  * unhandled rejections without actionable detail (SOKOSUMI-W on `/agents`). */
-export const MASKED_PRODUCTION_RSC_RENDER_ERROR =
+const MASKED_PRODUCTION_RSC_RENDER_ERROR =
   /an error occurred in the server components render/i;
 
 function getThrownErrorMessage(error: unknown): string {
@@ -65,7 +65,7 @@ function getEventTransaction(event: ErrorEvent): string {
  * to Core. Preview deployments still on the old handler (or bots replaying the
  * path) can throw Prisma auth DB errors (SOKOSUMI-Q0).
  */
-export function isLegacyWebAuthPrismaNoise(event: ErrorEvent): boolean {
+function isLegacyWebAuthPrismaNoise(event: ErrorEvent): boolean {
   if (getEventErrorType(event) !== "PrismaClientKnownRequestError") {
     return false;
   }
@@ -155,7 +155,7 @@ export function isExpectedAuthRequestError(error: unknown): boolean {
  * Sentry's defaults only cover `simulateEvent`; production also reports
  * `update` (see SOKOSUMI-PM on `/oauth/consent`).
  */
-export const browserExtensionIgnoreErrors: RegExp[] = [
+const browserExtensionIgnoreErrors: RegExp[] = [
   /Object Not Found Matching Id:\d+, MethodName:update/,
 ];
 
@@ -164,10 +164,6 @@ export const expectedClientNoiseIgnoreErrors: RegExp[] = [
   MASKED_PRODUCTION_RSC_RENDER_ERROR,
   ...browserExtensionIgnoreErrors,
 ];
-
-export function isMaskedProductionRscRenderError(message: string): boolean {
-  return MASKED_PRODUCTION_RSC_RENDER_ERROR.test(message);
-}
 
 export function isExpectedClientNoiseErrorMessage(message: string): boolean {
   return expectedClientNoiseIgnoreErrors.some((pattern) =>

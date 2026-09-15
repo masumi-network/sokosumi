@@ -77,6 +77,16 @@ export const taskScheduleInputSchema = z
   ])
   .openapi("TaskScheduleInput");
 
+export const calendarTaskScheduleSourceSchema = z
+  .discriminatedUnion("type", [
+    z.object({ type: z.literal("workspace") }),
+    z.object({
+      type: z.literal("project"),
+      projectId: z.string().uuid(),
+    }),
+  ])
+  .openapi("CalendarTaskScheduleSource");
+
 /**
  * The Calendar series contract: every full-series edit carries its own
  * idempotency identity, the revision it observed, and an explicit confirmation
@@ -101,6 +111,34 @@ export const putCalendarTaskScheduleRequestSchema = z
   })
   .openapi("PutCalendarTaskScheduleRequest");
 
+export const putCalendarTaskScheduleSourceRequestSchema = z
+  .object({
+    operationId: z.string().uuid().openapi({
+      description: "Idempotency identity for this source move",
+      example: "123e4567-e89b-42d3-a456-426614174000",
+    }),
+    expectedScheduleRevision: z.number().int().nonnegative().openapi({
+      description: "Schedule revision observed by the caller",
+      example: 3,
+    }),
+    discardFutureExceptions: z.literal(true).openapi({
+      description:
+        "Confirms that future occurrence exceptions from the old source may be canceled",
+      example: true,
+    }),
+    source: calendarTaskScheduleSourceSchema,
+  })
+  .openapi("PutCalendarTaskScheduleSourceRequest");
+
+export const taskScheduleSourceMutationSchema = z
+  .object({
+    previousSource: calendarTaskScheduleSourceSchema,
+    source: calendarTaskScheduleSourceSchema,
+    scheduleRevision: z.number().int().nonnegative(),
+    canceledFutureExceptionCount: z.number().int().nonnegative(),
+  })
+  .openapi("TaskScheduleSourceMutation");
+
 /**
  * Legacy `PUT /tasks/{id}/schedule` body. The revision-safe Calendar envelope
  * belongs exclusively to `/calendar-schedule`; accepting it here would discard
@@ -111,6 +149,10 @@ export const putTaskScheduleRequestSchema = taskScheduleInputSchema.openapi(
 );
 
 export type TaskScheduleInput = z.infer<typeof taskScheduleInputSchema>;
+
+export type CalendarTaskScheduleSource = z.infer<
+  typeof calendarTaskScheduleSourceSchema
+>;
 
 export type PutCalendarTaskScheduleRequest = z.infer<
   typeof putCalendarTaskScheduleRequestSchema

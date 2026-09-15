@@ -15,6 +15,7 @@ import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
+import { recordEmojiUse } from "@/hooks/use-frequently-used-emojis";
 import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
@@ -236,7 +237,10 @@ export function RoomComposerEmojiPicker({
 }: RoomComposerEmojiPickerProps) {
   return (
     <EmojiPicker
-      onPick={onPick}
+      onPick={(emoji) => {
+        recordEmojiUse(emoji);
+        onPick(emoji);
+      }}
       title={title}
       ariaLabel={ariaLabel}
       align="start"

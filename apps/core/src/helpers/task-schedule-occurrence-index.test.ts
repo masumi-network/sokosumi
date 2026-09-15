@@ -291,6 +291,208 @@ describe("createTaskSchedulePlannedOccurrences", () => {
   });
 });
 
+describe("replaceTaskSchedulePlannedOccurrences finite release capacity", () => {
+  it("projects a replacement without increasing the persisted release target", async () => {
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([
+        { originalScheduledAt: new Date("2026-06-02T09:00:00.000Z") },
+      ])
+      .mockResolvedValueOnce([]);
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+    const schedule = {
+      version: 2 as const,
+      epochId: "33333333-3333-7333-8333-333333333333",
+      mode: "recurring" as const,
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "after" as const,
+      targetReleaseCount: 3,
+      anchorAt: "2026-06-01T08:00:00.000Z",
+      epochReleaseCount: 0,
+    };
+    const now = new Date("2026-06-01T08:30:00.000Z");
+
+    await replaceTaskSchedulePlannedOccurrences(
+      {
+        taskScheduleOccurrence: {
+          findMany,
+          createMany,
+          deleteMany,
+          updateMany,
+        },
+      },
+      {
+        id: "tsk_v2",
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        schedule,
+        nextRunAt: new Date("2026-06-01T09:00:00.000Z"),
+      },
+      now,
+    );
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        seriesTaskId: "tsk_v2",
+        epochId: schedule.epochId,
+        state: "SKIPPED",
+        originalScheduledAt: {
+          gt: new Date("2026-06-01T08:00:00.000Z"),
+        },
+      },
+      select: { originalScheduledAt: true },
+    });
+    expect(createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          originalScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
+          ruleSnapshot: schedule,
+        }),
+      ]),
+      skipDuplicates: true,
+    });
+    expect(createMany.mock.calls[0][0].data).toHaveLength(4);
+  });
+
+  it("keeps replacement capacity for skipped rows that remain after a restore", async () => {
+    const schedule = {
+      version: 2 as const,
+      epochId: "33333333-3333-7333-8333-333333333333",
+      mode: "recurring" as const,
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "after" as const,
+      targetReleaseCount: 3,
+      anchorAt: "2026-06-01T08:00:00.000Z",
+      epochReleaseCount: 0,
+    };
+    const now = new Date("2026-06-01T08:30:00.000Z");
+    const plannedRow = (day: number) => ({
+      id: `occ_${day}`,
+      epochId: schedule.epochId,
+      state: "PLANNED" as const,
+      scheduleVersion: 2,
+      originalScheduledAt: new Date(`2026-06-0${day}T09:00:00.000Z`),
+      effectiveScheduledAt: new Date(`2026-06-0${day}T09:00:00.000Z`),
+      sourceWorkspaceId: WORKSPACE_ID,
+      sourceType: "WORKSPACE" as const,
+      sourceProjectId: null,
+      sourceAccuracy: "EXACT" as const,
+      timeAccuracy: "EXACT" as const,
+    });
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([
+        { originalScheduledAt: new Date("2026-06-02T09:00:00.000Z") },
+      ])
+      .mockResolvedValueOnce([
+        plannedRow(1),
+        plannedRow(3),
+        plannedRow(4),
+        plannedRow(5),
+      ]);
+    const createMany = vi.fn().mockResolvedValue({ count: 0 });
+    const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+
+    await replaceTaskSchedulePlannedOccurrences(
+      {
+        taskScheduleOccurrence: {
+          findMany,
+          createMany,
+          deleteMany,
+          updateMany,
+        },
+      },
+      {
+        id: "tsk_v2",
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        schedule,
+        nextRunAt: new Date("2026-06-01T09:00:00.000Z"),
+      },
+      now,
+    );
+
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["occ_5"] } },
+    });
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+          ruleSnapshot: schedule,
+        }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("projects remaining releases after a skipped occurrence becomes overdue", async () => {
+    const schedule = {
+      version: 2 as const,
+      epochId: "33333333-3333-7333-8333-333333333333",
+      mode: "recurring" as const,
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "after" as const,
+      targetReleaseCount: 3,
+      anchorAt: "2026-06-01T08:00:00.000Z",
+      epochReleaseCount: 1,
+      lastProcessedSourceAt: "2026-06-01T09:00:00.000Z",
+    };
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([
+        { originalScheduledAt: new Date("2026-06-02T09:00:00.000Z") },
+      ])
+      .mockResolvedValueOnce([]);
+    const createMany = vi.fn().mockResolvedValue({ count: 2 });
+
+    await replaceTaskSchedulePlannedOccurrences(
+      {
+        taskScheduleOccurrence: {
+          findMany,
+          createMany,
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+      },
+      {
+        id: "tsk_v2",
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        schedule,
+        nextRunAt: new Date("2026-06-02T09:00:00.000Z"),
+      },
+      new Date("2026-06-02T12:00:00.000Z"),
+    );
+
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
+          ruleSnapshot: schedule,
+        }),
+        expect.objectContaining({
+          originalScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
+          ruleSnapshot: schedule,
+        }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+});
+
 describe("replaceTaskSchedulePlannedOccurrences", () => {
   it("rejects schedules that exceed the indexed occurrence limit", async () => {
     const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
@@ -423,19 +625,22 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
     const createMany = vi.fn().mockResolvedValue({ count: 1 });
     const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-    const findMany = vi.fn().mockResolvedValue([
-      {
-        id: "00000000-0000-7000-8000-000000000001",
-        epochId,
-        state: "PLANNED",
-        scheduleVersion: 2,
-        originalScheduledAt,
-        effectiveScheduledAt: originalScheduledAt,
-        sourceWorkspaceId: WORKSPACE_ID,
-        sourceType: "PROJECT",
-        sourceProjectId: "00000000-0000-7000-8000-000000000099",
-      },
-    ]);
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "00000000-0000-7000-8000-000000000001",
+          epochId,
+          state: "PLANNED",
+          scheduleVersion: 2,
+          originalScheduledAt,
+          effectiveScheduledAt: originalScheduledAt,
+          sourceWorkspaceId: WORKSPACE_ID,
+          sourceType: "PROJECT",
+          sourceProjectId: "00000000-0000-7000-8000-000000000099",
+        },
+      ]);
 
     await replaceTaskSchedulePlannedOccurrences(
       {

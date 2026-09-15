@@ -178,7 +178,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     };
     const currentSeats = seatCounts.purchasedSeats;
     const displayCredits = formatCreditsForDisplay(
-      organizationCredits.data.credits.total,
+      organizationCredits.data.spendable,
     );
     const organizationBillingPortal =
       organizationStripeCustomerId && showOrganizationBillingPortal ? (
@@ -304,7 +304,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     parseSelfServeSubscriptionPlanName(latestPersonalSubscription?.plan) ??
     "free";
   const displayCredits = formatCreditsForDisplay(
-    personalCredits.data.credits.total,
+    personalCredits.data.spendable,
   );
   const personalPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
     const plan = subscriptionCatalog[planName];

@@ -125,9 +125,6 @@ export const claimFreeCreditsWithCoupon = withSession<
     return toActionResult(ok({ url: data.url }));
   } catch (error) {
     console.error("Failed to get free credits with coupon", error);
-    // Core returns 404 (unknown coupon) or 400 (not a valid credit coupon) when
-    // the coupon cannot be validated/claimed; surface the specific
-    // invalid-coupon message instead of a generic internal error.
     if (
       error instanceof CoreApiRequestError &&
       (error.status === 400 || error.status === 404)

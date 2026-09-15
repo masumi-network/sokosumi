@@ -95,9 +95,9 @@ export const workspaceCalendarItemSchema = z
         "Whether the caller owns this Task and may edit or remove its schedule",
       example: true,
     }),
-    canMoveOccurrence: z.boolean().openapi({
+    canMutateOccurrence: z.boolean().openapi({
       description:
-        "Whether this indexed occurrence can be moved through the revision-safe occurrence contract",
+        "Whether this indexed occurrence can be changed through the revision-safe occurrence contract",
       example: true,
     }),
     scheduleRevision: z.number().int().min(0).openapi({

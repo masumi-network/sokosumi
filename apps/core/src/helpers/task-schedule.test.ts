@@ -8,6 +8,7 @@ import {
   inferLegacyIntervalDaysFromCron,
   isDueRunPastScheduleEnd,
   iterateTaskScheduleOccurrences,
+  rebuildTaskScheduleMetadataV2ForNewEpoch,
   resolveTaskScheduleRuleAnchor,
 } from "@/helpers/task-schedule";
 
@@ -113,6 +114,59 @@ describe("task-schedule helpers", () => {
       createdAt: "2026-09-02T08:00:00.000Z",
       ruleEffectiveFrom: "2026-09-02T08:00:00.000Z",
       timezone: "UTC",
+      sourceRunAt: "2099-09-24T09:00:00.000Z",
+      effectiveRunAt: "2099-09-24T09:00:00.000Z",
+    });
+  });
+
+  it("carries only the unreleased finite count into a new epoch", () => {
+    const metadata = rebuildTaskScheduleMetadataV2ForNewEpoch(
+      {
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174000",
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "after",
+        targetReleaseCount: 5,
+        epochReleaseCount: 2,
+        intervalDays: 2,
+        anchorAt: "2026-06-01T09:00:00.000Z",
+      },
+      new Date("2026-06-04T08:00:00.000Z"),
+      "123e4567-e89b-42d3-a456-426614174001",
+    );
+
+    expect(metadata).toMatchObject({
+      version: 2,
+      epochId: "123e4567-e89b-42d3-a456-426614174001",
+      targetReleaseCount: 3,
+      epochReleaseCount: 0,
+      intervalDays: 2,
+      anchorAt: "2026-06-01T09:00:00.000Z",
+    });
+  });
+
+  it("drops a one-time reschedule exception when starting a new epoch", () => {
+    const metadata = rebuildTaskScheduleMetadataV2ForNewEpoch(
+      {
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174000",
+        mode: "once",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        sourceRunAt: "2099-09-24T09:00:00.000Z",
+        effectiveRunAt: "2099-09-25T10:00:00.000Z",
+      },
+      new Date("2026-06-04T08:00:00.000Z"),
+      "123e4567-e89b-42d3-a456-426614174001",
+    );
+
+    expect(metadata).toMatchObject({
+      epochId: "123e4567-e89b-42d3-a456-426614174001",
       sourceRunAt: "2099-09-24T09:00:00.000Z",
       effectiveRunAt: "2099-09-24T09:00:00.000Z",
     });

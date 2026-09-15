@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm, SubmitButton } from "@/auth/components/form";
+import { AuthForm } from "@/auth/components/form/auth-form";
+import { SubmitButton } from "@/auth/components/form/submit-button";
 import { resetPasswordFormData } from "@/auth/reset-password/data";
 import { resetPassword } from "@/lib/auth/auth.client";
 import {

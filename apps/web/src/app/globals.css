@@ -544,11 +544,6 @@
   --fc-classic-today: var(--primary-quinary);
 }
 
-.workspace-calendar-theme[data-view="week"] {
-  --fc-classic-event: transparent;
-  --fc-classic-event-contrast: transparent;
-}
-
 @media (hover: hover) {
   .workspace-calendar-theme[data-can-create="true"]
     [role="gridcell"][data-date]:hover {
