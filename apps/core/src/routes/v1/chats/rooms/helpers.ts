@@ -2152,21 +2152,24 @@ async function createDirectRoomRecord(params: {
     sokoBotIds,
   } = params;
 
-  const [targetUsers, targetCoworkers, targetSokoBots] = await Promise.all([
+  // Sequential: Prisma forbids concurrent queries on one interactive tx (#2559).
+  const targetUsers =
     memberUserIds.length > 0
-      ? tx.user.findMany({
+      ? await tx.user.findMany({
           where: { id: { in: [...memberUserIds] } },
           select: { id: true, name: true, email: true },
         })
-      : Promise.resolve([]),
+      : [];
+  const targetCoworkers =
     coworkerIds.length > 0
-      ? tx.coworker.findMany({
+      ? await tx.coworker.findMany({
           where: { id: { in: [...coworkerIds] } },
           select: { id: true, name: true },
         })
-      : Promise.resolve([]),
+      : [];
+  const targetSokoBots =
     sokoBotIds.length > 0
-      ? tx.sokoBot.findMany({
+      ? await tx.sokoBot.findMany({
           where: { id: { in: [...sokoBotIds] } },
           select: {
             id: true,
@@ -2174,8 +2177,7 @@ async function createDirectRoomRecord(params: {
             user: { select: { name: true } },
           },
         })
-      : Promise.resolve([]),
-  ]);
+      : [];
   const usersById = new Map(targetUsers.map((user) => [user.id, user]));
   const coworkersById = new Map(
     targetCoworkers.map((coworker) => [coworker.id, coworker]),

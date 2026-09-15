@@ -56,17 +56,18 @@ jobs:
     # PR (Apple paths) or dispatch only. Skip `push` — main push exists to seed
     # the Mint cache via `lint` (PR caches are ref-scoped).
     if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
-    # Packages declare `swift-tools-version: 6.2`, which needs Xcode 26 (macOS 26).
-    runs-on: macos-26
+    # Packages declare `swift-tools-version: 6.4`, which needs Xcode 27.
+    # GitHub's Xcode 27 image is `xcode-27` (arm64). There is no `macos-27` label.
+    runs-on: xcode-27
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Select Xcode 26 toolchain
-        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
+      - name: Select Xcode 27 toolchain
+        # Image default is Xcode 27; Xcode.app is the documented alias.
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
@@ -80,7 +81,7 @@ jobs:
     # for the JS apps): build and test run in parallel, neither waits.
     needs: changes
     if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
-    runs-on: macos-26
+    runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
@@ -103,9 +104,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Select Xcode 26 toolchain
-        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
+      - name: Select Xcode 27 toolchain
+        # Image default is Xcode 27; Xcode.app is the documented alias.
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
@@ -124,6 +125,15 @@ jobs:
           if [ -d "$RUNNER_TEMP/SokosumiTests.xcresult" ]; then
             xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/SokosumiTests.xcresult"
           fi
+
+      - name: Preserve failed app test results
+        if: failure() && matrix.package == ''
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: SokosumiTests-results
+          path: ${{ runner.temp }}/SokosumiTests.xcresult
+          retention-days: 3
+          if-no-files-found: ignore
 
       - name: Test Swift package
         if: matrix.package != ''
@@ -149,16 +159,16 @@ jobs:
     # Same PR/dispatch gate as `build`/`test`, plus path-filtered `push` to
     # main so `actions/cache` saves ~/.mint on the default branch.
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Select Xcode 26 toolchain
-        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
-        run: sudo xcode-select -s "$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)/Contents/Developer"
+      - name: Select Xcode 27 toolchain
+        # Image default is Xcode 27; Xcode.app is the documented alias.
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Show Xcode version
         run: xcodebuild -version && swift --version

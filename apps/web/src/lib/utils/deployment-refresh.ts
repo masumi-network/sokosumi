@@ -1,4 +1,4 @@
-export const DEPLOYMENT_REFRESH_KEY = "deployment-refresh-retry";
+const DEPLOYMENT_REFRESH_KEY = "deployment-refresh-retry";
 
 const DEPLOYMENT_REFRESH_PARAM = "deployment-refresh";
 

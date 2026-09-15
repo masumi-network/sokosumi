@@ -2,6 +2,7 @@ import { gemoji } from "gemoji";
 
 const DEFAULT_EMOJI_RESULT_CAP = 20;
 const DEFAULT_FREQUENTLY_USED_CAP = 24;
+const DEFAULT_EMOJI_USE_LOG_CAP = 50;
 const EMOJI_QUERY_PATTERN = /^[a-z0-9_+-]*$/i;
 const FREQUENTLY_USED_SECTION_ID = "frequently-used" as const;
 
@@ -56,7 +57,7 @@ interface SearchEmojiCatalogOptions {
 }
 
 interface ListEmojiCatalogSectionsOptions {
-  frequentlyUsed?: string[];
+  frequentlyUsed?: readonly string[];
 }
 
 const EMOJI_CATEGORY_DEFINITIONS: readonly EmojiCategoryDefinition[] = [
@@ -355,17 +356,36 @@ export function matchExactEmojiShortcodeClosed(
   return { triggerStart: openIndex, end: clampedCaret, emoji };
 }
 
-/** MRU prepend + dedupe; newest first. Pure — no storage. */
-export function recordFrequentlyUsedEmoji(
-  current: readonly string[],
+/** Newest use first; repeats stay so {@link rankFrequentlyUsedEmojis} can count them. Pure — no storage. */
+export function appendEmojiUse(
+  log: readonly string[],
   emoji: string,
+  cap: number = DEFAULT_EMOJI_USE_LOG_CAP,
+): string[] {
+  return [emoji, ...log].slice(0, Math.max(0, cap));
+}
+
+/**
+ * Most used first, ties to the most recent. The log only holds the latest
+ * uses, so an emoji the reader stopped using ages out on its own.
+ */
+export function rankFrequentlyUsedEmojis(
+  log: readonly string[],
   cap: number = DEFAULT_FREQUENTLY_USED_CAP,
 ): string[] {
-  const limit = Math.max(0, cap);
-  if (limit === 0 || emoji.length === 0) return [];
+  const counts = new Map<string, number>();
+  for (const emoji of log) {
+    counts.set(emoji, (counts.get(emoji) ?? 0) + 1);
+  }
+  // Map keys keep first-seen order (most recent first) and toSorted is stable.
+  return [...counts.keys()]
+    .toSorted((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0))
+    .slice(0, Math.max(0, cap));
+}
 
-  const next = [emoji, ...current.filter((item) => item !== emoji)];
-  return next.slice(0, limit);
+/** Primary shortcode name (`+1` for 👍), or null outside the catalog. */
+export function getEmojiShortcodeName(emoji: string): string | null {
+  return EMOJI_BY_GLYPH.get(emoji)?.names[0] ?? null;
 }
 
 /** Resolve stored glyphs to catalog entries; drop unknown / duplicates. */

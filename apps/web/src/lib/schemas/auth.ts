@@ -8,11 +8,7 @@ import {
   passwordSchema,
 } from "@/lib/auth/data";
 
-export const socialProviderIdSchema = z.enum([
-  "google",
-  "microsoft",
-  "credential",
-]);
+const socialProviderIdSchema = z.enum(["google", "microsoft", "credential"]);
 export type SocialProviderId = z.infer<typeof socialProviderIdSchema>;
 
 /** Every way to sign in, for analytics (`provider` on `sign_up` / `login`). */

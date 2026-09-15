@@ -33,6 +33,7 @@ const {
   resolveTaskNameMock,
   requireAssignedOrganizationSeatMock,
   requireScheduledTaskCreatorMock,
+  requireScheduledTaskCreatorOrRequestGrantMock,
   taskFindUniqueOrThrowMock,
 } = vi.hoisted(() => ({
   createScheduledTaskInTransactionMock: vi.fn(),
@@ -46,6 +47,7 @@ const {
   resolveTaskNameMock: vi.fn(),
   requireAssignedOrganizationSeatMock: vi.fn(),
   requireScheduledTaskCreatorMock: vi.fn(),
+  requireScheduledTaskCreatorOrRequestGrantMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
 }));
 
@@ -83,6 +85,8 @@ vi.mock("@/services/task-schedule-create.service", () => ({
   createScheduledTaskInTransaction: createScheduledTaskInTransactionMock,
   findScheduledTaskCreateOperation: findScheduledTaskCreateOperationMock,
   requireScheduledTaskCreator: requireScheduledTaskCreatorMock,
+  requireScheduledTaskCreatorOrRequestGrant:
+    requireScheduledTaskCreatorOrRequestGrantMock,
 }));
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
@@ -171,6 +175,19 @@ function buildMappedTask() {
     share: null,
     links: [],
     files: [],
+  };
+}
+
+function buildUserCreator() {
+  return {
+    userContext: {
+      source: "session",
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+      role: "user",
+    },
+    actor: { kind: "user", userId: "user_123" },
   };
 }
 
@@ -282,16 +299,10 @@ describe("POST /tasks/scheduled", () => {
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback(transaction),
     );
-    requireScheduledTaskCreatorMock.mockResolvedValue({
-      userContext: {
-        source: "session",
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      },
-      actor: { kind: "user", userId: "user_123" },
-    });
+    requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
+    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
+      buildUserCreator(),
+    );
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -367,16 +378,10 @@ describe("POST /tasks/scheduled", () => {
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback(transaction),
     );
-    requireScheduledTaskCreatorMock.mockResolvedValue({
-      userContext: {
-        source: "session",
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      },
-      actor: { kind: "user", userId: "user_123" },
-    });
+    requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
+    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
+      buildUserCreator(),
+    );
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -405,8 +410,10 @@ describe("POST /tasks/scheduled", () => {
   });
 
   it("rejects an unauthorized creator before resolving an automatic name", async () => {
-    requireScheduledTaskCreatorMock.mockRejectedValue(
-      forbidden("Scheduled task creation is not allowed"),
+    requireScheduledTaskCreatorOrRequestGrantMock.mockRejectedValue(
+      forbidden("Vendor workspace access is required", {
+        kind: "grant_required",
+      }),
     );
 
     const response = await createApp().request("http://localhost/scheduled", {
@@ -432,16 +439,10 @@ describe("POST /tasks/scheduled", () => {
   });
 
   it("returns an idempotent replay before resolving an automatic name", async () => {
-    requireScheduledTaskCreatorMock.mockResolvedValue({
-      userContext: {
-        source: "session",
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      },
-      actor: { kind: "user", userId: "user_123" },
-    });
+    requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
+    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
+      buildUserCreator(),
+    );
     findScheduledTaskCreateOperationMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -504,16 +505,10 @@ describe("POST /tasks/scheduled", () => {
       await callback(transaction);
       return await callback(transaction);
     });
-    requireScheduledTaskCreatorMock.mockResolvedValue({
-      userContext: {
-        source: "session",
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      },
-      actor: { kind: "user", userId: "user_123" },
-    });
+    requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
+    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
+      buildUserCreator(),
+    );
     findTaskProjectInWorkspaceMock.mockImplementation(
       async (_projectId, _workspaceId, db) => (db ? healedProject : project),
     );
@@ -572,16 +567,10 @@ describe("POST /tasks/scheduled", () => {
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback(transaction),
     );
-    requireScheduledTaskCreatorMock.mockResolvedValue({
-      userContext: {
-        source: "session",
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      },
-      actor: { kind: "user", userId: "user_123" },
-    });
+    requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
+    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
+      buildUserCreator(),
+    );
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
@@ -610,16 +599,10 @@ describe("POST /tasks/scheduled", () => {
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback(transaction),
     );
-    requireScheduledTaskCreatorMock.mockResolvedValue({
-      userContext: {
-        source: "session",
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      },
-      actor: { kind: "user", userId: "user_123" },
-    });
+    requireScheduledTaskCreatorMock.mockResolvedValue(buildUserCreator());
+    requireScheduledTaskCreatorOrRequestGrantMock.mockResolvedValue(
+      buildUserCreator(),
+    );
     createScheduledTaskInTransactionMock.mockRejectedValue(
       new TaskScheduleOccurrenceLimitError(),
     );

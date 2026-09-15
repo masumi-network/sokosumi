@@ -225,9 +225,7 @@ const DEFAULT_VALUE_EXTRACTORS: Partial<
  * @param jobInputSchema - The input schema definition
  * @returns Default value for the input, or null for inputs without defaults
  */
-export function getDefaultValue(
-  jobInputSchema: InputFieldSchemaType,
-): unknown | null {
+function getDefaultValue(jobInputSchema: InputFieldSchemaType): unknown | null {
   const { type } = jobInputSchema;
 
   // Look up extractor in the map

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { AgentDetail, AgentDetailViewTracker } from "@/components/agents";
+import { AgentDetail } from "@/components/agents/agent-detail/agent-detail";
+import { AgentDetailViewTracker } from "@/components/agents/agent-detail/agent-detail-view-tracker";
 import { mapCoreAgentReviews } from "@/lib/agents/core-dto-mappers";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";

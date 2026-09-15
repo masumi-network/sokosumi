@@ -20,8 +20,6 @@ import type {
 import { CORE_AUTH_REQUEST_TIMEOUT_MS } from "./core-auth-timeout";
 import { CoreAuthUnavailableError } from "./errors";
 
-export type { Session };
-
 interface GetSessionOptions {
   refresh?: boolean;
 }

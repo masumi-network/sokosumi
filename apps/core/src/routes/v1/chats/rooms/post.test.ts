@@ -744,6 +744,9 @@ describe("POST /chats/rooms", () => {
     expect(createdBody.data.kind).toBe("direct");
     expect(createdBody.data.id).toBe(ROOM_ID);
     expect(createdBody.data.organizationId).toBe(ORG_ID);
+    expect(userFindManyMock).toHaveBeenCalled();
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
+    expect(sokoBotFindManyMock).not.toHaveBeenCalled();
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -825,6 +828,8 @@ describe("POST /chats/rooms", () => {
     const body = await response.json();
     expect(body.data.organizationId).toBeNull();
     expect(body.data.kind).toBe("direct");
+    expect(userFindManyMock).not.toHaveBeenCalled();
+    expect(sokoBotFindManyMock).not.toHaveBeenCalled();
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -1825,6 +1830,8 @@ describe("POST /chats/rooms", () => {
       }),
     ]);
     expect(body.data.coworkerMembers).toEqual([]);
+    expect(userFindManyMock).not.toHaveBeenCalled();
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
