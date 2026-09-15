@@ -2102,9 +2102,16 @@ describe("ChatMessageRow", () => {
     // Until the image loads its box is the cap itself, so a row scrolled
     // into a virtualized list does not grow under the reader; afterwards it
     // takes its own size, capped.
-    expect(unfurlImage).toHaveClass("h-48", "max-w-full");
+    expect(unfurlImage).toHaveClass("h-48", "w-auto", "max-w-full");
     fireEvent.load(unfurlImage);
-    expect(unfurlImage).toHaveClass("h-auto", "max-h-48", "max-w-full");
+    // `w-auto` beats the remembered `width` attribute, so the capped height
+    // shrinks the width with it instead of squashing the image flat.
+    expect(unfurlImage).toHaveClass(
+      "h-auto",
+      "max-h-48",
+      "w-auto",
+      "max-w-full",
+    );
     expect(unfurlImage).not.toHaveClass("w-full", "object-cover");
     // Markdown body still present (links stay clickable in body).
     expect(screen.getByTestId("room-message-body")).toHaveTextContent(

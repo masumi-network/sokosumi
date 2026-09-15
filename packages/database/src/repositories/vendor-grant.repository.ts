@@ -20,10 +20,11 @@ function markServiceplanGrantChecked(workspaceId: string): void {
   serviceplanGrantCheckedWorkspaceIds.add(workspaceId);
 }
 
+export function clearServiceplanGrantWorkspaceCacheForTests(): void {
+  serviceplanGrantCheckedWorkspaceIds.clear();
+}
+
 export const vendorGrantRepository = {
-  clearServiceplanGrantWorkspaceCacheForTests(): void {
-    serviceplanGrantCheckedWorkspaceIds.clear();
-  },
   /**
    * Grants Serviceplan workspace access when a workspace is first created.
    * Skips when a grant row already exists so user denials/revocations are preserved.

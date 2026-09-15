@@ -4,8 +4,9 @@
   import Testing
 
   struct TranscriptScrollEdgesTests {
-    @Test func pixelChangesWithinTheSameBoundariesAreEqual() {
-      #expect(edges(offset: 1000) == edges(offset: 1010))
+    @Test func viewportMovementIsDistinctFromSizeChanges() {
+      #expect(edges(offset: 1000) != edges(offset: 1010))
+      #expect(edges(offset: 1000).hasSameSize(as: edges(offset: 1010)))
       #expect(edges(offset: 39).nearTop)
       #expect(!edges(offset: 40).nearTop)
     }

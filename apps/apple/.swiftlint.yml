@@ -17,7 +17,6 @@ disabled_rules:
   - file_length
 
 opt_in_rules:
-  - anyobject_protocol
   - contains_over_filter_count
   - contains_over_filter_is_empty
   - empty_collection_literal

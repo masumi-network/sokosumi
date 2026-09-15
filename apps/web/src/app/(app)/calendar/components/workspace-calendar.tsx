@@ -48,7 +48,7 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
-import { MoveOccurrenceDialog } from "@/components/schedules/move-occurrence-dialog";
+import { OccurrenceTimeDialog } from "@/components/schedules/occurrence-time-dialog";
 import { TaskScheduleSection } from "@/components/task-schedule-section";
 import {
   AlertDialog,
@@ -78,7 +78,7 @@ import {
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
-  rescheduleTaskOccurrence,
+  mutateTaskOccurrence,
   saveCalendarTaskSchedule,
 } from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -95,6 +95,7 @@ import {
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
+import { cn } from "@/lib/utils";
 import {
   getTaskScheduleOperationId,
   hasTaskScheduleChanged,
@@ -249,13 +250,23 @@ function SourceMarker({
  * is history, and a row the caller cannot edit must not be draggable either.
  */
 function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return item.canMoveOccurrence;
+  return item.canMutateOccurrence && item.state === "PLANNED";
+}
+
+function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
+  return (
+    item.canMutateOccurrence &&
+    item.state === "SKIPPED" &&
+    item.originalScheduledAt !== null
+  );
 }
 
 function CalendarEvent({
   item,
   onEditSchedule,
   onMoveOccurrence,
+  onRestoreOccurrence,
+  onSkipOccurrence,
   onOpenTask,
   showDetails,
   source,
@@ -264,6 +275,8 @@ function CalendarEvent({
   item: WorkspaceCalendarItem;
   onEditSchedule: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
+  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
+  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
@@ -299,13 +312,20 @@ function CalendarEvent({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          aria-label={t("event.accessibleName", {
-            source: sourceName,
-            task: item.taskName,
-          })}
-          className={`bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2 ${
-            timeText ? "flex-col items-start gap-0.5" : "items-center gap-1"
-          }`}
+          aria-label={t(
+            item.state === "SKIPPED"
+              ? "event.accessibleNameSkipped"
+              : "event.accessibleName",
+            {
+              source: sourceName,
+              task: item.taskName,
+            },
+          )}
+          className={cn(
+            "bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2",
+            timeText ? "flex-col items-start gap-0.5" : "items-center gap-1",
+            item.state === "SKIPPED" && "text-muted-foreground line-through",
+          )}
           type="button"
         >
           {timeText ? (
@@ -339,8 +359,18 @@ function CalendarEvent({
           </DropdownMenuItem>
         ) : null}
         {isMovableCalendarItem(item) ? (
-          <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
-            {t("event.moveOccurrence")}
+          <>
+            <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
+              {t("event.moveOccurrence")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSkipOccurrence(item)}>
+              {t("event.skipOccurrence")}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+        {isRestorableCalendarItem(item) ? (
+          <DropdownMenuItem onSelect={() => onRestoreOccurrence(item)}>
+            {t("event.restoreOccurrence")}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
@@ -358,6 +388,8 @@ function CalendarView({
   onDateClick,
   onEventEdit,
   onMoveOccurrence,
+  onRestoreOccurrence,
+  onSkipOccurrence,
   onOpenTask,
   sources,
   timeZone,
@@ -369,6 +401,8 @@ function CalendarView({
   onDateClick: (date: Date) => void;
   onEventEdit: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
+  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
+  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
@@ -407,11 +441,12 @@ function CalendarView({
 
     try {
       // Every drop is its own attempt; a retry is a new drag, not a replay.
-      const result = await rescheduleTaskOccurrence({
+      const result = await mutateTaskOccurrence({
         taskId: item.taskId,
         occurrenceId,
         operationId: crypto.randomUUID(),
         expectedScheduleRevision: item.scheduleRevision,
+        action: "reschedule",
         scheduledAt: scheduledAt.toISOString(),
       });
 
@@ -490,6 +525,8 @@ function CalendarView({
               item={item}
               onEditSchedule={onEventEdit}
               onMoveOccurrence={onMoveOccurrence}
+              onRestoreOccurrence={onRestoreOccurrence}
+              onSkipOccurrence={onSkipOccurrence}
               onOpenTask={onOpenTask}
               showDetails={view === "agenda"}
               source={sources.find(
@@ -781,6 +818,11 @@ interface CalendarEditState {
   futureExceptionCount: number | null;
 }
 
+interface OccurrenceTimeState {
+  action: "reschedule" | "restore";
+  item: WorkspaceCalendarItem;
+}
+
 export function WorkspaceCalendar({
   activeOrganizationId = null,
   initialDate,
@@ -794,6 +836,7 @@ export function WorkspaceCalendar({
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
+  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
@@ -803,7 +846,7 @@ export function WorkspaceCalendar({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
-  const [moveItem, setMoveItem] = useState<WorkspaceCalendarItem | null>(null);
+  const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const eventRequestId = useRef(0);
@@ -1018,7 +1061,41 @@ export function WorkspaceCalendar({
   }
 
   function handleMoveOccurrence(item: WorkspaceCalendarItem) {
-    setMoveItem(item);
+    setTimeState({ action: "reschedule", item });
+  }
+
+  function handleRestoreOccurrence(item: WorkspaceCalendarItem) {
+    setTimeState({ action: "restore", item });
+  }
+
+  async function handleSkipOccurrence(item: WorkspaceCalendarItem) {
+    try {
+      const result = await mutateTaskOccurrence({
+        taskId: item.taskId,
+        occurrenceId: item.id,
+        operationId: crypto.randomUUID(),
+        expectedScheduleRevision: item.scheduleRevision,
+        action: "skip",
+      });
+      if (!result.ok) {
+        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
+        toast.error(
+          feedbackKey ? tSeries(feedbackKey) : t("event.mutationError"),
+          { duration: Infinity },
+        );
+        if (
+          result.error.kind ===
+            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
+          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
+        ) {
+          router.refresh();
+        }
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error(t("event.mutationError"), { duration: Infinity });
+    }
   }
 
   async function handleLoadMore() {
@@ -1246,6 +1323,8 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
           onMoveOccurrence={handleMoveOccurrence}
+          onRestoreOccurrence={handleRestoreOccurrence}
+          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1261,6 +1340,8 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           onEventEdit={(taskId) => void handleEventEdit(taskId)}
           onMoveOccurrence={handleMoveOccurrence}
+          onRestoreOccurrence={handleRestoreOccurrence}
+          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
           onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
@@ -1304,15 +1385,21 @@ export function WorkspaceCalendar({
           futureExceptionCount={editState.futureExceptionCount}
         />
       ) : null}
-      {moveItem ? (
-        <MoveOccurrenceDialog
-          key={`${moveItem.id}:${moveItem.scheduledAt.toISOString()}`}
-          occurrenceId={moveItem.id}
-          expectedScheduleRevision={moveItem.scheduleRevision}
-          scheduledAt={moveItem.scheduledAt}
-          taskId={moveItem.taskId}
+      {timeState ? (
+        <OccurrenceTimeDialog
+          key={`${timeState.action}:${timeState.item.id}`}
+          action={timeState.action}
+          occurrenceId={timeState.item.id}
+          expectedScheduleRevision={timeState.item.scheduleRevision}
+          scheduledAt={
+            timeState.action === "restore"
+              ? (timeState.item.originalScheduledAt ??
+                timeState.item.scheduledAt)
+              : timeState.item.scheduledAt
+          }
+          taskId={timeState.item.taskId}
           timeZone={timeZone}
-          onClose={() => setMoveItem(null)}
+          onClose={() => setTimeState(null)}
         />
       ) : null}
     </div>

@@ -63,7 +63,7 @@ const ITEMS: WorkspaceCalendarItem[] = [
     id: "occurrence-1",
     taskId: "task-1",
     canEditSchedule: true,
-    canMoveOccurrence: true,
+    canMutateOccurrence: true,
     scheduleRevision: 3,
     taskName: "Prepare release notes",
     taskStatus: "QUEUED",

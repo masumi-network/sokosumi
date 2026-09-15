@@ -191,9 +191,6 @@ Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-ex
 # Build TypeScript to JavaScript
 pnpm run build
 
-# Watch mode for development
-pnpm run dev
-
 # Clean build artifacts
 pnpm run clean
 ```

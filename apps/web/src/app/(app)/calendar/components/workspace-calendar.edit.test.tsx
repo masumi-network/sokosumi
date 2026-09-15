@@ -58,7 +58,7 @@ const {
   openCreateTaskModalMock,
   pushMock,
   refreshMock,
-  rescheduleTaskOccurrenceMock,
+  mutateTaskOccurrenceMock,
   saveCalendarTaskScheduleMock,
   taskScheduleSectionMock,
   toastErrorMock,
@@ -77,7 +77,7 @@ const {
   openCreateTaskModalMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
-  rescheduleTaskOccurrenceMock: vi.fn(),
+  mutateTaskOccurrenceMock: vi.fn(),
   saveCalendarTaskScheduleMock: vi.fn(),
   taskScheduleSectionMock: vi.fn(),
   toastErrorMock: vi.fn(),
@@ -138,15 +138,21 @@ vi.mock("@fullcalendar/react/interaction", () => ({
 }));
 vi.mock("@fullcalendar/react/list", () => ({ default: {} }));
 vi.mock("@fullcalendar/react/themes/classic", () => ({ default: {} }));
-vi.mock("@fullcalendar/react/timegrid", () => ({ default: {} }));
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({
     dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
       new Intl.DateTimeFormat("en-US", options).format(value),
   }),
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    key === "event.accessibleName" ? `${values?.task}, ${values?.source}` : key,
+  useTranslations: () => (key: string, values?: Record<string, string>) => {
+    if (key === "event.accessibleName") {
+      return `${values?.task}, ${values?.source}`;
+    }
+    if (key === "event.accessibleNameSkipped") {
+      return `${values?.task}, ${values?.source}, skipped`;
+    }
+    return key;
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -249,7 +255,7 @@ vi.mock("@/components/task-schedule-section", () => ({
 
 vi.mock("@/lib/actions/task/action", () => ({
   clearTaskSchedule: clearTaskScheduleMock,
-  rescheduleTaskOccurrence: rescheduleTaskOccurrenceMock,
+  mutateTaskOccurrence: mutateTaskOccurrenceMock,
   saveCalendarTaskSchedule: saveCalendarTaskScheduleMock,
 }));
 
@@ -280,7 +286,7 @@ const ITEM: WorkspaceCalendarItem = {
   id: "occurrence-1",
   taskId: "task-1",
   canEditSchedule: true,
-  canMoveOccurrence: true,
+  canMutateOccurrence: true,
   scheduleRevision: 3,
   taskName: "Prepare release notes",
   taskStatus: "QUEUED",
@@ -313,13 +319,19 @@ const SECOND_ITEM: WorkspaceCalendarItem = {
 const READ_ONLY_ITEM: WorkspaceCalendarItem = {
   ...ITEM,
   canEditSchedule: false,
-  canMoveOccurrence: false,
+  canMutateOccurrence: false,
 };
 
 const RELEASED_ITEM: WorkspaceCalendarItem = {
   ...READ_ONLY_ITEM,
   id: "occurrence-released-1",
   state: "RELEASED",
+};
+
+const SKIPPED_ITEM: WorkspaceCalendarItem = {
+  ...ITEM,
+  id: "occurrence-skipped-1",
+  state: "SKIPPED",
 };
 
 const SOURCES: WorkspaceCalendarSource[] = [
@@ -423,7 +435,7 @@ describe("WorkspaceCalendar editing", () => {
       ok: true,
       value: { taskId: "task-1" },
     });
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task-1", scheduleRevision: 4 },
     });
@@ -1382,7 +1394,7 @@ describe("WorkspaceCalendar editing", () => {
     });
 
     expect(revert).toHaveBeenCalledOnce();
-    expect(rescheduleTaskOccurrenceMock).not.toHaveBeenCalled();
+    expect(mutateTaskOccurrenceMock).not.toHaveBeenCalled();
   });
 
   it("moves a dropped occurrence optimistically and sends its new time", async () => {
@@ -1390,7 +1402,7 @@ describe("WorkspaceCalendar editing", () => {
       ok: true;
       value: { taskId: string; scheduleRevision: number };
     }>();
-    rescheduleTaskOccurrenceMock.mockReturnValue(request.promise);
+    mutateTaskOccurrenceMock.mockReturnValue(request.promise);
     renderCalendar();
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
@@ -1404,13 +1416,14 @@ describe("WorkspaceCalendar editing", () => {
       });
     });
 
-    expect(rescheduleTaskOccurrenceMock).toHaveBeenCalledWith({
+    expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
       taskId: ITEM.taskId,
       occurrenceId: ITEM.id,
       operationId: expect.stringMatching(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
       ),
       expectedScheduleRevision: 3,
+      action: "reschedule",
       scheduledAt: droppedAt.toISOString(),
     });
     const optimistic = (
@@ -1430,7 +1443,7 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("rolls a failed drop back and shows the mapped copy", async () => {
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: false,
       error: { kind: "schedule_occurrence_not_reschedulable" },
     });
@@ -1461,7 +1474,7 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("refreshes the route when a drop hits a stale series", async () => {
-    rescheduleTaskOccurrenceMock.mockResolvedValue({
+    mutateTaskOccurrenceMock.mockResolvedValue({
       ok: false,
       error: { kind: "schedule_revision_conflict" },
     });
@@ -1508,6 +1521,63 @@ describe("WorkspaceCalendar editing", () => {
     expect(
       screen.queryByRole("menuitem", { name: "event.moveOccurrence" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("skips a planned occurrence from its event menu", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[0],
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.skipOccurrence" }),
+    );
+
+    await waitFor(() =>
+      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
+        taskId: ITEM.taskId,
+        occurrenceId: ITEM.id,
+        operationId: expect.any(String),
+        expectedScheduleRevision: 3,
+        action: "skip",
+      }),
+    );
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("crosses out a skipped occurrence and offers restore at its original time", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ items: [SKIPPED_ITEM] });
+
+    const event = screen.getAllByRole("button", {
+      name: "Prepare release notes, Release planning, skipped",
+    })[0];
+    expect(event).toHaveClass("line-through");
+    await user.click(event);
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.restoreOccurrence" }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("label")).toHaveValue(
+      "2030-01-02T09:00",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "confirm" }));
+
+    await waitFor(() =>
+      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: SKIPPED_ITEM.taskId,
+          occurrenceId: SKIPPED_ITEM.id,
+          expectedScheduleRevision: 3,
+          action: "restore",
+          scheduledAt: "2030-01-02T09:00:00.000Z",
+        }),
+      ),
+    );
   });
 
   it("keeps the newest event selection when an earlier event fetch resolves last", async () => {

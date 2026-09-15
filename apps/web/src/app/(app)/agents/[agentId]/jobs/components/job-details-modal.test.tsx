@@ -19,8 +19,8 @@ vi.mock("next/navigation", () => ({
     }) as URLSearchParams,
 }));
 
-vi.mock("@/components/jobs", () => ({
-  JobDetails: () => <div data-testid="job-details">Job Details</div>,
+vi.mock("@/components/jobs/job-details/job-details", () => ({
+  default: () => <div data-testid="job-details">Job Details</div>,
 }));
 
 function mockMatchMedia(matches: boolean) {

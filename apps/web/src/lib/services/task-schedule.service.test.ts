@@ -5,9 +5,10 @@ vi.mock("server-only", () => ({}));
 
 const getTaskScheduleOccurrencesMock = vi.fn();
 const putTaskCalendarScheduleMock = vi.fn();
+const putTaskCalendarSourceMock = vi.fn();
 const putTaskScheduleMock = vi.fn();
 const deleteTaskScheduleMock = vi.fn();
-const rescheduleTaskScheduleOccurrenceMock = vi.fn();
+const mutateTaskScheduleOccurrenceMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
@@ -15,10 +16,12 @@ vi.mock("@/lib/clients/core.client", () => ({
       getTaskScheduleOccurrencesMock(...args),
     putTaskCalendarSchedule: (...args: unknown[]) =>
       putTaskCalendarScheduleMock(...args),
+    putTaskCalendarSource: (...args: unknown[]) =>
+      putTaskCalendarSourceMock(...args),
     putTaskSchedule: (...args: unknown[]) => putTaskScheduleMock(...args),
     deleteTaskSchedule: (...args: unknown[]) => deleteTaskScheduleMock(...args),
-    rescheduleTaskScheduleOccurrence: (...args: unknown[]) =>
-      rescheduleTaskScheduleOccurrenceMock(...args),
+    mutateTaskScheduleOccurrence: (...args: unknown[]) =>
+      mutateTaskScheduleOccurrenceMock(...args),
   },
 }));
 
@@ -205,6 +208,33 @@ describe("taskScheduleService series mutations", () => {
     expect(task).toEqual({ id: "task_1", scheduleRevision: 5 });
   });
 
+  it("moves a live series with its operation and observed revision", async () => {
+    const mutation = {
+      previousSource: { type: "workspace" as const },
+      source: {
+        type: "project" as const,
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+      scheduleRevision: 5,
+      canceledFutureExceptionCount: 2,
+    };
+    putTaskCalendarSourceMock.mockResolvedValue({ data: mutation });
+
+    const result = await taskScheduleService.moveCalendarSeriesSource(
+      "task_1",
+      { operationId, expectedScheduleRevision: 4 },
+      mutation.source,
+    );
+
+    expect(putTaskCalendarSourceMock).toHaveBeenCalledWith("task_1", {
+      operationId,
+      expectedScheduleRevision: 4,
+      discardFutureExceptions: true,
+      source: mutation.source,
+    });
+    expect(result).toEqual(mutation);
+  });
+
   it("keeps the legacy bare schedule write for a Task that has no series yet", async () => {
     putTaskScheduleMock.mockResolvedValue({ data: { id: "task_1" } });
 
@@ -215,37 +245,68 @@ describe("taskScheduleService series mutations", () => {
   });
 });
 
-describe("taskScheduleService.rescheduleOccurrence", () => {
+describe("taskScheduleService.mutateOccurrence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("sends the precondition and target and returns the new revision", async () => {
-    rescheduleTaskScheduleOccurrenceMock.mockResolvedValue({
+    mutateTaskScheduleOccurrenceMock.mockResolvedValue({
       data: { scheduleRevision: 5, occurrence },
     });
 
     const target = new Date("2026-09-11T09:00:00.000Z");
 
-    const result = await taskScheduleService.rescheduleOccurrence(
+    const result = await taskScheduleService.mutateOccurrence(
       "task_1",
       occurrence.id,
       {
         operationId: "123e4567-e89b-42d3-a456-426614174000",
         expectedScheduleRevision: 4,
+        action: "reschedule",
+        scheduledAt: target,
       },
-      target,
     );
 
-    expect(rescheduleTaskScheduleOccurrenceMock).toHaveBeenCalledWith(
+    expect(mutateTaskScheduleOccurrenceMock).toHaveBeenCalledWith(
       "task_1",
       occurrence.id,
       {
         operationId: "123e4567-e89b-42d3-a456-426614174000",
         expectedScheduleRevision: 4,
+        action: "reschedule",
         scheduledAt: target,
       },
     );
     expect(result).toEqual({ scheduleRevision: 5, occurrence });
+  });
+
+  it.each([
+    { action: "skip" as const },
+    { action: "restore" as const },
+    {
+      action: "restore" as const,
+      scheduledAt: new Date("2026-09-12T09:00:00.000Z"),
+    },
+  ])("forwards an $action mutation", async (mutation) => {
+    mutateTaskScheduleOccurrenceMock.mockResolvedValue({
+      data: { scheduleRevision: 5, occurrence },
+    });
+
+    await taskScheduleService.mutateOccurrence("task_1", occurrence.id, {
+      operationId: "123e4567-e89b-42d3-a456-426614174000",
+      expectedScheduleRevision: 4,
+      ...mutation,
+    });
+
+    expect(mutateTaskScheduleOccurrenceMock).toHaveBeenCalledWith(
+      "task_1",
+      occurrence.id,
+      {
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        expectedScheduleRevision: 4,
+        ...mutation,
+      },
+    );
   });
 });

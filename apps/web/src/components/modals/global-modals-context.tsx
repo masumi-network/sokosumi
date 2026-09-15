@@ -10,10 +10,7 @@ interface GlobalModalsContextType {
   showCalendarClientUpgradeModal: () => void;
 }
 
-const GlobalModalsContext = createContext<GlobalModalsContextType>({
-  showLogoutModal: () => {},
-  showCalendarClientUpgradeModal: () => {},
-});
+const GlobalModalsContext = createContext<GlobalModalsContextType | null>(null);
 
 export function GlobalModalsContextProvider({
   children,

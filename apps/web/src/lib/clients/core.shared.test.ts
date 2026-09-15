@@ -6,6 +6,7 @@ import {
   getCoworkers as coreGetCoworkers,
   postTasksScheduled as corePostTasksScheduled,
   putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
+  putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
   type PostTasksScheduledResponse,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
@@ -20,6 +21,7 @@ vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
     getCoworkers: vi.fn(),
     postTasksScheduled: vi.fn(),
     putTasksByIdCalendarSchedule: vi.fn(),
+    putTasksByIdCalendarSource: vi.fn(),
   };
 });
 
@@ -87,6 +89,36 @@ describe("createCoreClient revision-safe schedule mutations", () => {
     await core.putTaskCalendarSchedule("task-1", body);
 
     expect(corePutTasksByIdCalendarSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { id: "task-1" }, body }),
+    );
+  });
+
+  it("sends the revision-safe Calendar source move body", async () => {
+    const mutation = {
+      previousSource: { type: "workspace" as const },
+      source: {
+        type: "project" as const,
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+      scheduleRevision: 4,
+      canceledFutureExceptionCount: 2,
+    };
+    vi.mocked(corePutTasksByIdCalendarSource).mockResolvedValue({
+      data: { data: mutation },
+      response: { ok: true, status: 200 } as Response,
+    } as never);
+    const core = createCoreClient(async () => ({}) as Client);
+    const body = {
+      operationId: "123e4567-e89b-42d3-a456-426614174000",
+      expectedScheduleRevision: 3,
+      discardFutureExceptions: true as const,
+      source: mutation.source,
+    };
+
+    await expect(
+      core.putTaskCalendarSource("task-1", body),
+    ).resolves.toMatchObject({ data: mutation });
+    expect(corePutTasksByIdCalendarSource).toHaveBeenCalledWith(
       expect.objectContaining({ path: { id: "task-1" }, body }),
     );
   });

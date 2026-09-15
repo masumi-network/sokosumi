@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "vitest";
 
 import type { Prisma } from "../generated/prisma/client.js";
-import { vendorGrantRepository } from "./vendor-grant.repository.js";
+import { clearServiceplanGrantWorkspaceCacheForTests } from "./vendor-grant.repository.js";
 import { workspaceRepository } from "./workspace.repository.js";
 import { PersonalWorkspaceMissingError } from "./workspace-errors.js";
 
 describe("workspaceRepository", () => {
   beforeEach(() => {
-    vendorGrantRepository.clearServiceplanGrantWorkspaceCacheForTests();
+    clearServiceplanGrantWorkspaceCacheForTests();
   });
 
   it("returns the existing personal workspace when resolving a personal context", async () => {

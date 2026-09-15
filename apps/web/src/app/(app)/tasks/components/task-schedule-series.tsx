@@ -17,6 +17,7 @@ export interface TaskScheduleSeriesCalendar {
   href: string;
   /** Translated Calendar source kind, e.g. "Project" or "Workspace". */
   sourceLabel: string;
+  action?: ReactNode;
 }
 
 interface TaskScheduleSeriesProps {
@@ -66,6 +67,7 @@ export function TaskScheduleSeries({
             <CalendarDays className="size-4 shrink-0" aria-hidden />
             <span className="truncate">{calendar.name}</span>
           </Link>
+          {calendar.action}
         </SeriesRow>
 
         {recurrenceLabel ? (

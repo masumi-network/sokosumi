@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { loadJobDetails } from "@/app/agents/[agentId]/jobs/_lib/load-job-details";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
-import { JobDetails } from "@/components/jobs";
+import JobDetails from "@/components/jobs/job-details/job-details";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 
