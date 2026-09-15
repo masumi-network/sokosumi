@@ -469,8 +469,8 @@ model Notification {
   /// notifications carry, across every recipient at once.
   @@index([kind, referenceId])
   /// SOK-916: reads every notification that is a day old, whoever it is for.
-  /// The follow-up sync is the one reader that asks across users, so no index
-  /// leading with `userId` can serve it and without this it scans the table
+  /// It asks by age alone, across users, so no index leading with `userId`
+  /// can serve it and without this it scans the table
   /// once an hour. The window is meant to be the selective part, a page at a
   /// time, with read state and message key filtered off the heap. The run also
   /// orders by `id` after `createdAt` to page stably, which this single column

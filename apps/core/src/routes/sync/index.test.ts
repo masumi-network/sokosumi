@@ -925,6 +925,10 @@ describe("sync routes", () => {
       await vi.advanceTimersByTimeAsync(1);
 
       expect(options.abortSignal.aborted).toBe(true);
+      // Both, because they are two separate options and the route can get
+      // one of them right. Nothing else here ever sees this answer false,
+      // so without this line a deadline that always says yes passes.
+      expect(options.shouldContinue()).toBe(false);
 
       finishRun?.({ examined: 0, sent: 0, reachedEnd: false });
       await vi.advanceTimersByTimeAsync(0);

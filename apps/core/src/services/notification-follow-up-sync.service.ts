@@ -220,7 +220,7 @@ export async function sendFollowUps(
   let stopped = false;
 
   // Every way out is a `break`, so the condition is not the thing that ends
-  // this. `stopped` only records why, for `reachedEnd` below.
+  // this. The flag above is read only by `reachedEnd` at the end.
   while (true) {
     if (outOfTime()) {
       stopped = true;
@@ -235,10 +235,11 @@ export async function sendFollowUps(
         messageKey: { in: [...FOLLOW_UP_SOURCE_MESSAGE_KEYS] },
         createdAt: {
           // The first page opens at the window. Every later one opens at the
-          // instant the last page ended on, so the one index this reads by is
-          // `createdAt` and it can start there rather than at the window and
-          // walk over the rows already handled. The paging clause below still
-          // does the deciding; this only says where to start looking.
+          // instant the last page ended on, so a read that goes by `createdAt`
+          // can start there rather than at the window and walk over the rows
+          // already handled. Whether it does was not measured: no `EXPLAIN`
+          // was taken. The paging clause below decides either way; this only
+          // narrows where to start looking.
           ...(after === undefined
             ? { gt: windowOpened }
             : { gte: after.createdAt }),

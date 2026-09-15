@@ -379,6 +379,33 @@ describe("NotificationFollowUpSyncService", () => {
     ]);
   });
 
+  /**
+   * Which column would not read, named in the report.
+   *
+   * The label is the field in Sentry and half of the key that stops one
+   * damaged column being named twice. A report against the wrong column
+   * sends a reader to a column that is fine and hides the one that is not.
+   *
+   * Its own row id, because the reader remembers what it has already said
+   * for the life of the process and a shared id would silence the second
+   * test to use it.
+   */
+  it("names the column that would not read", async () => {
+    seed([{ ...row({ id: "notification-unreadable" }), metadata: "{" }]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          field: "metadata",
+          rowId: "notification-unreadable",
+        }),
+      }),
+    );
+  });
+
   it("reminds a reader of a task still waiting on them", async () => {
     seed([
       row({
