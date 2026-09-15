@@ -782,6 +782,7 @@
       "markAllRead": "Alle als gelesen markieren",
       "markAllReadError": "Alle Benachrichtigungen konnten nicht als gelesen markiert werden",
       "delete": "Benachrichtigung löschen: {message}",
+      "markRead": "Benachrichtigung als gelesen markieren: {message}",
       "markUnread": "Benachrichtigung als ungelesen markieren: {message}",
       "markUnreadTooltip": "Als ungelesen markieren",
       "deleteError": "Benachrichtigung konnte nicht gelöscht werden",

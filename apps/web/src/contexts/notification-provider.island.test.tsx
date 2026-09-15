@@ -11,7 +11,6 @@ const getNotificationsMock = vi.fn();
 const patchNotificationReadMock = vi.fn();
 const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
-const patchNotificationsReadMock = vi.fn();
 const deleteNotificationMock = vi.fn();
 const deleteNotificationsMock = vi.fn();
 const getNotificationsUnreadCountMock = vi.fn();
@@ -35,8 +34,6 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
       patchNotificationUnreadMock(...args),
     patchNotificationsReadAll: (...args: unknown[]) =>
       patchNotificationsReadAllMock(...args),
-    patchNotificationsRead: (...args: unknown[]) =>
-      patchNotificationsReadMock(...args),
     deleteNotification: (...args: unknown[]) => deleteNotificationMock(...args),
     deleteNotifications: (...args: unknown[]) =>
       deleteNotificationsMock(...args),
@@ -137,8 +134,6 @@ describe("NotificationProvider island", () => {
     patchNotificationReadMock.mockReset();
     patchNotificationUnreadMock.mockReset();
     patchNotificationsReadAllMock.mockReset();
-    patchNotificationsReadMock.mockReset();
-    patchNotificationsReadMock.mockResolvedValue({ data: { count: 1 } });
     getNotificationsUnreadCountMock.mockReset();
     useNotificationRealtimeMock.mockReset();
     healPushSubscriptionMock.mockReset();
@@ -679,45 +674,6 @@ describe("NotificationProvider deleting", () => {
     expect(currentNotifications.notifications).toHaveLength(2);
   });
 
-  it("a pending auto-read must not overwrite later deliberate unread", async () => {
-    let completeBatch!: () => void;
-    let serverRow = { ...UNREAD_ROW };
-    patchNotificationsReadMock.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          completeBatch = () => {
-            serverRow = { ...serverRow, isRead: true };
-            resolve({ data: { count: 1 } });
-          };
-        }),
-    );
-    patchNotificationUnreadMock.mockImplementationOnce(async () => {
-      serverRow = { ...serverRow, isRead: false };
-      return { data: serverRow };
-    });
-    await renderLoaded();
-    let pending!: Promise<void>;
-    await act(async () => {
-      pending = currentNotifications.markManyRead(["notification-unread"]);
-    });
-    // Reopen the bell while the auto-read is in flight; optimistic state exposes mark-unread.
-    expect(
-      currentNotifications.notifications.find(
-        (row) => row.id === "notification-unread",
-      )?.isRead,
-    ).toBe(true);
-    let pendingUnread!: Promise<void>;
-    await act(async () => {
-      pendingUnread = currentNotifications.markUnread("notification-unread");
-    });
-    await act(async () => {
-      completeBatch();
-      await pending;
-      await pendingUnread;
-    });
-    expect(serverRow.isRead).toBe(false);
-  });
-
   it("puts a read row back and adds it to the bell", async () => {
     patchNotificationUnreadMock.mockResolvedValue({
       data: { ...READ_ROW, isRead: false, readAt: null },
@@ -769,141 +725,6 @@ describe("NotificationProvider deleting", () => {
       fetchCallsBefore,
     );
     consoleError.mockRestore();
-  });
-
-  it("marks many rows read in one write and takes them off the bell", async () => {
-    await renderLoaded();
-
-    await act(async () => {
-      await currentNotifications.markManyRead([
-        "notification-unread",
-        "notification-read",
-      ]);
-    });
-
-    // The already-read row is dropped, so the write carries only what it
-    // changes and the badge cannot dip below the server's count.
-    expect(patchNotificationsReadMock).toHaveBeenCalledTimes(1);
-    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
-      ids: ["notification-unread"],
-    });
-    expect(currentNotifications.unreadCount).toBe(0);
-  });
-
-  it("writes nothing when every named row is already read", async () => {
-    await renderLoaded();
-
-    await act(async () => {
-      await currentNotifications.markManyRead(["notification-read"]);
-    });
-
-    expect(patchNotificationsReadMock).not.toHaveBeenCalled();
-  });
-
-  it("refetches when the batch write fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    await renderLoaded();
-    const fetchCallsBefore = getNotificationsMock.mock.calls.length;
-    patchNotificationsReadMock.mockRejectedValueOnce(new Error("offline"));
-
-    await act(async () => {
-      await expect(
-        currentNotifications.markManyRead(["notification-unread"]),
-      ).rejects.toThrow("offline");
-    });
-
-    expect(getNotificationsMock.mock.calls.length).toBeGreaterThan(
-      fetchCallsBefore,
-    );
-    consoleError.mockRestore();
-  });
-
-  it("keeps a row the reader put back by hand when the panel commits a read", async () => {
-    patchNotificationUnreadMock.mockResolvedValue({
-      data: { ...READ_ROW, isRead: false, readAt: null },
-    });
-    await renderLoaded();
-
-    await act(async () => {
-      await currentNotifications.markUnread("notification-read");
-    });
-
-    // The close commit passes every row the panel showed, this one included.
-    await act(async () => {
-      await currentNotifications.markManyRead([
-        "notification-unread",
-        "notification-read",
-      ]);
-    });
-
-    // An unread the reader asked for outranks the read the close writes for
-    // them, so only the other row goes.
-    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
-      ids: ["notification-unread"],
-    });
-    expect(
-      currentNotifications.notifications.find(
-        (row) => row.id === "notification-read",
-      )?.isRead,
-    ).toBe(false);
-  });
-
-  it("lets a row go again once the reader opens it", async () => {
-    patchNotificationUnreadMock.mockResolvedValue({
-      data: { ...READ_ROW, isRead: false, readAt: null },
-    });
-    patchNotificationReadMock.mockResolvedValue({
-      data: { ...READ_ROW, isRead: true },
-    });
-    await renderLoaded();
-
-    await act(async () => {
-      await currentNotifications.markUnread("notification-read");
-    });
-    // Opening it is deliberate too, and it outranks the earlier unread.
-    await act(async () => {
-      await currentNotifications.markRead("notification-read");
-    });
-    // Another device puts it back, so the row is unread again without the
-    // reader asking for it here. Only the forgetting above keeps the panel
-    // from refusing to read this row for the rest of the session.
-    await deliverRealtime("notification-read");
-
-    await act(async () => {
-      await currentNotifications.markManyRead(["notification-read"]);
-    });
-
-    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
-      ids: ["notification-read"],
-    });
-  });
-
-  it("forgets every deliberate unread when the reader marks all read", async () => {
-    patchNotificationUnreadMock.mockResolvedValue({
-      data: { ...READ_ROW, isRead: false, readAt: null },
-    });
-    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 1 } });
-    await renderLoaded();
-
-    await act(async () => {
-      await currentNotifications.markUnread("notification-read");
-    });
-    await act(async () => {
-      await currentNotifications.markAllRead();
-    });
-    // Marking everything read is the reader saying they are done, so a row
-    // arriving unread afterwards is no longer protected by the earlier click.
-    await deliverRealtime("notification-read");
-
-    await act(async () => {
-      await currentNotifications.markManyRead(["notification-read"]);
-    });
-
-    expect(patchNotificationsReadMock).toHaveBeenCalledWith({
-      ids: ["notification-read"],
-    });
   });
 
   it("takes a deleted row out of the list and off the bell", async () => {

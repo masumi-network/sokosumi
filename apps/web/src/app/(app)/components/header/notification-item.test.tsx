@@ -17,6 +17,7 @@ const approveOrganizationVendorGrantMock = vi.fn();
 const removeNotificationMock = vi.fn();
 const deleteNotificationMock = vi.fn();
 const markUnreadMock = vi.fn();
+const markReadMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => {
@@ -39,6 +40,7 @@ vi.mock("@/contexts/notification-provider", () => ({
     removeNotification: removeNotificationMock,
     deleteNotification: deleteNotificationMock,
     markUnread: markUnreadMock,
+    markRead: markReadMock,
   }),
 }));
 
@@ -296,5 +298,66 @@ describe("NotificationItem mark unread", () => {
 
     await screen.findByRole("menuitem", { name: /delete/ });
     expect(screen.queryByRole("menuitem", { name: /markUnread/ })).toBeNull();
+  });
+});
+
+describe("NotificationItem mark read", () => {
+  beforeEach(() => {
+    markReadMock.mockReset();
+    markReadMock.mockResolvedValue(undefined);
+    markUnreadMock.mockReset();
+    markUnreadMock.mockResolvedValue(undefined);
+  });
+
+  it("clears one unread row without opening it or closing the panel", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+
+    renderInOpenDropdown(createJobNotification(), onClick);
+
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^markRead/ }),
+    );
+
+    await waitFor(() =>
+      expect(markReadMock).toHaveBeenCalledWith("notification-job-1"),
+    );
+    // Opening the row navigates away. Clearing it must not.
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("names the row the control acts on", async () => {
+    renderInOpenDropdown(createJobNotification(), vi.fn());
+
+    expect(
+      await screen.findByRole("menuitem", {
+        name: /^markRead .*Notifications\.Job\.completed/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers it on an unread row with pending access actions too", async () => {
+    renderInOpenDropdown(createPendingVendorGrantNotification(), vi.fn());
+
+    expect(
+      await screen.findByRole("menuitem", { name: /^markRead/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("gives a read row the way back instead, never both", async () => {
+    // One state, one move. Two controls would make the reader choose between
+    // an action and its undo on a row that is only ever in one of them.
+    renderInOpenDropdown(
+      createJobNotification({
+        isRead: true,
+        readAt: new Date("2026-06-18T09:30:00.000Z"),
+      }),
+      vi.fn(),
+    );
+
+    expect(
+      await screen.findByRole("menuitem", { name: /markUnread/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /^markRead/ })).toBeNull();
   });
 });
