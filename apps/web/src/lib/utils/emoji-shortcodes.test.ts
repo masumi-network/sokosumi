@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  appendEmojiUse,
   filterEmojiShortcodes,
+  getEmojiShortcodeName,
   listEmojiCategories,
   listEmojisByCategory,
   matchExactEmojiShortcodeClosed,
-  recordFrequentlyUsedEmoji,
+  rankFrequentlyUsedEmojis,
   searchEmojiCatalog,
 } from "@/lib/utils/emoji-shortcodes";
 
@@ -141,22 +143,47 @@ describe("searchEmojiCatalog", () => {
   });
 });
 
-describe("recordFrequentlyUsedEmoji", () => {
-  it("prepends MRU, dedupes, and caps", () => {
-    expect(recordFrequentlyUsedEmoji(["😀", "🎉"], "👍", 24)).toEqual([
+describe("appendEmojiUse", () => {
+  it("prepends each use, keeps repeats, and caps the log", () => {
+    expect(appendEmojiUse(["😀", "👍"], "👍", 50)).toEqual(["👍", "😀", "👍"]);
+    expect(appendEmojiUse(["😀", "🎉", "🔥"], "👍", 3)).toEqual([
       "👍",
       "😀",
       "🎉",
     ]);
-    expect(recordFrequentlyUsedEmoji(["😀", "👍", "🎉"], "👍", 24)).toEqual([
-      "👍",
-      "😀",
+  });
+});
+
+describe("rankFrequentlyUsedEmojis", () => {
+  it("ranks the most used first", () => {
+    expect(
+      rankFrequentlyUsedEmojis(["🦄", "👍", "🎉", "👍", "🎉", "👍"]),
+    ).toEqual(["👍", "🎉", "🦄"]);
+  });
+
+  it("breaks a tie in favour of the most recent use", () => {
+    expect(rankFrequentlyUsedEmojis(["🦄", "🎉", "👍", "🎉", "👍"])).toEqual([
       "🎉",
-    ]);
-    expect(recordFrequentlyUsedEmoji(["😀", "🎉", "🔥"], "👍", 3)).toEqual([
       "👍",
-      "😀",
-      "🎉",
+      "🦄",
     ]);
+  });
+
+  it("caps the ranked list", () => {
+    expect(rankFrequentlyUsedEmojis(["🦄", "👍", "🎉"], 2)).toEqual([
+      "🦄",
+      "👍",
+    ]);
+  });
+});
+
+describe("getEmojiShortcodeName", () => {
+  it("returns the primary shortcode name for a catalog emoji", () => {
+    expect(getEmojiShortcodeName("😂")).toBe("joy");
+    expect(getEmojiShortcodeName("❤️")).toBe("heart");
+  });
+
+  it("returns null for a glyph outside the catalog", () => {
+    expect(getEmojiShortcodeName("not-an-emoji")).toBeNull();
   });
 });
