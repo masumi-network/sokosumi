@@ -75,15 +75,37 @@ interface DriveFileUploadProgress {
   percentage: number;
 }
 
+/**
+ * Stored Drive file: pathname is the Core identity, fileUrl the public Blob
+ * URL when the PUT response carried one.
+ */
+export interface DriveFileUploadResult {
+  pathname: string;
+  fileUrl: string | null;
+}
+
 type DriveFileUploadOptions = DriveWorkspaceStore & {
   folder?: string;
   onUploadProgress?: (progress: DriveFileUploadProgress) => void;
 };
 
+/** Public Blob URL from the presigned PUT response, or null when absent. */
+function parseUploadedBlobUrl(responseText: string): string | null {
+  try {
+    const body = JSON.parse(responseText) as { url?: unknown };
+    if (typeof body.url === "string" && body.url) {
+      return body.url;
+    }
+  } catch {
+    // Fall through to null: caller reports the missing URL.
+  }
+  return null;
+}
+
 export async function uploadDriveFile(
   file: File,
   options: DriveFileUploadOptions,
-): Promise<void> {
+): Promise<DriveFileUploadResult> {
   const { scope, folder, onUploadProgress } = options;
 
   // Resolve contentType (fallback when File.type is empty)
@@ -136,7 +158,7 @@ export async function uploadDriveFile(
   }
 
   // Upload to Blob storage with XHR for progress tracking
-  await new Promise<void>((resolve, reject) => {
+  return await new Promise<DriveFileUploadResult>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let hasRealProgress = false;
     let fallbackInterval: ReturnType<typeof setInterval> | null = null;
@@ -172,7 +194,10 @@ export async function uploadDriveFile(
       stopFallbackProgress();
       if (xhr.status >= 200 && xhr.status < 300) {
         onUploadProgress?.({ percentage: 100 });
-        resolve();
+        resolve({
+          pathname: session.pathname,
+          fileUrl: parseUploadedBlobUrl(xhr.responseText),
+        });
         return;
       }
 

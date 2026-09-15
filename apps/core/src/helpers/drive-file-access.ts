@@ -31,8 +31,9 @@ function shouldBindDriveStoreToWorkspace(userContext: UserContext): boolean {
  * Drive store must match the active workspace.
  * Personal workspace (`organizationId` null) is My Drive.
  * Organization workspace is that organization's Drive only.
+ * Pure check for callers that already hold the workspace (e.g. Social post media refs).
  */
-function assertDriveStoreMatchesWorkspace(
+export function assertDriveStoreMatchesWorkspace(
   userContext: Pick<UserContext, "organizationId">,
   scope: "user" | "organization",
   ownerId: string,

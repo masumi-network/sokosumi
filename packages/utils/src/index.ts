@@ -159,6 +159,7 @@ export {
   sanitizeDriveFileName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
+export { isVercelBlobPublicHost } from "./entity-image-upload.js";
 export {
   getExtensionFromUrl,
   getUrlBasename,
@@ -283,8 +284,16 @@ export {
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
 export {
+  SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_TEXT_LIMITS,
+  type SocialPostMediaKind,
+  type SocialPostMediaRef,
+  type SocialPostMediaValidation,
+  type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostMediaKindForMime,
+  socialPostMimeForFileName,
+  validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
