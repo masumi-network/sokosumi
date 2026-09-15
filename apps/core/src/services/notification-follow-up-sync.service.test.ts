@@ -33,7 +33,7 @@ vi.mock("@/helpers/notifications", () => ({
 }));
 
 import {
-  NOTIFICATION_FOLLOW_UP_MAX_PER_RUN,
+  NOTIFICATION_FOLLOW_UP_PAGE_SIZE,
   notificationFollowUpSyncService,
 } from "@/services/notification-follow-up-sync.service";
 
@@ -95,6 +95,18 @@ function row(overrides: RowOverrides = {}): StoredNotification {
   };
 }
 
+/**
+ * The input of the first follow-up this run wrote.
+ *
+ * Read off the call rather than asserted through `toHaveBeenCalledWith`, so a
+ * test about the input the service builds says only that. Matching the whole
+ * call would pin the argument list too, and fail on an argument it is not
+ * about.
+ */
+function firstFollowUpInput() {
+  return createNotificationMock.mock.calls[0]?.[0];
+}
+
 /** Every follow-up the run wrote, in the order it wrote them. */
 let written: { eventId: string; messageKey: string; userId: string }[] = [];
 
@@ -113,6 +125,8 @@ let written: { eventId: string; messageKey: string; userId: string }[] = [];
 function seed(stored: readonly StoredNotification[]) {
   notificationFindManyMock.mockImplementation(
     async (query: {
+      cursor?: { id: string };
+      skip?: number;
       where: Partial<{
         createdAt: Partial<{ gt: Date; lte: Date }>;
         inApp: boolean;
@@ -127,7 +141,7 @@ function seed(stored: readonly StoredNotification[]) {
       // narrows nothing, the way it would against the real table. Required,
       // a dropped clause would read as `undefined` and match no row, and the
       // whole file would fail rather than the one test that is about it.
-      return stored
+      const matching = stored
         .filter(
           (one) =>
             (where.isRead === undefined || one.isRead === where.isRead) &&
@@ -139,8 +153,23 @@ function seed(stored: readonly StoredNotification[]) {
             (where.createdAt?.lte === undefined ||
               one.createdAt <= where.createdAt.lte),
         )
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-        .slice(0, query.take ?? stored.length);
+        .sort(
+          (a, b) =>
+            a.createdAt.getTime() - b.createdAt.getTime() ||
+            a.id.localeCompare(b.id),
+        );
+
+      // The real cursor continues from a row's position in this order, and
+      // `skip` steps past the row itself. A service that paged without one
+      // would read the same page forever, which this reproduces rather than
+      // silently returning the next rows anyway.
+      const from =
+        query.cursor === undefined
+          ? 0
+          : matching.findIndex((one) => one.id === query.cursor?.id) +
+            (query.skip ?? 0);
+
+      return matching.slice(from, from + (query.take ?? matching.length));
     },
   );
 }
@@ -188,7 +217,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(written).toHaveLength(1);
     expect(result).toEqual({ examined: 1, sent: 1 });
-    expect(createNotificationMock).toHaveBeenCalledWith({
+    expect(firstFollowUpInput()).toEqual({
       userId: "reader-1",
       kind: NotificationKind.CHAT,
       referenceId: "room-1",
@@ -206,7 +235,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(createNotificationMock).toHaveBeenCalledWith(
+    expect(firstFollowUpInput()).toEqual(
       expect.objectContaining({
         referenceId: "room-9",
         metadata: { messageId: "message-9" },
@@ -236,7 +265,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(createNotificationMock).toHaveBeenCalledWith(
+    expect(firstFollowUpInput()).toEqual(
       expect.objectContaining({
         kind: NotificationKind.TASK,
         messageKey: TASK_FOLLOW_UP_MESSAGE_KEY,
@@ -337,6 +366,25 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(written).toEqual([]);
     expect(result.sent).toBe(0);
+  });
+
+  /**
+   * One answer, used twice. Resolving again inside the write would let the
+   * reader switch the category off between the two reads, and the row would
+   * then be stored hidden while this run counted it as a reminder sent.
+   */
+  it("writes under the delivery it already read", async () => {
+    seed([row()]);
+    const delivery = { inApp: true, osBanner: true };
+    resolveDeliveryMock.mockResolvedValue(delivery);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "follow-up:notification-1" }),
+      expect.anything(),
+      delivery,
+    );
   });
 
   it("waits a full day before reminding anyone", async () => {
@@ -462,12 +510,13 @@ describe("NotificationFollowUpSyncService", () => {
   });
 
   /**
-   * A backlog becomes "some this hour, the rest next hour". The oldest go
-   * first, so nothing is starved by rows that keep arriving behind it.
+   * A backlog larger than one read still gets reminded. The read is a page,
+   * not a cap: a row left behind would fall out of the moving window before
+   * the next run and lose its reminder for good.
    */
-  it("leaves what it could not reach to the next run", async () => {
+  it("reads past the first page to reach every waiting notification", async () => {
     const waiting = Array.from(
-      { length: NOTIFICATION_FOLLOW_UP_MAX_PER_RUN + 1 },
+      { length: NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1 },
       (_unused, index) =>
         row({
           id: `notification-${index}`,
@@ -478,10 +527,36 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_MAX_PER_RUN);
-    expect(written.map((one) => one.eventId)).not.toContain(
-      `follow-up:notification-${NOTIFICATION_FOLLOW_UP_MAX_PER_RUN}`,
+    expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
+    expect(written.map((one) => one.eventId)).toContain(
+      `follow-up:notification-${NOTIFICATION_FOLLOW_UP_PAGE_SIZE}`,
     );
+    expect(notificationFindManyMock).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * The deadline is what ends a run now, so it has to end one mid-backlog and
+   * not only mid-page. Without the check between pages, a run that is already
+   * over still issues one more read.
+   */
+  it("stops between pages once the run is out of time", async () => {
+    const waiting = Array.from(
+      { length: NOTIFICATION_FOLLOW_UP_PAGE_SIZE * 2 },
+      (_unused, index) =>
+        row({
+          id: `notification-${index}`,
+          createdAt: new Date(WAITING.getTime() + index),
+        }),
+    );
+    seed(waiting);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+      shouldContinue: () => written.length < NOTIFICATION_FOLLOW_UP_PAGE_SIZE,
+    });
+
+    expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE);
+    expect(notificationFindManyMock).toHaveBeenCalledTimes(1);
   });
 
   /**

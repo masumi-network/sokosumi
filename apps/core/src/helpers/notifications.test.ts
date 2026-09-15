@@ -350,6 +350,31 @@ describe("createNotification push gating", () => {
     );
   });
 
+  /**
+   * A caller that already asked hands the answer in, and this must not ask
+   * again. The follow-up sync reads delivery to decide whether a reminder is
+   * worth writing at all, and a second read could disagree with the first.
+   */
+  it("uses the delivery the caller resolved instead of reading again", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(createChatRecord());
+    mockReader({ pushOptIn: false });
+
+    await createNotification(
+      chatInput,
+      prismaMock as unknown as typeof prisma,
+      { inApp: true, osBanner: true },
+    );
+
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        push: true,
+        notification: expect.objectContaining({ osBanner: true }),
+      }),
+    );
+  });
+
   // Every kind pushes now, not chat alone, so the gate is the opt-in and
   // nothing else. Listed rather than derived from the enum: a kind added later
   // should fail this list and make someone decide whether it pushes.

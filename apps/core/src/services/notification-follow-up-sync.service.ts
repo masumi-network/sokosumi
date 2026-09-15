@@ -29,18 +29,18 @@ export const NOTIFICATION_FOLLOW_UP_DELAY_MS = 24 * 60 * 60 * 1000;
 export const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 /**
- * How many notifications one run reads.
+ * How many notifications one read returns.
  *
- * A bound on the work one tick can take, so a backlog cannot turn one run into
- * an hour of writing that the deadline kills halfway through.
+ * A page, not a cap on the run. The run walks every eligible row, oldest
+ * first, and stops on the handler's deadline rather than on a row count.
+ * A fixed cap would be a silent loss instead: the window moves with the clock,
+ * so a row left above the cap is out of range by the next run and never gets
+ * its reminder.
  *
- * Oldest first, so the rows nearest to falling out of the window are the ones
- * a capped run writes. The rest are not deferred to the next hour: the window
- * moves with the clock, so anything above the cap in the oldest hour is out of
- * range by then and loses its reminder. The cap is set far above the rate this
- * is expected to see, and losing a reminder is the cheaper failure of the two.
+ * Sized to keep one read and the writes that follow it short, so the deadline
+ * lands between pages rather than deep inside one.
  */
-export const NOTIFICATION_FOLLOW_UP_MAX_PER_RUN = 500;
+export const NOTIFICATION_FOLLOW_UP_PAGE_SIZE = 500;
 
 export interface SendFollowUpsOptions {
   now?: Date;
@@ -147,70 +147,103 @@ export async function sendFollowUps(
   const now = options.now ?? new Date();
   const waitedUntil = new Date(now.getTime() - NOTIFICATION_FOLLOW_UP_DELAY_MS);
 
-  const sources = await prisma.notification.findMany({
-    select: FOLLOW_UP_SOURCE_COLUMNS,
-    where: {
-      isRead: false,
-      inApp: true,
-      messageKey: { in: [...FOLLOW_UP_SOURCE_MESSAGE_KEYS] },
-      createdAt: {
-        gt: new Date(waitedUntil.getTime() - NOTIFICATION_FOLLOW_UP_WINDOW_MS),
-        lte: waitedUntil,
-      },
-    },
-    orderBy: { createdAt: "asc" },
-    take: NOTIFICATION_FOLLOW_UP_MAX_PER_RUN,
-  });
-
   let examined = 0;
   let sent = 0;
+  let cursor: string | undefined;
+  let stopped = false;
 
-  for (const source of sources) {
+  while (!stopped) {
     if (options.abortSignal?.aborted || options.shouldContinue?.() === false) {
       break;
     }
 
-    examined += 1;
+    const sources = await prisma.notification.findMany({
+      select: FOLLOW_UP_SOURCE_COLUMNS,
+      where: {
+        isRead: false,
+        inApp: true,
+        messageKey: { in: [...FOLLOW_UP_SOURCE_MESSAGE_KEYS] },
+        createdAt: {
+          gt: new Date(
+            waitedUntil.getTime() - NOTIFICATION_FOLLOW_UP_WINDOW_MS,
+          ),
+          lte: waitedUntil,
+        },
+      },
+      // `createdAt` alone leaves the order of two rows in the same instant to
+      // chance, and the cursor below would then skip or repeat them.
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: NOTIFICATION_FOLLOW_UP_PAGE_SIZE,
+      // A follow-up leaves its source row unread, so the next page cannot be
+      // "whatever still matches". It has to continue from where this one ended.
+      ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+    });
 
-    const input = toFollowUpInput(source);
-
-    if (!input) {
-      continue;
+    if (sources.length === 0) {
+      break;
     }
 
-    try {
-      // Asked before the write rather than left to the create path, which
-      // stores a hidden row for readers who silenced the category. A hidden
-      // reminder reaches nobody and would still be there to explain later.
-      const delivery = await resolveDelivery(input);
-
-      // Asked again. The read above is itself an await, so it can be the thing
-      // that crosses the deadline, and the check at the top of the loop
-      // answered for a moment that has passed.
+    for (const source of sources) {
       if (
         options.abortSignal?.aborted ||
         options.shouldContinue?.() === false
       ) {
+        stopped = true;
         break;
       }
 
-      if (!delivery.inApp && !delivery.osBanner) {
+      examined += 1;
+
+      const input = toFollowUpInput(source);
+
+      if (!input) {
         continue;
       }
 
-      const { created } = await createNotification(input);
+      try {
+        // Asked before the write rather than left to the create path, which
+        // stores a hidden row for readers who silenced the category. A hidden
+        // reminder reaches nobody and would still be there to explain later.
+        const delivery = await resolveDelivery(input);
 
-      if (created) {
-        sent += 1;
+        // Asked again. The read above is itself an await, so it can be the
+        // thing that crosses the deadline, and the check at the top of the
+        // loop answered for a moment that has passed.
+        if (
+          options.abortSignal?.aborted ||
+          options.shouldContinue?.() === false
+        ) {
+          stopped = true;
+          break;
+        }
+
+        if (!delivery.inApp && !delivery.osBanner) {
+          continue;
+        }
+
+        // The answer above, not a second read. Between two reads the reader
+        // can switch the category off, and the write would then store a row
+        // nobody sees while this run counted a reminder as sent.
+        const { created } = await createNotification(input, prisma, delivery);
+
+        if (created) {
+          sent += 1;
+        }
+      } catch (error) {
+        Sentry.captureException(error, {
+          extra: {
+            notificationId: source.id,
+            notificationType: "notification-follow-up",
+          },
+        });
       }
-    } catch (error) {
-      Sentry.captureException(error, {
-        extra: {
-          notificationId: source.id,
-          notificationType: "notification-follow-up",
-        },
-      });
     }
+
+    if (sources.length < NOTIFICATION_FOLLOW_UP_PAGE_SIZE) {
+      break;
+    }
+
+    cursor = sources[sources.length - 1].id;
   }
 
   return { examined, sent };

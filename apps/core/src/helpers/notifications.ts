@@ -344,10 +344,17 @@ export async function publishClearedNotifications(
  *
  * This is an internal-only helper for Core services to emit notifications.
  * Not exposed as a public API in v1.
+ *
+ * `deliveryOverride` is for a caller that already asked. The follow-up sync
+ * reads the answer itself, to skip a reminder nobody would see before it
+ * writes one, and passing that answer here stores the row under the decision
+ * the caller acted on. Resolving a second time would let preferences change
+ * between the two reads and store a hidden row the caller counted as sent.
  */
 export async function createNotification(
   input: CreateNotificationInput,
   prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
+  deliveryOverride?: NotificationDelivery,
 ): Promise<CreateNotificationResult> {
   const prisma = prismaClient;
   const uniqueKey = {
@@ -358,7 +365,7 @@ export async function createNotification(
     messageKey: input.messageKey,
   };
 
-  const delivery = await resolveDelivery(input);
+  const delivery = deliveryOverride ?? (await resolveDelivery(input));
   // Preserve the delivery decision for hidden chat rows. A silenced mention
   // remains stored for idempotency, but a room row can represent its message
   // too. Current preferences cannot tell whether that old mention arrived.
