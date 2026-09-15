@@ -278,9 +278,10 @@ describe("NotificationFollowUpSyncService", () => {
    * it. This asserts on the read state the page writes, not on the underlying
    * status: the service never reads a task or a job, and must not start to.
    *
-   * The page-side write lands in a separate PR (SOK-916 is blocked on it).
-   * Until that PR is in, these rows stay unread and this feature will remind
-   * readers of tasks and jobs they have already dealt with.
+   * The page-side write is `MarkNotificationsRead` in web, which calls
+   * `PATCH /v1/notifications/read-for-reference` when the task or job page
+   * opens. Without it these rows stayed unread and this feature reminded
+   * readers of work they had already finished.
    */
   it.each([
     [

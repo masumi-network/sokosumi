@@ -16241,6 +16241,46 @@ export const MarkAllReadResponseSchema = {
     ]
 } as const;
 
+export const MarkReadForReferenceResponseSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of notifications this call marked as read',
+            example: 2
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const MarkReadForReferenceRequestSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'TASK',
+                'JOB'
+            ],
+            description: 'Kind of the notifications to mark read.',
+            example: 'TASK'
+        },
+        referenceId: {
+            type: 'string',
+            minLength: 1,
+            description: 'The task or job the notifications point at. Required and non-empty, so this route can never read a kind in bulk.',
+            example: 'cm123456789abcdefghij'
+        }
+    },
+    required: [
+        'kind',
+        'referenceId'
+    ]
+} as const;
+
 export const ClearNotificationsResponseSchema = {
     type: 'object',
     properties: {

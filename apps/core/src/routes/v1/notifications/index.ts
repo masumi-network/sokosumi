@@ -4,6 +4,7 @@ import mountMarkNotificationRead from "./[id]/read/patch.js";
 import mountClearNotifications from "./delete.js";
 import mountGetNotifications from "./get.js";
 import mountMarkAllRead from "./read-all/patch.js";
+import mountMarkReadForReference from "./read-for-reference/patch.js";
 import mountGetUnreadCount from "./unread-count/get.js";
 
 const app = new OpenAPIHonoWithAuth();
@@ -12,6 +13,7 @@ mountGetNotifications(app);
 mountGetUnreadCount(app);
 mountMarkNotificationRead(app);
 mountMarkAllRead(app);
+mountMarkReadForReference(app);
 mountDeleteNotification(app);
 mountClearNotifications(app);
 
