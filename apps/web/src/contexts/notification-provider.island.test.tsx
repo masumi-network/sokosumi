@@ -517,6 +517,38 @@ describe("NotificationProvider deleting", () => {
     });
   }
 
+  it("a delayed unread response must not undo later mark all read", async () => {
+    let resolveUnread!: (value: unknown) => void;
+    patchNotificationUnreadMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveUnread = resolve;
+        }),
+    );
+    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = currentNotifications.markUnread("notification-read");
+    });
+    let pendingAll!: Promise<void>;
+    await act(async () => {
+      pendingAll = currentNotifications.markAllRead();
+    });
+    expect(currentNotifications.unreadCount).toBe(0);
+    await act(async () => {
+      resolveUnread({ data: { ...READ_ROW, isRead: false, readAt: null } });
+      await pending;
+      await pendingAll;
+    });
+    expect(
+      currentNotifications.notifications.find(
+        (row) => row.id === "notification-read",
+      )?.isRead,
+    ).toBe(true);
+    expect(currentNotifications.unreadCount).toBe(0);
+  });
+
   it("puts a read row back and adds it to the bell", async () => {
     patchNotificationUnreadMock.mockResolvedValue({
       data: { ...READ_ROW, isRead: false, readAt: null },
