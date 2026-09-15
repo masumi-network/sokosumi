@@ -142,14 +142,15 @@ function coworkerScheduledTaskCreator(
 }
 
 /**
- * Resolves an authenticated scheduled-Task creator. Coworkers need a GRANTED
- * vendor workspace grant because scheduled work is an immediate workspace-wide
- * commitment, not a GRANT_PENDING delegated draft. Never requests access; use
- * {@link requireScheduledTaskCreatorOrRequestGrant} for the cold-start gate.
+ * Resolution mode for scheduled-Task creators: strictly require GRANTED vendor
+ * workspace access, or request it for the contextual user when it is missing.
  */
-export async function requireScheduledTaskCreator(
+type ScheduledTaskCreatorGate = "require-granted" | "request-grant";
+
+async function resolveScheduledTaskCreator(
   authContext: AuthenticationContext,
   workspaceId: string,
+  gate: ScheduledTaskCreatorGate,
   tx?: Prisma.TransactionClient,
 ): Promise<ScheduledTaskCreator> {
   const userContext = requireUserContext(authContext);
@@ -165,7 +166,14 @@ export async function requireScheduledTaskCreator(
     { vendorId: authContext.vendorId, workspaceId },
     tx,
   );
-  if (grant?.status !== VendorGrantStatus.GRANTED) {
+  if (gate === "request-grant") {
+    await requireGrantedWorkspaceAccessOrRequest({
+      vendorId: authContext.vendorId,
+      workspaceId,
+      requestedByUserId: userContext.userId,
+      grant,
+    });
+  } else if (grant?.status !== VendorGrantStatus.GRANTED) {
     throwGrantAccessError(grant?.status);
   }
 
@@ -173,38 +181,38 @@ export async function requireScheduledTaskCreator(
 }
 
 /**
- * Cold-start variant of {@link requireScheduledTaskCreator}: a Coworker with no
- * workspace grant (or a pending one) asks for one — approvers are notified —
- * and gets `grant_required` until a human approves. The caller retries the same
- * `operationId` afterwards. No schedule row exists before access is GRANTED, so
- * this endpoint never parks work.
+ * Resolves an authenticated scheduled-Task creator under a GRANTED vendor
+ * workspace grant. Coworkers need that grant because scheduled work is an
+ * immediate workspace-wide commitment, not a GRANT_PENDING delegated draft.
+ * Never requests access; use
+ * {@link requireScheduledTaskCreatorOrRequestGrant} for the cold-start gate.
  */
-export async function requireScheduledTaskCreatorOrRequestGrant(
+export async function requireScheduledTaskCreator(
   authContext: AuthenticationContext,
   workspaceId: string,
   tx?: Prisma.TransactionClient,
 ): Promise<ScheduledTaskCreator> {
-  const userContext = requireUserContext(authContext);
-  if (!isCoworkerAuthContext(authContext)) {
-    return {
-      userContext,
-      actor: { kind: "user", userId: userContext.userId },
-    };
-  }
-
-  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
-  const grant = await getWorkspaceGrant(
-    { vendorId: authContext.vendorId, workspaceId },
+  return resolveScheduledTaskCreator(
+    authContext,
+    workspaceId,
+    "require-granted",
     tx,
   );
-  await requireGrantedWorkspaceAccessOrRequest({
-    vendorId: authContext.vendorId,
-    workspaceId,
-    requestedByUserId: userContext.userId,
-    grant,
-  });
+}
 
-  return coworkerScheduledTaskCreator(authContext, userContext);
+/**
+ * Cold-start scheduled-Task create gate. A Coworker without workspace access
+ * gets `grant_required`: when no grant exists yet, Core commits a PENDING
+ * request and notifies approvers; an existing pending grant is kept as-is.
+ * DENIED / REVOKED grants never reopen. The caller retries the same
+ * `operationId` after approval — no schedule row exists before access is
+ * GRANTED, so this endpoint never parks work.
+ */
+export async function requireScheduledTaskCreatorOrRequestGrant(
+  authContext: AuthenticationContext,
+  workspaceId: string,
+): Promise<ScheduledTaskCreator> {
+  return resolveScheduledTaskCreator(authContext, workspaceId, "request-grant");
 }
 
 /**

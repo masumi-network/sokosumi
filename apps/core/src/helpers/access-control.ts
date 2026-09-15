@@ -440,9 +440,10 @@ export async function requireTaskAssignableSokoBot(
 // -----------------------------------------------------------------------------
 
 /**
- * Passes for GRANTED access. DENIED/REVOKED never reopen. Otherwise commits a
- * PENDING workspace grant request (approvers notified) and passes only once the
- * grant resolves as GRANTED — callers without access get `grant_required`.
+ * Passes only when access is already GRANTED. DENIED/REVOKED never reopen.
+ * A missing grant is requested first (approvers are notified on creation);
+ * missing or pending access always throws `grant_required`, so callers retry
+ * after a human approves.
  */
 export async function requireGrantedWorkspaceAccessOrRequest(params: {
   vendorId: string;

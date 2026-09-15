@@ -149,9 +149,9 @@ Scheduled creation is a distinct v2 Calendar operation. It requires a UUID
 an assignee, and a schedule. Core atomically creates the `QUEUED` Task, v2 rule
 epoch, planned occurrence index, and workspace-scoped idempotency result.
 
-Coworker callers need workspace access. With no grant (or an existing
-**PENDING** one), Core commits a PENDING grant request — approvers are notified
-— and returns **403** `grant_required`; the caller retries the same
+Coworker callers need workspace access. With no grant, Core commits a PENDING
+grant request and notifies approvers; with no grant or an existing **PENDING**
+one, it returns **403** `grant_required`, and the caller retries the same
 `operationId` after approval. **DENIED** / **REVOKED** grants never reopen.
 Unlike ordinary delegated Task create, this endpoint never creates
 `GRANT_PENDING` work: no schedule row exists until access is **GRANTED**. With a
@@ -172,7 +172,7 @@ returns the original Task without creating another occurrence ledger.
 | GET | `/v1/tasks` | With **GRANTED** grant, list all non-DRAFT tasks in workspace. `status=DRAFT` filter → **400**. |
 | GET | `/v1/tasks/{id}` | Baseline unchanged. Out-of-scope: upsert PENDING grant, **403** unless **GRANTED**. Same gate for task events, links, jobs list. |
 | POST | `/v1/tasks` | Delegated create flow above. |
-| POST | `/v1/tasks/scheduled` | Atomic v2 scheduled creation; with no grant or a PENDING grant, upserts a PENDING request and returns **403** `grant_required`; DENIED and REVOKED grants stay blocked; never parks work. |
+| POST | `/v1/tasks/scheduled` | Atomic v2 scheduled creation; no grant → creates a PENDING request (approvers notified) and returns **403** `grant_required`; PENDING → **403** `grant_required`; DENIED/REVOKED stay blocked; never parks work. |
 | POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
 | POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |
 | PATCH | `/v1/tasks/{id}` (+ schedule, etc.) | Collaborators cannot mutate parked tasks. |
