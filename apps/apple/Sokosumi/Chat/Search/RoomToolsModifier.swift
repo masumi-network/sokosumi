@@ -87,15 +87,25 @@ import SwiftUI
     }
 
     private var inspectorPresented: Binding<Bool> {
-      Binding(get: { (showsPins || showsSearch || showsThreads) && workspaces.thread.parent == nil }, set: {
-        if !$0 {
-          showsPins = false
-          if workspaces.thread.parent == nil {
-            showsThreads = false
+      Binding(
+        get: {
+          roomToolsInspectorPresented(
+            showsPins: showsPins,
+            showsSearch: showsSearch,
+            showsThreads: showsThreads,
+            threadParentId: workspaces.thread.parent?.id
+          )
+        },
+        set: {
+          if !$0 {
+            showsPins = false
+            if roomToolsClearsThreadsOnInspectorDismiss(threadParentId: workspaces.thread.parent?.id) {
+              showsThreads = false
+            }
+            closeSearch()
           }
-          closeSearch()
         }
-      })
+      )
     }
 
     @ToolbarContentBuilder
@@ -138,7 +148,7 @@ import SwiftUI
           }
         }
         .help("Threads")
-        .accessibilityLabel("Threads, \(workspaces.threadOverview.unreadCount) unread")
+        .accessibilityLabel(roomThreadsAccessibilityLabel(unreadCount: workspaces.threadOverview.unreadCount))
       }
       if room?.kind == .channel {
         ToolbarItem {
@@ -207,5 +217,26 @@ import SwiftUI
         }
       }
     }
+  }
+
+  func roomThreadsAccessibilityLabel(unreadCount: Int) -> String {
+    guard unreadCount > 0 else { return "Threads" }
+    if unreadCount > 99 {
+      return "Threads, more than 99 unread"
+    }
+    return "Threads, \(unreadCount) unread"
+  }
+
+  func roomToolsInspectorPresented(
+    showsPins: Bool,
+    showsSearch: Bool,
+    showsThreads: Bool,
+    threadParentId: String?
+  ) -> Bool {
+    (showsPins || showsSearch || showsThreads) && threadParentId == nil
+  }
+
+  func roomToolsClearsThreadsOnInspectorDismiss(threadParentId: String?) -> Bool {
+    threadParentId == nil
   }
 #endif
