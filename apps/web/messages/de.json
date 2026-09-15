@@ -2727,7 +2727,7 @@
           "totalCount": "{count, plural, one {# Benutzer} other {# Benutzer}}",
           "empty": "Keine Benutzer gefunden.",
           "user": "Benutzer",
-          "credits": "Guthaben",
+          "credits": "Persönliches Guthaben",
           "subscription": "Abonnement",
           "startedTasks": "Gestartete Aufgaben",
           "registered": "Registriert",
@@ -2762,8 +2762,8 @@
             "enterprisePool": "Enterprise-Pool: {credits} Credits"
           },
           "credits": {
-            "title": "Guthaben gesamt",
-            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
+            "title": "Organisations-Guthaben",
+            "description": "Verfügbare Credits im Organisations-Pool, inklusive Extra-Credits und dem Enterprise-Vertrags-Pool, falls vorhanden.",
             "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
           },
           "members": {
