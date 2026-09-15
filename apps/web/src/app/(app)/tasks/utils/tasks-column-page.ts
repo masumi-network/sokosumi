@@ -7,9 +7,12 @@ import type {
 import { resolveMentionedAgentsById } from "@/app/tasks/utils/mentioned-agents";
 import { getColumnListQueryOptions } from "@/app/tasks/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
-import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
+import type {
+  TasksScope,
+  TasksVisibilityFilter,
+} from "@/app/tasks/utils/tasks-filters";
 import type { Coworker } from "@/lib/clients/generated/core";
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 
 type ColumnCursor = string | null;
@@ -24,7 +27,7 @@ interface GetTasksColumnPageParams {
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
-  visibility: TaskVisibility;
+  visibility: TasksVisibilityFilter;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -64,7 +67,7 @@ export async function getTasksColumnPage({
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,
     projectId: projectId ?? undefined,
-    visibility,
+    ...(visibility ? { visibility } : {}),
     cursor,
     limit,
   });

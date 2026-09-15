@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { getTasksColumnPage } from "./tasks-column-page";
 
@@ -88,7 +88,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -103,7 +103,6 @@ describe("getTasksColumnPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: PROJECT_ID,
-      visibility: TaskVisibility.PUBLIC,
       cursor: null,
       limit: 2,
     });
@@ -131,7 +130,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -145,7 +144,6 @@ describe("getTasksColumnPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: undefined,
-      visibility: TaskVisibility.PUBLIC,
       cursor: "cursor-1",
       limit: 1,
     });
@@ -178,7 +176,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -194,7 +192,6 @@ describe("getTasksColumnPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: undefined,
-      visibility: TaskVisibility.PUBLIC,
       cursor: null,
       limit: 10,
     });
@@ -222,7 +219,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -241,7 +238,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: TaskStatus.COMPLETED,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -275,7 +272,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -288,7 +285,6 @@ describe("getTasksColumnPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: undefined,
-      visibility: TaskVisibility.PUBLIC,
       cursor: null,
       limit: 10,
     });
@@ -316,7 +312,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -335,7 +331,6 @@ describe("getTasksColumnPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: undefined,
-      visibility: TaskVisibility.PUBLIC,
       cursor: null,
       limit: 10,
     });

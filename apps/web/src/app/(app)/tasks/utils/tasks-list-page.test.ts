@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { getTasksListPage } from "./tasks-list-page";
 
@@ -87,7 +87,7 @@ describe("getTasksListPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -102,7 +102,6 @@ describe("getTasksListPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: PROJECT_ID,
-      visibility: TaskVisibility.PUBLIC,
       cursor: null,
       limit: 2,
     });
@@ -129,7 +128,7 @@ describe("getTasksListPage", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -143,7 +142,6 @@ describe("getTasksListPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: undefined,
-      visibility: TaskVisibility.PUBLIC,
       cursor: null,
       limit: 10,
     });
@@ -170,7 +168,7 @@ describe("getTasksListPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -184,7 +182,6 @@ describe("getTasksListPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: undefined,
-      visibility: TaskVisibility.PUBLIC,
       cursor: "cursor-1",
       limit: 1,
     });
@@ -211,7 +208,7 @@ describe("getTasksListPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -231,7 +228,7 @@ describe("getTasksListPage", () => {
       assigneeUserId: "user-1",
       status: null,
       projectId: null,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });

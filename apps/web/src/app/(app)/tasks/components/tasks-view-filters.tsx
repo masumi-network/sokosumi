@@ -32,7 +32,6 @@ interface TasksViewFiltersProps {
     coworkerLabel: string;
     statusLabel: string;
     visibilityLabel: string;
-    visibilityPublic: string;
     visibilityPrivate: string;
     statusOptions: Record<TaskStatus, string>;
   };
@@ -127,16 +126,15 @@ export function TasksViewFilters({
         label: labels.visibilityLabel,
         icon: Eye,
         value: filters.visibility,
+        allLabel: labels.all,
         onChange: (visibility) =>
           handleFilterChange({
             visibility:
-              (visibility as TaskVisibility | null) ?? TaskVisibility.PUBLIC,
+              visibility === TaskVisibility.PRIVATE
+                ? TaskVisibility.PRIVATE
+                : null,
           }),
         options: [
-          {
-            value: TaskVisibility.PUBLIC,
-            label: labels.visibilityPublic,
-          },
           {
             value: TaskVisibility.PRIVATE,
             label: labels.visibilityPrivate,
@@ -220,7 +218,6 @@ export function TasksViewFilters({
     labels.statusOptions,
     labels.visibilityLabel,
     labels.visibilityPrivate,
-    labels.visibilityPublic,
   ]);
 
   return (

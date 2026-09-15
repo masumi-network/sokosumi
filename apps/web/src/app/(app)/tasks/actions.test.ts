@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  AgentJobStatus,
-  TaskStatus,
-  TaskVisibility,
-} from "@/lib/clients/generated/core";
+import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const listCoworkersMock = vi.fn();
 const getMineMock = vi.fn();
@@ -140,7 +136,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
     });
     expect(callArg.coworkersById).toBeInstanceOf(Map);
     expect(callArg.coworkersById.get(coworker.id)).toEqual(coworker);
@@ -327,7 +323,7 @@ describe("loadMoreTasksList", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
-      visibility: TaskVisibility.PUBLIC,
+      visibility: null,
     });
     expect(callArg.coworkersById).toBeInstanceOf(Map);
     expect(callArg.coworkersById.get(coworker.id)).toEqual(coworker);

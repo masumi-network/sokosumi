@@ -5,6 +5,8 @@ export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
 export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
 
+export type TasksVisibilityFilter = typeof TaskVisibility.PRIVATE | null;
+
 export interface TasksFilters {
   scope: TasksScope;
   assigneeId: string | null;
@@ -12,8 +14,8 @@ export interface TasksFilters {
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
-  /** Organization boards only; product default is PUBLIC. */
-  visibility: TaskVisibility;
+  /** Organization boards only; null = all accessible tasks. */
+  visibility: TasksVisibilityFilter;
 }
 
 export interface ProjectFilterOption {
@@ -51,8 +53,6 @@ export const TASKS_FILTER_PARAM_KEYS = {
   projectId: "projectId",
   visibility: "visibility",
 } as const;
-
-export const DEFAULT_TASKS_VISIBILITY = TaskVisibility.PUBLIC;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 const UUID_PATTERN =
@@ -113,27 +113,24 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 
 /**
  * Validates `visibility` from untrusted input (URL / server-action JSON).
- * Personal workspaces always stay on PUBLIC (no Visibility filter).
- * Invalid values fall back to PUBLIC.
+ * Personal workspaces always stay on null (no Visibility filter).
+ * PUBLIC, invalid values, and omitted input sanitize to null (all accessible).
  */
 export function sanitizeTasksVisibilityInput(
   raw: unknown,
   activeOrganizationId: string | null,
-): TaskVisibility {
+): TasksVisibilityFilter {
   if (activeOrganizationId === null) {
-    return DEFAULT_TASKS_VISIBILITY;
+    return null;
   }
   if (typeof raw !== "string") {
-    return DEFAULT_TASKS_VISIBILITY;
+    return null;
   }
   const normalized = raw.trim();
-  if (
-    normalized === TaskVisibility.PUBLIC ||
-    normalized === TaskVisibility.PRIVATE
-  ) {
-    return normalized;
+  if (normalized === TaskVisibility.PRIVATE) {
+    return TaskVisibility.PRIVATE;
   }
-  return DEFAULT_TASKS_VISIBILITY;
+  return null;
 }
 
 export function getDefaultTasksScope(
@@ -334,7 +331,7 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.status);
   }
 
-  if (filters.visibility === DEFAULT_TASKS_VISIBILITY) {
+  if (filters.visibility === null) {
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.visibility);
   } else {
     nextSearchParams.set(
@@ -383,7 +380,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}`;
 }
 
 /**

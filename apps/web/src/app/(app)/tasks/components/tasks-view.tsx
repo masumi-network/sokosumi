@@ -289,7 +289,6 @@ interface TasksViewProps {
       coworkerLabel: string;
       statusLabel: string;
       visibilityLabel: string;
-      visibilityPublic: string;
       visibilityPrivate: string;
       statusOptions: Record<TaskStatus, string>;
     };
