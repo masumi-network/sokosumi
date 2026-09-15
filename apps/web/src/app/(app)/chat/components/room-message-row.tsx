@@ -145,7 +145,10 @@ import {
   type RoomMentionParticipant,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
-import { SokoBotChainBadge } from "./soko-bot-chain-badge";
+import {
+  hasSokoBotChainBadge,
+  SokoBotChainBadge,
+} from "./soko-bot-chain-badge";
 import { SokoBotMessageFooter } from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
@@ -2306,11 +2309,27 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     setDeleteDialogOpen(false);
   }
 
+  // The parent drops a repeat click while the first toggle is in flight, so
+  // a use counts once per emoji until the message's reactions change.
+  const recordedUsesRef = useRef<{
+    reactions: ChatRoomMessage["reactions"];
+    emojis: Set<string>;
+  } | null>(null);
+
   // Every reaction path in the row (pill, sheet, picker, existing chips) lands
   // here, so adding one teaches the quick reactions. Removing one does not.
   function handleToggleReaction(target: ChatRoomMessage, emoji: string) {
     if (!readerReactedEmojis(target).has(emoji)) {
-      recordEmojiUse(emoji);
+      if (recordedUsesRef.current?.reactions !== target.reactions) {
+        recordedUsesRef.current = {
+          reactions: target.reactions,
+          emojis: new Set(),
+        };
+      }
+      if (!recordedUsesRef.current.emojis.has(emoji)) {
+        recordedUsesRef.current.emojis.add(emoji);
+        recordEmojiUse(emoji);
+      }
     }
     onToggleReaction(target, emoji);
   }
@@ -2326,7 +2345,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // paints outside the row, so the scroller cannot clip it. The styling
         // itself lives in globals.css, keyed on data-search-landed.
         "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
-        reserveHoverActionGutter && "[@media(hover:hover)]:pr-64",
+        // Sized to the widest pill: eight buttons, or the chain badge plus seven.
+        reserveHoverActionGutter &&
+          (hasSokoBotChainBadge(message.metadata)
+            ? "[@media(hover:hover)]:pr-72"
+            : "[@media(hover:hover)]:pr-64"),
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"

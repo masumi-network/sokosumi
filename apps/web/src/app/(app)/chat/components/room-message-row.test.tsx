@@ -881,6 +881,25 @@ describe("ChatMessageRow", () => {
     expect(article.className.split(/\s+/)).not.toContain("pr-64");
   });
 
+  it("widens the gutter when the pill carries the soko bot chain badge", () => {
+    renderRow({
+      message: userMessage({
+        metadata: {
+          soko_bot_chain: {
+            depth: 2,
+            max_depth: 4,
+            room_messages_this_hour: 3,
+            room_messages_per_hour: 20,
+          },
+        },
+      }),
+    });
+
+    const article = screen.getByRole("article");
+    expect(article.className).toContain("[@media(hover:hover)]:pr-72");
+    expect(article.className).not.toContain("pr-64");
+  });
+
   it("skips the hover action gutter so a narrow thread can use full width", () => {
     renderRow({ reserveHoverActionGutter: false });
 
@@ -3074,6 +3093,18 @@ describe("ChatMessageRow quick reactions", () => {
     await user.click(quickReactionButtons()[2]);
 
     expect(onToggleReaction).toHaveBeenCalledWith(message, "😂");
+    expect(storedHistory()).toEqual(["😂"]);
+  });
+
+  it("counts a repeat click during an in-flight toggle as one use", async () => {
+    const user = userEvent.setup();
+    const onToggleReaction = renderReactableRow();
+
+    await user.hover(screen.getByRole("article"));
+    await user.click(quickReactionButtons()[2]);
+    await user.click(quickReactionButtons()[2]);
+
+    expect(onToggleReaction).toHaveBeenCalledTimes(2);
     expect(storedHistory()).toEqual(["😂"]);
   });
 

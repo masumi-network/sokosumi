@@ -155,10 +155,18 @@ describe("appendEmojiUse", () => {
 });
 
 describe("rankFrequentlyUsedEmojis", () => {
-  it("ranks the most used first and breaks ties by recency", () => {
+  it("ranks the most used first", () => {
     expect(
       rankFrequentlyUsedEmojis(["🦄", "👍", "🎉", "👍", "🎉", "👍"]),
     ).toEqual(["👍", "🎉", "🦄"]);
+  });
+
+  it("breaks a tie in favour of the most recent use", () => {
+    expect(rankFrequentlyUsedEmojis(["🦄", "🎉", "👍", "🎉", "👍"])).toEqual([
+      "🎉",
+      "👍",
+      "🦄",
+    ]);
   });
 
   it("caps the ranked list", () => {

@@ -11,7 +11,7 @@ describe("resolveQuickReactions", () => {
     expect(resolveQuickReactions([], 5)).toEqual([...DEFAULT_QUICK_REACTIONS]);
   });
 
-  it("leads with the most recently used emojis", () => {
+  it("leads with the frequently used emojis in their ranked order", () => {
     expect(resolveQuickReactions(["🚀", "✅", "🙌", "🔥"], 3)).toEqual([
       "🚀",
       "✅",
