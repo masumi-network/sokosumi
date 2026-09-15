@@ -6,7 +6,6 @@ import { InputType } from "@sokosumi/masumi/types";
 import * as z from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
-import { isBooleanType } from "./form-schema-helpers";
 import type { JobInputFormIntlPath } from "./type";
 
 /**
@@ -113,29 +112,6 @@ export function prepareInputValues(
   values: JobInputsFormSchemaType,
 ): InputSchemaType {
   return filterOutNullValues(values);
-}
-
-/**
- * Type guard to check if a value is a valid InputSchemaType value.
- * Useful for runtime validation when converting between types.
- */
-export function isInputSchemaValue(
-  value: unknown,
-): value is InputSchemaType[string] {
-  if (value === undefined) return true;
-  if (typeof value === "number") return true;
-  if (typeof value === "string") return true;
-  if (typeof value === "boolean") return true;
-  if (value instanceof File) return true;
-  if (Array.isArray(value)) {
-    return value.every(
-      (item) =>
-        typeof item === "number" ||
-        typeof item === "string" ||
-        item instanceof File,
-    );
-  }
-  return false;
 }
 
 /**
@@ -280,48 +256,3 @@ export const defaultValues = (
     }),
   );
 };
-
-/**
- * Type guard to check if a value is a non-null form value.
- * Useful for filtering form values before submission.
- */
-export function isNonNullValue(value: unknown): value is NonNullable<unknown> {
-  return value !== null && value !== undefined;
-}
-
-/**
- * Checks if two form values represent the same input type.
- * Used for validation and type narrowing.
- */
-export function isValidFormValue(
-  schema: InputFieldSchemaType,
-  value: unknown,
-): boolean {
-  const { type } = schema;
-
-  if (value === null || value === undefined) {
-    return true; // Null values are always valid (optionality is handled by schema)
-  }
-
-  if (isBooleanType(type)) {
-    return typeof value === "boolean";
-  }
-
-  switch (type) {
-    case InputType.NUMBER:
-    case InputType.RANGE:
-      return typeof value === "number";
-    case InputType.FILE:
-      return (
-        Array.isArray(value) && value.every((item) => item instanceof File)
-      );
-    case InputType.OPTION:
-    case InputType.RADIO_GROUP:
-    case InputType.MULTISELECT:
-      return (
-        Array.isArray(value) && value.every((item) => typeof item === "number")
-      );
-    default:
-      return typeof value === "string";
-  }
-}
