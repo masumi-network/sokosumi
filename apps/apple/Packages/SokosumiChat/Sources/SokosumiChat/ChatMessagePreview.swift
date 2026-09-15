@@ -51,7 +51,6 @@ enum ChatMessagePreview {
     }
     text = replace(#"!(?=\[[^\]\[]*\]\()"#, in: text, with: "")
     text = replace(#"`{2,}"#, in: text, with: "`")
-    text = replace(#"```[\s\S]*?```"#, in: text, with: " ")
     text = replace(#"`([^`]+)`"#, in: text, with: "$1")
     text = replace(#"\[([^\]\[]+)\]\([^)]+\)"#, in: text, with: "$1")
     text = replace(#"[*_~>#]+"#, in: text, with: "")

@@ -4,7 +4,7 @@ import Testing
 
 struct ChatMessagePreviewTests {
   /// Captured from the shared web formatter and its existing tests at 05b622d79.
-  /// Covers representable buildChatMessagePreview inputs, including named-preview tests.
+  /// Covers representable buildChatMessagePreview inputs, with and without roster names.
   /// One lone-surrogate case is excluded: Swift String cannot hold malformed UTF-16.
   @Test func matchesWebPreviewCorpus() throws {
     let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
