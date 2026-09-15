@@ -31,10 +31,10 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
  * file and risk badges say the same thing the same way.
  */
 const TASK_STATUS_MARKERS: Record<TaskStatus, StatusMarkerSpec> = {
-  [TaskStatus.DRAFT]: { role: "idle", icon: MARKER_ICONS.draft },
-  [TaskStatus.QUEUED]: { role: "queued", icon: MARKER_ICONS.queued },
-  [TaskStatus.READY]: { role: "queued", icon: MARKER_ICONS.ready },
-  [TaskStatus.GRANT_PENDING]: { role: "waiting", icon: MARKER_ICONS.grant },
+  [TaskStatus.DRAFT]: { role: "inert", icon: MARKER_ICONS.draft },
+  [TaskStatus.QUEUED]: { role: "working", icon: MARKER_ICONS.queued },
+  [TaskStatus.READY]: { role: "working", icon: MARKER_ICONS.ready },
+  [TaskStatus.GRANT_PENDING]: { role: "external", icon: MARKER_ICONS.grant },
   [TaskStatus.INPUT_REQUIRED]: { role: "action", icon: MARKER_ICONS.input },
   [TaskStatus.APPROVAL_REQUIRED]: {
     role: "action",
@@ -49,25 +49,25 @@ const TASK_STATUS_MARKERS: Record<TaskStatus, StatusMarkerSpec> = {
     icon: MARKER_ICONS.credits,
   },
   [TaskStatus.CREDITS_TOPPED_UP]: {
-    role: "success",
+    role: "working",
     icon: MARKER_ICONS.toppedUp,
   },
   [TaskStatus.RUNNING]: {
-    role: "active",
+    role: "working",
     icon: MARKER_ICONS.running,
     spin: true,
   },
   [TaskStatus.AWAITING_EXTERNAL]: {
-    role: "waiting",
+    role: "external",
     icon: MARKER_ICONS.awaiting,
   },
   [TaskStatus.COMPLETED]: { role: "success", icon: MARKER_ICONS.completed },
   [TaskStatus.FAILED]: { role: "failure", icon: MARKER_ICONS.failed },
-  [TaskStatus.CANCELED]: { role: "closed", icon: MARKER_ICONS.canceled },
+  [TaskStatus.CANCELED]: { role: "inert", icon: MARKER_ICONS.canceled },
 };
 
 const DEFAULT_MARKER: StatusMarkerSpec = {
-  role: "idle",
+  role: "inert",
   icon: MARKER_ICONS.queued,
 };
 

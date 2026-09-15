@@ -70,8 +70,11 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
  */
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
   backlog: "bg-status-done",
-  todo: "bg-status-queued",
-  "in-progress": "bg-status-active",
+  // Both columns are the same promise to the reader: we have it, wait. The
+  // column header is what separates the stage, so the mark does not need a
+  // second hue for it.
+  todo: "bg-status-working",
+  "in-progress": "bg-status-working",
   "input-required": "bg-semantic-warning",
   done: "bg-semantic-success",
 };

@@ -5,10 +5,7 @@ import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
-import {
-  getJobStatusMarker,
-  getJobStatusDotColorClass,
-} from "@/components/jobs/job-status-styles";
+import { getJobStatusMarker } from "@/components/jobs/job-status-styles";
 import {
   STATUS_ROLE_STYLES,
   StatusMarker,
@@ -34,7 +31,7 @@ const THEMES = {
 } as const;
 const BRIDGES = block("@theme inline {");
 
-/** The token a colour utility reads, e.g. `bg-status-queued` -> `status-queued`. */
+/** The token a colour utility reads: `bg-status-working` -> `status-working`. */
 function tokenOf(utility: string): string {
   return utility.replace(/^(bg|text)-/, "");
 }
@@ -121,13 +118,17 @@ describe("status role styles", () => {
   /**
    * A colour token becomes a utility only through a `--color-*` bridge in
    * `@theme inline`. Without one the class emits no CSS at all, the badge
-   * silently inherits, and every string-comparing test stays green. Six label
-   * tokens arrived with this seam, so the seam is pinned here.
+   * silently inherits, and every string-comparing test stays green. Five
+   * label tokens read through this seam, so the seam is pinned here.
    */
   it.each(ROLES)("bridges every token %s paints with", (role) => {
-    const { bg, text, marker } = STATUS_ROLE_STYLES[role];
+    const { bg, text, marker, dot, onSurface } = STATUS_ROLE_STYLES[role];
 
-    for (const token of [bg, text, marker].map(tokenOf)) {
+    // `dot` and `onSurface` are listed so a future role whose dot names a
+    // token no other field paints cannot slip through unbridged. Today every
+    // dot token is already named by `bg` or `marker`, so they add no coverage
+    // yet.
+    for (const token of [bg, text, marker, dot, onSurface].map(tokenOf)) {
       // The formatter wraps the longer bridges across lines.
       const bridge = new RegExp(
         `--color-${token}:\\s*var\\(\\s*--${token},?\\s*\\)`,
@@ -159,18 +160,34 @@ describe("status role styles", () => {
     }
   });
 
+  /**
+   * The bare dot is painted on a surface, not on a role fill, so the fill
+   * test above cannot see it. It is a non-text graphic, so SC 1.4.11 asks
+   * 3:1. The surface measured here is --card-background, the resting card.
+   * List rows use --muted on hover, where the dark `failure` mark reaches
+   * only 2.78; that exception is recorded on `RoleStyle.dot`. Only `dot` is
+   * measured, because "gives %s an onSurface twin of its dot" pins the other
+   * one to it.
+   */
+  it.each(ROLES)("keeps the %s mark visible on the card surface", (role) => {
+    for (const theme of [THEMES.light, THEMES.dark]) {
+      const dot = tokenOf(STATUS_ROLE_STYLES[role].dot);
+
+      expect(contrast(theme, "card-background", dot)).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("paints the failure dot with the solid fill, not its label", () => {
-    expect(getJobStatusDotColorClass(SokosumiJobStatus.FAILED)).toBe(
-      "bg-semantic-destructive-solid",
-    );
+    expect(STATUS_ROLE_STYLES.failure.dot).toBe("bg-semantic-destructive-solid");
   });
 });
 
 /**
- * Colour carries urgency and the glyph carries identity, so two statuses that
- * share a role must not share a glyph. Without this, collapsing several
- * statuses onto one icon would leave badges that are identical in both
- * channels, which is the failure WCAG 2.2 SC 1.4.1 is about.
+ * Colour says what the reader must do and the glyph says which status it is,
+ * so two statuses that share a role must not share a glyph. Without this,
+ * collapsing several statuses onto one icon would leave badges that are
+ * identical in both channels, which is the failure WCAG 2.2 SC 1.4.1 is
+ * about.
  */
 describe("glyph identity", () => {
   it("gives every task status in a role its own glyph", () => {
@@ -188,8 +205,9 @@ describe("glyph identity", () => {
   /**
    * One pair shares a glyph on purpose. PAYMENT_PENDING and STARTED are one
    * stage seen twice, and to the reader it is one stage, so the badge is meant
-   * to look the same in both. Their labels are what tell them apart, and
-   * job-status-label.test.ts pins those as distinct.
+   * to look the same in both. Their labels are what should tell them apart,
+   * and today both read the same word. A later change in this stack gives
+   * them labels of their own and pins the split.
    *
    * The assertion is an equality, not an allowlist membership, so it fails in
    * both directions: a new collision fails, and separating this pair fails
