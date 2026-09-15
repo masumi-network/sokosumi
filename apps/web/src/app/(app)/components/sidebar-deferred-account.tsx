@@ -46,7 +46,7 @@ export default async function SidebarDeferredAccount({
   const planName = await resolvePlanName(credits.planForLabel);
   const accountNotice = resolveAccountNotice({
     credits: credits.totalCredits,
-    currentPlan: credits.creditsData === null ? null : credits.currentPlan,
+    currentPlan: credits.creditScope === null ? null : credits.currentPlan,
     email: sessionUser.email,
     emailVerified: sessionUser.emailVerified,
     threshold: lowCreditsThreshold,
