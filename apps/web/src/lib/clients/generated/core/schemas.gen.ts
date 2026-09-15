@@ -12878,7 +12878,8 @@ export const NotificationPreferenceSchema = {
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
-                'SYSTEM'
+                'SYSTEM',
+                'FOLLOW_UP'
             ],
             description: 'What the notification is about',
             example: 'CHAT_MENTION'

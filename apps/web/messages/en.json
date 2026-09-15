@@ -4177,7 +4177,9 @@
         "channelEmailSoonLabel": "Email, not sent for {kind} yet",
         "channelEmailSoonHint": "Sokosumi does not send an email for this notification yet.",
         "deliveryAriaLabel": "Delivery for {kind}",
-        "newsDeliveryAriaLabel": "Delivery for marketing emails"
+        "newsDeliveryAriaLabel": "Delivery for marketing emails",
+        "kindFollowUp": "Reminders",
+        "kindFollowUpHint": "One reminder a day later when you have not opened something that is waiting for you."
       },
       "ChatDisplay": {
         "title": "Chat display",
@@ -6419,7 +6421,8 @@
         "paymentFailed": "Payment failed for {jobName}",
         "inputRequired": "{agentName} needs your input for {jobName}",
         "refundResolved": "{jobName} was refunded",
-        "disputeResolved": "Dispute resolved for {jobName}"
+        "disputeResolved": "Dispute resolved for {jobName}",
+        "followUp": "{jobName} is still waiting for you"
       },
       "Task": {
         "inputRequired": "{coworkerName} needs your input for {taskName}",
@@ -6431,7 +6434,8 @@
         "canceled": "{taskName} was canceled",
         "scheduleRepaired": "The schedule for {taskName} was repaired",
         "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review",
-        "assigned": "You were assigned {taskName}"
+        "assigned": "You were assigned {taskName}",
+        "followUp": "{taskName} is still waiting for you"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
@@ -6444,7 +6448,10 @@
         "roomMessagesGroup": "{count} messages in group {roomName}",
         "roomMessageTitle": "{authorName} in channel {roomName}",
         "roomMessageGroupTitle": "{authorName} in group {roomName}",
-        "mentionAll": "Everyone"
+        "mentionAll": "Everyone",
+        "mentionedFollowUp": "{authorName} is still waiting for you in {roomName}",
+        "mentionedDirectFollowUp": "{authorName} is still waiting for your reply",
+        "directMessageFollowUp": "{authorName} is still waiting for your reply"
       }
     }
   },

@@ -71,6 +71,14 @@ globalThis.MESSAGES = {
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} in group {roomName}",
     "Notifications.Chat.mentionAll": "Everyone",
+    "Notifications.Job.followUp": "{jobName} is still waiting for you",
+    "Notifications.Task.followUp": "{taskName} is still waiting for you",
+    "Notifications.Chat.mentionedFollowUp":
+      "{authorName} is still waiting for you in {roomName}",
+    "Notifications.Chat.mentionedDirectFollowUp":
+      "{authorName} is still waiting for your reply",
+    "Notifications.Chat.directMessageFollowUp":
+      "{authorName} is still waiting for your reply",
     "notifications.vendorGrant.pending":
       "{vendorName} requested vendor access to your workspace",
     "notifications.coworkerAccess.pending":
@@ -122,6 +130,14 @@ globalThis.MESSAGES = {
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} in der Gruppe {roomName}",
     "Notifications.Chat.mentionAll": "Alle",
+    "Notifications.Job.followUp": "{jobName} wartet weiterhin auf dich",
+    "Notifications.Task.followUp": "{taskName} wartet weiterhin auf dich",
+    "Notifications.Chat.mentionedFollowUp":
+      "{authorName} wartet weiterhin auf dich in {roomName}",
+    "Notifications.Chat.mentionedDirectFollowUp":
+      "{authorName} wartet weiterhin auf deine Antwort",
+    "Notifications.Chat.directMessageFollowUp":
+      "{authorName} wartet weiterhin auf deine Antwort",
     "notifications.vendorGrant.pending":
       "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
     "notifications.coworkerAccess.pending":
@@ -169,6 +185,14 @@ globalThis.MESSAGES = {
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} en el grupo {roomName}",
     "Notifications.Chat.mentionAll": "Todos",
+    "Notifications.Job.followUp": "{jobName} sigue esperándote",
+    "Notifications.Task.followUp": "{taskName} sigue esperándote",
+    "Notifications.Chat.mentionedFollowUp":
+      "{authorName} sigue esperándote en {roomName}",
+    "Notifications.Chat.mentionedDirectFollowUp":
+      "{authorName} sigue esperando tu respuesta",
+    "Notifications.Chat.directMessageFollowUp":
+      "{authorName} sigue esperando tu respuesta",
     "notifications.vendorGrant.pending":
       "{vendorName} solicitó acceso de proveedor al workspace de la organización",
     "notifications.coworkerAccess.pending":

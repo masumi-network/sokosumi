@@ -380,6 +380,22 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     // it would offer four words for what two cells already say.
     presets: [],
   },
+  {
+    id: "FOLLOW_UP",
+    labelKey: "kindFollowUp",
+    kinds: [
+      {
+        category: "FOLLOW_UP",
+        labelKey: "kindFollowUp",
+        hintKey: "kindFollowUpHint",
+        email: false,
+      },
+    ],
+    // One row for reminders of every kind, and last, because it is about the
+    // rows above it rather than beside them. Turning a group off above already
+    // turns off its reminders: nothing that was never delivered is followed up.
+    presets: [],
+  },
 ];
 
 /** The channels one kind is currently set to arrive on. */

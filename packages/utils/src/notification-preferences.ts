@@ -17,6 +17,13 @@
  * name you, and your direct messages. The first is the only one that is off
  * until you ask for it (`NOTIFICATION_CATEGORY_OFF_BY_DEFAULT`).
  *
+ * Follow-ups are one row for all of them (SOK-916). It names a kind of timing
+ * rather than a kind of event, which makes it the odd one here, but the
+ * reader's question is whether they want reminders at all rather than which
+ * reminders they want. Silencing a category upstream already silences its
+ * follow-ups, because a notification that was never delivered is never
+ * followed up.
+ *
  * Web reads the same vocabulary from the generated Core client, not from here:
  * the Core DTO boundary keeps domain values out of web's direct imports.
  */
@@ -31,6 +38,7 @@ export const NOTIFICATION_CATEGORIES = [
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
   "SYSTEM",
+  "FOLLOW_UP",
 ] as const;
 
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];

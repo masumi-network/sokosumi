@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+// The generated index re-exports types only, and this needs the category list
+// at runtime. Deep into the generated output on purpose: it is still what Core
+// emitted, and a list retyped here would pass while Core and this page
+// disagreed.
+import { NotificationPreferenceSchema } from "@/lib/clients/generated/core/schemas.gen";
+
 import {
   categoryChannels,
   cellsFor,
@@ -187,6 +193,28 @@ describe("NOTIFICATION_GROUPS", () => {
    * preset would sit outside every word on the rail, and the group would say
    * Custom for a reader who never set anything by hand.
    */
+  /**
+   * A category Core knows and this page does not draw is a switch the reader
+   * cannot reach: their notifications arrive on the defaults forever, and the
+   * page says nothing about them. Read from the generated client rather than
+   * listed here, so adding a category to Core is what fails this, in the one
+   * place that has to answer for it.
+   */
+  it("draws a row for every category Core knows", () => {
+    const drawn = NOTIFICATION_GROUPS.flatMap((spec) => categories(spec.kinds));
+    const known = NotificationPreferenceSchema.properties.category
+      .enum as readonly string[];
+
+    expect([...known].sort()).toEqual([...drawn].sort());
+  });
+
+  /** A category drawn twice is two switches writing over one another. */
+  it("draws each category once", () => {
+    const drawn = NOTIFICATION_GROUPS.flatMap((spec) => categories(spec.kinds));
+
+    expect(drawn).toEqual([...new Set(drawn)]);
+  });
+
   it("gives every situation a place for every kind of its group", () => {
     const missing = NOTIFICATION_GROUPS.flatMap((spec) =>
       spec.presets.flatMap((one) =>

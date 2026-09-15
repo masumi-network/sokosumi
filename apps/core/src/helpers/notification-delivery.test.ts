@@ -1,10 +1,14 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
+  JOB_FOLLOW_UP_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
+  TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
@@ -60,6 +64,45 @@ describe("toNotificationCategory", () => {
         "Notifications.Task.completed",
       ),
     ).toBe("TASK_COMPLETED");
+  });
+
+  /**
+   * The one row that answers for three kinds. A reader decides about reminders
+   * once, so every follow-up key lands here whatever it is a reminder of.
+   */
+  it("gives every follow-up the same row, whatever kind it reminds of", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.CHAT,
+        CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+      ),
+    ).toBe("FOLLOW_UP");
+    expect(
+      toNotificationCategory(
+        NotificationKind.CHAT,
+        CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+      ),
+    ).toBe("FOLLOW_UP");
+    expect(
+      toNotificationCategory(NotificationKind.TASK, TASK_FOLLOW_UP_MESSAGE_KEY),
+    ).toBe("FOLLOW_UP");
+    expect(
+      toNotificationCategory(NotificationKind.JOB, JOB_FOLLOW_UP_MESSAGE_KEY),
+    ).toBe("FOLLOW_UP");
+  });
+
+  /**
+   * A chat follow-up must not fall through to the direct-message row. It would
+   * be silenced by a preference about messages rather than about reminders, and
+   * the reader who switched messages off is exactly the one the reminder is for.
+   */
+  it("does not read a chat follow-up as the message it reminds of", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.CHAT,
+        CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+      ),
+    ).not.toBe("CHAT_DIRECT_MESSAGE");
   });
 
   /** Same row, same reason, for the kind the reader started themselves. */

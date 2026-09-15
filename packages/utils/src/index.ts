@@ -221,6 +221,14 @@ export {
   isBrowserOnlyNotification,
 } from "./notification-feed-kinds.js";
 export {
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+  isFollowUpMessageKey,
+  JOB_FOLLOW_UP_MESSAGE_KEY,
+  TASK_FOLLOW_UP_MESSAGE_KEY,
+} from "./notification-follow-up-message-keys.js";
+export {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
