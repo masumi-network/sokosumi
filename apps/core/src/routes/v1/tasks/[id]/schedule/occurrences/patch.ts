@@ -17,6 +17,7 @@ import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import { buildTaskScheduleMetadataV2 } from "@/helpers/task-schedule";
 import {
   CALENDAR_OCCURRENCE_HORIZON_MS,
@@ -30,7 +31,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireOwnerUserContext } from "@/middleware/auth";
+import { resolveUserContext } from "@/middleware/auth";
 import {
   mutateTaskScheduleOccurrenceRequestSchema,
   taskScheduleOccurrenceMutationSchema,
@@ -123,8 +124,10 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireOwnerUserContext(authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
+    const userContext = resolveUserContext(authContext);
+    if (userContext) {
+      await requireCalendarBetaAccess(userContext.userId, prisma);
+    }
     const { id, occurrenceId } = c.req.valid("param");
     const mutation = c.req.valid("json");
     const { operationId, expectedScheduleRevision, action } = mutation;
@@ -297,7 +300,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : action === "restore"
               ? { state: TaskScheduleOccurrenceState.PLANNED }
               : {}),
-          actorUserId: userContext.userId,
+          actorUserId: resolveTaskEventActorFields(authContext).userId,
         },
         include: {
           releasedTask: {
@@ -356,7 +359,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.taskEvent.create({
         data: {
           taskId: id,
-          userId: userContext.userId,
+          ...resolveTaskEventActorFields(authContext),
           scheduleKind:
             action === "skip"
               ? TaskScheduleEventKind.OCCURRENCE_SKIPPED

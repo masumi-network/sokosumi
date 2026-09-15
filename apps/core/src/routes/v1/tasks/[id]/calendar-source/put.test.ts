@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { createTaskScheduleRequestFingerprint } from "@/helpers/task-schedule-operation";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountPutTaskCalendarSource from "./put";
 
@@ -136,17 +137,19 @@ function request(
   ];
 }
 
-function createApp() {
+function createApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_calendar_source_put_test");
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("workspaceContext", {
       workspaceId: WORKSPACE_ID,
       userId: "user_123",
@@ -256,6 +259,37 @@ describe("PUT /tasks/{id}/calendar-source", () => {
           action: "move_source",
           response: expect.objectContaining({ scheduleRevision: 5 }),
         }),
+      }),
+      select: { id: true },
+    });
+  });
+
+  it("moves for a collaborating coworker acting with user context and attributes the event to the coworker", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+
+    const response = await app.request(
+      ...request({ type: "project", projectId: NEW_PROJECT_ID }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).toHaveBeenCalled();
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      null,
+      expect.anything(),
+    );
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: TASK_ID,
+        userId: null,
+        coworkerId: "cow_123",
+        sokoBotId: null,
+        scheduleKind: "SOURCE_CHANGED",
       }),
       select: { id: true },
     });

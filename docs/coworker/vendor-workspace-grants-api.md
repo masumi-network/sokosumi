@@ -176,6 +176,7 @@ returns the original Task without creating another occurrence ledger.
 | POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
 | POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |
 | PATCH | `/v1/tasks/{id}` (+ schedule, etc.) | Collaborators cannot mutate parked tasks. |
+| PUT/DELETE/PATCH | `/v1/tasks/{id}/schedule`, `/calendar-schedule`, `/calendar-source`, `/schedule/occurrences*` | Coworker collaborators may edit, remove, or move schedules and occurrences. Calendar beta / organization-seat gates follow the effective user (session, contextual coworker, or Soko Bot); standalone coworker keys skip them. |
 | GET | `/v1/jobs/{id}` | Sibling read uses workspace grant gate; writes blocked if parent task parked. |
 
 ---

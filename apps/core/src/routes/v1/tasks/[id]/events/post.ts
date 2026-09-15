@@ -39,6 +39,7 @@ import {
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
+import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
@@ -53,9 +54,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isAgentAuthContext,
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
-  isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -76,74 +74,12 @@ const paramsSchema = z.object({
   }),
 });
 
-function getStatusEventActorData(authContext: AuthenticationContext) {
-  if (isUserAuthContext(authContext)) {
-    return {
-      userId: authContext.userId,
-      coworkerId: null,
-      sokoBotId: null,
-    };
-  }
-
-  if (isSokoBotAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      sokoBotId: authContext.sokoBotId,
-    };
-  }
-
-  // Status transitions from a delegated coworker are attributed to the acting
-  // coworker only. Context userId is workspace context, not a second actor FK.
-  return {
-    userId: null,
-    coworkerId: authContext.coworkerId,
-    sokoBotId: null,
-  };
-}
-
-function getCommentEventActorData(authContext: AuthenticationContext) {
-  if (isUserAuthContext(authContext)) {
-    return {
-      userId: authContext.userId,
-      coworkerId: null,
-      sokoBotId: null,
-    };
-  }
-
-  if (isSokoBotAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      sokoBotId: authContext.sokoBotId,
-    };
-  }
-
-  // Coworker comments are shown by coworkerId in the UI; userId is not used.
-  return {
-    userId: null,
-    coworkerId: authContext.coworkerId,
-    sokoBotId: null,
-  };
-}
-
 function getAgentActorData(authContext: AuthenticationContext) {
-  if (isSokoBotAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      sokoBotId: authContext.sokoBotId,
-    };
-  }
-
-  if (!isCoworkerAuthContext(authContext)) {
+  if (!isAgentAuthContext(authContext)) {
     throw new Error("getAgentActorData called without agent auth context");
   }
-  return {
-    userId: null,
-    coworkerId: authContext.coworkerId,
-    sokoBotId: null,
-  };
+
+  return resolveTaskEventActorFields(authContext);
 }
 
 interface SettleTaskEventChargeParams {
@@ -487,10 +423,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const actorData =
         status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
-          ? await getStatusEventActorData(authContext)
+          ? resolveTaskEventActorFields(authContext)
           : credits != null || masumiPayment != null
             ? getAgentActorData(authContext)
-            : await getCommentEventActorData(authContext);
+            : resolveTaskEventActorFields(authContext);
 
       const createdEvent = await tx.taskEvent.create({
         data: {
