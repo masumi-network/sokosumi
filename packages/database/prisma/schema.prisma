@@ -662,11 +662,23 @@ model SocialPost {
   publishedUrl        String?
   lastError           String?
 
+  /// Publish attempts made so far (scheduler and publish-now alike).
+  attemptCount   Int       @default(0)
+  /// Earliest time the scheduler may retry after a transient failure.
+  nextAttemptAt  DateTime?
+  /// Set while a worker holds the post in PUBLISHING; every status write is fenced on it.
+  leaseToken     String?
+  leaseExpiresAt DateTime?
+  lastAttemptAt  DateTime?
+
   /// Optimistic-lock counter bumped on every edit/schedule/cancel.
   revision Int @default(0)
 
+  attempts SocialPostPublishAttempt[]
+
   @@index([projectId, status, scheduledAt])
   @@index([status, scheduledAt])
+  @@index([status, nextAttemptAt])
   @@index([workspaceId, scheduledAt])
   @@index([socialConnectionId])
   @@index([creatorUserId])
@@ -674,6 +686,34 @@ model SocialPost {
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
   @@map("social_post")
+}
+
+/// One publish attempt of a Social post; the audit trail behind retries.
+model SocialPostPublishAttempt {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  socialPostId String     @db.Uuid
+  socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+
+  attempt     Int
+  /// "scheduler" | "publish_now"
+  trigger     String
+  /// Set for publish_now.
+  actorUserId String?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive"
+  outcome     String?
+  /// Short machine kind, e.g. "rate_limited", "provider_unavailable", "rejected", "unauthorized", "timeout".
+  errorKind   String?
+  /// Non-secret summary (status code + short message + external id). Never tokens, links, or keys.
+  providerOutcome String?
+  /// "TWITTER_CREATION_OF_A_POST"
+  toolSlug   String?
+  externalId String?
+
+  @@unique([socialPostId, attempt])
+  @@index([socialPostId, startedAt])
+  @@map("social_post_publish_attempt")
 }
 
 model Member {

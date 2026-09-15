@@ -16205,6 +16205,30 @@ export const SocialPostSchema = {
                 'null'
             ]
         },
+        attemptCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 0
+        },
+        nextAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttempt: {
+            $ref: '#/components/schemas/SocialPostLastAttempt'
+        },
         revision: {
             type: 'integer',
             minimum: 0,
@@ -16228,6 +16252,13 @@ export const SocialPostSchema = {
         },
         canCancel: {
             type: 'boolean'
+        },
+        canPublishNow: {
+            type: 'boolean'
+        },
+        connectionNeedsReconnect: {
+            type: 'boolean',
+            description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
         }
     },
     required: [
@@ -16246,12 +16277,18 @@ export const SocialPostSchema = {
         'publishedExternalId',
         'publishedUrl',
         'lastError',
+        'attemptCount',
+        'nextAttemptAt',
+        'lastAttemptAt',
+        'lastAttempt',
         'revision',
         'createdAt',
         'updatedAt',
         'canEdit',
         'canSchedule',
-        'canCancel'
+        'canCancel',
+        'canPublishNow',
+        'connectionNeedsReconnect'
     ]
 } as const;
 
@@ -16332,6 +16369,70 @@ export const SocialPostCreatorSchema = {
         'kind',
         'id',
         'name'
+    ]
+} as const;
+
+export const SocialPostLastAttemptSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        attempt: {
+            type: 'integer',
+            minimum: 1,
+            example: 1
+        },
+        trigger: {
+            type: 'string',
+            enum: [
+                'scheduler',
+                'publish_now'
+            ]
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'succeeded',
+                'failed_transient',
+                'failed_permanent',
+                'missed',
+                'connection_inactive',
+                null
+            ]
+        },
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'rate_limited'
+        },
+        providerOutcome: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        finishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'attempt',
+        'trigger',
+        'outcome',
+        'errorKind',
+        'providerOutcome',
+        'finishedAt'
     ]
 } as const;
 
@@ -16416,6 +16517,21 @@ export const ScheduleSocialPostRequestSchema = {
     },
     required: [
         'scheduledAt',
+        'revision'
+    ]
+} as const;
+
+export const PublishSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
         'revision'
     ]
 } as const;

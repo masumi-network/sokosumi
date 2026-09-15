@@ -25,6 +25,7 @@ const coreClientMock = {
   postProjectsByIdSocialConnectionsInitiate: vi.fn(),
   postProjectsByIdSocialPosts: vi.fn(),
   postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
   postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
@@ -620,6 +621,51 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdCancel,
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 2 });
+    });
+
+    it("publishes a post now with the observed revision", async () => {
+      const publishedAt = new Date("2026-09-15T10:00:00.000Z");
+      coreClientMock.postProjectsByIdSocialPostsByPostIdPublish.mockResolvedValue(
+        {
+          data: {
+            ...post,
+            status: "PUBLISHED",
+            publishedAt,
+            publishedUrl: "https://x.com/sokosumi/status/1",
+            revision: 4,
+          },
+        },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.publishSocialPost("project-1", "post-1", {
+          revision: 3,
+        }),
+      ).resolves.toMatchObject({
+        status: "PUBLISHED",
+        publishedAt,
+        publishedUrl: "https://x.com/sokosumi/status/1",
+        revision: 4,
+      });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdPublish,
+      ).toHaveBeenCalledWith("project-1", "post-1", { revision: 3 });
+    });
+
+    it("propagates Core errors from publishing", async () => {
+      coreClientMock.postProjectsByIdSocialPostsByPostIdPublish.mockRejectedValue(
+        new Error("Social post cannot be published now"),
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.publishSocialPost("project-1", "post-1", {
+          revision: 0,
+        }),
+      ).rejects.toThrow("Social post cannot be published now");
     });
 
     it("propagates Core errors from social post mutations", async () => {
