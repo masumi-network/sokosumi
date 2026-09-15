@@ -50,6 +50,7 @@ function createUser(
     subscriptionPlan: "free",
     subscriptionStatus: "active",
     startedTaskCount: 1,
+    isAdmin: false,
     ...overrides,
   };
 }
@@ -90,5 +91,22 @@ describe("UserList impersonation", () => {
       screen.getByRole("columnheader", { name: "actions" }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "trigger" })).toHaveLength(2);
+  });
+
+  it("hides the Impersonate action on admin rows", () => {
+    render(
+      <UserList
+        initialPage={{
+          users: [
+            createUser({ id: "user-1" }),
+            createUser({ id: "user-admin", isAdmin: true }),
+          ],
+          total: 2,
+          nextCursor: null,
+        }}
+      />,
+    );
+
+    expect(screen.getAllByRole("button", { name: "trigger" })).toHaveLength(1);
   });
 });

@@ -678,6 +678,10 @@ export type AdminUserOverviewItem = {
     id: string;
     name: string;
     email: string;
+    /**
+     * Comma-separated platform roles; contains admin for platform admins
+     */
+    role: string;
     createdAt: Date;
     /**
      * Available personal credits

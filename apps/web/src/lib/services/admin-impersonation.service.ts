@@ -114,11 +114,18 @@ async function forwardSessionCookies(
     throw new CoreApiRequestError("Impersonation did not return a session");
   }
   const store = await cookies();
+  let forwarded = 0;
   for (const header of setCookies) {
     const parsed = parseSetCookie(header);
     if (parsed) {
       store.set(parsed.name, parsed.value, parsed.options);
+      forwarded += 1;
     }
+  }
+  if (forwarded === 0) {
+    throw new CoreApiRequestError(
+      "Impersonation returned no usable session cookies",
+    );
   }
 }
 

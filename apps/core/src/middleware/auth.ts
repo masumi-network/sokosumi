@@ -1,5 +1,8 @@
 import * as Sentry from "@sentry/node";
-import { hasCoreApiOAuthScope } from "@sokosumi/utils";
+import {
+  hasAdminRole as checkAdminRole,
+  hasCoreApiOAuthScope,
+} from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
@@ -384,11 +387,10 @@ export function requireAgentAuthContext(
   return authContext;
 }
 
+// Canonical logic lives in @sokosumi/utils (shared with web); this keeps
+// the existing Core import surface stable.
 export function hasAdminRole(role: string | null | undefined): boolean {
-  return (
-    role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
-    false
-  );
+  return checkAdminRole(role);
 }
 
 export function requireAdminAuthContext(

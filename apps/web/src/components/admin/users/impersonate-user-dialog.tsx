@@ -91,6 +91,7 @@ export function ImpersonateUserDialog({
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             placeholder={t("reasonPlaceholder")}
+            maxLength={500}
           />
         </div>
         <DialogFooter>

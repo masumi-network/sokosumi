@@ -265,6 +265,18 @@ describe("POST /v1/admin/impersonation", () => {
     expect(impersonateUserMock).not.toHaveBeenCalled();
   });
 
+  it("rejects an overlong reason", async () => {
+    const app = createApp(mountBoth);
+    const res = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: TARGET_USER.id, reason: "x".repeat(501) }),
+    });
+
+    expect(res.status).toBe(422);
+    expect(impersonateUserMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a second impersonation while one is active", async () => {
     const app = createApp(mountBoth, {
       actor: "user",

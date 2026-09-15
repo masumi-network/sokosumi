@@ -75,6 +75,7 @@ export const StartImpersonationBodySchema = {
         reason: {
             type: 'string',
             minLength: 1,
+            maxLength: 500,
             description: 'Why this impersonation is started (Linear-id convention, e.g. SOK-123: reproduce). Stored in the audit log.',
             example: 'SOK-123: reproduce reported bug'
         }
@@ -3063,6 +3064,11 @@ export const AdminUserOverviewItemSchema = {
             type: 'string',
             example: 'ada@example.com'
         },
+        role: {
+            type: 'string',
+            description: 'Comma-separated platform roles; contains admin for platform admins',
+            example: 'user'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -3104,6 +3110,7 @@ export const AdminUserOverviewItemSchema = {
         'id',
         'name',
         'email',
+        'role',
         'createdAt',
         'credits',
         'subscriptionPlan',

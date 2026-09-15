@@ -180,11 +180,13 @@ export function UserList({ initialPage }: UserListProps) {
                     })}
                   </TableCell>
                   <TableCell className="pr-4 text-right">
-                    <ImpersonateUserDialog
-                      userId={user.id}
-                      name={user.name}
-                      email={user.email}
-                    />
+                    {user.isAdmin ? null : (
+                      <ImpersonateUserDialog
+                        userId={user.id}
+                        name={user.name}
+                        email={user.email}
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

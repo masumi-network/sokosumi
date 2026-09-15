@@ -52,8 +52,8 @@ describe("adminImpersonationService", () => {
       startAdminImpersonationMock.mockResolvedValue({
         data: { data: TARGET_USER },
         response: responseWithCookies(
-          "sokosumi.session_token=impersonated; Path=/; HttpOnly; Secure; SameSite=Lax",
-          "sokosumi.admin_session=admin; Path=/; HttpOnly; Secure; SameSite=Lax",
+          "sokosumi.session_token=impersonated; Path=/; Domain=example.com; HttpOnly; Secure; SameSite=Lax",
+          "sokosumi.admin_session=admin; Path=/; Domain=example.com; HttpOnly; Secure; SameSite=Lax",
         ),
       });
 
@@ -70,12 +70,24 @@ describe("adminImpersonationService", () => {
       expect(cookieSetMock).toHaveBeenCalledWith(
         "sokosumi.session_token",
         "impersonated",
-        { path: "/", httpOnly: true, secure: true, sameSite: "lax" },
+        {
+          path: "/",
+          domain: "example.com",
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+        },
       );
       expect(cookieSetMock).toHaveBeenCalledWith(
         "sokosumi.admin_session",
         "admin",
-        { path: "/", httpOnly: true, secure: true, sameSite: "lax" },
+        {
+          path: "/",
+          domain: "example.com",
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+        },
       );
     });
 
@@ -104,6 +116,21 @@ describe("adminImpersonationService", () => {
       startAdminImpersonationMock.mockResolvedValue({
         data: { data: TARGET_USER },
         response: new Response(null, { status: 201 }),
+      });
+
+      await expect(
+        adminImpersonationService.startImpersonation({
+          userId: TARGET_USER.id,
+          reason: "SOK-1: x",
+        }),
+      ).rejects.toBeInstanceOf(CoreApiRequestError);
+      expect(cookieSetMock).not.toHaveBeenCalled();
+    });
+
+    it("fails when Core returns only unparsable cookies", async () => {
+      startAdminImpersonationMock.mockResolvedValue({
+        data: { data: TARGET_USER },
+        response: responseWithCookies("not-a-cookie", "=missing-name"),
       });
 
       await expect(
