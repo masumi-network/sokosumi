@@ -26,11 +26,12 @@ export default function mount(app: Hono) {
           durationMs: Date.now() - startedAt,
           examined: result.examined,
           sent: result.sent,
-          // False means the run stopped early: the deadline with rows still
-          // waiting, or an abort, which for this caller is the same deadline.
-          // Whether reminders were lost depends on how far through the window
-          // it got, which this does not say. It says the deadline is deciding
-          // how much gets done, and that is worth acting on either way.
+          // False means the run stopped early, on the deadline or on an abort,
+          // which for this caller is the same deadline. It does not say rows
+          // were waiting: a run aborted before its first read reports false
+          // and knows nothing about who was left. Nor does it say reminders
+          // were lost, which depends on how far through the window it got. It
+          // says the deadline is deciding how much gets done.
           completed: result.completed,
         });
       },

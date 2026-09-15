@@ -515,11 +515,13 @@ describe("NotificationFollowUpSyncService", () => {
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(resolveDeliveryMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledWith(
+    expect(firstFollowUpInput()).toEqual(
       expect.objectContaining({ eventId: "follow-up:notification-1" }),
-      expect.anything(),
-      delivery,
     );
+    // The answer itself, not one that looks like it. Which client the write
+    // goes through is left alone on purpose: the parameter has a default, so
+    // passing nothing there is the same call.
+    expect(createNotificationMock.mock.calls[0]?.[2]).toBe(delivery);
   });
 
   it("waits a full day before reminding anyone", async () => {
