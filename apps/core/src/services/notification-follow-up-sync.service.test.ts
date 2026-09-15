@@ -11,13 +11,19 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  captureExceptionMock,
   createNotificationMock,
   notificationFindManyMock,
   resolveDeliveryMock,
 } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: captureExceptionMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -170,10 +176,10 @@ function compareBy(
 /**
  * One branch of the service's "after this row" paging filter.
  *
- * `gt` is optional although the service always writes it. Optional, a service
- * that wrote any other operator leaves this branch with no bound at all, and
- * the branch then matches nothing and every paging test fails. Required, the
- * same change would not compile here and the fake would be edited to suit it.
+ * `gt` is optional although the service always writes it. This type only
+ * annotates the mock's own parameter, so it cannot reject a service that wrote
+ * a different operator. What it can do is leave the branch with no bound,
+ * which makes it match nothing and every paging test fail.
  */
 type AfterClause =
   | { createdAt: Partial<{ gt: Date }> }
@@ -659,6 +665,57 @@ describe("NotificationFollowUpSyncService", () => {
       row({ id: "notification-2", createdAt: new Date(WAITING.getTime() + 1) }),
     ]);
     createNotificationMock.mockRejectedValueOnce(new Error("write failed"));
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result).toEqual({ examined: 2, sent: 1, completed: true });
+    expect(written.map((one) => one.eventId)).toEqual([
+      "follow-up:notification-2",
+    ]);
+    // Survived is not enough. `completed` stays true through this, so the
+    // report is the only place the lost reminder is named.
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        extra: expect.objectContaining({ notificationId: "notification-1" }),
+      }),
+    );
+  });
+
+  /**
+   * A reader whose preferences will not read costs that one reminder. The
+   * read is an await like any other, so letting it throw past here would end
+   * the run and cost every reminder behind it.
+   */
+  it("carries on after one reader's preferences fail to read", async () => {
+    seed([
+      row({ id: "notification-1", createdAt: WAITING }),
+      row({ id: "notification-2", createdAt: new Date(WAITING.getTime() + 1) }),
+    ]);
+    resolveDeliveryMock.mockRejectedValueOnce(new Error("preferences failed"));
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result).toEqual({ examined: 2, sent: 1, completed: true });
+    expect(written.map((one) => one.eventId)).toEqual([
+      "follow-up:notification-2",
+    ]);
+  });
+
+  /**
+   * One reader who switched the category off is one reminder skipped, not the
+   * end of the run. Skipping the rest of the page would cost everyone behind
+   * them, and the page moves on regardless, so they would never be read again.
+   */
+  it("carries on past a reader who silenced the category", async () => {
+    seed([
+      row({ id: "notification-1", createdAt: WAITING }),
+      row({ id: "notification-2", createdAt: new Date(WAITING.getTime() + 1) }),
+    ]);
+    resolveDeliveryMock.mockResolvedValueOnce({
+      inApp: false,
+      osBanner: false,
+    });
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 

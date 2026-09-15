@@ -28,8 +28,9 @@ export default function mount(app: Hono) {
           sent: result.sent,
           // False means the run stopped early: the deadline with rows still
           // waiting, or an abort, which for this caller is the same deadline.
-          // One is survivable, because the window is twice the interval. False
-          // on consecutive runs is the warning worth acting on.
+          // Whether reminders were lost depends on how far through the window
+          // it got, which this does not say. It says the deadline is deciding
+          // how much gets done, and that is worth acting on either way.
           completed: result.completed,
         });
       },

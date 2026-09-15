@@ -36,13 +36,13 @@ export const NOTIFICATION_FOLLOW_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
  * a row count that had nothing to do with how much time the run had.
  *
  * This still does not promise every eligible row a reminder. The handler's
- * deadline ends a run wherever it falls. What a truncated run leaves behind is
- * the newest of the eligible rows, because it goes oldest first, and the
- * window is two hours against an hourly schedule, so those rows are read again
- * by the next run. A backlog that outlasts the deadline for two runs running
- * is what loses reminders, not a single short run. `completed` on the result
- * says when a run ended with rows still waiting, which is the signal that the
- * two-run case is being approached.
+ * deadline ends a run wherever it falls, and what that costs depends on where
+ * in the window the rows it did not reach sit. Consecutive windows overlap by
+ * one hour, the newer half, so a row left behind in the newer half is read
+ * again by the next run and a row left behind in the older half is not. The
+ * run goes oldest first, so it reaches the older half first: losing those
+ * takes a run too short to finish the oldest hour. `completed` on the result
+ * says when a run ended with rows still waiting.
  *
  * The deadline can land anywhere, page boundary or not, which is why it is
  * asked about per row and not only per page. The number below is the row cap
@@ -70,8 +70,8 @@ export interface SendFollowUpsResult {
    * Notifications this run considered writing a follow-up for.
    *
    * Not the number of rows read. Each page reads one row past itself to learn
-   * whether another page follows, and that row is counted by the page that
-   * actually handles it.
+   * whether another page follows, and that row is counted only once the page
+   * that handles it gets to it, which on a truncated run is never.
    */
   examined: number;
   /**
@@ -90,8 +90,9 @@ export interface SendFollowUpsResult {
    *
    * False when the deadline or an abort ended it first, including an abort
    * that arrived before the first read, where nothing is known about who was
-   * waiting. Repeated across consecutive runs it is the warning that rows are
-   * being left long enough to leave the window.
+   * waiting. Whether anything was lost depends on how far through the window
+   * the run got, which this does not say: it is the signal that the deadline,
+   * not the work, is deciding how much gets done.
    *
    * True does not mean nothing was lost. A row whose write throws is caught,
    * reported to Sentry, and left out of `sent` while the run carries on to the
