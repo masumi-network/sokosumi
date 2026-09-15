@@ -2239,6 +2239,16 @@
         "noAccount": "Sin cuenta",
         "connectAccountFirst": "Conecta una cuenta de X a este proyecto antes de programar publicaciones.",
         "connectAccountLink": "Conectar una cuenta",
+        "needsReconnect": "Hay que volver a conectar la cuenta",
+        "needsReconnectLink": "Volver a conectar la cuenta",
+        "viewOnX": "Ver en X",
+        "publishedAt": "Publicada {date}",
+        "failedAt": "Falló {date}",
+        "attempts": "{count, plural, one {# intento} other {# intentos}}",
+        "actions": {
+          "publishNow": "Publicar ahora",
+          "retry": "Reintentar"
+        },
         "sections": {
           "upcoming": "Próximas",
           "drafts": "Borradores",
@@ -2252,7 +2262,7 @@
         "status": {
           "DRAFT": "Borrador",
           "SCHEDULED": "Programada",
-          "PUBLISHING": "Publicando",
+          "PUBLISHING": "Publicando…",
           "PUBLISHED": "Publicada",
           "FAILED": "Fallida",
           "MISSED": "Omitida",
@@ -2289,13 +2299,20 @@
           "description": "La publicación no se publicará. Puedes programarla de nuevo más tarde.",
           "confirm": "Cancelar publicación"
         },
+        "publishDialog": {
+          "title": "¿Publicar esta publicación ahora?",
+          "description": "La publicación saldrá en X de inmediato en lugar de esperar a la hora programada.",
+          "confirm": "Publicar ahora"
+        },
         "toasts": {
           "created": "Borrador guardado.",
           "scheduled": "Publicación programada.",
           "updated": "Publicación actualizada.",
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
-          "failed": "Algo salió mal. Inténtalo de nuevo."
+          "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "published": "Publicación publicada.",
+          "publishFailed": "Error al publicar: {error}"
         }
       },
       "Detail": {

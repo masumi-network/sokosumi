@@ -24,6 +24,17 @@ const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "MISSED",
 ];
 const CANCELABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
+/** Statuses where a stale connection blocks the next publish. */
+const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "SCHEDULED",
+];
 
 const socialPostInclude = {
   socialConnection: {
@@ -32,6 +43,18 @@ const socialPostInclude = {
   creatorUser: { select: { id: true, name: true } },
   creatorCoworker: { select: { id: true, name: true } },
   creatorSokoBot: { select: { id: true, name: true } },
+  attempts: {
+    orderBy: { attempt: "desc" },
+    take: 1,
+    select: {
+      attempt: true,
+      trigger: true,
+      outcome: true,
+      errorKind: true,
+      providerOutcome: true,
+      finishedAt: true,
+    },
+  },
 } satisfies Prisma.SocialPostInclude;
 
 type SocialPostRecord = Prisma.SocialPostGetPayload<{
@@ -42,6 +65,15 @@ export interface SocialPostCreator {
   kind: "user" | "coworker" | "sokoBot";
   id: string;
   name: string | null;
+}
+
+export interface SocialPostLastAttempt {
+  attempt: number;
+  trigger: string;
+  outcome: string | null;
+  errorKind: string | null;
+  providerOutcome: string | null;
+  finishedAt: Date | null;
 }
 
 export interface SocialPostSummary {
@@ -64,12 +96,19 @@ export interface SocialPostSummary {
   publishedExternalId: string | null;
   publishedUrl: string | null;
   lastError: string | null;
+  attemptCount: number;
+  nextAttemptAt: Date | null;
+  lastAttemptAt: Date | null;
+  lastAttempt: SocialPostLastAttempt | null;
   revision: number;
   createdAt: Date;
   updatedAt: Date;
   canEdit: boolean;
   canSchedule: boolean;
   canCancel: boolean;
+  canPublishNow: boolean;
+  /** The linked connection exists but is no longer active, so the post cannot go out. */
+  connectionNeedsReconnect: boolean;
 }
 
 interface ProjectScope {
@@ -146,12 +185,21 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     publishedExternalId: record.publishedExternalId,
     publishedUrl: record.publishedUrl,
     lastError: record.lastError,
+    attemptCount: record.attemptCount,
+    nextAttemptAt: record.nextAttemptAt,
+    lastAttemptAt: record.lastAttemptAt,
+    lastAttempt: record.attempts[0] ?? null,
     revision: record.revision,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     canEdit: EDITABLE_STATUSES.includes(record.status),
     canSchedule: SCHEDULABLE_STATUSES.includes(record.status),
     canCancel: CANCELABLE_STATUSES.includes(record.status),
+    canPublishNow: PUBLISH_NOW_STATUSES.includes(record.status),
+    connectionNeedsReconnect:
+      RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
+      record.socialConnection !== null &&
+      record.socialConnection.status !== "active",
   };
 }
 
@@ -405,6 +453,8 @@ export async function scheduleSocialPost(
       socialConnectionId: connection.id,
       scheduledByUserId: input.userId,
       lastError: null,
+      attemptCount: 0,
+      nextAttemptAt: null,
     }),
   );
 }
