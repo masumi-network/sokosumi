@@ -11,6 +11,7 @@ struct MessageMarkdownView: View {
   var channels: [ComposerChannel] = []
   var preparedDocument: MessageMarkdown?
   @EnvironmentObject private var workspaces: WorkspaceState
+  @Environment(\.openURL) private var openURL
   @EnvironmentObject private var auth: AuthState
   @State private var selectedProfile: ChatParticipantProfile?
   var body: some View {
@@ -26,7 +27,10 @@ struct MessageMarkdownView: View {
           }
           return .handled
         }
-        guard url.scheme == "sokosumi-participant" else { return .systemAction }
+        guard url.scheme == "sokosumi-participant" else {
+          openURL(url)
+          return .handled
+        }
         if let room {
           selectedProfile = ChatParticipantProfile.resolving(url, in: room)
         }

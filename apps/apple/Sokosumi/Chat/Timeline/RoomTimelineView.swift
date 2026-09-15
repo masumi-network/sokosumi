@@ -78,6 +78,12 @@ import SwiftUI
           .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
         }
         .modifier(RoomToolsModifier(roomId: roomId, jump: { try await jumpToMessage($0) }))
+        .task(id: workspaces.messageJump) {
+          guard let target = workspaces.messageJump, target.roomId == roomId else { return }
+          scrollIntent.readOlder()
+          quoteTarget = target.messageId
+          workspaces.consumeMessageJump(target.requestId)
+        }
         .task(id: roomId) {
           if room?.kind == .channel {
             try? await workspaces.loadPins(auth: auth)
@@ -223,7 +229,7 @@ import SwiftUI
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in Task {
                                    do {
-                                     _ = try await jumpToMessage(id)
+                                     _ = try await workspaces.openMessage(id, auth: auth)
                                    } catch { jumpError = friendlyMessage(for: error) }
                                  } },
                                  horizontalInset: 12,
@@ -258,7 +264,7 @@ import SwiftUI
         }
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-        .onChange(of: quoteTarget, initial: true) { _, target in
+        .onChange(of: preparedMessages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
             quoteTarget = nil
@@ -365,7 +371,7 @@ import SwiftUI
     private func jumpToMessage(_ id: String) async throws -> Bool {
       let expectedRoom = roomId
       scrollIntent.readOlder()
-      guard try await workspaces.jumpToMessage(id, auth: auth), workspaces.transcriptRoomId == expectedRoom else { return false }
+      guard try await workspaces.openMessage(id, auth: auth), workspaces.transcriptRoomId == expectedRoom else { return false }
       jumpCompletion?.resume(returning: false)
       return await withCheckedContinuation { completion in
         jumpCompletion = completion

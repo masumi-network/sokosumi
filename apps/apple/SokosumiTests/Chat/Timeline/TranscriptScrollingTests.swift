@@ -42,13 +42,36 @@
         #expect(distanceFromBottom(scroll) > 400)
       }
 
+      @Test func messageLinkWaitsForPreparedTranscript() async throws {
+        let state = try fixtureState(thread: false, media: false)
+        let auth = AuthState()
+        #expect(try await state.openMessage("fixture-2", auth: auth))
+        let host = NSHostingView(rootView: RoomTimelineView(roomId: "fixture")
+          .environmentObject(state).environmentObject(auth))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        let scroll = try await loadedTranscriptScrollView(in: host)
+        for _ in 0 ..< 30 {
+          host.layoutSubtreeIfNeeded()
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(state.messageJump == nil)
+        #expect(distanceFromBottom(scroll) > 400)
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        let png = try #require(bitmap.representation(using: .png, properties: [:]))
+        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation.png"))
+      }
+
       private func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {
         let height = scroll.documentView?.frame.height ?? 0
         return height - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)
       }
 
       private func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {
-        let state = WorkspaceState()
+        let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
         state.timeline.reset(roomId: "fixture")
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
         state.timeline.messages = fixtureMessages(media: media)
