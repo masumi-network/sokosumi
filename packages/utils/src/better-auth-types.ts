@@ -40,6 +40,11 @@ export interface SessionRecord {
   ipAddress?: string | null;
   userAgent?: string | null;
   activeOrganizationId?: string | null;
+  /**
+   * Admin user id when this session impersonates another user. Present only
+   * on impersonated sessions; `userId` always describes the effective user.
+   */
+  impersonatedBy?: string | null;
 }
 
 export interface Session {

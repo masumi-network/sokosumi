@@ -803,6 +803,7 @@
       "markReadTooltip": "Mark as read",
       "markUnread": "Mark notification as unread: {message}",
       "markUnreadTooltip": "Mark as unread",
+      "unreadIndicator": "Unread",
       "deleteError": "Failed to delete notification",
       "clearAll": "Clear all",
       "clearAllError": "Failed to clear notifications",
@@ -2438,6 +2439,11 @@
         "button": "Open billing"
       }
     },
+    "Impersonation": {
+      "banner": "Acting as {name} ({email})",
+      "exit": "Exit",
+      "stopError": "Failed to stop impersonation."
+    },
     "Subscriptions": {
       "statusSuccess": "Subscription updated successfully.",
       "statusCancel": "Subscription checkout was canceled.",
@@ -2921,8 +2927,19 @@
           "subscription": "Subscription",
           "startedTasks": "Started tasks",
           "registered": "Registered",
+          "actions": "Actions",
           "loadMore": "Load more",
           "loadError": "Failed to load users."
+        },
+        "Impersonate": {
+          "trigger": "Impersonate",
+          "title": "Impersonate user",
+          "description": "You will act as {name} ({email}) with full access to their account, including writes. The session expires after one hour.",
+          "reasonLabel": "Reason",
+          "reasonPlaceholder": "SOK-123: why you need access",
+          "cancel": "Cancel",
+          "start": "Start impersonating",
+          "startError": "Failed to start impersonation."
         }
       },
       "Organizations": {
@@ -6248,8 +6265,6 @@
         "title": "No scheduled releases match these filters."
       },
       "pagination": {
-        "loadMore": "Load more events",
-        "loading": "Loading events...",
         "error": "Unable to load more events."
       },
       "error": {

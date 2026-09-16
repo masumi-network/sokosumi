@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
-
+import impersonationRouter from "./admin/impersonation/index.js";
 import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
@@ -118,6 +118,12 @@ app.doc31("/openapi.json", {
 });
 
 // Mount Routes
+// Impersonation MUST be registered before `/admin`. Hono flattens
+// `admin.use("*", requireAdmin)` onto the parent as `/admin/*`, which also
+// matches `/admin/impersonation`. Stop runs as the impersonated (non-admin)
+// caller; start must answer 409 rather than the admin guard's 403. Both
+// handlers still guard themselves. Do not reverse these two `route` calls.
+app.route("/admin/impersonation", impersonationRouter);
 app.route("/admin", adminRouter);
 app.route("/agents", agentsRouter);
 app.route("/categories", categoriesRouter);

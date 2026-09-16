@@ -9,7 +9,7 @@ struct PinnedMessagesView: View {
   @EnvironmentObject private var auth: AuthState
   @ObservedObject var pins: PinnedMessages
   let room: Components.Schemas.ChatRoom
-  let jump: (String) async throws -> Bool
+  let jump: (String) async throws -> MessageNavigationResult
   let close: () -> Void
   @State private var jumpingId: String?
   @State private var actionError: String?
@@ -82,10 +82,13 @@ struct PinnedMessagesView: View {
     Task { @MainActor in
       defer { jumpingId = nil }
       do {
-        if try await jump(id) {
+        switch try await jump(id) {
+        case .opened:
           close()
-        } else {
-          actionError = "Couldn’t jump to this message. Try again."
+        case .unavailable:
+          actionError = "This message is no longer available."
+        case .superseded:
+          break
         }
       } catch { actionError = friendlyMessage(for: error) }
     }

@@ -22,7 +22,8 @@ vi.mock("@/lib/auth/route-session", () => ({
   readRouteSession: (...args: unknown[]) => readRouteSessionMock(...args),
 }));
 
-vi.mock("@/lib/auth/has-admin-role", () => ({
+vi.mock("@sokosumi/utils", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/utils")>()),
   hasAdminRole: () => false,
 }));
 

@@ -223,6 +223,33 @@ describe("core evlog request events", () => {
     expect(captured[0]?.event.organization).toEqual({ id: "org_456" });
   });
 
+  it("setAuthContext copies impersonation actor onto the wide event", async () => {
+    const app = createApp();
+    app.use(async (c, next) => {
+      setAuthContext(c as never, {
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_target",
+          organizationId: null,
+          role: "user",
+          impersonatedBy: "user_admin",
+        },
+      });
+      return await next();
+    });
+    app.get("/v1/me", (c) => c.json({ ok: true }));
+
+    await app.request("http://localhost/v1/me");
+
+    expect(captured[0]?.event.actor).toBe("user");
+    expect(captured[0]?.event.user).toEqual({ id: "user_target" });
+    expect(captured[0]?.event.impersonation).toEqual({
+      by: "user_admin",
+      target: "user_target",
+    });
+  });
+
   it("setAuthContext copies coworker and soko bot identity onto the wide event", async () => {
     const app = createApp();
     app.use("/v1/coworker", async (c, next) => {

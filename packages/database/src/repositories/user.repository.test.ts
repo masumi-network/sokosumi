@@ -86,7 +86,13 @@ describe("userRepository.listUsersForAdminOverview", () => {
 
     expect(findManyMock).toHaveBeenCalledWith({
       where: {},
-      select: { id: true, name: true, email: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        role: true,
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 21,
       skip: 1,

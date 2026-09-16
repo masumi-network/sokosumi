@@ -284,6 +284,19 @@ struct ChatServiceTests {
     }
   }
 
+  @Test(arguments: [400, 403, 404, 422, 429, 500])
+  func threadSummaryPreservesErrorStatusAndMessage(status: Int) async throws {
+    let transport = ScriptedTransport([(status, """
+    {"error":"Request failed","message":"Thread unavailable","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/threads/parent","method":"GET"}}
+    """)])
+    do {
+      _ = try await ChatService().getThread(client: makeClient(transport), roomId: "room", parentMessageId: "parent", organizationSlug: nil)
+      Issue.record("expected an error")
+    } catch let error as ChatServiceError {
+      #expect(error == .unprocessable(statusCode: status, message: "Thread unavailable"))
+    }
+  }
+
   @Test func initialLoadPerformsNoWrites() async throws {
     // Launch must not PUT: re-asserting a default preference on every launch
     // yanks cross-client state and turns every flaky upload into a dead
