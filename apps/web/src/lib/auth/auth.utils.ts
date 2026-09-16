@@ -70,10 +70,12 @@ export function createAuthSessionGetter<TSession>(
 }
 
 /**
- * No sign-in in this app replaces the document. The ones that navigate use
- * `router.replace`, and re-authentication does not navigate at all, so a client
+ * Some sign-ins keep the document. `/auth/callback/*` leaves with
+ * `router.replace` and re-authentication does not navigate at all, so a client
  * the Ably singleton retired for a lost session stays in `globalThis` and
  * leaves the newly signed-in user with dead realtime until a manual reload.
+ * Credential and passkey now replace the document, where this is a harmless
+ * no-op — it runs before the unload.
  *
  * Call this from every path that ends with a new session: `waitForAuthSession`
  * covers the ones that then redirect, and the re-authentication dialog calls it

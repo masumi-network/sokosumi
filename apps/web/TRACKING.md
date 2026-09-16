@@ -104,16 +104,23 @@ Drop any GTM conversion that still keys on `agent_hired`.
 Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
 
 - **Better Auth hard-redirects whenever `callbackURL` is set.** `signIn.email`
-  with a `callbackURL` makes the Better Auth client set `window.location.href`
-  inside its fetch hook, *before* the caller's code after `await` runs. A
-  `fireGTMEvent.*` placed after such a call is dead code (GA4 showed 0
-  credential logins against 145 `login_area_form_start`). Credential sign-in
-  therefore passes **no** `callbackURL`: it waits for the session, fires in
-  place, then `router.replace`s — same as passkey. Social and magic-link have
-  no choice (the provider / verify GET must land somewhere), so they fire on
-  the page that full-page load lands on: `/auth/callback/signin?provider=…`.
-  That page lives outside the `(auth)` marketing layout so the hard nav does
-  not re-render the hero.
+  and `signUp.email` with a `callbackURL` make the Better Auth client set
+  `window.location.href` inside its fetch hook, *before* the caller's code
+  after `await` runs. A `fireGTMEvent.*` placed after such a call is dead code
+  (GA4 showed 0 credential logins against 145 `login_area_form_start`, and
+  credential `sign_up` lost the same race until Sept 2026, along with the
+  signup UTM conversion call). Credential sign-in, credential sign-up and
+  passkey therefore pass **no** `callbackURL`: they wait for the session, fire
+  in place, then leave with `window.location.replace`
+  (`lib/auth/finish-auth.client.ts`).
+- **That leave must be a full document load.** `router.replace` is served the
+  pre-login middleware result still sitting in the Next client router cache
+  (anonymous `/` → `/signin`), so it bounces back to the form. Social and
+  magic-link have no choice about the hop (the provider / verify GET must land
+  somewhere), so they fire on the page that full-page load lands on:
+  `/auth/callback/signin?provider=…`. That page lives outside the `(auth)`
+  marketing layout so the hard nav does not re-render the hero, and its own
+  `router.replace` is fine because it runs in a fresh document.
 - **Hard navigations after a push are a race.** `begin_checkout` is pushed and
   then `window.location.href = stripeUrl` runs on the next line. GA4 sends via
   `sendBeacon`, so it mostly survives, but push *before* navigating, never after.

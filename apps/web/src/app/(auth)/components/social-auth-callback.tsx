@@ -30,8 +30,10 @@ export default function SocialAuthCallback({
 
     // Social and magic-link land here via a full page load (Better Auth
     // hard-redirects to `callbackURL` on success). Credential and passkey
-    // fire in place before their soft navigation. The GTM event on this
-    // page survives the hard nav — see apps/web/TRACKING.md.
+    // never reach this page: they fire in place before their own
+    // full-document leave. The GTM event on this page survives the hard nav
+    // — see apps/web/TRACKING.md. `router.replace` below is safe because
+    // this *is* a new document, so it carries no pre-login router cache.
     // The query string alone proves nothing: only count it when a session
     // actually exists, so a direct hit on this URL is not a fake login.
     // The first getSession() can be null (cookie still settling); reuse the

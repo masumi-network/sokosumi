@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -38,7 +38,6 @@ export default function SignUpForm({
     runWithCaptcha,
     getErrorMessage,
   } = useAuthCaptcha("signup");
-  const _router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
@@ -110,7 +109,10 @@ export default function SignUpForm({
 
       // No `callbackURL`: Better Auth would hard-redirect and every line
       // here would be racing the unload, which is how the credential
-      // `sign_up` event went missing. See apps/web/TRACKING.md.
+      // `sign_up` event went missing. See apps/web/TRACKING.md. It also
+      // feeds the verification email's post-verify destination, so Core
+      // anchors that to the web app (lib/verification-email-callback.ts)
+      // rather than trusting whatever the client sent.
       setIsLeaving(true);
       await finishAuthInPlace({
         eventType: "signUp",

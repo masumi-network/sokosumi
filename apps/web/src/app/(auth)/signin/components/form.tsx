@@ -104,7 +104,8 @@ export default function SignInForm({
       }
 
       // No `callbackURL`: Better Auth would hard-redirect through a callback
-      // page. Like passkey, finish in place and soft-navigate.
+      // page. Like passkey, finish in place and leave with a full document
+      // load — a soft nav is served the pre-login middleware redirect.
       setIsLeaving(true);
       await finishAuthInPlace({
         eventType: "signIn",
