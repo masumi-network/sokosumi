@@ -139,8 +139,8 @@ export async function markSettledAttentionRead(
 /**
  * Mark a reader's outstanding attention rows for one record read.
  *
- * The write every caller above shares, and the one place that decides what a
- * failure costs. Which keys stop waiting is the caller's question, because it
+ * The write every caller shares, and the one place that decides what a failure
+ * costs. Which keys stop waiting is the caller's question, because it
  * is a different question for a settled run, a reassignment and an archive.
  *
  * Best-effort, and reports rather than throws. Every caller is notification

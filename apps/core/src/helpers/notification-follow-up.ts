@@ -80,10 +80,10 @@ export function followUpMessageKeyFor(sourceMessageKey: string): string | null {
  * here the reader gets one reminder per room, per task or per job.
  *
  * The day is what stops that from muting the room for good. A follow-up row is
- * never cleaned up: the only deletes are the reader's own and two unrelated
- * SYSTEM ones. So a key that named only the room would be held for the life of
- * the account, and a mention next year would be refused as a duplicate of a
- * reminder sent this one. The day is taken from the source row rather than
+ * never cleaned up: a reader can only mark a row read, and the sole deletes in
+ * the codebase are two unrelated SYSTEM ones. So a key that named only the room
+ * would be held for the life of the account, and a mention next year would be
+ * refused as a duplicate of a reminder sent this one. The day is taken from the source row rather than
  * from the clock, because consecutive runs overlap by an hour and must derive
  * the same key for the same row.
  *
