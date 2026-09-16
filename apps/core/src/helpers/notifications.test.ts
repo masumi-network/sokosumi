@@ -1,12 +1,12 @@
 import { type Notification, NotificationKind } from "@sokosumi/database";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type prisma from "@/lib/db/prisma";
 
-import {
-  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
-  VENDOR_GRANT_PENDING_MESSAGE_KEY,
-} from "./notification-feed";
 import {
   type CreateNotificationInput,
   createNotification,

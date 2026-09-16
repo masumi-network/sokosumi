@@ -8,6 +8,8 @@ import {
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   isBrowserOnlyNotification,
+  isNeedsActionNotification,
+  NEEDS_ACTION_MESSAGE_KEYS,
 } from "./notification-feed-kinds";
 import {
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
@@ -66,5 +68,33 @@ describe("isBrowserOnlyNotification", () => {
     expect(isBrowserOnlyNotification("SYSTEM", "anything")).toBe(false);
     expect(isBrowserOnlyNotification("TASK", "anything")).toBe(false);
     expect(isBrowserOnlyNotification("BILLING", "anything")).toBe(false);
+  });
+});
+
+describe("isNeedsActionNotification", () => {
+  /**
+   * The four requests the Needs you view can hold (SOK-1097). Listed by
+   * value, so a key renamed in Core fails here before it fails on screen.
+   */
+  it("names the rows that ask the reader something", () => {
+    expect(NEEDS_ACTION_MESSAGE_KEYS).toEqual([
+      "Notifications.Task.inputRequired",
+      "Notifications.Job.inputRequired",
+      "notifications.vendorGrant.pending",
+      "notifications.coworkerAccess.pending",
+    ]);
+    for (const key of NEEDS_ACTION_MESSAGE_KEYS) {
+      expect(isNeedsActionNotification(key)).toBe(true);
+    }
+  });
+
+  it("keeps news and other pauses out", () => {
+    expect(isNeedsActionNotification("Notifications.Task.completed")).toBe(
+      false,
+    );
+    expect(
+      isNeedsActionNotification("Notifications.Task.approvalRequired"),
+    ).toBe(false);
+    expect(isNeedsActionNotification(CHAT_MENTION_MESSAGE_KEY)).toBe(false);
   });
 });

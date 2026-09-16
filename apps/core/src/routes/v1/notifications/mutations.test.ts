@@ -12,7 +12,6 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountMarkNotificationRead from "./[id]/read/patch";
 import mountMarkAllRead from "./read-all/patch";
-import mountGetUnreadCount from "./unread-count/get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -444,87 +443,5 @@ describe("PATCH /notifications/read-all", () => {
     const body = (await response.json()) as { data: { count: number } };
     expect(body.data.count).toBe(0);
     expect(publishClearedNotificationsMock).toHaveBeenCalledWith([]);
-  });
-});
-
-describe("GET /notifications/unread-count", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    notificationCountMock.mockResolvedValue(5);
-    notificationFindManyMock.mockResolvedValue([]);
-    vendorGrantFindManyMock.mockResolvedValue([]);
-    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
-  });
-
-  it("returns the unread count for the authenticated user", async () => {
-    const app = createApp(mountGetUnreadCount);
-    const response = await app.request("http://localhost/unread-count");
-
-    expect(response.status).toBe(200);
-    expect(notificationCountMock).toHaveBeenCalledWith({
-      where: {
-        userId: "user_123",
-        isRead: false,
-        ...notificationFeedWhere(),
-      },
-    });
-
-    const body = (await response.json()) as { data: { count: number } };
-    expect(body.data.count).toBe(5);
-  });
-
-  it("excludes resolved vendor-grant notifications from unread count", async () => {
-    // Promise.all: vendor stale lookup first, coworker stale second.
-    notificationFindManyMock
-      .mockResolvedValueOnce([{ referenceId: "grant_resolved" }])
-      .mockResolvedValueOnce([]);
-    vendorGrantFindManyMock.mockResolvedValue([
-      { id: "grant_resolved", status: "GRANTED" },
-    ]);
-
-    const app = createApp(mountGetUnreadCount);
-    const response = await app.request("http://localhost/unread-count");
-
-    expect(response.status).toBe(200);
-    expect(notificationCountMock).toHaveBeenCalledWith({
-      where: {
-        userId: "user_123",
-        isRead: false,
-        ...notificationFeedWhere(),
-        NOT: {
-          AND: [
-            { messageKey: "notifications.vendorGrant.pending" },
-            { referenceId: { in: ["grant_resolved"] } },
-          ],
-        },
-      },
-    });
-  });
-
-  it("excludes resolved coworker-access notifications from unread count", async () => {
-    notificationFindManyMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ referenceId: "access_resolved" }]);
-    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([
-      { id: "access_resolved", status: "GRANTED" },
-    ]);
-
-    const app = createApp(mountGetUnreadCount);
-    const response = await app.request("http://localhost/unread-count");
-
-    expect(response.status).toBe(200);
-    expect(notificationCountMock).toHaveBeenCalledWith({
-      where: {
-        userId: "user_123",
-        isRead: false,
-        ...notificationFeedWhere(),
-        NOT: {
-          AND: [
-            { messageKey: "notifications.coworkerAccess.pending" },
-            { referenceId: { in: ["access_resolved"] } },
-          ],
-        },
-      },
-    });
   });
 });

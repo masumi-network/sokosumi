@@ -220,7 +220,13 @@ export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   isBrowserOnlyNotification,
+  isNeedsActionNotification,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  NEEDS_ACTION_MESSAGE_KEYS,
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed-kinds.js";
 export {
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,

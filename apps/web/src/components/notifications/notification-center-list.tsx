@@ -1,5 +1,6 @@
 "use client";
 
+import { isNeedsActionNotification } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
@@ -82,13 +83,20 @@ export function NotificationCenterList({
     });
   }, []);
 
+  // Needs you holds rows that asked the reader something. A realtime row
+  // that never asked lands in the shared feed all the same, for the bell,
+  // and stays out of this view here.
   const visibleNotifications =
     view === "unread"
       ? notifications.filter(
           (notification) =>
             !notification.isRead || !hiddenIds.has(notification.id),
         )
-      : notifications;
+      : view === "needs-action"
+        ? notifications.filter((notification) =>
+            isNeedsActionNotification(notification.messageKey),
+          )
+        : notifications;
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
@@ -173,7 +181,11 @@ export function NotificationCenterList({
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <p className="text-muted-foreground text-center text-sm">
-          {view === "unread" ? t("emptyUnreadState") : t("emptyState")}
+          {view === "unread"
+            ? t("emptyUnreadState")
+            : view === "needs-action"
+              ? t("emptyNeedsYouState")
+              : t("emptyState")}
         </p>
       </div>
     );

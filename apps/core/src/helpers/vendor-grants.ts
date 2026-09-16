@@ -10,13 +10,13 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import {
   badRequest,
   forbidden,
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
 import {
   createNotification,
   deletePendingVendorGrantNotifications,

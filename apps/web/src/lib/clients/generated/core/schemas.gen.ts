@@ -16247,18 +16247,25 @@ export const NotificationKindSchema = {
     example: 'JOB'
 } as const;
 
-export const UnreadCountSchema = {
+export const NotificationCountsSchema = {
     type: 'object',
     properties: {
-        count: {
+        unread: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of unread notifications',
+            description: 'Number of unread notifications in the feed',
             example: 5
+        },
+        needsAction: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of feed notifications whose request still waits on the reader',
+            example: 2
         }
     },
     required: [
-        'count'
+        'unread',
+        'needsAction'
     ]
 } as const;
 

@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/clients/generated/core/client";
 import type {
+  GetNotificationsCountsErrors,
+  GetNotificationsCountsResponse,
+  GetNotificationsCountsResponses,
   GetNotificationsData,
   GetNotificationsErrors,
   GetNotificationsResponse,
   GetNotificationsResponses,
-  GetNotificationsUnreadCountErrors,
-  GetNotificationsUnreadCountResponse,
-  GetNotificationsUnreadCountResponses,
   PatchNotificationsByIdReadData,
   PatchNotificationsByIdReadErrors,
   PatchNotificationsByIdReadResponse,
@@ -93,19 +93,19 @@ export const notificationsBrowserClient = {
     );
   },
 
-  async getNotificationsUnreadCount(): Promise<GetNotificationsUnreadCountResponse> {
+  async getNotificationsCounts(): Promise<GetNotificationsCountsResponse> {
     return executeCoreOperation(
       getNotificationsGeneratedClient,
       (client) =>
         client.get<
-          GetNotificationsUnreadCountResponses,
-          GetNotificationsUnreadCountErrors
+          GetNotificationsCountsResponses,
+          GetNotificationsCountsErrors
         >({
-          url: "/notifications/unread-count",
+          url: "/notifications/counts",
           cache: "no-store",
           responseTransformer: transformMetaTimestampResponse,
         }),
-      "Failed to fetch notification unread count",
+      "Failed to fetch notification counts",
     );
   },
 

@@ -27,7 +27,7 @@ import type { NotificationItem } from "@/lib/clients/generated/core";
  */
 
 const getNotificationsMock = vi.fn();
-const getNotificationsUnreadCountMock = vi.fn();
+const getNotificationsCountsMock = vi.fn();
 const patchNotificationReadMock = vi.fn();
 const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
@@ -39,8 +39,8 @@ let deliverRealtime: (event: NotificationEventData) => void = () => {};
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   notificationsBrowserClient: {
     getNotifications: (...args: unknown[]) => getNotificationsMock(...args),
-    getNotificationsUnreadCount: (...args: unknown[]) =>
-      getNotificationsUnreadCountMock(...args),
+    getNotificationsCounts: (...args: unknown[]) =>
+      getNotificationsCountsMock(...args),
     patchNotificationRead: (...args: unknown[]) =>
       patchNotificationReadMock(...args),
     patchNotificationUnread: (...args: unknown[]) =>
@@ -87,7 +87,11 @@ vi.mock("@/app/components/notification-browser-permission-primer", () => ({
   NotificationBrowserPermissionPrimer: () => null,
 }));
 vi.mock("@/lib/utils/notification-message", () => ({
-  useNotificationMessage: () => (key: string) => key,
+  // The key, unless the row carries a label: rows that share a real key
+  // (every task that asked for input) still need telling apart on screen.
+  useNotificationMessage:
+    () => (key: string, params?: Record<string, unknown>) =>
+      typeof params?.label === "string" ? params.label : key,
 }));
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
@@ -224,7 +228,7 @@ beforeEach(() => {
   observers.clear();
   for (const mock of [
     getNotificationsMock,
-    getNotificationsUnreadCountMock,
+    getNotificationsCountsMock,
     patchNotificationReadMock,
     patchNotificationUnreadMock,
     patchNotificationsReadAllMock,
@@ -236,7 +240,9 @@ beforeEach(() => {
   }
   isMobileMock.mockReturnValue(false);
   accountNoticeMock.mockReturnValue({ notice: null });
-  getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+  getNotificationsCountsMock.mockResolvedValue({
+    data: { unread: 0, needsAction: 0 },
+  });
   getNotificationsMock.mockResolvedValue(page([]));
 });
 
@@ -322,7 +328,9 @@ describe("Notification Center, both frames", () => {
     async (_, mount) => {
       const unread = row("mine", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([unread]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0 },
+      });
       patchNotificationReadMock.mockResolvedValue({
         data: { ...unread, isRead: true, readAt: new Date() },
       });
@@ -356,7 +364,9 @@ describe("Notification Center, both frames", () => {
       getNotificationsMock.mockResolvedValue(
         page([row("mine", { isRead: false, readAt: null })]),
       );
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0 },
+      });
       patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 1 } });
 
       await mount();
@@ -377,7 +387,9 @@ describe("Notification Center, both frames", () => {
     getNotificationsMock.mockResolvedValue(
       page([row("mine", { isRead: false, readAt: null })]),
     );
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: row("mine", { isRead: true }),
     });
@@ -402,7 +414,9 @@ describe("Notification Center, both frames", () => {
     getNotificationsMock.mockResolvedValue(
       page([row("mine", { isRead: false, readAt: null })]),
     );
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
 
     await renderPage();
     getNotificationsMock.mockRejectedValue(new Error("offline"));
@@ -621,7 +635,9 @@ describe("Notification Center, both frames", () => {
   it("does not leave focus on a row's read control after a click", async () => {
     const unread = row("mine", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([unread]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: { ...unread, isRead: true, readAt: new Date() },
     });
@@ -642,7 +658,9 @@ describe("Notification Center, both frames", () => {
   it("keeps a row's read control reachable and focused from the keyboard", async () => {
     const unread = row("mine", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([unread]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: { ...unread, isRead: true, readAt: new Date() },
     });
@@ -682,7 +700,9 @@ describe("Notification Center view filter", () => {
     const waiting = row("waiting", { isRead: false, readAt: null });
     const handled = row("handled", { isRead: true });
     getNotificationsMock.mockResolvedValue(page([waiting, handled]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
 
     render(
       <NotificationProvider userId="user-1">
@@ -735,7 +755,9 @@ describe("Notification Center view filter", () => {
         createdAt: new Date("2026-06-17T09:00:00.000Z"),
       });
       getNotificationsMock.mockResolvedValue(page([waiting, handled]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0 },
+      });
 
       await mount();
       const user = userEvent.setup();
@@ -779,7 +801,9 @@ describe("Notification Center view filter", () => {
         createdAt: new Date("2026-06-18T09:00:00.000Z"),
       });
       getNotificationsMock.mockResolvedValue(page([first], "first"));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0 },
+      });
 
       await mount();
       const user = userEvent.setup();
@@ -816,7 +840,9 @@ describe("Notification Center view filter", () => {
     async (_, mount) => {
       const unread = row("mine", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([unread]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0 },
+      });
       patchNotificationReadMock.mockResolvedValue({
         data: { ...unread, isRead: true, readAt: new Date() },
       });
@@ -853,7 +879,9 @@ describe("Notification Center view filter", () => {
     async (_, mount) => {
       const first = row("first", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([first], "first"));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0 },
+      });
       patchNotificationReadMock.mockResolvedValue({
         data: { ...first, isRead: true, readAt: new Date() },
       });
@@ -903,7 +931,9 @@ describe("Notification Center view filter", () => {
     async (_, mount) => {
       const unread = row("mine", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([unread]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0 },
+      });
       patchNotificationReadMock.mockResolvedValue({
         data: { ...unread, isRead: true, readAt: new Date() },
       });
@@ -937,7 +967,9 @@ describe("Notification Center view filter", () => {
   it("folds a read row right after a tap, with no pointer left to hold it", async () => {
     const unread = row("mine", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([unread]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: { ...unread, isRead: true, readAt: new Date() },
     });
@@ -973,7 +1005,9 @@ describe("Notification Center view filter", () => {
   it("drops a read row once a keyboard reader tabs off it", async () => {
     const unread = row("mine", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([unread]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: { ...unread, isRead: true, readAt: new Date() },
     });
@@ -1005,7 +1039,9 @@ describe("Notification Center view filter", () => {
       const first = row("first", { isRead: false, readAt: null });
       const second = row("second", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([first, second]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0 },
+      });
       patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 2 } });
 
       await mount();
@@ -1033,7 +1069,9 @@ describe("Notification Center view filter", () => {
       const first = row("first", { isRead: false, readAt: null });
       const second = row("second", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([first, second], "second"));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 4 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 4, needsAction: 0 },
+      });
       patchNotificationsReadAllMock.mockImplementation(
         () => new Promise(() => {}),
       );
@@ -1071,7 +1109,9 @@ describe("Notification Center view filter", () => {
         createdAt: new Date("2026-06-17T09:00:00.000Z"),
       });
       getNotificationsMock.mockResolvedValue(page([first, second]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0 },
+      });
 
       let rejectRead!: (error: Error) => void;
       patchNotificationReadMock.mockImplementation(
@@ -1125,7 +1165,9 @@ describe("Notification Center view filter", () => {
         createdAt: new Date("2026-06-18T09:00:00.000Z"),
       });
       getNotificationsMock.mockResolvedValue(page([waiting]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0 },
+      });
 
       await mount();
 
@@ -1186,7 +1228,9 @@ describe("Notification Center view filter", () => {
     getNotificationsMock.mockResolvedValue(
       page([row("mine", { isRead: false, readAt: null })]),
     );
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
 
     await renderPage();
 
@@ -1240,7 +1284,9 @@ describe("Notification Center view filter", () => {
     const waiting = row("waiting", { isRead: false, readAt: null });
     const handled = row("handled", { isRead: true });
     getNotificationsMock.mockResolvedValue(page([waiting, handled]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 5 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 5, needsAction: 0 },
+    });
 
     await renderPanel();
     const user = userEvent.setup();
@@ -1318,5 +1364,231 @@ describe("Notification Center view filter", () => {
     await settle();
 
     expect(screen.getByText("waiting")).toBeTruthy();
+  });
+});
+
+/**
+ * The Needs you view (SOK-1097). Its rows are requests still open on the
+ * record they point at, which Core decides; here the list is whatever Core
+ * returns for the flag, and the view's own promises are what get checked:
+ * reading never removes a row, a row that never asked stays out, and the
+ * count on the tab is Core's.
+ */
+describe("Notification Center Needs you view", () => {
+  const TASK_ASK_KEY = "Notifications.Task.inputRequired";
+
+  function asked(id: string, overrides: Partial<NotificationItem> = {}) {
+    return row(id, {
+      kind: "TASK",
+      messageKey: TASK_ASK_KEY,
+      messageParams: { label: id },
+      referenceId: `task-${id}`,
+      isRead: false,
+      readAt: null,
+      ...overrides,
+    });
+  }
+
+  function arrives(
+    notification: NotificationItem,
+    created = true,
+  ): NotificationEventData {
+    return {
+      ...notification,
+      readAt: null,
+      createdAt: notification.createdAt.toISOString(),
+      inApp: true,
+      osBanner: false,
+      created,
+    } as NotificationEventData;
+  }
+
+  it.each(FRAMES)(
+    "lists what still waits on the reader, counted on its tab, in the %s",
+    async (_, mount) => {
+      const waiting = asked("waiting", {
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      const done = row("done", {
+        createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([waiting, done]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 1 },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      // Three views, one choice, and the count sits on the tab itself.
+      const tabs = screen
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent?.replace(/\d+$/, ""));
+      expect(tabs).toEqual(["filterAll", "filterUnread", "filterNeedsYou"]);
+      const needsYou = screen.getByRole("tab", { name: "filterNeedsYou 1" });
+      expect(needsYou.getAttribute("aria-selected")).toBe("false");
+
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await user.click(needsYou);
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        needsAction: "true",
+      });
+      expect(needsYou.getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.queryByText("done")).toBeNull();
+      // Looking is not a write.
+      expect(patchNotificationReadMock).not.toHaveBeenCalled();
+      expect(patchNotificationsReadAllMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("shows no count on the tab when nothing is waiting", async () => {
+    await renderPage();
+
+    expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
+  });
+
+  it("keeps a read row until the request is answered, then lets it go", async () => {
+    const waiting = asked("waiting");
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1 },
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...waiting, isRead: true, readAt: new Date() },
+    });
+    patchNotificationUnreadMock.mockResolvedValue({ data: waiting });
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: /^filterNeedsYou/ }));
+    await settle();
+
+    await user.click(screen.getByRole("button", { name: "markRead: waiting" }));
+    await settle();
+
+    // Read, and still here: the task is still asking.
+    expect(screen.getByText("waiting")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "markUnread: waiting" }),
+    ).toBeTruthy();
+
+    // And back to unread moves it just as little.
+    await user.click(
+      screen.getByRole("button", { name: "markUnread: waiting" }),
+    );
+    await settle();
+    expect(screen.getByText("waiting")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "markRead: waiting" }),
+    ).toBeTruthy();
+
+    // The next read of the view is what Core says now: answered, gone.
+    getNotificationsMock.mockResolvedValue(page([]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0 },
+    });
+    await user.click(screen.getByRole("tab", { name: "filterAll" }));
+    await settle();
+    await user.click(screen.getByRole("tab", { name: /^filterNeedsYou/ }));
+    await settle();
+
+    expect(screen.queryByText("waiting")).toBeNull();
+    expect(screen.getByText("emptyNeedsYouState")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
+  });
+
+  it("admits an arriving request and refreshes its count, and keeps other rows out", async () => {
+    getNotificationsMock.mockResolvedValue(page([asked("waiting")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1 },
+    });
+
+    // The panel, so the bell is there to show the arrival counted anyway.
+    await renderPanel();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: /^filterNeedsYou/ }));
+    await settle();
+    const countCallsBefore = getNotificationsCountsMock.mock.calls.length;
+
+    await act(async () => {
+      deliverRealtime(
+        arrives(
+          row("finished", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-18T10:00:00.000Z"),
+          }),
+        ),
+      );
+    });
+    await settle();
+
+    // A completion is news, but not a request: it goes to the bell, not here.
+    expect(screen.queryByText("finished")).toBeNull();
+    expect(screen.getByTestId("notification-unread-badge").textContent).toBe(
+      "2",
+    );
+
+    const another = asked("another", {
+      createdAt: new Date("2026-06-18T11:00:00.000Z"),
+    });
+    getNotificationsMock.mockResolvedValue(page([another, asked("waiting")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 3, needsAction: 2 },
+    });
+    await act(async () => {
+      deliverRealtime(arrives(another));
+    });
+    await settle();
+
+    expect(screen.getByText("another")).toBeTruthy();
+    expect(getNotificationsCountsMock.mock.calls.length).toBeGreaterThan(
+      countCallsBefore,
+    );
+    expect(screen.getByRole("tab", { name: "filterNeedsYou 2" })).toBeTruthy();
+  });
+
+  it("keeps the choice the panel made when the page shows the same list", async () => {
+    const waiting = asked("waiting");
+    getNotificationsMock.mockResolvedValue(page([waiting, row("done")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1 },
+    });
+
+    render(
+      <NotificationProvider userId="user-1">
+        <HeaderNotificationBell />
+        <NotificationsPageContent />
+      </NotificationProvider>,
+    );
+    await settle();
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /^notifications$|unreadBadge/ }),
+    );
+    await settle();
+    const panel = document.querySelector("[data-slot='popover-content']");
+    expect(panel).not.toBeNull();
+
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.click(
+      within(panel as HTMLElement).getByRole("tab", {
+        name: /^filterNeedsYou/,
+      }),
+    );
+    await settle();
+
+    expect(screen.getAllByText("waiting")).toHaveLength(2);
+    expect(screen.queryByText("done")).toBeNull();
+    for (const option of screen.getAllByRole("tab", {
+      name: /^filterNeedsYou/,
+    })) {
+      expect(option.getAttribute("aria-selected")).toBe("true");
+    }
   });
 });
