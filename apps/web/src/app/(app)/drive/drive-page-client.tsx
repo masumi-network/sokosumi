@@ -233,7 +233,7 @@ export function DrivePageClient({
 
   if (activeOrganizationId === undefined) {
     return (
-      <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+      <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
         <DriveListSkeleton viewMode={skeletonViewMode} />
       </div>
     );
@@ -1345,7 +1345,7 @@ function DrivePageWorkspace({
   );
 
   return (
-    <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+    <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <DriveViewTabs
           activeView={primaryView}

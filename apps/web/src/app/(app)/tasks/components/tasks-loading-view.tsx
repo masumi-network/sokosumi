@@ -51,7 +51,7 @@ export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
 
 export function TasksPageSkeleton({ viewMode }: { viewMode?: TasksViewMode }) {
   return (
-    <div className="w-full px-2">
+    <div className="w-full">
       <TasksLoadingView
         viewMode={viewMode}
         labels={TASKS_LOADING_DEFAULT_LABELS}

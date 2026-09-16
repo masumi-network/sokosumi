@@ -68,3 +68,47 @@ describe("full-bleed rules", () => {
     expect(violations).toEqual([]);
   });
 });
+
+/**
+ * The other half of the same invariant. `-mx-4` reaches the edge only while
+ * `main` holds the only gutter, so a page that wraps itself in a second one
+ * silently shortens every rule below it by that much.
+ *
+ * Seven roots still did. `drive-page-client.tsx` and `tasks-loading-view.tsx`
+ * each paired a `px-2` root with an `-mx-4` rule, so the rule stopped 8px
+ * short on both sides. The skeleton roots were worse than cosmetic: the tasks
+ * page had already dropped its `px-2` and its skeleton had not, so the content
+ * jumped 8px sideways the moment the page loaded.
+ *
+ * The scan reads route files and the page-level views they render, and looks
+ * for a full-width wrapper that also pads horizontally. Its blind spot is
+ * spelling. It reads `px-*` only, because `pl-8` on a full-width search input
+ * is an icon inset rather than a gutter, and it reads the literal `w-full`, so
+ * a root written as `min-w-full` or assembled from a variable, or a page view
+ * named outside these patterns, is invisible to it. It catches the shape that
+ * actually occurred.
+ */
+const PAGE_ROOT_FILES =
+  /(?:^|\/)(?:page|loading)\.tsx$|-page-client\.tsx$|-loading-view\.tsx$|-skeleton(?:-host)?\.tsx$/;
+const SECOND_GUTTER = /\bw-full\s+(px-(?:\d+(?:\.\d+)?|\[[^\]]+\]))/;
+
+describe("page gutters", () => {
+  it("leaves the one gutter to the app shell", () => {
+    const violations: string[] = [];
+
+    for (const file of walk(path.join(SRC_ROOT, "app", "(app)"))) {
+      const rel = path.relative(SRC_ROOT, file).split(path.sep).join("/");
+      if (rel.endsWith(".test.tsx")) continue;
+      if (!PAGE_ROOT_FILES.test(rel)) continue;
+
+      readFileSync(file, "utf8")
+        .split("\n")
+        .forEach((line, index) => {
+          const match = line.match(SECOND_GUTTER);
+          if (match) violations.push(`${rel}:${index + 1}: ${match[0]}`);
+        });
+    }
+
+    expect(violations).toEqual([]);
+  });
+});
