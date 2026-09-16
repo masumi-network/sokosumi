@@ -35,6 +35,28 @@ describe("anchorVerificationCallbackToWebApp", () => {
     expect(anchorVerificationCallbackToWebApp(absolute, WEB)).toBe(absolute);
   });
 
+  it("does not promote a protocol-relative callback to an off-origin URL", () => {
+    const result = new URL(
+      anchorVerificationCallbackToWebApp(
+        `${CORE}&callbackURL=${encodeURIComponent("//evil.example/phish")}`,
+        WEB,
+      ),
+    );
+
+    expect(result.searchParams.get("callbackURL")).toBe(`${WEB}/`);
+  });
+
+  it("does not follow a backslash path off the web origin", () => {
+    const result = new URL(
+      anchorVerificationCallbackToWebApp(
+        `${CORE}&callbackURL=${encodeURIComponent("/\\evil.example")}`,
+        WEB,
+      ),
+    );
+
+    expect(result.searchParams.get("callbackURL")).toBe(`${WEB}/`);
+  });
+
   it("returns a malformed link unchanged", () => {
     expect(anchorVerificationCallbackToWebApp("not a url", WEB)).toBe(
       "not a url",
