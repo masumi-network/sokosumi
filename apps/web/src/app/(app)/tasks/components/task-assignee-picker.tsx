@@ -200,7 +200,7 @@ export function TaskAssigneePicker({
             aria-expanded={open}
             aria-label={accessibleName}
             disabled={disabled}
-            className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+            className="focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 disabled:cursor-not-allowed"
           >
             <span className="min-w-0">
               <span
