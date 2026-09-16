@@ -297,6 +297,7 @@ const baseLabels = {
   projectCreate: "Create project...",
   coworker: "Coworker",
   unassigned: "Unassigned",
+  unavailableAssignee: "Unavailable assignee",
   changeCoworker: "Change coworker…",
   noCoworkerMatches: "No coworker matches",
   status: "Status",
@@ -1180,7 +1181,7 @@ describe("TaskForm", () => {
     );
 
     await selectTaskStatus(user, "Ready");
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
     await user.click(screen.getByRole("option", { name: "Soko" }));
 
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
@@ -1222,7 +1223,7 @@ describe("TaskForm", () => {
       "Queued",
     );
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
     await user.click(screen.getByRole("option", { name: "Unassigned" }));
 
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
@@ -1465,7 +1466,7 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "save" }));
     expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
     await user.click(screen.getByRole("option", { name: "Bob" }));
     expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
 
@@ -1532,7 +1533,7 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "save" }));
     expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
     await user.click(screen.getByRole("option", { name: "Unassigned" }));
     expect(screen.queryByText("footer.oneTimeAt")).not.toBeInTheDocument();
 
@@ -1608,7 +1609,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
 
     expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
       "aria-disabled",
@@ -1649,7 +1650,7 @@ describe("TaskForm", () => {
 
     expect(screen.getAllByText("Soko").length).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByRole("combobox", { name: "Coworker" }),
+      screen.getByRole("combobox", { name: /^Coworker/ }),
     ).toBeInTheDocument();
 
     await selectTaskStatus(user, "Ready");
@@ -1675,7 +1676,7 @@ describe("TaskForm", () => {
     expect(screen.queryByRole("combobox", { name: "Project" })).toBeNull();
     // Fields the series does not own stay editable.
     expect(
-      screen.getByRole("combobox", { name: "Coworker" }),
+      screen.getByRole("combobox", { name: /^Coworker/ }),
     ).toBeInTheDocument();
   });
 
@@ -1915,7 +1916,7 @@ describe("TaskForm", () => {
 
     expect(screen.getByText("Unassigned")).toBeInTheDocument();
     expect(
-      screen.getByRole("combobox", { name: "Coworker" }),
+      screen.getByRole("combobox", { name: /^Coworker/ }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Save" }));

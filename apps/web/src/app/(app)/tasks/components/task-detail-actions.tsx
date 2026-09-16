@@ -308,6 +308,7 @@ export function TaskDetailActions({
     projectEmptyResults: tNewTask("projectEmptyResults"),
     coworker: tNewTask("coworker"),
     unassigned: tNewTask("unassigned"),
+    unavailableAssignee: tNewTask("unavailableAssignee"),
     changeCoworker: tNewTask("changeCoworker"),
     noCoworkerMatches: tNewTask("noCoworkerMatches"),
     status: tNewTask("status"),

@@ -1883,6 +1883,7 @@
         "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
         "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee",
         "changeCoworker": "Change coworker…",
         "noCoworkerMatches": "No coworker matches",
         "defaultBadge": "Default",
@@ -1958,7 +1959,8 @@
         "openSchedule": "Set schedule",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
-        "unassigned": "Unassigned"
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee"
       },
       "Schedule": {
         "title": "Schedule",

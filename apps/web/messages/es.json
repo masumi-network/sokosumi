@@ -1883,6 +1883,7 @@
         "projectCreateNamed": "Crear \"{name}\"",
         "coworker": "Coworker",
         "unassigned": "Sin asignar",
+        "unavailableAssignee": "Asignatario no disponible",
         "changeCoworker": "Cambiar coworker…",
         "noCoworkerMatches": "Ningún coworker coincide",
         "status": "Estado",
@@ -1958,7 +1959,8 @@
         "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
-        "unassigned": "Sin asignar"
+        "unassigned": "Sin asignar",
+        "unavailableAssignee": "Asignatario no disponible"
       },
       "Schedule": {
         "title": "Programación",

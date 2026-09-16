@@ -120,6 +120,7 @@ export interface TaskFormLabels {
   projectRequired?: string;
   coworker: string;
   unassigned: string;
+  unavailableAssignee: string;
   changeCoworker: string;
   noCoworkerMatches: string;
   defaultBadge?: string;
@@ -1246,6 +1247,7 @@ export function TaskForm({
                 labels={{
                   ariaLabel: labels.coworker,
                   unassigned: labels.unassigned,
+                  unavailableAssignee: labels.unavailableAssignee,
                   searchPlaceholder: labels.changeCoworker,
                   noResults: labels.noCoworkerMatches,
                   agentsGroupLabel: labels.coworker,

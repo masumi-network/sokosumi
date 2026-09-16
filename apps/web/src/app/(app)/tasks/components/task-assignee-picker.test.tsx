@@ -33,6 +33,7 @@ const options = [
 const labels = {
   ariaLabel: "Coworker",
   unassigned: "Unassigned",
+  unavailableAssignee: "Unavailable assignee",
   searchPlaceholder: "Search assignees…",
   noResults: "No matches",
   agentsGroupLabel: "Coworker",
@@ -63,7 +64,7 @@ describe("TaskAssigneePicker", () => {
     const user = userEvent.setup();
     renderPicker();
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: "Coworker: Soko" }));
 
     const listbox = screen.getByRole("listbox");
     const optionNames = within(listbox)
@@ -83,7 +84,7 @@ describe("TaskAssigneePicker", () => {
     const user = userEvent.setup();
     const { onSelect } = renderPicker();
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: "Coworker: Soko" }));
     await user.click(screen.getByRole("option", { name: "Elena" }));
 
     expect(onSelect).toHaveBeenCalledWith("coworker-2");
@@ -94,7 +95,7 @@ describe("TaskAssigneePicker", () => {
     const user = userEvent.setup();
     const { onSelect } = renderPicker();
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: "Coworker: Soko" }));
     await user.click(screen.getByRole("option", { name: "Unassigned" }));
 
     expect(onSelect).toHaveBeenCalledWith("");
@@ -107,7 +108,7 @@ describe("TaskAssigneePicker", () => {
         option === "unassigned" || option.kind === "user",
     });
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: "Coworker: Soko" }));
 
     expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
       "aria-disabled",
@@ -130,15 +131,25 @@ describe("TaskAssigneePicker", () => {
     renderPicker({ value: "" });
 
     expect(
-      screen.getByRole("combobox", { name: "Coworker" }),
+      screen.getByRole("combobox", { name: "Coworker: Unassigned" }),
     ).toHaveTextContent("Unassigned");
     expect(screen.queryByAltText("Serviceplan")).not.toBeInTheDocument();
+  });
+
+  it("keeps a missing saved assignee labeled instead of unassigned", () => {
+    renderPicker({ value: "gone-coworker", options: [] });
+
+    const trigger = screen.getByRole("combobox", {
+      name: "Coworker: Unavailable assignee",
+    });
+    expect(trigger).toHaveTextContent("Unavailable assignee");
+    expect(trigger).not.toHaveTextContent("Unassigned");
   });
 
   it("keeps the assignee trigger compact next to the vendor mark", () => {
     renderPicker({ value: "coworker-2" });
 
-    const trigger = screen.getByRole("combobox", { name: "Coworker" });
+    const trigger = screen.getByRole("combobox", { name: "Coworker: Elena" });
     expect(trigger).toHaveTextContent("Elena");
     expect(trigger.className).toMatch(/\binline-flex\b/);
     expect(trigger.className).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
@@ -155,7 +166,7 @@ describe("TaskAssigneePicker", () => {
     const user = userEvent.setup();
     renderPicker();
 
-    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+    await user.click(screen.getByRole("combobox", { name: "Coworker: Soko" }));
 
     const listbox = screen.getByRole("listbox");
     expect(listbox.className).toContain("touch-pan-y");
@@ -181,7 +192,9 @@ describe("TaskAssigneePicker", () => {
         { container: dialog },
       );
 
-      await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+      await user.click(
+        screen.getByRole("combobox", { name: "Coworker: Soko" }),
+      );
 
       await waitFor(() => {
         expect(

@@ -28,6 +28,8 @@ const DIALOG_CONTENT_SELECTOR = '[data-slot="dialog-content"]';
 export interface TaskAssigneePickerLabels {
   ariaLabel: string;
   unassigned: string;
+  /** Shown when `value` is set but missing from `options`. */
+  unavailableAssignee: string;
   searchPlaceholder: string;
   noResults: string;
   membersGroupLabel?: string;
@@ -137,8 +139,11 @@ export function TaskAssigneePicker({
   const membersGroupLabel =
     labels.membersGroupLabel ?? memberOptions[0]?.vendor.name;
 
-  const displayName = selectedOption?.name ?? labels.unassigned;
   const isUnassigned = value === "";
+  const displayName =
+    selectedOption?.name ??
+    (isUnassigned ? labels.unassigned : labels.unavailableAssignee);
+  const accessibleName = `${labels.ariaLabel}: ${displayName}`;
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -193,7 +198,7 @@ export function TaskAssigneePicker({
             type="button"
             role="combobox"
             aria-expanded={open}
-            aria-label={labels.ariaLabel}
+            aria-label={accessibleName}
             disabled={disabled}
             className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
           >

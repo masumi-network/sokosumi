@@ -333,6 +333,7 @@ export function CreateTaskModal({
             projectCreateNamed: t.raw("projectCreateNamed") as string,
             coworker: t("coworker"),
             unassigned: t("unassigned"),
+            unavailableAssignee: t("unavailableAssignee"),
             changeCoworker: t("changeCoworker"),
             noCoworkerMatches: t("noCoworkerMatches"),
             defaultBadge: t("defaultBadge"),

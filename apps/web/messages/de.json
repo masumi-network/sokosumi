@@ -1883,6 +1883,7 @@
         "projectCreateNamed": "Erstelle \"{name}\"",
         "coworker": "Coworker",
         "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Zuweisung nicht verfügbar",
         "changeCoworker": "Coworker ändern…",
         "noCoworkerMatches": "Kein Coworker passt",
         "status": "Status",
@@ -1958,7 +1959,8 @@
         "openSchedule": "Zeitplan festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
-        "unassigned": "Nicht zugewiesen"
+        "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Zuweisung nicht verfügbar"
       },
       "Schedule": {
         "title": "Zeitplan",
