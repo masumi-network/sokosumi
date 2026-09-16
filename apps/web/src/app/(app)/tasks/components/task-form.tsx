@@ -93,6 +93,7 @@ import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { TaskAssigneePicker } from "./task-assignee-picker";
 import {
   getDefaultTaskContextSelection,
+  getTaskContextSelectionFromDescription,
   TaskContextAttachmentsField,
   type TaskContextAttachmentsSelection,
 } from "./task-context-attachments";
@@ -331,8 +332,6 @@ export function TaskForm({
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const initialDescription = initialValues?.description ?? "";
-  const [description, setDescription] = useState(initialDescription);
   const [isPrivate, setIsPrivate] = useState(false);
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
@@ -340,6 +339,20 @@ export function TaskForm({
     initialValues && "projectId" in initialValues
       ? initialValues.projectId
       : defaultProjectId;
+  const initialProject = initialProjectId
+    ? projectOptions?.find((project) => project.id === initialProjectId)
+    : undefined;
+  const initialContext =
+    mode === "edit"
+      ? getTaskContextSelectionFromDescription(
+          initialValues?.description ?? "",
+          {
+            project: initialProject,
+            defaultBrandUrl: initialDesignMdAttachment?.url ?? null,
+            userId: session?.user.id ?? null,
+          },
+        )
+      : null;
   const [projectId, setProjectId] = useState<string | null | undefined>(
     initialProjectId,
   );
@@ -352,13 +365,14 @@ export function TaskForm({
     }
   }, [isProjectMissing]);
   const [contextSelection, setContextSelection] =
-    useState<TaskContextAttachmentsSelection>(() =>
-      getDefaultTaskContextSelection(
-        initialProjectId
-          ? projectOptions?.find((project) => project.id === initialProjectId)
-          : undefined,
-      ),
+    useState<TaskContextAttachmentsSelection>(
+      () =>
+        initialContext?.selection ??
+        getDefaultTaskContextSelection(initialProject),
     );
+  const initialDescription =
+    initialContext?.body ?? initialValues?.description ?? "";
+  const [description, setDescription] = useState(initialDescription);
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
   >([]);
@@ -864,6 +878,17 @@ export function TaskForm({
             initialValues?.assigneeUserId,
           ),
           ...(hasProjectSelection ? { projectId } : {}),
+          context: {
+            brand: {
+              enabled: contextSelection.brand.enabled,
+              source: contextSelection.brand.source,
+              custom: contextSelection.brand.custom
+                ? { url: contextSelection.brand.custom.url }
+                : null,
+            },
+            briefingEnabled: contextSelection.briefingEnabled,
+            contextMdEnabled: contextSelection.contextMdEnabled,
+          },
           currentStatus: originalStatus,
           desiredStatus,
           schedule: scheduleSelection,
@@ -1421,14 +1446,12 @@ export function TaskForm({
                     </FileUploadTrigger>
                   </FileUploadDropzone>
                 </FileUpload>
-                {mode === "create" ? (
-                  <TaskContextAttachmentsField
-                    defaultBrand={initialDesignMdAttachment ?? null}
-                    project={selectedProject}
-                    selection={contextSelection}
-                    onSelectionChange={setContextSelection}
-                  />
-                ) : null}
+                <TaskContextAttachmentsField
+                  defaultBrand={initialDesignMdAttachment ?? null}
+                  project={selectedProject}
+                  selection={contextSelection}
+                  onSelectionChange={setContextSelection}
+                />
                 {showPrivateControl ? (
                   <div className="flex items-start gap-2">
                     <Checkbox

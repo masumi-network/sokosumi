@@ -39638,6 +39638,7 @@ export type PatchTasksByIdData = {
         name?: string;
         description?: string | null;
         projectId?: string | null;
+        context?: CreateTaskContext & unknown;
         assigneeId?: string | null;
         /**
          * Deprecated. Use assigneeId instead.
@@ -39721,6 +39722,21 @@ export type PatchTasksByIdErrors = {
      * Conflict
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

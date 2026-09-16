@@ -79,6 +79,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   projectId?: string | null;
+  context?: TaskContextSelectionInput;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
   schedule?: TaskScheduleSelection;
@@ -995,6 +996,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     assigneeSokoBotId,
     assigneeUserId,
     projectId,
+    context,
     currentStatus,
     desiredStatus,
     schedule,
@@ -1002,6 +1004,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     expectedScheduleRevision,
     scheduleOperationId,
     originalSchedule,
+    session,
   }) => {
     const trimmedDescription = description.trim();
     const trimmedName = normalizeTaskNameForCoreApi(name);
@@ -1029,6 +1032,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         ...assigneeWrite,
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
+          : {}),
+        ...(context
+          ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),
         ...(hadSchedule ? { expectedScheduleRevision } : {}),
       });

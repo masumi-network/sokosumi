@@ -707,6 +707,46 @@ describe("task link actions", () => {
   });
 });
 
+describe("updateTask context", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockResolvedValue({ id: "task-1" });
+    taskServiceMock.createTaskEvent.mockResolvedValue({});
+  });
+
+  it("maps Context selection into the Core patch payload", async () => {
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Launch post",
+      description: "Draft the LinkedIn launch post",
+      assigneeId: "cow_1",
+      projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      context: {
+        brand: { enabled: false, source: "default", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: false,
+      },
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.DRAFT,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({
+        description: "Draft the LinkedIn launch post",
+        context: {
+          brand: false,
+          briefing: true,
+          memory: false,
+        },
+      }),
+    );
+  });
+});
+
 describe("updateTask schedule status", () => {
   const recurringSchedule = {
     mode: "recurring" as const,

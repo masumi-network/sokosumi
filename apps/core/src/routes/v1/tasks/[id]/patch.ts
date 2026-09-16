@@ -4,6 +4,7 @@ import {
   CORE_API_ERROR_KINDS,
   hasActiveTaskSchedule,
   isTaskEditableStatus,
+  removeTaskContextAttachmentLinks,
 } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
@@ -24,13 +25,18 @@ import {
   refineAssigneeXorConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
+import {
+  findTaskProjectInWorkspace,
+  healProjectBriefingUrl,
+  resolveTaskDescriptionWithContext,
+} from "@/helpers/task-create-context";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
-import { taskSchema } from "@/schemas/task.schema";
+import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
 import { requireNoHumanAssigneeOnPrivateTask } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -55,6 +61,10 @@ export const patchTaskRequestSchema = z
       .nullable()
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
+    context: createTaskContextSchema.optional().openapi({
+      description:
+        "When set, Core strips existing DESIGN.md / BRIEFING.md / CONTEXT.md links from the description (request body or stored) and re-applies Context the same way as create.",
+    }),
     assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
     /** @deprecated Use `assigneeId`. */
     coworkerId: z.string().nullish().openapi({
@@ -86,6 +96,7 @@ export const patchTaskRequestSchema = z
       data.name === undefined &&
       data.description === undefined &&
       data.projectId === undefined &&
+      data.context === undefined &&
       data.assigneeId === undefined &&
       data.coworkerId === undefined &&
       data.assigneeSokoBotId === undefined &&
@@ -94,7 +105,7 @@ export const patchTaskRequestSchema = z
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, assigneeId, assigneeSokoBotId, or assigneeUserId is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, or assigneeUserId is required",
         path: ["name"],
       });
     }
@@ -134,6 +145,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict"),
+    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
@@ -146,6 +158,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       name,
       description,
       projectId,
+      context,
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
@@ -154,6 +167,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const editsTaskFields =
       name !== undefined ||
       description !== undefined ||
+      context !== undefined ||
       assigneeId !== undefined ||
       assigneeSokoBotId !== undefined ||
       assigneeUserId !== undefined;
@@ -281,6 +295,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const previousAssigneeUserId = task.assigneeUserId;
 
+      let nextDescription = description;
+      if (context !== undefined) {
+        const effectiveProjectId = projectIdWasProvided
+          ? projectId
+          : task.projectId;
+        const contextProject = await findTaskProjectInWorkspace(
+          effectiveProjectId,
+          task.workspaceId,
+          tx,
+        );
+        const healedProject =
+          context.briefing !== false
+            ? await healProjectBriefingUrl(contextProject, task.workspaceId, tx)
+            : contextProject;
+        const proseSource =
+          description !== undefined && description !== null
+            ? description
+            : (task.description ?? "");
+        nextDescription = await resolveTaskDescriptionWithContext({
+          context,
+          description: removeTaskContextAttachmentLinks(proseSource) || null,
+          organizationId: task.organizationId,
+          ownerId: task.ownerId,
+          project: healedProject,
+          tx,
+        });
+      }
+
       const updatedTask = await tx.task.update({
         where: {
           id,
@@ -292,7 +334,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         data: {
           name,
-          description,
+          description: nextDescription,
           projectId,
           ...(assigneeWrite ?? {}),
           ...(hasActiveSeries && editsTaskFields

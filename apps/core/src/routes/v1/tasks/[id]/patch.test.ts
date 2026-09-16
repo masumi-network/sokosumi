@@ -26,6 +26,7 @@ const {
   requireTaskAssignableSokoBotMock,
   requireTaskAssignableUserMock,
   requireTaskOwnershipMock,
+  resolveEffectiveDesignMdMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
@@ -37,7 +38,12 @@ const {
   requireTaskAssignableSokoBotMock: vi.fn(),
   requireTaskAssignableUserMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
+  resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   taskUpdateMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/design-md-effective", () => ({
+  resolveEffectiveDesignMd: resolveEffectiveDesignMdMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -68,6 +74,10 @@ vi.mock("@/helpers/task-notifications", () => ({
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: vi.fn().mockResolvedValue(true),
   lockTaskRows: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -185,6 +195,18 @@ describe("patchTaskRequestSchema", () => {
     expect(result.projectId).toBe(PROJECT_ID);
   });
 
+  it("accepts context as the only patch field", () => {
+    const result = patchTaskRequestSchema.parse({
+      context: { brand: false, briefing: false, memory: false },
+    });
+
+    expect(result.context).toEqual({
+      brand: false,
+      briefing: false,
+      memory: false,
+    });
+  });
+
   it("accepts deprecated coworkerId as assigneeId", () => {
     const result = patchTaskRequestSchema.parse({
       coworkerId: "cow_legacy",
@@ -252,11 +274,21 @@ describe("PATCH /tasks/{id}", () => {
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 0,
     });
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
     refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
     taskUpdateMock.mockResolvedValue(createTaskApi(PROJECT_ID));
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -665,6 +697,105 @@ describe("PATCH /tasks/{id}", () => {
       expect(response.status).toBe(200);
       expect(notifyTaskHumanAssigneeMock).not.toHaveBeenCalled();
     });
+  });
+
+  it("re-applies Context attachments on description when context is provided", async () => {
+    const app = createApp();
+    const designMdUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md";
+    const briefingUrl = "https://store.public.blob.vercel-storage.com/brief.md";
+    const contextMdUrl =
+      "https://store.public.blob.vercel-storage.com/context.md";
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: `[DESIGN.md](${designMdUrl})\n\nOld prose`,
+      visibility: TaskVisibility.PUBLIC,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 0,
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      filesToken: null,
+      designMdUrl,
+      briefing: null,
+      briefingUrl,
+      contextMdUrl,
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "Updated prose",
+        context: { brand: true, brandSource: "project" },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: `[DESIGN.md](${designMdUrl})\n[BRIEFING.md](${briefingUrl})\n[CONTEXT.md](${contextMdUrl})\n\nUpdated prose`,
+        }),
+      }),
+    );
+  });
+
+  it("opts out of Context attachments when context flags are false", async () => {
+    const app = createApp();
+    const designMdUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md";
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: `[DESIGN.md](${designMdUrl})\n\nKeep prose`,
+      visibility: TaskVisibility.PUBLIC,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 0,
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      filesToken: null,
+      designMdUrl,
+      briefing: null,
+      briefingUrl: "https://store.public.blob.vercel-storage.com/brief.md",
+      contextMdUrl: "https://store.public.blob.vercel-storage.com/context.md",
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "Keep prose",
+        context: { brand: false, briefing: false, memory: false },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: "Keep prose",
+        }),
+      }),
+    );
   });
 });
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
+  parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
 } from "./task-context-attachment.js";
 
@@ -31,5 +32,95 @@ describe("removeTaskContextAttachmentLinks", () => {
   it("leaves other links untouched", () => {
     const markdown = "[notes.pdf](https://blob.example/notes.pdf)\n\nBody";
     expect(removeTaskContextAttachmentLinks(markdown)).toBe(markdown);
+  });
+});
+
+describe("parseTaskContextFromDescription", () => {
+  const projectDesignMdUrl =
+    "https://blob.example/design-md/projects/p1/hash.md";
+  const workspaceDesignMdUrl =
+    "https://blob.example/design-md/organizations/org1/hash.md";
+  const adHocDesignMdUrl =
+    "https://blob.example/design-md/adhoc/user-1/hash.md";
+  const briefingUrl = "https://blob.example/projects/p1/BRIEFING.md";
+  const contextMdUrl = "https://blob.example/projects/p1/CONTEXT.md";
+
+  it("derives selection from stored Context links and returns stripped body", () => {
+    const markdown = [
+      `[DESIGN.md](${projectDesignMdUrl})`,
+      `[BRIEFING.md](${briefingUrl})`,
+      `[CONTEXT.md](${contextMdUrl})`,
+      "",
+      "Draft the LinkedIn launch post",
+    ].join("\n");
+
+    expect(
+      parseTaskContextFromDescription(markdown, {
+        projectDesignMdUrl,
+        workspaceDesignMdUrl,
+        adHocPathPrefix: "design-md/adhoc/user-1/",
+      }),
+    ).toEqual({
+      body: "Draft the LinkedIn launch post",
+      selection: {
+        brandEnabled: true,
+        brandSource: "project",
+        brandUrl: projectDesignMdUrl,
+        briefingEnabled: true,
+        memoryEnabled: true,
+      },
+    });
+  });
+
+  it("marks missing Context files as off instead of inventing create defaults", () => {
+    expect(
+      parseTaskContextFromDescription("Just the prose", {
+        projectDesignMdUrl,
+        workspaceDesignMdUrl,
+      }),
+    ).toEqual({
+      body: "Just the prose",
+      selection: {
+        brandEnabled: false,
+        // Source still prefers project when available so re-enabling Brand
+        // attaches the project DESIGN.md, matching create chip behavior.
+        brandSource: "project",
+        brandUrl: null,
+        briefingEnabled: false,
+        memoryEnabled: false,
+      },
+    });
+  });
+
+  it("maps workspace brand URL to default source and ad-hoc URL to custom", () => {
+    expect(
+      parseTaskContextFromDescription(
+        `[DESIGN.md](${workspaceDesignMdUrl})\n\nBody`,
+        {
+          projectDesignMdUrl,
+          workspaceDesignMdUrl,
+          adHocPathPrefix: "design-md/adhoc/user-1/",
+        },
+      ).selection,
+    ).toMatchObject({
+      brandEnabled: true,
+      brandSource: "default",
+      brandUrl: workspaceDesignMdUrl,
+    });
+
+    expect(
+      parseTaskContextFromDescription(
+        `[DESIGN.md](${adHocDesignMdUrl})\n\nBody`,
+        {
+          projectDesignMdUrl,
+          workspaceDesignMdUrl,
+          adHocPathPrefix: "design-md/adhoc/user-1/",
+        },
+      ).selection,
+    ).toMatchObject({
+      brandEnabled: true,
+      brandSource: "custom",
+      brandUrl: adHocDesignMdUrl,
+    });
   });
 });

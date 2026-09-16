@@ -192,6 +192,34 @@ vi.mock("./task-context-attachments", () => ({
     briefingEnabled: true,
     contextMdEnabled: true,
   }),
+  getTaskContextSelectionFromDescription: (
+    description: string,
+    options: {
+      project?: { designMd?: unknown };
+    } = {},
+  ) => {
+    const hasDesign = description.includes("[DESIGN.md]");
+    const hasBriefing = description.includes("[BRIEFING.md]");
+    const hasMemory = description.includes("[CONTEXT.md]");
+    const body = description
+      .replace(/\[DESIGN\.md\]\([^)]*\)\n?/g, "")
+      .replace(/\[BRIEFING\.md\]\([^)]*\)\n?/g, "")
+      .replace(/\[CONTEXT\.md\]\([^)]*\)\n?/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    return {
+      body,
+      selection: {
+        brand: {
+          enabled: hasDesign,
+          source: options.project?.designMd ? "project" : "default",
+          custom: null,
+        },
+        briefingEnabled: hasBriefing,
+        contextMdEnabled: hasMemory,
+      },
+    };
+  },
   TaskContextAttachmentsField: ({
     selection,
     onSelectionChange,
@@ -2286,6 +2314,106 @@ describe("TaskForm", () => {
         timezone: expect.any(String),
       },
     });
+  });
+
+  it("shows Context on edit with selection derived from description links", () => {
+    const designMdUrl = "https://blob.example/design-md/projects/p1/hash.md";
+    const briefingUrl = "https://blob.example/projects/p1/BRIEFING.md";
+    const contextMdUrl = "https://blob.example/projects/p1/CONTEXT.md";
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Launch post",
+          description: [
+            `[DESIGN.md](${designMdUrl})`,
+            `[BRIEFING.md](${briefingUrl})`,
+            `[CONTEXT.md](${contextMdUrl})`,
+            "",
+            "Draft the LinkedIn launch post",
+          ].join("\n"),
+          assigneeId: "coworker-2",
+          projectId: "project-1",
+          status: TaskStatus.DRAFT,
+        }}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design-md/org/hash.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("context-attachments")).toBeInTheDocument();
+    expect(screen.getByTestId("markdown-editor")).toHaveValue(
+      "Draft the LinkedIn launch post",
+    );
+    expect(
+      screen.getByRole("button", { name: "context-brand" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "context-briefing" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "context-memory" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sends Context selection when saving an edit", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Launch post",
+          description: [
+            "[DESIGN.md](https://blob.example/design.md)",
+            "",
+            "Draft the LinkedIn launch post",
+          ].join("\n"),
+          assigneeId: "coworker-2",
+          projectId: "project-1",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "context-brand" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          description: "Draft the LinkedIn launch post",
+          context: {
+            brand: {
+              enabled: false,
+              source: "project",
+              custom: null,
+            },
+            briefingEnabled: false,
+            contextMdEnabled: false,
+          },
+        }),
+      ),
+    );
   });
 
   it("passes projectId when creating a task from the project picker", async () => {

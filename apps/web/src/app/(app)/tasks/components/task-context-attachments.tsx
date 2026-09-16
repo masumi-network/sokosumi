@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  buildAdHocDesignMdPrefix,
+  parseTaskContextFromDescription,
+} from "@sokosumi/utils";
 import { Check, ChevronDown, FileText, Globe, Info } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -127,6 +131,47 @@ export function getDefaultTaskContextSelection(
     },
     briefingEnabled: true,
     contextMdEnabled: true,
+  };
+}
+
+/** Map a stored description's Context links into form selection + editor body. */
+export function getTaskContextSelectionFromDescription(
+  description: string,
+  options: {
+    project?: ProjectFilterOption;
+    defaultBrandUrl?: string | null;
+    userId?: string | null;
+  } = {},
+): {
+  selection: TaskContextAttachmentsSelection;
+  body: string;
+} {
+  const parsed = parseTaskContextFromDescription(description, {
+    projectDesignMdUrl: options.project?.designMd?.url ?? null,
+    workspaceDesignMdUrl: options.defaultBrandUrl ?? null,
+    adHocPathPrefix: options.userId
+      ? buildAdHocDesignMdPrefix(options.userId)
+      : null,
+  });
+
+  return {
+    body: parsed.body,
+    selection: {
+      brand: {
+        enabled: parsed.selection.brandEnabled,
+        source: parsed.selection.brandSource,
+        custom:
+          parsed.selection.brandSource === "custom" && parsed.selection.brandUrl
+            ? {
+                label: "DESIGN.md",
+                url: parsed.selection.brandUrl,
+                sourceUrl: parsed.selection.brandUrl,
+              }
+            : null,
+      },
+      briefingEnabled: parsed.selection.briefingEnabled,
+      contextMdEnabled: parsed.selection.memoryEnabled,
+    },
   };
 }
 
