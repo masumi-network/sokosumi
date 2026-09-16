@@ -897,6 +897,50 @@ describe("NotificationProvider paging", () => {
     ]);
   });
 
+  it("drops an in-flight older page when a refresh starts the list over", async () => {
+    await renderLoaded();
+    const older = Promise.withResolvers<unknown>();
+    getNotificationsMock.mockReturnValueOnce(older.promise);
+
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    const arrived = {
+      ...NEWEST,
+      id: "notification-arrived",
+      createdAt: new Date("2026-06-18T11:00:00.000Z"),
+    };
+    const arrivedOldest = {
+      ...NEWEST,
+      id: "notification-arrived-oldest",
+      createdAt: new Date("2026-06-18T10:00:00.000Z"),
+    };
+    getNotificationsMock.mockResolvedValue({
+      data: [arrived, arrivedOldest],
+      meta: { pagination: { nextCursor: arrivedOldest.id } },
+    });
+    await act(async () => {
+      await currentNotifications.refetch();
+    });
+
+    await act(async () => {
+      older.resolve({
+        data: [OLDER],
+        meta: { pagination: { nextCursor: null } },
+      });
+      await Promise.resolve();
+    });
+
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
+      arrived.id,
+      arrivedOldest.id,
+    ]);
+    expect(currentNotifications.hasMore).toBe(true);
+    expect(currentNotifications.olderStatus).toBe("idle");
+  });
+
   it("follows Core's own cursor when a page adds nothing new", async () => {
     await renderLoaded();
     // The oldest row moved to the top on the server and the event that said

@@ -210,6 +210,9 @@ export function NotificationProvider({
   const fetchGenerationRef = useRef(0);
   const latestFetchGeneration = useRef(0);
   const latestReadGeneration = useRef(0);
+  // Bumped when a fetch lands, so an older page that took off before it
+  // cannot append under a list that fetch just started over.
+  const pagingGeneration = useRef(0);
   const realtimeDuringFetch = useRef(new Set<string>());
 
   const dispatch = useCallback((action: NotificationAction) => {
@@ -278,6 +281,7 @@ export function NotificationProvider({
         realtimeIds,
         hasMore: nextCursor !== null,
       });
+      pagingGeneration.current += 1;
       // A refresh reads the newest page only. When it reports nothing after
       // it, the feed ends inside that page and the rows below went with it;
       // otherwise there is more to reach, whether or not the reader has
@@ -286,7 +290,9 @@ export function NotificationProvider({
       olderCursorOverride.current = null;
       // A failed older page waits for the reader, whatever a refresh finds.
       // Only a feed that now ends inside the first page makes it moot.
-      if (nextCursor === null) setOlderStatus("idle");
+      // An in-flight older page is dropped with the generation bump; do not
+      // leave its loading state on the list that replaced it.
+      if (nextCursor === null || olderInFlight.current) setOlderStatus("idle");
       setHasFetchError(false);
       if (readStateChanged) void fetchNotifications();
     } catch (error) {
@@ -309,6 +315,7 @@ export function NotificationProvider({
 
     olderInFlight.current = true;
     setOlderStatus("loading");
+    const generation = pagingGeneration.current;
 
     void (async () => {
       try {
@@ -316,6 +323,15 @@ export function NotificationProvider({
           limit: NOTIFICATION_PAGE_SIZE,
           cursor,
         });
+        if (generation !== pagingGeneration.current) {
+          // The list this page was fetched for started over while it was in
+          // the air: more than a page of newer rows arrived, and applying
+          // these rows under the new first page would leave the ones
+          // between them out for good. The refresh already said whether
+          // there is more.
+          setOlderStatus("idle");
+          return;
+        }
         dispatch({ type: "load_older_success", fetched: response.data });
         const nextCursor = response.meta.pagination.nextCursor;
         const movedOn =
@@ -325,6 +341,10 @@ export function NotificationProvider({
         setHasMore(nextCursor !== null);
         setOlderStatus("idle");
       } catch (error) {
+        if (generation !== pagingGeneration.current) {
+          setOlderStatus("idle");
+          return;
+        }
         console.error("Failed to load older notifications:", error);
         olderCursorOverride.current = null;
         if (isRejectedCursor(error) && !rejectedCursorDropped.current) {
