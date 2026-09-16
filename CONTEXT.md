@@ -119,8 +119,8 @@ An in-app alert about something that happened for the user or their workspace (f
 _Avoid_: Message (when meaning an alert), toast (toasts are a delivery mechanism, not the domain object)
 
 **Notification Center**:
-The product surface where the user reviews and acts on notifications: the header panel and the full notifications list page.
-_Avoid_: Inbox, activity feed (unless intentionally renaming the product surface)
+One chronological list of the user's notifications, shown in the header panel and on the full notifications page. Reading is the only change a reader makes to a Notification; a reader never removes one.
+_Avoid_: Inbox, activity feed (unless intentionally renaming the product surface), clear or delete (when meaning a reader removing notifications)
 
 **Account notice**:
 A workspace- or account-level call to action that is not itself a notification, but may surface next to notifications in the Notification Center.
@@ -307,6 +307,10 @@ _Avoid_: Metadata preview, embed when meaning this card, treating the body link 
 **Removed unfurl**:
 An unfurl the message's human author took off the message. Gone for everyone. The body URL stays. It stays gone while that URL remains in the body. Not a body edit. Not a personal hide.
 _Avoid_: Hidden unfurl, dismissed Quote, edited message, composer opt-out
+
+**Unfurl snapshot**:
+Sokosumi's own stored copy of an unfurl's preview image, taken when the unfurl is scraped. The card shows the snapshot, never the source image.
+_Avoid_: Cached image, proxied image, hotlinked image, og:image (when meaning the copy)
 
 ### Chat outbound delivery
 

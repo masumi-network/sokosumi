@@ -1,17 +1,14 @@
 "use client";
 
-import { Calendar, MessageSquare, UserCog } from "lucide-react";
+import { Calendar, MessageSquare } from "lucide-react";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
-import { AssistantOrb } from "@/components/aurora-orb";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {
@@ -20,55 +17,6 @@ interface TaskMetaDetailsProps {
   commentsCount: TaskWithCoworker["commentsCount"];
   createdAt: TaskWithCoworker["createdAt"];
   variant?: "card" | "list";
-}
-
-function AssigneeAvatar({
-  assignee,
-  size = "sm",
-}: {
-  assignee: TaskWithCoworker["assignee"];
-  size?: "sm" | "md";
-}) {
-  const image = getCoworkerImage(assignee);
-  const sizeClass = size === "sm" ? "size-5" : "size-6";
-  const orbSize = size === "sm" ? 20 : 24;
-
-  if (
-    assignee?.kind === "sokoBot" &&
-    !image &&
-    (assignee.avatarSeed || assignee.id)
-  ) {
-    return (
-      <AssistantOrb
-        seed={assignee.avatarSeed ?? defaultOrbSeed(assignee.id)}
-        expression="idle"
-        animate={false}
-        size={orbSize}
-        className={`${sizeClass} shrink-0`}
-        alt={assignee.name}
-      />
-    );
-  }
-
-  return (
-    <Avatar className={`${sizeClass} shrink-0`}>
-      {image ? (
-        <AvatarImage
-          src={image}
-          alt={assignee?.name ?? "Coworker"}
-          className="object-cover"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
-          }}
-        />
-      ) : null}
-      <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
-        {assignee?.name?.slice(0, 1).toUpperCase() ?? (
-          <UserCog className="size-3" aria-hidden />
-        )}
-      </AvatarFallback>
-    </Avatar>
-  );
 }
 
 export function TaskMetaDetails({
@@ -136,7 +84,7 @@ export function TaskMetaDetails({
           </TooltipContent>
         </Tooltip>
       </div>
-      <div className="text-muted-foreground/60 flex items-center gap-2">
+      <div className="text-muted-foreground flex items-center gap-2">
         {commentsCount > 0 && (
           <div className="flex items-center gap-1">
             <MessageSquare className="size-3" aria-hidden />

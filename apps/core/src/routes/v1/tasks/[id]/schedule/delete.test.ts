@@ -18,7 +18,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   serializableTransactionMock,
   memberFindFirstMock,
-  requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccessMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
   quarantineFindUniqueMock,
@@ -30,7 +30,7 @@ const {
 } = vi.hoisted(() => ({
   serializableTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
-  requireTaskCollaborationMock: vi.fn(),
+  requireTaskScheduleWriteAccessMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   quarantineFindUniqueMock: vi.fn(),
@@ -42,7 +42,7 @@ const {
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccess: requireTaskScheduleWriteAccessMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -164,7 +164,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
@@ -220,7 +220,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
     const response = await app.request(...removalRequest());
 
     expect(response.status).toBe(200);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskScheduleWriteAccessMock).toHaveBeenCalled();
     expect(serializableTransactionMock).toHaveBeenCalledOnce();
     expect(taskEventCreateMock.mock.calls[0][0].data).toMatchObject({
       userId: null,
@@ -289,7 +289,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
 
   it("reports the quarantine ahead of a stale schedule revision", async () => {
     quarantineFindUniqueMock.mockResolvedValue({ id: "quarantine-1" });
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
@@ -310,7 +310,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
   });
 
   it("rejects a removal that observed an older schedule revision", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
@@ -329,7 +329,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
   });
 
   it("rejects removal when the task has no active schedule series", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
@@ -361,7 +361,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
   });
 
   it("restores a queued series template to Draft as well", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
@@ -409,7 +409,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
     taskEventFindUniqueMock.mockResolvedValue({
       schedulePayload: storedPayload,
     });
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.DRAFT,
       workspaceId: WORKSPACE_ID,

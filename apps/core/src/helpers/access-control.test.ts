@@ -37,6 +37,7 @@ import {
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
   requireTaskScheduleReadAccess,
+  requireTaskScheduleWriteAccess,
   requireTaskStatusWriteAccess,
   requireTaskWorkspaceMapping,
 } from "./access-control";
@@ -974,6 +975,179 @@ describe("requireTaskScheduleReadAccess", () => {
         vendorId: defaultVendorId,
         workspaceId: null,
       }),
+    });
+  });
+});
+
+describe("requireTaskScheduleWriteAccess", () => {
+  const scheduledTask = {
+    id: "tsk_123",
+    status: "QUEUED",
+    assigneeId: "cow_sibling",
+  };
+
+  it("lets a contextual coworker edit a same-vendor sibling's schedule", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      ...scheduledTask,
+      assignee: { vendorId: defaultVendorId },
+    } as never);
+
+    const task = await requireTaskScheduleWriteAccess(
+      createCoworkerContext("cow_123", {
+        userId: "user_123",
+        organizationId: null,
+      }),
+      "tsk_123",
+      tx,
+    );
+
+    expect(task).toEqual(scheduledTask);
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: { id: "tsk_123", archivedAt: null, ownerId: "user_123" },
+      include: { assignee: { select: { vendorId: true } } },
+    });
+  });
+
+  it("lets the creating coworker schedule a task assigned to another vendor", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      ...scheduledTask,
+      status: "DRAFT",
+      creatorCoworkerId: "cow_123",
+      assignee: { vendorId: "01960001-0001-7001-8001-00000000beef" },
+    } as never);
+
+    const task = await requireTaskScheduleWriteAccess(
+      createCoworkerContext("cow_123", {
+        userId: "user_123",
+        organizationId: null,
+      }),
+      "tsk_123",
+      tx,
+    );
+
+    expect(task.creatorCoworkerId).toBe("cow_123");
+  });
+
+  it("lets a contextual assignee schedule a DRAFT they did not create", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      ...scheduledTask,
+      status: "DRAFT",
+      assigneeId: "cow_123",
+      creatorCoworkerId: "cow_other",
+      assignee: { vendorId: defaultVendorId },
+    } as never);
+
+    const task = await requireTaskScheduleWriteAccess(
+      createCoworkerContext("cow_123", {
+        userId: "user_123",
+        organizationId: null,
+      }),
+      "tsk_123",
+      tx,
+    );
+
+    expect(task.assigneeId).toBe("cow_123");
+    expect(task.creatorCoworkerId).toBe("cow_other");
+  });
+
+  it("rejects a sibling task from another vendor", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      ...scheduledTask,
+      assignee: { vendorId: "01960001-0001-7001-8001-00000000beef" },
+    } as never);
+
+    await expect(
+      requireTaskScheduleWriteAccess(
+        createCoworkerContext("cow_123"),
+        "tsk_123",
+        tx,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: { id: "tsk_123", archivedAt: null, status: { not: "DRAFT" } },
+      include: { assignee: { select: { vendorId: true } } },
+    });
+  });
+
+  it("rejects non-creator siblings on DRAFT", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      ...scheduledTask,
+      status: "DRAFT",
+      assignee: { vendorId: defaultVendorId },
+    } as never);
+
+    await expect(
+      requireTaskScheduleWriteAccess(
+        createCoworkerContext("cow_123", {
+          userId: "user_123",
+          organizationId: null,
+        }),
+        "tsk_123",
+        tx,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("rejects schedule writes on parked tasks", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      ...scheduledTask,
+      status: TaskStatus.GRANT_PENDING,
+      assignee: { vendorId: defaultVendorId },
+    } as never);
+
+    await expect(
+      requireTaskScheduleWriteAccess(
+        createCoworkerContext("cow_123", {
+          userId: "user_123",
+          organizationId: null,
+        }),
+        "tsk_123",
+        tx,
+      ),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "task_parked",
+      });
+      return true;
+    });
+  });
+
+  it("keeps owner-only access for session users", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      status: "QUEUED",
+    } as never);
+
+    await requireTaskScheduleWriteAccess(userAuthContext, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: { id: "tsk_123", ownerId: "user_123", archivedAt: null },
     });
   });
 });

@@ -200,14 +200,14 @@ export function CreateDirectDialog() {
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden shadow-none sm:max-w-lg">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-none sm:max-w-lg">
         <DialogHeader className="shrink-0 gap-1">
           <DialogTitle>{t("Draft.title")}</DialogTitle>
           <DialogDescription>{t("Draft.empty")}</DialogDescription>
         </DialogHeader>
         <div
           data-testid="direct-recipient-composer"
-          className="border-input focus-within:border-ring focus-within:ring-ring/50 flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
+          className="border-input focus-within:border-ring focus-within:ring-ring-halo flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
           onClick={() => searchInputRef.current?.focus()}
         >
           <Search
@@ -240,7 +240,7 @@ export function CreateDirectDialog() {
               </span>
               <button
                 type="button"
-                className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
+                className="hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeTarget(target.key);
@@ -274,7 +274,7 @@ export function CreateDirectDialog() {
             spellCheck={false}
           />
         </div>
-        <div className="relative min-h-0 flex-1 basis-[min(20rem,45svh)]">
+        <div className="relative min-h-0 flex-1 basis-[min(20rem,45dvh)]">
           <div
             ref={rosterScrollRef}
             data-testid="direct-roster-scrollport"

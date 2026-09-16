@@ -211,6 +211,7 @@ describe("GET /workspaces/{id}/calendar", () => {
           taskStatus: "QUEUED",
           taskAssigneeId: null,
           taskAssigneeUserId: null,
+          taskOwnerId: "user_123",
           scheduledAt: "2026-06-03T09:00:00.000Z",
           originalScheduledAt: "2026-06-03T09:00:00.000Z",
           state: "RELEASED",
@@ -646,6 +647,7 @@ describe("GET /workspaces/{id}/calendar", () => {
         releasedTask: {
           id: "tsk_release",
           name: "Released task run",
+          ownerId: "user_123",
           status: TaskStatus.COMPLETED,
           assigneeId: "coworker_123",
         },

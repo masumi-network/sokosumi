@@ -9,6 +9,13 @@ struct ConversationSidebarView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openSettings) private var openSettings
 
+  @State private var startDirect: DirectPresentation?
+
+  private struct DirectPresentation: Identifiable {
+    let id: UUID
+    let hasOrganization: Bool
+  }
+
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
     VStack(spacing: 0) {
@@ -66,6 +73,13 @@ struct ConversationSidebarView: View {
       .listStyle(.sidebar)
       .toolbar {
         ToolbarItem {
+          Button("New chat", systemImage: "square.and.pencil") {
+            startDirect = .init(id: workspaces.directContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
+          }
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil)
+          .help("New chat")
+        }
+        ToolbarItem {
           Button("Refresh conversations", systemImage: "arrow.clockwise") {
             Task { await workspaces.refreshRooms(auth: auth) }
           }
@@ -95,6 +109,14 @@ struct ConversationSidebarView: View {
       Divider()
       meSection
     }
+    .sheet(item: $startDirect) { presentation in
+      StartDirectView(hasOrganization: presentation.hasOrganization, load: {
+        try await workspaces.loadDirectRecipients(context: presentation.id, auth: auth)
+      }, open: {
+        try await workspaces.openDirect($0, context: presentation.id, auth: auth)
+      })
+    }
+    .onChange(of: workspaces.directContext) { _, _ in startDirect = nil }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(
       get: { workspaces.sidebar.actionError != nil },

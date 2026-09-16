@@ -305,8 +305,8 @@
         "started": "Gestartet",
         "completed": "Abgeschlossen",
         "failed": "Fehlgeschlagen",
-        "paymentPending": "In Beauftragung",
-        "paymentFailed": "Beauftragung fehlgeschlagen",
+        "paymentPending": "Zahlung ausstehend",
+        "paymentFailed": "Zahlung fehlgeschlagen",
         "processing": "In Bearbeitung",
         "agentConnectionFailed": "Agent-Verbindung fehlgeschlagen",
         "paymentNodeConnectionFailed": "Knoten-Verbindung fehlgeschlagen",
@@ -778,21 +778,15 @@
       "viewAll": "Alle Benachrichtigungen anzeigen",
       "justNow": "Gerade eben",
       "loading": "Lädt...",
-      "loadMore": "Mehr laden",
       "markAllRead": "Alle als gelesen markieren",
       "markAllReadError": "Alle Benachrichtigungen konnten nicht als gelesen markiert werden",
-      "delete": "Benachrichtigung löschen: {message}",
-      "deleteTooltip": "Löschen",
+      "markReadError": "Benachrichtigung konnte nicht als gelesen markiert werden",
+      "markUnreadError": "Benachrichtigung konnte nicht als ungelesen markiert werden",
       "markRead": "Benachrichtigung als gelesen markieren: {message}",
       "markReadTooltip": "Als gelesen markieren",
       "markUnread": "Benachrichtigung als ungelesen markieren: {message}",
       "markUnreadTooltip": "Als ungelesen markieren",
       "unreadIndicator": "Ungelesen",
-      "deleteError": "Benachrichtigung konnte nicht gelöscht werden",
-      "clearAll": "Alle löschen",
-      "clearAllError": "Benachrichtigungen konnten nicht gelöscht werden",
-      "clearAllConfirmTitle": "Alle Benachrichtigungen löschen?",
-      "clearAllConfirmDescription": "Damit werden alle Benachrichtigungen aus deinem Benachrichtigungscenter entfernt. Das lässt sich nicht rückgängig machen.",
       "fetchError": "Benachrichtigungen konnten nicht geladen werden",
       "retry": "Erneut versuchen",
       "accept": "Akzeptieren",
@@ -1919,8 +1913,8 @@
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
-        "privateLabel": "Privater Task",
-        "privateDescription": "Nur du, dein Soko Bot und der Vendor des zugewiesenen Coworkers können diesen Task sehen."
+        "privateLabel": "Privat",
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -6212,10 +6206,12 @@
         "skipOccurrence": "Vorkommen überspringen",
         "restoreOccurrence": "Vorkommen wiederherstellen",
         "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
-        "openTask": "Task öffnen"
+        "openTask": "Task öffnen",
+        "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
       },
       "create": {
-        "title": "Task planen"
+        "title": "Task planen",
+        "fab": "Task planen"
       },
       "edit": {
         "title": "Zeitplan bearbeiten",
@@ -6269,6 +6265,10 @@
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
+      },
+      "agenda": {
+        "backToTop": "Nach oben",
+        "today": "Heute"
       }
     },
     "You": {

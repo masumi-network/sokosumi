@@ -2,6 +2,16 @@ import type { ChatRoomMessageUnfurl } from "@/schemas/chat-room.schema";
 
 export const REMOVED_UNFURL_URLS_METADATA_KEY = "removedUnfurlUrls";
 
+/** Prisma `JsonValue` narrowed to an object, or null for anything else. */
+export function asMetadataRecord(
+  value: unknown,
+): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
 export function readRemovedUnfurlUrlsFromMetadata(
   metadata: Record<string, unknown> | null,
 ): string[] {

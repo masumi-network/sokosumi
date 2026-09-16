@@ -1,9 +1,16 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { Activity, StrictMode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
@@ -71,6 +78,7 @@ const ITEMS: WorkspaceCalendarItem[] = [
     taskName: "Prepare release notes",
     taskStatus: "QUEUED",
     taskAssigneeId: "coworker-1",
+    taskOwnerId: "user-1",
     scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     originalScheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     state: "PLANNED",
@@ -374,8 +382,10 @@ describe("WorkspaceCalendar", () => {
     expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument();
     expect(screen.getByText("Release planning")).toBeInTheDocument();
     expect(screen.getByTestId("calendar-source-marker")).toBeInTheDocument();
-    expect(screen.getByText("accuracy.inferred")).toBeInTheDocument();
-    expect(screen.queryByText("accuracy.approximate")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("accuracy.approximate"),
+    ).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Prepare release notes/ })[0],
     ).toBeInTheDocument();
@@ -770,7 +780,7 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("defaults the mobile Calendar to the week view so empty dates can create tasks", async () => {
+  it("defaults the mobile Calendar to the agenda view", async () => {
     const mediaQuery: MediaQueryList = {
       matches: true,
       media: "(max-width: 767px)",
@@ -795,10 +805,162 @@ describe("WorkspaceCalendar", () => {
       );
 
       await waitFor(() =>
-        expect(screen.getByTestId("calendar-week")).toBeInTheDocument(),
+        expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument(),
       );
+      expect(screen.queryByTestId("calendar-week")).not.toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
+    }
+  });
+
+  it("scrolls the agenda to today's day header", async () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    try {
+      render(
+        <NuqsTestingAdapter
+          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
+        >
+          <WorkspaceCalendar
+            initialDate={today}
+            items={[
+              {
+                ...ITEMS[0],
+                scheduledAt: new Date(`${today}T09:00:00.000Z`),
+                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
+              },
+            ]}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
+        "data-date",
+        today,
+      );
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  it("scrolls the agenda to the next day header when today has no events", async () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const today = Temporal.Now.plainDateISO("UTC");
+    const tomorrow = today.add({ days: 1 }).toString();
+
+    try {
+      render(
+        <NuqsTestingAdapter
+          searchParams={`?view=agenda&date=${today.toString()}&timezone=UTC`}
+        >
+          <WorkspaceCalendar
+            initialDate={today.toString()}
+            items={[
+              {
+                ...ITEMS[0],
+                scheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
+                originalScheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
+              },
+            ]}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
+        "data-date",
+        tomorrow,
+      );
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  it("offers Today at the top of the agenda and Back to top once scrolled", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    vi.stubGlobal("scrollY", 0);
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    try {
+      render(
+        <NuqsTestingAdapter
+          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
+        >
+          <WorkspaceCalendar
+            initialDate={today}
+            items={[
+              {
+                ...ITEMS[0],
+                scheduledAt: new Date(`${today}T09:00:00.000Z`),
+                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
+              },
+            ]}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      scrollIntoView.mockClear();
+      await user.click(screen.getByRole("button", { name: "agenda.today" }));
+      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
+        "data-date",
+        today,
+      );
+
+      vi.stubGlobal("scrollY", 400);
+      fireEvent.scroll(window);
+      await user.click(
+        await screen.findByRole("button", { name: "agenda.backToTop" }),
+      );
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({ top: 0 }),
+      );
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  // globals.css hides the agenda's list-item dot with a structural selector
+  // because FullCalendar joins class-name options across theme and user
+  // layers. Pin the DOM shape that selector relies on.
+  it("keeps the agenda dot as the first child before the event card", () => {
+    const { container } = render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    const dots = container.querySelectorAll(
+      '[data-view="agenda"] [role="listitem"]:not([aria-label]) > :first-child:not(:only-child)',
+    );
+    expect(dots.length).toBeGreaterThan(0);
+    for (const dot of dots) {
+      expect(dot.querySelector('[data-testid="calendar-event"]')).toBeNull();
+      expect(
+        dot.nextElementSibling?.querySelector('[data-testid="calendar-event"]'),
+      ).not.toBeNull();
     }
   });
 
@@ -825,9 +987,9 @@ describe("WorkspaceCalendar", () => {
       "data-view",
       "week",
     );
-    expect(container.querySelector("[class~='bg-primary/10']")).toHaveClass(
-      "bg-primary/10",
-    );
+    expect(
+      container.querySelector("[class~='bg-primary-quaternary']"),
+    ).toHaveClass("bg-primary-quaternary");
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
 

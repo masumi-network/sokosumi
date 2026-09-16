@@ -223,7 +223,7 @@ export function ProjectBrandCard({
         data-testid="project-brand-card"
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-muted-foreground/60 text-xs font-medium">
+          <h2 className="text-muted-foreground text-xs font-medium">
             {t("brand")}
           </h2>
           <DropdownMenu>
@@ -371,7 +371,7 @@ export function ProjectBrandCard({
               {t("deleteDialog.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
               disabled={isRemoving}
               onClick={(event) => {
                 event.preventDefault();

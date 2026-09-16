@@ -75,7 +75,7 @@ export function ProjectBriefingField({
             data-testid={`briefing-chip-${chipId}`}
             disabled={disabled}
             onClick={() => handleChipClick(chipId)}
-            className="border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 inline-flex items-center rounded-full border px-2.5 py-1 text-xs transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50"
+            className="border-border text-muted-foreground hover:text-foreground hover:bg-card-background inline-flex items-center rounded-full border px-2.5 py-1 text-xs transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50"
           >
             {t(`chips.${chipId}`)}
           </button>
@@ -95,10 +95,11 @@ export function ProjectBriefingField({
       />
 
       <p
-        className={cn(
-          "text-xs leading-relaxed",
-          targetMet ? "text-muted-foreground" : "text-muted-foreground/70",
-        )}
+        // Both states read at one weight now. The unmet hint used to be a
+        // /70 fade of this token, which is under the 4.5:1 floor, and there
+        // is no legal step fainter than --muted-foreground to move it to.
+        // The wording is what separates the two states.
+        className="text-muted-foreground text-xs leading-relaxed"
         data-testid="briefing-encouragement"
       >
         {targetMet ? t("encouragementMet") : t("encouragement")}

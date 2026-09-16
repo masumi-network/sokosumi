@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   hasCalendarBetaAccess,
+  hasSokoBotBetaAccess,
   isSokoBotBetaAccessEmail,
 } from "@/lib/beta-access";
 
@@ -27,6 +28,37 @@ describe("isSokoBotBetaAccessEmail", () => {
   it("denies null and undefined", () => {
     expect(isSokoBotBetaAccessEmail(null)).toBe(false);
     expect(isSokoBotBetaAccessEmail(undefined)).toBe(false);
+  });
+});
+
+describe("hasSokoBotBetaAccess", () => {
+  it("allows a verified nmkr.io user", () => {
+    expect(
+      hasSokoBotBetaAccess({ email: "a@nmkr.io", emailVerified: true }),
+    ).toBe(true);
+  });
+
+  it("denies an unverified nmkr.io user", () => {
+    expect(
+      hasSokoBotBetaAccess({ email: "a@nmkr.io", emailVerified: false }),
+    ).toBe(false);
+  });
+
+  it("denies a verified non-nmkr user", () => {
+    expect(
+      hasSokoBotBetaAccess({
+        email: "someone@gmail.com",
+        emailVerified: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("denies null user and missing verified flag", () => {
+    expect(hasSokoBotBetaAccess(null)).toBe(false);
+    expect(hasSokoBotBetaAccess({ email: "a@nmkr.io" })).toBe(false);
+    expect(
+      hasSokoBotBetaAccess({ email: "a@nmkr.io", emailVerified: null }),
+    ).toBe(false);
   });
 });
 

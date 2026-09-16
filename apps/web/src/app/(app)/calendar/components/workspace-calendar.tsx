@@ -22,11 +22,14 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
+  ArrowDown,
+  ArrowUp,
   Building2,
   ChevronLeft,
   ChevronRight,
   CircleDashed,
   Clock3,
+  Ellipsis,
   FolderKanban,
   Plus,
   Sparkles,
@@ -39,11 +42,15 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
+import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
+import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -76,6 +83,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
@@ -124,7 +134,39 @@ interface CalendarCoworker {
   id: string;
   image?: string;
   name: string;
+  slug?: string;
   kind?: "coworker" | "user" | "sokoBot";
+  avatarSeed?: string | null;
+}
+
+interface CalendarPeople {
+  assignee: TaskAssigneeView | null;
+  owner: CalendarCoworker | null;
+}
+
+/** Joins an item's assignee and owner ids against the workspace roster. */
+function findCalendarPeople(
+  item: WorkspaceCalendarItem,
+  coworkers: CalendarCoworker[],
+): CalendarPeople {
+  const assigneeCoworker = item.taskAssigneeUserId
+    ? coworkers.find(
+        ({ id, kind }) => kind === "user" && id === item.taskAssigneeUserId,
+      )
+    : item.taskAssigneeId
+      ? coworkers.find(
+          ({ id, kind }) => kind !== "user" && id === item.taskAssigneeId,
+        )
+      : undefined;
+  return {
+    assignee: assigneeCoworker
+      ? { ...assigneeCoworker, kind: assigneeCoworker.kind ?? "coworker" }
+      : null,
+    owner:
+      coworkers.find(
+        ({ id, kind }) => kind === "user" && id === item.taskOwnerId,
+      ) ?? null,
+  };
 }
 
 interface WorkspaceCalendarProps {
@@ -167,6 +209,28 @@ function parseCalendarDate(value: string, fallback: string): Date {
 
 function getCalendarDayKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
+}
+
+/** The app shell's main column scrolls the page; null outside it. */
+function getAgendaScroller(root: HTMLElement | null): HTMLElement | null {
+  return root?.closest<HTMLElement>("[data-app-main]") ?? null;
+}
+
+/**
+ * FullCalendar's list day header for today in the calendar zone, or the
+ * first later day: the list only renders headers for days that have events.
+ */
+function findTodayHeader(
+  root: HTMLElement | null,
+  timeZone: string,
+): HTMLElement | null {
+  const todayKey = Temporal.Now.plainDateISO(timeZone).toString();
+  const headers = root?.querySelectorAll<HTMLElement>("[data-date]") ?? [];
+  return (
+    Array.from(headers).find(
+      (header) => (header.dataset.date ?? "") >= todayKey,
+    ) ?? null
+  );
 }
 
 function getProjectIdFromSource(
@@ -264,26 +328,30 @@ function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
 
 function CalendarEvent({
   item,
+  people,
   onEditSchedule,
   onMoveOccurrence,
   onRestoreOccurrence,
   onSkipOccurrence,
   onOpenTask,
-  showDetails,
   source,
   timeText,
 }: {
   item: WorkspaceCalendarItem;
+  people: CalendarPeople;
   onEditSchedule: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
   onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
   onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
-  showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
-  timeText?: string;
+  timeText: string | undefined;
 }) {
   const t = useTranslations("App.Calendar");
+  const peopleId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Where a mouse drag began on a card FullCalendar will not move.
+  const dragAttemptOrigin = useRef<{ x: number; y: number } | null>(null);
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -298,62 +366,116 @@ function CalendarEvent({
         ~
       </span>
     ) : null;
-  const sourceDetails = showDetails ? (
+  const peopleNames = [people.assignee?.name, people.owner?.name]
+    .filter((name): name is string => Boolean(name?.trim()))
+    .join(", ");
+  const peopleStack = peopleNames ? (
     <>
-      <span className="text-muted-foreground shrink-0">{sourceName}</span>
-      {item.sourceAccuracy !== "EXACT" ? (
-        <span className="text-muted-foreground shrink-0">
-          {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-        </span>
-      ) : null}
+      <span
+        aria-hidden
+        className="flex shrink-0 items-center -space-x-1"
+        data-testid="calendar-event-people"
+        title={peopleNames}
+      >
+        {people.assignee ? <AssigneeAvatar assignee={people.assignee} /> : null}
+        {people.owner ? (
+          <UserProfileAvatar
+            className="z-10"
+            image={people.owner.image}
+            name={people.owner.name}
+          />
+        ) : null}
+      </span>
+      <span className="sr-only" id={peopleId}>
+        {peopleNames}
+      </span>
     </>
   ) : null;
 
+  const menuButton = (
+    <DropdownMenuTrigger asChild>
+      <button
+        aria-describedby={peopleNames ? peopleId : undefined}
+        aria-label={t(
+          item.state === "SKIPPED"
+            ? "event.accessibleNameSkipped"
+            : "event.accessibleName",
+          {
+            source: sourceName,
+            task: item.taskName,
+          },
+        )}
+        className="text-muted-foreground hover:bg-primary-tertiary hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        // Radix already toggled on pointerdown; the click must not reach the
+        // card's own open handler.
+        onClick={(event) => event.stopPropagation()}
+        type="button"
+      >
+        <Ellipsis aria-hidden className="size-4" />
+      </button>
+    </DropdownMenuTrigger>
+  );
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          aria-label={t(
-            item.state === "SKIPPED"
-              ? "event.accessibleNameSkipped"
-              : "event.accessibleName",
-            {
-              source: sourceName,
-              task: item.taskName,
-            },
-          )}
-          className={cn(
-            "bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2",
-            timeText ? "flex-col items-start gap-0.5" : "items-center gap-1",
-            item.state === "SKIPPED" && "text-muted-foreground line-through",
-          )}
-          type="button"
-        >
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      {/*
+        The card is deliberately not the menu trigger: Radix opens on
+        pointerdown and cancels the mousedown FullCalendar needs to start a
+        drag. A click after a drop never lands here (the mouseup hits the
+        drag mirror), so a click on the card is always a plain tap.
+      */}
+      <div
+        className={cn(
+          "bg-primary-quaternary text-foreground hover:bg-primary-tertiary flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+          item.state === "SKIPPED" && "text-muted-foreground line-through",
+        )}
+        data-testid="calendar-event"
+        onClick={() => setMenuOpen(true)}
+        // FullCalendar silently ignores a drag on someone else's task; say
+        // who can move it once the mouse has clearly started dragging.
+        onPointerDown={(event) => {
+          dragAttemptOrigin.current =
+            event.pointerType !== "touch" && !item.canEditSchedule
+              ? { x: event.clientX, y: event.clientY }
+              : null;
+        }}
+        onPointerLeave={() => {
+          dragAttemptOrigin.current = null;
+        }}
+        onPointerMove={(event) => {
+          const origin = dragAttemptOrigin.current;
+          if (
+            !origin ||
+            Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
+          ) {
+            return;
+          }
+          dragAttemptOrigin.current = null;
+          toast.info(t("event.moveNotAllowed"));
+        }}
+        onPointerUp={() => {
+          dragAttemptOrigin.current = null;
+        }}
+      >
+        <span className="flex w-full min-w-0 items-center gap-1">
+          {sourceMarker}
           {timeText ? (
-            <>
-              <span className="flex w-full min-w-0 items-center gap-1">
-                {sourceMarker}
-                <span className="text-muted-foreground shrink-0 tabular-nums">
-                  {timeText}
-                </span>
-                {accuracyMarker}
-                <span className="text-muted-foreground min-w-0 truncate">
-                  {sourceName}
-                </span>
-              </span>
-              <span className="w-full min-w-0 truncate">{item.taskName}</span>
-            </>
-          ) : (
-            <>
-              {sourceMarker}
-              {accuracyMarker}
-              <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
-              {sourceDetails}
-            </>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+            <span className="text-muted-foreground shrink-0 tabular-nums">
+              {timeText}
+            </span>
+          ) : null}
+          {accuracyMarker}
+          <span className="text-muted-foreground min-w-0 truncate">
+            {sourceName}
+          </span>
+        </span>
+        <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
+        <span className="flex w-full min-w-0 items-center gap-1">
+          {peopleStack}
+          {menuButton}
+        </span>
+      </div>
+      <DropdownMenuContent align="end">
         {item.canEditSchedule ? (
           <DropdownMenuItem onSelect={() => onEditSchedule(item.taskId)}>
             {t("event.editSchedule")}
@@ -384,6 +506,7 @@ function CalendarEvent({
 
 function CalendarView({
   canCreate,
+  coworkers,
   date,
   items,
   onDateClick,
@@ -397,6 +520,7 @@ function CalendarView({
   view,
 }: {
   canCreate: boolean;
+  coworkers: CalendarCoworker[];
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
@@ -477,75 +601,156 @@ function CalendarView({
     }
   }
 
+  const t = useTranslations("App.Calendar");
+  const isApple = useIsApplePlatform();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const dateKey = getCalendarDayKey(date);
+  const [agendaScroll, setAgendaScroll] = useState({
+    hasToday: false,
+    isScrolled: false,
+  });
+
+  // The agenda lists the whole month and the page is the scroller, so land
+  // on today's day header whenever the shown month contains it, then keep
+  // track of the scroll position for the jump button.
+  useEffect(() => {
+    if (view !== "agenda") {
+      return;
+    }
+    const root = rootRef.current;
+    const scroller = getAgendaScroller(root);
+    const todayHeader = findTodayHeader(root, timeZone);
+    todayHeader?.scrollIntoView({ block: "start" });
+    const update = () =>
+      setAgendaScroll({
+        hasToday: Boolean(todayHeader),
+        isScrolled: (scroller ? scroller.scrollTop : window.scrollY) > 160,
+      });
+    update();
+    const target: EventTarget = scroller ?? window;
+    target.addEventListener("scroll", update, { passive: true });
+    return () => target.removeEventListener("scroll", update);
+  }, [view, dateKey, timeZone]);
+
+  function handleAgendaJump() {
+    const root = rootRef.current;
+    if (agendaScroll.isScrolled) {
+      (getAgendaScroller(root) ?? window).scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+    findTodayHeader(root, timeZone)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   return (
-    <div
-      className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
-      data-can-create={canCreate ? "true" : undefined}
-      data-view={view}
-      data-testid={`calendar-${view}`}
-    >
-      <FullCalendar
-        borderless
-        dayCellClass={
-          canCreate && view !== "agenda"
-            ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
-            : undefined
-        }
-        key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
-        plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
-        initialDate={getCalendarDayKey(date)}
-        initialView={pluginView}
-        events={items.map((item) => ({
-          id: item.id,
-          title: item.taskName,
-          start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
-          // Per-event: a released or unowned row is visible but not draggable.
-          startEditable: isMovableCalendarItem(item),
-          durationEditable: false,
-        }))}
-        timeZone={timeZone}
-        headerToolbar={false}
-        height="auto"
-        editable={false}
-        eventDurationEditable={false}
-        eventAllow={(_span, movingEvent) => {
-          const item = movingEvent
-            ? items.find(({ id }) => id === movingEvent.id)
-            : undefined;
-          return Boolean(item && isMovableCalendarItem(item));
-        }}
-        eventDrop={(info) => void handleEventDrop(info)}
-        eventContent={(eventInfo) => {
-          const item = items.find(({ id }) => id === eventInfo.event.id);
-          if (!item) {
-            return eventInfo.event.title;
+    <>
+      <div
+        className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
+        data-can-create={canCreate ? "true" : undefined}
+        data-view={view}
+        data-testid={`calendar-${view}`}
+        ref={rootRef}
+      >
+        <FullCalendar
+          borderless
+          dayCellClass={
+            canCreate && view !== "agenda"
+              ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+              : undefined
           }
-          const start = eventInfo.event.start;
-          return (
-            <CalendarEvent
-              item={item}
-              onEditSchedule={onEventEdit}
-              onMoveOccurrence={onMoveOccurrence}
-              onRestoreOccurrence={onRestoreOccurrence}
-              onSkipOccurrence={onSkipOccurrence}
-              onOpenTask={onOpenTask}
-              showDetails={view === "agenda"}
-              source={sources.find(
-                ({ sourceId }) => sourceId === item.sourceId,
-              )}
-              // FullCalendar's own timeText is en-US shorthand ("8a") in every
-              // locale; format the instant in the calendar zone ourselves.
-              timeText={
-                view === "week" && start
-                  ? formatDate(start, "time", { timeZone })
-                  : undefined
-              }
-            />
-          );
-        }}
-        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
-      />
-    </div>
+          key={`${dateKey}-${timeZone}-${view}`}
+          plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
+          initialDate={dateKey}
+          initialView={pluginView}
+          events={items.map((item) => ({
+            id: item.id,
+            title: item.taskName,
+            start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
+            // Per-event: a released or unowned row is visible but not draggable.
+            startEditable: isMovableCalendarItem(item),
+            durationEditable: false,
+          }))}
+          timeZone={timeZone}
+          headerToolbar={false}
+          height="auto"
+          // Timed events default to "list-item" (dot + time + title); the card
+          // already carries the time, so the dot was the only leftover. Block
+          // mode paints the theme's event blue behind the card; the card is
+          // the only fill wanted.
+          eventDisplay="block"
+          eventColor="transparent"
+          editable={false}
+          eventDurationEditable={false}
+          eventAllow={(_span, movingEvent) => {
+            const item = movingEvent
+              ? items.find(({ id }) => id === movingEvent.id)
+              : undefined;
+            return Boolean(item && isMovableCalendarItem(item));
+          }}
+          eventDrop={(info) => void handleEventDrop(info)}
+          eventContent={(eventInfo) => {
+            const item = items.find(({ id }) => id === eventInfo.event.id);
+            if (!item) {
+              return eventInfo.event.title;
+            }
+            const start = eventInfo.event.start;
+            return (
+              <CalendarEvent
+                item={item}
+                people={findCalendarPeople(item, coworkers)}
+                onEditSchedule={onEventEdit}
+                onMoveOccurrence={onMoveOccurrence}
+                onRestoreOccurrence={onRestoreOccurrence}
+                onSkipOccurrence={onSkipOccurrence}
+                onOpenTask={onOpenTask}
+                source={sources.find(
+                  ({ sourceId }) => sourceId === item.sourceId,
+                )}
+                // FullCalendar's own timeText is en-US shorthand ("8a") in every
+                // locale; format the instant in the calendar zone ourselves.
+                timeText={
+                  start ? formatDate(start, "time", { timeZone }) : undefined
+                }
+              />
+            );
+          }}
+          dateClick={(dateInfo) => onDateClick(dateInfo.date)}
+        />
+      </div>
+      {/*
+        Sticky, not fixed, so it centers on the agenda's own width instead of
+        the viewport, and it lives outside the wrapper because that wrapper
+        is a scroll container which would pin the sticky box to itself.
+      */}
+      {view === "agenda" &&
+      (agendaScroll.isScrolled || agendaScroll.hasToday) ? (
+        <div
+          className={cn(
+            "pointer-events-none sticky z-40 flex h-0 items-end justify-center md:bottom-6",
+            mobileCreateFabBottom(isApple),
+          )}
+        >
+          <Button
+            className="pointer-events-auto rounded-full shadow-lg"
+            size="sm"
+            variant="outline"
+            onClick={handleAgendaJump}
+          >
+            {agendaScroll.isScrolled ? (
+              <ArrowUp aria-hidden />
+            ) : (
+              <ArrowDown aria-hidden />
+            )}
+            {t(agendaScroll.isScrolled ? "agenda.backToTop" : "agenda.today")}
+          </Button>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -710,7 +915,7 @@ function CalendarEditDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("edit.title")}</DialogTitle>
           <DialogDescription>
@@ -899,7 +1104,9 @@ export function WorkspaceCalendar({
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
-  const view = state.view ?? "week";
+  const isMobile = useIsMobile();
+  // Phones open on the agenda list; a seven-column grid is a desktop default.
+  const view = state.view ?? (isMobile ? "agenda" : "week");
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -1320,7 +1527,7 @@ export function WorkspaceCalendar({
         />
         {canCreate ? (
           <Button
-            className="ml-auto basis-full md:basis-auto"
+            className="ml-auto hidden md:inline-flex"
             size="sm"
             variant="primary"
             onClick={handleAgendaCreate}
@@ -1330,6 +1537,12 @@ export function WorkspaceCalendar({
           </Button>
         ) : null}
       </div>
+      {canCreate ? (
+        <ListMobileCreateFab
+          ariaLabel={t("create.fab")}
+          onOpen={handleAgendaCreate}
+        />
+      ) : null}
 
       {visibleItems.length === 0 ? (
         <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
@@ -1339,6 +1552,7 @@ export function WorkspaceCalendar({
       <CalendarView
         key={calendarRenderEpoch}
         canCreate={canCreate}
+        coworkers={coworkers}
         date={date}
         items={visibleItems}
         onDateClick={handleDateClick}

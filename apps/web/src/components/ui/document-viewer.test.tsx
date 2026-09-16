@@ -52,8 +52,10 @@ describe("DocumentViewer", () => {
     );
 
     const panel = screen.getByRole("dialog");
-    expect(panel).not.toHaveClass("bg-black");
-    expect(panel).not.toHaveClass("h-screen");
+    // The image viewer paints its own opaque media ground. The document
+    // viewer must not, so it keeps the dialog surface.
+    expect(panel).not.toHaveClass("bg-media-ground");
+    expect(panel).not.toHaveClass("h-dvh");
   });
 
   it("shows the filename and a single action row with open, download, and close", () => {

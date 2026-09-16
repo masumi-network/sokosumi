@@ -50,7 +50,7 @@ export async function LegacyHistory({
             key={message.id}
             className={cn(
               "grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[6rem_minmax(0,1fr)]",
-              role === "user" && "bg-muted/30",
+              role === "user" && "bg-card-background",
             )}
           >
             <div className="space-y-1">

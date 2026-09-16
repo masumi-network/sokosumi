@@ -57,9 +57,8 @@ async function WithBots() {
 
 /**
  * Sidebar entry for the Soko Bots page. Streams in the avatar stack so the
- * nav never waits on Core. Hidden entirely while the feature is in beta for
- * whitelisted domains: the route 404s for everyone else, so an entry pointing
- * at it would only be a dead end.
+ * nav never waits on Core. Hidden without Soko Bot beta access: the route
+ * 404s for everyone else, so an entry pointing at it would only be a dead end.
  */
 export default function PersonalAssistantNav({
   enabled,

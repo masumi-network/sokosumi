@@ -778,21 +778,15 @@
       "viewAll": "Ver todas las notificaciones",
       "justNow": "Ahora mismo",
       "loading": "Cargando...",
-      "loadMore": "Cargar más",
       "markAllRead": "Marcar todas como leídas",
       "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
-      "delete": "Eliminar notificación: {message}",
-      "deleteTooltip": "Eliminar",
+      "markReadError": "No se pudo marcar la notificación como leída",
+      "markUnreadError": "No se pudo marcar la notificación como no leída",
       "markRead": "Marcar notificación como leída: {message}",
       "markReadTooltip": "Marcar como leída",
       "markUnread": "Marcar notificación como no leída: {message}",
       "markUnreadTooltip": "Marcar como no leída",
       "unreadIndicator": "Sin leer",
-      "deleteError": "No se pudo eliminar la notificación",
-      "clearAll": "Borrar todas",
-      "clearAllError": "No se pudieron borrar las notificaciones",
-      "clearAllConfirmTitle": "¿Borrar todas las notificaciones?",
-      "clearAllConfirmDescription": "Se eliminarán todas las notificaciones de tu centro de notificaciones. No se puede deshacer.",
       "fetchError": "No se pudieron cargar las notificaciones",
       "retry": "Intentar de nuevo",
       "accept": "Aceptar",
@@ -1919,8 +1913,8 @@
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",
-        "privateLabel": "Tarea privada",
-        "privateDescription": "Solo tú, tu Soko Bot y el vendor del coworker asignado pueden ver esta tarea."
+        "privateLabel": "Privada",
+        "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado."
       },
       "EditTask": {
         "title": "Editar Task",
@@ -6212,10 +6206,12 @@
         "skipOccurrence": "Omitir repetición",
         "restoreOccurrence": "Restaurar repetición",
         "mutationError": "No se pudo cambiar esta repetición. Inténtalo de nuevo.",
-        "openTask": "Abrir tarea"
+        "openTask": "Abrir tarea",
+        "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
       },
       "create": {
-        "title": "Programar una tarea"
+        "title": "Programar una tarea",
+        "fab": "Programar una tarea"
       },
       "edit": {
         "title": "Editar programación",
@@ -6269,6 +6265,10 @@
         "title": "No se pudo cargar el calendario",
         "description": "Vuelve a intentarlo en un momento.",
         "retry": "Intentar de nuevo"
+      },
+      "agenda": {
+        "backToTop": "Volver arriba",
+        "today": "Hoy"
       }
     },
     "You": {

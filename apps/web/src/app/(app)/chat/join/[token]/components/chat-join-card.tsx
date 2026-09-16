@@ -27,7 +27,7 @@ export function ChatJoinCard({ token, room, user }: ChatJoinCardProps) {
   const t = useTranslations("App.Channels.ChatJoin");
 
   return (
-    <div className="flex min-h-[50vh] items-center justify-center p-4">
+    <div className="flex min-h-[50dvh] items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="flex flex-col items-center text-center">
           <div className="bg-muted mb-2 flex size-16 items-center justify-center overflow-hidden rounded-2xl">
@@ -71,7 +71,7 @@ export function ChatJoinInvalidCard({
           : "Invalid.notFound";
 
   return (
-    <div className="flex min-h-[50vh] items-center justify-center p-4">
+    <div className="flex min-h-[50dvh] items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-2">

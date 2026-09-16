@@ -18,7 +18,7 @@ export function ColumnHeader({
           className={cn("size-2 shrink-0 rounded-full", statusColorClass)}
           aria-hidden
         />
-        <h2 className="text-foreground/70 text-xs font-semibold tracking-wide uppercase">
+        <h2 className="text-foreground text-xs font-semibold tracking-wide uppercase">
           {title}
         </h2>
       </div>

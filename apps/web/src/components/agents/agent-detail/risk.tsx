@@ -13,7 +13,7 @@ function AgentDetailRisk({ agent }: { agent: CoreAgentDto }) {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">
+      <h2 className="text-muted-foreground text-xs font-medium">
         {t("title")}
       </h2>
       <RiskClassificationBadge riskClassification={agent.riskClassification} />

@@ -47,7 +47,7 @@ const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.25;
 
 const toolbarButtonClassName =
-  "size-9 shrink-0 rounded-full text-white hover:bg-white/10 hover:text-white";
+  "size-9 shrink-0 rounded-full text-on-media hover:bg-on-media-quaternary hover:text-on-media";
 
 function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
@@ -74,7 +74,7 @@ function printImage(src: string, alt: string): void {
   doc.write(`<!doctype html><html><head><title></title>
 <style>
   html, body { margin: 0; padding: 0; background: #fff; }
-  img { max-width: 100%; max-height: 100vh; display: block; margin: 0 auto; }
+  img { max-width: 100%; max-height: 100dvh; display: block; margin: 0 auto; }
   @media print { body { -webkit-print-color-adjust: exact; } }
 </style></head><body></body></html>`);
   doc.close();
@@ -169,7 +169,7 @@ function ImageViewerChrome({
       <DialogTitle className="sr-only">{t("title")}</DialogTitle>
       <DialogDescription className="sr-only">{alt}</DialogDescription>
       <div
-        className="flex items-center justify-between gap-3 bg-black/80 px-3 py-2 text-white"
+        className="flex items-center justify-between gap-3 bg-scrim-strong px-3 py-2 text-on-media"
         data-testid="image-viewer-toolbar"
         onClick={(event) => {
           event.stopPropagation();
@@ -235,7 +235,7 @@ function ImageViewerChrome({
         </div>
       </div>
       <div
-        className="relative flex min-h-0 flex-1 items-center justify-center bg-black"
+        className="relative flex min-h-0 flex-1 items-center justify-center bg-media-ground"
         data-testid="image-viewer-stage"
         onClick={handleStageClick}
       >
@@ -251,7 +251,7 @@ function ImageViewerChrome({
           }}
         />
         <div
-          className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/80 px-2 py-1 text-white"
+          className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-scrim-strong px-2 py-1 text-on-media"
           data-testid="image-viewer-zoom"
           onClick={(event) => {
             event.stopPropagation();
@@ -308,7 +308,7 @@ export function ImageViewer({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "fixed inset-0 top-0 left-0 z-50 flex h-screen w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-black p-0 shadow-none sm:max-w-none",
+          "fixed inset-0 top-0 left-0 z-50 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-media-ground p-0 shadow-none sm:max-w-none",
           className,
         )}
         data-testid="image-viewer"

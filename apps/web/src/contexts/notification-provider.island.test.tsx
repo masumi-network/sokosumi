@@ -6,13 +6,25 @@ import {
   NotificationProvider,
   useNotifications,
 } from "@/contexts/notification-provider";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 const getNotificationsMock = vi.fn();
+
+/** Core always answers a list with pagination meta; most cases here do not
+    care what is in it, so they may leave it out. */
+async function withPagination(response: unknown) {
+  const listed = response as {
+    data: unknown;
+    meta?: { pagination: { nextCursor: string | null } };
+  };
+  return {
+    ...listed,
+    meta: listed.meta ?? { pagination: { nextCursor: null } },
+  };
+}
 const patchNotificationReadMock = vi.fn();
 const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
-const deleteNotificationMock = vi.fn();
-const deleteNotificationsMock = vi.fn();
 const getNotificationsUnreadCountMock = vi.fn();
 const useNotificationRealtimeMock = vi.fn();
 const healPushSubscriptionMock = vi.fn();
@@ -25,7 +37,8 @@ const lazyAblyProviderMock = vi.fn(
 
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   notificationsBrowserClient: {
-    getNotifications: (...args: unknown[]) => getNotificationsMock(...args),
+    getNotifications: async (...args: unknown[]) =>
+      withPagination(await getNotificationsMock(...args)),
     getNotificationsUnreadCount: (...args: unknown[]) =>
       getNotificationsUnreadCountMock(...args),
     patchNotificationRead: (...args: unknown[]) =>
@@ -34,9 +47,6 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
       patchNotificationUnreadMock(...args),
     patchNotificationsReadAll: (...args: unknown[]) =>
       patchNotificationsReadAllMock(...args),
-    deleteNotification: (...args: unknown[]) => deleteNotificationMock(...args),
-    deleteNotifications: (...args: unknown[]) =>
-      deleteNotificationsMock(...args),
   },
 }));
 
@@ -79,14 +89,8 @@ let currentNotifications: ReturnType<typeof useNotifications>;
 
 function NotificationConsumer() {
   currentNotifications = useNotifications();
-  const {
-    isLoading,
-    hasFetchError,
-    unreadCount,
-    notifications,
-    deleteNotification,
-    clearNotifications,
-  } = useNotifications();
+  const { isLoading, hasFetchError, unreadCount, notifications } =
+    useNotifications();
 
   return (
     <div data-testid="notification-consumer">
@@ -96,34 +100,6 @@ function NotificationConsumer() {
       <span data-testid="notification-ids">
         {notifications.map((notification) => notification.id).join(",")}
       </span>
-      <button
-        type="button"
-        data-testid="delete-first"
-        onClick={() => {
-          void deleteNotification(notifications[0]?.id ?? "").catch(() => {});
-        }}
-      >
-        delete
-      </button>
-      <button
-        type="button"
-        data-testid="delete-elsewhere"
-        onClick={() => {
-          // A row the page holds and this list does not, as deep paging gives.
-          void deleteNotification("notification-elsewhere").catch(() => {});
-        }}
-      >
-        delete elsewhere
-      </button>
-      <button
-        type="button"
-        data-testid="clear-all"
-        onClick={() => {
-          void clearNotifications().catch(() => {});
-        }}
-      >
-        clear
-      </button>
     </div>
   );
 }
@@ -145,8 +121,6 @@ describe("NotificationProvider island", () => {
       ),
     );
 
-    deleteNotificationMock.mockReset();
-    deleteNotificationsMock.mockReset();
     getNotificationsMock.mockResolvedValue({ data: [] });
     getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
   });
@@ -456,7 +430,7 @@ describe("NotificationProvider island", () => {
   });
 });
 
-describe("NotificationProvider deleting", () => {
+describe("NotificationProvider read state", () => {
   const UNREAD_ROW = {
     id: "notification-unread",
     userId: "user-1",
@@ -484,8 +458,6 @@ describe("NotificationProvider deleting", () => {
     patchNotificationReadMock.mockReset();
     patchNotificationsReadAllMock.mockReset();
     getNotificationsUnreadCountMock.mockReset();
-    deleteNotificationMock.mockReset();
-    deleteNotificationsMock.mockReset();
     useNotificationRealtimeMock.mockReset();
     lazyAblyProviderMock.mockReset();
     lazyAblyProviderMock.mockImplementation(
@@ -494,8 +466,6 @@ describe("NotificationProvider deleting", () => {
 
     getNotificationsMock.mockResolvedValue({ data: [UNREAD_ROW, READ_ROW] });
     getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
-    deleteNotificationMock.mockResolvedValue({ data: UNREAD_ROW });
-    deleteNotificationsMock.mockResolvedValue({ data: { count: 2 } });
   });
 
   async function renderLoaded() {
@@ -506,13 +476,6 @@ describe("NotificationProvider deleting", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
-    });
-  }
-
-  async function press(testId: string) {
-    await act(async () => {
-      screen.getByTestId(testId).click();
       await Promise.resolve();
     });
   }
@@ -726,681 +689,491 @@ describe("NotificationProvider deleting", () => {
     );
     consoleError.mockRestore();
   });
+});
 
-  it("takes a deleted row out of the list and off the bell", async () => {
-    await renderLoaded();
-    await press("delete-first");
+describe("NotificationProvider paging", () => {
+  const NEWEST = {
+    id: "notification-newest",
+    userId: "user-1",
+    kind: "JOB" as const,
+    referenceId: "job-1",
+    eventId: "event-1",
+    messageKey: "Notifications.Job.completed",
+    messageParams: {},
+    metadata: null,
+    isRead: true,
+    readAt: new Date("2026-06-18T09:30:00.000Z"),
+    createdAt: new Date("2026-06-18T09:00:00.000Z"),
+  };
+  const OLDEST_LOADED = {
+    ...NEWEST,
+    id: "notification-oldest-loaded",
+    createdAt: new Date("2026-06-18T08:00:00.000Z"),
+  };
+  const OLDER = {
+    ...NEWEST,
+    id: "notification-older",
+    createdAt: new Date("2026-06-17T08:00:00.000Z"),
+  };
 
-    expect(deleteNotificationMock).toHaveBeenCalledWith({
-      id: "notification-unread",
-    });
-    expect(screen.getByTestId("notification-ids")).toHaveTextContent(
-      "notification-read",
+  beforeEach(() => {
+    getNotificationsMock.mockReset();
+    getNotificationsUnreadCountMock.mockReset();
+    useNotificationRealtimeMock.mockReset();
+    healPushSubscriptionMock.mockReset();
+    healPushSubscriptionMock.mockResolvedValue(false);
+    lazyAblyProviderMock.mockReset();
+    lazyAblyProviderMock.mockImplementation(
+      ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
     );
-    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
-  });
-
-  it("leaves the bell alone when the deleted row was already read", async () => {
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
     getNotificationsMock.mockResolvedValue({
-      data: [
-        { ...READ_ROW, createdAt: new Date("2026-06-18T10:00:00.000Z") },
-        UNREAD_ROW,
-      ],
+      data: [NEWEST, OLDEST_LOADED],
+      meta: { pagination: { nextCursor: OLDEST_LOADED.id } },
     });
-
-    await renderLoaded();
-    await press("delete-first");
-
-    expect(deleteNotificationMock).toHaveBeenCalledWith({
-      id: "notification-read",
-    });
-    expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
   });
 
-  it("takes the badge off an unread row this list never held", async () => {
-    deleteNotificationMock.mockResolvedValue({
-      data: { ...UNREAD_ROW, id: "notification-elsewhere" },
-    });
-
-    await renderLoaded();
-    await press("delete-elsewhere");
-
-    expect(deleteNotificationMock).toHaveBeenCalledWith({
-      id: "notification-elsewhere",
-    });
-    expect(screen.getByTestId("notification-ids")).toHaveTextContent(
-      "notification-unread,notification-read",
+  async function renderLoaded() {
+    render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
     );
-    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
-  });
-
-  it("leaves the badge alone when a row this list never held was read", async () => {
-    deleteNotificationMock.mockResolvedValue({
-      data: { ...READ_ROW, id: "notification-elsewhere" },
-    });
-
-    await renderLoaded();
-    await press("delete-elsewhere");
-
-    expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
-  });
-
-  it("empties the list and the bell when the reader clears the center", async () => {
-    await renderLoaded();
-    getNotificationsMock.mockResolvedValue({ data: [] });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
-    await press("clear-all");
-
-    expect(deleteNotificationsMock).toHaveBeenCalled();
-    expect(screen.getByTestId("notification-ids")).toHaveTextContent("");
-    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
-  });
-
-  it("reads the list again when a delete fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    deleteNotificationMock.mockRejectedValue(new Error("network down"));
-
-    await renderLoaded();
-    // The provider reads on mount and again when the realtime bridge attaches,
-    // so the count that matters is the one the failure adds.
-    const readsBeforeDelete = getNotificationsMock.mock.calls.length;
-
-    await press("delete-first");
-
-    expect(getNotificationsMock).toHaveBeenCalledTimes(readsBeforeDelete + 1);
-    consoleError.mockRestore();
-  });
-
-  it("reads the list again when clearing fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    deleteNotificationsMock.mockRejectedValue(new Error("network down"));
-
-    await renderLoaded();
-    const readsBeforeClear = getNotificationsMock.mock.calls.length;
-
-    await press("clear-all");
-
-    expect(getNotificationsMock).toHaveBeenCalledTimes(readsBeforeClear + 1);
-    consoleError.mockRestore();
-  });
-  it("discards a pending read after a successful deletion", async () => {
-    await renderLoaded();
-    let finishRead!: (value: {
-      data: (typeof UNREAD_ROW | typeof READ_ROW)[];
-    }) => void;
-    getNotificationsMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishRead = resolve;
-      }),
-    );
-    let pendingRead!: Promise<void>;
     await act(async () => {
-      pendingRead = currentNotifications.refetch();
-    });
-    await press("delete-first");
-    await act(async () => {
-      finishRead({ data: [UNREAD_ROW, READ_ROW] });
-      await pendingRead;
-    });
-    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
-      READ_ROW.id,
-    ]);
-    expect(currentNotifications.unreadCount).toBe(0);
-    expect(currentNotifications.isLoading).toBe(false);
-  });
-
-  it("discards rows deleted elsewhere when a fresh read omits them", async () => {
-    await renderLoaded();
-    getNotificationsMock.mockResolvedValue({ data: [] });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
-    await act(async () => {
-      await currentNotifications.refetch();
-    });
-    expect(currentNotifications.notifications).toEqual([]);
-    expect(currentNotifications.unreadCount).toBe(0);
-  });
-
-  it.each(["deleteNotification", "clearNotifications"] as const)(
-    "restores state offline after %s fails",
-    async (operation) => {
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      await renderLoaded();
-      deleteNotificationMock.mockRejectedValue(new Error("offline"));
-      deleteNotificationsMock.mockRejectedValue(new Error("offline"));
-      getNotificationsMock.mockRejectedValue(new Error("offline"));
-      await act(async () => {
-        await currentNotifications[operation](UNREAD_ROW.id).catch(() => {});
-      });
-      expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
-        UNREAD_ROW.id,
-        READ_ROW.id,
-      ]);
-      expect(currentNotifications.unreadCount).toBe(1);
-      consoleError.mockRestore();
-    },
-  );
-
-  it("keeps another successful deletion when a clear fails offline", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    await renderLoaded();
-    let rejectClear!: (error: Error) => void;
-    deleteNotificationsMock.mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        rejectClear = reject;
-      }),
-    );
-    let pendingClear!: Promise<void>;
-    await act(async () => {
-      pendingClear = currentNotifications.clearNotifications().catch(() => {});
-    });
-    deleteNotificationMock.mockResolvedValue({ data: READ_ROW });
-    await act(async () => {
-      await currentNotifications.deleteNotification(READ_ROW.id);
-    });
-    getNotificationsMock.mockRejectedValue(new Error("offline"));
-    await act(async () => {
-      rejectClear(new Error("offline"));
-      await pendingClear;
-    });
-    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
-      UNREAD_ROW.id,
-    ]);
-    expect(currentNotifications.unreadCount).toBe(1);
-    consoleError.mockRestore();
-  });
-  async function deliverRealtime(id: string) {
-    const onNotification =
-      useNotificationRealtimeMock.mock.lastCall?.[0].onNotification;
-    expect(onNotification).toBeTypeOf("function");
-    await act(async () => {
-      onNotification({
-        ...UNREAD_ROW,
-        id,
-        createdAt: "2026-06-18T10:00:00.000Z",
-        inApp: true,
-        osBanner: true,
-        created: true,
-      });
+      await Promise.resolve();
     });
   }
 
-  it("preserves realtime delivered during a read, but not during an earlier read", async () => {
+  it("asks for the page older than the last row it holds", async () => {
     await renderLoaded();
-    let finishRead!: (value: {
-      data: (typeof UNREAD_ROW | typeof READ_ROW)[];
-    }) => void;
-    getNotificationsMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishRead = resolve;
-      }),
-    );
-    let pendingRead!: Promise<void>;
-    await act(async () => {
-      pendingRead = currentNotifications.refetch();
+    expect(currentNotifications.hasMore).toBe(true);
+
+    getNotificationsMock.mockResolvedValue({
+      data: [OLDER],
+      meta: { pagination: { nextCursor: null } },
     });
-    await deliverRealtime("notification-during-fetch");
     await act(async () => {
-      finishRead({ data: [UNREAD_ROW, READ_ROW] });
-      await pendingRead;
+      currentNotifications.loadOlder();
+      await Promise.resolve();
     });
-    expect(currentNotifications.notifications[0]?.id).toBe(
-      "notification-during-fetch",
-    );
-    expect(currentNotifications.unreadCount).toBe(2);
-    getNotificationsMock.mockResolvedValue({ data: [] });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      cursor: OLDEST_LOADED.id,
+    });
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
+      NEWEST.id,
+      OLDEST_LOADED.id,
+      OLDER.id,
+    ]);
+  });
+
+  it("stops asking once Core has nothing older", async () => {
+    await renderLoaded();
+    getNotificationsMock.mockResolvedValue({
+      data: [OLDER],
+      meta: { pagination: { nextCursor: null } },
+    });
+
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(currentNotifications.hasMore).toBe(false);
+    expect(currentNotifications.olderStatus).toBe("idle");
+  });
+
+  it("holds a failed page on the row instead of asking again", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    await renderLoaded();
+    const callsBefore = getNotificationsMock.mock.calls.length;
+    getNotificationsMock.mockRejectedValue(new Error("offline"));
+
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(currentNotifications.olderStatus).toBe("failed");
+    expect(currentNotifications.hasMore).toBe(true);
+    expect(getNotificationsMock.mock.calls.length).toBe(callsBefore + 1);
+
+    getNotificationsMock.mockResolvedValue({
+      data: [OLDER],
+      meta: { pagination: { nextCursor: null } },
+    });
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(currentNotifications.olderStatus).toBe("idle");
+    expect(currentNotifications.notifications).toHaveLength(3);
+    consoleError.mockRestore();
+  });
+
+  it("runs one page request at a time", async () => {
+    await renderLoaded();
+    const older = Promise.withResolvers<unknown>();
+    getNotificationsMock.mockReturnValue(older.promise);
+    const callsBefore = getNotificationsMock.mock.calls.length;
+
+    await act(async () => {
+      currentNotifications.loadOlder();
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(getNotificationsMock.mock.calls.length).toBe(callsBefore + 1);
+
+    await act(async () => {
+      older.resolve({
+        data: [OLDER],
+        meta: { pagination: { nextCursor: null } },
+      });
+      await Promise.resolve();
+    });
+  });
+
+  it("keeps the pages the reader loaded when a row arrives", async () => {
+    await renderLoaded();
+    getNotificationsMock.mockResolvedValue({
+      data: [OLDER],
+      meta: { pagination: { nextCursor: null } },
+    });
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      useNotificationRealtimeMock.mock.lastCall?.[0].onNotification({
+        ...NEWEST,
+        id: "notification-arrived",
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-18T10:00:00.000Z"),
+        inApp: true,
+        osBanner: false,
+        created: true,
+      });
+    });
+
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
+      "notification-arrived",
+      NEWEST.id,
+      OLDEST_LOADED.id,
+      OLDER.id,
+    ]);
+    expect(currentNotifications.unreadCount).toBe(1);
+  });
+
+  it("keeps rows below the refreshed page when a refresh lands", async () => {
+    await renderLoaded();
+    getNotificationsMock.mockResolvedValue({
+      data: [OLDER],
+      meta: { pagination: { nextCursor: null } },
+    });
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    getNotificationsMock.mockResolvedValue({
+      data: [NEWEST, OLDEST_LOADED],
+      meta: { pagination: { nextCursor: OLDEST_LOADED.id } },
+    });
     await act(async () => {
       await currentNotifications.refetch();
     });
-    expect(currentNotifications.notifications).toEqual([]);
-    expect(currentNotifications.unreadCount).toBe(0);
-  });
 
-  it("preserves realtime when a clear fails offline", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    await renderLoaded();
-    let rejectClear!: (error: Error) => void;
-    deleteNotificationsMock.mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        rejectClear = reject;
-      }),
-    );
-    let pendingClear!: Promise<void>;
-    await act(async () => {
-      pendingClear = currentNotifications.clearNotifications().catch(() => {});
-    });
-    await deliverRealtime("notification-during-clear");
-    getNotificationsMock.mockRejectedValue(new Error("offline"));
-    await act(async () => {
-      rejectClear(new Error("offline"));
-      await pendingClear;
-    });
     expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
-      "notification-during-clear",
-      UNREAD_ROW.id,
-      READ_ROW.id,
+      NEWEST.id,
+      OLDEST_LOADED.id,
+      OLDER.id,
     ]);
-    expect(currentNotifications.unreadCount).toBe(2);
-    consoleError.mockRestore();
   });
 
-  it("ignores duplicate deletion requests and emits one matching completion", async () => {
+  it("drops an in-flight older page when a refresh starts the list over", async () => {
     await renderLoaded();
-    const listener = vi.fn();
-    const unsubscribe = currentNotifications.subscribeToDeletion(listener);
-    let finishDelete!: (value: { data: typeof UNREAD_ROW }) => void;
-    deleteNotificationMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishDelete = resolve;
-      }),
-    );
-    let pendingDelete!: Promise<void>;
-    await act(async () => {
-      pendingDelete = currentNotifications.deleteNotification(UNREAD_ROW.id);
-      await currentNotifications.deleteNotification(UNREAD_ROW.id);
-    });
-    expect(deleteNotificationMock).toHaveBeenCalledTimes(1);
-    expect(listener).toHaveBeenCalledTimes(1);
-    const start = listener.mock.calls[0]?.[0];
-    expect(start).toMatchObject({
-      kind: "delete",
-      id: UNREAD_ROW.id,
-      phase: "start",
-    });
-    await act(async () => {
-      finishDelete({ data: UNREAD_ROW });
-      await pendingDelete;
-    });
-    expect(listener).toHaveBeenLastCalledWith({ ...start, phase: "success" });
-    unsubscribe();
-    await act(async () => {
-      await currentNotifications.deleteNotification(READ_ROW.id);
-    });
-    expect(listener).toHaveBeenCalledTimes(2);
-  });
+    const older = Promise.withResolvers<unknown>();
+    getNotificationsMock.mockReturnValueOnce(older.promise);
 
-  it("emits failure before starting its recovery read", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    await renderLoaded();
-    const phases: string[] = [];
-    const unsubscribe = currentNotifications.subscribeToDeletion((event) => {
-      phases.push(event.phase);
-    });
-    deleteNotificationMock.mockRejectedValue(new Error("offline"));
-    getNotificationsMock.mockImplementation(async () => {
-      expect(phases).toEqual(["start", "failure"]);
-      throw new Error("offline");
-    });
     await act(async () => {
-      await currentNotifications
-        .deleteNotification(UNREAD_ROW.id)
-        .catch(() => {});
+      currentNotifications.loadOlder();
+      await Promise.resolve();
     });
-    expect(phases).toEqual(["start", "failure"]);
-    unsubscribe();
-    consoleError.mockRestore();
-  });
-  it("ignores a delayed realtime event for a deleted notification", async () => {
-    await renderLoaded();
-    await act(async () => {
-      await currentNotifications.deleteNotification(UNREAD_ROW.id);
-    });
-    await deliverRealtime(UNREAD_ROW.id);
-    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
-      READ_ROW.id,
-    ]);
-    expect(currentNotifications.unreadCount).toBe(0);
-  });
 
-  it("retains notifications created during a successful clear if refetch fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    await renderLoaded();
-    let finishClear!: (value: { data: { count: number } }) => void;
-    deleteNotificationsMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishClear = resolve;
-      }),
-    );
-    let pendingClear!: Promise<void>;
-    await act(async () => {
-      pendingClear = currentNotifications.clearNotifications();
-    });
-    await deliverRealtime("notification-after-clear");
-    await act(async () => {
-      await currentNotifications.deleteNotification(UNREAD_ROW.id);
-    });
-    expect(currentNotifications.unreadCount).toBe(1);
-    getNotificationsMock.mockRejectedValue(new Error("offline"));
-    await act(async () => {
-      finishClear({ data: { count: 1 } });
-      await pendingClear;
-    });
-    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
-      "notification-after-clear",
-    ]);
-    expect(currentNotifications.unreadCount).toBe(1);
-    consoleError.mockRestore();
-  });
-
-  it("replays pending deletion starts to a new subscriber", async () => {
-    await renderLoaded();
-    let finishDelete!: (value: { data: typeof UNREAD_ROW }) => void;
-    deleteNotificationMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishDelete = resolve;
-      }),
-    );
-    let pendingDelete!: Promise<void>;
-    await act(async () => {
-      pendingDelete = currentNotifications.deleteNotification(UNREAD_ROW.id);
-    });
-    const listener = vi.fn();
-    const unsubscribe = currentNotifications.subscribeToDeletion(listener);
-    expect(listener).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        kind: "delete",
-        id: UNREAD_ROW.id,
-        phase: "start",
-      }),
-    );
-    unsubscribe();
-    await act(async () => {
-      finishDelete({ data: UNREAD_ROW });
-      await pendingDelete;
-    });
-    expect(listener).toHaveBeenCalledTimes(1);
-  });
-  it("counts deletion of a new row outside the clear overlay window", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    await renderLoaded();
-    let finishClear!: (value: { data: { count: number } }) => void;
-    deleteNotificationsMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishClear = resolve;
-      }),
-    );
-    let pendingClear!: Promise<void>;
-    await act(async () => {
-      pendingClear = currentNotifications.clearNotifications();
-    });
-    for (let index = 0; index < 11; index++)
-      await deliverRealtime(`new-${index}`);
-    deleteNotificationMock.mockResolvedValue({
-      data: { ...UNREAD_ROW, id: "new-0" },
-    });
-    await act(async () => {
-      await currentNotifications.deleteNotification("new-0");
-    });
-    getNotificationsMock.mockRejectedValue(new Error("offline"));
-    await act(async () => {
-      finishClear({ data: { count: 2 } });
-      await pendingClear;
-    });
-    expect(currentNotifications.unreadCount).toBe(10);
-    consoleError.mockRestore();
-  });
-  it("ignores a pre-clear read response for an older row outside the provider window", async () => {
-    await renderLoaded();
-    let finishRead!: (value: { data: typeof READ_ROW }) => void;
-    patchNotificationReadMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishRead = resolve;
-      }),
-    );
-    let pendingRead!: Promise<void>;
-    await act(async () => {
-      pendingRead = currentNotifications.markRead("older-unheld");
-    });
-    getNotificationsMock.mockResolvedValue({ data: [] });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
-    await act(async () => {
-      await currentNotifications.clearNotifications();
-    });
-    await deliverRealtime("new-after-clear");
+    const arrived = {
+      ...NEWEST,
+      id: "notification-arrived",
+      createdAt: new Date("2026-06-18T11:00:00.000Z"),
+    };
+    const arrivedOldest = {
+      ...NEWEST,
+      id: "notification-arrived-oldest",
+      createdAt: new Date("2026-06-18T10:00:00.000Z"),
+    };
     getNotificationsMock.mockResolvedValue({
-      data: [{ ...UNREAD_ROW, id: "new-after-clear" }],
+      data: [arrived, arrivedOldest],
+      meta: { pagination: { nextCursor: arrivedOldest.id } },
     });
+    await act(async () => {
+      await currentNotifications.refetch();
+    });
+
+    await act(async () => {
+      older.resolve({
+        data: [OLDER],
+        meta: { pagination: { nextCursor: null } },
+      });
+      await Promise.resolve();
+    });
+
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
+      arrived.id,
+      arrivedOldest.id,
+    ]);
+    expect(currentNotifications.hasMore).toBe(true);
+    expect(currentNotifications.olderStatus).toBe("idle");
+  });
+
+  it("follows Core's own cursor when a page adds nothing new", async () => {
+    await renderLoaded();
+    // The oldest row moved to the top on the server and the event that said
+    // so never arrived, so paging from it returns rows this list already has.
+    getNotificationsMock.mockResolvedValue({
+      data: [NEWEST],
+      meta: { pagination: { nextCursor: "server-next" } },
+    });
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    getNotificationsMock.mockResolvedValue({
+      data: [OLDER],
+      meta: { pagination: { nextCursor: null } },
+    });
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      cursor: "server-next",
+    });
+    expect(currentNotifications.notifications.at(-1)?.id).toBe(OLDER.id);
+  });
+
+  it("drops a row Core no longer lists when it refuses it as a cursor", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    await renderLoaded();
+    getNotificationsMock.mockRejectedValue(
+      new CoreApiRequestError("Invalid pagination cursor", { status: 400 }),
+    );
+
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
+      NEWEST.id,
+    ]);
+    expect(currentNotifications.olderStatus).toBe("idle");
+
+    // A second refusal in a row is not a stale row any more; it waits for
+    // the reader instead of draining the list one request at a time.
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      cursor: NEWEST.id,
+    });
+    expect(currentNotifications.notifications).toHaveLength(1);
+    expect(currentNotifications.olderStatus).toBe("failed");
+    consoleError.mockRestore();
+  });
+
+  it("lets a reader's retry drop one more row Core refuses", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    getNotificationsMock.mockResolvedValue({
+      data: [NEWEST, OLDEST_LOADED, OLDER],
+      meta: { pagination: { nextCursor: OLDER.id } },
+    });
+    await renderLoaded();
+    getNotificationsMock.mockRejectedValue(
+      new CoreApiRequestError("Invalid pagination cursor", { status: 400 }),
+    );
+
+    // Two rows at the end have both left the feed.
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+    expect(currentNotifications.olderStatus).toBe("failed");
+    expect(currentNotifications.notifications).toHaveLength(2);
+
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
+      NEWEST.id,
+    ]);
+    expect(currentNotifications.olderStatus).toBe("idle");
+    consoleError.mockRestore();
+  });
+
+  it("stays failed through a refresh until the reader retries", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    await renderLoaded();
+    getNotificationsMock.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => {
+      currentNotifications.loadOlder();
+      await Promise.resolve();
+    });
+    expect(currentNotifications.olderStatus).toBe("failed");
+
+    await act(async () => {
+      await currentNotifications.refetch();
+    });
+
+    expect(currentNotifications.olderStatus).toBe("failed");
+    consoleError.mockRestore();
+  });
+});
+
+describe("NotificationProvider failed read writes", () => {
+  const UNREAD = {
+    id: "notification-unread",
+    userId: "user-1",
+    kind: "JOB" as const,
+    referenceId: "job-1",
+    eventId: "event-1",
+    messageKey: "Notifications.Job.completed",
+    messageParams: {},
+    metadata: null,
+    isRead: false,
+    readAt: null,
+    createdAt: new Date("2026-06-18T09:00:00.000Z"),
+  };
+  const READ = {
+    ...UNREAD,
+    id: "notification-read",
+    isRead: true,
+    readAt: new Date("2026-06-18T08:30:00.000Z"),
+    createdAt: new Date("2026-06-18T08:00:00.000Z"),
+  };
+
+  beforeEach(() => {
+    getNotificationsMock.mockReset();
+    getNotificationsUnreadCountMock.mockReset();
+    patchNotificationReadMock.mockReset();
+    patchNotificationUnreadMock.mockReset();
+    useNotificationRealtimeMock.mockReset();
+    healPushSubscriptionMock.mockReset();
+    healPushSubscriptionMock.mockResolvedValue(false);
+    lazyAblyProviderMock.mockReset();
+    lazyAblyProviderMock.mockImplementation(
+      ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
+    );
+    getNotificationsMock.mockResolvedValue({ data: [UNREAD, READ] });
     getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
-    await act(async () => {
-      finishRead({ data: { ...READ_ROW, id: "older-unheld" } });
-      await pendingRead;
-    });
-    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
-      "new-after-clear",
-    ]);
-    expect(currentNotifications.unreadCount).toBe(1);
   });
 
-  it("optimistically counts an older unread deletion once and restores it on failure", async () => {
+  async function renderOffline() {
+    render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // From here on nothing reaches Core, so the recovery read fails too.
+    getNotificationsMock.mockRejectedValue(new Error("offline"));
+    getNotificationsUnreadCountMock.mockRejectedValue(new Error("offline"));
+  }
+
+  it("puts a row back to unread when marking it read fails", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
-    await renderLoaded();
-    let rejectDelete!: (error: Error) => void;
-    deleteNotificationMock.mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        rejectDelete = reject;
-      }),
-    );
-    let pendingDelete!: Promise<void>;
-    await act(async () => {
-      pendingDelete = currentNotifications
-        .deleteNotification("older-unheld", { isRead: false })
-        .catch(() => {});
-      await currentNotifications.deleteNotification("older-unheld", {
-        isRead: false,
-      });
-    });
-    expect(deleteNotificationMock).toHaveBeenCalledTimes(1);
-    expect(currentNotifications.unreadCount).toBe(1);
-    getNotificationsMock.mockRejectedValue(new Error("offline"));
-    await act(async () => {
-      rejectDelete(new Error("offline"));
-      await pendingDelete;
-    });
-    expect(currentNotifications.unreadCount).toBe(2);
-    consoleError.mockRestore();
-  });
+    await renderOffline();
+    patchNotificationReadMock.mockRejectedValue(new Error("offline"));
 
-  it("keeps the optimistic count when an older unread deletion succeeds", async () => {
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
-    await renderLoaded();
-    let finishDelete!: (value: { data: typeof UNREAD_ROW }) => void;
-    deleteNotificationMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishDelete = resolve;
-      }),
-    );
-    let pendingDelete!: Promise<void>;
     await act(async () => {
-      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
-        isRead: false,
-      });
+      await expect(currentNotifications.markRead(UNREAD.id)).rejects.toThrow(
+        "offline",
+      );
     });
-    expect(currentNotifications.unreadCount).toBe(1);
-    await act(async () => {
-      finishDelete({ data: { ...UNREAD_ROW, id: "older-unheld" } });
-      await pendingDelete;
-    });
-    expect(currentNotifications.unreadCount).toBe(1);
-  });
 
-  it("does not charge a pending older deletion against rows arriving after mark all read", async () => {
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
-    await renderLoaded();
-    let finishDelete!: (value: { data: typeof READ_ROW }) => void;
-    deleteNotificationMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishDelete = resolve;
-      }),
-    );
-    let pendingDelete!: Promise<void>;
-    await act(async () => {
-      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
-        isRead: false,
-      });
-    });
-    await act(async () => {
-      await currentNotifications.markAllRead();
-    });
-    await deliverRealtime("new-after-read-all");
-    expect(currentNotifications.unreadCount).toBe(1);
-    await act(async () => {
-      finishDelete({ data: { ...READ_ROW, id: "older-unheld" } });
-      await pendingDelete;
-    });
-    expect(currentNotifications.unreadCount).toBe(1);
-  });
-
-  it("does not charge a pending older deletion against rows arriving after clear", async () => {
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
-    await renderLoaded();
-    let finishDelete!: (value: { data: typeof UNREAD_ROW }) => void;
-    deleteNotificationMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishDelete = resolve;
-      }),
-    );
-    let pendingDelete!: Promise<void>;
-    await act(async () => {
-      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
-        isRead: false,
-      });
-    });
-    await act(async () => {
-      await currentNotifications.clearNotifications();
-    });
-    await deliverRealtime("new-after-clear");
-    expect(currentNotifications.unreadCount).toBe(1);
-    getNotificationsMock.mockResolvedValue({
-      data: [{ ...UNREAD_ROW, id: "new-after-clear" }],
-    });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
-    await act(async () => {
-      finishDelete({ data: { ...UNREAD_ROW, id: "older-unheld" } });
-      await pendingDelete;
-    });
-    expect(currentNotifications.unreadCount).toBe(1);
-  });
-
-  it("applies an older read response when the overlapping clear fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
-    await renderLoaded();
-    let finishRead!: (value: { data: typeof READ_ROW }) => void;
-    patchNotificationReadMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishRead = resolve;
-      }),
-    );
-    let pendingRead!: Promise<void>;
-    await act(async () => {
-      pendingRead = currentNotifications.markRead("older-unheld");
-    });
-    deleteNotificationsMock.mockRejectedValue(new Error("offline"));
-    getNotificationsMock.mockRejectedValue(new Error("offline"));
-    await act(async () => {
-      await currentNotifications.clearNotifications().catch(() => {});
-    });
-    await act(async () => {
-      finishRead({ data: { ...READ_ROW, id: "older-unheld" } });
-      await pendingRead;
-    });
-    expect(currentNotifications.unreadCount).toBe(1);
-    consoleError.mockRestore();
-  });
-
-  it("does not count a read response and a pending older deletion twice", async () => {
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
-    await renderLoaded();
-    let finishDelete!: (value: { data: typeof READ_ROW }) => void;
-    deleteNotificationMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishDelete = resolve;
-      }),
-    );
-    let pendingDelete!: Promise<void>;
-    await act(async () => {
-      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
-        isRead: false,
-      });
-    });
-    patchNotificationReadMock.mockResolvedValue({
-      data: { ...READ_ROW, id: "older-unheld" },
-    });
-    await act(async () => {
-      await currentNotifications.markRead("older-unheld");
-    });
-    expect(currentNotifications.unreadCount).toBe(1);
-    await act(async () => {
-      finishDelete({ data: { ...READ_ROW, id: "older-unheld" } });
-      await pendingDelete;
-    });
-    expect(currentNotifications.unreadCount).toBe(1);
-  });
-  it("applies a read of a surviving new row when its response follows clear reconciliation", async () => {
-    await renderLoaded();
-    let finishClear!: (value: { data: { count: number } }) => void;
-    deleteNotificationsMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishClear = resolve;
-      }),
-    );
-    let pendingClear!: Promise<void>;
-    await act(async () => {
-      pendingClear = currentNotifications.clearNotifications();
-    });
-    await deliverRealtime("survives-clear");
-    let finishRead!: (value: { data: typeof READ_ROW }) => void;
-    patchNotificationReadMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishRead = resolve;
-      }),
-    );
-    let pendingRead!: Promise<void>;
-    await act(async () => {
-      pendingRead = currentNotifications.markRead("survives-clear");
-    });
-    getNotificationsMock.mockResolvedValue({
-      data: [{ ...UNREAD_ROW, id: "survives-clear" }],
-    });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
-    await act(async () => {
-      finishClear({ data: { count: 2 } });
-      await pendingClear;
-    });
-    getNotificationsMock.mockResolvedValue({
-      data: [{ ...READ_ROW, id: "survives-clear" }],
-    });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
-    await act(async () => {
-      finishRead({ data: { ...READ_ROW, id: "survives-clear" } });
-      await pendingRead;
-    });
     expect(
-      currentNotifications.notifications.find(
-        (row) => row.id === "survives-clear",
-      )?.isRead,
+      currentNotifications.notifications.find((row) => row.id === UNREAD.id)
+        ?.isRead,
+    ).toBe(false);
+    expect(currentNotifications.unreadCount).toBe(1);
+    consoleError.mockRestore();
+  });
+
+  it("puts a row back to read when marking it unread fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    await renderOffline();
+    patchNotificationUnreadMock.mockRejectedValue(new Error("offline"));
+
+    await act(async () => {
+      await expect(currentNotifications.markUnread(READ.id)).rejects.toThrow(
+        "offline",
+      );
+    });
+
+    expect(
+      currentNotifications.notifications.find((row) => row.id === READ.id)
+        ?.isRead,
     ).toBe(true);
-    expect(currentNotifications.unreadCount).toBe(0);
+    expect(currentNotifications.unreadCount).toBe(1);
+    consoleError.mockRestore();
+  });
+
+  it("leaves a row alone when a failed read never changed it", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    await renderOffline();
+    patchNotificationReadMock.mockRejectedValue(new Error("offline"));
+
+    // A toast or a push window can ask to read a row that is read already.
+    await act(async () => {
+      await currentNotifications.markRead(READ.id).catch(() => {});
+    });
+
+    expect(
+      currentNotifications.notifications.find((row) => row.id === READ.id)
+        ?.isRead,
+    ).toBe(true);
+    expect(currentNotifications.unreadCount).toBe(1);
+    consoleError.mockRestore();
   });
 });

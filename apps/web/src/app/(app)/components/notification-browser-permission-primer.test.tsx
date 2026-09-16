@@ -77,7 +77,7 @@ describe("NotificationBrowserPermissionPrimer", () => {
     expect(requestPermissionMock).not.toHaveBeenCalled();
   });
 
-  it("closes the dropdown it sits in when the reader follows the link", async () => {
+  it("closes the panel it sits in when the reader follows the link", async () => {
     setNotificationPermission("default");
     const handleNavigate = vi.fn();
     render(<NotificationBrowserPermissionPrimer onNavigate={handleNavigate} />);

@@ -43,9 +43,9 @@ interface AgentSpotlightProps {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/30 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 const SCROLLBAR =
-  "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/80 [&::-webkit-scrollbar-track]:bg-transparent [scrollbar-width:thin]";
+  "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tertiary [&::-webkit-scrollbar-track]:bg-transparent [scrollbar-width:thin]";
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
@@ -70,7 +70,7 @@ function MetaTagChips({
         <span
           key={model}
           title={`${modelLabel}: ${model}`}
-          className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+          className="bg-senary text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
         >
           <TagIcon name={model} size={12} />
           {model}
@@ -79,7 +79,7 @@ function MetaTagChips({
       {hosting ? (
         <span
           title={`${hostingLabel}: ${hosting}`}
-          className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+          className="bg-senary text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
         >
           <span aria-hidden>{regionFlag(hosting)}</span>
           {hosting}
@@ -108,7 +108,7 @@ function RailItem({
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
         FOCUS_RING,
-        active ? "bg-muted" : "hover:bg-muted/50",
+        active ? "bg-muted" : "hover:bg-card-background",
         className,
       )}
     >
@@ -151,7 +151,7 @@ function RailItemSkeleton({ className }: { className?: string }) {
 
 function OfferCardSkeleton() {
   return (
-    <div className="bg-card border-border/60 flex flex-col overflow-hidden rounded-2xl border">
+    <div className="bg-card border-border flex flex-col overflow-hidden rounded-2xl border">
       <Skeleton className="aspect-[16/10] w-full rounded-none border-b" />
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="space-y-2">
@@ -360,7 +360,7 @@ export function AgentSpotlight({
         </div>
 
         {current.description ? (
-          <p className="text-foreground/80 text-sm leading-relaxed text-pretty">
+          <p className="text-foreground text-sm leading-relaxed text-pretty">
             {current.description}
           </p>
         ) : null}
