@@ -81,7 +81,7 @@ export function ListMobileCreateFab({
               "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-all duration-300",
               isUploading
                 ? "bg-foreground text-background cursor-not-allowed"
-                : "bg-primary text-primary-foreground",
+                : "bg-primary-solid text-primary-solid-foreground",
             )}
           >
             {showProgress ? (

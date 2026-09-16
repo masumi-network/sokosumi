@@ -46,7 +46,7 @@ const CELL =
  * worst of the three states to be in.
  */
 const CELL_PRESS = "motion-safe:active:scale-95";
-const CELL_ON = "border-primary bg-primary text-primary-foreground";
+const CELL_ON = "border-primary bg-primary-solid text-primary-solid-foreground";
 const CELL_OFF =
   "text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground";
 /**

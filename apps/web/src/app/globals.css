@@ -23,6 +23,9 @@
   --color-primary-quaternary: var(--primary-quaternary);
   --color-primary-quinary: var(--primary-quinary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-foreground: var(--primary-solid-foreground);
+  --color-primary-solid-hover: var(--primary-solid-hover);
   --color-primary-iris: var(--primary-iris);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -262,6 +265,14 @@
   --primary-quaternary: hsla(264, 100.0%, 91.0%, 1);
   --primary-quinary: hsla(264, 100.0%, 95.5%, 1);
   --primary-foreground: hsla(0, 0%, 98%, 1);
+  /* The fill under a label. --primary is the accent and the text colour, so
+     in dark it has to stay light enough to read on the page, which leaves it
+     too light to carry a near-white label. This step is the other half: dark
+     enough for the label, still the brand hue. Light is the brand value
+     itself. Label measures 6.74:1 light and 5.14:1 dark. */
+  --primary-solid: hsla(263.5, 100%, 50%, 1);
+  --primary-solid-foreground: hsla(0, 0%, 98%, 1);
+  --primary-solid-hover: hsla(264, 100.0%, 55.0%, 1);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 4%, 0.95);
   --secondary-foreground: hsla(0, 0%, 98%, 1);
@@ -400,6 +411,9 @@
   --primary-quaternary: hsla(270, 31.8%, 19.3%, 1);
   --primary-quinary: hsla(270, 27.0%, 12.3%, 1);
   --primary-foreground: hsla(0, 0%, 4%, 1);
+  --primary-solid: hsla(264, 100.0%, 60.0%, 1);
+  --primary-solid-foreground: hsla(0, 0%, 98%, 1);
+  --primary-solid-hover: hsla(264, 100.0%, 63.0%, 1);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 100%, 0.95);
   --secondary-foreground: hsla(0, 0%, 4%, 1);

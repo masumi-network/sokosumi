@@ -760,7 +760,9 @@ describe("NotificationKinds", () => {
       "false",
     );
     // The cell that lost its channel is outlined rather than filled.
-    expect(cellFor("kindSystem", "channelInApp")).not.toHaveClass("bg-primary");
+    expect(cellFor("kindSystem", "channelInApp")).not.toHaveClass(
+      "bg-primary-solid",
+    );
   });
 
   /**
@@ -823,7 +825,7 @@ describe("NotificationKinds", () => {
     // Email head over the column is where the card says it, once.
     expect(describedBy(emailCell("kindJobUpdate"))).toBeUndefined();
     // On is filled and off is outlined, so the answer survives without colour.
-    expect(emailCell("kindJobUpdate")).toHaveClass("bg-primary");
+    expect(emailCell("kindJobUpdate")).toHaveClass("bg-primary-solid");
 
     await user.click(emailCell("kindJobAttention"));
 

@@ -186,7 +186,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     {showUnread ? (
                       <span
                         aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
+                        className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
                       >
                         {unreadDisplay}
                       </span>

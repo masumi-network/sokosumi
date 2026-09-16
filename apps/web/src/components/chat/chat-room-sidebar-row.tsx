@@ -149,7 +149,7 @@ function MentionBadge({ count }: { count: number }) {
   }
 
   return (
-    <span className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
+    <span className="bg-primary-solid text-primary-solid-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
       <span aria-hidden="true">{roomCountLabel(count)}</span>
       <span className="sr-only">
         {count > ROOM_COUNT_CAP

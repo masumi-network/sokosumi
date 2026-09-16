@@ -9,7 +9,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
+        primary: "bg-primary-solid text-primary-solid-foreground hover:bg-primary-solid-hover",
         default:
           "bg-secondary text-secondary-foreground hover:bg-secondary-hover",
         // No private focus ring. Every variant wears the one shared ring, so
