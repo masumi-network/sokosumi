@@ -68,7 +68,6 @@ export function TaskListItem({
             <TaskStatusBadge
               status={task.status}
               label={statusLabels?.[task.status]}
-              showDot={task.columnId === "in-progress"}
               className="w-fit shrink-0 rounded-sm"
             />
             <TaskPrivateIndicator visibility={task.visibility} />

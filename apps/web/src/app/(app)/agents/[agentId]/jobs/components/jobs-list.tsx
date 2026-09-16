@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
-import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
+import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
@@ -304,18 +304,33 @@ export function JobRow({
       )}
     >
       <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "size-2 shrink-0 rounded-full",
-            getJobStatusDotColorClass(job.status),
-          )}
-          aria-hidden
+        {/*
+          The glyph, not a bare dot. This row has no status text and no
+          filled badge, so the mark is the only cue the status exists, and
+          several statuses share a hue by design. The glyph is what
+          separates them, and the badge carries the status as an aria-label
+          for readers who get none of it from colour. Payment pending and
+          started share a role and a glyph on purpose, so in this row only
+          the accessible name separates them; the visible mark is the same
+          for both. Two pairs go the other way: refund and dispute each
+          share a glyph across two roles, so on an unselected row only
+          colour separates them. On a selected row every glyph is painted in
+          the selected foreground, so there the accessible name is the only
+          cue for those pairs too.
+        */}
+        <JobStatusBadge
+          status={job.status}
+          variant="dot"
+          tone={selected ? "text-primary-foreground" : undefined}
         />
         <span className="truncate text-sm font-medium">
           {job.name ?? job.id}
         </span>
       </div>
-      <div className="mt-1 flex items-center justify-between pl-4">
+      {/* size-3.5 plus gap-2 is 5.5 spacing units, so the second line starts
+          under the name rather than under the mark. All three are rem, so the
+          alignment holds when Dynamic Type scales the root. */}
+      <div className="mt-1 flex items-center justify-between pl-5.5">
         <p
           className={cn(
             "text-muted-foreground truncate text-xs",
