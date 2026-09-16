@@ -24,7 +24,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   serializableTransactionMock,
   memberFindFirstMock,
-  requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccessMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
   findNextReleaseableOccurrenceMock,
@@ -38,7 +38,7 @@ const {
 } = vi.hoisted(() => ({
   serializableTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
-  requireTaskCollaborationMock: vi.fn(),
+  requireTaskScheduleWriteAccessMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   findNextReleaseableOccurrenceMock: vi.fn(),
@@ -52,7 +52,7 @@ const {
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccess: requireTaskScheduleWriteAccessMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -210,7 +210,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     memberFindFirstMock.mockResolvedValue({ id: "member_1" });
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
@@ -382,7 +382,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       endsMode: "after" as const,
       targetReleaseCount: 3,
     };
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
@@ -481,7 +481,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       endsMode: "after" as const,
       targetReleaseCount: 3,
     };
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
@@ -513,7 +513,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
   });
 
   it("moves a version 2 one-time schedule and updates its effective wake time", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
@@ -557,7 +557,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
   });
 
   it("upgrades a moved version 1 one-time schedule to version 2 atomically", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
@@ -701,7 +701,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
   });
 
   it("rejects moving an occurrence from a legacy recurring schedule", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
