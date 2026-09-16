@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import { errorResponseSchema } from "@/helpers/error";
@@ -90,6 +90,14 @@ export const createTaskRequestSchema = z
       description:
         "Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.",
     }),
+    visibility: z
+      .enum([TaskVisibility.PUBLIC, TaskVisibility.PRIVATE])
+      .optional()
+      .openapi({
+        example: TaskVisibility.PUBLIC,
+        description:
+          "Omit or PUBLIC for workspace-visible Tasks. PRIVATE is allowed only in organization workspaces and is immutable after create.",
+      }),
   })
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
@@ -220,6 +228,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeUserId: body.assigneeUserId,
           status: body.status,
           channel: body.channel,
+          visibility: body.visibility,
         },
         tx,
       );

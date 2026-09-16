@@ -43,6 +43,15 @@ vi.mock("@/lib/actions/task/action", () => ({
   updateTask: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      session: { activeOrganizationId: "org-1" },
+      user: { id: "user-1" },
+    },
+  }),
+}));
+
 vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({
     showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
@@ -323,6 +332,8 @@ const baseLabels = {
   createAnother: "Create another task",
   uploadingFile: "Uploading {fileName}",
   uploadingFiles: "Uploading {count} files",
+  privateLabel: "Private",
+  privateDescription: "Only you can see this.",
 };
 
 const coworkerOptions = [
@@ -654,6 +665,111 @@ describe("TaskForm", () => {
         status: TaskStatus.DRAFT,
       }),
     );
+  });
+
+  it("submits PRIVATE visibility when the private checkbox is checked", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Secret work");
+    await user.click(screen.getByLabelText("Private"));
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visibility: "PRIVATE",
+        assigneeUserId: null,
+      }),
+    );
+  });
+
+  it("hides the private checkbox when another human is assigned", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-2",
+            slug: "bob@example.com",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        initialValues={{ assigneeUserId: "user-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Private")).not.toBeInTheDocument();
+  });
+
+  it("shows the private checkbox for the current user, a coworker, and a bot", () => {
+    const { unmount: unmountSelf } = render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "me@example.com",
+            name: "Me",
+            kind: "user",
+          }),
+        ]}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
+    unmountSelf();
+
+    const { unmount: unmountCoworker } = render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
+    unmountCoworker();
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          mockCoworkerOption({
+            id: "bot-1",
+            slug: "soko-bots",
+            name: "Ada",
+            kind: "sokoBot",
+          }),
+        ]}
+        initialValues={{ assigneeSokoBotId: "bot-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
   });
 
   it("submits Ready when the dropdown is set to Ready", async () => {

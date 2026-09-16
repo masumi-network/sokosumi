@@ -15,10 +15,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
   authMiddleware: (await import("@/test-fixtures/auth-middleware"))
     .stubAuthMiddleware,
   requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, { message: "User authentication required" });
+    if (authContext?.actor === "user") {
+      return { source: "session" as const, ...authContext };
     }
-    return { source: "session" as const, ...authContext };
+    if (authContext?.actor === "coworker" && authContext.context) {
+      return {
+        source: "context" as const,
+        userId: authContext.context.userId,
+        organizationId: authContext.context.organizationId,
+      };
+    }
+    throw new HTTPException(403, { message: "User authentication required" });
   },
 }));
 
@@ -35,6 +42,20 @@ vi.mock("@/helpers/organization", () => ({
     resolveMemberOrganizationByIdMock(...args),
 }));
 
+// Let a coworker past the vendor grant gate so these cases exercise the
+// workspace binding, not grant policy.
+vi.mock("@/helpers/personal-workspace-error", () => ({
+  resolveWorkspaceForContextOrNotFound: async () => ({ id: "workspace_a" }),
+}));
+
+vi.mock("@/helpers/vendor-grants", () => ({
+  getWorkspaceGrant: async () => ({ status: "GRANTED" }),
+  isGrantDeniedOrRevoked: () => false,
+  throwGrantAccessError: () => {
+    throw new Error("unexpected grant rejection");
+  },
+}));
+
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -46,12 +67,25 @@ const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 
 let mountGetWorkspaceById: (app: OpenAPIHonoWithAuth) => void;
 
-function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
+function createApp(
+  authContext: AuthenticationContext = USER_AUTH_CONTEXT,
+  activeWorkspaceId: string | null = null,
+) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    c.set(
+      "workspaceContext",
+      activeWorkspaceId
+        ? {
+            workspaceId: activeWorkspaceId,
+            userId: "user_123",
+            organizationId: "org_1",
+          }
+        : null,
+    );
     return await next();
   });
   mountGetWorkspaceById(app);
@@ -137,5 +171,58 @@ describe("GET /workspaces/{id}", () => {
     const response = await app.request(`http://localhost/${WORKSPACE_ID}`);
 
     expect(response.status).toBe(404);
+  });
+});
+
+/** A Serviceplan-style coworker key acting in an organization workspace. */
+const COWORKER_CONTEXT: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: "11111111-1111-7111-8111-111111111111",
+  context: { userId: "user_123", organizationId: "org_1" },
+};
+
+const OTHER_WORKSPACE_ID = "99999999-9999-7999-8999-999999999999";
+
+describe("GET /workspaces/{id} workspace scope", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    workspaceFindUniqueMock.mockResolvedValue({
+      userId: null,
+      organizationId: "org_1",
+    });
+    resolveMemberOrganizationByIdMock.mockResolvedValue({
+      organization: { id: "org_1" },
+      role: "member",
+    });
+  });
+
+  it("serves the workspace the coworker context is active in", async () => {
+    const app = createApp(COWORKER_CONTEXT, WORKSPACE_ID);
+
+    const response = await app.request(`http://localhost/${WORKSPACE_ID}`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it("refuses another workspace, without reading it", async () => {
+    const app = createApp(COWORKER_CONTEXT, WORKSPACE_ID);
+
+    const response = await app.request(
+      `http://localhost/${OTHER_WORKSPACE_ID}`,
+    );
+
+    expect(response.status).toBe(403);
+    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("does not narrow a session user to the active workspace", async () => {
+    const app = createApp(USER_AUTH_CONTEXT, WORKSPACE_ID);
+
+    const response = await app.request(
+      `http://localhost/${OTHER_WORKSPACE_ID}`,
+    );
+
+    expect(response.status).toBe(200);
   });
 });

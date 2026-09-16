@@ -27,7 +27,10 @@ import {
 import { toast } from "sonner";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
-import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
+import {
+  isOtherHumanAssignee,
+  resolveTaskAssigneeFields,
+} from "@/app/tasks/utils/coworker-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -46,6 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
   FileUploadDropzone,
@@ -69,6 +73,7 @@ import {
   type TaskContextSelectionInput,
   updateTask,
 } from "@/lib/actions/task/action";
+import { useSession } from "@/lib/auth/auth.client";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Project } from "@/lib/clients/generated/core/types.gen";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
@@ -161,6 +166,8 @@ export interface TaskFormLabels {
   createAnother?: string;
   untitledTask: string;
   saveError: string;
+  privateLabel?: string;
+  privateDescription?: string;
 }
 
 interface TaskFormInitialValues {
@@ -249,6 +256,7 @@ export interface TaskFormCreateInput {
   context: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 export type TaskFormCreateHandler = (
@@ -312,6 +320,8 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const tSeries = useTranslations("App.Tasks.Schedule.series");
@@ -332,6 +342,7 @@ export function TaskForm({
   const [name, setName] = useState(initialValues?.name ?? "");
   const initialDescription = initialValues?.description ?? "";
   const [description, setDescription] = useState(initialDescription);
+  const [isPrivate, setIsPrivate] = useState(false);
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
   const initialProjectId =
@@ -769,14 +780,28 @@ export function TaskForm({
             desiredStatus === TaskStatus.QUEUED)
         ) {
           const createTaskHandler = onCreateTask ?? createTask;
+          const assigneeFields = resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownSokoBotId,
+            initialValues?.assigneeUserId,
+          );
+          const createPrivateUnassigned =
+            canCreatePrivateTask &&
+            isPrivate &&
+            !isOtherHumanAssignee(
+              assigneeFields.assigneeUserId,
+              session?.user.id,
+            );
           const result = await createTaskHandler({
             description: trimmedDescription,
-            ...resolveTaskAssigneeFields(
-              assigneeId,
-              coworkerOptions,
-              knownSokoBotId,
-              initialValues?.assigneeUserId,
-            ),
+            ...assigneeFields,
+            ...(createPrivateUnassigned
+              ? {
+                  visibility: "PRIVATE" as const,
+                  assigneeUserId: null,
+                }
+              : {}),
             context: {
               brand: {
                 enabled: contextSelection.brand.enabled,
@@ -812,12 +837,6 @@ export function TaskForm({
           const createdTask = result.value;
           // Confirm success in place and let the user choose when to navigate;
           // the redirect target is prefetched so it lands fast.
-          const assigneeFields = resolveTaskAssigneeFields(
-            assigneeId,
-            coworkerOptions,
-            knownSokoBotId,
-            initialValues?.assigneeUserId,
-          );
           const createdStatus = resolveCelebrationStatus({
             desiredStatus,
             isAgent: isAgentAssigneeFields(assigneeFields),
@@ -935,6 +954,9 @@ export function TaskForm({
       scheduleLabel,
       hadSchedule,
       contextSelection,
+      canCreatePrivateTask,
+      isPrivate,
+      session?.user.id,
       labels.projectRequired,
       labels.statusDraft,
       labels.statusQueued,
@@ -1062,6 +1084,14 @@ export function TaskForm({
   );
   const isSchedulableAssignee =
     isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
+  const showPrivateControl =
+    mode === "create" &&
+    canCreatePrivateTask &&
+    Boolean(labels.privateLabel) &&
+    !isOtherHumanAssignee(
+      selectedAssigneeFields.assigneeUserId,
+      session?.user.id,
+    );
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
@@ -1454,6 +1484,30 @@ export function TaskForm({
                     selection={contextSelection}
                     onSelectionChange={setContextSelection}
                   />
+                ) : null}
+                {showPrivateControl ? (
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="task-private"
+                      checked={isPrivate}
+                      onCheckedChange={(checked) =>
+                        setIsPrivate(checked === true)
+                      }
+                    />
+                    <div className="grid gap-1">
+                      <Label
+                        htmlFor="task-private"
+                        className="cursor-pointer font-normal"
+                      >
+                        {labels.privateLabel}
+                      </Label>
+                      {labels.privateDescription ? (
+                        <p className="text-muted-foreground text-sm">
+                          {labels.privateDescription}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
                 ) : null}
                 {attachmentUrls.length > 0 ? (
                   <div className="flex flex-wrap gap-3">

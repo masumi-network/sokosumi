@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-
+import { ImpersonateUserDialog } from "@/components/admin/users/impersonate-user-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -131,7 +131,10 @@ export function UserList({ initialPage }: UserListProps) {
                 <TableHead className="text-right">
                   {t("startedTasks")}
                 </TableHead>
-                <TableHead className="pr-4">{t("registered")}</TableHead>
+                <TableHead>{t("registered")}</TableHead>
+                <TableHead className="pr-4 text-right">
+                  {t("actions")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -171,10 +174,19 @@ export function UserList({ initialPage }: UserListProps) {
                   <TableCell className="text-right tabular-nums">
                     {formatter.number(user.startedTaskCount)}
                   </TableCell>
-                  <TableCell className="pr-4">
+                  <TableCell>
                     {formatter.dateTime(user.createdAt, {
                       dateStyle: "medium",
                     })}
+                  </TableCell>
+                  <TableCell className="pr-4 text-right">
+                    {user.isAdmin ? null : (
+                      <ImpersonateUserDialog
+                        userId={user.id}
+                        name={user.name}
+                        email={user.email}
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

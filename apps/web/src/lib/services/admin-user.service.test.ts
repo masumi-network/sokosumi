@@ -41,6 +41,7 @@ describe("adminUserService", () => {
           id: "user_1",
           name: "Ada Lovelace",
           email: "ada@example.com",
+          role: "user",
           createdAt,
           credits: 42.5,
           subscriptionPlan: "pro",
@@ -68,10 +69,41 @@ describe("adminUserService", () => {
         subscriptionPlan: "pro",
         subscriptionStatus: "active",
         startedTaskCount: 7,
+        isAdmin: false,
       },
     ]);
     expect(result.total).toBe(1);
     expect(result.nextCursor).toBeNull();
+  });
+
+  it("marks comma-separated admin roles via the shared role check", async () => {
+    const createdAt = new Date("2025-01-01T00:00:00.000Z");
+    listAdminUsersMock.mockResolvedValue({
+      data: [
+        {
+          id: "user_admin",
+          name: "Root",
+          email: "root@example.com",
+          role: "user, admin",
+          createdAt,
+          credits: 0,
+          subscriptionPlan: null,
+          subscriptionStatus: null,
+          startedTaskCount: 0,
+        },
+      ],
+      meta: {
+        timestamp: createdAt,
+        requestId: "req_2",
+        pagination: { cursor: null, limit: 20, total: 1, nextCursor: null },
+      },
+    });
+
+    const result = await adminUserService.listUsers({});
+
+    expect(result.users).toEqual([
+      expect.objectContaining({ id: "user_admin", isAdmin: true }),
+    ]);
   });
 
   it("passes cursor and limit through and surfaces nextCursor", async () => {

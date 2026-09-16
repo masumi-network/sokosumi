@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { Prisma, TaskStatus } from "@sokosumi/database";
+import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 import { generateText } from "ai";
 
@@ -282,13 +282,18 @@ async function refreshProjectMemoryIteration({
       : {};
     const [triggeringTask, recentCompletedTasks] = await Promise.all([
       prisma.task.findFirst({
-        where: { id: taskId, projectId },
+        where: {
+          id: taskId,
+          projectId,
+          visibility: TaskVisibility.PUBLIC,
+        },
         select: PROJECT_MEMORY_TASK_SELECT,
       }),
       prisma.task.findMany({
         where: {
           projectId,
           id: { not: taskId },
+          visibility: TaskVisibility.PUBLIC,
           events: {
             some: {
               status: TaskStatus.COMPLETED,

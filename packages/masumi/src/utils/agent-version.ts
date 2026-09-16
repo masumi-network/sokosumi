@@ -61,7 +61,7 @@ export function normalizeV2RegistryIdentifier(agentIdentifier: string): string {
     : agentIdentifier;
 }
 
-export interface VersionedAgentIdentifier {
+interface VersionedAgentIdentifier {
   registryIdentity: string;
   registryVersion: number;
 }

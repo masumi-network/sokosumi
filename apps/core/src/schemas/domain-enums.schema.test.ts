@@ -12,6 +12,7 @@ import {
   PaymentType,
   RiskClassification,
   TaskStatus,
+  TaskVisibility,
 } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
@@ -37,6 +38,7 @@ import {
   stripeSubscriptionStatusNullableSchema,
   stripeSubscriptionStatusSchema,
   taskStatusSchema,
+  taskVisibilitySchema,
 } from "./domain-enums.schema";
 
 /**
@@ -47,6 +49,12 @@ describe("domain enum schemas", () => {
   it("named TaskStatus schema values match Prisma", () => {
     expect([...taskStatusSchema.options].sort()).toEqual(
       Object.values(TaskStatus).sort(),
+    );
+  });
+
+  it("named TaskVisibility schema values match Prisma", () => {
+    expect([...taskVisibilitySchema.options].sort()).toEqual(
+      Object.values(TaskVisibility).sort(),
     );
   });
 

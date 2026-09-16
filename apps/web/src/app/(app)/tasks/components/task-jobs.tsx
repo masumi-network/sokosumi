@@ -19,7 +19,6 @@ interface TaskJobsProps {
   agents: CoreAgentDto[];
   jobs: JobSummary[];
   userId: string | null;
-  locale?: string;
   emptyLabel: string;
   untitledLabel: string;
   unknownAgentLabel: string;
@@ -30,7 +29,6 @@ export function TaskJobs({
   agents,
   jobs,
   userId,
-  locale = "en",
   emptyLabel,
   untitledLabel,
   unknownAgentLabel,
@@ -92,7 +90,7 @@ export function TaskJobs({
                 </div>
 
                 <p className="text-muted-foreground shrink-0 text-xs sm:w-[96px] sm:text-right">
-                  <TimeAgo date={job.createdAt} locale={locale} />
+                  <TimeAgo date={job.createdAt} />
                 </p>
               </div>
             </Link>

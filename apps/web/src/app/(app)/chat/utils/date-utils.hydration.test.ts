@@ -1,14 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  formatMessageTime,
-  messageDayKey,
-} from "@/app/chat/components/room-helpers";
+import { messageDayKey } from "@/app/chat/components/room-helpers";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 
 /**
- * SOKOSUMI-A: room message timestamps / day separators use the runtime's
- * local calendar and `Intl` default locale. Vercel SSR is UTC + Node locale;
- * browsers use the user's TZ + locale — HTML then disagrees on hydrate.
+ * SOKOSUMI-A: day separators use the runtime's local calendar and `Intl`
+ * default locale. Vercel SSR is UTC + Node locale; browsers use the user's
+ * TZ + locale — HTML then disagrees on hydrate.
  */
 describe("chat local calendar helpers (SOKOSUMI-A)", () => {
   const previousTz = process.env.TZ;
@@ -53,21 +50,5 @@ describe("chat local calendar helpers (SOKOSUMI-A)", () => {
 
     // Different local calendar days → different separator text (or Today vs date).
     expect(utcLabel).not.toEqual(berlinLabel);
-  });
-
-  it("formatMessageTime with default locale diverges en-US vs en-GB for the same instant", () => {
-    const iso = "2026-08-05T15:30:00.000Z";
-    const enUs = new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-    const enGb = new Intl.DateTimeFormat("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-
-    expect(enUs).not.toEqual(enGb);
-    // Production helper uses `undefined` locale — same class of divergence.
-    expect(typeof formatMessageTime(iso)).toBe("string");
   });
 });

@@ -27,6 +27,7 @@ import {
   ChevronRight,
   CircleDashed,
   Clock3,
+  Ellipsis,
   FolderKanban,
   Plus,
   Sparkles,
@@ -39,11 +40,13 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -75,6 +78,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
@@ -123,7 +128,39 @@ interface CalendarCoworker {
   id: string;
   image?: string;
   name: string;
+  slug?: string;
   kind?: "coworker" | "user" | "sokoBot";
+  avatarSeed?: string | null;
+}
+
+interface CalendarPeople {
+  assignee: TaskAssigneeView | null;
+  owner: CalendarCoworker | null;
+}
+
+/** Joins an item's assignee and owner ids against the workspace roster. */
+function findCalendarPeople(
+  item: WorkspaceCalendarItem,
+  coworkers: CalendarCoworker[],
+): CalendarPeople {
+  const assigneeCoworker = item.taskAssigneeUserId
+    ? coworkers.find(
+        ({ id, kind }) => kind === "user" && id === item.taskAssigneeUserId,
+      )
+    : item.taskAssigneeId
+      ? coworkers.find(
+          ({ id, kind }) => kind !== "user" && id === item.taskAssigneeId,
+        )
+      : undefined;
+  return {
+    assignee: assigneeCoworker
+      ? { ...assigneeCoworker, kind: assigneeCoworker.kind ?? "coworker" }
+      : null,
+    owner:
+      coworkers.find(
+        ({ id, kind }) => kind === "user" && id === item.taskOwnerId,
+      ) ?? null,
+  };
 }
 
 interface WorkspaceCalendarProps {
@@ -263,26 +300,28 @@ function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
 
 function CalendarEvent({
   item,
+  people,
   onEditSchedule,
   onMoveOccurrence,
   onRestoreOccurrence,
   onSkipOccurrence,
   onOpenTask,
-  showDetails,
   source,
   timeText,
 }: {
   item: WorkspaceCalendarItem;
+  people: CalendarPeople;
   onEditSchedule: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
   onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
   onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
   onOpenTask: (taskId: string) => void;
-  showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
-  timeText?: string;
+  timeText: string | undefined;
 }) {
   const t = useTranslations("App.Calendar");
+  const peopleId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -297,62 +336,91 @@ function CalendarEvent({
         ~
       </span>
     ) : null;
-  const sourceDetails = showDetails ? (
+  const peopleNames = [people.assignee?.name, people.owner?.name]
+    .filter((name): name is string => Boolean(name?.trim()))
+    .join(", ");
+  const peopleStack = peopleNames ? (
     <>
-      <span className="text-muted-foreground shrink-0">{sourceName}</span>
-      {item.sourceAccuracy !== "EXACT" ? (
-        <span className="text-muted-foreground shrink-0">
-          {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-        </span>
-      ) : null}
+      <span
+        aria-hidden
+        className="flex shrink-0 items-center -space-x-1"
+        data-testid="calendar-event-people"
+        title={peopleNames}
+      >
+        {people.assignee ? <AssigneeAvatar assignee={people.assignee} /> : null}
+        {people.owner ? (
+          <UserProfileAvatar
+            className="z-10"
+            image={people.owner.image}
+            name={people.owner.name}
+          />
+        ) : null}
+      </span>
+      <span className="sr-only" id={peopleId}>
+        {peopleNames}
+      </span>
     </>
   ) : null;
 
+  const menuButton = (
+    <DropdownMenuTrigger asChild>
+      <button
+        aria-describedby={peopleNames ? peopleId : undefined}
+        aria-label={t(
+          item.state === "SKIPPED"
+            ? "event.accessibleNameSkipped"
+            : "event.accessibleName",
+          {
+            source: sourceName,
+            task: item.taskName,
+          },
+        )}
+        className="text-muted-foreground hover:bg-primary/20 hover:text-foreground focus-visible:ring-ring/50 ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        // Radix already toggled on pointerdown; the click must not reach the
+        // card's own open handler.
+        onClick={(event) => event.stopPropagation()}
+        type="button"
+      >
+        <Ellipsis aria-hidden className="size-4" />
+      </button>
+    </DropdownMenuTrigger>
+  );
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          aria-label={t(
-            item.state === "SKIPPED"
-              ? "event.accessibleNameSkipped"
-              : "event.accessibleName",
-            {
-              source: sourceName,
-              task: item.taskName,
-            },
-          )}
-          className={cn(
-            "bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2",
-            timeText ? "flex-col items-start gap-0.5" : "items-center gap-1",
-            item.state === "SKIPPED" && "text-muted-foreground line-through",
-          )}
-          type="button"
-        >
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      {/*
+        The card is deliberately not the menu trigger: Radix opens on
+        pointerdown and cancels the mousedown FullCalendar needs to start a
+        drag. A click after a drop never lands here (the mouseup hits the
+        drag mirror), so a click on the card is always a plain tap.
+      */}
+      <div
+        className={cn(
+          "bg-primary/10 text-foreground hover:bg-primary/20 flex w-full min-w-0 cursor-pointer flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+          item.state === "SKIPPED" && "text-muted-foreground line-through",
+        )}
+        data-testid="calendar-event"
+        onClick={() => setMenuOpen(true)}
+      >
+        <span className="flex w-full min-w-0 items-center gap-1">
+          {sourceMarker}
           {timeText ? (
-            <>
-              <span className="flex w-full min-w-0 items-center gap-1">
-                {sourceMarker}
-                <span className="text-muted-foreground shrink-0 tabular-nums">
-                  {timeText}
-                </span>
-                {accuracyMarker}
-                <span className="text-muted-foreground min-w-0 truncate">
-                  {sourceName}
-                </span>
-              </span>
-              <span className="w-full min-w-0 truncate">{item.taskName}</span>
-            </>
-          ) : (
-            <>
-              {sourceMarker}
-              {accuracyMarker}
-              <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
-              {sourceDetails}
-            </>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+            <span className="text-muted-foreground shrink-0 tabular-nums">
+              {timeText}
+            </span>
+          ) : null}
+          {accuracyMarker}
+          <span className="text-muted-foreground min-w-0 truncate">
+            {sourceName}
+          </span>
+        </span>
+        <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
+        <span className="flex w-full min-w-0 items-center gap-1">
+          {peopleStack}
+          {menuButton}
+        </span>
+      </div>
+      <DropdownMenuContent align="end">
         {item.canEditSchedule ? (
           <DropdownMenuItem onSelect={() => onEditSchedule(item.taskId)}>
             {t("event.editSchedule")}
@@ -383,6 +451,7 @@ function CalendarEvent({
 
 function CalendarView({
   canCreate,
+  coworkers,
   date,
   items,
   onDateClick,
@@ -396,6 +465,7 @@ function CalendarView({
   view,
 }: {
   canCreate: boolean;
+  coworkers: CalendarCoworker[];
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
@@ -478,7 +548,7 @@ function CalendarView({
 
   return (
     <div
-      className="workspace-calendar-theme overflow-x-auto rounded-xl border border-border bg-background"
+      className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
@@ -505,6 +575,12 @@ function CalendarView({
         timeZone={timeZone}
         headerToolbar={false}
         height="auto"
+        // Timed events default to "list-item" (dot + time + title); the card
+        // already carries the time, so the dot was the only leftover. Block
+        // mode paints the theme's event blue behind the card; the card is
+        // the only fill wanted.
+        eventDisplay="block"
+        eventColor="transparent"
         editable={false}
         eventDurationEditable={false}
         eventAllow={(_span, movingEvent) => {
@@ -523,25 +599,19 @@ function CalendarView({
           return (
             <CalendarEvent
               item={item}
+              people={findCalendarPeople(item, coworkers)}
               onEditSchedule={onEventEdit}
               onMoveOccurrence={onMoveOccurrence}
               onRestoreOccurrence={onRestoreOccurrence}
               onSkipOccurrence={onSkipOccurrence}
               onOpenTask={onOpenTask}
-              showDetails={view === "agenda"}
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
               )}
               // FullCalendar's own timeText is en-US shorthand ("8a") in every
               // locale; format the instant in the calendar zone ourselves.
               timeText={
-                view === "week" && start
-                  ? formatDate(start, {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      timeZone,
-                    })
-                  : undefined
+                start ? formatDate(start, "time", { timeZone }) : undefined
               }
             />
           );
@@ -843,8 +913,13 @@ export function WorkspaceCalendar({
   const [state, setState] = useQueryStates(calendarParsers);
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  // The page already requested, keyed on the server items too so a refreshed
+  // server page that reuses a cursor string drains again.
+  const requestedPageRef = useRef<{
+    cursor: string;
+    items: WorkspaceCalendarItem[];
+  } | null>(null);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
   const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
@@ -867,6 +942,7 @@ export function WorkspaceCalendar({
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
+    setLoadMoreError(false);
   }
 
   useMountEffect(() => {
@@ -1098,13 +1174,11 @@ export function WorkspaceCalendar({
     }
   }
 
-  async function handleLoadMore() {
+  async function loadNextPage() {
     if (!nextCursor || !range) {
       return;
     }
 
-    setIsLoadingMore(true);
-    setLoadMoreError(false);
     try {
       const query = {
         from: range.from,
@@ -1133,10 +1207,23 @@ export function WorkspaceCalendar({
       setNextCursor(result.meta?.pagination?.nextCursor ?? null);
     } catch {
       setLoadMoreError(true);
-    } finally {
-      setIsLoadingMore(false);
     }
   }
+
+  // A calendar cannot show "load more": a day holding three of its five
+  // events looks complete. Drain the remaining pages as soon as one appears.
+  useEffect(() => {
+    const requested = requestedPageRef.current;
+    if (
+      !nextCursor ||
+      loadMoreError ||
+      (requested?.cursor === nextCursor && requested.items === items)
+    ) {
+      return;
+    }
+    requestedPageRef.current = { cursor: nextCursor, items };
+    void loadNextPage();
+  }, [items, nextCursor, loadMoreError, loadNextPage]);
 
   const filterSections: FilterDropdownMenuSection[] = [
     ...(activeOrganizationId
@@ -1256,7 +1343,7 @@ export function WorkspaceCalendar({
         >
           <ChevronLeft aria-hidden />
         </Button>
-        <span className="min-w-40 text-center text-sm font-medium">
+        <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
           {getRangeLabel(formatDate, date, view)}
         </span>
         <Button
@@ -1271,18 +1358,26 @@ export function WorkspaceCalendar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1" data-testid="calendar-views">
-          {CALENDAR_VIEWS.map((calendarView) => (
-            <Button
-              key={calendarView}
-              size="sm"
-              variant={view === calendarView ? "primary" : "outline"}
-              onClick={() => handleViewChange(calendarView)}
-            >
-              {t(`view.${calendarView}`)}
-            </Button>
-          ))}
-        </div>
+        <Tabs
+          className="flex-1 md:flex-none"
+          value={view}
+          onValueChange={(value) => {
+            const nextView = CALENDAR_VIEWS.find(
+              (candidate) => candidate === value,
+            );
+            if (nextView) {
+              handleViewChange(nextView);
+            }
+          }}
+        >
+          <TabsList className="w-full md:w-fit" data-testid="calendar-views">
+            {CALENDAR_VIEWS.map((calendarView) => (
+              <TabsTrigger key={calendarView} value={calendarView}>
+                {t(`view.${calendarView}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <FilterDropdownMenu
           buttonLabel={tFilters("title")}
           emptyResultsLabel={tFilters("emptyResults")}
@@ -1298,7 +1393,7 @@ export function WorkspaceCalendar({
         />
         {canCreate ? (
           <Button
-            className="ml-auto"
+            className="ml-auto basis-full md:basis-auto"
             size="sm"
             variant="primary"
             onClick={handleAgendaCreate}
@@ -1314,60 +1409,31 @@ export function WorkspaceCalendar({
           {t("empty.title")}
         </div>
       ) : null}
-      <div className="hidden md:block">
-        <CalendarView
-          key={`desktop-${calendarRenderEpoch}`}
-          canCreate={canCreate}
-          date={date}
-          items={visibleItems}
-          onDateClick={handleDateClick}
-          onEventEdit={(taskId) => void handleEventEdit(taskId)}
-          onMoveOccurrence={handleMoveOccurrence}
-          onRestoreOccurrence={handleRestoreOccurrence}
-          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-          onOpenTask={handleOpenTask}
-          sources={sources}
-          timeZone={timeZone}
-          view={view}
-        />
-      </div>
-      <div className="md:hidden">
-        <CalendarView
-          key={`mobile-${calendarRenderEpoch}`}
-          canCreate={canCreate}
-          date={date}
-          items={visibleItems}
-          onDateClick={handleDateClick}
-          onEventEdit={(taskId) => void handleEventEdit(taskId)}
-          onMoveOccurrence={handleMoveOccurrence}
-          onRestoreOccurrence={handleRestoreOccurrence}
-          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-          onOpenTask={handleOpenTask}
-          sources={sources}
-          timeZone={timeZone}
-          view={view}
-        />
-      </div>
+      <CalendarView
+        key={calendarRenderEpoch}
+        canCreate={canCreate}
+        coworkers={coworkers}
+        date={date}
+        items={visibleItems}
+        onDateClick={handleDateClick}
+        onEventEdit={(taskId) => void handleEventEdit(taskId)}
+        onMoveOccurrence={handleMoveOccurrence}
+        onRestoreOccurrence={handleRestoreOccurrence}
+        onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
+        onOpenTask={handleOpenTask}
+        sources={sources}
+        timeZone={timeZone}
+        view={view}
+      />
       {eventLoadError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("edit.loadError")}
         </p>
       ) : null}
-      {nextCursor ? (
-        <div className="flex flex-col items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleLoadMore}
-            disabled={isLoadingMore || !range}
-          >
-            {isLoadingMore ? t("pagination.loading") : t("pagination.loadMore")}
-          </Button>
-          {loadMoreError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {t("pagination.error")}
-            </p>
-          ) : null}
-        </div>
+      {loadMoreError ? (
+        <p className="text-destructive text-sm" role="alert">
+          {t("pagination.error")}
+        </p>
       ) : null}
       {editState ? (
         <CalendarEditDialog

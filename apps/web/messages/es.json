@@ -782,6 +782,12 @@
       "markAllRead": "Marcar todas como leídas",
       "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
       "delete": "Eliminar notificación: {message}",
+      "deleteTooltip": "Eliminar",
+      "markRead": "Marcar notificación como leída: {message}",
+      "markReadTooltip": "Marcar como leída",
+      "markUnread": "Marcar notificación como no leída: {message}",
+      "markUnreadTooltip": "Marcar como no leída",
+      "unreadIndicator": "Sin leer",
       "deleteError": "No se pudo eliminar la notificación",
       "clearAll": "Borrar todas",
       "clearAllError": "No se pudieron borrar las notificaciones",
@@ -1583,7 +1589,9 @@
           "COMPLETED": "Completado",
           "FAILED": "Fallido",
           "CANCELED": "Cancelado"
-        }
+        },
+        "visibilityLabel": "Visibilidad",
+        "visibilityPrivate": "Privado"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Proyecto",
@@ -1613,6 +1621,8 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "privateBadge": "Privada",
+        "visibility": "Visibilidad",
         "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
@@ -1908,7 +1918,9 @@
         "taskCreatedHint": "Todo está configurado y listo.",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "privateLabel": "Privada",
+        "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado."
       },
       "EditTask": {
         "title": "Editar Task",
@@ -2732,8 +2744,19 @@
           "subscription": "Suscripción",
           "startedTasks": "Tareas iniciadas",
           "registered": "Registrado",
+          "actions": "Acciones",
           "loadMore": "Cargar más",
           "loadError": "No se pudieron cargar los usuarios."
+        },
+        "Impersonate": {
+          "trigger": "Suplantar usuario",
+          "title": "Suplantar usuario",
+          "description": "Actuarás como {name} ({email}) con acceso total a su cuenta, incluida la escritura. La sesión caduca al cabo de una hora.",
+          "reasonLabel": "Motivo",
+          "reasonPlaceholder": "SOK-123: por qué necesitas acceso",
+          "cancel": "Cancelar",
+          "start": "Iniciar suplantación",
+          "startError": "No se pudo iniciar la suplantación."
         }
       },
       "Organizations": {
@@ -4007,6 +4030,17 @@
           "es": "Español"
         }
       },
+      "TimeFormat": {
+        "title": "Formato de hora",
+        "description": "Elige cómo se muestran las horas. Automático sigue a tu navegador.",
+        "selectAriaLabel": "Seleccionar formato de hora",
+        "auto": "Automático",
+        "autoResolved": "Automático ({timeFormat})",
+        "options": {
+          "12h": "12 horas",
+          "24h": "24 horas"
+        }
+      },
       "SocialAccounts": {
         "connected": "está conectado",
         "notConnected": "no está conectado",
@@ -4897,6 +4931,11 @@
         },
         "button": "Abrir facturación"
       }
+    },
+    "Impersonation": {
+      "banner": "Actuando como {name} ({email})",
+      "exit": "Salir",
+      "stopError": "No se pudo detener la suplantación."
     },
     "DesignMd": {
       "adHocDialogTitle": "Usar una marca diferente",
@@ -6224,8 +6263,6 @@
         "title": "Ninguna ejecución programada coincide con estos filtros."
       },
       "pagination": {
-        "loadMore": "Cargar más eventos",
-        "loading": "Cargando eventos...",
         "error": "No se pudieron cargar más eventos."
       },
       "error": {

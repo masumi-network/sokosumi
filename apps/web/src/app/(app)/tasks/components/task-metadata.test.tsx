@@ -50,6 +50,8 @@ const baseStatusFieldLabels = {
 };
 
 const baseLabels = {
+  visibility: "Visibility",
+  privateBadge: "Private",
   status: "Status",
   statusLabels: baseStatusLabels,
   owner: "Owner",
@@ -76,6 +78,7 @@ function createTask(
     assignee?: TaskMetadataTask["assignee"];
     creator?: Task["creator"];
     status?: TaskMetadataTask["status"];
+    visibility?: TaskMetadataTask["visibility"];
     selectableStatuses?: TaskMetadataTask["selectableStatuses"];
   } = {},
 ): TaskMetadataTask {
@@ -107,6 +110,7 @@ function createTask(
 
   return {
     status: overrides.status ?? TaskStatus.RUNNING,
+    visibility: overrides.visibility,
     selectableStatuses: overrides.selectableStatuses ?? [],
     owner: {
       id: "user_1",
@@ -158,6 +162,27 @@ describe("TaskMetadata", () => {
       "font-medium",
     );
     expect(heading).not.toHaveClass("tracking-wider", "uppercase");
+  });
+
+  it("shows visibility as the first property when the task is private", () => {
+    renderTaskMetadata({
+      task: createTask({ visibility: "PRIVATE" }),
+    });
+
+    const visibility = screen.getByText("Visibility");
+    const status = screen.getByText("Status");
+    expect(
+      visibility.compareDocumentPosition(status) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText("Private")).toBeInTheDocument();
+  });
+
+  it("hides visibility when the task is public", () => {
+    renderTaskMetadata({ task: createTask({ visibility: "PUBLIC" }) });
+
+    expect(screen.queryByText("Visibility")).not.toBeInTheDocument();
+    expect(screen.queryByText("Private")).not.toBeInTheDocument();
   });
 
   it("shows credits after coworker when task has charged credits", () => {

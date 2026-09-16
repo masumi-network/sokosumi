@@ -130,10 +130,10 @@ export function DecisionCard({
             </Button>
             <span className="text-muted-foreground ml-auto text-xs tabular-nums">
               {t("expires", {
-                time: format.dateTime(new Date(decision.expiresAt), {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                }),
+                time: format.dateTime(
+                  new Date(decision.expiresAt),
+                  "dateTimeShort",
+                ),
               })}
             </span>
           </div>

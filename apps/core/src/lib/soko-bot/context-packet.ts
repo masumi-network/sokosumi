@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import type { CreditCost } from "@sokosumi/database";
+import type { CreditCost, Prisma } from "@sokosumi/database";
+import { TaskVisibility } from "@sokosumi/database";
 import type {
   SokoBotContextPacket,
   TurnClassification,
@@ -13,6 +14,10 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { buildCreditsPayload } from "@/helpers/subscription";
+import {
+  buildHumanParentTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 
 const LIMITS = {
@@ -81,10 +86,10 @@ interface AgentPricingRow {
 }
 
 /**
- * Strips the owner's private surfaces from an assembled packet. Workspace
- * projects, tasks, and jobs stay: every member of that workspace can already
- * see them. Durable memory, prior turns, the owner's approval queue, and their
- * credit balance cannot be published into a shared room.
+ * Strips the owner's private surfaces from an assembled packet. Shared-room
+ * teammates already get only public Tasks/Jobs from the query path; durable
+ * memory, prior turns, the owner's approval queue, and credit balance still
+ * cannot be published into a shared room.
  */
 function redactForTeammate(
   packet: ContextPacketWithoutHash,
@@ -103,6 +108,36 @@ function redactForTeammate(
     pendingDecisions: [],
     recentTurns: [],
     memory: { version: 0, hash: null, markdown: "# Soko Bot memory" },
+  };
+}
+
+function buildPacketTaskVisibilityWhere(
+  userId: string,
+  audience: "OWNER" | "TEAMMATE" | undefined,
+): Prisma.TaskWhereInput {
+  if (audience === "TEAMMATE") {
+    return { visibility: TaskVisibility.PUBLIC };
+  }
+  return buildSokoBotOwnerTaskVisibilityWhere(userId);
+}
+
+function buildPacketJobParentTaskWhere(
+  userId: string,
+  audience: "OWNER" | "TEAMMATE" | undefined,
+): Prisma.JobWhereInput {
+  if (audience === "TEAMMATE") {
+    return {
+      OR: [
+        { taskId: null },
+        { task: { is: { visibility: TaskVisibility.PUBLIC } } },
+      ],
+    };
+  }
+  return {
+    OR: [
+      { taskId: null },
+      { task: { is: buildHumanParentTaskVisibilityWhere(userId) } },
+    ],
   };
 }
 
@@ -549,14 +584,34 @@ export class ContextPacketBuilder {
           updatedAt: true,
           _count: {
             select: {
-              tasks: { where: { archivedAt: null } },
-              jobs: true,
+              tasks: {
+                where: {
+                  archivedAt: null,
+                  ...buildPacketTaskVisibilityWhere(
+                    input.userId,
+                    input.audience,
+                  ),
+                },
+              },
+              jobs: {
+                where: {
+                  ownerId: input.userId,
+                  ...buildPacketJobParentTaskWhere(
+                    input.userId,
+                    input.audience,
+                  ),
+                },
+              },
             },
           },
         },
       }),
       prisma.task.findMany({
-        where: { workspaceId: input.workspaceId, archivedAt: null },
+        where: {
+          workspaceId: input.workspaceId,
+          archivedAt: null,
+          ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
+        },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: LIMITS.tasks,
         select: {
@@ -580,6 +635,7 @@ export class ContextPacketBuilder {
               fromTask: {
                 workspaceId: input.workspaceId,
                 archivedAt: null,
+                ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
               },
             },
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -598,6 +654,10 @@ export class ContextPacketBuilder {
                   fromTask: {
                     workspaceId: input.workspaceId,
                     archivedAt: null,
+                    ...buildPacketTaskVisibilityWhere(
+                      input.userId,
+                      input.audience,
+                    ),
                   },
                 },
               },
@@ -650,7 +710,11 @@ export class ContextPacketBuilder {
       }),
       agentsPromise,
       prisma.job.findMany({
-        where: { ownerId: input.userId, workspaceId: input.workspaceId },
+        where: {
+          ownerId: input.userId,
+          workspaceId: input.workspaceId,
+          ...buildPacketJobParentTaskWhere(input.userId, input.audience),
+        },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: LIMITS.jobs,
         select: {
@@ -715,7 +779,11 @@ export class ContextPacketBuilder {
       billingPromise,
       prisma.project.count({ where: { workspaceId: input.workspaceId } }),
       prisma.task.count({
-        where: { workspaceId: input.workspaceId, archivedAt: null },
+        where: {
+          workspaceId: input.workspaceId,
+          archivedAt: null,
+          ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
+        },
       }),
       prisma.coworker.count({
         where: {
@@ -732,7 +800,11 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.job.count({
-        where: { ownerId: input.userId, workspaceId: input.workspaceId },
+        where: {
+          ownerId: input.userId,
+          workspaceId: input.workspaceId,
+          ...buildPacketJobParentTaskWhere(input.userId, input.audience),
+        },
       }),
       prisma.sokoBotPendingDecision.count({
         where: {

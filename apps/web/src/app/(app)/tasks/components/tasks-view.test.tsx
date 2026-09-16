@@ -139,6 +139,7 @@ const SCHEDULED_TASK: TaskWithCoworker = {
   id: "task-1",
   name: "Weekly report",
   status: TaskStatus.DRAFT,
+  visibility: "PUBLIC",
   ownerId: "user-1",
   owner: { id: "user-1", name: "Ada", email: "ada@example.com" },
   createdAt: "2026-06-01T08:00:00.000Z",
@@ -171,6 +172,8 @@ const labels = {
     scopeWorkspace: "Workspace",
     coworkerLabel: "Coworker",
     statusLabel: "Status",
+    visibilityLabel: "Visibility",
+    visibilityPrivate: "Private",
     statusOptions: {} as Record<TaskStatus, string>,
   },
   columns: {
@@ -239,6 +242,7 @@ const EMPTY_FILTERS: TasksFilters = {
   assigneeUserId: null,
   status: null,
   projectId: null,
+  visibility: null,
 };
 
 const EMPTY_JOBS_FILTERS: JobsListFilters = {

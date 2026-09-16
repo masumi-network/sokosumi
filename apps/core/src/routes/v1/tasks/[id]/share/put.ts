@@ -1,7 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskVisibility } from "@sokosumi/database";
 import { publicShareRepository } from "@sokosumi/database/repositories";
 
 import { requireMutableTaskOwnership } from "@/helpers/access-control";
+import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -34,6 +36,7 @@ const route = createRoute({
   },
   responses: {
     200: jsonSuccessResponse(taskShareSchema, "Create or update a task share"),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -48,7 +51,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { allowSearchIndexing } = c.req.valid("json");
 
     const share = await prisma.$transaction(async (tx) => {
-      await requireMutableTaskOwnership(userContext, id, tx);
+      const task = await requireMutableTaskOwnership(userContext, id, tx);
+
+      if (task.visibility === TaskVisibility.PRIVATE) {
+        throw badRequest("Private tasks cannot be shared publicly");
+      }
 
       return await publicShareRepository.upsertForTask(
         id,

@@ -1,13 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { NotificationKind } from "@sokosumi/database";
-import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
-import { notificationFeedWhere } from "@/helpers/notification-feed";
+import { markNotificationsRead } from "@/helpers/notification-read";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -52,33 +49,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
 
-    // Return the changed rows so arrivals during this request also get a
-    // clear event if this write marks them read.
-    const clearedRows = await prisma.notification.updateManyAndReturn({
-      where: {
-        userId: userContext.userId,
-        isRead: false,
-        ...notificationFeedWhere(),
-      },
-      data: {
-        isRead: true,
-        readAt: new Date(),
-      },
-      select: { id: true, kind: true, messageKey: true },
-    });
-
-    const clearedRoomIds = clearedRows
-      .filter(
-        (row) =>
-          row.kind === NotificationKind.CHAT &&
-          row.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-      )
-      .map((row) => row.id);
+    const { count, clearedRoomIds } = await markNotificationsRead(
+      userContext.userId,
+    );
 
     // Scheduled rather than awaited, for the same reason the single-row route
     // schedules it: a failed publish must not cost the reader the read.
     waitUntil(publishClearedNotifications(clearedRoomIds));
 
-    return ok(c, responseSchema.parse({ count: clearedRows.length }));
+    return ok(c, responseSchema.parse({ count }));
   });
 }

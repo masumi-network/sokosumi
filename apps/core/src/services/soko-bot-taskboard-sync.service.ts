@@ -1,4 +1,5 @@
 import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
+import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   SokoBotBusyError,
@@ -233,15 +234,25 @@ export class SokoBotTaskboardSyncService {
       where: {
         workspaceId: bot.workspaceId,
         archivedAt: null,
-        OR: [
+        AND: [
           {
-            assigneeSokoBotId: bot.id,
-            status: { notIn: [...TERMINAL] },
+            OR: [
+              {
+                assigneeSokoBotId: bot.id,
+                status: { notIn: [...TERMINAL] },
+              },
+              { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
+              ...(bot.followWholeBoard
+                ? [
+                    {
+                      status: { notIn: [...TERMINAL] },
+                      updatedAt: { gte: since },
+                    },
+                  ]
+                : []),
+            ],
           },
-          { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
-          ...(bot.followWholeBoard
-            ? [{ status: { notIn: [...TERMINAL] }, updatedAt: { gte: since } }]
-            : []),
+          buildSokoBotOwnerTaskVisibilityWhere(bot.userId),
         ],
       },
       select: {

@@ -42,9 +42,7 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
     getFormatter(),
   ]);
   const dateTime = (date: Date | null | undefined) =>
-    date
-      ? format.dateTime(date, { dateStyle: "medium", timeStyle: "medium" })
-      : null;
+    date ? format.dateTime(date, "dateTimeWithSeconds") : null;
   const yesNo = (value: boolean | null) =>
     value === null ? null : value ? t("yes") : t("no");
 

@@ -4,14 +4,18 @@ import { publicSharedTaskSchema } from "@/schemas/public-share.schema";
 
 import { getPublicSharedResourceByToken } from "./public-share";
 
-const { publicShareFindUniqueMock } = vi.hoisted(() => ({
+const { publicShareFindUniqueMock, taskFindFirstMock } = vi.hoisted(() => ({
   publicShareFindUniqueMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     publicShare: {
       findUnique: (...args: unknown[]) => publicShareFindUniqueMock(...args),
+    },
+    task: {
+      findFirst: (...args: unknown[]) => taskFindFirstMock(...args),
     },
   },
 }));
@@ -707,6 +711,132 @@ describe("getPublicSharedResourceByToken", () => {
       name: "Bob",
       slug: null,
       image: null,
+    });
+  });
+
+  it("returns null for private shared tasks", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_private_task",
+      taskId: "tsk_private",
+      jobId: null,
+      token: "private-task-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      job: null,
+      task: {
+        id: "tsk_private",
+        visibility: "PRIVATE",
+        archivedAt: null,
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:10:00.000Z"),
+        name: "Private shared task",
+        description: null,
+        status: "READY",
+        assignee: null,
+        jobs: [],
+        files: [],
+        events: [],
+      },
+    });
+
+    await expect(
+      getPublicSharedResourceByToken("private-task-token"),
+    ).resolves.toBeNull();
+  });
+
+  it("returns null for jobs whose parent task is private", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_private_parent_job",
+      taskId: null,
+      jobId: "job_private_parent",
+      token: "private-parent-job-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      task: null,
+      job: {
+        id: "job_private_parent",
+        taskId: "tsk_private",
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:05:00.000Z"),
+        completedAt: null,
+        agentId: "agent_123",
+        ownerId: "user_123",
+        userId: "user_123",
+        organizationId: null,
+        name: "Job under private task",
+        jobType: "FREE",
+        transaction: null,
+        transactionId: null,
+        purchase: null,
+        purchaseId: null,
+        refundedTransaction: null,
+        refundedTransactionId: null,
+        blockchainIdentifier: null,
+        payByTime: null,
+        submitResultTime: null,
+        unlockTime: null,
+        externalDisputeUnlockTime: null,
+        sellerVkey: null,
+        identifierFromPurchaser: null,
+        agentJobId: null,
+        inputSchema: null,
+        input: null,
+        inputHash: null,
+        resultHash: null,
+        workspace: {
+          id: "11111111-1111-7111-8111-111111111111",
+          organizationId: null,
+          organization: null,
+        },
+        share: {
+          id: "share_private_parent_job",
+          jobId: "job_private_parent",
+          taskId: null,
+          token: "private-parent-job-token",
+          allowSearchIndexing: false,
+          createdAt: new Date("2026-03-30T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+        },
+        events: [],
+        owner: { id: "user_123", name: "Ada", image: null },
+        organization: null,
+        agent: {
+          id: "agent_123",
+          name: "Agent",
+          description: null,
+          image: null,
+          author: null,
+          authorWebsite: null,
+          authorEmail: null,
+          authorImage: null,
+          authorTwitter: null,
+          authorGithub: null,
+          authorLinkedin: null,
+          authorYoutube: null,
+          authorInstagram: null,
+          authorTiktok: null,
+          authorDiscord: null,
+          authorTelegram: null,
+          authorMastodon: null,
+          authorBluesky: null,
+          authorThreads: null,
+          authorOther: null,
+        },
+      },
+    });
+    taskFindFirstMock.mockResolvedValue({
+      visibility: "PRIVATE",
+      archivedAt: null,
+    });
+
+    await expect(
+      getPublicSharedResourceByToken("private-parent-job-token"),
+    ).resolves.toBeNull();
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "tsk_private" },
+      select: { visibility: true, archivedAt: true },
     });
   });
 

@@ -23,6 +23,10 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
+  buildHumanTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
+import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -233,9 +237,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     };
 
+    if (
+      !isCoworkerAuthContext(authContext) &&
+      !isSokoBotAuthContext(authContext)
+    ) {
+      baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
+    }
+
     if (isSokoBotAuthContext(authContext)) {
       baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
       baseTaskWhere.status = { not: TaskStatus.DRAFT };
+      baseTaskWhere.AND = [
+        buildSokoBotOwnerTaskVisibilityWhere(authContext.userId),
+      ];
     }
 
     let coworkerAccess:
@@ -627,9 +641,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId: projectId === "null" ? null : projectId,
         ...(assigneeId ? { assigneeId } : {}),
         ...(isSokoBotAuthContext(authContext)
-          ? { assigneeSokoBotId: authContext.sokoBotId }
+          ? {
+              assigneeSokoBotId: authContext.sokoBotId,
+              sokoBotOwnerUserId: authContext.userId,
+            }
           : {}),
         ...(coworkerAccess ? { coworkerAccess } : {}),
+        ...(!isCoworkerAuthContext(authContext) &&
+        !isSokoBotAuthContext(authContext)
+          ? { readerUserId: userContext.userId }
+          : {}),
         ...(cursor ? { cursor } : {}),
         take,
         sort,

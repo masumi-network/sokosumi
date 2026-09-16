@@ -2,9 +2,10 @@
 
 Each Cursor Cloud agent run can get an **ephemeral Neon branch** forked from
 production (`main` by default), injected as `DATABASE_URL` /
-`DATABASE_URL_UNPOOLED`. The branch already has real schema and data — **no
-seed step**. Pending Prisma migrations apply on provision when the git branch
-is ahead of production schema.
+`DATABASE_URL_UNPOOLED`. The branch already has real schema and catalog data.
+Provision still upserts **guarded auth fixtures** (known email/password logins)
+on agent branches only. Pending Prisma migrations apply on provision when the
+git branch is ahead of production schema.
 
 ## Secrets (required)
 

@@ -27,17 +27,7 @@ function useTimestamp() {
   return (iso: string): string => {
     const date = new Date(iso);
     const sameDay = date.toDateString() === new Date().toDateString();
-    return format.dateTime(
-      date,
-      sameDay
-        ? { hour: "2-digit", minute: "2-digit" }
-        : {
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          },
-    );
+    return format.dateTime(date, sameDay ? "time" : "dateTime");
   };
 }
 

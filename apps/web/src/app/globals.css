@@ -544,6 +544,17 @@
   --fc-classic-today: var(--primary-quinary);
 }
 
+/*
+ * Below md the day grids keep readable 7rem columns and pan sideways inside
+ * the wrapper's overflow-x-auto instead of squeezing seven days into a phone
+ * width. FullCalendar's own dayMinWidth needs the premium scrollgrid plugin.
+ */
+@media (width < 48rem) {
+  .workspace-calendar-theme:not([data-view="agenda"]) > * {
+    min-width: 49rem;
+  }
+}
+
 @media (hover: hover) {
   .workspace-calendar-theme[data-can-create="true"]
     [role="gridcell"][data-date]:hover {

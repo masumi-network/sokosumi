@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -57,15 +58,21 @@ interface TasksPageProps {
     coworkerId?: string | string[];
     status?: string | string[];
     projectId?: string | string[];
+    visibility?: string | string[];
     agentId?: string | string[];
     jobStatus?: string | string[];
     tab?: string | string[];
   }>;
 }
 
-export const metadata = {
-  title: "Task Manager",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Tasks.Page");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
@@ -99,6 +106,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     coworkerId: legacyCoworkerId,
     status,
     projectId,
+    visibility,
     agentId,
     jobStatus,
     tab,
@@ -136,6 +144,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       coworkerId: legacyCoworkerId,
       status,
       projectId,
+      visibility,
     },
     activeOrganizationId,
   );
@@ -233,6 +242,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     assigneeUserId: activeFilters.assigneeUserId,
     status: activeFilters.status,
     projectId: activeFilters.projectId,
+    visibility: activeFilters.visibility,
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   };
@@ -264,6 +274,9 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           assigneeUserId: activeFilters.assigneeUserId ?? undefined,
           projectId: activeFilters.projectId ?? undefined,
+          ...(activeFilters.visibility
+            ? { visibility: activeFilters.visibility }
+            : {}),
           limit: 1,
         })
       : Promise.resolve({ tasks: [], pagination: null }),
@@ -354,6 +367,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             scopeWorkspace: t("Filters.scopeWorkspace"),
             coworkerLabel: t("Filters.coworkerLabel"),
             statusLabel: t("Filters.statusLabel"),
+            visibilityLabel: t("Filters.visibilityLabel"),
+            visibilityPrivate: t("Filters.visibilityPrivate"),
             statusOptions: {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
               [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),

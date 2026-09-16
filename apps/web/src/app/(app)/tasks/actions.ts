@@ -13,6 +13,7 @@ import {
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
+  sanitizeTasksVisibilityInput,
   TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -48,6 +49,7 @@ interface LoadMoreTasksColumnParams {
   assigneeUserId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
+  visibility: Task["visibility"] | null;
 }
 
 interface LoadMoreTasksListParams {
@@ -58,6 +60,7 @@ interface LoadMoreTasksListParams {
   assigneeUserId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
+  visibility: Task["visibility"] | null;
 }
 
 async function sanitizeAssigneeUserId(
@@ -81,6 +84,7 @@ export async function loadMoreTasksColumn({
   assigneeUserId,
   status,
   projectId,
+  visibility,
 }: LoadMoreTasksColumnParams) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -110,6 +114,10 @@ export async function loadMoreTasksColumn({
   );
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
+  const sanitizedVisibility = sanitizeTasksVisibilityInput(
+    visibility,
+    activeOrganizationId,
+  );
   const page = await getTasksColumnPage({
     columnId,
     cursor,
@@ -120,6 +128,7 @@ export async function loadMoreTasksColumn({
     assigneeUserId: sanitizedAssigneeUserId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
+    visibility: sanitizedVisibility,
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   });
@@ -138,6 +147,7 @@ export async function loadMoreTasksList({
   assigneeUserId,
   status,
   projectId,
+  visibility,
 }: LoadMoreTasksListParams) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -167,6 +177,10 @@ export async function loadMoreTasksList({
   );
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
+  const sanitizedVisibility = sanitizeTasksVisibilityInput(
+    visibility,
+    activeOrganizationId,
+  );
   const page = await getTasksListPage({
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
@@ -176,6 +190,7 @@ export async function loadMoreTasksList({
     assigneeUserId: sanitizedAssigneeUserId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
+    visibility: sanitizedVisibility,
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   });

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +35,7 @@ const {
   requireTaskAssignableCoworkerMock,
   agentFindFirstMock,
   taskFindFirstMock,
+  jobFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
   toolCallUpdateManyMock,
@@ -115,6 +117,7 @@ const {
   requireTaskAssignableCoworkerMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
   toolCallFindUniqueMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
@@ -221,6 +224,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     agent: { findFirst: agentFindFirstMock },
     task: { findFirst: taskFindFirstMock },
+    job: { findFirst: jobFindFirstMock },
     jobEvent: { findFirst: jobEventFindFirstMock },
     jobInput: {
       create: jobInputCreateMock,
@@ -342,6 +346,7 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
+import { buildSokoBotAudienceTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   MAX_CHAT_CHAIN_DEPTH,
   ROOM_BOT_MESSAGES_PER_HOUR,
@@ -1023,6 +1028,265 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(toolCallUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+  });
+
+  it("hides private Tasks from teammate Soko Bot reads", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_task_status",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify({ taskId: "task_1" }))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindFirstMock.mockResolvedValue(null);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_task_status",
+      toolCallId: "call_teammate_task",
+      input: { taskId: "task_1" },
+    });
+
+    expect(result).toBeNull();
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "task_1",
+          workspaceId: SCOPE.workspaceId,
+          archivedAt: null,
+          visibility: "PUBLIC",
+        }),
+      }),
+    );
+  });
+
+  it.each(["OWNER", "TEAMMATE", "ASSISTANT"] as const)(
+    "does not return PRIVATE peer links Alice cannot see from readTask (%s)",
+    async (askedByKind) => {
+      turnFindUniqueMock.mockResolvedValue({
+        userMessage: "Check the tasks",
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: ["get_task_status"],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: {
+            trigger: { askedBy: { kind: askedByKind } },
+            memory: { version: 1 },
+          },
+        },
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: {
+          archivedAt: null,
+          status: "RUNNING",
+        },
+      });
+      toolCallFindUniqueMock.mockResolvedValue({
+        id: "01960001-0001-7001-8001-000000000010",
+        status: "PENDING",
+        capability: "get_task_status",
+        inputHash: createHash("sha256")
+          .update(JSON.stringify({ taskId: "public-1" }))
+          .digest("hex"),
+        updatedAt: new Date(0),
+      });
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      const publicPeer = {
+        id: "public-2",
+        name: "Public sibling",
+        status: "READY",
+      };
+      const secretPeer = {
+        id: "secret-1",
+        name: "Secret acquisition",
+        status: "READY",
+      };
+      const visiblePeerTask = {
+        workspaceId: SCOPE.workspaceId,
+        archivedAt: null,
+        ...buildSokoBotAudienceTaskVisibilityWhere(SCOPE.userId, askedByKind),
+      };
+      const visiblePeerWhere = {
+        toTask: { is: visiblePeerTask },
+      };
+      const visibleFromPeerWhere = {
+        fromTask: { is: visiblePeerTask },
+      };
+      taskFindFirstMock.mockImplementation(
+        async (args: {
+          select?: {
+            linksFrom?: { where?: unknown };
+            linksTo?: { where?: unknown };
+          };
+        }) => {
+          const hidesPrivatePeers =
+            isDeepStrictEqual(
+              args.select?.linksFrom?.where,
+              visiblePeerWhere,
+            ) &&
+            isDeepStrictEqual(
+              args.select?.linksTo?.where,
+              visibleFromPeerWhere,
+            );
+          return {
+            id: "public-1",
+            name: "Public launch",
+            status: "READY",
+            description: null,
+            assignee: null,
+            assigneeSokoBot: null,
+            project: null,
+            updatedAt: new Date("2026-09-16T12:00:00.000Z"),
+            events: [],
+            files: [],
+            linksFrom: hidesPrivatePeers
+              ? [{ type: "RELATED", note: null, toTask: publicPeer }]
+              : [
+                  { type: "RELATED", note: null, toTask: publicPeer },
+                  { type: "RELATED", note: null, toTask: secretPeer },
+                ],
+            linksTo: [],
+          };
+        },
+      );
+
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: `call_${askedByKind.toLowerCase()}_task_links`,
+        input: { taskId: "public-1" },
+      });
+
+      expect(taskFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            linksFrom: expect.objectContaining({
+              where: expect.objectContaining({
+                toTask: expect.objectContaining({
+                  is: expect.objectContaining(visiblePeerTask),
+                }),
+              }),
+            }),
+            linksTo: expect.objectContaining({
+              where: expect.objectContaining({
+                fromTask: expect.objectContaining({
+                  is: expect.objectContaining(visiblePeerTask),
+                }),
+              }),
+            }),
+          }),
+        }),
+      );
+      expect(result).toMatchObject({
+        id: "public-1",
+        links: [
+          {
+            relation: "RELATED",
+            direction: "from-this",
+            task: publicPeer,
+            note: null,
+          },
+        ],
+      });
+      expect(JSON.stringify(result)).not.toContain("Secret acquisition");
+      expect(JSON.stringify(result)).not.toContain("secret-1");
+    },
+  );
+
+  it("hides jobs on private parent Tasks from teammate Soko Bot reads", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the jobs",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_job_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_job_status",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify({ jobId: "job_1" }))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    jobFindFirstMock.mockResolvedValue(null);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_job_status",
+      toolCallId: "call_teammate_job",
+      input: { jobId: "job_1" },
+    });
+
+    expect(result).toBeNull();
+    expect(jobFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              id: "job_1",
+              ownerId: SCOPE.userId,
+              workspaceId: SCOPE.workspaceId,
+            },
+            {
+              OR: [
+                { taskId: null },
+                { task: { is: { visibility: "PUBLIC" } } },
+              ],
+            },
+          ],
+        },
       }),
     );
   });

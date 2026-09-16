@@ -133,6 +133,18 @@ const CONTEXT_COWORKER: AuthenticationContext = {
   context: { userId: "user_123", organizationId: null },
 };
 
+/**
+ * Same coworker, bound to an organization workspace. Organization-scoped
+ * routes only serve the organization the context is bound to, so the
+ * personal-workspace fixture above cannot reach `org_1`.
+ */
+const CONTEXT_COWORKER_IN_ORG: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
+  context: { userId: "user_123", organizationId: "org_1" },
+};
+
 const SESSION_USER: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -237,7 +249,7 @@ describe("coworker user route allowlist", () => {
   });
 
   it("allows coworker with context headers on organization credits", async () => {
-    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const app = createUserRouteApp(CONTEXT_COWORKER_IN_ORG);
     const response = await app.request(
       "http://localhost/me/organizations/org_1/credits",
     );

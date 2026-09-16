@@ -139,21 +139,22 @@ vi.mock("@fullcalendar/react/interaction", () => ({
 vi.mock("@fullcalendar/react/list", () => ({ default: {} }));
 vi.mock("@fullcalendar/react/themes/classic", () => ({ default: {} }));
 
-vi.mock("next-intl", () => ({
-  useFormatter: () => ({
-    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
-      new Intl.DateTimeFormat("en-US", options).format(value),
-  }),
-  useTranslations: () => (key: string, values?: Record<string, string>) => {
-    if (key === "event.accessibleName") {
-      return `${values?.task}, ${values?.source}`;
-    }
-    if (key === "event.accessibleNameSkipped") {
-      return `${values?.task}, ${values?.source}, skipped`;
-    }
-    return key;
-  },
-}));
+vi.mock("next-intl", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  const formatter = createTestFormatter({ locale: "en-US" });
+  return {
+    useFormatter: () => formatter,
+    useTranslations: () => (key: string, values?: Record<string, string>) => {
+      if (key === "event.accessibleName") {
+        return `${values?.task}, ${values?.source}`;
+      }
+      if (key === "event.accessibleNameSkipped") {
+        return `${values?.task}, ${values?.source}, skipped`;
+      }
+      return key;
+    },
+  };
+});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
@@ -291,6 +292,7 @@ const ITEM: WorkspaceCalendarItem = {
   taskName: "Prepare release notes",
   taskStatus: "QUEUED",
   taskAssigneeId: "coworker-1",
+  taskOwnerId: "user-1",
   scheduledAt: new Date("2030-01-02T09:00:00.000Z"),
   originalScheduledAt: new Date("2030-01-02T09:00:00.000Z"),
   state: "PLANNED",
@@ -490,7 +492,6 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("shows a source filter only on the top-level Calendar and includes Projects in pagination", async () => {
-    const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
         <WorkspaceCalendar
@@ -509,11 +510,10 @@ describe("WorkspaceCalendar editing", () => {
       "source",
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    );
-    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: "project-1" }),
+    await waitFor(() =>
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-1" }),
+      ),
     );
 
     renderCalendar({
@@ -529,7 +529,6 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("keeps the Project Calendar locked when a projectId is present in the URL", async () => {
-    const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-2">
         <WorkspaceCalendar
@@ -549,12 +548,11 @@ describe("WorkspaceCalendar editing", () => {
       "source",
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    );
-    expect(getProjectCalendarMock).toHaveBeenCalledWith(
-      "project-1",
-      expect.not.objectContaining({ projectId: expect.anything() }),
+    await waitFor(() =>
+      expect(getProjectCalendarMock).toHaveBeenCalledWith(
+        "project-1",
+        expect.not.objectContaining({ projectId: expect.anything() }),
+      ),
     );
   });
 
@@ -1555,7 +1553,9 @@ describe("WorkspaceCalendar editing", () => {
     const event = screen.getAllByRole("button", {
       name: "Prepare release notes, Release planning, skipped",
     })[0];
-    expect(event).toHaveClass("line-through");
+    expect(screen.getAllByTestId("calendar-event")[0]).toHaveClass(
+      "line-through",
+    );
     await user.click(event);
     await user.click(
       screen.getByRole("menuitem", { name: "event.restoreOccurrence" }),

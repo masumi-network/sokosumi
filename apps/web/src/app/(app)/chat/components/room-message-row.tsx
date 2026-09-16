@@ -135,7 +135,6 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
-  formatMessageTime,
   formatRoomComposerTooLongFailure,
   isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
@@ -168,10 +167,7 @@ function MessageEditedLabel({ editedAt, className }: MessageEditedLabelProps) {
   const format = useFormatter();
   const localCalendarReady = useClientLocalCalendarReady();
   const when = localCalendarReady
-    ? format.dateTime(new Date(editedAt), {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
+    ? format.dateTime(new Date(editedAt), "dateTimeMedium")
     : null;
   const editedWhen = when ? t("Edit.editedAt", { when }) : undefined;
 
@@ -204,8 +200,9 @@ function MessagePinnedLabel({ className }: MessagePinnedLabelProps) {
 }
 
 /**
- * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
- * matches hydrate; then fills with `formatMessageTime` (SOKOSUMI-A).
+ * Wall-clock time for a message in the viewer's zone and hour cycle. Empty
+ * until mount, like the day separators it sits under, which bucket by the
+ * browser's local calendar (SOKOSUMI-A).
  */
 function MessageWallClockTime({
   value,
@@ -216,9 +213,12 @@ function MessageWallClockTime({
   className?: string;
   title?: string;
 }) {
+  const format = useFormatter();
   const localCalendarReady = useClientLocalCalendarReady();
   const dateTime = new Date(value).toISOString();
-  const label = localCalendarReady ? formatMessageTime(value) : null;
+  const label = localCalendarReady
+    ? format.dateTime(new Date(value), "time")
+    : null;
 
   return (
     <time
@@ -424,14 +424,17 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className={cn(
-        // `w-auto` so the width follows the capped height through the
-        // remembered natural size; a bare `width` attribute would keep the
-        // natural width and stretch the image flat.
-        "mt-2 w-auto max-w-full rounded-md",
-        // Until the first load the box is the cap itself: link previews are
-        // wide, so nearly all of them land there, and the row does not grow
-        // under a reader scrolling past it.
-        loaded ? "h-auto max-h-48" : "h-48",
+        // Fill the card's text column and crop what does not fit, so the image
+        // edge lines up with the title at any aspect ratio. The remembered
+        // natural size still supplies the ratio, so a wide preview keeps its
+        // own height and only a tall one is cropped.
+        "mt-2 w-full rounded-md object-cover",
+        // 200px is the smallest cap that leaves the standard 1.91:1 Open Graph
+        // card whole in this 378px column (378 / 1.91 = 198), and it matches the
+        // Apple budget. Until the first load the box is the cap itself: link
+        // previews are wide, so nearly all of them land there, and the row does
+        // not grow under a reader scrolling past it.
+        loaded ? "h-auto max-h-50" : "h-50",
       )}
       onError={onError}
       onLoad={(event) => {
@@ -464,12 +467,12 @@ function MessageUnfurlCard({
   }
 
   return (
-    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-full">
+    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-[min(100%,25rem)]">
       <a
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
@@ -1127,8 +1130,10 @@ function MessageActionControls({
   );
 }
 
-const messageActionsPillClassName =
-  "border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+// Centred on the row's top edge, as in Slack and the Apple client: the same
+// spot at every row height, instead of hanging below a one-line row.
+const MESSAGE_ACTIONS_PILL_CLASS =
+  "border-border bg-background absolute top-0 right-2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
 
 function MessageActions({
   message,
@@ -1183,9 +1188,15 @@ function MessageActions({
     <div
       data-message-actions="hover"
       className={cn(
-        messageActionsPillClassName,
-        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
-        moreOpen && "[@media(hover:hover)]:opacity-100",
+        MESSAGE_ACTIONS_PILL_CLASS,
+        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        // The upper half covers the row above, and an opacity-0 pill still
+        // takes clicks, so it takes the pointer only on row hover or focus.
+        // Not while More is open: Radix makes the page inert, and an explicit
+        // auto would let the click that closes the menu also hit the pill.
+        moreOpen
+          ? "[@media(hover:hover)]:opacity-100"
+          : "focus-within:pointer-events-auto [@media(hover:hover)]:group-hover:pointer-events-auto",
       )}
       onPointerEnter={holdQuickReactionOrder}
       onPointerLeave={() => {

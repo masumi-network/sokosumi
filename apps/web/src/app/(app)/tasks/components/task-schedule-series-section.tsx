@@ -129,11 +129,7 @@ export async function TaskScheduleSeriesSection({
       timezone={view.timezone}
       nextRunLabel={
         task.nextRunAt
-          ? formatter.dateTime(task.nextRunAt, {
-              month: "short",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
+          ? formatter.dateTime(task.nextRunAt, "dateTime", {
               timeZone: view.timezone ?? viewerTimeZone,
             })
           : null

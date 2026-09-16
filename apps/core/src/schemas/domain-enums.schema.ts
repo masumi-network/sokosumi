@@ -13,6 +13,7 @@ import {
   PaymentType,
   RiskClassification,
   TaskStatus,
+  TaskVisibility,
 } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import type Stripe from "stripe";
@@ -36,6 +37,10 @@ import type Stripe from "stripe";
  */
 
 export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
+
+export const taskVisibilitySchema = z
+  .enum(TaskVisibility)
+  .openapi("TaskVisibility");
 
 export const agentStatusSchema = z.enum(AgentStatus).openapi("AgentStatus");
 

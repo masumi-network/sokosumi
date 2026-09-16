@@ -132,19 +132,11 @@ function formatNextRunLabel(
 
   if (isTomorrow) {
     return t("card.tomorrowAt", {
-      time: formatter.dateTime(nextRunAt, {
-        hour: "numeric",
-        minute: "2-digit",
-      }),
+      time: formatter.dateTime(nextRunAt, "time"),
     });
   }
 
   return t("card.nextRunAt", {
-    datetime: formatter.dateTime(nextRunAt, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }),
+    datetime: formatter.dateTime(nextRunAt, "dateTime"),
   });
 }

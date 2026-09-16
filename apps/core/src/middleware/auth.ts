@@ -1,9 +1,12 @@
 import * as Sentry from "@sentry/node";
-import { hasCoreApiOAuthScope } from "@sokosumi/utils";
+import {
+  hasAdminRole as checkAdminRole,
+  hasCoreApiOAuthScope,
+} from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
-
+import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import {
@@ -26,6 +29,12 @@ export interface UserAuthenticationContext {
   role: string;
   /** Credential class used to authenticate this request. */
   authenticationMethod?: "session" | "api_key" | "oauth";
+  /**
+   * Admin user id when this session impersonates another user (Better Auth
+   * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
+   * effective (target) user.
+   */
+  impersonatedBy?: string;
 }
 
 /**
@@ -74,10 +83,17 @@ function syncSentryUser(context: AuthVariables) {
   }
 
   if (context.authContext.actor === "user") {
+    const user = context.authContext;
     scope.setUser({
-      id: context.authContext.userId,
-      organizationId: context.authContext.organizationId || undefined,
+      id: user.userId,
+      organizationId: user.organizationId || undefined,
     });
+    if (user.impersonatedBy) {
+      scope.setContext("impersonation", {
+        by: user.impersonatedBy,
+        target: user.userId,
+      });
+    }
     return;
   }
 
@@ -121,6 +137,7 @@ function syncRequestLogger(context: AuthVariables) {
       actor: "user",
       userId: authContext.userId,
       organizationId: authContext.organizationId,
+      impersonatedBy: authContext.impersonatedBy,
     });
     return;
   }
@@ -172,6 +189,24 @@ export function isSokoBotAuthContext(
   authContext: AuthenticationContext,
 ): authContext is SokoBotAuthenticationContext {
   return authContext.actor === "sokoBot";
+}
+
+/**
+ * Identifies the caller for an impersonation-denial audit. Coworker and
+ * Soko Bot actors audit as evlog `agent` (the union has no coworker/sokoBot
+ * type); anything else keeps the historical `user` shape.
+ */
+export function denialAuditActor(authContext: AuthenticationContext): {
+  actorId: string;
+  actorType: "user" | "agent";
+} {
+  if (isCoworkerAuthContext(authContext)) {
+    return { actorId: authContext.coworkerId, actorType: "agent" };
+  }
+  if (isSokoBotAuthContext(authContext)) {
+    return { actorId: authContext.sokoBotId, actorType: "agent" };
+  }
+  return { actorId: "unknown", actorType: "user" };
 }
 
 /**
@@ -370,11 +405,10 @@ export function requireAgentAuthContext(
   return authContext;
 }
 
+// Canonical logic lives in @sokosumi/utils (shared with web); this keeps
+// the existing Core import surface stable.
 export function hasAdminRole(role: string | null | undefined): boolean {
-  return (
-    role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
-    false
-  );
+  return checkAdminRole(role);
 }
 
 export function requireAdminAuthContext(
@@ -473,96 +507,13 @@ async function verifyAgentApiKey(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
-  if (
-    !token.startsWith(COWORKER_API_KEY_PREFIX) &&
-    !isSokoBotApiKeyToken(token)
-  ) {
+  const authContext = await resolveAgentApiKeyAuthContext(token);
+  if (!authContext) {
     return false;
   }
 
-  const keyHash = await hashApiKey(token);
-  const apiKey = await prisma.coworkerApiKey.findUnique({
-    where: {
-      keyHash,
-    },
-    select: {
-      coworkerId: true,
-      sokoBotId: true,
-      revokedAt: true,
-      expiresAt: true,
-      coworker: {
-        select: {
-          archivedAt: true,
-          vendorId: true,
-        },
-      },
-      sokoBot: {
-        select: {
-          archivedAt: true,
-          deletedAt: true,
-          userId: true,
-          workspaceId: true,
-          workspace: { select: { organizationId: true } },
-          user: { select: BEARER_USER_SELECT },
-        },
-      },
-    },
-  });
-
-  if (!apiKey) {
-    return false;
-  }
-
-  if (apiKey.revokedAt) {
-    return false;
-  }
-
-  if (apiKey.expiresAt && apiKey.expiresAt <= new Date()) {
-    return false;
-  }
-
-  if (apiKey.coworkerId && apiKey.coworker) {
-    if (apiKey.coworker.archivedAt) {
-      return false;
-    }
-
-    setAuthContext(c, {
-      isAuthenticated: true,
-      authContext: {
-        actor: "coworker",
-        coworkerId: apiKey.coworkerId,
-        vendorId: apiKey.coworker.vendorId,
-      },
-    });
-    return true;
-  }
-
-  if (
-    apiKey.sokoBotId &&
-    apiKey.sokoBot &&
-    !apiKey.sokoBot.archivedAt &&
-    !apiKey.sokoBot.deletedAt
-  ) {
-    // Banning the owner does not revoke the bot key. requireUserContext then
-    // maps this actor to that owner, so the check has to live here.
-    if (!isActiveUser(apiKey.sokoBot.user)) {
-      return false;
-    }
-
-    setAuthContext(c, {
-      isAuthenticated: true,
-      authContext: {
-        actor: "sokoBot",
-        sokoBotId: apiKey.sokoBotId,
-        userId: apiKey.sokoBot.userId,
-        workspaceId: apiKey.sokoBot.workspaceId,
-        organizationId: apiKey.sokoBot.workspace.organizationId,
-      },
-    });
-    return true;
-  }
-
-  return false;
+  setAuthContext(c, { isAuthenticated: true, authContext });
+  return true;
 }
 
 const hashAccessToken = async (value: string) => {
@@ -745,6 +696,9 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       organizationId: session.activeOrganizationId ?? null,
       role: user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "session",
+      ...(session.impersonatedBy
+        ? { impersonatedBy: session.impersonatedBy }
+        : {}),
     },
   });
   return await next();

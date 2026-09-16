@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   activeIntegrationsForBot,
@@ -303,6 +304,7 @@ export async function buildSystemBeatMessage(input: {
   bot: {
     id: string;
     coworkerId?: string | null;
+    userId: string;
     workspaceId: string;
     ingestTimezone: string;
     followWholeBoard: boolean;
@@ -388,6 +390,7 @@ export async function buildSystemBeatMessage(input: {
               { sokoBotWatches: { some: { sokoBotId: bot.id } } },
             ],
           }),
+      AND: [buildSokoBotOwnerTaskVisibilityWhere(bot.userId)],
     },
     select: {
       id: true,

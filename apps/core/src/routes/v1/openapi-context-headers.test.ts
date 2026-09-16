@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import agentsRouter from "./agents/index.js";
 import chatRoomsRouter from "./chats/rooms/index.js";
+import coworkersRouter from "./coworkers/index.js";
+import sokoBotsRouter from "./soko-bots/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
 
@@ -125,5 +127,17 @@ describe("OpenAPI X-Context-* header documentation", () => {
     const refs = operationParameterRefs(doc, "/", "get");
     expect(hasAnyContextHeader(refs)).toBe(false);
     expect(refs).toContain("#/components/parameters/OrganizationSlug");
+  });
+});
+
+describe("Direct recipient workspace headers", () => {
+  it.each([
+    ["coworkers", coworkersRouter, "/"],
+    ["personal assistant", sokoBotsRouter, "/me"],
+  ] as const)("documents workspace selection for %s", (_name, router, path) => {
+    const doc = router.getOpenAPI31Document(openApiInfo);
+    const refs = operationParameterRefs(doc, path, "get");
+    expect(refs).toContain("#/components/parameters/OrganizationSlug");
+    expect(hasCoworkerContextHeaders(refs)).toBe(false);
   });
 });

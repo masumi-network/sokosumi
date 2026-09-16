@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
+import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskCardProps {
@@ -53,13 +54,14 @@ export function TaskCard({
         >
           <div className="space-y-2.5">
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <TaskStatusBadge
                   status={task.status}
                   label={statusLabels?.[task.status]}
                   showDot={task.columnId === "in-progress"}
                   className="w-fit rounded-sm"
                 />
+                <TaskPrivateIndicator visibility={task.visibility} />
               </div>
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}

@@ -782,6 +782,12 @@
       "markAllRead": "Alle als gelesen markieren",
       "markAllReadError": "Alle Benachrichtigungen konnten nicht als gelesen markiert werden",
       "delete": "Benachrichtigung löschen: {message}",
+      "deleteTooltip": "Löschen",
+      "markRead": "Benachrichtigung als gelesen markieren: {message}",
+      "markReadTooltip": "Als gelesen markieren",
+      "markUnread": "Benachrichtigung als ungelesen markieren: {message}",
+      "markUnreadTooltip": "Als ungelesen markieren",
+      "unreadIndicator": "Ungelesen",
       "deleteError": "Benachrichtigung konnte nicht gelöscht werden",
       "clearAll": "Alle löschen",
       "clearAllError": "Benachrichtigungen konnten nicht gelöscht werden",
@@ -1583,7 +1589,9 @@
           "COMPLETED": "Abgeschlossen",
           "FAILED": "Fehlgeschlagen",
           "CANCELED": "Abgebrochen"
-        }
+        },
+        "visibilityLabel": "Sichtbarkeit",
+        "visibilityPrivate": "Privat"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Projekt",
@@ -1613,6 +1621,8 @@
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "privateBadge": "Privat",
+        "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",
@@ -1908,7 +1918,9 @@
         "taskCreatedHint": "Alles ist eingerichtet und bereit.",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
-        "close": "Schließen"
+        "close": "Schließen",
+        "privateLabel": "Privat",
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2732,8 +2744,19 @@
           "subscription": "Abonnement",
           "startedTasks": "Gestartete Aufgaben",
           "registered": "Registriert",
+          "actions": "Aktionen",
           "loadMore": "Mehr laden",
           "loadError": "Benutzer konnten nicht geladen werden."
+        },
+        "Impersonate": {
+          "trigger": "Nutzer impersonieren",
+          "title": "Nutzer impersonieren",
+          "description": "Du handelst als {name} ({email}) mit vollem Zugriff auf dieses Konto, einschließlich Schreibzugriff. Die Sitzung läuft nach einer Stunde ab.",
+          "reasonLabel": "Grund",
+          "reasonPlaceholder": "SOK-123: Warum du Zugriff brauchst",
+          "cancel": "Abbrechen",
+          "start": "Impersonierung starten",
+          "startError": "Impersonierung konnte nicht gestartet werden."
         }
       },
       "Organizations": {
@@ -4007,6 +4030,17 @@
           "es": "Español"
         }
       },
+      "TimeFormat": {
+        "title": "Zeitformat",
+        "description": "Wähle, wie Uhrzeiten angezeigt werden. Automatisch folgt deinem Browser.",
+        "selectAriaLabel": "Zeitformat auswählen",
+        "auto": "Automatisch",
+        "autoResolved": "Automatisch ({timeFormat})",
+        "options": {
+          "12h": "12-Stunden",
+          "24h": "24-Stunden"
+        }
+      },
       "SocialAccounts": {
         "connected": "ist verbunden",
         "notConnected": "ist nicht verbunden",
@@ -4897,6 +4931,11 @@
         },
         "button": "Abrechnung öffnen"
       }
+    },
+    "Impersonation": {
+      "banner": "Du handelst als {name} ({email})",
+      "exit": "Beenden",
+      "stopError": "Impersonierung konnte nicht beendet werden."
     },
     "DesignMd": {
       "adHocDialogTitle": "Eine andere Marke verwenden",
@@ -6224,8 +6263,6 @@
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
       },
       "pagination": {
-        "loadMore": "Weitere Ereignisse laden",
-        "loading": "Ereignisse werden geladen...",
         "error": "Weitere Ereignisse konnten nicht geladen werden."
       },
       "error": {
