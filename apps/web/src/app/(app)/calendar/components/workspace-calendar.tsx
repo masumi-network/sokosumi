@@ -22,7 +22,9 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
+  ArrowUp,
   Building2,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleDashed,
@@ -44,6 +46,7 @@ import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
+import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
@@ -81,6 +84,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -205,6 +209,25 @@ function parseCalendarDate(value: string, fallback: string): Date {
 
 function getCalendarDayKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
+}
+
+/** The app shell's main column scrolls the page; null outside it. */
+function getAgendaScroller(root: HTMLElement | null): HTMLElement | null {
+  return root?.closest<HTMLElement>("[data-app-main]") ?? null;
+}
+
+/** FullCalendar's list day header for today in the calendar zone, if shown. */
+function findTodayHeader(
+  root: HTMLElement | null,
+  timeZone: string,
+): HTMLElement | null {
+  const todayKey = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  return root?.querySelector<HTMLElement>(`[data-date="${todayKey}"]`) ?? null;
 }
 
 function getProjectIdFromSource(
@@ -577,25 +600,51 @@ function CalendarView({
     }
   }
 
+  const t = useTranslations("App.Calendar");
+  const isApple = useIsApplePlatform();
   const rootRef = useRef<HTMLDivElement>(null);
   const dateKey = getCalendarDayKey(date);
+  const [agendaScroll, setAgendaScroll] = useState({
+    hasToday: false,
+    isScrolled: false,
+  });
 
   // The agenda lists the whole month and the page is the scroller, so land
-  // on today's day header whenever the shown month contains it.
+  // on today's day header whenever the shown month contains it, then keep
+  // track of the scroll position for the jump button.
   useEffect(() => {
     if (view !== "agenda") {
       return;
     }
-    const todayKey = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-    rootRef.current
-      ?.querySelector(`[data-date="${todayKey}"]`)
-      ?.scrollIntoView?.({ block: "start" });
+    const root = rootRef.current;
+    const scroller = getAgendaScroller(root);
+    const todayHeader = findTodayHeader(root, timeZone);
+    todayHeader?.scrollIntoView?.({ block: "start" });
+    const update = () =>
+      setAgendaScroll({
+        hasToday: Boolean(todayHeader),
+        isScrolled: (scroller ? scroller.scrollTop : window.scrollY) > 160,
+      });
+    update();
+    const target: EventTarget = scroller ?? window;
+    target.addEventListener("scroll", update, { passive: true });
+    return () => target.removeEventListener("scroll", update);
   }, [view, dateKey, timeZone]);
+
+  function handleAgendaJump() {
+    const root = rootRef.current;
+    if (agendaScroll.isScrolled) {
+      (getAgendaScroller(root) ?? window).scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+    findTodayHeader(root, timeZone)?.scrollIntoView?.({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
 
   return (
     <div
@@ -675,6 +724,25 @@ function CalendarView({
         }}
         dateClick={(dateInfo) => onDateClick(dateInfo.date)}
       />
+      {view === "agenda" &&
+      (agendaScroll.isScrolled || agendaScroll.hasToday) ? (
+        <Button
+          className={cn(
+            "fixed left-4 z-40 rounded-full shadow-lg md:bottom-6 md:left-6",
+            mobileCreateFabBottom(isApple),
+          )}
+          size="sm"
+          variant="outline"
+          onClick={handleAgendaJump}
+        >
+          {agendaScroll.isScrolled ? (
+            <ArrowUp aria-hidden />
+          ) : (
+            <CalendarDays aria-hidden />
+          )}
+          {t(agendaScroll.isScrolled ? "agenda.backToTop" : "agenda.today")}
+        </Button>
+      ) : null}
     </div>
   );
 }

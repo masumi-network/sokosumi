@@ -6265,6 +6265,10 @@
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",
         "retry": "Try again"
+      },
+      "agenda": {
+        "backToTop": "Back to top",
+        "today": "Today"
       }
     },
     "You": {

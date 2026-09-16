@@ -6265,6 +6265,10 @@
         "title": "No se pudo cargar el calendario",
         "description": "Vuelve a intentarlo en un momento.",
         "retry": "Intentar de nuevo"
+      },
+      "agenda": {
+        "backToTop": "Volver arriba",
+        "today": "Hoy"
       }
     },
     "You": {

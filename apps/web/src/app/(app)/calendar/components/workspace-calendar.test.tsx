@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { Activity, StrictMode } from "react";
@@ -842,6 +848,61 @@ describe("WorkspaceCalendar", () => {
       );
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  it("offers Today at the top of the agenda and Back to top once scrolled", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    vi.stubGlobal("scrollY", 0);
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    try {
+      render(
+        <NuqsTestingAdapter
+          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
+        >
+          <WorkspaceCalendar
+            initialDate={today}
+            items={[
+              {
+                ...ITEMS[0],
+                scheduledAt: new Date(`${today}T09:00:00.000Z`),
+                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
+              },
+            ]}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      scrollIntoView.mockClear();
+      await user.click(screen.getByRole("button", { name: "agenda.today" }));
+      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
+        "data-date",
+        today,
+      );
+
+      vi.stubGlobal("scrollY", 400);
+      fireEvent.scroll(window);
+      await user.click(
+        await screen.findByRole("button", { name: "agenda.backToTop" }),
+      );
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({ top: 0 }),
+      );
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+      vi.unstubAllGlobals();
     }
   });
 

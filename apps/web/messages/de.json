@@ -6265,6 +6265,10 @@
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
+      },
+      "agenda": {
+        "backToTop": "Nach oben",
+        "today": "Heute"
       }
     },
     "You": {
