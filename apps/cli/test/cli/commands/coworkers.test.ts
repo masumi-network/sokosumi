@@ -172,19 +172,98 @@ test("coworkers me returns the current coworker", async () => {
   assert.equal(parsed.coworker.name, "Me");
 });
 
-test("coworkers api-key mints a key for the coworker id", async () => {
+test("coworkers api-key mints a key and returns the full token", async () => {
+  let path = "";
+  let body: { name?: unknown } | undefined;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: {} }) as T,
+    post: async <T>(requestPath: string, requestBody: unknown) => {
+      path = requestPath;
+      body = requestBody as typeof body;
+      return {
+        data: { id: "key-1", name: "ci", token: "soko_secret_value" },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
   const output: string[] = [];
   await runCoworkersCommand({
-    client: clientWith({
-      data: { id: "key-1", name: "ci", token: "soko_secret_value" },
-    }),
+    client,
     stdout: { write: (value) => output.push(value) },
     json: true,
     subcommand: "api-key",
     positionalId: "cw-1",
     options: { name: "ci" },
   });
+  assert.equal(path, "/v1/coworkers/cw-1/api-keys");
+  assert.equal(body?.name, "ci");
   const parsed = JSON.parse(output.join(""));
   assert.equal(parsed.coworkerId, "cw-1");
-  assert.notEqual(parsed.apiKey, null);
+  assert.equal(parsed.apiKey.name, "ci");
+  assert.equal(parsed.apiKey.token, "soko_secret_value");
+});
+
+test("coworkers update sends the mapped multi-field payload", async () => {
+  let path = "";
+  let body: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: {} }) as T,
+    post: async <T>() => ({ data: {} }) as T,
+    patch: async <T>(requestPath: string, requestBody: unknown) => {
+      path = requestPath;
+      body = requestBody;
+      return { data: { id: "cw-1", name: "Ops" } } as T;
+    },
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+  await runCoworkersCommand({
+    client,
+    stdout: { write() {} },
+    json: true,
+    subcommand: "update",
+    positionalId: "cw-1",
+    options: {
+      caption: "Ops",
+      company: "Acme",
+      url: "https://acme.test",
+      "base-url": "https://x.test",
+      description: "desc",
+      priority: "5",
+      capability: "tasks",
+    },
+  });
+  assert.equal(path, "/v1/coworkers/cw-1");
+  assert.deepEqual(body, {
+    caption: "Ops",
+    company: "Acme",
+    url: "https://acme.test",
+    baseURL: "https://x.test",
+    description: "desc",
+    priority: 5,
+    capabilities: ["tasks"],
+  });
+});
+
+test("coworkers update omits an empty name", async () => {
+  let body: Record<string, unknown> | undefined;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: {} }) as T,
+    post: async <T>() => ({ data: {} }) as T,
+    patch: async <T>(_path: string, requestBody: unknown) => {
+      body = requestBody as Record<string, unknown>;
+      return { data: { id: "cw-1" } } as T;
+    },
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+  await runCoworkersCommand({
+    client,
+    stdout: { write() {} },
+    json: true,
+    subcommand: "update",
+    positionalId: "cw-1",
+    options: { name: "", description: "kept" },
+  });
+  assert.equal("name" in (body ?? {}), false);
+  assert.equal(body?.description, "kept");
 });

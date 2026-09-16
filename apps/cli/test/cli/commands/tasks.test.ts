@@ -197,3 +197,45 @@ test("tasks comment requires a comment or a status", async () => {
     /--comment or --status is required/,
   );
 });
+
+test("tasks create rejects an invalid status", async () => {
+  await assert.rejects(
+    () =>
+      runTasksCommand({
+        client: clientWith({ data: {} }),
+        stdout: { write() {} },
+        subcommand: "create",
+        options: {
+          "coworker-id": "cw-1",
+          description: "x",
+          status: "BOGUS",
+        },
+      }),
+    /--status must be one of/,
+  );
+});
+
+test("tasks get still emits the task when a details fetch fails", async () => {
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.endsWith("/events")) throw new Error("events boom");
+      if (path.endsWith("/jobs")) return { data: [] } as T;
+      return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
+    },
+    post: async <T>() => ({ data: {} }) as T,
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+  const output: string[] = [];
+  await runTasksCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "get",
+    positionalId: "task-1",
+  });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.task.id, "task-1");
+  assert.equal(parsed.detailsErrors[0].resource, "events");
+  assert.match(parsed.detailsErrors[0].message, /events boom/);
+});

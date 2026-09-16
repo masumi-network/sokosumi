@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
-
 import type { CoreHttpClient } from "../../../src/api/http-client.js";
 import type { Agent } from "../../../src/api/models/agent.js";
 import { runAgentsCommand } from "../../../src/cli/commands/agents.js";
@@ -131,4 +133,52 @@ test("agents hire requires an agent id and input", async () => {
       }),
     /--input-json or --input-file is required/,
   );
+});
+
+test("agents hire forwards max-credits and name to the job request", async () => {
+  let body: { maxCredits?: unknown; name?: unknown } | undefined;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: { type: "object" } }) as T,
+    post: async <T>(_path: string, requestBody: unknown) => {
+      body = requestBody as typeof body;
+      return { data: { id: "job-1", agentId: "agent-1" } } as T;
+    },
+    patch: async <T>() => ({ data: null }) as T,
+    delete: async <T>() => ({ data: null }) as T,
+  };
+  await runAgentsCommand({
+    client,
+    stdout: { write() {} },
+    json: true,
+    subcommand: "hire",
+    positionalId: "agent-1",
+    options: { "input-json": "{}", "max-credits": "50", name: "Nightly" },
+  });
+  assert.equal(body?.maxCredits, 50);
+  assert.equal(body?.name, "Nightly");
+});
+
+test("agents hire reads input from a file", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sokosumi-hire-"));
+  const file = join(dir, "input.json");
+  writeFileSync(file, JSON.stringify({ from: "file" }));
+  let body: { inputData?: unknown } | undefined;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: { type: "object" } }) as T,
+    post: async <T>(_path: string, requestBody: unknown) => {
+      body = requestBody as typeof body;
+      return { data: { id: "job-1", agentId: "agent-1" } } as T;
+    },
+    patch: async <T>() => ({ data: null }) as T,
+    delete: async <T>() => ({ data: null }) as T,
+  };
+  await runAgentsCommand({
+    client,
+    stdout: { write() {} },
+    json: true,
+    subcommand: "hire",
+    positionalId: "agent-1",
+    options: { "input-file": file },
+  });
+  assert.deepEqual(body?.inputData, { from: "file" });
 });
