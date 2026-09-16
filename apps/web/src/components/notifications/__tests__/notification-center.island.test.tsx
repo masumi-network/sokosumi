@@ -1451,6 +1451,21 @@ describe("Notification Center Needs you view", () => {
     expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
   });
 
+  it("does not say nothing is waiting while the tab still has a count", async () => {
+    getNotificationsMock.mockResolvedValue(page([]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 2 },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "filterNeedsYou 2" }));
+    await settle();
+
+    expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
+    expect(screen.getByRole("tab", { name: "filterNeedsYou 2" })).toBeTruthy();
+  });
+
   it("keeps a read row until the request is answered, then lets it go", async () => {
     const waiting = asked("waiting");
     getNotificationsMock.mockResolvedValue(page([waiting]));

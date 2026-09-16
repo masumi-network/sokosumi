@@ -395,6 +395,9 @@ export function notificationReducer(
         return state;
       }
 
+      // A grant or access request answered in place leaves the feed. The
+      // Needs you number is that view's live count, so it drops here the
+      // same way unread does, rather than waiting for the next fetch.
       return {
         ...state,
         notifications: state.notifications.filter(
@@ -403,6 +406,9 @@ export function notificationReducer(
         unreadCount: existing.isRead
           ? state.unreadCount
           : Math.max(0, state.unreadCount - 1),
+        needsActionCount: isNeedsActionNotification(existing.messageKey)
+          ? Math.max(0, state.needsActionCount - 1)
+          : state.needsActionCount,
       };
     }
     case "reset_list": {

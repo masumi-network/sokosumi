@@ -53,6 +53,7 @@ export function NotificationCenterList({
   const {
     notifications,
     unreadCount,
+    needsActionCount,
     view,
     markRead,
     isLoading,
@@ -125,10 +126,16 @@ export function NotificationCenterList({
   };
 
   const oldest = notifications.at(-1);
+  // Unread and Needs you both carry a live count of the whole view, not of
+  // the loaded page. A 0 means Core has nothing left to page.
+  const narrowedCount =
+    view === "unread"
+      ? unreadCount
+      : view === "needs-action"
+        ? needsActionCount
+        : undefined;
   const showOlderBoundary =
-    hasMore &&
-    oldest !== undefined &&
-    !(view === "unread" && unreadCount === 0);
+    hasMore && oldest !== undefined && narrowedCount !== 0;
 
   if (visibleNotifications.length === 0) {
     if (isLoading) {
@@ -153,10 +160,15 @@ export function NotificationCenterList({
       );
     }
 
-    // Loaded Unread rows can leave while Core still has older unread ones.
-    // Keep the older-page boundary so the tab does not say "caught up" and
-    // so a failed older load still has a retry.
-    if (view === "unread" && unreadCount > 0 && showOlderBoundary && oldest) {
+    // Loaded rows of a narrowed view can leave while Core still has older
+    // ones. Keep the older-page boundary so the tab does not say the view
+    // is empty and so a failed older load still has a retry.
+    if (
+      narrowedCount !== undefined &&
+      narrowedCount > 0 &&
+      showOlderBoundary &&
+      oldest
+    ) {
       return (
         <NotificationOlderBoundaryRow
           oldestId={oldest.id}
@@ -172,9 +184,10 @@ export function NotificationCenterList({
       return null;
     }
 
-    // An empty narrowed list is good news, not a broken list. Unread uses
-    // the badge, not "did we hide the last loaded row".
-    if (view === "unread" && unreadCount > 0) {
+    // An empty narrowed list is good news only when the tab's number is 0.
+    // Unread and Needs you both use that number, not "did we hide the last
+    // loaded row".
+    if (narrowedCount !== undefined && narrowedCount > 0) {
       return null;
     }
 

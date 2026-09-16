@@ -122,6 +122,46 @@ describe("notificationReducer", () => {
     expect(afterRemove.unreadCount).toBe(1);
   });
 
+  it("drops the Needs you count when a waiting row is removed", () => {
+    const waiting = createNotification({
+      id: "n-grant",
+      kind: "SYSTEM",
+      messageKey: "notifications.vendorGrant.pending",
+      isRead: true,
+    });
+    const news = createNotification({ id: "n-news", isRead: true });
+
+    const afterRemove = notificationReducer(
+      {
+        notifications: [waiting, news],
+        unreadCount: 0,
+        needsActionCount: 1,
+      },
+      { type: "remove", id: "n-grant" },
+    );
+
+    expect(afterRemove.notifications.map((n) => n.id)).toEqual(["n-news"]);
+    expect(afterRemove.needsActionCount).toBe(0);
+    expect(afterRemove.unreadCount).toBe(0);
+  });
+
+  it("leaves the Needs you count when a row that never asked is removed", () => {
+    const news = createNotification({ id: "n-news", isRead: false });
+
+    const afterRemove = notificationReducer(
+      {
+        notifications: [news],
+        unreadCount: 1,
+        needsActionCount: 2,
+      },
+      { type: "remove", id: "n-news" },
+    );
+
+    expect(afterRemove.notifications).toEqual([]);
+    expect(afterRemove.unreadCount).toBe(0);
+    expect(afterRemove.needsActionCount).toBe(2);
+  });
+
   it("applies fetch and realtime updates atomically without losing unread count", () => {
     const realtimeNotification = createNotification({
       id: "notification-realtime",
