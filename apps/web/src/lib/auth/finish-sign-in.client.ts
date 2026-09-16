@@ -1,5 +1,4 @@
 import * as Sentry from "@sentry/nextjs";
-import type { useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth/auth.client";
 import {
@@ -13,20 +12,26 @@ import type { AuthMethodId } from "@/lib/schemas/auth";
 interface FinishSignInInPlaceOptions {
   provider: AuthMethodId;
   returnUrl: string | undefined;
-  router: Pick<ReturnType<typeof useRouter>, "replace">;
 }
 
 /**
  * Completes a sign-in that did not hand Better Auth a `callbackURL`
  * (credential, passkey): wait for the session cookie to settle, count the
- * login only if a session exists, then soft-navigate so the auth shell is
- * never re-rendered mid-login. Social and magic-link cannot use this — the
- * provider round trip lands on `/auth/callback/signin` instead.
+ * login only if a session exists, then navigate to the destination.
+ *
+ * The navigation is a full document load, not `router.replace`. The Next
+ * client router cache still holds the pre-login middleware result for the
+ * destination (anonymous `/` -> `/signin`), so a soft nav bounces straight
+ * back to the sign-in form. A full load re-runs middleware with the new
+ * session cookie. `replace` keeps `/signin` off the history stack. This
+ * lands directly on the app, not the marketing `/auth/callback` page, so no
+ * hero swap or interstitial. Same pattern as the workspace-gate leave in
+ * identity-onboarding-form.client.tsx. Social and magic-link cannot use this
+ * — the provider round trip lands on `/auth/callback/signin` instead.
  */
 export async function finishSignInInPlace({
   provider,
   returnUrl,
-  router,
 }: FinishSignInInPlaceOptions): Promise<void> {
   const session = await waitForAuthSession({
     context: "login",
@@ -39,5 +44,5 @@ export async function finishSignInInPlace({
   if (session) {
     fireGTMEvent.signIn(provider);
   }
-  router.replace(normalizeAuthReturnUrl(returnUrl));
+  window.location.replace(normalizeAuthReturnUrl(returnUrl));
 }

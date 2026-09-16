@@ -20,6 +20,7 @@ import {
 import SignInForm from "./form";
 
 const mockReplace = vi.fn();
+const mockLocationReplace = vi.fn();
 const mockSignInEmail = vi.fn();
 const mockGetSession = vi.fn();
 const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
@@ -107,7 +108,8 @@ describe("SignInForm", () => {
       value: {
         href: "http://localhost/",
         origin: "http://localhost",
-      } as Location,
+        replace: (...args: unknown[]) => mockLocationReplace(...args),
+      } as unknown as Location,
     });
   });
 
@@ -120,6 +122,7 @@ describe("SignInForm", () => {
 
   beforeEach(() => {
     mockReplace.mockReset();
+    mockLocationReplace.mockReset();
     mockSignInEmail.mockReset();
     mockGetSession.mockReset();
     mockWaitForAuthSession.mockReset();
@@ -229,7 +232,7 @@ describe("SignInForm", () => {
 
     expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
     expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 
   it("passes the verified captcha token to credential sign-in", async () => {
@@ -258,7 +261,7 @@ describe("SignInForm", () => {
     );
     expect(mockSignInEmail).not.toHaveBeenCalled();
     expect(mockWaitForAuthSession).not.toHaveBeenCalled();
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 
   it("passes unwrapped session data to waitForAuthSession after credential login", async () => {
@@ -299,7 +302,7 @@ describe("SignInForm", () => {
     await submitValidSignInForm();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith("/chat");
+      expect(mockLocationReplace).toHaveBeenCalledWith("/chat");
     });
 
     const payload = mockSignInEmail.mock.calls[0]?.[0] as Record<
@@ -308,7 +311,7 @@ describe("SignInForm", () => {
     >;
     expect(payload).not.toHaveProperty("callbackURL");
     expect(fireGTMEvent.signIn).toHaveBeenCalledWith("credential");
-    expect(window.location.href).toBe("http://localhost/");
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it("does not count a login when no session appears", async () => {
@@ -323,7 +326,7 @@ describe("SignInForm", () => {
     await submitValidSignInForm();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith("/");
+      expect(mockLocationReplace).toHaveBeenCalledWith("/");
     });
     expect(fireGTMEvent.signIn).not.toHaveBeenCalled();
   });
@@ -361,7 +364,7 @@ describe("SignInForm", () => {
     await submitValidSignInForm();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockLocationReplace).toHaveBeenCalledTimes(1);
     });
 
     const submitButton = screen.getByRole("button", { name: "submit" });

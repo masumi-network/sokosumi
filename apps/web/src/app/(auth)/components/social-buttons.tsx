@@ -2,7 +2,7 @@
 
 import { track } from "@vercel/analytics";
 import { KeyRound, Loader2, Mail } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ComponentProps,
@@ -72,7 +72,6 @@ export default function SocialButtons({
     runWithCaptcha,
     getErrorMessage,
   } = useAuthCaptcha("magic-link");
-  const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
@@ -92,9 +91,8 @@ export default function SocialButtons({
       finishSignInInPlace({
         provider: "passkey",
         returnUrl: effectiveReturnUrl,
-        router,
       }),
-    [effectiveReturnUrl, router],
+    [effectiveReturnUrl],
   );
 
   const handlePasskeySignIn = async (options?: {

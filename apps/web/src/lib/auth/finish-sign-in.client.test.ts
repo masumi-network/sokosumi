@@ -1,9 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { finishSignInInPlace } from "./finish-sign-in.client";
 
 const mockWaitForAuthSession = vi.fn();
 const mockSignInEvent = vi.fn();
+const mockLocationReplace = vi.fn();
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: { getSession: vi.fn() },
@@ -26,36 +35,45 @@ vi.mock("@/lib/gtm-events", () => ({
 vi.mock("@sentry/nextjs", () => ({ captureMessage: vi.fn() }));
 
 describe("finishSignInInPlace", () => {
-  const router = { replace: vi.fn() };
+  const originalLocation = window.location;
+
+  beforeAll(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        origin: "http://localhost",
+        replace: (...args: unknown[]) => mockLocationReplace(...args),
+      } as unknown as Location,
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("counts the login and soft-navigates to the return URL once a session exists", async () => {
+  it("counts the login and leaves for the return URL once a session exists", async () => {
     mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
-    await finishSignInInPlace({
-      provider: "credential",
-      returnUrl: "/chat",
-      router,
-    });
+    await finishSignInInPlace({ provider: "credential", returnUrl: "/chat" });
 
     expect(mockSignInEvent).toHaveBeenCalledWith("credential");
-    expect(router.replace).toHaveBeenCalledWith("/chat");
+    expect(mockLocationReplace).toHaveBeenCalledWith("/chat");
   });
 
-  it("still navigates home without counting a login when no session appears", async () => {
+  it("still leaves for the app without counting a login when no session appears", async () => {
     mockWaitForAuthSession.mockResolvedValue(null);
 
-    await finishSignInInPlace({
-      provider: "passkey",
-      returnUrl: undefined,
-      router,
-    });
+    await finishSignInInPlace({ provider: "passkey", returnUrl: undefined });
 
     expect(mockSignInEvent).not.toHaveBeenCalled();
-    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(mockLocationReplace).toHaveBeenCalledWith("/");
   });
 
   it("never navigates off-origin", async () => {
@@ -64,9 +82,8 @@ describe("finishSignInInPlace", () => {
     await finishSignInInPlace({
       provider: "credential",
       returnUrl: "https://evil.example/phish",
-      router,
     });
 
-    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(mockLocationReplace).toHaveBeenCalledWith("/");
   });
 });

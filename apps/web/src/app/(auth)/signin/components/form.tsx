@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -42,7 +42,6 @@ export default function SignInForm({
     runWithCaptcha,
     getErrorMessage,
   } = useAuthCaptcha("signin");
-  const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
@@ -110,7 +109,6 @@ export default function SignInForm({
       await finishSignInInPlace({
         provider: "credential",
         returnUrl: effectiveReturnUrl,
-        router,
       });
     });
   };
