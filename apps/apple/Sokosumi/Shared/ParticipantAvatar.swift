@@ -38,7 +38,7 @@ struct ParticipantAvatar: View {
   }
 
   private var initialsView: some View {
-    Text(avatarInitials(from: name))
+    Text(initials(for: name))
       .font(size >= 24 ? .caption : .caption2)
       .fontWeight(.semibold)
       .foregroundStyle(.white)

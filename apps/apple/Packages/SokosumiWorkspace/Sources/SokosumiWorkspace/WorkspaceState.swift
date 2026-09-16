@@ -15,7 +15,17 @@ public final class WorkspaceState: ObservableObject {
   public typealias Phase = WorkspaceSession.Phase
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
+  public struct MessageJump: Equatable, Sendable {
+    public let roomId: String
+    public let messageId: String
+    public let requestId = UUID()
+  }
+
+  @Published public internal(set) var messageJump: MessageJump?
+  var messageNavigationRequest = UUID()
   public let thread = ThreadSession()
+  public let threadOverview = RoomThreadOverview()
+  @Published public internal(set) var threadAttentionRevision = 0
   public let messageEditing = MessageEditing()
   public let directStream = DirectStreamSession()
   private var threadObservations: Set<AnyCancellable> = []
@@ -184,7 +194,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -315,9 +325,12 @@ public final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    messageNavigationRequest = UUID()
+    messageJump = nil
     messageEditing.reset()
     directStream.reset()
     thread.close()
+    threadOverview.reset()
     transcriptRealtimeHealthy = false
     transcriptRecovery.stop()
     readAttention.roomChanged()
@@ -337,9 +350,12 @@ public final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    messageNavigationRequest = UUID()
+    messageJump = nil
     messageEditing.reset()
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
+    threadOverview.reset()
     transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
     readAttention.roomChanged()
     pins.reset(roomId: room.id)
@@ -554,6 +570,7 @@ public final class WorkspaceState: ObservableObject {
     thread.recovery.setHealthy(healthy)
     transcriptRecovery.setHealthy(healthy)
     if continuityLost {
+      threadAttentionRevision += 1
       thread.recovery.requestRefresh()
       transcriptRecovery.requestRefresh()
     }
@@ -570,6 +587,9 @@ public final class WorkspaceState: ObservableObject {
     message: Components.Schemas.ChatRoomMessage
   ) {
     thread.apply(eventType: eventType, message: message)
+    if roomId == transcriptRoomId, message.parentMessageId != nil {
+      threadAttentionRevision += 1
+    }
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh()
     }
@@ -588,6 +608,9 @@ public final class WorkspaceState: ObservableObject {
   /// create/update refetch history for the focused room, everything else is
   /// ignored. The refetch merges — it never invents a row.
   func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
+    if envelope.roomId == transcriptRoomId, envelope.parentMessageId != nil {
+      threadAttentionRevision += 1
+    }
     let refreshParent = thread.apply(envelope)
     if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete, !refreshParent {
       return
@@ -690,6 +713,7 @@ public final class WorkspaceState: ObservableObject {
   func applyMembershipRevoked(roomId revokedRoomId: String) {
     workspaceSession.applyMembershipRevoked(roomId: revokedRoomId)
     sidebar.invalidateRefresh()
+    sidebar.rollbackPendingAction(roomId: revokedRoomId)
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
@@ -786,14 +810,15 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
-  public func markRoomUnread(_ room: Components.Schemas.ChatRoom, auth: AuthState) async {
+  public func performSidebarAction(_ action: ConversationSidebar.Action, roomId: String, auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
     do {
-      try await readAttention.markUnread(room: room, activeRoomId: selectedRoomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
+      try await sidebar.perform(action, roomId: roomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
     } catch {
       if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
         // The auth card takes over; the modal alert would double-surface.
         readAttention.clearError()
+        sidebar.clearActionError()
       }
     }
   }
@@ -905,6 +930,7 @@ public final class WorkspaceState: ObservableObject {
     guard let client = resolveClient(auth: auth) else { return }
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
+      sidebar.dropPendingActions()
       readAttention.reset()
       clearTranscript()
       selectedRoomId = nil

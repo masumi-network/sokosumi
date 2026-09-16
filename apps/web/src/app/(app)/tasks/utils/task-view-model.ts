@@ -164,6 +164,7 @@ export function mapTaskToTaskWithCoworker(
     id: task.id,
     name: task.name,
     status: task.status,
+    visibility: task.visibility,
     ownerId: task.ownerId,
     owner: task.owner,
     createdAt,

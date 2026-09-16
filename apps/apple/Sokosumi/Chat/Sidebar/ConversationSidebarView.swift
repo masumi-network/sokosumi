@@ -96,6 +96,18 @@ struct ConversationSidebarView: View {
       meSection
     }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
+    .alert("Couldn’t update conversation", isPresented: Binding(
+      get: { workspaces.sidebar.actionError != nil },
+      set: {
+        if !$0 {
+          workspaces.sidebar.clearActionError()
+        }
+      }
+    )) {
+      Button("OK") { workspaces.sidebar.clearActionError() }
+    } message: {
+      Text(workspaces.sidebar.actionError ?? "")
+    }
   }
 
   private func sectionExpansion(_ section: ConversationSidebar.Section) -> Binding<Bool> {
@@ -150,16 +162,21 @@ struct ConversationSidebarView: View {
       isActive: room.id == workspaces.selectedRoomId
     )
     return Label {
-      VStack(alignment: .leading, spacing: 2) {
-        Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
-          .lineLimit(1)
-          .fontWeight(attention.bold ? .bold : .regular)
-        if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
-          Text(organization)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+      HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
             .lineLimit(1)
+            .fontWeight(attention.bold ? .bold : .regular)
+            .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+          if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
+            Text(organization)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
         }
+        Spacer(minLength: 0)
+        roomStatus(room)
       }
     } icon: {
       RoomLeadingIcon(
@@ -172,12 +189,42 @@ struct ConversationSidebarView: View {
     .labelStyle(RoomRowLabelStyle())
     .tag(room.id)
     .badge(attention.badgeCount)
-    .contextMenu {
-      Button("Mark unread", systemImage: "envelope.badge") {
-        Task { @MainActor in await workspaces.markRoomUnread(room, auth: auth) }
-      }
-      .disabled(room.id == workspaces.selectedRoomId || room.mutedAt != nil)
+    .contextMenu { roomActions(room) }
+  }
+
+  @ViewBuilder
+  private func roomStatus(_ room: Components.Schemas.ChatRoom) -> some View {
+    if workspaces.sidebar.isPending(roomId: room.id) {
+      ProgressView()
+        .controlSize(.mini)
+        .accessibilityLabel("Updating conversation")
+    } else if room.mutedAt != nil {
+      Image(systemName: "bell.slash")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Muted")
+    } else if room.starredAt != nil {
+      Image(systemName: "pin")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Pinned")
     }
+  }
+
+  @ViewBuilder
+  private func roomActions(_ room: Components.Schemas.ChatRoom) -> some View {
+    Button("Mark unread", systemImage: "envelope.badge") {
+      Task { @MainActor in await workspaces.performSidebarAction(.markUnread, roomId: room.id, auth: auth) }
+    }
+    .disabled(!workspaces.sidebar.canPerform(.markUnread, roomId: room.id))
+    Button(room.starredAt == nil ? "Pin" : "Unpin", systemImage: room.starredAt == nil ? "pin" : "pin.slash") {
+      Task { @MainActor in await workspaces.performSidebarAction(room.starredAt == nil ? .pin : .unpin, roomId: room.id, auth: auth) }
+    }
+    .disabled(!workspaces.sidebar.canPerform(room.starredAt == nil ? .pin : .unpin, roomId: room.id))
+    Button(room.mutedAt == nil ? "Mute" : "Unmute", systemImage: room.mutedAt == nil ? "bell.slash" : "bell") {
+      Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
+    }
+    .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
   }
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with

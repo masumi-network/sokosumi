@@ -88,6 +88,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -129,6 +130,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -174,6 +176,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -216,6 +219,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -234,6 +238,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: TaskStatus.COMPLETED,
       projectId: null,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -267,6 +272,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });
@@ -306,6 +312,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
     });

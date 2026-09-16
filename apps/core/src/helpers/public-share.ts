@@ -1,4 +1,4 @@
-import { jobInclude, type Prisma } from "@sokosumi/database";
+import { jobInclude, type Prisma, TaskVisibility } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   jobWithEvents,
@@ -224,6 +224,20 @@ export async function getPublicSharedResourceByToken(token: string) {
   }
 
   if (share.job) {
+    if (share.job.taskId) {
+      const parentTask = await prisma.task.findFirst({
+        where: { id: share.job.taskId },
+        select: { visibility: true, archivedAt: true },
+      });
+      if (
+        !parentTask ||
+        parentTask.archivedAt !== null ||
+        parentTask.visibility === TaskVisibility.PRIVATE
+      ) {
+        return null;
+      }
+    }
+
     return {
       kind: "job" as const,
       share,
@@ -233,6 +247,10 @@ export async function getPublicSharedResourceByToken(token: string) {
 
   if (share.task) {
     if (share.task.archivedAt) {
+      return null;
+    }
+
+    if (share.task.visibility === TaskVisibility.PRIVATE) {
       return null;
     }
 

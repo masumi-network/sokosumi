@@ -100,13 +100,7 @@ function formatActivityAt(
   formatter: ReturnType<typeof useFormatter>,
   activityAt: string | Date,
 ): string {
-  return formatter.dateTime(new Date(activityAt), {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatter.dateTime(new Date(activityAt), "dateTimeWithYear");
 }
 
 export function DriveRecentsPanel({

@@ -23,11 +23,13 @@ vi.mock("next/server", () => ({
   connection: vi.fn(),
 }));
 
-vi.mock("next-intl/server", () => ({
-  getLocale: async () => "en",
-  getTimeZone: async () => "UTC",
-  getTranslations: async () => (key: string) => key,
-}));
+vi.mock("next-intl/server", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  return {
+    getFormatter: async () => createTestFormatter(),
+    getTranslations: async () => (key: string) => key,
+  };
+});
 
 vi.mock("@/app/calendar/components/workspace-calendar", () => ({
   WorkspaceCalendar: (props: unknown) => {

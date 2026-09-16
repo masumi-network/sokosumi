@@ -20,12 +20,9 @@ vi.mock("next-intl", () => ({
 
 vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "en"),
-  getFormatter: vi.fn(async () => ({
-    dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
-      new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" }).format(
-        value,
-      ),
-  })),
+  getFormatter: vi.fn(async () =>
+    (await import("@/test/intl-formatter")).createTestFormatter(),
+  ),
   getTranslations: vi.fn(async (namespace: string) => {
     return (key: string, values?: Record<string, unknown>) => {
       if (namespace === "Share.Jobs.Metadata") {

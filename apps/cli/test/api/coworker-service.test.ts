@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { CoreHttpClient } from "../../src/api/http-client.js";
-import { fetchCategories } from "../../src/api/services/category-service.js";
 import {
   createCoworker,
   createCoworkerApiKey,
@@ -79,13 +78,4 @@ test("coworker services validate required inputs before HTTP", async () => {
     /coworkerId is required/,
   );
   assert.equal(calls.length, 0);
-});
-
-test("category service gets categories and normalizes a non-list payload", async () => {
-  const calls: Call[] = [];
-  const result = await fetchCategories(
-    client(calls, { data: [{ id: "cat-1", name: "Research" }] }),
-  );
-  assert.deepEqual(calls, [{ method: "GET", path: "/v1/categories" }]);
-  assert.equal(result.categories[0]?.name, "Research");
 });

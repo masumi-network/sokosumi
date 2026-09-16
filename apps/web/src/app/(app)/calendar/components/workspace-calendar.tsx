@@ -537,11 +537,7 @@ function CalendarView({
               // locale; format the instant in the calendar zone ourselves.
               timeText={
                 view === "week" && start
-                  ? formatDate(start, {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      timeZone,
-                    })
+                  ? formatDate(start, "time", { timeZone })
                   : undefined
               }
             />

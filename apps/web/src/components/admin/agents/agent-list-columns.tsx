@@ -11,11 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { AdminAgentListItem } from "@/lib/clients/generated/core/types.gen";
 
-const dateTimeOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-} as const;
-
 const columnHelper = createAppColumnHelper<AdminAgentListItem>();
 
 export function getAgentListColumns(
@@ -93,7 +88,7 @@ export function getAgentListColumns(
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground">
-          {formatter.dateTime(row.original.createdAt, dateTimeOptions)}
+          {formatter.dateTime(row.original.createdAt, "dateTimeMedium")}
         </span>
       ),
       enableSorting: true,

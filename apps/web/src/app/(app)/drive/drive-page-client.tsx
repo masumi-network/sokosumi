@@ -1743,13 +1743,7 @@ function DrivePageWorkspace({
                         <span>
                           {formatter.dateTime(
                             new Date(item.latestFileUpdatedAt),
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
+                            "dateTimeWithYear",
                           )}
                         </span>
                       </div>
@@ -1758,13 +1752,7 @@ function DrivePageWorkspace({
                       <span>
                         {formatter.dateTime(
                           new Date(item.latestFileUpdatedAt),
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
+                          "dateTimeWithYear",
                         )}
                       </span>
                     </div>
@@ -1792,13 +1780,7 @@ function DrivePageWorkspace({
                         <span>
                           {formatter.dateTime(
                             new Date(item.latestFileUpdatedAt),
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
+                            "dateTimeWithYear",
                           )}
                         </span>
                       </div>
@@ -1807,13 +1789,7 @@ function DrivePageWorkspace({
                       <span>
                         {formatter.dateTime(
                           new Date(item.latestFileUpdatedAt),
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
+                          "dateTimeWithYear",
                         )}
                       </span>
                     </div>
@@ -1838,13 +1814,7 @@ function DrivePageWorkspace({
                         <span>
                           {formatter.dateTime(
                             new Date(item.latestFileUpdatedAt),
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
+                            "dateTimeWithYear",
                           )}
                         </span>
                       </div>
@@ -1853,13 +1823,7 @@ function DrivePageWorkspace({
                       <span>
                         {formatter.dateTime(
                           new Date(item.latestFileUpdatedAt),
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
+                          "dateTimeWithYear",
                         )}
                       </span>
                     </div>
@@ -1952,13 +1916,10 @@ function DrivePageWorkspace({
                               {item.size ? formatBytes(item.size) : "—"}
                             </span>
                             <span>
-                              {formatter.dateTime(new Date(item.updatedAt), {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {formatter.dateTime(
+                                new Date(item.updatedAt),
+                                "dateTimeWithYear",
+                              )}
                             </span>
                           </div>
                         </div>
@@ -1967,13 +1928,10 @@ function DrivePageWorkspace({
                             {item.size ? formatBytes(item.size) : "—"}
                           </span>
                           <span>
-                            {formatter.dateTime(new Date(item.updatedAt), {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatter.dateTime(
+                              new Date(item.updatedAt),
+                              "dateTimeWithYear",
+                            )}
                           </span>
                         </div>
                         {viewers}
@@ -2168,13 +2126,10 @@ function DrivePageWorkspace({
                                 {item.size ? formatBytes(item.size) : "—"}
                               </span>
                               <span>
-                                {formatter.dateTime(new Date(item.uploadedAt), {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                                {formatter.dateTime(
+                                  new Date(item.uploadedAt),
+                                  "dateTimeWithYear",
+                                )}
                               </span>
                             </div>
                           </div>
@@ -2185,13 +2140,10 @@ function DrivePageWorkspace({
                               {item.size ? formatBytes(item.size) : "—"}
                             </span>
                             <span>
-                              {formatter.dateTime(new Date(item.uploadedAt), {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {formatter.dateTime(
+                                new Date(item.uploadedAt),
+                                "dateTimeWithYear",
+                              )}
                             </span>
                           </div>
                           {viewers}

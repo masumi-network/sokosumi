@@ -155,10 +155,7 @@ export async function SokoBotVersionDetail({
                   <div className="min-w-0">
                     <p className="truncate font-medium">{run.scenarioId}</p>
                     <p className="text-muted-foreground text-xs">
-                      {format.dateTime(run.createdAt, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
+                      {format.dateTime(run.createdAt, "dateTimeMedium")}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">

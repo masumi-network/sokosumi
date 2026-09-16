@@ -14,7 +14,10 @@ import {
   type ProjectNeedsAttention,
   projectNeedsAttentionSchema,
 } from "@/schemas/project.schema";
-import { createProjectListCountsInclude } from "@/types/project";
+import {
+  createProjectListCountsInclude,
+  type ProjectReaderVisibility,
+} from "@/types/project";
 
 /** Lower is more urgent. Exclude is not a tier — those rows never enter the list. */
 export const NeedsAttentionTier = {
@@ -141,6 +144,7 @@ export function rankNeedsAttentionItems(
 export interface GetProjectNeedsAttentionParams {
   workspaceId: string;
   projectId: string;
+  visibility: ProjectReaderVisibility;
 }
 
 function mapTaskToHistoryItem(task: {
@@ -193,6 +197,7 @@ export const PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT = 50;
 export function unsettledProjectJobsQuery(params: {
   projectId: string;
   workspaceId: string;
+  jobVisibilityWhere: ProjectReaderVisibility["jobWhere"];
   now: Date;
 }) {
   return {
@@ -200,6 +205,7 @@ export function unsettledProjectJobsQuery(params: {
       projectId: params.projectId,
       workspaceId: params.workspaceId,
       ...unsettledProjectJobsWhere(params.now),
+      AND: [params.jobVisibilityWhere],
     },
     orderBy: [{ updatedAt: "desc" as const }, { id: "desc" as const }],
     take: PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT,
@@ -258,7 +264,10 @@ export async function getProjectNeedsAttention(
       id: params.projectId,
       workspaceId: params.workspaceId,
     },
-    include: createProjectListCountsInclude(params.workspaceId),
+    include: createProjectListCountsInclude(
+      params.workspaceId,
+      params.visibility,
+    ),
   });
 
   if (!project) {
@@ -272,6 +281,7 @@ export async function getProjectNeedsAttention(
         workspaceId: params.workspaceId,
         archivedAt: null,
         status: { in: TASK_ATTENTION_STATUSES },
+        AND: [params.visibility.taskWhere],
       },
       select: {
         id: true,
@@ -289,6 +299,7 @@ export async function getProjectNeedsAttention(
       ...unsettledProjectJobsQuery({
         projectId: params.projectId,
         workspaceId: params.workspaceId,
+        jobVisibilityWhere: params.visibility.jobWhere,
         now: new Date(),
       }),
       select: {

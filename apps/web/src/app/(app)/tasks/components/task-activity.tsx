@@ -9,7 +9,7 @@ import {
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   useCallback,
@@ -202,7 +202,6 @@ export function TaskActivitySection({
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
-  const locale = useLocale();
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
     [agentNameById],
@@ -685,7 +684,6 @@ export function TaskActivitySection({
                       </div>
                       <TimeAgo
                         date={event.createdAt}
-                        locale={locale}
                         className="text-muted-foreground/40 text-xs whitespace-nowrap"
                       />
                     </div>

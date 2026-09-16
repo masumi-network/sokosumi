@@ -219,6 +219,7 @@ describe("GET /jobs", () => {
         status: undefined,
         scope: "owned",
         coworkerId: "cow_123",
+        coworkerVendorId: TEST_VENDOR_ID,
         cursor: undefined,
         take: 20,
         skip: undefined,

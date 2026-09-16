@@ -1,5 +1,6 @@
 import {
   TaskStatus,
+  TaskVisibility,
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
@@ -92,13 +93,24 @@ describe("vendor-grants helpers", () => {
     expect(isGrantDeniedOrRevoked(VendorGrantStatus.PENDING)).toBe(false);
   });
 
-  it("expands list filter when workspace grant is present", () => {
+  it("expands list filter when workspace grant is present without opening private Tasks", () => {
     const withGrant = buildCoworkerTaskListAccessFilter({
       coworkerId: "c1",
       vendorId: "v1",
       hasWorkspaceGrant: true,
     });
-    expect(withGrant).toEqual({ status: { not: TaskStatus.DRAFT } });
+    expect(withGrant).toEqual({
+      status: { not: TaskStatus.DRAFT },
+      OR: [
+        { visibility: TaskVisibility.PUBLIC },
+        { visibility: TaskVisibility.PRIVATE, assigneeId: "c1" },
+        {
+          visibility: TaskVisibility.PRIVATE,
+          assigneeId: { not: "c1" },
+          assignee: { vendorId: "v1" },
+        },
+      ],
+    });
 
     const baseline = buildCoworkerTaskListAccessFilter({
       coworkerId: "c1",

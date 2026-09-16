@@ -798,6 +798,12 @@
       "markAllRead": "Mark all as read",
       "markAllReadError": "Failed to mark all notifications as read",
       "delete": "Delete notification: {message}",
+      "deleteTooltip": "Delete",
+      "markRead": "Mark notification as read: {message}",
+      "markReadTooltip": "Mark as read",
+      "markUnread": "Mark notification as unread: {message}",
+      "markUnreadTooltip": "Mark as unread",
+      "unreadIndicator": "Unread",
       "deleteError": "Failed to delete notification",
       "clearAll": "Clear all",
       "clearAllError": "Failed to clear notifications",
@@ -1583,7 +1589,9 @@
           "COMPLETED": "Completed",
           "FAILED": "Failed",
           "CANCELED": "Canceled"
-        }
+        },
+        "visibilityLabel": "Visibility",
+        "visibilityPrivate": "Private"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Project",
@@ -1613,6 +1621,8 @@
       },
       "Detail": {
         "back": "Back to tasks",
+        "privateBadge": "Private",
+        "visibility": "Visibility",
         "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
@@ -1908,7 +1918,9 @@
         "taskCreatedHint": "Everything's set up and ready to go.",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
-        "close": "Close"
+        "close": "Close",
+        "privateLabel": "Private task",
+        "privateDescription": "Only you, your Soko Bot, and the assigned coworker's vendor can see this task."
       },
       "EditTask": {
         "title": "Edit Task",
@@ -4036,6 +4048,17 @@
           "en": "English",
           "de": "Deutsch",
           "es": "Español"
+        }
+      },
+      "TimeFormat": {
+        "title": "Time format",
+        "description": "Choose how times are shown. Auto follows your browser.",
+        "selectAriaLabel": "Select time format",
+        "auto": "Auto",
+        "autoResolved": "Auto ({timeFormat})",
+        "options": {
+          "12h": "12-hour",
+          "24h": "24-hour"
         }
       },
       "SocialAccounts": {

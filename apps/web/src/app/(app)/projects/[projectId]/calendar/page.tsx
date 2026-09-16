@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-create-task-modal";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
@@ -20,7 +20,6 @@ import {
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
-import { formatShortDateTime } from "@/lib/utils/datetime";
 
 interface ProjectCalendarPageProps {
   params: Promise<{ projectId: string }>;
@@ -64,8 +63,7 @@ export default async function ProjectCalendarPage({
     coworkers,
     memberOptions,
     t,
-    locale,
-    timeZone,
+    formatter,
   ] = await Promise.all([
     projectService.getProjectCalendar(project.id, {
       ...range,
@@ -81,8 +79,7 @@ export default async function ProjectCalendarPage({
       session?.session?.activeOrganizationId ?? null,
     ),
     getTranslations("App.Projects.Detail"),
-    getLocale(),
-    getTimeZone(),
+    getFormatter(),
   ]);
   const sourceId = `project:${project.id}`;
   const projectSource = sources.find((source) => source.sourceId === sourceId);
@@ -107,11 +104,11 @@ export default async function ProjectCalendarPage({
           metadata={[
             {
               label: t("header.updated"),
-              value: formatShortDateTime(project.updatedAt, locale, timeZone),
+              value: formatter.dateTime(project.updatedAt, "dateTime"),
             },
             {
               label: t("header.created"),
-              value: formatShortDateTime(project.createdAt, locale, timeZone),
+              value: formatter.dateTime(project.createdAt, "dateTime"),
             },
           ]}
           projectLogo={project.logo}

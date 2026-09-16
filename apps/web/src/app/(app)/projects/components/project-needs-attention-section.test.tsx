@@ -56,7 +56,6 @@ const labels = {
     [TaskStatus.FAILED]: "Failed",
     [TaskStatus.CANCELED]: "Canceled",
   },
-  locale: "en",
 };
 
 function buildTaskItem(overrides: Partial<HistoryTaskItem> = {}): HistoryItem {

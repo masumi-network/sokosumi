@@ -204,3 +204,10 @@ export function taskFormAssigneeId(task: {
 }): string {
   return task.assigneeSokoBotId ?? task.assigneeId ?? task.assigneeUserId ?? "";
 }
+
+export function isOtherHumanAssignee(
+  assigneeUserId: string | null | undefined,
+  sessionUserId: string | null | undefined,
+): boolean {
+  return assigneeUserId != null && assigneeUserId !== sessionUserId;
+}

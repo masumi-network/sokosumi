@@ -149,6 +149,29 @@ describe("PUT /tasks/{id}/share", () => {
     });
   });
 
+  it("rejects creating a public share for a private task", async () => {
+    requireMutableTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      pendingVendorGrantId: null,
+      visibility: "PRIVATE",
+    });
+    const app = createApp();
+
+    const response = await app.request("http://localhost/tsk_123/share", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        allowSearchIndexing: true,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(upsertForTaskMock).not.toHaveBeenCalled();
+  });
+
   it("returns 401 for unauthenticated requests", async () => {
     authContextState.current = null;
     const app = createApp();

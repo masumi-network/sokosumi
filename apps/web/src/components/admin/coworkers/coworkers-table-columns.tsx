@@ -11,11 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
-const dateTimeOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-} as const;
-
 const columnHelper = createAppColumnHelper<Coworker>();
 
 function isArchived(coworker: Coworker): boolean {
@@ -113,7 +108,7 @@ export function getCoworkersTableColumns(
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground">
-          {formatter.dateTime(row.original.createdAt, dateTimeOptions)}
+          {formatter.dateTime(row.original.createdAt, "dateTimeMedium")}
         </span>
       ),
       enableSorting: true,

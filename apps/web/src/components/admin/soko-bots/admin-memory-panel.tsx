@@ -65,10 +65,7 @@ export async function AdminMemoryPanel({ bot }: AdminMemoryPanelProps) {
                     </td>
                     <td className="px-4 py-2 text-xs">{revision.source}</td>
                     <td className="text-muted-foreground px-4 py-2 text-xs tabular-nums">
-                      {format.dateTime(revision.createdAt, {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
+                      {format.dateTime(revision.createdAt, "dateTimeShort")}
                     </td>
                   </tr>
                 ))}

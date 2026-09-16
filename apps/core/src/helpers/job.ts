@@ -57,6 +57,10 @@ import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent-cost";
 import { badRequest, notFound, unprocessableEntity } from "./error";
+import {
+  buildCoworkerJobParentTaskWhere,
+  buildHumanParentTaskVisibilityWhere,
+} from "./task-visibility";
 import { getCents } from "./user";
 
 export interface JobContext {
@@ -946,6 +950,7 @@ export async function getUserJobs(
     status?: AgentJobStatus;
     scope?: "workspace" | "owned";
     coworkerId?: string;
+    coworkerVendorId?: string;
     sokoBotId?: string;
     cursor?: string;
     take: number;
@@ -963,6 +968,7 @@ export async function getUserJobs(
     status,
     scope = "owned",
     coworkerId,
+    coworkerVendorId,
     sokoBotId,
     cursor,
     take,
@@ -976,18 +982,43 @@ export async function getUserJobs(
     await requireCoworkerCapability(coworkerId, "tasks", tx);
   }
 
+  const humanParentTaskVisibility = coworkerId
+    ? []
+    : [
+        {
+          OR: [
+            { taskId: null },
+            {
+              task: {
+                is: buildHumanParentTaskVisibilityWhere(userContext.userId),
+              },
+            },
+          ],
+        },
+      ];
+
   const where: Prisma.JobWhereInput = {
     AND: [
       {
         workspaceId: workspaceContext.workspaceId,
         ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
       },
+      ...humanParentTaskVisibility,
       ...(agentId ? [{ agentId }] : []),
       ...(projectId !== undefined ? [{ projectId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
       // `task` is an optional to-one relation, so this filter requires the job
       // to HAVE a task assigned to this coworker — null-task jobs are excluded.
-      ...(coworkerId ? [{ task: { assigneeId: coworkerId } }] : []),
+      ...(coworkerId
+        ? coworkerVendorId
+          ? [
+              buildCoworkerJobParentTaskWhere({
+                coworkerId,
+                vendorId: coworkerVendorId,
+              }),
+            ]
+          : [{ task: { assigneeId: coworkerId } }]
+        : []),
       ...(sokoBotId ? [{ task: { assigneeSokoBotId: sokoBotId } }] : []),
     ],
   };

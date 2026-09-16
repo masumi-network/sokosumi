@@ -1,4 +1,8 @@
-import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
+import {
+  TaskScheduleEventKind,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
@@ -125,6 +129,7 @@ function buildMappedTask() {
     name: "Prepare release notes",
     description: null,
     status: TaskStatus.QUEUED,
+    visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: "2099-09-24T09:00:00.000Z",
     scheduleRevision: 0,

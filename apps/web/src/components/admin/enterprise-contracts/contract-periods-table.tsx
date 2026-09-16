@@ -18,11 +18,6 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 type PeriodRow = EnterpriseContractPeriod | EnterpriseContractPreviewPeriod;
 
-const dateTimeOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-} as const;
-
 interface ContractPeriodsTableProps {
   periods: PeriodRow[];
   showStatus?: boolean;
@@ -56,10 +51,10 @@ export function ContractPeriodsTable({
           {periods.map((period, index) => (
             <TableRow key={"id" in period ? period.id : `preview-${index}`}>
               <TableCell>
-                {formatter.dateTime(period.periodStart, dateTimeOptions)}
+                {formatter.dateTime(period.periodStart, "dateTimeMedium")}
               </TableCell>
               <TableCell>
-                {formatter.dateTime(period.periodEnd, dateTimeOptions)}
+                {formatter.dateTime(period.periodEnd, "dateTimeMedium")}
               </TableCell>
               <TableCell className="tabular-nums">
                 {formatter.number(

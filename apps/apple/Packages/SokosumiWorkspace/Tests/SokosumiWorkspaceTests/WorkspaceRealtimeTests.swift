@@ -688,6 +688,7 @@ struct WorkspaceRealtimeTests {
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
     let initialRequests = transport.operationIDs.count
+    let initialAttention = state.threadAttentionRevision
     fake.deliver(.roomHealth(roomId: roomB, healthy: false, continuityLost: true))
     fake.deliver(.roomHealth(roomId: roomA, healthy: true, continuityLost: false))
     // A following pin is a visible barrier for the ordered event stream.
@@ -696,6 +697,7 @@ struct WorkspaceRealtimeTests {
       await Task.yield()
     }
     #expect(state.timeline.pinOverrides["barrier"] == true)
+    #expect(state.threadAttentionRevision == initialAttention)
     await waitForRealtimeIdle(state)
     #expect(transport.operationIDs.count == initialRequests)
     state.setWindowVisible(false, window: realtimeWindow)
@@ -706,6 +708,7 @@ struct WorkspaceRealtimeTests {
       await Task.yield()
     }
     #expect(state.timeline.pinOverrides["barrier"] == false)
+    #expect(state.threadAttentionRevision == initialAttention + 2)
     await waitForRealtimeIdle(state)
     #expect(transport.operationIDs.count == initialRequests)
     state.setWindowVisible(true, window: realtimeWindow)

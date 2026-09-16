@@ -782,6 +782,12 @@
       "markAllRead": "Marcar todas como leídas",
       "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
       "delete": "Eliminar notificación: {message}",
+      "deleteTooltip": "Eliminar",
+      "markRead": "Marcar notificación como leída: {message}",
+      "markReadTooltip": "Marcar como leída",
+      "markUnread": "Marcar notificación como no leída: {message}",
+      "markUnreadTooltip": "Marcar como no leída",
+      "unreadIndicator": "Sin leer",
       "deleteError": "No se pudo eliminar la notificación",
       "clearAll": "Borrar todas",
       "clearAllError": "No se pudieron borrar las notificaciones",
@@ -1583,7 +1589,9 @@
           "COMPLETED": "Completado",
           "FAILED": "Fallido",
           "CANCELED": "Cancelado"
-        }
+        },
+        "visibilityLabel": "Visibilidad",
+        "visibilityPrivate": "Privado"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Proyecto",
@@ -1613,6 +1621,8 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "privateBadge": "Privada",
+        "visibility": "Visibilidad",
         "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
@@ -1908,7 +1918,9 @@
         "taskCreatedHint": "Todo está configurado y listo.",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "privateLabel": "Tarea privada",
+        "privateDescription": "Solo tú, tu Soko Bot y el vendor del coworker asignado pueden ver esta tarea."
       },
       "EditTask": {
         "title": "Editar Task",
@@ -4005,6 +4017,17 @@
           "en": "English",
           "de": "Deutsch",
           "es": "Español"
+        }
+      },
+      "TimeFormat": {
+        "title": "Formato de hora",
+        "description": "Elige cómo se muestran las horas. Automático sigue a tu navegador.",
+        "selectAriaLabel": "Seleccionar formato de hora",
+        "auto": "Automático",
+        "autoResolved": "Automático ({timeFormat})",
+        "options": {
+          "12h": "12 horas",
+          "24h": "24 horas"
         }
       },
       "SocialAccounts": {

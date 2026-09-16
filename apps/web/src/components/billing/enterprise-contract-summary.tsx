@@ -15,10 +15,7 @@ function formatDate(
   formatter: Awaited<ReturnType<typeof getFormatter>>,
   value: Date,
 ): string {
-  return formatter.dateTime(value, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return formatter.dateTime(value, "dateTimeMedium");
 }
 
 export async function EnterpriseContractSummary({

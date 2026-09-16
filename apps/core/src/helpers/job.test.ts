@@ -1,4 +1,8 @@
-import { AgentJobStatus, type Prisma } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  type Prisma,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,6 +38,25 @@ const orgJobContext: JobContext = {
   workspaceContext: orgWorkspaceContext,
 };
 
+const humanParentTaskVisibilityWhere = {
+  OR: [
+    { taskId: null },
+    {
+      task: {
+        is: {
+          OR: [
+            { visibility: TaskVisibility.PUBLIC },
+            {
+              visibility: TaskVisibility.PRIVATE,
+              ownerId: "user_123",
+            },
+          ],
+        },
+      },
+    },
+  ],
+};
+
 describe("getUserJobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,6 +78,7 @@ describe("getUserJobs", () => {
               ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
+            humanParentTaskVisibilityWhere,
           ],
         },
         include: jobListSummaryInclude,
@@ -78,6 +102,7 @@ describe("getUserJobs", () => {
             {
               workspaceId: orgWorkspaceContext.workspaceId,
             },
+            humanParentTaskVisibilityWhere,
           ],
         },
       }),
@@ -117,6 +142,7 @@ describe("getUserJobs", () => {
               ownerId: "user_123",
               workspaceId: personalWorkspaceContext.workspaceId,
             },
+            humanParentTaskVisibilityWhere,
           ],
         },
       }),
@@ -140,6 +166,7 @@ describe("getUserJobs", () => {
               ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
+            humanParentTaskVisibilityWhere,
             {
               events: {
                 some: { status: { equals: AgentJobStatus.COMPLETED } },
@@ -169,6 +196,7 @@ describe("getUserJobs", () => {
               ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
+            humanParentTaskVisibilityWhere,
             { projectId },
           ],
         },
@@ -193,6 +221,7 @@ describe("getUserJobs", () => {
               ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
+            humanParentTaskVisibilityWhere,
             { projectId: null },
           ],
         },
@@ -219,6 +248,7 @@ describe("getUserJobs", () => {
       take: 20,
       tx,
       coworkerId: "cow_123",
+      coworkerVendorId: "vendor_123",
     });
 
     expect(tx.coworker.findFirst).toHaveBeenCalledWith(
@@ -237,7 +267,19 @@ describe("getUserJobs", () => {
               ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
-            { task: { assigneeId: "cow_123" } },
+            {
+              task: {
+                is: {
+                  OR: [
+                    { assigneeId: "cow_123" },
+                    {
+                      visibility: TaskVisibility.PRIVATE,
+                      assignee: { vendorId: "vendor_123" },
+                    },
+                  ],
+                },
+              },
+            },
           ],
         },
       }),

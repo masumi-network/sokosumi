@@ -1,10 +1,13 @@
 import { getUserMetadata } from "@sokosumi/utils";
+import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { type ReactNode, Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import DefaultLoading from "@/components/default-loading";
+import { AUTO_DETECT_VALUE } from "@/i18n/locales";
+import { parseTimeFormat, TIME_FORMAT_COOKIE_NAME } from "@/i18n/time-format";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import {
@@ -34,10 +37,14 @@ async function AccountPageContent() {
   const t = await getTranslations("App.Account.LinkedAccounts");
   const tBilling = await getTranslations("App.Account.BillingDetails");
   const tDelete = await getTranslations("App.Account.Delete");
-  const [accountsResult, session] = await Promise.all([
+  const [accountsResult, session, cookieStore] = await Promise.all([
     listUserAccounts(),
     getSession(),
+    cookies(),
   ]);
+  const initialTimeFormat =
+    parseTimeFormat(cookieStore.get(TIME_FORMAT_COOKIE_NAME)?.value) ??
+    AUTO_DETECT_VALUE;
 
   let billingDetails: StripeCustomerBillingDetails | undefined;
   let billingDetailsLoadError: ReactNode | undefined;
@@ -118,6 +125,7 @@ async function AccountPageContent() {
             members.find((member) => member.role === MemberRole.OWNER)
               ?.organization.slug ?? null
           }
+          initialTimeFormat={initialTimeFormat}
         />
       </div>
     </div>
