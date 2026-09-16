@@ -160,7 +160,7 @@ function AvatarTile({
         className="size-full object-cover transition-transform group-hover:scale-[1.03]"
       />
       {selected ? (
-        <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 inline-flex size-5 items-center justify-center rounded-full">
+        <span className="bg-primary-solid text-primary-solid-foreground absolute top-1.5 right-1.5 inline-flex size-5 items-center justify-center rounded-full">
           <Check aria-hidden className="size-3" />
         </span>
       ) : null}

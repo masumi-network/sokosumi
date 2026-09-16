@@ -62,7 +62,7 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
               <div className="inline-flex items-center justify-center">
                 <FileIcon className="text-muted-foreground size-4" />
               </div>
-              <span className="text-foreground/80 w-full truncate text-sm">
+              <span className="text-foreground w-full truncate text-sm">
                 {file.name}
               </span>
               {hasStatus(file) && (

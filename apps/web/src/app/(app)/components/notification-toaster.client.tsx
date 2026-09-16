@@ -32,7 +32,12 @@ export function NotificationToaster() {
           content: "min-w-0 flex-1",
           icon: "text-primary",
           actionButton:
-            "bg-primary-foreground text-background hover:bg-primary-foreground/90 h-8 rounded-md px-3 text-xs font-medium",
+            // The toast ground follows the theme, so the action button has to
+            // invert against it. --primary-foreground is the label that rides on
+            // the accent fill, not the page inverse: this block now sets it to
+            // near-black in dark mode, the same value as --background, so the
+            // button and its label both disappeared at 1.00:1.
+            "bg-foreground text-background hover:bg-foreground/90 h-8 rounded-md px-3 text-xs font-medium",
         },
       }}
     />

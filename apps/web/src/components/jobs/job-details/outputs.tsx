@@ -70,7 +70,7 @@ function JobDetailsOutputsInner({
         <div className="min-h-0 overflow-hidden">
           <ExpandableMarkdown
             content={result}
-            className="text-foreground/80"
+            className="text-foreground"
             highlightTerm={highlightTerm}
             expandLabel={t("expand")}
             collapseLabel={t("collapse")}
@@ -124,7 +124,7 @@ function JobDetailsOutputsError() {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
 
   return (
-    <div className="border-semantic-destructive bg-semantic-destructive/10 flex min-h-[120px] w-full items-center justify-center rounded-md border p-4">
+    <div className="border-semantic-destructive-tertiary bg-semantic-destructive-quinary flex min-h-[120px] w-full items-center justify-center rounded-md border p-4">
       <span className="text-semantic-destructive text-lg">
         {t("failedToParseResult")}
       </span>

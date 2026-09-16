@@ -82,8 +82,8 @@ export function PresenceDot({
         // 48px hover card raises the mark to `size-3`.
         "relative block size-2.5 overflow-hidden rounded-full border",
         ring,
-        presence === "online" && "bg-presence-online",
-        presence === "afk" && "bg-presence-afk",
+        presence === "online" && "bg-semantic-success",
+        presence === "afk" && "bg-semantic-warning",
         presence === "offline" && fill,
         className,
       )}

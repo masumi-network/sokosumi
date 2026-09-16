@@ -10,9 +10,11 @@ const DEFAULT_CATEGORY_STYLES = {
 
 describe("getAgentCategoryStyles", () => {
   it("returns styles from the highest-priority category", () => {
+    // Two different tokens. With the same value in both fields the assertion
+    // below cannot tell a correct read from one that swapped light and dark.
     const styles = {
-      light: { color: "text-blue-600" },
-      dark: { color: "text-blue-400" },
+      light: { color: "text-semantic-info" },
+      dark: { color: "text-semantic-success" },
     };
     const agent = createMockCoreAgent({
       categories: [

@@ -173,7 +173,7 @@ export function CompletedSteps({ steps }: { steps: ProgressChip[] }) {
                 aria-hidden
                 className="text-primary/60 mt-0.5 size-3 shrink-0"
               />
-              <span className="text-foreground/80 font-medium">
+              <span className="text-foreground font-medium">
                 {toolLabel(step.toolName)}
               </span>
             </div>

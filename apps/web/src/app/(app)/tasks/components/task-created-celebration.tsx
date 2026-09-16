@@ -49,10 +49,10 @@ const STATUS_CARD_STYLES: Record<
 > = {
   DRAFT: {
     badge: "bg-muted text-muted-foreground",
-    dot: "bg-gray-400",
+    dot: COLUMN_STATUS_COLORS.backlog,
   },
   READY: {
-    badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    badge: "bg-status-ready-quaternary text-foreground",
     dot: COLUMN_STATUS_COLORS.todo,
   },
   QUEUED: {
@@ -157,7 +157,7 @@ export function TaskCreatedCelebration({
                     {/* Status pop */}
                     <motion.span
                       aria-hidden
-                      className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full shadow-sm"
+                      className="bg-primary-solid text-primary-solid-foreground absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full shadow-sm"
                       initial={reduceMotion ? false : { scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={

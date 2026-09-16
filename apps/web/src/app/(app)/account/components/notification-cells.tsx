@@ -37,7 +37,7 @@ import type { KindChoice } from "./use-notification-delivery";
  * the finger has already made, which is the one part of it a reader feels.
  */
 const CELL =
-  "focus-visible:ring-ring/50 flex size-9 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
+  "focus-visible:border-ring focus-visible:ring-ring-halo flex size-9 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
 /**
  * The squeeze a cell gives back while it is held.
  *
@@ -46,7 +46,7 @@ const CELL =
  * worst of the three states to be in.
  */
 const CELL_PRESS = "motion-safe:active:scale-95";
-const CELL_ON = "border-primary bg-primary text-primary-foreground";
+const CELL_ON = "border-primary bg-primary-solid text-primary-solid-foreground";
 const CELL_OFF =
   "text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground";
 /**

@@ -299,7 +299,8 @@ export function JobRow({
       onClick={() => onClick(job)}
       className={cn(
         "hover:bg-muted bg-muted/30 w-full rounded-md px-2 py-2 text-left transition-colors",
-        selected && "bg-primary text-primary-foreground hover:bg-primary/90",
+        selected &&
+          "bg-primary-solid text-primary-solid-foreground hover:bg-primary-solid-hover",
       )}
     >
       <div className="flex items-center gap-2">
@@ -318,7 +319,7 @@ export function JobRow({
         <p
           className={cn(
             "text-muted-foreground truncate text-xs",
-            selected && "text-primary-foreground/80",
+            selected && "text-primary-solid-foreground/80",
           )}
         >
           {formatTimeAgo(job.createdAt)}

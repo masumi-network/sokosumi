@@ -13,16 +13,19 @@ interface ConfettiParticle {
 // Deterministic (no hydration jitter) — shared by any "something just
 // succeeded" celebration moment (task creation, purchase success, …) so they
 // all read as the same brand gesture.
+// The hexes these replace were the same five brand values `--chart-1` through
+// `--chart-5` already hold, copied by hand, so the palette had two owners and
+// the confetti would not have followed a brand change.
 export const CONFETTI_PARTICLES: ConfettiParticle[] = [
-  { x: -34, y: -30, c: "#6400FF", s: 6 },
-  { x: -14, y: -44, c: "#00a4fa", s: 5 },
-  { x: 10, y: -46, c: "#fa008c", s: 6 },
-  { x: 30, y: -34, c: "#ffd300", s: 5 },
-  { x: -40, y: -8, c: "#0afa14", s: 5 },
-  { x: 40, y: -10, c: "#ff6400", s: 6 },
-  { x: -22, y: -52, c: "#6400FF", s: 4 },
-  { x: 22, y: -52, c: "#00a4fa", s: 4 },
-  { x: 0, y: -56, c: "#fa008c", s: 5 },
+  { x: -34, y: -30, c: "var(--primary)", s: 6 },
+  { x: -14, y: -44, c: "var(--chart-1)", s: 5 },
+  { x: 10, y: -46, c: "var(--chart-2)", s: 6 },
+  { x: 30, y: -34, c: "var(--chart-4)", s: 5 },
+  { x: -40, y: -8, c: "var(--chart-3)", s: 5 },
+  { x: 40, y: -10, c: "var(--chart-5)", s: 6 },
+  { x: -22, y: -52, c: "var(--primary)", s: 4 },
+  { x: 22, y: -52, c: "var(--chart-1)", s: 4 },
+  { x: 0, y: -56, c: "var(--chart-2)", s: 5 },
 ];
 
 interface ConfettiBurstProps {
