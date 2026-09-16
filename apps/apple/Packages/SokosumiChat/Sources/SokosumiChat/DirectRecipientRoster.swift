@@ -17,6 +17,15 @@ public struct DirectRecipientTarget: Identifiable, Equatable, Sendable {
   }
 }
 
+public struct DirectRecipientSection: Identifiable, Equatable, Sendable {
+  public enum Kind: CaseIterable, Sendable {
+    case coworkers, people, assistant
+  }
+
+  public let id: Kind
+  public let targets: [DirectRecipientTarget]
+}
+
 public struct DirectRecipientRoster: Equatable, Sendable {
   public let targets: [DirectRecipientTarget]
   public let membersLoadFailed: Bool
@@ -24,6 +33,19 @@ public struct DirectRecipientRoster: Equatable, Sendable {
   public init(targets: [DirectRecipientTarget], membersLoadFailed: Bool = false) {
     self.targets = targets
     self.membersLoadFailed = membersLoadFailed
+  }
+
+  public func sections(query: String, selection: DirectConversationSelection) -> [DirectRecipientSection] {
+    let matches = candidates(query: query, selection: selection)
+    return DirectRecipientSection.Kind.allCases.compactMap { kind in
+      let targets = matches.filter { target in
+        switch (kind, target.id) {
+        case (.coworkers, .coworker), (.people, .human), (.assistant, .sokoBot): true
+        default: false
+        }
+      }
+      return targets.isEmpty ? nil : DirectRecipientSection(id: kind, targets: targets)
+    }
   }
 
   public func candidates(query: String, selection: DirectConversationSelection) -> [DirectRecipientTarget] {
