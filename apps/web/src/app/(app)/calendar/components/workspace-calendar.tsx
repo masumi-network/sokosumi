@@ -577,12 +577,33 @@ function CalendarView({
     }
   }
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  const dateKey = getCalendarDayKey(date);
+
+  // The agenda lists the whole month and the page is the scroller, so land
+  // on today's day header whenever the shown month contains it.
+  useEffect(() => {
+    if (view !== "agenda") {
+      return;
+    }
+    const todayKey = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    rootRef.current
+      ?.querySelector(`[data-date="${todayKey}"]`)
+      ?.scrollIntoView?.({ block: "start" });
+  }, [view, dateKey, timeZone]);
+
   return (
     <div
       className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
+      ref={rootRef}
     >
       <FullCalendar
         borderless
@@ -591,9 +612,9 @@ function CalendarView({
             ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
             : undefined
         }
-        key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
+        key={`${dateKey}-${timeZone}-${view}`}
         plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
-        initialDate={getCalendarDayKey(date)}
+        initialDate={dateKey}
         initialView={pluginView}
         events={items.map((item) => ({
           id: item.id,
@@ -612,6 +633,9 @@ function CalendarView({
         // the only fill wanted.
         eventDisplay="block"
         eventColor="transparent"
+        // The list view keeps its list-item dot slot even with a transparent
+        // color; an empty class drops the element and its left gutter.
+        listItemEventBeforeClass=""
         editable={false}
         eventDurationEditable={false}
         eventAllow={(_span, movingEvent) => {

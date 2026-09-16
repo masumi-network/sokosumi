@@ -806,6 +806,45 @@ describe("WorkspaceCalendar", () => {
     }
   });
 
+  it("scrolls the agenda to today's day header", async () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    try {
+      render(
+        <NuqsTestingAdapter
+          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
+        >
+          <WorkspaceCalendar
+            initialDate={today}
+            items={[
+              {
+                ...ITEMS[0],
+                scheduledAt: new Date(`${today}T09:00:00.000Z`),
+                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
+              },
+            ]}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
+        "data-date",
+        today,
+      );
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
   it("defaults to the week view and offers every view switch", () => {
     render(
       <NuqsTestingAdapter searchParams="?date=2026-08-18">
