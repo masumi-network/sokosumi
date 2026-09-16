@@ -48,6 +48,7 @@ export async function dispatchTaskNotification(
   task: {
     id: string;
     ownerId: string;
+    assigneeUserId: string | null;
     name: string | null;
     assignee: { name: string } | null;
     assigneeSokoBot: { name: string | null } | null;
@@ -109,13 +110,26 @@ export async function dispatchTaskNotification(
     // A task that has settled is no longer waiting on the reader, however it
     // got there. Whatever it left unread stops being a question, so it stops
     // being unread. Does nothing for the keys that are not terminal, and
-    // reports rather than throws.
-    await markSettledAttentionRead(
-      task.ownerId,
-      NotificationKind.TASK,
-      task.id,
-      messageKey,
-    );
+    // reports rather than throws. Safe after `createNotification`, which never
+    // throws and whose refused duplicate still leaves the rows to clear.
+    //
+    // Both readers, because a task the owner delegated left the assignee an
+    // `assigned` row of their own, and that row is waiting on the assignee.
+    // The owner is written first and once: the two are the same person on
+    // every task nobody delegated.
+    const settledReaderIds = [task.ownerId];
+    if (task.assigneeUserId && task.assigneeUserId !== task.ownerId) {
+      settledReaderIds.push(task.assigneeUserId);
+    }
+
+    for (const readerId of settledReaderIds) {
+      await markSettledAttentionRead(
+        readerId,
+        NotificationKind.TASK,
+        task.id,
+        messageKey,
+      );
+    }
   } catch (error) {
     Sentry.captureException(error, {
       extra: {
@@ -143,6 +157,7 @@ export async function notifyTaskStatusEvent(
       select: {
         id: true,
         ownerId: true,
+        assigneeUserId: true,
         name: true,
         projectId: true,
         workspaceId: true,

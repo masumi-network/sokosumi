@@ -319,7 +319,9 @@ async function dispatchJobNotification(
     });
 
     // As for tasks: a job that has settled stops waiting on the reader, so
-    // what it left unread stops being a question.
+    // what it left unread stops being a question. Safe after
+    // `createNotification`, which never throws and whose refused duplicate
+    // still leaves the rows to clear. One reader, because a job has one.
     await markSettledAttentionRead(
       job.ownerId,
       NotificationKind.JOB,

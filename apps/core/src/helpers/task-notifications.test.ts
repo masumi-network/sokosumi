@@ -44,6 +44,7 @@ describe("dispatchTaskNotification", () => {
   const SETTLED_TASK = {
     id: "task_1",
     ownerId: "user_1",
+    assigneeUserId: null,
     name: "Launch",
     assignee: null,
     assigneeSokoBot: null,
@@ -92,11 +93,47 @@ describe("dispatchTaskNotification", () => {
     },
   );
 
+  /**
+   * The owner is not always the reader who was asked. `notifyTaskHumanAssignee`
+   * writes an `assigned` row to the assignee, and that key is an attention key,
+   * so a delegated task that settles leaves the assignee a reminder about a
+   * question nobody is asking unless their rows are cleared too.
+   */
+  it("says so to a teammate the task was delegated to as well", async () => {
+    await dispatchTaskNotification(
+      { ...SETTLED_TASK, assigneeUserId: "user_2" },
+      "event_1",
+      "CANCELED",
+    );
+
+    expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
+      "user_2",
+      "TASK",
+      "task_1",
+      "Notifications.Task.canceled",
+    );
+  });
+
+  /**
+   * A task nobody delegated has one reader under two names. Clearing twice
+   * would be harmless and would still read as two people to anyone counting.
+   */
+  it("says so once when the owner is also the assignee", async () => {
+    await dispatchTaskNotification(
+      { ...SETTLED_TASK, assigneeUserId: "user_1" },
+      "event_1",
+      "CANCELED",
+    );
+
+    expect(markSettledAttentionReadMock).toHaveBeenCalledTimes(1);
+  });
+
   it("names the assigned soko bot in task notifications", async () => {
     await dispatchTaskNotification(
       {
         id: "task_1",
         ownerId: "user_1",
+        assigneeUserId: null,
         name: "Launch",
         assignee: null,
         assigneeSokoBot: { name: "Nora" },
