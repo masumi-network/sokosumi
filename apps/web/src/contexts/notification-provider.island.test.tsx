@@ -25,7 +25,7 @@ async function withPagination(response: unknown) {
 const patchNotificationReadMock = vi.fn();
 const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
-const getNotificationsUnreadCountMock = vi.fn();
+const getNotificationsCountsMock = vi.fn();
 const useNotificationRealtimeMock = vi.fn();
 const healPushSubscriptionMock = vi.fn();
 
@@ -39,8 +39,8 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   notificationsBrowserClient: {
     getNotifications: async (...args: unknown[]) =>
       withPagination(await getNotificationsMock(...args)),
-    getNotificationsUnreadCount: (...args: unknown[]) =>
-      getNotificationsUnreadCountMock(...args),
+    getNotificationsCounts: (...args: unknown[]) =>
+      getNotificationsCountsMock(...args),
     patchNotificationRead: (...args: unknown[]) =>
       patchNotificationReadMock(...args),
     patchNotificationUnread: (...args: unknown[]) =>
@@ -110,7 +110,7 @@ describe("NotificationProvider island", () => {
     patchNotificationReadMock.mockReset();
     patchNotificationUnreadMock.mockReset();
     patchNotificationsReadAllMock.mockReset();
-    getNotificationsUnreadCountMock.mockReset();
+    getNotificationsCountsMock.mockReset();
     useNotificationRealtimeMock.mockReset();
     healPushSubscriptionMock.mockReset();
     healPushSubscriptionMock.mockResolvedValue(false);
@@ -122,7 +122,9 @@ describe("NotificationProvider island", () => {
     );
 
     getNotificationsMock.mockResolvedValue({ data: [] });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0 },
+    });
   });
 
   it("renders children and REST context without waiting on Ably", async () => {
@@ -148,7 +150,7 @@ describe("NotificationProvider island", () => {
     });
 
     expect(getNotificationsMock).toHaveBeenCalled();
-    expect(getNotificationsUnreadCountMock).toHaveBeenCalled();
+    expect(getNotificationsCountsMock).toHaveBeenCalled();
     expect(screen.getByTestId("loading")).toHaveTextContent("false");
     expect(screen.getByTestId("fetch-error")).toHaveTextContent("false");
     expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
@@ -397,9 +399,9 @@ describe("NotificationProvider island", () => {
           },
         ],
       });
-    getNotificationsUnreadCountMock
-      .mockResolvedValueOnce({ data: { count: 0 } })
-      .mockResolvedValueOnce({ data: { count: 1 } });
+    getNotificationsCountsMock
+      .mockResolvedValueOnce({ data: { unread: 0, needsAction: 0 } })
+      .mockResolvedValueOnce({ data: { unread: 1, needsAction: 0 } });
 
     render(
       <NotificationProvider userId="user-1">
@@ -457,7 +459,7 @@ describe("NotificationProvider read state", () => {
     getNotificationsMock.mockReset();
     patchNotificationReadMock.mockReset();
     patchNotificationsReadAllMock.mockReset();
-    getNotificationsUnreadCountMock.mockReset();
+    getNotificationsCountsMock.mockReset();
     useNotificationRealtimeMock.mockReset();
     lazyAblyProviderMock.mockReset();
     lazyAblyProviderMock.mockImplementation(
@@ -465,7 +467,9 @@ describe("NotificationProvider read state", () => {
     );
 
     getNotificationsMock.mockResolvedValue({ data: [UNREAD_ROW, READ_ROW] });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
   });
 
   async function renderLoaded() {
@@ -525,7 +529,9 @@ describe("NotificationProvider read state", () => {
     getNotificationsMock.mockResolvedValue({
       data: [{ ...UNREAD_ROW, isRead: true }, READ_ROW],
     });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0 },
+    });
     await act(async () => {
       useNotificationRealtimeMock.mock.lastCall?.[0].onNotification({
         ...READ_ROW,
@@ -560,7 +566,9 @@ describe("NotificationProvider read state", () => {
     getNotificationsMock.mockResolvedValue({
       data: [{ ...UNREAD_ROW, isRead: true }, READ_ROW],
     });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0 },
+    });
     await act(async () => {
       unread.resolve({ data: { ...READ_ROW, isRead: false, readAt: null } });
       await Promise.all([pending, all]);
@@ -585,7 +593,9 @@ describe("NotificationProvider read state", () => {
     getNotificationsMock.mockResolvedValue({
       data: [{ ...UNREAD_ROW, isRead: true }, READ_ROW],
     });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0 },
+    });
     await act(async () => {
       await currentNotifications.markAllRead();
     });
@@ -604,7 +614,9 @@ describe("NotificationProvider read state", () => {
     getNotificationsMock.mockResolvedValue({
       data: [UNREAD_ROW, { ...READ_ROW, isRead: false, readAt: null }],
     });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 2, needsAction: 0 },
+    });
     await act(async () => {
       useNotificationRealtimeMock.mock.lastCall?.[0].onNotification({
         ...READ_ROW,
@@ -718,7 +730,7 @@ describe("NotificationProvider paging", () => {
 
   beforeEach(() => {
     getNotificationsMock.mockReset();
-    getNotificationsUnreadCountMock.mockReset();
+    getNotificationsCountsMock.mockReset();
     useNotificationRealtimeMock.mockReset();
     healPushSubscriptionMock.mockReset();
     healPushSubscriptionMock.mockResolvedValue(false);
@@ -726,7 +738,9 @@ describe("NotificationProvider paging", () => {
     lazyAblyProviderMock.mockImplementation(
       ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
     );
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0 },
+    });
     getNotificationsMock.mockResolvedValue({
       data: [NEWEST, OLDEST_LOADED],
       meta: { pagination: { nextCursor: OLDEST_LOADED.id } },
@@ -1087,7 +1101,7 @@ describe("NotificationProvider failed read writes", () => {
 
   beforeEach(() => {
     getNotificationsMock.mockReset();
-    getNotificationsUnreadCountMock.mockReset();
+    getNotificationsCountsMock.mockReset();
     patchNotificationReadMock.mockReset();
     patchNotificationUnreadMock.mockReset();
     useNotificationRealtimeMock.mockReset();
@@ -1098,7 +1112,9 @@ describe("NotificationProvider failed read writes", () => {
       ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
     );
     getNotificationsMock.mockResolvedValue({ data: [UNREAD, READ] });
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0 },
+    });
   });
 
   async function renderOffline() {
@@ -1112,7 +1128,7 @@ describe("NotificationProvider failed read writes", () => {
     });
     // From here on nothing reaches Core, so the recovery read fails too.
     getNotificationsMock.mockRejectedValue(new Error("offline"));
-    getNotificationsUnreadCountMock.mockRejectedValue(new Error("offline"));
+    getNotificationsCountsMock.mockRejectedValue(new Error("offline"));
   }
 
   it("puts a row back to unread when marking it read fails", async () => {

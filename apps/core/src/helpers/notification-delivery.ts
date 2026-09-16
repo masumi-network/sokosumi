@@ -4,12 +4,14 @@ import {
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   isFollowUpMessageKey,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   NOTIFICATION_EMAIL_CATEGORIES,
   type NotificationCategory,
   type NotificationChannel,
   notificationDefault,
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
 /**
@@ -51,7 +53,7 @@ export const TASK_SCHEDULE_REMOVED_MESSAGE_KEY =
  */
 export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.assigned",
-  "Notifications.Task.inputRequired",
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
   "Notifications.Task.approvalRequired",
   "Notifications.Task.authenticationRequired",
   "Notifications.Task.outOfCredits",
@@ -69,7 +71,7 @@ export const TASK_COMPLETED_MESSAGE_KEY = "Notifications.Task.completed";
 
 /** The job keys that wait on the reader. Same split as the task keys. */
 export const JOB_ATTENTION_MESSAGE_KEYS: readonly string[] = [
-  "Notifications.Job.inputRequired",
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
   "Notifications.Job.paymentFailed",
 ];
 

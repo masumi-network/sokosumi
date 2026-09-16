@@ -5,9 +5,9 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";

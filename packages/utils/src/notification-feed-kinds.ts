@@ -74,3 +74,45 @@ export function isBrowserOnlyNotification(
     !CHAT_FEED_MESSAGE_KEYS.includes(messageKey)
   );
 }
+
+/** Message key of a task paused for the reader's input. */
+export const TASK_INPUT_REQUIRED_MESSAGE_KEY =
+  "Notifications.Task.inputRequired";
+
+/** Message key of a job paused for the reader's input. */
+export const JOB_INPUT_REQUIRED_MESSAGE_KEY = "Notifications.Job.inputRequired";
+
+/** Message key of a workspace vendor-grant request awaiting a decision. */
+export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
+  "notifications.vendorGrant.pending";
+
+/** Message key of a coworker workspace early-access request awaiting a decision. */
+export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
+  "notifications.coworkerAccess.pending";
+
+/**
+ * The keys whose row is a request the reader still has to answer.
+ *
+ * The Needs you view lists these, and only these, while the record each row
+ * points at is still waiting: a task or job paused on input, a vendor grant or
+ * coworker access request nobody has accepted or denied. The key alone says
+ * the row asked; whether it is still asking is Core's to decide from the
+ * record. Web reads the same list to keep rows that never asked out of the
+ * view while a realtime event puts them into the shared feed.
+ *
+ * Not Core's attention lists: those also hold keys that only inform (a task
+ * assigned, a schedule removed) or pauses the view does not cover yet.
+ * Other task pauses (approval, sign-in, credits) also wait on the reader and
+ * are the next keys to add here, each with its pending rule in Core.
+ */
+export const NEEDS_ACTION_MESSAGE_KEYS: readonly string[] = [
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+];
+
+/** Whether a row's key is one the Needs you view can hold. */
+export function isNeedsActionNotification(messageKey: string): boolean {
+  return NEEDS_ACTION_MESSAGE_KEYS.includes(messageKey);
+}

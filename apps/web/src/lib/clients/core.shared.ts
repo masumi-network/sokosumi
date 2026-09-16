@@ -204,7 +204,7 @@ import {
   getMySokoBotTurn as coreGetMySokoBotTurn,
   getMySokoBotUsage as coreGetMySokoBotUsage,
   getNotifications as coreGetNotifications,
-  getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
+  getNotificationsCounts as coreGetNotificationsCounts,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationInviteLinksByToken as coreGetOrganizationInviteLinksByToken,
@@ -1246,15 +1246,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getNotificationsUnreadCount() {
+  async function getNotificationsCounts() {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetNotificationsUnreadCount({
+        coreGetNotificationsCounts({
           client,
           cache: "no-store",
         }),
-      "Failed to fetch notification unread count",
+      "Failed to fetch notification counts",
     );
   }
 
@@ -5077,7 +5077,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     toggleChatRoomMessageReaction,
     getHistory,
     getNotifications,
-    getNotificationsUnreadCount,
+    getNotificationsCounts,
     updateChatRoom,
     updateChatRoomMessage,
     patchNotificationRead,

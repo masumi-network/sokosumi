@@ -4878,11 +4878,15 @@ export const NotificationKind = {
  */
 export type NotificationKind = typeof NotificationKind[keyof typeof NotificationKind];
 
-export type UnreadCount = {
+export type NotificationCounts = {
     /**
-     * Number of unread notifications
+     * Number of unread notifications in the feed
      */
-    count: number;
+    unread: number;
+    /**
+     * Number of feed notifications whose request still waits on the reader
+     */
+    needsAction: number;
 };
 
 export type MarkAllReadResponse = {
@@ -33426,6 +33430,10 @@ export type GetNotificationsData = {
          */
         isRead?: 'true' | 'false';
         /**
+         * When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.
+         */
+        needsAction?: 'true' | 'false';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -33503,7 +33511,7 @@ export type GetNotificationsResponses = {
 
 export type GetNotificationsResponse = GetNotificationsResponses[keyof GetNotificationsResponses];
 
-export type GetNotificationsUnreadCountData = {
+export type GetNotificationsCountsData = {
     body?: never;
     headers?: {
         /**
@@ -33513,10 +33521,10 @@ export type GetNotificationsUnreadCountData = {
     };
     path?: never;
     query?: never;
-    url: '/notifications/unread-count';
+    url: '/notifications/counts';
 };
 
-export type GetNotificationsUnreadCountErrors = {
+export type GetNotificationsCountsErrors = {
     /**
      * Unauthorized
      */
@@ -33549,14 +33557,14 @@ export type GetNotificationsUnreadCountErrors = {
     };
 };
 
-export type GetNotificationsUnreadCountError = GetNotificationsUnreadCountErrors[keyof GetNotificationsUnreadCountErrors];
+export type GetNotificationsCountsError = GetNotificationsCountsErrors[keyof GetNotificationsCountsErrors];
 
-export type GetNotificationsUnreadCountResponses = {
+export type GetNotificationsCountsResponses = {
     /**
-     * Unread count retrieved
+     * Counts retrieved
      */
     200: {
-        data: UnreadCount;
+        data: NotificationCounts;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33565,7 +33573,7 @@ export type GetNotificationsUnreadCountResponses = {
     };
 };
 
-export type GetNotificationsUnreadCountResponse = GetNotificationsUnreadCountResponses[keyof GetNotificationsUnreadCountResponses];
+export type GetNotificationsCountsResponse = GetNotificationsCountsResponses[keyof GetNotificationsCountsResponses];
 
 export type PatchNotificationsByIdReadData = {
     body?: never;

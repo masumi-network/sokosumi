@@ -122,6 +122,10 @@ _Avoid_: Message (when meaning an alert), toast (toasts are a delivery mechanism
 One chronological list of the user's notifications, shown in the header panel and on the full notifications page. Reading is the only change a reader makes to a Notification; a reader never removes one.
 _Avoid_: Inbox, activity feed (unless intentionally renaming the product surface), clear or delete (when meaning a reader removing notifications)
 
+**Needs you**:
+The Notification Center view that lists only Notifications whose request is still open on the record they point at: a task or job paused on input, a pending vendor grant or coworker access request. Answering the request is what removes a row; reading it does not. One row per waiting record, the newest.
+_Avoid_: Actionable inbox, to-do (this is a lens over Notifications, not a task list), unread (a read row still needs the reader until answered)
+
 **Account notice**:
 A workspace- or account-level call to action that is not itself a notification, but may surface next to notifications in the Notification Center.
 _Avoid_: Notification (for this cue), banner (unless referring to a specific layout)
