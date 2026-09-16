@@ -1142,7 +1142,6 @@
         "Form": {
           "submit": "Iniciar sesión",
           "lastUsed": "Usado por última vez",
-          "success": "Sesión iniciada correctamente",
           "error": "Email o contraseña incorrectos",
           "Fields": {
             "Email": {
@@ -5665,9 +5664,6 @@
           "back": "Volver al chat"
         }
       }
-    },
-    "WorkspaceAccess": {
-      "checking": "Comprobando el acceso al espacio de trabajo"
     },
     "Drive": {
       "breadcrumb": "Archivos",

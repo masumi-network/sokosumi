@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,16 +13,12 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import { signInFormData } from "@/auth/signin/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { AuthErrorCode } from "@/lib/actions";
-import { authClient, signIn } from "@/lib/auth/auth.client";
+import { signIn } from "@/lib/auth/auth.client";
 import {
-  buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
-  createAuthSessionGetter,
-  getAuthOAuthRedirect,
-  normalizeAuthReturnUrl,
-  waitForAuthSession,
 } from "@/lib/auth/auth.utils";
+import { finishSignInInPlace } from "@/lib/auth/finish-sign-in.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
@@ -90,13 +85,6 @@ export default function SignInForm({
         email: values.email,
         password: values.currentPassword,
         rememberMe: values.rememberMe,
-        // Better Auth hard-redirects to callbackURL on success, before any code
-        // below runs. The callback page fires the `login` GTM event.
-        callbackURL: buildAuthCallbackUrl(
-          "/auth/callback/signin",
-          "credential",
-          effectiveReturnUrl,
-        ),
       });
 
       if (result.error) {
@@ -116,24 +104,14 @@ export default function SignInForm({
         return;
       }
 
-      const oauthRedirect = getAuthOAuthRedirect(result.data);
-      if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
-        setIsLeaving(true);
-        window.location.href = oauthRedirect.redirectUrl;
-        return;
-      }
-
-      await waitForAuthSession({
-        context: "login",
-        getSession: createAuthSessionGetter(() => authClient.getSession()),
-        logWarning: (message) => {
-          Sentry.captureMessage(message, { level: "warning" });
-        },
-      });
-
-      toast.success(t("success"));
+      // No `callbackURL`: Better Auth would hard-redirect through a callback
+      // page. Like passkey, finish in place and soft-navigate.
       setIsLeaving(true);
-      router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
+      await finishSignInInPlace({
+        provider: "credential",
+        returnUrl: effectiveReturnUrl,
+        router,
+      });
     });
   };
 

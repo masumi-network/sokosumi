@@ -1142,7 +1142,6 @@
         "Form": {
           "submit": "Login",
           "lastUsed": "Last used",
-          "success": "Login successful",
           "error": "Invalid email or password",
           "Fields": {
             "Email": {
@@ -5665,9 +5664,6 @@
           }
         }
       }
-    },
-    "WorkspaceAccess": {
-      "checking": "Checking workspace access"
     },
     "Drive": {
       "breadcrumb": "Files",

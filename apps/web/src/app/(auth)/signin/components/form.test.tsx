@@ -10,6 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaErrorMessageMock,
   captchaFetchOptions,
@@ -286,28 +287,45 @@ describe("SignInForm", () => {
     await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
 
-  it("routes credential sign-in through the auth callback page", async () => {
+  it("fires login in place and soft-navigates to returnUrl without a callback page", async () => {
     mockSignInEmail.mockResolvedValue({
       data: {},
       error: null,
     });
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
     render(<SignInForm returnUrl="/chat" />);
 
     await submitValidSignInForm();
 
     await waitFor(() => {
-      expect(mockSignInEmail).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith("/chat");
     });
 
-    const payload = mockSignInEmail.mock.calls[0]?.[0] as {
-      callbackURL: string;
-    };
-    const callbackUrl = new URL(payload.callbackURL, "http://localhost");
+    const payload = mockSignInEmail.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(payload).not.toHaveProperty("callbackURL");
+    expect(fireGTMEvent.signIn).toHaveBeenCalledWith("credential");
+    expect(window.location.href).toBe("http://localhost/");
+  });
 
-    expect(callbackUrl.pathname).toBe("/auth/callback/signin");
-    expect(callbackUrl.searchParams.get("provider")).toBe("credential");
-    expect(callbackUrl.searchParams.get("returnUrl")).toBe("/chat");
+  it("does not count a login when no session appears", async () => {
+    mockSignInEmail.mockResolvedValue({
+      data: {},
+      error: null,
+    });
+    mockWaitForAuthSession.mockResolvedValue(null);
+
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/");
+    });
+    expect(fireGTMEvent.signIn).not.toHaveBeenCalled();
   });
 
   it("defaults rememberMe so Better Auth issues a persistent session cookie", async () => {
@@ -376,33 +394,6 @@ describe("SignInForm", () => {
     });
 
     expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
-  });
-
-  it("keeps a left-edge submit spinner until oauth redirect navigation", async () => {
-    mockSignInEmail.mockResolvedValue({
-      data: {
-        redirect: true,
-        url: "/auth/oauth2/authorize?client_id=test-client",
-      },
-      error: null,
-    });
-
-    render(<SignInForm />);
-
-    await submitValidSignInForm();
-
-    await waitFor(() => {
-      expect(window.location.href).toContain(
-        "/auth/oauth2/authorize?client_id=test-client",
-      );
-    });
-
-    const submitButton = screen.getByRole("button", { name: "submit" });
-    const spinner = submitButton.querySelector("svg.animate-spin");
-
-    expect(submitButton).toBeDisabled();
-    expect(spinner).not.toBeNull();
-    expect(spinner).toHaveClass("absolute", "left-4");
   });
 });
 
