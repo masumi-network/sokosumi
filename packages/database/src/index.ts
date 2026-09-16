@@ -18,8 +18,6 @@ export {
 } from "./types/agent.js";
 export { InvitationStatus } from "./types/invitation.js";
 export {
-  finalizedAgentJobStatuses,
-  finalizedOnChainJobStatuses,
   type JobWithListSummaryRelations,
   type JobWithSokosumiStatus,
   type JobWithSummaryRelations,
