@@ -952,8 +952,8 @@ describe("WorkspaceCalendar", () => {
       "week",
     );
     expect(
-      container.querySelector("[class~='bg-primary-quinary']"),
-    ).toHaveClass("bg-primary-quinary");
+      container.querySelector("[class~='bg-primary-quaternary']"),
+    ).toHaveClass("bg-primary-quaternary");
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
 

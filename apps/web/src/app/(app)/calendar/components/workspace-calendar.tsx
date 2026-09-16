@@ -221,12 +221,7 @@ function findTodayHeader(
   root: HTMLElement | null,
   timeZone: string,
 ): HTMLElement | null {
-  const todayKey = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const todayKey = Temporal.Now.plainDateISO(timeZone).toString();
   return root?.querySelector<HTMLElement>(`[data-date="${todayKey}"]`) ?? null;
 }
 
@@ -402,7 +397,7 @@ function CalendarEvent({
             task: item.taskName,
           },
         )}
-        className="text-muted-foreground hover:bg-primary-quaternary hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        className="text-muted-foreground hover:bg-primary-tertiary hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
         onClick={(event) => event.stopPropagation()}
@@ -423,16 +418,16 @@ function CalendarEvent({
       */}
       <div
         className={cn(
-          "bg-primary-quinary text-foreground hover:bg-primary-quaternary flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+          "bg-primary-quaternary text-foreground hover:bg-primary-tertiary flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
           item.state === "SKIPPED" && "text-muted-foreground line-through",
         )}
         data-testid="calendar-event"
         onClick={() => setMenuOpen(true)}
-        // FullCalendar silently ignores a drag on a card the caller cannot
-        // move; say why once the mouse has clearly started dragging.
+        // FullCalendar silently ignores a drag on someone else's task; say
+        // who can move it once the mouse has clearly started dragging.
         onPointerDown={(event) => {
           dragAttemptOrigin.current =
-            event.pointerType === "mouse" && !isMovableCalendarItem(item)
+            event.pointerType === "mouse" && !item.canEditSchedule
               ? { x: event.clientX, y: event.clientY }
               : null;
         }}
@@ -448,9 +443,7 @@ function CalendarEvent({
             return;
           }
           dragAttemptOrigin.current = null;
-          if (!item.canEditSchedule) {
-            toast.info(t("event.moveNotAllowed"));
-          }
+          toast.info(t("event.moveNotAllowed"));
         }}
         onPointerUp={() => {
           dragAttemptOrigin.current = null;
@@ -619,7 +612,7 @@ function CalendarView({
     const root = rootRef.current;
     const scroller = getAgendaScroller(root);
     const todayHeader = findTodayHeader(root, timeZone);
-    todayHeader?.scrollIntoView?.({ block: "start" });
+    todayHeader?.scrollIntoView({ block: "start" });
     const update = () =>
       setAgendaScroll({
         hasToday: Boolean(todayHeader),
@@ -640,7 +633,7 @@ function CalendarView({
       });
       return;
     }
-    findTodayHeader(root, timeZone)?.scrollIntoView?.({
+    findTodayHeader(root, timeZone)?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
