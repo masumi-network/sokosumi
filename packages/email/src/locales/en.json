@@ -149,8 +149,8 @@
           "paymentFailed": "The payment for {jobName} failed a day ago, and you have not opened it yet."
         }
       },
-      "fallbackCoworkerName": "A coworker",
-      "fallbackAgentName": "The agent"
+      "fallbackCoworkerName": "a coworker",
+      "fallbackAgentName": "the agent"
     }
   }
 }

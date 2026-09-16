@@ -149,8 +149,8 @@
           "paymentFailed": "El pago de {jobName} falló hace un día y todavía no lo has abierto."
         }
       },
-      "fallbackCoworkerName": "Un coworker",
-      "fallbackAgentName": "El agente"
+      "fallbackCoworkerName": "un coworker",
+      "fallbackAgentName": "el agente"
     }
   }
 }

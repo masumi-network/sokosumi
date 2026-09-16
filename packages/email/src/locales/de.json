@@ -149,8 +149,8 @@
           "paymentFailed": "Die Zahlung für {jobName} ist vor einem Tag fehlgeschlagen, und du hast den Auftrag noch nicht geöffnet."
         }
       },
-      "fallbackCoworkerName": "Ein Coworker",
-      "fallbackAgentName": "Der Agent"
+      "fallbackCoworkerName": "ein Coworker",
+      "fallbackAgentName": "der Agent"
     }
   }
 }

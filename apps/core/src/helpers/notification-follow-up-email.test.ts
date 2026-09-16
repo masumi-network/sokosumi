@@ -218,16 +218,24 @@ describe("buildFollowUpEmail", () => {
     expect(textIn(email?.html ?? "")).toContain("Ping me back?");
   });
 
-  /** A deleted message leaves the row without a preview, and the email without a quote. */
+  /**
+   * A deleted message leaves the row without a preview, and the email without
+   * a quote. An edit can also leave whitespace behind, which must read as no
+   * message rather than as an empty quote, so the two emails are the same
+   * email.
+   */
   it("says the rest when there is no message to quote", async () => {
-    const email = await buildFollowUpEmail(
-      input({ messageParams: { authorName: "Ada", roomName: "Design" } }),
+    const params = { authorName: "Ada", roomName: "Design" };
+
+    const missing = await buildFollowUpEmail(input({ messageParams: params }));
+    const blank = await buildFollowUpEmail(
+      input({ messageParams: { ...params, messagePreview: "   " } }),
     );
 
-    const text = textIn(email?.html ?? "");
-
-    expect(text).toContain("Ada mentioned you in Design");
-    expect(text).not.toContain("pricing table");
+    expect(textIn(missing?.html ?? "")).toContain(
+      "Ada mentioned you in Design",
+    );
+    expect(blank?.html).toBe(missing?.html);
   });
 
   /**

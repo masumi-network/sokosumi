@@ -215,7 +215,23 @@ describe("reminder emails", () => {
       taskName: "Quarterly report",
     });
 
-    expect(rendered.html).toContain("A coworker needs your approval");
+    // Lower case: the fallback only ever lands mid-sentence.
+    expect(rendered.html).toContain("because a coworker needs your approval");
+  });
+
+  it("keeps the preheader on the same story as the body", async () => {
+    const rendered = await renderTaskFollowUpEmail({
+      actionUrl: TASK_URL,
+      locale: "en",
+      reason: "assigned",
+      recipientName: "Sandro",
+      taskName: "Quarterly report",
+    });
+
+    // The family preheader says the task stopped and asked for the reader. An
+    // assigned task did neither, so the reason has to reach the preheader too.
+    expect(rendered.html).toContain("was assigned to you a day ago");
+    expect(rendered.html).not.toContain("stopped and asked for you");
   });
 
   it("names the agent a job is waiting on", async () => {

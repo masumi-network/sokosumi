@@ -103,18 +103,23 @@ function renderFollowUpEmail({
 }: FollowUpEmailOptions): Promise<RenderedEmail> {
   const scope = `${FOLLOW_UP_SCOPE}.${family}`;
   const trimmedQuote = quote?.trim();
+  const body = reason
+    ? t(`${scope}.reasons.${reason}`, values)
+    : t(`${scope}.body`, values);
 
   return renderActionEmail({
     actionLabel: t(`${scope}.button`),
     actionUrl,
-    body: reason
-      ? t(`${scope}.reasons.${reason}`, values)
-      : t(`${scope}.body`, values),
+    body,
     facts,
     footer: t(`${FOLLOW_UP_SCOPE}.footer`),
     greeting: buildGreeting(t, recipientName),
     linkInstructions: t(`${FOLLOW_UP_SCOPE}.linkInstructions`),
-    preview: t(`${scope}.preview`, values),
+    // The preheader is the family's own line only when the body is too. A
+    // reason sentence says the task was assigned, or that a payment failed,
+    // and the family preheader says the opposite ("stopped and asked for
+    // you"), so the two lines would contradict each other inside one email.
+    preview: reason ? body : t(`${scope}.preview`, values),
     quote: trimmedQuote ? trimmedQuote : undefined,
     subject: t(`${scope}.subject`, values),
     title: t(`${scope}.title`),
