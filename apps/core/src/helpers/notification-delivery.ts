@@ -6,6 +6,7 @@ import {
   isFollowUpMessageKey,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
+  NOTIFICATION_EMAIL_CATEGORIES,
   type NotificationCategory,
   type NotificationChannel,
   notificationDefault,
@@ -133,6 +134,18 @@ export interface NotificationDelivery {
   inApp: boolean;
   osBanner: boolean;
   /**
+   * The reader's inbox (SOK-916).
+   *
+   * Only ever true for a category that sends email at all, which today is
+   * follow-ups alone (`NOTIFICATION_EMAIL_CATEGORIES`). Every other category
+   * has no email to send, so the answer here is no rather than unasked.
+   *
+   * Unlike the banner there is no account-wide consent gating this. The
+   * address is already the one the account signs in with, and the row in the
+   * matrix is the reader's say over it.
+   */
+  email: boolean;
+  /**
    * Set only when the reader's preferences would not read and this is a guess.
    *
    * The guess suits a caller that was going to write either way and only
@@ -232,6 +245,15 @@ export function resolveNotificationDelivery({
   return {
     inApp: isEnabled(category, "IN_APP", preferences),
     osBanner: pushOptIn && isEnabled(category, "OS_BANNER", preferences),
+    // Gated on the category the way the banner is gated on the account-wide
+    // consent: a category that sends no email has none to send however the
+    // stored row reads. The preferences route does not refuse such a row, and
+    // a reader could hold one from a build where the category did email, so
+    // the gate is here rather than trusted to the absence of the row.
+    email:
+      category !== null &&
+      NOTIFICATION_EMAIL_CATEGORIES.includes(category) &&
+      isEnabled(category, "EMAIL", preferences),
   };
 }
 
@@ -243,18 +265,27 @@ export interface NotificationMatrixCell {
 }
 
 /**
- * The whole matrix, one cell per category and channel.
+ * The whole matrix, one cell per category and channel the reader can decide.
  *
  * Complete rather than sparse, so the reader's settings page renders what it
  * is given and the defaults stay in one place. A stored row that names a
  * category or a channel this build does not know belongs to no cell and is
  * dropped.
+ *
+ * With one hole in it, and on purpose: a category that sends no email has no
+ * email cell (SOK-916). The settings page draws the cells it is handed, so
+ * this is what stops it drawing eight switches that control nothing. A stored
+ * `EMAIL` row for such a category, which the preferences route does not refuse,
+ * is dropped here along with the cell, because nothing would read it.
  */
 export function resolveNotificationMatrix(
   preferences: readonly StoredNotificationPreference[],
 ): NotificationMatrixCell[] {
   return NOTIFICATION_CATEGORIES.flatMap((category) =>
-    NOTIFICATION_CHANNELS.map((channel) => ({
+    NOTIFICATION_CHANNELS.filter(
+      (channel) =>
+        channel !== "EMAIL" || NOTIFICATION_EMAIL_CATEGORIES.includes(category),
+    ).map((channel) => ({
       category,
       channel,
       enabled: isEnabled(category, channel, preferences),

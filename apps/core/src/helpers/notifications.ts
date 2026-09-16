@@ -68,7 +68,7 @@ export async function resolveDelivery(
     });
 
     if (!user) {
-      return { inApp: true, osBanner: false };
+      return { inApp: true, osBanner: false, email: false };
     }
 
     return resolveNotificationDelivery({
@@ -90,7 +90,7 @@ export async function resolveDelivery(
       },
     });
 
-    return { inApp: true, osBanner: false, fellBack: true };
+    return { inApp: true, osBanner: false, email: false, fellBack: true };
   }
 }
 
@@ -320,7 +320,9 @@ export async function publishClearedNotifications(
       // No banner: nothing arrived. This says one stopped waiting.
       await publishNotificationRow(
         notification,
-        { inApp: notification.inApp, osBanner: false },
+        // No email. This says an existing row again over realtime; the
+        // email, if there was one, went out when the row was written.
+        { inApp: notification.inApp, osBanner: false, email: false },
         false,
       );
     }

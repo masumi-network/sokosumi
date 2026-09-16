@@ -51,10 +51,35 @@ export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
  * the in-app toast and never in the feed at all
  * (`BROWSER_ONLY_NOTIFICATION_KINDS`). Splitting them into separate channels
  * would give every row a cell that controls nothing.
+ *
+ * `EMAIL` is the one channel that is not offered on every row, for that same
+ * reason: a category can only be emailed when something sends the email.
+ * `NOTIFICATION_EMAIL_CATEGORIES` is the list of the ones that can.
  */
-export const NOTIFICATION_CHANNELS = ["IN_APP", "OS_BANNER"] as const;
+export const NOTIFICATION_CHANNELS = ["IN_APP", "OS_BANNER", "EMAIL"] as const;
 
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+/**
+ * The categories that actually send an email (SOK-916).
+ *
+ * Follow-ups alone today. A reminder is the one notification whose whole
+ * purpose is to reach a reader who is not looking at Sokosumi, so it is the
+ * one worth putting in their inbox.
+ *
+ * This list is what keeps the email column honest. A category absent from it
+ * is never drawn with an email switch and never defaults to on, so no reader
+ * is shown a switch that controls nothing. A category joins the list in the
+ * same change that teaches it to send an email, never before.
+ *
+ * Deliberately not here: the two job emails the product already sends
+ * (`renderJobFinalStatusEmail`, `renderJobInputRequiredEmail`). They answer to
+ * the account-wide `notificationsOptIn` rather than to this matrix. Moving
+ * them onto it is worth doing and is not this feature.
+ */
+export const NOTIFICATION_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
+  "FOLLOW_UP",
+];
 
 /**
  * What a missing row means: in Sokosumi yes, on the device no.
@@ -70,7 +95,10 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
  * Granting that consent is one press, and it was never a press about which
  * rows may interrupt.
  */
-const NOTIFICATION_CHANNEL_DEFAULT: Record<NotificationChannel, boolean> = {
+const NOTIFICATION_CHANNEL_DEFAULT: Record<
+  Exclude<NotificationChannel, "EMAIL">,
+  boolean
+> = {
   IN_APP: true,
   OS_BANNER: false,
 };
@@ -94,6 +122,17 @@ export function notificationDefault(
   category: NotificationCategory | null,
   channel: NotificationChannel,
 ): boolean {
+  // Asked before the null case below, because that case answers yes and there
+  // is no email to send for a category the matrix does not name. It is also
+  // the one channel whose default does not depend on the channel alone: a
+  // category that sends email defaults to on, and every other category has no
+  // email to be on about.
+  if (channel === "EMAIL") {
+    return (
+      category !== null && NOTIFICATION_EMAIL_CATEGORIES.includes(category)
+    );
+  }
+
   // A notification the matrix holds no row for cannot be turned on from the
   // settings page, so it keeps what it had: both channels, with the
   // account-wide opt-in still gating the banner.

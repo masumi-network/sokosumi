@@ -6,7 +6,7 @@ import {
   CHAT_MENTION_MESSAGE_KEY,
   JOB_FOLLOW_UP_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
-  NOTIFICATION_CHANNELS,
+  NOTIFICATION_EMAIL_CATEGORIES,
   type NotificationCategory,
   TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
@@ -238,7 +238,7 @@ describe("resolveNotificationDelivery", () => {
         preferences: NO_PREFERENCES,
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false });
+    ).toEqual({ inApp: true, osBanner: false, email: false });
   });
 
   it("withholds the banner without account-wide push consent", () => {
@@ -250,7 +250,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: false,
       }),
-    ).toEqual({ inApp: true, osBanner: false });
+    ).toEqual({ inApp: true, osBanner: false, email: false });
   });
 
   it("stops delivering in-app when the reader turned that cell off", () => {
@@ -263,7 +263,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: false, osBanner: true });
+    ).toEqual({ inApp: false, osBanner: true, email: false });
   });
 
   it("stops interrupting when the reader turned that banner cell off", () => {
@@ -275,7 +275,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false });
+    ).toEqual({ inApp: true, osBanner: false, email: false });
   });
 
   it("keeps one category's choice out of another's", () => {
@@ -288,7 +288,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false });
+    ).toEqual({ inApp: true, osBanner: false, email: false });
   });
 
   it("falls back to the defaults for a notification with no category", () => {
@@ -300,7 +300,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: true });
+    ).toEqual({ inApp: true, osBanner: true, email: false });
   });
 
   it("ignores a stored channel it does not recognise", () => {
@@ -310,7 +310,7 @@ describe("resolveNotificationDelivery", () => {
         preferences: [{ category: "SYSTEM", channel: "EMAIL", enabled: false }],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false });
+    ).toEqual({ inApp: true, osBanner: false, email: false });
   });
 });
 
@@ -322,7 +322,7 @@ describe("resolveNotificationDelivery for every message in a room", () => {
         preferences: [],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: false, osBanner: false });
+    ).toEqual({ inApp: false, osBanner: false, email: false });
   });
 
   it("delivers once the reader turns the row on", () => {
@@ -339,7 +339,78 @@ describe("resolveNotificationDelivery for every message in a room", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: true });
+    ).toEqual({ inApp: true, osBanner: true, email: false });
+  });
+});
+
+describe("resolveNotificationDelivery for a reminder", () => {
+  it("emails a reader who has set nothing", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "FOLLOW_UP",
+        preferences: [],
+        pushOptIn: false,
+      }),
+    ).toEqual({ inApp: true, osBanner: false, email: true });
+  });
+
+  it("stops emailing once the reader turns that cell off", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "FOLLOW_UP",
+        preferences: [
+          { category: "FOLLOW_UP", channel: "EMAIL", enabled: false },
+        ],
+        pushOptIn: false,
+      }),
+    ).toEqual({ inApp: true, osBanner: false, email: false });
+  });
+
+  it("keeps the reminder in Sokosumi when only the email is off", () => {
+    const delivery = resolveNotificationDelivery({
+      category: "FOLLOW_UP",
+      preferences: [
+        { category: "FOLLOW_UP", channel: "EMAIL", enabled: false },
+      ],
+      pushOptIn: false,
+    });
+
+    expect(delivery.inApp).toBe(true);
+  });
+
+  it("sends no email for a category that has no email to send", () => {
+    // Even with the row switched on. Nothing emails a task attention
+    // notification, so a stored row saying otherwise decides nothing.
+    expect(
+      resolveNotificationDelivery({
+        category: "TASK_ATTENTION",
+        preferences: [
+          { category: "TASK_ATTENTION", channel: "EMAIL", enabled: true },
+        ],
+        pushOptIn: false,
+      }).email,
+    ).toBe(false);
+  });
+});
+
+describe("resolveNotificationMatrix email column", () => {
+  it("offers an email cell only where an email is sent", () => {
+    const emailCells = resolveNotificationMatrix([]).filter(
+      (cell) => cell.channel === "EMAIL",
+    );
+
+    expect(emailCells.map((cell) => cell.category)).toEqual([
+      ...NOTIFICATION_EMAIL_CATEGORIES,
+    ]);
+  });
+
+  it("offers that cell switched on, so reminders reach an inbox by default", () => {
+    const emailCells = resolveNotificationMatrix([]).filter(
+      (cell) => cell.channel === "EMAIL",
+    );
+
+    expect(emailCells.every((cell) => cell.enabled)).toBe(true);
+    expect(emailCells.length).toBeGreaterThan(0);
   });
 });
 
@@ -347,8 +418,11 @@ describe("resolveNotificationMatrix", () => {
   it("answers for every cell, so the reader sees a complete matrix", () => {
     const matrix = resolveNotificationMatrix([]);
 
+    // Two channels for every category, and the email channel only for the
+    // categories that send email. Written as the sum rather than as a number,
+    // so a category or an email category added later moves it on its own.
     expect(matrix).toHaveLength(
-      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+      NOTIFICATION_CATEGORIES.length * 2 + NOTIFICATION_EMAIL_CATEGORIES.length,
     );
     expect(
       matrix
@@ -438,8 +512,11 @@ describe("resolveNotificationMatrix", () => {
       { category: "JOB_ATTENTION", channel: "CARRIER_PIGEON", enabled: false },
     ]);
 
+    // Two channels for every category, and the email channel only for the
+    // categories that send email. Written as the sum rather than as a number,
+    // so a category or an email category added later moves it on its own.
     expect(matrix).toHaveLength(
-      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+      NOTIFICATION_CATEGORIES.length * 2 + NOTIFICATION_EMAIL_CATEGORIES.length,
     );
     expect(
       matrix
