@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -16,9 +17,13 @@ interface ProjectsPageProps {
   }>;
 }
 
-export const metadata = {
-  title: "Projects",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Projects");
+
+  return {
+    title: t("title"),
+  };
+}
 
 /**
  * Async hole for Instant Nav. `await connection()` first so PPR shell probing
