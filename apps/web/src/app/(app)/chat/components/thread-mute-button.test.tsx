@@ -26,7 +26,12 @@ function thread(mutedAt: Date | null) {
 beforeEach(() => {
   vi.clearAllMocks();
   getRoomThreadActionMock.mockResolvedValue(thread(null));
-  setThreadMutedActionMock.mockResolvedValue({ ok: true, value: {} });
+  setThreadMutedActionMock.mockImplementation(
+    async (_roomId: string, _parentMessageId: string, muted: boolean) => ({
+      ok: true as const,
+      value: { mutedAt: muted ? new Date("2026-07-02T12:00:00.000Z") : null },
+    }),
+  );
 });
 
 const onChanged = vi.fn();
@@ -125,6 +130,25 @@ describe("ThreadMuteButton", () => {
     );
 
     expect(await screen.findByTestId("thread-panel-mute")).toBeInTheDocument();
+  });
+
+  /** The write is the truth; the optimistic value was only a guess. */
+  it("settles on the state the write answered with", async () => {
+    setThreadMutedActionMock.mockResolvedValue({
+      ok: true as const,
+      value: { mutedAt: null },
+    });
+
+    renderButton();
+
+    fireEvent.click(await screen.findByTestId("thread-panel-mute"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-panel-mute")).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+    });
   });
 
   it("puts the button back when the write fails", async () => {

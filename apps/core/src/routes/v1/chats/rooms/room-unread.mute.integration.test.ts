@@ -366,6 +366,27 @@ describeWithDb("thread mute against Postgres", () => {
     expect(await roomUnread()).toBe(2);
   });
 
+  it("keeps a broken-through mention when the reader mutes again", async () => {
+    await setChatRoomThreadMuted(
+      ROOM_ID,
+      READER_ID,
+      PARENT_ID,
+      true,
+      prisma!,
+      past(5),
+    );
+    const namedId = await reply(PARENT_ID, "@reader look");
+    await prisma?.chatRoomUserMention.create({
+      data: { messageId: namedId, userId: READER_ID },
+    });
+    expect(await unreadRepliesOn(PARENT_ID)).toBe(1);
+
+    // A stale second tab can send this: the thread is already muted.
+    await setChatRoomThreadMuted(ROOM_ID, READER_ID, PARENT_ID, true, prisma!);
+
+    expect(await unreadRepliesOn(PARENT_ID)).toBe(1);
+  });
+
   it("reports the mute state on the thread", async () => {
     await reply(PARENT_ID);
     await setChatRoomThreadMuted(ROOM_ID, READER_ID, PARENT_ID, true, prisma!);

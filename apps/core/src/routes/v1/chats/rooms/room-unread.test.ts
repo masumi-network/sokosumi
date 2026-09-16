@@ -502,6 +502,27 @@ describe("setChatRoomThreadMuted", () => {
     });
   });
 
+  /** Repeating the mute must not step over a reply that broke through it. */
+  it("writes nothing when the thread is already muted", async () => {
+    const mutedAt = new Date("2026-07-02T10:00:00.000Z");
+    const { tx, upsert } = txWith(
+      { id: PARENT_ID },
+      { state: { lastReadAt: mutedAt, mutedAt } },
+    );
+
+    const state = await setChatRoomThreadMuted(
+      ROOM_ID,
+      USER_ID,
+      PARENT_ID,
+      true,
+      tx,
+      new Date("2026-07-02T12:00:00.000Z"),
+    );
+
+    expect(state).toEqual({ parentMessageId: PARENT_ID, mutedAt });
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   /** Unmuting resumes from now; it does not hand back the silenced stretch. */
   it("unmutes and looks the thread, without creating a row", async () => {
     const now = new Date("2026-07-02T12:00:00.000Z");

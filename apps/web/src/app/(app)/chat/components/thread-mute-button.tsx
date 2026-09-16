@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff } from "lucide-react";
+import { Volume2, VolumeX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 
@@ -41,7 +41,7 @@ export function ThreadMuteButton({
   });
   // Another thread's answer says nothing about this one.
   const muted = known.key === threadKey ? known.muted : null;
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     // Only read while the state is unknown. A reply landing mid-toggle must
@@ -68,6 +68,8 @@ export function ThreadMuteButton({
   const label = muted ? t("unmute") : t("mute");
 
   function handleClick() {
+    // Stays enabled while the write runs: disabling it fades the icon out and
+    // back on every click, and both directions are idempotent anyway.
     const next = !muted;
     // Answer the click now; the request only confirms it.
     setKnown({ key: threadKey, muted: next });
@@ -77,6 +79,10 @@ export function ThreadMuteButton({
         setKnown({ key: threadKey, muted: !next });
         return;
       }
+      // Settle on what the write answered, not on what the click assumed.
+      // Next serialises these actions per session, so the last answer is the
+      // current one even when the reader toggles twice in a round trip.
+      setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
       onChanged?.();
     });
   }
@@ -90,14 +96,13 @@ export function ThreadMuteButton({
       aria-label={label}
       aria-pressed={muted}
       title={label}
-      disabled={isPending}
       onClick={handleClick}
       data-testid="thread-panel-mute"
     >
       {muted ? (
-        <BellOff className="size-4" aria-hidden />
+        <VolumeX className="size-4" aria-hidden />
       ) : (
-        <Bell className="size-4" aria-hidden />
+        <Volume2 className="size-4" aria-hidden />
       )}
     </Button>
   );

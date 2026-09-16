@@ -535,10 +535,9 @@ async function threadNamedReaderSinceLook(
  *
  * Muting Looks the thread, so it takes the replies already waiting with it.
  * Unmuting Looks it too, so paging starts from now rather than replaying the
- * stretch that was deliberately silenced. Two exceptions: a thread that was
- * not muted keeps its look, because advancing it there would eat real unread
- * replies; and a thread that named the reader while it was muted keeps its
- * look too, because that reply was never silenced.
+ * stretch that was deliberately silenced. Repeating either direction changes
+ * nothing, which is what keeps a reply that named the reader after the first
+ * mute: it broke through on purpose, and a second Look would step over it.
  *
  * A parent with no live reply is not a Thread, in either direction: there is
  * nothing to page anyone, and the read-back the routes answer with would find
@@ -566,43 +565,52 @@ export async function setChatRoomThreadMuted(
     return null;
   }
 
-  if (!muted) {
-    const state = await tx.chatRoomThreadReadState.findUnique({
-      where: { userId_parentMessageId: { userId, parentMessageId: parent.id } },
-      select: { lastReadAt: true, mutedAt: true },
-    });
-    if (state?.mutedAt) {
-      const named = await threadNamedReaderSinceLook(
-        tx,
-        userId,
-        parent.id,
-        state.lastReadAt,
-      );
-      await tx.chatRoomThreadReadState.update({
-        where: {
-          userId_parentMessageId: { userId, parentMessageId: parent.id },
-        },
-        // Leave the look where mute put it when the thread named the reader
-        // while it was muted: that reply is unread, and a high-water mark
-        // cannot clear the chatter around it without clearing it too.
-        data: named ? { mutedAt: null } : { mutedAt: null, lastReadAt: now },
-      });
-    }
-    return { parentMessageId: parent.id, mutedAt: null };
-  }
-
-  const state = await tx.chatRoomThreadReadState.upsert({
+  const existing = await tx.chatRoomThreadReadState.findUnique({
     where: { userId_parentMessageId: { userId, parentMessageId: parent.id } },
-    update: { mutedAt: now, lastReadAt: now },
-    create: {
-      userId,
-      parentMessageId: parent.id,
-      mutedAt: now,
-      lastReadAt: now,
-    },
+    select: { lastReadAt: true, mutedAt: true },
   });
 
-  return { parentMessageId: state.parentMessageId, mutedAt: state.mutedAt };
+  if (muted) {
+    // Muting an already muted thread changes nothing. Advancing the look
+    // again would step over a reply that named the reader in the meantime,
+    // and that reply broke through the mute on purpose.
+    if (existing?.mutedAt) {
+      return { parentMessageId: parent.id, mutedAt: existing.mutedAt };
+    }
+
+    const state = await tx.chatRoomThreadReadState.upsert({
+      where: { userId_parentMessageId: { userId, parentMessageId: parent.id } },
+      update: { mutedAt: now, lastReadAt: now },
+      create: {
+        userId,
+        parentMessageId: parent.id,
+        mutedAt: now,
+        lastReadAt: now,
+      },
+    });
+
+    return { parentMessageId: state.parentMessageId, mutedAt: state.mutedAt };
+  }
+
+  // Unmuting a thread that was not muted writes nothing: there is no silenced
+  // stretch to step over, and advancing the look would eat real unread.
+  if (existing?.mutedAt) {
+    const named = await threadNamedReaderSinceLook(
+      tx,
+      userId,
+      parent.id,
+      existing.lastReadAt,
+    );
+    await tx.chatRoomThreadReadState.update({
+      where: { userId_parentMessageId: { userId, parentMessageId: parent.id } },
+      // Leave the look where mute put it when the thread named the reader
+      // while it was muted: that reply is unread, and a high-water mark
+      // cannot clear the chatter around it without clearing it too.
+      data: named ? { mutedAt: null } : { mutedAt: null, lastReadAt: now },
+    });
+  }
+
+  return { parentMessageId: parent.id, mutedAt: null };
 }
 
 /**
