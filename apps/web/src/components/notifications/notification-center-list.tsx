@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -51,6 +51,7 @@ export function NotificationCenterList({
   const { notice } = useAccountNotice();
   const {
     notifications,
+    unreadCount,
     view,
     markRead,
     isLoading,
@@ -63,6 +64,32 @@ export function NotificationCenterList({
   const [pendingNotificationId, setPendingNotificationId] = useState<
     string | null
   >(null);
+  // Read rows stay in the feed so mark-read can roll back. The Unread view
+  // only hides them after the fold, which is a lens, not a delete.
+  const [hiddenIds, setHiddenIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    setHiddenIds(new Set());
+  }, [view]);
+
+  const hideRow = useCallback((id: string) => {
+    setHiddenIds((current) => {
+      if (current.has(id)) return current;
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const visibleNotifications =
+    view === "unread"
+      ? notifications.filter(
+          (notification) =>
+            !notification.isRead || !hiddenIds.has(notification.id),
+        )
+      : notifications;
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
@@ -90,7 +117,13 @@ export function NotificationCenterList({
     });
   };
 
-  if (notifications.length === 0) {
+  const oldest = notifications.at(-1);
+  const showOlderBoundary =
+    hasMore &&
+    oldest !== undefined &&
+    !(view === "unread" && unreadCount === 0);
+
+  if (visibleNotifications.length === 0) {
     if (isLoading) {
       return <NotificationsSkeletonRows />;
     }
@@ -113,13 +146,31 @@ export function NotificationCenterList({
       );
     }
 
+    // Loaded Unread rows can leave while Core still has older unread ones.
+    // Keep the older-page boundary so the tab does not say "caught up" and
+    // so a failed older load still has a retry.
+    if (view === "unread" && unreadCount > 0 && showOlderBoundary && oldest) {
+      return (
+        <NotificationOlderBoundaryRow
+          oldestId={oldest.id}
+          status={olderStatus}
+          onLoad={loadOlder}
+        />
+      );
+    }
+
     // An account notice above the list already gives the frame something to
     // say, and "No notifications yet" under it would read as a contradiction.
     if (notice !== null) {
       return null;
     }
 
-    // An empty narrowed list is good news, not a broken list.
+    // An empty narrowed list is good news, not a broken list. Unread uses
+    // the badge, not "did we hide the last loaded row".
+    if (view === "unread" && unreadCount > 0) {
+      return null;
+    }
+
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <p className="text-muted-foreground text-center text-sm">
@@ -129,16 +180,15 @@ export function NotificationCenterList({
     );
   }
 
-  const oldest = notifications.at(-1);
-
   return (
     <>
       <div className="divide-border divide-y">
-        {notifications.map((notification) => (
+        {visibleNotifications.map((notification) => (
           <LeavingRow
             key={notification.id}
             notificationId={notification.id}
             isLeaving={view === "unread" && notification.isRead}
+            onDeparted={hideRow}
           >
             <NotificationCenterRow
               notification={notification}
@@ -155,7 +205,7 @@ export function NotificationCenterList({
       </div>
       {/* Nothing older left means nothing here: the end of the list reads as
           the end, rather than as a list that stopped for a reason. */}
-      {hasMore && oldest ? (
+      {showOlderBoundary && oldest ? (
         <NotificationOlderBoundaryRow
           oldestId={oldest.id}
           status={olderStatus}
@@ -173,6 +223,8 @@ interface LeavingRowProps {
   notificationId: string;
   /** Whether the row no longer belongs to the view it is drawn in. */
   isLeaving: boolean;
+  /** Hide the row in this view after the fold. Does not delete it from the feed. */
+  onDeparted: (id: string) => void;
   children: ReactNode;
 }
 
@@ -188,22 +240,33 @@ interface LeavingRowProps {
  * goes right away. Putting the row back to unread before leaving it cancels
  * the departure, because the row is no longer leaving.
  */
-function LeavingRow({ notificationId, isLeaving, children }: LeavingRowProps) {
-  const { removeNotification } = useNotifications();
+function LeavingRow({
+  notificationId,
+  isLeaving,
+  onDeparted,
+  children,
+}: LeavingRowProps) {
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [isFocusInside, setIsFocusInside] = useState(false);
   const isCollapsed = isLeaving && !isPointerInside && !isFocusInside;
 
-  // The removal waits for the fold to finish. A row put back to unread mid
-  // fold is no longer collapsed, and the cleanup drops the pending removal.
+  // The hide waits for the fold to finish. A row put back to unread mid
+  // fold is no longer collapsed, and the cleanup drops the pending hide.
   useEffect(() => {
     if (!isCollapsed) return;
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      onDeparted(notificationId);
+      return;
+    }
     const timer = window.setTimeout(() => {
-      removeNotification(notificationId);
+      onDeparted(notificationId);
     }, LEAVE_DURATION_MS);
 
     return () => window.clearTimeout(timer);
-  }, [isCollapsed, notificationId, removeNotification]);
+  }, [isCollapsed, notificationId, onDeparted]);
 
   return (
     <div

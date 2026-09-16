@@ -387,6 +387,14 @@ export function NotificationProvider({
 
   const loadOlder = useCallback(() => {
     if (olderInFlight.current) return;
+    // Unread + a 0 badge: collapsing rows can expose the older-page sentinel
+    // while hasMore is still true. The badge already says there is nothing left.
+    if (
+      viewRef.current === "unread" &&
+      confirmedState.current.unreadCount === 0
+    ) {
+      return;
+    }
     const oldest = confirmedState.current.notifications.at(-1);
     const cursor = olderCursorOverride.current ?? oldest?.id;
     if (!cursor) return;

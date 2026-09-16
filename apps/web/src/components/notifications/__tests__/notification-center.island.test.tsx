@@ -843,8 +843,58 @@ describe("Notification Center view filter", () => {
         expect(screen.queryByText("mine")).toBeNull();
       });
       expect(screen.getByText("emptyUnreadState")).toBeTruthy();
-      // Dropping a row that was already read does not touch the badge.
-      expect(getNotificationsUnreadCountMock).toHaveBeenCalled();
+      // The row was already counted as read; hiding it must not restore the badge.
+      expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "keeps paging in Unread after loaded rows leave while more remain in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+      patchNotificationReadMock.mockResolvedValue({
+        data: { ...first, isRead: true, readAt: new Date() },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "markRead: first" }));
+      await settle();
+      await user.unhover(screen.getByText("first"));
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+      });
+
+      expect(screen.queryByText("emptyUnreadState")).toBeNull();
+      expect(screen.getByTestId("notification-older-boundary")).toBeTruthy();
+
+      getNotificationsMock.mockResolvedValue(
+        page([
+          row("older", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-16T09:00:00.000Z"),
+          }),
+        ]),
+      );
+      await act(async () => {
+        intersect(screen.getByTestId("notification-older-boundary"));
+        await Promise.resolve();
+      });
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        cursor: "first",
+        isRead: "false",
+      });
+      expect(screen.getByText("older")).toBeTruthy();
     },
   );
 
@@ -938,6 +988,95 @@ describe("Notification Center view filter", () => {
       });
       expect(screen.getByText("emptyUnreadState")).toBeTruthy();
       expect(screen.queryByText("emptyState")).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "does not load the next unread page after mark all read in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      const second = row("second", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([first, second], "second"));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 4 } });
+      patchNotificationsReadAllMock.mockImplementation(
+        () => new Promise(() => {}),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first, second], "second"));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      const callsBeforeMarkAll = getNotificationsMock.mock.calls.length;
+      await user.click(screen.getByRole("button", { name: "markAllRead" }));
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+        expect(screen.queryByText("second")).toBeNull();
+      });
+
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      expect(screen.queryByTestId("notification-older-boundary")).toBeNull();
+      expect(getNotificationsMock.mock.calls.length).toBe(callsBeforeMarkAll);
+      expect(getNotificationsMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: "second" }),
+      );
+    },
+  );
+
+  it.each(FRAMES)(
+    "puts a row back when mark-read fails after it left the Unread view in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      const second = row("second", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+
+      let rejectRead!: (error: Error) => void;
+      patchNotificationReadMock.mockImplementation(
+        () =>
+          new Promise((_, reject) => {
+            rejectRead = reject;
+          }),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "markRead: first" }));
+      await settle();
+      await user.unhover(screen.getByText("first"));
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+      });
+      expect(screen.getByText("second")).toBeTruthy();
+
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      getNotificationsMock.mockRejectedValue(new Error("offline"));
+      await act(async () => {
+        rejectRead(new Error("offline"));
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("first")).toBeTruthy();
+      });
+      expect(screen.getByText("second")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "markRead: first" }),
+      ).toBeTruthy();
+      consoleError.mockRestore();
     },
   );
 
