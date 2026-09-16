@@ -68,6 +68,14 @@ _Avoid_: Paused turn, confirmation card (presentation), Eve approval
 A person who builds, runs, and maintains Coworkers. Distinct from an Agent developer and from a user who assigns Tasks.
 _Avoid_: Agent developer (when meaning this), calling a Coworker an Agent
 
+**Coworker runtime**:
+An external execution environment that runs a Coworker.
+_Avoid_: Agent, Agent runtime
+
+**Runtime adapter**:
+A bridge between Sokosumi and one Coworker runtime. It is distinct from a Developer CLI skill.
+_Avoid_: Agent plugin, Sokosumi plugin (when meaning this)
+
 **Agent developer**:
 A person who lists Agents on the Masumi registry for Hire. Distinct from a Coworker developer.
 _Avoid_: Coworker developer (when meaning this)
@@ -141,6 +149,10 @@ _Avoid_: Profile menu (unless a separate account menu is introduced), notificati
 **Security check**:
 The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
+
+**Impersonation**:
+A platform admin acting as a non-admin user in a full one-hour session, started from the admin user overview with a required reason. Badged by a persistent "Acting as {name} ({email})" banner with an Exit control on every app page; every start is audit-logged with actor, target, and reason, and every stop with actor and target (stopping takes no reason by design).
+_Avoid_: Login as, switch user, mask
 
 ### Workspaces
 

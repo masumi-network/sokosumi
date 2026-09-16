@@ -1,7 +1,7 @@
 # SPEC
 
 ## §G GOAL
-apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or user API key. Headless Core discovery, Agent, Coworker, Task, Job commands. Ink status/resource views. User API-key mint depends on Core credential route. ⊥ marketplace TUI. ⊥ workspace connect / chat (later slice).
+apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or user API key. Headless Core discovery, Agent, Coworker, Task, Job commands. Ink status/resource views. User API-key mint depends on Core credential route. ⊥ marketplace TUI. ⊥ workspace connect / chat (later slice). Current slice → SOK-1069/T27 Ink TUI; ⊥ new runtime adapters, Agent-developer/promotion flow, workspace connect/chat, and new Core auth routes.
 
 ## §C CONSTRAINTS
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md:43]

@@ -4,6 +4,42 @@ export type ClientOptions = {
     baseUrl: `${string}://openapi-core.snapshot.json` | (string & {});
 };
 
+export type AdminUserOption = {
+    id: string;
+    name: string;
+    email: string;
+};
+
+export type PaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Total number of items
+     */
+    total: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
+export type StartImpersonationBody = {
+    /**
+     * ID of the non-admin user to impersonate
+     */
+    userId: string;
+    /**
+     * Why this impersonation is started (Linear-id convention, e.g. SOK-123: reproduce). Stored in the audit log.
+     */
+    reason: string;
+};
+
 export type AdminAgentList = Array<AdminAgentListItem>;
 
 export type AdminAgentListItem = {
@@ -27,25 +63,6 @@ export const AgentStatus = {
 } as const;
 
 export type AgentStatus = typeof AgentStatus[keyof typeof AgentStatus];
-
-export type PaginationMetadata = {
-    /**
-     * Cursor for the current page
-     */
-    cursor: string | null;
-    /**
-     * Number of items returned
-     */
-    limit: number;
-    /**
-     * Total number of items
-     */
-    total: number;
-    /**
-     * Cursor for the next page
-     */
-    nextCursor: string | null;
-};
 
 export type AdminAgentDetail = {
     registry: AdminAgentRegistry;
@@ -160,12 +177,6 @@ export type PatchAdminAgentMetadataOverrideBody = {
     image?: string | null;
     tags?: Array<string>;
     exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
-};
-
-export type AdminUserOption = {
-    id: string;
-    name: string;
-    email: string;
 };
 
 export type AdminOrganizationOption = {
@@ -667,6 +678,10 @@ export type AdminUserOverviewItem = {
     id: string;
     name: string;
     email: string;
+    /**
+     * Comma-separated platform roles; contains admin for platform admins
+     */
+    role: string;
     createdAt: Date;
     /**
      * Available personal credits
@@ -6206,6 +6221,227 @@ export type ContextUserId = string;
  * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
  */
 export type ContextOrganizationId = string;
+
+export type StopAdminImpersonationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/impersonation';
+};
+
+export type StopAdminImpersonationErrors = {
+    /**
+     * Bad Request - not currently impersonating
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StopAdminImpersonationError = StopAdminImpersonationErrors[keyof StopAdminImpersonationErrors];
+
+export type StopAdminImpersonationResponses = {
+    /**
+     * The restored admin user
+     */
+    200: {
+        data: AdminUserOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StopAdminImpersonationResponse = StopAdminImpersonationResponses[keyof StopAdminImpersonationResponses];
+
+export type StartAdminImpersonationData = {
+    body?: StartImpersonationBody;
+    path?: never;
+    query?: never;
+    url: '/admin/impersonation';
+};
+
+export type StartAdminImpersonationErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - admin access required or target is an admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - target user does not exist
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - already impersonating a user
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartAdminImpersonationError = StartAdminImpersonationErrors[keyof StartAdminImpersonationErrors];
+
+export type StartAdminImpersonationResponses = {
+    /**
+     * The user now being impersonated
+     */
+    201: {
+        data: AdminUserOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartAdminImpersonationResponse = StartAdminImpersonationResponses[keyof StartAdminImpersonationResponses];
 
 export type ListAdminAgentsData = {
     body?: never;
