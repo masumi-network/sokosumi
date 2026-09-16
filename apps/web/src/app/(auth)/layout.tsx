@@ -61,7 +61,7 @@ export default async function AuthLayout({
   return (
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
       <div
-        className={cn("flex h-svh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
+        className={cn("flex h-dvh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
       >
         <div className="flex h-full flex-1 flex-col gap-6">
           <Link href="/" className="inline-flex min-h-6 items-center">

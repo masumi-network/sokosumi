@@ -38,7 +38,7 @@ export default function NotFound() {
   const t = useTranslations("NotFound");
 
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="flex min-h-dvh flex-col">
       <Suspense fallback={null}>
         <NotFoundImpersonationBanner />
       </Suspense>

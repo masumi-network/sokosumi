@@ -74,7 +74,7 @@ function printImage(src: string, alt: string): void {
   doc.write(`<!doctype html><html><head><title></title>
 <style>
   html, body { margin: 0; padding: 0; background: #fff; }
-  img { max-width: 100%; max-height: 100vh; display: block; margin: 0 auto; }
+  img { max-width: 100%; max-height: 100dvh; display: block; margin: 0 auto; }
   @media print { body { -webkit-print-color-adjust: exact; } }
 </style></head><body></body></html>`);
   doc.close();
@@ -308,7 +308,7 @@ export function ImageViewer({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "fixed inset-0 top-0 left-0 z-50 flex h-screen w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-black p-0 shadow-none sm:max-w-none",
+          "fixed inset-0 top-0 left-0 z-50 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-black p-0 shadow-none sm:max-w-none",
           className,
         )}
         data-testid="image-viewer"

@@ -28,7 +28,7 @@ export default function Error({
   return renderIfAuthenticated(
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl px-4 py-6">
-        <div className="flex min-h-[80vh] items-center justify-center">
+        <div className="flex min-h-[80dvh] items-center justify-center">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>{copy.title}</CardTitle>
