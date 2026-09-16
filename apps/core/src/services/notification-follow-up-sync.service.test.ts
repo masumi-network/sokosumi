@@ -533,7 +533,7 @@ describe("NotificationFollowUpSyncService", () => {
    * status: the service never reads a task or a job, and must not start to.
    *
    * The page-side write is `MarkNotificationsRead` in web, which calls
-   * `PATCH /v1/notifications/read-for-reference` when the task or job page
+   * `PATCH /v1/notifications/read` with a reference when the task or job page
    * opens. Without it these rows stayed unread and this feature reminded
    * readers of work they had already finished.
    */
