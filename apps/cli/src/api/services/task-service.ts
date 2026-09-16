@@ -30,14 +30,6 @@ export interface CreateTaskData {
   context?: Record<string, unknown>;
 }
 
-export interface AddJobToTaskData {
-  agentId?: string;
-  inputSchema?: unknown;
-  inputData?: Record<string, unknown>;
-  maxCredits?: number;
-  name?: string;
-}
-
 export interface CreateTaskEventData {
   status?: string;
   comment?: string;
@@ -141,28 +133,6 @@ export async function fetchTaskJobs(
     ),
   );
   return { response, jobs: response.data.map(parseAgentJob) };
-}
-
-export async function addJobToTask(
-  client: CoreHttpClient,
-  taskId: string,
-  data: AddJobToTaskData = {},
-  signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown>; job: unknown }> {
-  requireId(taskId, "taskId");
-  if (!data.agentId) throw new Error("agentId is required");
-  if (!data.inputSchema) throw new Error("inputSchema is required");
-  const payload = { ...data, inputData: data.inputData ?? {} };
-  if (typeof payload.name === "string")
-    payload.name = payload.name.trim() || undefined;
-  const response = parseApiResponse(
-    await client.post<unknown>(
-      `${TASKS_PATH}/${encodeURIComponent(taskId)}/jobs`,
-      payload,
-      signal,
-    ),
-  );
-  return { response, job: response.data };
 }
 
 export async function fetchTaskEvents(

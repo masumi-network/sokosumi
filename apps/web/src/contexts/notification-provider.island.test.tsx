@@ -9,6 +9,7 @@ import {
 
 const getNotificationsMock = vi.fn();
 const patchNotificationReadMock = vi.fn();
+const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
 const deleteNotificationMock = vi.fn();
 const deleteNotificationsMock = vi.fn();
@@ -29,6 +30,8 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
       getNotificationsUnreadCountMock(...args),
     patchNotificationRead: (...args: unknown[]) =>
       patchNotificationReadMock(...args),
+    patchNotificationUnread: (...args: unknown[]) =>
+      patchNotificationUnreadMock(...args),
     patchNotificationsReadAll: (...args: unknown[]) =>
       patchNotificationsReadAllMock(...args),
     deleteNotification: (...args: unknown[]) => deleteNotificationMock(...args),
@@ -129,6 +132,7 @@ describe("NotificationProvider island", () => {
   beforeEach(() => {
     getNotificationsMock.mockReset();
     patchNotificationReadMock.mockReset();
+    patchNotificationUnreadMock.mockReset();
     patchNotificationsReadAllMock.mockReset();
     getNotificationsUnreadCountMock.mockReset();
     useNotificationRealtimeMock.mockReset();
@@ -512,6 +516,216 @@ describe("NotificationProvider deleting", () => {
       await Promise.resolve();
     });
   }
+
+  it("a delayed unread response must not undo later mark all read", async () => {
+    let resolveUnread!: (value: unknown) => void;
+    patchNotificationUnreadMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveUnread = resolve;
+        }),
+    );
+    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = currentNotifications.markUnread("notification-read");
+    });
+    let pendingAll!: Promise<void>;
+    await act(async () => {
+      pendingAll = currentNotifications.markAllRead();
+    });
+    expect(currentNotifications.unreadCount).toBe(0);
+    await act(async () => {
+      resolveUnread({ data: { ...READ_ROW, isRead: false, readAt: null } });
+      await pending;
+      await pendingAll;
+    });
+    expect(
+      currentNotifications.notifications.find(
+        (row) => row.id === "notification-read",
+      )?.isRead,
+    ).toBe(true);
+    expect(currentNotifications.unreadCount).toBe(0);
+  });
+
+  it("a delayed unread event must not undo completed mark all read", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({
+      data: { ...READ_ROW, isRead: false, readAt: null },
+    });
+    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    await act(async () => {
+      await currentNotifications.markUnread(READ_ROW.id);
+      await currentNotifications.markAllRead();
+    });
+    getNotificationsMock.mockResolvedValue({
+      data: [{ ...UNREAD_ROW, isRead: true }, READ_ROW],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    await act(async () => {
+      useNotificationRealtimeMock.mock.lastCall?.[0].onNotification({
+        ...READ_ROW,
+        isRead: false,
+        readAt: null,
+        inApp: true,
+        osBanner: false,
+        created: false,
+      });
+    });
+    expect(
+      currentNotifications.notifications.find((row) => row.id === READ_ROW.id)
+        ?.isRead,
+    ).toBe(true);
+    expect(currentNotifications.unreadCount).toBe(0);
+  });
+
+  it("a fetch during queued mark all read must not restore old snapshot", async () => {
+    const unread = Promise.withResolvers<unknown>();
+    patchNotificationUnreadMock.mockReturnValueOnce(unread.promise);
+    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let pending!: Promise<void>;
+    let all!: Promise<void>;
+    await act(async () => {
+      pending = currentNotifications.markUnread(READ_ROW.id);
+      all = currentNotifications.markAllRead();
+    });
+    await act(async () => {
+      void currentNotifications.refetch();
+    });
+    getNotificationsMock.mockResolvedValue({
+      data: [{ ...UNREAD_ROW, isRead: true }, READ_ROW],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    await act(async () => {
+      unread.resolve({ data: { ...READ_ROW, isRead: false, readAt: null } });
+      await Promise.all([pending, all]);
+    });
+    expect(currentNotifications.unreadCount).toBe(0);
+    expect(currentNotifications.notifications.every((row) => row.isRead)).toBe(
+      true,
+    );
+  });
+
+  it("does not apply a fetch started before mark all read", async () => {
+    await renderLoaded();
+    const stale = Promise.withResolvers<{
+      data: (typeof UNREAD_ROW | typeof READ_ROW)[];
+    }>();
+    getNotificationsMock.mockReturnValueOnce(stale.promise);
+    let fetching!: Promise<void>;
+    await act(async () => {
+      fetching = currentNotifications.refetch();
+    });
+    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsMock.mockResolvedValue({
+      data: [{ ...UNREAD_ROW, isRead: true }, READ_ROW],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    await act(async () => {
+      await currentNotifications.markAllRead();
+    });
+    await act(async () => {
+      stale.resolve({ data: [UNREAD_ROW, READ_ROW] });
+      await fetching;
+    });
+    expect(currentNotifications.unreadCount).toBe(0);
+    expect(currentNotifications.notifications.every((row) => row.isRead)).toBe(
+      true,
+    );
+  });
+
+  it("reconciles a genuine unread event from another tab", async () => {
+    await renderLoaded();
+    getNotificationsMock.mockResolvedValue({
+      data: [UNREAD_ROW, { ...READ_ROW, isRead: false, readAt: null }],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    await act(async () => {
+      useNotificationRealtimeMock.mock.lastCall?.[0].onNotification({
+        ...READ_ROW,
+        isRead: false,
+        readAt: null,
+        inApp: true,
+        osBanner: false,
+        created: false,
+      });
+    });
+    expect(currentNotifications.unreadCount).toBe(2);
+    expect(currentNotifications.notifications.every((row) => !row.isRead)).toBe(
+      true,
+    );
+  });
+
+  it("a read during initial fetch must not discard initial feed", async () => {
+    const firstFetch = Promise.withResolvers<unknown>();
+    getNotificationsMock.mockReturnValue(firstFetch.promise);
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...UNREAD_ROW, isRead: true, readAt: new Date() },
+    });
+    await renderLoaded();
+    await act(async () => {
+      await currentNotifications.markRead(UNREAD_ROW.id);
+    });
+    await act(async () => {
+      firstFetch.resolve({ data: [{ ...UNREAD_ROW, isRead: true }, READ_ROW] });
+    });
+    expect(currentNotifications.notifications).toHaveLength(2);
+  });
+
+  it("puts a read row back and adds it to the bell", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({
+      data: { ...READ_ROW, isRead: false, readAt: null },
+    });
+    await renderLoaded();
+    expect(currentNotifications.unreadCount).toBe(1);
+
+    await act(async () => {
+      await currentNotifications.markUnread("notification-read");
+    });
+
+    expect(patchNotificationUnreadMock).toHaveBeenCalledWith({
+      id: "notification-read",
+    });
+    expect(currentNotifications.unreadCount).toBe(2);
+    expect(
+      currentNotifications.notifications.find(
+        (row) => row.id === "notification-read",
+      )?.isRead,
+    ).toBe(false);
+  });
+
+  it("leaves the bell alone when the row was already unread", async () => {
+    patchNotificationUnreadMock.mockResolvedValue({ data: UNREAD_ROW });
+    await renderLoaded();
+
+    await act(async () => {
+      await currentNotifications.markUnread("notification-unread");
+    });
+
+    expect(currentNotifications.unreadCount).toBe(1);
+  });
+
+  it("refetches when putting a row back fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    await renderLoaded();
+    const fetchCallsBefore = getNotificationsMock.mock.calls.length;
+    patchNotificationUnreadMock.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await expect(
+        currentNotifications.markUnread("notification-read"),
+      ).rejects.toThrow("offline");
+    });
+
+    expect(getNotificationsMock.mock.calls.length).toBeGreaterThan(
+      fetchCallsBefore,
+    );
+    consoleError.mockRestore();
+  });
 
   it("takes a deleted row out of the list and off the bell", async () => {
     await renderLoaded();

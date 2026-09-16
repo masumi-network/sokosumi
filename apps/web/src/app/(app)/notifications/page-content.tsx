@@ -11,6 +11,11 @@ import { NotificationsListSkeleton } from "@/app/notifications/components/notifi
 import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { DeleteNotificationButton } from "@/components/notifications/delete-notification-button";
+import { NotificationRowIcon } from "@/components/notifications/notification-row-icon";
+import {
+  NotificationUnreadLabel,
+  NotificationUnreadRail,
+} from "@/components/notifications/notification-unread-signal";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -19,7 +24,6 @@ import { useSession } from "@/lib/auth/auth.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
-import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
@@ -272,7 +276,6 @@ function NotificationRow({
     isPendingCoworkerAccessNotification(notification);
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
-  const Icon = getNotificationIcon(notification);
   const rowClassName = cn(
     "group/row hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     isPending && "bg-accent opacity-80",
@@ -281,36 +284,25 @@ function NotificationRow({
 
   const body = (
     <div className="flex w-full items-start gap-3">
-      <span
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full",
-          // Translucent, so the circle survives the row's hover tint, which
-          // is the same colour as the muted surface.
-          notification.isRead
-            ? "bg-foreground/10 text-muted-foreground"
-            : "bg-primary/15 text-primary",
-        )}
-        aria-hidden
-      >
-        <Icon className="size-4" />
-      </span>
+      <NotificationRowIcon notification={notification} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <NotificationUnreadLabel isRead={notification.isRead} />
+        {/* The message keeps one weight in both states. A heavier unread
+            message re-wraps the moment the row is marked read, and every row
+            below it moves. The rail and the icon tint carry the state
+            instead, and neither changes a glyph's width. */}
         {showPendingAccessActions ? (
           <button
             type="button"
             className="hover:bg-accent/50 -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={() => onClick(notification)}
           >
-            <p className={cn("text-sm", !notification.isRead && "font-medium")}>
-              {message}
-            </p>
+            <p className="text-sm">{message}</p>
             <p className="text-muted-foreground text-xs">{timeLabel}</p>
           </button>
         ) : (
           <>
-            <p className={cn("text-sm", !notification.isRead && "font-medium")}>
-              {message}
-            </p>
+            <p className="text-sm">{message}</p>
             <p className="text-muted-foreground text-xs">{timeLabel}</p>
           </>
         )}
@@ -349,6 +341,7 @@ function NotificationRow({
   if (showPendingAccessActions) {
     return (
       <div className={rowClassName}>
+        <NotificationUnreadRail isRead={notification.isRead} />
         <div className="flex min-w-0 flex-1 p-4">{body}</div>
         <div className="p-3">{deleteControl}</div>
       </div>
@@ -358,6 +351,7 @@ function NotificationRow({
   // The padding lives on the button, so the whole row stays one click target.
   return (
     <div className={rowClassName}>
+      <NotificationUnreadRail isRead={notification.isRead} />
       <button
         type="button"
         className="flex min-w-0 flex-1 cursor-pointer p-4 text-left"
