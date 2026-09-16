@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { assertOrganizationSlugInContextScope } from "@/helpers/context-organization-scope";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationBySlug } from "@/helpers/organization";
@@ -21,7 +20,7 @@ const route = createRoute({
   path: "/slug/{slug}",
   operationId: "getOrganizationBySlug",
   description:
-    "Get the raw organization record by slug for the effective user when they are a member (session user or coworker with authorized context headers; coworker requires workspace grant or baseline task binding). Coworker and Soko Bot callers may only resolve their own organization's slug; every other slug answers 404.",
+    "Get the raw organization record by slug for the effective user when they are a member (session user or coworker with authorized context headers; coworker requires workspace grant or baseline task binding)",
   tags: ["Organizations"],
   request: {
     params,
@@ -60,14 +59,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { slug } = c.req.valid("param");
 
-    await assertOrganizationSlugInContextScope(userContext, slug, prisma);
-
     const { organization } = await resolveMemberOrganizationBySlug({
       slug,
-      organizationId:
-        userContext.source === "context"
-          ? (userContext.organizationId ?? undefined)
-          : undefined,
       userId: userContext.userId,
       tx: prisma,
     });

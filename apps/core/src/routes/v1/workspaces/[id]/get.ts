@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { assertWorkspaceInContextScope } from "@/helpers/context-organization-scope";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -22,8 +21,7 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "get",
   path: "/{id}",
-  description:
-    "Resolve a workspace id to its organization id. Coworker and Soko Bot callers must target their active workspace.",
+  description: "Resolve a workspace id to its organization id",
   tags: ["Workspaces"],
   request: {
     params: paramsSchema,
@@ -53,8 +51,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
     const { id } = c.req.valid("param");
-
-    assertWorkspaceInContextScope(userContext, c.var.workspaceContext, id);
 
     const workspace = await prisma.workspace.findUnique({
       where: { id },
