@@ -73,12 +73,12 @@ export function NotificationPanelContent({
       <div className="max-h-96 overflow-y-auto border-b empty:hidden">
         <NotificationCenterList onNavigate={onClose} />
       </div>
-      <div className="flex justify-end px-1 py-2">
+      <div className="p-2">
         <Button
           asChild
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground w-full"
         >
           <Link href="/notifications" onClick={onClose}>
             {t("viewAll")}
