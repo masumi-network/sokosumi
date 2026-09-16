@@ -104,3 +104,87 @@ test("coworkers api-key requires an id", async () => {
     /coworker id is required/,
   );
 });
+
+test("coworkers update patches the coworker and returns it", async () => {
+  let path = "";
+  let body: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: {} }) as T,
+    post: async <T>() => ({ data: {} }) as T,
+    patch: async <T>(requestPath: string, requestBody: unknown) => {
+      path = requestPath;
+      body = requestBody;
+      return { data: { id: "cw-1", name: "Renamed" } } as T;
+    },
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+  const output: string[] = [];
+  await runCoworkersCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "update",
+    positionalId: "cw-1",
+    options: { name: "Renamed" },
+  });
+  assert.equal(path, "/v1/coworkers/cw-1");
+  assert.deepEqual(body, { name: "Renamed" });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.coworker.id, "cw-1");
+  assert.equal(parsed.coworker.name, "Renamed");
+});
+
+test("coworkers update requires an id and rejects a vendor id", async () => {
+  const client = clientWith({ data: {} });
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "update",
+        options: { name: "x" },
+      }),
+    /coworker id is required/,
+  );
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "update",
+        positionalId: "cw-1",
+        options: { "vendor-id": "vendor-1" },
+      }),
+    /--vendor-id is only supported for/,
+  );
+});
+
+test("coworkers me returns the current coworker", async () => {
+  const output: string[] = [];
+  await runCoworkersCommand({
+    client: clientWith({ data: { id: "cw-1", name: "Me" } }),
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "me",
+  });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.coworker.id, "cw-1");
+  assert.equal(parsed.coworker.name, "Me");
+});
+
+test("coworkers api-key mints a key for the coworker id", async () => {
+  const output: string[] = [];
+  await runCoworkersCommand({
+    client: clientWith({
+      data: { id: "key-1", name: "ci", token: "soko_secret_value" },
+    }),
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "api-key",
+    positionalId: "cw-1",
+    options: { name: "ci" },
+  });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.coworkerId, "cw-1");
+  assert.notEqual(parsed.apiKey, null);
+});

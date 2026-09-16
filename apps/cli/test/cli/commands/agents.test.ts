@@ -67,3 +67,68 @@ test("agents list emits a stable JSON collection", async () => {
     agents: [createAgent()],
   });
 });
+
+test("agents hire fetches the input schema and posts a job", async () => {
+  const calls: { method: string; path: string; body?: unknown }[] = [];
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      calls.push({ method: "GET", path });
+      return { data: { type: "object", properties: {} } } as T;
+    },
+    post: async <T>(path: string, body: unknown) => {
+      calls.push({ method: "POST", path, body });
+      return {
+        data: { id: "job-1", agentId: "agent-1", status: "PENDING" },
+      } as T;
+    },
+    patch: async <T>() => ({ data: null }) as T,
+    delete: async <T>() => ({ data: null }) as T,
+  };
+  const output: string[] = [];
+  await runAgentsCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "hire",
+    positionalId: "agent-1",
+    options: { "input-json": '{"query":"hi"}' },
+  });
+  assert.equal(calls[0]?.path, "/v1/agents/agent-1/input-schema");
+  const posted = calls.find((call) => call.method === "POST");
+  assert.equal(posted?.path, "/v1/agents/agent-1/jobs");
+  const body = posted?.body as { inputSchema: unknown; inputData: unknown };
+  assert.deepEqual(body.inputSchema, { type: "object", properties: {} });
+  assert.deepEqual(body.inputData, { query: "hi" });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.job.id, "job-1");
+  assert.equal(parsed.job.agentId, "agent-1");
+});
+
+test("agents hire requires an agent id and input", async () => {
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: {} }) as T,
+    post: async <T>() => ({ data: {} }) as T,
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+  await assert.rejects(
+    () =>
+      runAgentsCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "hire",
+        options: { "input-json": "{}" },
+      }),
+    /agent id is required/,
+  );
+  await assert.rejects(
+    () =>
+      runAgentsCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "hire",
+        positionalId: "agent-1",
+      }),
+    /--input-json or --input-file is required/,
+  );
+});
