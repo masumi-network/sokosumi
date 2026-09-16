@@ -868,3 +868,5 @@ The recipient roster retains native List at the user's request. Explicit row ins
 
 
 The user applied Xcode's recommended settings locally. Those project/scheme changes remain separate for approved slice 27a after #4665 merges.
+
+CI caught an indentation error after the spacing follow-up that cached local SwiftFormat checks missed. Restored the selected-recipient chip’s original padding and verified all 275 Swift files using `mint run swiftformat --lint --cache ignore .` and `mint run swiftlint lint --strict --no-cache`; both pass.

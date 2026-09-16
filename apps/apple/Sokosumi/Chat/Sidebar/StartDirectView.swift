@@ -43,7 +43,8 @@ struct StartDirectView: View {
                 .accessibilityLabel("Remove \(target.name)")
                 .help("Remove \(target.name)")
               }
-                      .padding(.vertical, 5)
+              .padding(.horizontal, 8)
+              .padding(.vertical, 5)
               .background(.quaternary, in: Capsule())
             }
           }
