@@ -45,7 +45,7 @@ export function NotificationPanelContent({
           popover's own 16px inset carries on here, so the title, the
           strip, the primer, and the button's outer edge share one line. */}
       <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
-        <p className="text-sm font-medium">{t("title")}</p>
+        <p className="text-base font-semibold">{t("title")}</p>
         {unreadCount > 0 ? (
           <Button
             type="button"
