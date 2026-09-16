@@ -1,16 +1,16 @@
 import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { patchReadForReferenceMock, refetchMock, optionalNotificationsMock } =
+const { patchNotificationsReadMock, refetchMock, optionalNotificationsMock } =
   vi.hoisted(() => ({
-    patchReadForReferenceMock: vi.fn(),
+    patchNotificationsReadMock: vi.fn(),
     refetchMock: vi.fn(),
     optionalNotificationsMock: vi.fn(),
   }));
 
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   notificationsBrowserClient: {
-    patchNotificationsReadForReference: patchReadForReferenceMock,
+    patchNotificationsRead: patchNotificationsReadMock,
   },
 }));
 
@@ -23,7 +23,7 @@ import { MarkNotificationsRead } from "./mark-notifications-read.client";
 describe("MarkNotificationsRead", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    patchReadForReferenceMock.mockResolvedValue({ data: { count: 1 } });
+    patchNotificationsReadMock.mockResolvedValue({ data: { count: 1 } });
     refetchMock.mockResolvedValue(undefined);
     optionalNotificationsMock.mockReturnValue({ refetch: refetchMock });
   });
@@ -37,7 +37,7 @@ describe("MarkNotificationsRead", () => {
     render(<MarkNotificationsRead kind="TASK" referenceId="task-1" />);
 
     await waitFor(() => {
-      expect(patchReadForReferenceMock).toHaveBeenCalledWith({
+      expect(patchNotificationsReadMock).toHaveBeenCalledWith({
         kind: "TASK",
         referenceId: "task-1",
       });
@@ -57,12 +57,12 @@ describe("MarkNotificationsRead", () => {
    * opens clear nothing. The count says whether anything actually changed.
    */
   it("leaves the bell alone when the page cleared nothing", async () => {
-    patchReadForReferenceMock.mockResolvedValue({ data: { count: 0 } });
+    patchNotificationsReadMock.mockResolvedValue({ data: { count: 0 } });
 
     render(<MarkNotificationsRead kind="TASK" referenceId="task-1" />);
 
     await waitFor(() => {
-      expect(patchReadForReferenceMock).toHaveBeenCalledTimes(1);
+      expect(patchNotificationsReadMock).toHaveBeenCalledTimes(1);
     });
     expect(refetchMock).not.toHaveBeenCalled();
   });
@@ -73,14 +73,14 @@ describe("MarkNotificationsRead", () => {
    * and nothing else.
    */
   it("says nothing to the reader when the write fails", async () => {
-    patchReadForReferenceMock.mockRejectedValue(new Error("core down"));
+    patchNotificationsReadMock.mockRejectedValue(new Error("core down"));
 
     const { container } = render(
       <MarkNotificationsRead kind="TASK" referenceId="task-1" />,
     );
 
     await waitFor(() => {
-      expect(patchReadForReferenceMock).toHaveBeenCalledTimes(1);
+      expect(patchNotificationsReadMock).toHaveBeenCalledTimes(1);
     });
     expect(container).toBeEmptyDOMElement();
     expect(refetchMock).not.toHaveBeenCalled();
@@ -99,7 +99,7 @@ describe("MarkNotificationsRead", () => {
     ).not.toThrow();
 
     await waitFor(() => {
-      expect(patchReadForReferenceMock).toHaveBeenCalledWith({
+      expect(patchNotificationsReadMock).toHaveBeenCalledWith({
         kind: "TASK",
         referenceId: "task-1",
       });
@@ -113,7 +113,7 @@ describe("MarkNotificationsRead", () => {
    */
   it("refreshes the bell even when the reader has already moved on", async () => {
     let settle: (value: { data: { count: number } }) => void = () => {};
-    patchReadForReferenceMock.mockReturnValue(
+    patchNotificationsReadMock.mockReturnValue(
       new Promise((resolve) => {
         settle = resolve;
       }),
@@ -124,7 +124,7 @@ describe("MarkNotificationsRead", () => {
     );
 
     await waitFor(() => {
-      expect(patchReadForReferenceMock).toHaveBeenCalledTimes(1);
+      expect(patchNotificationsReadMock).toHaveBeenCalledTimes(1);
     });
 
     unmount();
@@ -141,13 +141,13 @@ describe("MarkNotificationsRead", () => {
     );
 
     await waitFor(() => {
-      expect(patchReadForReferenceMock).toHaveBeenCalledTimes(1);
+      expect(patchNotificationsReadMock).toHaveBeenCalledTimes(1);
     });
 
     rerender(<MarkNotificationsRead kind="TASK" referenceId="task-2" />);
 
     await waitFor(() => {
-      expect(patchReadForReferenceMock).toHaveBeenLastCalledWith({
+      expect(patchNotificationsReadMock).toHaveBeenLastCalledWith({
         kind: "TASK",
         referenceId: "task-2",
       });
