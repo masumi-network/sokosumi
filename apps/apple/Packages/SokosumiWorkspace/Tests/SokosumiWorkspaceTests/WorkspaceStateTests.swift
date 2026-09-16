@@ -92,7 +92,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove"), operationID.contains("/messages") {
+    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove"), operationID.contains("/messages") || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}" {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -1795,7 +1795,7 @@ extension WorkspaceStateTests {
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
-    #expect(try await state.openSearchReply(hit, auth: auth))
+    #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
     #expect(state.thread.parent?.id == "parent")
     #expect(state.thread.jumpTarget?.messageId == "old")
     #expect(Set(state.thread.timeline.messages.map(\.id)) == ["old", "recent"])
@@ -1806,7 +1806,9 @@ extension WorkspaceStateTests {
   @Test func searchReplyCannotOpenAfterRoomSwitch() async throws {
     let (state, auth, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "parent", roomId: "room", content: "Parent")], nextCursor: nil)),
-      (200, createdMessageBody(id: "parent", roomId: "room", content: "Parent"))
+      (200, """
+      {"data":{"parentMessage":\(transcriptMessage(id: "parent", roomId: "room", content: "Parent")),"replyCount":1,"lastReplyAt":"\(timestamp)","unreadReplyCount":0,"lastUnreadReplyAt":null,"hasLooked":true},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
+      """)
     ], visible: false)
     defer { state.reset() }
     state.timeline.reset(roomId: "room")
@@ -1816,15 +1818,163 @@ extension WorkspaceStateTests {
     hit.parentMessageId = "parent"
     state.timeline.reset(roomId: "room")
     transport.pauseGET = true
-    let request = Task { try await state.openSearchReply(hit, auth: auth) }
+    let request = Task { try await state.openMessageReply(hit, auth: auth) }
     while transport.operationIDs.count < 2 {
       await Task.yield()
     }
     state.clearTranscript()
     state.timeline.reset(roomId: "other")
     transport.releasePausedRequest()
-    #expect(try await request.value == false)
+    #expect(try await request.value == .superseded)
     #expect(state.thread.parent == nil)
     #expect(state.thread.jumpTarget == nil)
+  }
+
+  @Test func messageLinkLoadsRoomContextAndRequestsHighlight() async throws {
+    let (state, auth, _, _) = try ephemeralState([
+      (200, createdMessageBody(id: "old", roomId: "room", content: "Old")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: "room", content: "Old")], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.openMessage("old", auth: auth) == .opened)
+    #expect(state.messageJump?.messageId == "old")
+    #expect(state.messageJump?.roomId == "room")
+    let first = state.messageJump?.requestId
+    #expect(try await state.openMessage("old", auth: auth) == .opened)
+    #expect(first != state.messageJump?.requestId)
+  }
+
+  @Test func messageLinkDoesNotNavigateAfterRoomSwitch() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, createdMessageBody(id: "old", roomId: "room", content: "Old"))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    transport.pauseGET = true
+    let request = Task { try await state.openMessage("old", auth: auth) }
+    while transport.operationIDs.isEmpty {
+      await Task.yield()
+    }
+    state.clearTranscript()
+    state.timeline.reset(roomId: "other")
+    transport.releasePausedRequest()
+    #expect(try await request.value == .superseded)
+    #expect(state.messageJump == nil)
+  }
+
+  @Test(arguments: [403, 404]) func unreadableMessageLinkStopsWithoutContextRequest(status: Int) async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (status, #"{"error":"Not Found","message":"Not found","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#)
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.openMessage("missing", auth: auth) == .unavailable)
+    #expect(state.messageJump == nil)
+    #expect(transport.operationIDs.count == 1)
+  }
+
+  @Test func messageLinkResolvesReplyOutsideLoadedHistory() async throws {
+    let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let lookup = createdMessageBody(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, _, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
+      (200, lookup),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    #expect(try await state.openMessage("reply", auth: auth) == .opened)
+    #expect(state.thread.parent?.id == "parent")
+    #expect(state.thread.jumpTarget?.messageId == "reply")
+  }
+
+  @Test func newerMessageTargetWinsOverPausedLookup() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "new", roomId: "room", content: "New")], nextCursor: nil)),
+      (200, createdMessageBody(id: "old", roomId: "room", content: "Old"))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("new", auth: auth))
+    transport.pauseGET = true
+    let old = Task { try await state.openMessage("old", auth: auth) }
+    while transport.operationIDs.count < 2 {
+      await Task.yield()
+    }
+    #expect(try await state.openMessage("new", auth: auth) == .opened)
+    transport.releasePausedRequest()
+    #expect(try await old.value == .superseded)
+    #expect(state.messageJump?.messageId == "new")
+    let request = try #require(state.messageJump?.requestId)
+    state.consumeMessageJump(request)
+    #expect(state.messageJump == nil)
+  }
+
+  @Test func unknownRoomLinkDoesNotChangeSelectionOrLoadHistory() async throws {
+    let (state, auth, transport, _) = try ephemeralState([], visible: false)
+    defer { state.reset() }
+    let base = try #require(URL(string: "https://example.com"))
+    let url = try #require(URL(string: "https://example.com/chat/rooms/unknown?message=old"))
+    let parsed = ChatLink(url: url, webBaseURL: base)
+    let link = try #require(parsed)
+    #expect(try await state.openChatLink(link, auth: auth) == .unavailable)
+    #expect(state.selectedRoomId == nil)
+    #expect(transport.operationIDs.isEmpty)
+  }
+
+  @Test func chatLinkSelectsRoomAndWaitsForInitialHistory() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "target", roomId: "destination", content: "Target")], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    var room = coworkerDirect(roomId: "destination")
+    room.kind = .channel
+    state.rooms = [room]
+    let base = try #require(URL(string: "https://example.com"))
+    let url = try #require(URL(string: "https://example.com/chat/rooms/destination?message=target"))
+    let parsed = ChatLink(url: url, webBaseURL: base)
+    let link = try #require(parsed)
+    #expect(try await state.openChatLink(link, auth: auth) == .opened)
+    #expect(state.selectedRoomId == "destination")
+    #expect(state.messageJump?.messageId == "target")
+    #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
+  }
+
+  @Test func chatLinkRoomSwitchIsSupersededNotUnavailable() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "target", roomId: "destination", content: "Target")], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    var room = coworkerDirect(roomId: "destination")
+    room.kind = .channel
+    state.rooms = [room]
+    let base = try #require(URL(string: "https://example.com"))
+    let url = try #require(URL(string: "https://example.com/chat/rooms/destination?message=target"))
+    let parsed = ChatLink(url: url, webBaseURL: base)
+    let link = try #require(parsed)
+    transport.pauseGET = true
+    let request = Task { try await state.openChatLink(link, auth: auth) }
+    while transport.operationIDs.isEmpty {
+      await Task.yield()
+    }
+    state.clearTranscript()
+    state.timeline.reset(roomId: "other")
+    transport.releasePausedRequest()
+    #expect(try await request.value == .superseded)
+    #expect(state.messageJump == nil)
+  }
+
+  @Test func transientMessageLookupFallsBackToRoomContext() async throws {
+    let (state, auth, _, _) = try ephemeralState([
+      (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "target", roomId: "room", content: "Target")], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.openMessage("target", auth: auth) == .opened)
+    #expect(state.messageJump?.messageId == "target")
   }
 }
