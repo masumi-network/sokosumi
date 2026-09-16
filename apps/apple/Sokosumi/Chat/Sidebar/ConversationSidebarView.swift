@@ -11,6 +11,7 @@ struct ConversationSidebarView: View {
 
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
+  @State private var browseChannels: CompositionPresentation?
 
   private struct CompositionPresentation: Identifiable {
     let id: UUID
@@ -37,36 +38,42 @@ struct ConversationSidebarView: View {
         workspaceMenu
         if workspaces.roomsLoading, workspaces.rooms.isEmpty {
           ProgressView("Loading rooms…")
-        } else if workspaces.rooms.isEmpty {
-          Text("No rooms yet.")
-            .foregroundStyle(.secondary)
         } else {
           // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
-            Section("Channels", isExpanded: sectionExpansion(.channels)) {
-              if partitioned.channels.isEmpty {
-                Text("No channels yet.")
-                  .foregroundStyle(.secondary)
-              }
-              ForEach(partitioned.channels, id: \.id) { room in
-                roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
+            Section {
+              sectionHeader("Channels", section: .channels)
+              if !workspaces.sidebar.collapsedSections.contains(.channels) {
+                if partitioned.channels.isEmpty {
+                  Text("No channels yet.")
+                    .foregroundStyle(.secondary)
+                }
+                ForEach(partitioned.channels, id: \.id) { room in
+                  roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
+                }
               }
             }
           }
           if !partitioned.external.isEmpty {
-            Section("External", isExpanded: sectionExpansion(.external)) {
-              ForEach(partitioned.external, id: \.id) { room in
-                roomRow(room, icon: "globe")
+            Section {
+              sectionHeader("External", section: .external)
+              if !workspaces.sidebar.collapsedSections.contains(.external) {
+                ForEach(partitioned.external, id: \.id) { room in
+                  roomRow(room, icon: "globe")
+                }
               }
             }
           }
-          Section("Directs", isExpanded: sectionExpansion(.directs)) {
-            if partitioned.directMessages.isEmpty {
-              Text("No direct messages yet.")
-                .foregroundStyle(.secondary)
-            }
-            ForEach(partitioned.directMessages, id: \.id) { room in
-              roomRow(room, icon: "person", showsDirectAvatars: true)
+          Section {
+            sectionHeader("Directs", section: .directs)
+            if !workspaces.sidebar.collapsedSections.contains(.directs) {
+              if partitioned.directMessages.isEmpty {
+                Text("No direct messages yet.")
+                  .foregroundStyle(.secondary)
+              }
+              ForEach(partitioned.directMessages, id: \.id) { room in
+                roomRow(room, icon: "person", showsDirectAvatars: true)
+              }
             }
           }
         }
@@ -77,14 +84,14 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel || workspaces.joiningChannel)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.openingDirect != nil)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
           .help("Create channel")
         }
         ToolbarItem {
@@ -133,9 +140,17 @@ struct ConversationSidebarView: View {
         try await workspaces.createChannel($0, roster: $1, context: presentation.id, auth: auth)
       })
     }
+    .sheet(item: $browseChannels) { presentation in
+      BrowseChannelsView(load: {
+        try await workspaces.browseChannels(query: $0, context: presentation.id, auth: auth)
+      }, join: {
+        try await workspaces.joinChannel(roomId: $0, context: presentation.id, auth: auth)
+      })
+    }
     .onChange(of: workspaces.compositionContext) { _, _ in
       startDirect = nil
       createChannel = nil
+      browseChannels = nil
     }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(
@@ -152,13 +167,40 @@ struct ConversationSidebarView: View {
     }
   }
 
-  private func sectionExpansion(_ section: ConversationSidebar.Section) -> Binding<Bool> {
-    Binding(
-      get: { !workspaces.sidebar.collapsedSections.contains(section) },
-      set: { expanded in
-        Task { @MainActor in workspaces.sidebar.setExpanded(expanded, section: section) }
+  private func sectionHeader(_ title: String, section: ConversationSidebar.Section) -> some View {
+    HStack {
+      Button {
+        workspaces.sidebar.setExpanded(
+          workspaces.sidebar.collapsedSections.contains(section), section: section
+        )
+      } label: {
+        HStack(spacing: 4) {
+          Text(title)
+          Image(systemName: workspaces.sidebar.collapsedSections.contains(section) ? "chevron.right" : "chevron.down")
+            .font(.caption)
+        }
       }
-    )
+      .buttonStyle(.plain)
+      .accessibilityLabel(title)
+      .accessibilityAddTraits(.isHeader)
+      .accessibilityValue(workspaces.sidebar.collapsedSections.contains(section) ? "Collapsed" : "Expanded")
+      .help(workspaces.sidebar.collapsedSections.contains(section) ? "Expand \(title)" : "Collapse \(title)")
+      Spacer()
+      if section == .channels {
+        Button("Browse channels", systemImage: "list.bullet") {
+          browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.borderless)
+        .frame(width: 20)
+        .disabled(workspaces.phase != .ready || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
+        .help("Browse channels")
+      }
+    }
+    .font(.subheadline.weight(.semibold))
+    .foregroundStyle(.secondary)
+    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+    .selectionDisabled()
   }
 
   /// Workspace switcher pinned to the top of the sidebar.
@@ -219,6 +261,7 @@ struct ConversationSidebarView: View {
         }
         Spacer(minLength: 0)
         roomStatus(room)
+          .frame(width: 20)
       }
     } icon: {
       RoomLeadingIcon(
@@ -229,6 +272,7 @@ struct ConversationSidebarView: View {
       )
     }
     .labelStyle(RoomRowLabelStyle())
+    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
     .badge(attention.badgeCount)
     .contextMenu { roomActions(room) }
