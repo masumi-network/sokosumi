@@ -755,9 +755,53 @@ describe("chat room arrival count", () => {
         referenceId: chatInput.referenceId,
         isRead: false,
       },
-      select: { id: true, messageParams: true, inApp: true, metadata: true },
+      select: {
+        id: true,
+        messageKey: true,
+        messageParams: true,
+        inApp: true,
+        metadata: true,
+      },
     });
   });
+
+  it.each([
+    ["Notifications.Chat.directMessageFollowUp", true],
+    ["Notifications.Chat.mentionedFollowUp", true],
+    ["Notifications.Chat.directMessageFollowUp", false],
+    ["Notifications.Chat.mentionedFollowUp", false],
+  ])(
+    "excludes %s reminders (inApp: %s) from message arrivals",
+    async (messageKey, inApp) => {
+      const source = chatRecord({
+        id: "source_message",
+        messageKey: "Notifications.Chat.directMessage",
+      });
+      const reminder = chatRecord({
+        id: "reminder",
+        messageKey,
+        inApp,
+        metadata: null,
+      });
+      const nextMessage = chatRecord({
+        id: "next_message",
+        messageKey: "Notifications.Chat.directMessage",
+      });
+      notificationFindManyMock.mockResolvedValue([
+        source,
+        reminder,
+        nextMessage,
+      ]);
+
+      await publishNotificationRow(nextMessage, {
+        inApp: true,
+        osBanner: true,
+        email: false,
+      });
+
+      expect(publishedGroupCount()).toBe(2);
+    },
+  );
 
   it("counts a room holding only this arrival as one", async () => {
     notificationFindManyMock.mockResolvedValue([

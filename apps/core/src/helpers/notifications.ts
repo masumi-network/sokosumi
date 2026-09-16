@@ -4,6 +4,7 @@ import {
   NotificationKind,
   type Prisma,
 } from "@sokosumi/database";
+import { isFollowUpMessageKey } from "@sokosumi/utils";
 
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
@@ -149,11 +150,21 @@ async function chatRoomArrivals(
         referenceId: notification.referenceId,
         isRead: false,
       },
-      select: { id: true, messageParams: true, inApp: true, metadata: true },
+      select: {
+        id: true,
+        messageKey: true,
+        messageParams: true,
+        inApp: true,
+        metadata: true,
+      },
     });
 
     let count = 0;
     for (const row of waiting) {
+      // Reminders refer to existing messages, so they add no arrivals.
+      if (isFollowUpMessageKey(row.messageKey)) {
+        continue;
+      }
       if (!row.inApp) {
         // Read the same way as the count below it. Parsed here, a column
         // that will not read threw out of the loop into the catch, which

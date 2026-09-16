@@ -14,7 +14,8 @@ const {
   prismaUserFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("./notification-read.js", () => ({
+vi.mock("./notification-read.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./notification-read.js")>()),
   markAttentionRead: markAttentionReadMock,
   markSettledAttentionRead: markSettledAttentionReadMock,
 }));
@@ -57,6 +58,41 @@ describe("dispatchTaskNotification", () => {
     projectId: null,
     workspaceId: null,
   };
+
+  it.each([
+    "RUNNING",
+    "READY",
+    "QUEUED",
+    "AWAITING_EXTERNAL",
+    "CREDITS_TOPPED_UP",
+  ])(
+    "clears stale run attention for both readers when work moves to %s",
+    async (status) => {
+      await dispatchTaskNotification(
+        { ...SETTLED_TASK, assigneeUserId: "user_2" },
+        "event_resume",
+        status,
+      );
+
+      for (const readerId of ["user_1", "user_2"]) {
+        expect(markAttentionReadMock).toHaveBeenCalledWith(
+          readerId,
+          "TASK",
+          "task_1",
+          [
+            "Notifications.Task.assigned",
+            "Notifications.Task.inputRequired",
+            "Notifications.Task.approvalRequired",
+            "Notifications.Task.authenticationRequired",
+            "Notifications.Task.outOfCredits",
+          ],
+          "task-resumed-read",
+        );
+      }
+      expect(markAttentionReadMock).toHaveBeenCalledTimes(2);
+      expect(createNotificationMock).not.toHaveBeenCalled();
+    },
+  );
 
   /**
    * SOK-916 stories 14 and 15. Nothing marks a task's attention row read when

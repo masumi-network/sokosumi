@@ -57,18 +57,18 @@ export async function markNotificationsRead(
 }
 
 /**
- * The task attention keys a run reaching a terminal status ends.
+ * The task attention keys cleared when work resumes or a run ends.
  *
  * Every one of them except the operator-removed schedule. That row is about
  * the schedule rather than about the run: the operator took the schedule away
- * and the owner has to put it back. A run completing, failing or being
- * canceled answers none of that, and the schedule is still gone afterwards.
+ * and the owner has to put it back. Resuming or ending a run does not restore
+ * the schedule.
  * It is written with no status condition for the same reason.
  *
  * Archiving does end it, because nobody can open an archived task at all.
  * That case passes the full list itself, at `markTaskArchivedRead`.
  */
-const TASK_ATTENTION_KEYS_ENDED_BY_A_RUN: readonly string[] =
+export const TASK_RUN_ATTENTION_MESSAGE_KEYS: readonly string[] =
   TASK_ATTENTION_MESSAGE_KEYS.filter(
     (key) => key !== TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
   );
@@ -83,7 +83,7 @@ const TASK_ATTENTION_KEYS_ENDED_BY_A_RUN: readonly string[] =
 const ATTENTION_KEYS_CLEARED_BY = new Map<string, readonly string[]>([
   ...TASK_TERMINAL_MESSAGE_KEYS.map((key): [string, readonly string[]] => [
     key,
-    TASK_ATTENTION_KEYS_ENDED_BY_A_RUN,
+    TASK_RUN_ATTENTION_MESSAGE_KEYS,
   ]),
   ...JOB_TERMINAL_MESSAGE_KEYS.map((key): [string, readonly string[]] => [
     key,

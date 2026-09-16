@@ -7,6 +7,7 @@ import { TASK_ATTENTION_MESSAGE_KEYS } from "./notification-delivery.js";
 import {
   markAttentionRead,
   markSettledAttentionRead,
+  TASK_RUN_ATTENTION_MESSAGE_KEYS,
 } from "./notification-read.js";
 import { createNotification } from "./notifications.js";
 
@@ -84,6 +85,21 @@ export async function dispatchTaskNotification(
   try {
     let messageKey: string;
     switch (status) {
+      case "READY":
+      case "QUEUED":
+      case "RUNNING":
+      case "AWAITING_EXTERNAL":
+      case "CREDITS_TOPPED_UP":
+        for (const readerId of taskReaderIds(task)) {
+          await markAttentionRead(
+            readerId,
+            NotificationKind.TASK,
+            task.id,
+            TASK_RUN_ATTENTION_MESSAGE_KEYS,
+            "task-resumed-read",
+          );
+        }
+        return;
       case "INPUT_REQUIRED":
         messageKey = "Notifications.Task.inputRequired";
         break;
