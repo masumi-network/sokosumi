@@ -7,6 +7,8 @@ import SwiftUI
 struct ChatRootView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
+  @State private var linkError: String?
+  @State private var linkTask: Task<Void, Never>?
   @State private var windowID = UUID()
   @Environment(\.scenePhase) private var scenePhase
 
@@ -19,11 +21,35 @@ struct ChatRootView: View {
         SignInView()
       }
     }
+    .environment(\.openURL, OpenURLAction { url in
+      guard let link = ChatLink(url: url, webBaseURL: CoreSettings.webBaseURL) else { return .systemAction }
+      linkTask?.cancel()
+      linkTask = Task { @MainActor in
+        do {
+          if try await workspaces.openChatLink(link, auth: auth) == .unavailable, !Task.isCancelled {
+            linkError = "This message or conversation is no longer available in this workspace."
+          }
+        } catch {
+          if !Task.isCancelled {
+            linkError = friendlyMessage(for: error)
+          }
+        }
+      }
+      return .handled
+    })
+    .alert("Couldn’t open chat link", isPresented: Binding(get: { linkError != nil }, set: {
+      if !$0 {
+        linkError = nil
+      }
+    })) {
+      Button("OK", role: .cancel) {}
+    } message: { Text(linkError ?? "") }
     .task(id: scenePhase) {
       workspaces.setWindowVisible(scenePhase == .active, window: windowID)
       await workspaces.syncReadAttention(auth: auth)
     }
     .onDisappear {
+      linkTask?.cancel()
       Task { @MainActor in workspaces.setWindowVisible(false, window: windowID) }
     }
     .onChange(of: workspaces.readContent) { _, _ in
