@@ -424,6 +424,7 @@ export class SokoBotSchedulesSyncService {
               workspaceId: true,
               ingestTimezone: true,
               followWholeBoard: true,
+              userId: true,
             },
           });
           if (bot) {
@@ -433,6 +434,7 @@ export class SokoBotSchedulesSyncService {
             const beat = await buildSystemBeatMessage({
               bot: {
                 id: bot.id,
+                userId: bot.userId,
                 workspaceId: bot.workspaceId,
                 ingestTimezone: bot.ingestTimezone,
                 followWholeBoard: bot.followWholeBoard,

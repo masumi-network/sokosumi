@@ -42,7 +42,7 @@ struct MessageUnfurlView: View {
             Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
           }
           if let imageURL {
-            MessageImageView(url: imageURL, maxSize: CGSize(width: 380, height: 200)) { failedURL in
+            MessageImageView(url: imageURL, maxSize: CGSize(width: 380, height: 200), fills: true) { failedURL in
               failedImageURL = failedURL
             }
             .clipShape(.rect(cornerRadius: 4))

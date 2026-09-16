@@ -1,10 +1,9 @@
 import "server-only";
 
-import type { Session } from "@sokosumi/utils";
+import { hasAdminRole, type Session } from "@sokosumi/utils";
 import { notFound } from "next/navigation";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 
 function getSessionUserRole(session: Session): string | null | undefined {
   const user = session.user as Session["user"] & { role?: string | null };

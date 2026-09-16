@@ -47,6 +47,24 @@
         try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("chat-image-\(unfurl ? "unfurl" : "attachment")-\(Int(width)).png"))
       }
 
+      @Test func unfurlPortraitImageFillsTheTextColumn() async throws {
+        URLProtocol.registerClass(ScrollMediaProtocol.self)
+        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
+        let url = try #require(URL(string: "https://scroll-fixture.invalid/\(UUID())?format=svg&shape=portrait"))
+        let content = MessageUnfurlView(preview: .init(url: "https://example.com", title: "Preview", imageUrl: url.absoluteString))
+          .frame(maxWidth: 700, alignment: .leading)
+          .environment(\.colorScheme, .dark)
+        let host = NSHostingView(rootView: content)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 500), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        try await waitForImage(in: host)
+        host.layoutSubtreeIfNeeded()
+        // Fill uses the 380pt image budget; fit of 80×160 would be ~100pt plus padding.
+        #expect(host.fittingSize.width >= 360)
+      }
+
       @Test(arguments: ["landscape", "portrait", "wide"])
       func nativeSVGWithoutFilenameExtensionPreservesProportions(shape: String) async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)

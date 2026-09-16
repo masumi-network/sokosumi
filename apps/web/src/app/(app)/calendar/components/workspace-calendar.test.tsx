@@ -161,7 +161,7 @@ describe("WorkspaceCalendar", () => {
 
     expect(
       await screen.findAllByRole("button", { name: /Prepare release notes/ }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it("never commits a stale/clickable item for a frame when a fresh server page arrives", () => {
@@ -239,22 +239,20 @@ describe("WorkspaceCalendar", () => {
     }
 
     const { rerender } = render(<ActivityHarness mode="visible" />);
-    const initialCalendar = screen.getAllByTestId("calendar-agenda")[0];
+    const initialCalendar = screen.getByTestId("calendar-agenda");
 
     // Let StrictMode's synchronous setup -> cleanup -> setup cycle settle
     // (its dangling microtask, if any) before asserting on initial mount.
     await Promise.resolve();
 
     expect(refreshMock).not.toHaveBeenCalled();
-    expect(screen.getAllByTestId("calendar-agenda")[0]).toBe(initialCalendar);
+    expect(screen.getByTestId("calendar-agenda")).toBe(initialCalendar);
 
     rerender(<ActivityHarness mode="hidden" />);
     rerender(<ActivityHarness mode="visible" />);
 
     await waitFor(() =>
-      expect(screen.getAllByTestId("calendar-agenda")[0]).not.toBe(
-        initialCalendar,
-      ),
+      expect(screen.getByTestId("calendar-agenda")).not.toBe(initialCalendar),
     );
     expect(refreshMock).not.toHaveBeenCalled();
   });
@@ -318,13 +316,17 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-week")[0]).toHaveClass(
+    expect(screen.getByTestId("calendar-week")).toHaveClass(
       "workspace-calendar-theme",
       "bg-background",
       "overflow-x-auto",
-      "rounded-xl",
-      "border",
+      "-mx-6",
+      "rounded-none",
+      "border-0",
       "border-border",
+      "md:mx-0",
+      "md:rounded-xl",
+      "md:border",
     );
   });
 
@@ -369,10 +371,10 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-agenda")).toHaveLength(2);
-    expect(screen.getAllByText("Release planning")).toHaveLength(2);
-    expect(screen.getAllByTestId("calendar-source-marker")).toHaveLength(2);
-    expect(screen.getAllByText("accuracy.inferred")).toHaveLength(2);
+    expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument();
+    expect(screen.getByText("Release planning")).toBeInTheDocument();
+    expect(screen.getByTestId("calendar-source-marker")).toBeInTheDocument();
+    expect(screen.getByText("accuracy.inferred")).toBeInTheDocument();
     expect(screen.queryByText("accuracy.approximate")).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Prepare release notes/ })[0],
@@ -388,7 +390,7 @@ describe("WorkspaceCalendar", () => {
         </NuqsTestingAdapter>,
       );
 
-      expect(screen.getAllByLabelText("accuracy.inferred")).toHaveLength(2);
+      expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
     },
   );
 
@@ -708,7 +710,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    await user.click(screen.getByRole("button", { name: "view.week" }));
+    await user.click(screen.getByRole("tab", { name: "view.week" }));
     await user.click(screen.getByRole("button", { name: "next" }));
 
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
@@ -793,7 +795,7 @@ describe("WorkspaceCalendar", () => {
       );
 
       await waitFor(() =>
-        expect(screen.getAllByTestId("calendar-week")).toHaveLength(2),
+        expect(screen.getByTestId("calendar-week")).toBeInTheDocument(),
       );
     } finally {
       vi.unstubAllGlobals();
@@ -807,7 +809,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-week")).toHaveLength(2);
+    expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     expect(screen.queryByTestId("calendar-month")).not.toBeInTheDocument();
     expect(screen.getByTestId("calendar-views")).toHaveTextContent("view.week");
   });
@@ -819,7 +821,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-week")[0]).toHaveAttribute(
+    expect(screen.getByTestId("calendar-week")).toHaveAttribute(
       "data-view",
       "week",
     );
@@ -829,7 +831,11 @@ describe("WorkspaceCalendar", () => {
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
 
-  it("shows Load More when pagination.nextCursor changes on the same items reference", () => {
+  it("fetches the next page when pagination.nextCursor changes on the same items reference", async () => {
+    getWorkspaceCalendarMock.mockResolvedValue({
+      data: [],
+      meta: { pagination: { nextCursor: null } },
+    });
     const { rerender } = render(
       <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
         <WorkspaceCalendar
@@ -837,13 +843,12 @@ describe("WorkspaceCalendar", () => {
           initialDate="2026-08-18"
           sources={SOURCES}
           pagination={{ limit: 100, nextCursor: null }}
+          range={CALENDAR_PAGE.range}
         />
       </NuqsTestingAdapter>,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "pagination.loadMore" }),
-    ).not.toBeInTheDocument();
+    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
 
     // Same `items` reference, but a fresh `pagination` object reporting more
     // pages are now available — the render-time guard must react to this
@@ -855,17 +860,19 @@ describe("WorkspaceCalendar", () => {
           initialDate="2026-08-18"
           sources={SOURCES}
           pagination={{ limit: 100, nextCursor: "cursor-2" }}
+          range={CALENDAR_PAGE.range}
         />
       </NuqsTestingAdapter>,
     );
 
-    expect(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: "cursor-2" }),
+      ),
+    );
   });
 
-  it("loads and renders the next calendar page", async () => {
-    const user = userEvent.setup();
+  it("loads and renders the next calendar page without being asked", async () => {
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [
         {
@@ -895,13 +902,9 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    );
-
     expect(
       await screen.findAllByRole("button", { name: /Publish release notes/ }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
       from: new Date("2026-08-01T00:00:00.000Z"),
       to: new Date("2026-09-01T00:00:00.000Z"),
@@ -915,7 +918,6 @@ describe("WorkspaceCalendar", () => {
   });
 
   it("loads more Project Calendar items through the Project endpoint", async () => {
-    const user = userEvent.setup();
     getProjectCalendarMock.mockResolvedValue({
       data: [],
       meta: { pagination: { nextCursor: null } },
@@ -932,19 +934,17 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
+    await waitFor(() =>
+      expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
+        from: new Date("2026-08-01T00:00:00.000Z"),
+        to: new Date("2026-09-01T00:00:00.000Z"),
+        cursor: "cursor-2",
+        limit: 100,
+        scope: "owned",
+        assigneeId: "coworker-1",
+        status: "QUEUED",
+      }),
     );
-
-    expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
-      from: new Date("2026-08-01T00:00:00.000Z"),
-      to: new Date("2026-09-01T00:00:00.000Z"),
-      cursor: "cursor-2",
-      limit: 100,
-      scope: "owned",
-      assigneeId: "coworker-1",
-      status: "QUEUED",
-    });
   });
 
   it("shows an empty state after filters exclude all calendar items", () => {

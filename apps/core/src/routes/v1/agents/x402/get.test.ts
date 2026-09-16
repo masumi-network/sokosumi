@@ -13,7 +13,7 @@ import {
   type ReadinessPairFixture,
   UNPRICED_ADDRESS,
   USDC_ADDRESS,
-} from "./get.fixtures";
+} from "./__tests__/fixtures/get.fixtures";
 
 /**
  * Who may list, which agents survive the fail-closed gates, and what the

@@ -84,6 +84,11 @@ export const adminUserOverviewItemSchema = z
     id: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Ada Lovelace" }),
     email: z.string().openapi({ example: "ada@example.com" }),
+    role: z.string().openapi({
+      description:
+        "Comma-separated platform roles; contains admin for platform admins",
+      example: "user",
+    }),
     createdAt: dateTimeSchema,
     credits: z.number().openapi({
       description: "Available personal credits",
@@ -566,3 +571,17 @@ export const adminTaskDetailSchema = z
       .nullable(),
   })
   .openapi("AdminTaskDetail");
+
+export const startImpersonationBodySchema = z
+  .object({
+    userId: z.string().trim().min(1).openapi({
+      description: "ID of the non-admin user to impersonate",
+      example: "user_123",
+    }),
+    reason: z.string().trim().min(1, "Reason is required").max(500).openapi({
+      description:
+        "Why this impersonation is started (Linear-id convention, e.g. SOK-123: reproduce). Stored in the audit log.",
+      example: "SOK-123: reproduce reported bug",
+    }),
+  })
+  .openapi("StartImpersonationBody");

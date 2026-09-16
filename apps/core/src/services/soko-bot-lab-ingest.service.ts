@@ -66,6 +66,7 @@ export async function runSokoBotLabIngest(input: {
     },
     select: {
       id: true,
+      userId: true,
       workspaceId: true,
       ingestTimezone: true,
       followWholeBoard: true,
@@ -102,6 +103,7 @@ export async function runSokoBotLabIngest(input: {
           await buildSystemBeatMessage({
             bot: {
               id: bot.id,
+              userId: bot.userId,
               workspaceId: bot.workspaceId,
               ingestTimezone: bot.ingestTimezone,
               followWholeBoard: bot.followWholeBoard,

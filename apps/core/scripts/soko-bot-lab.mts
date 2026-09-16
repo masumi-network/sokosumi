@@ -135,6 +135,7 @@ async function startScenario(
       where: { userId: owner.bot.userId, workspaceId: owner.workspaceId },
       select: {
         id: true,
+        userId: true,
         workspaceId: true,
         ingestTimezone: true,
         followWholeBoard: true,
@@ -148,6 +149,7 @@ async function startScenario(
             await buildSystemBeatMessage({
               bot: {
                 id: bot.id,
+                userId: bot.userId,
                 workspaceId: bot.workspaceId,
                 ingestTimezone: bot.ingestTimezone,
                 followWholeBoard: bot.followWholeBoard,
