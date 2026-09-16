@@ -1,0 +1,1150 @@
+[
+  {
+    "name": "preserves case-sensitive user IDs without a slug",
+    "content": "Hi @AbCdEfGhIjKlMnOpQrStUvWxYz012345!",
+    "names": {
+      "AbCdEfGhIjKlMnOpQrStUvWxYz012345": "Renamed"
+    },
+    "expected": "Hi @Renamed!"
+  },
+  {
+    "name": "reads the key of a mention the sender wrote in italics",
+    "content": "ping _@019fc7e4-e4bd-7005-900c-66e44d33f5e4_ not _@019fc7e4-e4bd-7005-900c-66e44d33f5e5_",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Bob",
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e5": "Carl"
+    },
+    "expected": "ping @Bob not @Carl"
+  },
+  {
+    "name": "reads a plain message back as it was written",
+    "content": "can you look at the login flow",
+    "names": {},
+    "expected": "can you look at the login flow"
+  },
+  {
+    "name": "shows a mention as the name it carries",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada can you take this one",
+    "names": {},
+    "expected": "@Ada can you take this one"
+  },
+  {
+    "name": "shows a mention as the name the room shows, not its slug",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace can you take this one",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada Lovelace"
+    },
+    "expected": "@Ada Lovelace can you take this one"
+  },
+  {
+    "name": "shows a name the slug rule writes as nothing",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4: できますか",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "あかり"
+    },
+    "expected": "@あかり できますか"
+  },
+  {
+    "name": "keeps the punctuation a member spells their name with",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:c-r-d ping",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "C# R_D"
+    },
+    "expected": "@C# R_D ping"
+  },
+  {
+    "name": "keeps the punctuation that follows a mention",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada, are you free?",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada Lovelace"
+    },
+    "expected": "@Ada Lovelace, are you free?"
+  },
+  {
+    "name": "shows only the label of a link whose address holds a mention",
+    "content": "[docs](https://example.test/@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada)",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada Lovelace"
+    },
+    "expected": "docs"
+  },
+  {
+    "name": "names a mention written inside a link label",
+    "content": "[hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada](https://example.test/p)",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada Lovelace"
+    },
+    "expected": "hi @Ada Lovelace"
+  },
+  {
+    "name": "names a mention written inside a code span",
+    "content": "code `@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada` end",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada Lovelace"
+    },
+    "expected": "code @Ada Lovelace end"
+  },
+  {
+    "name": "says the slug when a name is missing",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada_lovelace hi",
+    "names": {},
+    "expected": "@adalovelace hi"
+  },
+  {
+    "name": "says the slug when a name is missing",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace hi",
+    "names": {},
+    "expected": "@ada-lovelace hi"
+  },
+  {
+    "name": "keeps the spelling of each mention of one member",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:bob hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+    "names": {},
+    "expected": "@bob hi @ada"
+  },
+  {
+    "name": "keeps the spelling of each mention of one member",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: and @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada ok",
+    "names": {},
+    "expected": "hi and @ada ok"
+  },
+  {
+    "name": "reads no slug out of a link destination",
+    "content": "[docs](https://e.test/@019fc7e4-e4bd-7005-900c-66e44d33f5e4:call_555_0100_now) hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+    "names": {},
+    "expected": "docs hi @ada"
+  },
+  {
+    "name": "says nothing for a slug that spells the key undashed",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4e4bd7005900c66e44d33f5e4 hi",
+    "names": {},
+    "expected": "hi"
+  },
+  {
+    "name": "takes control characters out of a body and a name",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada\u0000 hi",
+    "names": {},
+    "expected": "@ada hi"
+  },
+  {
+    "name": "takes control characters out of a body and a name",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www\u0000.evil.test/pay"
+    },
+    "expected": "hi @ada"
+  },
+  {
+    "name": "takes control characters out of a body and a name",
+    "content": "see www\u0000.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www­.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www​.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www‎.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www⁠.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "see www﻿.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes every invisible character out of a body",
+    "content": "hello ‮doog si live",
+    "names": {},
+    "expected": "hello doog si live"
+  },
+  {
+    "name": "keeps a joiner inside an emoji and takes one beside ascii out",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "👨‍💻"
+    },
+    "expected": "hi @👨‍💻"
+  },
+  {
+    "name": "keeps a joiner inside an emoji and takes one beside ascii out",
+    "content": "see www‍.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes a variation selector beside ascii out and keeps a keycap",
+    "content": "see www︎.evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes a variation selector beside ascii out and keeps a keycap",
+    "content": "see https︎://evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes a variation selector beside ascii out and keeps a keycap",
+    "content": "see www.︎evil.test/pay now",
+    "names": {},
+    "expected": "see now"
+  },
+  {
+    "name": "takes a variation selector beside ascii out and keeps a keycap",
+    "content": "pick 1️⃣ or 2️⃣",
+    "names": {},
+    "expected": "pick 1️⃣ or 2️⃣"
+  },
+  {
+    "name": "takes a variation selector beside ascii out and keeps a keycap",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www︎.evil.test/pay"
+    },
+    "expected": "hi @x"
+  },
+  {
+    "name": "keeps the slug when the lookup carries an empty name",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada hi",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": ""
+    },
+    "expected": "@ada hi"
+  },
+  {
+    "name": "says the words around a link the sender typed as words",
+    "content": "see https://example.test/a/b?q=1 for details",
+    "names": {},
+    "expected": "see for details"
+  },
+  {
+    "name": "takes an address written without a scheme",
+    "content": "try www.example.test today",
+    "names": {},
+    "expected": "try today"
+  },
+  {
+    "name": "says nothing at all for a message that is only a link",
+    "content": "https://example.test/a",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "still says the label of a markdown link",
+    "content": "[the plan](https://example.test/a)",
+    "names": {},
+    "expected": "the plan"
+  },
+  {
+    "name": "keeps a mention an address is written up against",
+    "content": "see https://example.test/x@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada please",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada Lovelace"
+    },
+    "expected": "see @Ada Lovelace please"
+  },
+  {
+    "name": "takes an address out of a sentence written without spaces",
+    "content": "请访问www.example.test获取密码",
+    "names": {},
+    "expected": "请访问获取密码"
+  },
+  {
+    "name": "takes an address out of a sentence written without spaces",
+    "content": "見てhttps://example.test/xを",
+    "names": {},
+    "expected": "見てを"
+  },
+  {
+    "name": "keeps the word an address is written up against",
+    "content": "Read the notes.https://example.test",
+    "names": {},
+    "expected": "Read the notes."
+  },
+  {
+    "name": "keeps the word an address is written up against",
+    "content": "our cta-https://example.test today",
+    "names": {},
+    "expected": "our cta- today"
+  },
+  {
+    "name": "keeps the word an address is written up against",
+    "content": "see the docs*https://example.test* now",
+    "names": {},
+    "expected": "see the docs now"
+  },
+  {
+    "name": "takes an address out of a display name",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www.evil.test/pay"
+    },
+    "expected": "hi @ada"
+  },
+  {
+    "name": "names a member after an address in their name is taken out",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada https://evil.test"
+    },
+    "expected": "hi @Ada"
+  },
+  {
+    "name": "takes an address the message and a name spell together",
+    "content": "see www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz now",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "evil.test/pay"
+    },
+    "expected": "see now"
+  },
+  {
+    "name": "takes an address the message and a name spell together",
+    "content": "mail me at www.@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "evil.test/pay?x=1"
+    },
+    "expected": "mail me at"
+  },
+  {
+    "name": "takes an address a name and the message spell together",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x.evil.test",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www"
+    },
+    "expected": "hi"
+  },
+  {
+    "name": "keeps an `@` the sender wrote as a word",
+    "content": "meet @ 5pm at the cafe",
+    "names": {},
+    "expected": "meet @ 5pm at the cafe"
+  },
+  {
+    "name": "keeps an `@` the sender wrote as a word",
+    "content": "rates @ 5% and @ 10%",
+    "names": {},
+    "expected": "rates @ 5% and @ 10%"
+  },
+  {
+    "name": "keeps an `@` the sender wrote as a word",
+    "content": "price is 30 @",
+    "names": {},
+    "expected": "price is 30 @"
+  },
+  {
+    "name": "leaves no `@` behind when an address takes the whole name",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz.evil.test/pay!",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www"
+    },
+    "expected": "!"
+  },
+  {
+    "name": "leaves no `@` behind when an address takes the whole name",
+    "content": "(@019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz.evil.test/pay)",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www"
+    },
+    "expected": "()"
+  },
+  {
+    "name": "names a member by their slug when an address leaves only a stop",
+    "content": "x @019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz y",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www.evil.test."
+    },
+    "expected": "x @zz y"
+  },
+  {
+    "name": "names a member by their slug when their name is only spaces",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:zz there",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "  www.evil.test/pay"
+    },
+    "expected": "hi @zz there"
+  },
+  {
+    "name": "takes an address a name ending in `www` starts",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4:x.evil.test/pay now",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Bobwww"
+    },
+    "expected": "hi @Bob now"
+  },
+  {
+    "name": "takes an address out of a name that reads as a word",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: now",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Bobwww.evil.test/pay"
+    },
+    "expected": "hi @Bob now"
+  },
+  {
+    "name": "takes an address out of a name that reads as a word",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: now",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "BobWWW.evil.test"
+    },
+    "expected": "hi @Bob now"
+  },
+  {
+    "name": "takes an address out of a name that reads as a word",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: now",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Bobwww.evil.test Guy"
+    },
+    "expected": "hi @Bob Guy now"
+  },
+  {
+    "name": "takes an address out of a name that reads as a word",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: now",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "www.еvil.test/pay"
+    },
+    "expected": "hi now"
+  },
+  {
+    "name": "takes an address out of a name that reads as a word",
+    "content": "hi @019fc7e4-e4bd-7005-900c-66e44d33f5e4: now",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Bobwww.еvil.test"
+    },
+    "expected": "hi @Bob now"
+  },
+  {
+    "name": "takes an address a dropped mention closes up into",
+    "content": "Hi @11111111-1111-4111-8111-111111111111:bob@22222222-2222-4222-8222-222222222222:.evil.test/pay",
+    "names": {
+      "11111111-1111-4111-8111-111111111111": "Bobwww"
+    },
+    "expected": "Hi @Bob"
+  },
+  {
+    "name": "takes an address a dropped mention closes up into",
+    "content": "Hi @11111111-1111-4111-8111-111111111111:bob@22222222-2222-4222-8222-222222222222:.evil.test/pay",
+    "names": {
+      "11111111-1111-4111-8111-111111111111": "Bobwww",
+      "22222222-2222-4222-8222-222222222222": "_www"
+    },
+    "expected": "Hi @Bobwww@_"
+  },
+  {
+    "name": "keeps a name the mention after it holds apart from the words",
+    "content": "@11111111-1111-4111-8111-111111111111:x@22222222-2222-4222-8222-222222222222:y.evil.test",
+    "names": {
+      "11111111-1111-4111-8111-111111111111": "Bobwww",
+      "22222222-2222-4222-8222-222222222222": "Ann"
+    },
+    "expected": "@Bobwww@Ann.evil.test"
+  },
+  {
+    "name": "names a member whose name has no letter in it",
+    "content": "x @019fc7e4-e4bd-7005-900c-66e44d33f5e4: y",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "🎉"
+    },
+    "expected": "x @🎉 y"
+  },
+  {
+    "name": "leaves a word that only ends in an address alone",
+    "content": "seewww.example.test now",
+    "names": {},
+    "expected": "seewww.example.test now"
+  },
+  {
+    "name": "keeps the punctuation that closes a sentence around an address",
+    "content": "go to https://example.test/a. Then wait",
+    "names": {},
+    "expected": "go to . Then wait"
+  },
+  {
+    "name": "leaves a word that only looks like a scheme alone",
+    "content": "note:remember the standup",
+    "names": {},
+    "expected": "note:remember the standup"
+  },
+  {
+    "name": "leaves a word with a dot in it alone",
+    "content": "node.js broke again, e.g. the build",
+    "names": {},
+    "expected": "node.js broke again, e.g. the build"
+  },
+  {
+    "name": "closes the line up around a mention it drops",
+    "content": "before @019fc7e4-e4bd-7005-900c-66e44d33f5e4: after",
+    "names": {},
+    "expected": "before after"
+  },
+  {
+    "name": "drops a mention that has neither a name nor a slug",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4: hi",
+    "names": {},
+    "expected": "hi"
+  },
+  {
+    "name": "drops a mention whose slug is the id again",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4-e4bd-7005-900c-66e44d33f5e4 ping",
+    "names": {},
+    "expected": "ping"
+  },
+  {
+    "name": "names that bot while the room still holds it",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:019fc7e4-e4bd-7005-900c-66e44d33f5e4 ping",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "そこ"
+    },
+    "expected": "@そこ ping"
+  },
+  {
+    "name": "keeps the slug of a mention the lookup does not name",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada hi",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e5": "Ben Green"
+    },
+    "expected": "@Ada hi"
+  },
+  {
+    "name": "keeps a room-wide mention written without a slug",
+    "content": "@all: standup in five",
+    "names": {},
+    "expected": "@all standup in five"
+  },
+  {
+    "name": "shows a room-wide mention as the word the composer inserts",
+    "content": "@all:all standup in five",
+    "names": {},
+    "expected": "@all standup in five"
+  },
+  {
+    "name": "shows every mention in a message, not only the first",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada @019fc7e4-e4bd-7005-900c-66e44d33f5e5:Ben standup?",
+    "names": {},
+    "expected": "@Ada @Ben standup?"
+  },
+  {
+    "name": "starts a mention at the last @, not the first",
+    "content": "@ada@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada hi",
+    "names": {},
+    "expected": "@ada@Ada hi"
+  },
+  {
+    "name": "shows a mention whose key is written in capitals",
+    "content": "@019FC7E4-E4BD-7005-900C-66E44D33F5E4:Ada can you take this one",
+    "names": {},
+    "expected": "@Ada can you take this one"
+  },
+  {
+    "name": "names a member whose key is written in capitals",
+    "content": "@019FC7E4-E4BD-7005-900C-66E44D33F5E4:ada-lovelace hi",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Ada Lovelace"
+    },
+    "expected": "@Ada Lovelace hi"
+  },
+  {
+    "name": "shows a name the room reads but a word rule would not",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:-ada can you take this one",
+    "names": {},
+    "expected": "@-ada can you take this one"
+  },
+  {
+    "name": "leaves a time alone, which only looks like a mention",
+    "content": "standup @10:30am",
+    "names": {},
+    "expected": "standup @10:30am"
+  },
+  {
+    "name": "leaves a time alone, which only looks like a mention",
+    "content": "export @16:9 please",
+    "names": {},
+    "expected": "export @16:9 please"
+  },
+  {
+    "name": "leaves an address alone, which the room leaves alone too",
+    "content": "git clone git@github.com:org/repo.git",
+    "names": {},
+    "expected": "git clone git@github.com:org/repo.git"
+  },
+  {
+    "name": "leaves an address alone, which the room leaves alone too",
+    "content": "ssh ada@10.0.0.4:2222",
+    "names": {},
+    "expected": "ssh ada@10.0.0.4:2222"
+  },
+  {
+    "name": "leaves an address alone, which the room leaves alone too",
+    "content": "note @TODO:fix the header",
+    "names": {},
+    "expected": "note @TODO:fix the header"
+  },
+  {
+    "name": "strips markdown markers",
+    "content": "**ship it** and _then_ tell me",
+    "names": {},
+    "expected": "ship it and then tell me"
+  },
+  {
+    "name": "keeps the label of a link and drops the url",
+    "content": "see [the design](https://example.test/spec)",
+    "names": {},
+    "expected": "see the design"
+  },
+  {
+    "name": "keeps the text of an inline code span",
+    "content": "run `pnpm test` first",
+    "names": {},
+    "expected": "run pnpm test first"
+  },
+  {
+    "name": "drops a tag between backticks, which the room drops as well",
+    "content": "use `<Button>` not `<button>`",
+    "names": {},
+    "expected": "use not"
+  },
+  {
+    "name": "drops an html comment, which the room shows to nobody",
+    "content": "looks fine <!-- token=sk-live-abc123 -->",
+    "names": {},
+    "expected": "looks fine"
+  },
+  {
+    "name": "drops the words inside a <%s>, which the room shows to nobody",
+    "content": "nothing to see <script>the door code is 4417</script>",
+    "names": {},
+    "expected": "nothing to see"
+  },
+  {
+    "name": "drops the words inside a <%s>, which the room shows to nobody",
+    "content": "nothing to see <style>the door code is 4417</style>",
+    "names": {},
+    "expected": "nothing to see"
+  },
+  {
+    "name": "drops the words inside a <%s>, which the room shows to nobody",
+    "content": "nothing to see <textarea>the door code is 4417</textarea>",
+    "names": {},
+    "expected": "nothing to see"
+  },
+  {
+    "name": "drops the words inside a <%s>, which the room shows to nobody",
+    "content": "nothing to see <option>the door code is 4417</option>",
+    "names": {},
+    "expected": "nothing to see"
+  },
+  {
+    "name": "drops the words inside a <%s>, which the room shows to nobody",
+    "content": "nothing to see <xmp>the door code is 4417</xmp>",
+    "names": {},
+    "expected": "nothing to see"
+  },
+  {
+    "name": "drops the words inside a non-text element written in capitals",
+    "content": "nothing to see <SCRIPT>the code is 4417</SCRIPT>",
+    "names": {},
+    "expected": "nothing to see"
+  },
+  {
+    "name": "reads a non-text element to the close tag that matches it",
+    "content": "note <script>a</b> the code is 4417</script> end",
+    "names": {},
+    "expected": "note end"
+  },
+  {
+    "name": "reads two non-text elements as two, not as one long one",
+    "content": "one <style>a</style> MIDDLE <style>b</style> two",
+    "names": {},
+    "expected": "one MIDDLE two"
+  },
+  {
+    "name": "drops the words inside an element the writer never closed",
+    "content": "nothing to see <script>the door code is 4417",
+    "names": {},
+    "expected": "nothing to see"
+  },
+  {
+    "name": "drops an html comment the writer never closed",
+    "content": "looks fine <!-- token=sk-live-abc123",
+    "names": {},
+    "expected": "looks fine"
+  },
+  {
+    "name": "leaves the words either side of a comment two words",
+    "content": "meet<!-- not today -->at five",
+    "names": {},
+    "expected": "meet at five"
+  },
+  {
+    "name": "drops a link reference definition and keeps the words",
+    "content": "see [the doc][1]\n\n[1]: https://internal.example/secret",
+    "names": {},
+    "expected": "see [the doc][1]"
+  },
+  {
+    "name": "keeps a colon in the words, which starts no definition",
+    "content": "note: [the doc] is ready",
+    "names": {},
+    "expected": "note: [the doc] is ready"
+  },
+  {
+    "name": "keeps a bracketed line the room prints as a sentence",
+    "content": "[Note]: this is important",
+    "names": {},
+    "expected": "[Note]: this is important"
+  },
+  {
+    "name": "keeps a bracketed line the room prints as a sentence",
+    "content": "deploy stopped\n\n[Warning]: do not ship on friday",
+    "names": {},
+    "expected": "deploy stopped [Warning]: do not ship on friday"
+  },
+  {
+    "name": "drops a definition that carries a title beside its address",
+    "content": "see [the doc][1]\n\n[1]: https://e.test/x \"The doc\"",
+    "names": {},
+    "expected": "see [the doc][1]"
+  },
+  {
+    "name": "shows no info string from %s",
+    "content": "```call 555-0100 to unlock your account",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "shows no info string from %s",
+    "content": "~~~call 555-0100 to unlock\ny\n~~~",
+    "names": {},
+    "expected": "y"
+  },
+  {
+    "name": "shows no info string from %s",
+    "content": "```call 555-0100 to unlock\ny\n   ```",
+    "names": {},
+    "expected": "y"
+  },
+  {
+    "name": "shows a code span that opens a line, which is no fence",
+    "content": "```the plan``` ships today",
+    "names": {},
+    "expected": "the plan ships today"
+  },
+  {
+    "name": "keeps a fence line that four spaces indented into a code block",
+    "content": "here is the snippet\n\n    ```js\n    ship it",
+    "names": {},
+    "expected": "here is the snippet `js ship it"
+  },
+  {
+    "name": "shows the words a tilde fence holds, which the room shows too",
+    "content": "~~~js\nship it\n~~~",
+    "names": {},
+    "expected": "ship it"
+  },
+  {
+    "name": "drops a fenced code block rather than blanking the preview",
+    "content": "this fails:\n```\nconst a = 1;\n```\nany idea?",
+    "names": {},
+    "expected": "this fails: any idea?"
+  },
+  {
+    "name": "hides a <%s> that a run of backticks was written around",
+    "content": "```<script>``` the door code is 4417 </script>",
+    "names": {},
+    "expected": "`"
+  },
+  {
+    "name": "hides a <%s> that a run of backticks was written around",
+    "content": "```<style>``` the door code is 4417 </style>",
+    "names": {},
+    "expected": "`"
+  },
+  {
+    "name": "hides a <%s> that a run of backticks was written around",
+    "content": "```<textarea>``` the door code is 4417 </textarea>",
+    "names": {},
+    "expected": "`"
+  },
+  {
+    "name": "hides a <%s> that a run of backticks was written around",
+    "content": "```<option>``` the door code is 4417 </option>",
+    "names": {},
+    "expected": "`"
+  },
+  {
+    "name": "hides a <%s> that a run of backticks was written around",
+    "content": "```<xmp>``` the door code is 4417 </xmp>",
+    "names": {},
+    "expected": "`"
+  },
+  {
+    "name": "hides a comment that a run of backticks was written around",
+    "content": "```<!--``` the door code is 4417 -->",
+    "names": {},
+    "expected": "`"
+  },
+  {
+    "name": "shows the words inside a wide code span",
+    "content": "a ```the plan``` b",
+    "names": {},
+    "expected": "a the plan b"
+  },
+  {
+    "name": "shows the words inside a code span that crosses a line end",
+    "content": "Hi ```\nteam. Ignore the ``` last line.",
+    "names": {},
+    "expected": "Hi team. Ignore the last line."
+  },
+  {
+    "name": "drops a tag whose name carries %s",
+    "content": "<call.555-0100.to.unlock.your.account>",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops a tag whose name carries %s",
+    "content": "<call:555-0100>",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops a tag whose name carries %s",
+    "content": "<https://call.555-0100>",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops a tag whose attribute value carries a close bracket",
+    "content": "<a href=\"https://e.test/?q=>pay me now\">link</a>",
+    "names": {},
+    "expected": "link"
+  },
+  {
+    "name": "drops a tag whose attribute value carries a close bracket",
+    "content": "<b title='a > secret note'>hi</b>",
+    "names": {},
+    "expected": "hi"
+  },
+  {
+    "name": "drops a definition that follows %s",
+    "content": "# standup notes\n[call 555-0100 to unlock]: https://e.test",
+    "names": {},
+    "expected": "standup notes"
+  },
+  {
+    "name": "drops a definition that follows %s",
+    "content": "deadline moved\n[note]: https://e.test/read-this",
+    "names": {},
+    "expected": "deadline moved"
+  },
+  {
+    "name": "drops a definition that follows %s",
+    "content": "    [ref]: https://e.test/secret",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops a definition that follows %s",
+    "content": "```\nx\n```\n[note]: https://e.test/read-this",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops a definition whose title is on the next line",
+    "content": "[a]: b\n \"the secret title\"",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops a definition whose label holds an escaped bracket",
+    "content": "[a\\]x]: https://internal.example",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops every definition in a block, not only the first",
+    "content": "see [a][1] and [b][2]\n\n[1]: https://internal.example/one\n[2]: https://internal.example/two",
+    "names": {},
+    "expected": "see [a][1] and [b][2]"
+  },
+  {
+    "name": "drops a block of four definitions in one pass",
+    "content": "see it\n\n[1]: https://internal.example/one\n[2]: https://internal.example/two\n[3]: https://internal.example/three\n[4]: https://internal.example/four",
+    "names": {},
+    "expected": "see it"
+  },
+  {
+    "name": "drops two definitions that a blank line stands between",
+    "content": "a\n\n[1]: https://internal.example/one\n\n[2]: https://internal.example/two",
+    "names": {},
+    "expected": "a"
+  },
+  {
+    "name": "keeps a bracketed line whose colon is followed by nothing",
+    "content": "[Todo]:\nbuy milk",
+    "names": {},
+    "expected": "[Todo]: buy milk"
+  },
+  {
+    "name": "keeps a line whose brackets hold no label",
+    "content": "[]: nothing\nreal words",
+    "names": {},
+    "expected": "[]: nothing real words"
+  },
+  {
+    "name": "reads the words after a fence that holds an unclosed element",
+    "content": "```html\n<script>\n```\n\nprod is down, roll back release 42",
+    "names": {},
+    "expected": "prod is down, roll back release 42"
+  },
+  {
+    "name": "reads the words after a fence that holds an unclosed comment",
+    "content": "```\n<!-- todo\n```\nship it",
+    "names": {},
+    "expected": "ship it"
+  },
+  {
+    "name": "reads a message that carries html as its words alone",
+    "content": "Hello <b>world</b>",
+    "names": {},
+    "expected": "Hello world"
+  },
+  {
+    "name": "leaves no partial tag behind when one tag hides inside another",
+    "content": "<di<div>v>alert(1)</div> hi",
+    "names": {},
+    "expected": "valert(1) hi"
+  },
+  {
+    "name": "keeps the words out of a non-text element hidden inside another tag",
+    "content": "<scr<script>ipt>the door code is 4417</script> hi",
+    "names": {},
+    "expected": "<scr hi"
+  },
+  {
+    "name": "keeps a comparison, which is not a tag",
+    "content": "use x < 10 and y > 3 as the range",
+    "names": {},
+    "expected": "use x < 10 and y 3 as the range"
+  },
+  {
+    "name": "keeps two paragraphs two words apart",
+    "content": "<p>one</p><p>two</p>",
+    "names": {},
+    "expected": "one two"
+  },
+  {
+    "name": "reads a tag that closes itself as one tag",
+    "content": "line one<br/>line two",
+    "names": {},
+    "expected": "line one line two"
+  },
+  {
+    "name": "reads a message of broken brackets without stalling",
+    "content": "[]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([](<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",
+    "names": {},
+    "expected": "[]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([]([…"
+  },
+  {
+    "name": "clears three levels of interleaved tags",
+    "content": "<a<b<c>>> hi",
+    "names": {},
+    "expected": "hi"
+  },
+  {
+    "name": "keeps a link whose address is written in angle brackets",
+    "content": "see [the design](<https://example.test/spec>)",
+    "names": {},
+    "expected": "see the design"
+  },
+  {
+    "name": "joins a multi-line message into one line",
+    "content": "first line\n\nsecond line",
+    "names": {},
+    "expected": "first line second line"
+  },
+  {
+    "name": "names the file when the message is only a file",
+    "content": "[report.pdf](https://example.test/report.pdf)",
+    "names": {},
+    "expected": "report.pdf"
+  },
+  {
+    "name": "names the image when the message is only an image",
+    "content": "![shot](https://example.test/shot.png)",
+    "names": {},
+    "expected": "shot"
+  },
+  {
+    "name": "drops an image that carries no alt rather than showing its url",
+    "content": "![](https://example.test/shot.png)",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops a link that carries no label rather than showing its url",
+    "content": "[](https://example.test/shot.png)",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "drops an empty link that only appears once the outer one goes",
+    "content": "[[]()](https://example.test/shot.png)",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "keeps the words of a message whose image carries no alt",
+    "content": "here is the chart\n![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUg)",
+    "names": {},
+    "expected": "here is the chart"
+  },
+  {
+    "name": "keeps the file's name beside the words that came with it",
+    "content": "here it is [report.pdf](https://example.test/report.pdf)",
+    "names": {},
+    "expected": "here it is report.pdf"
+  },
+  {
+    "name": "names every image when a message carries more than one",
+    "content": "![one](https://example.test/1.png) ![two](https://example.test/2.png)",
+    "names": {},
+    "expected": "one two"
+  },
+  {
+    "name": "drops every unlabelled link, not only the first",
+    "content": "[](https://example.test/1.png)[](https://example.test/2.png)[](https://example.test/3.png)[](https://example.test/4.png)",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "names every file when a message carries more than one",
+    "content": "[a.pdf](https://example.test/a.pdf) [b.pdf](https://example.test/b.pdf)",
+    "names": {},
+    "expected": "a.pdf b.pdf"
+  },
+  {
+    "name": "returns nothing when the body cleans to nothing",
+    "content": "   \n  ",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "cuts a long message and says it was cut",
+    "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "names": {},
+    "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…"
+  },
+  {
+    "name": "leaves a message at the limit whole",
+    "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "names": {},
+    "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "name": "leaves a message of emoji at the limit whole",
+    "content": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+    "names": {},
+    "expected": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂"
+  },
+  {
+    "name": "does not leave a space hanging before the ellipsis",
+    "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "names": {},
+    "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…"
+  },
+  {
+    "name": "never cuts inside a character built from several codepoints",
+    "content": "👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦",
+    "names": {},
+    "expected": "👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦…"
+  },
+  {
+    "name": "returns nothing when one character is longer than the whole limit",
+    "content": "á́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́",
+    "names": {},
+    "expected": ""
+  },
+  {
+    "name": "never cuts inside an emoji",
+    "content": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+    "names": {},
+    "expected": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂…"
+  },
+  {
+    "name": "names a member mentioned without the hyphens",
+    "content": "@019fc7e4e4bd7005900c66e44d33f5e4 hi",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Soko"
+    },
+    "expected": "@Soko hi"
+  },
+  {
+    "name": "names one written in upper case too",
+    "content": "@019FC7E4E4BD7005900C66E44D33F5E4 hi",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Soko"
+    },
+    "expected": "@Soko hi"
+  },
+  {
+    "name": "still names one written the canonical way",
+    "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4 hi",
+    "names": {
+      "019fc7e4-e4bd-7005-900c-66e44d33f5e4": "Soko"
+    },
+    "expected": "@Soko hi"
+  },
+  {
+    "name": "names a member carrying a hex legacy auth id",
+    "content": "@0123456789abcdef0123456789abcdef hi",
+    "names": {
+      "0123456789abcdef0123456789abcdef": "Ada"
+    },
+    "expected": "@Ada hi"
+  },
+  {
+    "name": "prefers the key as written over its uuid spelling",
+    "content": "@0123456789abcdef0123456789abcdef hi",
+    "names": {
+      "0123456789abcdef0123456789abcdef": "Ada",
+      "01234567-89ab-cdef-0123-456789abcdef": "Soko"
+    },
+    "expected": "@Ada hi"
+  }
+]

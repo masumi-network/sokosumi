@@ -782,6 +782,12 @@
       "markAllRead": "Marcar todas como leídas",
       "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
       "delete": "Eliminar notificación: {message}",
+      "deleteTooltip": "Eliminar",
+      "markRead": "Marcar notificación como leída: {message}",
+      "markReadTooltip": "Marcar como leída",
+      "markUnread": "Marcar notificación como no leída: {message}",
+      "markUnreadTooltip": "Marcar como no leída",
+      "unreadIndicator": "Sin leer",
       "deleteError": "No se pudo eliminar la notificación",
       "clearAll": "Borrar todas",
       "clearAllError": "No se pudieron borrar las notificaciones",
@@ -1583,7 +1589,9 @@
           "COMPLETED": "Completado",
           "FAILED": "Fallido",
           "CANCELED": "Cancelado"
-        }
+        },
+        "visibilityLabel": "Visibilidad",
+        "visibilityPrivate": "Privado"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Proyecto",
@@ -1613,6 +1621,8 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "privateBadge": "Privada",
+        "visibility": "Visibilidad",
         "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
@@ -1701,6 +1711,8 @@
           "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
+          "changeStatus": "Cambiar estado…",
+          "noStatusMatches": "Ningún estado coincide",
           "moveToWorkspace": "Mover a otro espacio de trabajo",
           "moveToWorkspaceTitle": "Mover la tarea a otro espacio de trabajo",
           "moveToWorkspaceDescription": "Selecciona el espacio de trabajo al que quieres mover esta tarea.",
@@ -1876,6 +1888,8 @@
         "statusDraft": "Borrador",
         "statusQueued": "En cola",
         "statusReady": "Listo",
+        "changeStatus": "Cambiar estado…",
+        "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
         "back": "Atrás",
@@ -1904,7 +1918,9 @@
         "taskCreatedHint": "Todo está configurado y listo.",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "privateLabel": "Tarea privada",
+        "privateDescription": "Solo tú, tu Soko Bot y el vendor del coworker asignado pueden ver esta tarea."
       },
       "EditTask": {
         "title": "Editar Task",
@@ -1925,6 +1941,8 @@
         "statusDescription": "Elige el estado de este Task",
         "statusDraft": "Borrador",
         "statusReady": "Listo",
+        "changeStatus": "Cambiar estado…",
+        "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
         "back": "Atrás",
@@ -3999,6 +4017,17 @@
           "en": "English",
           "de": "Deutsch",
           "es": "Español"
+        }
+      },
+      "TimeFormat": {
+        "title": "Formato de hora",
+        "description": "Elige cómo se muestran las horas. Automático sigue a tu navegador.",
+        "selectAriaLabel": "Seleccionar formato de hora",
+        "auto": "Automático",
+        "autoResolved": "Automático ({timeFormat})",
+        "options": {
+          "12h": "12 horas",
+          "24h": "24 horas"
         }
       },
       "SocialAccounts": {

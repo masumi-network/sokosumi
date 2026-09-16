@@ -18,9 +18,7 @@ export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
   // The request's locale, like every other number on this page.
   const numbers = (value: number) => format.number(value);
   const dateTime = (date: Date | null | undefined) =>
-    date
-      ? format.dateTime(date, { dateStyle: "medium", timeStyle: "short" })
-      : null;
+    date ? format.dateTime(date, "dateTimeMedium") : null;
 
   const health = bot.runtimeHealth;
   const completed = bot.turns.filter((turn) => turn.status === "COMPLETED");

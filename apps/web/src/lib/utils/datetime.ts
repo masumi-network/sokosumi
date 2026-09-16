@@ -82,29 +82,6 @@ export function formatShortDate(
   }
 }
 
-export function formatShortDateTime(
-  date: string | Date,
-  locale: string,
-  timeZone: string,
-): string {
-  try {
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) {
-      return "—";
-    }
-
-    return new Intl.DateTimeFormat(locale, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone,
-    }).format(dateObj);
-  } catch {
-    return "—";
-  }
-}
-
 export function formatTimeAgo(
   date: string | Date,
   locale: string = "en",

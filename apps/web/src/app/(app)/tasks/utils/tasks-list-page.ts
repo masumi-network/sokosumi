@@ -3,7 +3,10 @@ import "server-only";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { resolveMentionedAgentsById } from "@/app/tasks/utils/mentioned-agents";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
-import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
+import type {
+  TasksScope,
+  TasksVisibilityFilter,
+} from "@/app/tasks/utils/tasks-filters";
 import type { Coworker } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
@@ -19,6 +22,7 @@ interface GetTasksListPageParams {
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
+  visibility: TasksVisibilityFilter;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -37,6 +41,7 @@ export async function getTasksListPage({
   assigneeUserId,
   status,
   projectId,
+  visibility,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksListPageParams): Promise<GetTasksListPageResult> {
@@ -47,6 +52,7 @@ export async function getTasksListPage({
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,
     projectId: projectId ?? undefined,
+    ...(visibility ? { visibility } : {}),
     cursor,
     limit,
   });

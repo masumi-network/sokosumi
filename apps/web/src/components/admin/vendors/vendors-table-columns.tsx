@@ -10,11 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Vendor } from "@/lib/clients/generated/core";
 
-const dateTimeOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-} as const;
-
 const columnHelper = createAppColumnHelper<Vendor>();
 
 export function getVendorsTableColumns(
@@ -57,7 +52,7 @@ export function getVendorsTableColumns(
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground">
-          {formatter.dateTime(row.original.createdAt, dateTimeOptions)}
+          {formatter.dateTime(row.original.createdAt, "dateTimeMedium")}
         </span>
       ),
       enableSorting: true,
@@ -73,7 +68,7 @@ export function getVendorsTableColumns(
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground">
-          {formatter.dateTime(row.original.updatedAt, dateTimeOptions)}
+          {formatter.dateTime(row.original.updatedAt, "dateTimeMedium")}
         </span>
       ),
       enableSorting: true,

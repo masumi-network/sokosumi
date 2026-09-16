@@ -1,5 +1,6 @@
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -11,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NotificationDeletionEvent } from "@/contexts/notification-provider";
 import type { NotificationItem } from "@/lib/clients/generated/core";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
 
 import { NotificationsPageContent } from "./page-content";
 
@@ -87,6 +89,92 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
+
+describe("notification page unread signal", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.notifications = [];
+    mocks.get.mockReset();
+    mocks.subscribe.mockImplementation(() => () => {});
+  });
+
+  async function mountRow(isRead: boolean) {
+    const row = {
+      ...notification("only"),
+      isRead,
+      readAt: isRead ? new Date() : null,
+    };
+    mocks.notifications = [row];
+    mocks.get.mockResolvedValue(response([row]));
+    render(<NotificationsPageContent userId="user" />);
+    const message = await screen.findByText("only");
+    // The rail is the row's leading edge, so walk up to the row itself.
+    const rowElement = message.closest("div.group\\/row");
+    return { message, rail: rowElement?.firstElementChild };
+  }
+
+  it("marks an unread row with the rail and names the state", async () => {
+    const { rail } = await mountRow(false);
+
+    expect(rail?.className).toContain("bg-primary");
+    // Forced colors repaints bg-primary as Canvas, the row's own colour.
+    expect(rail?.className).toContain("forced-colors:bg-[Highlight]");
+    expect(rail?.className).toContain("w-0.5");
+    expect(rail?.className).toContain("shrink-0");
+    expect(rail?.className).toContain("self-stretch");
+    // The tint lives in a shared component, so the row has to prove it
+    // renders it at all. Its own test covers what the tint looks like.
+    expect(screen.getByTestId("notification-row-icon")).toBeInTheDocument();
+    // The rail and the icon tint are colour, so the state is also text.
+    expect(screen.getByText("unreadIndicator").className).toContain("sr-only");
+  });
+
+  it("keeps the rail's geometry on a read row, in transparent", async () => {
+    const { rail } = await mountRow(true);
+
+    expect(rail?.className).toContain("bg-transparent");
+    expect(rail?.className).not.toContain("bg-primary");
+    expect(rail?.className).toContain("w-0.5");
+    expect(rail?.className).toContain("shrink-0");
+    expect(rail?.className).toContain("self-stretch");
+    expect(screen.queryByText("unreadIndicator")).toBeNull();
+  });
+
+  it("marks a pending access row too, which renders its own shape", async () => {
+    // That branch builds the row separately, so the rail has to be placed in
+    // both or it goes missing on exactly the rows a reader lingers over.
+    const row = {
+      ...notification("grant"),
+      messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+      referenceId: "grant-1",
+      isRead: false,
+      readAt: null,
+    };
+    mocks.notifications = [row];
+    mocks.get.mockResolvedValue(response([row]));
+    render(<NotificationsPageContent userId="user" />);
+
+    const message = await screen.findByText(VENDOR_GRANT_PENDING_MESSAGE_KEY);
+    const rowElement = message.closest("div.group\\/row");
+
+    expect(rowElement?.firstElementChild?.className).toContain("bg-primary");
+    expect(screen.getByText("unreadIndicator").className).toContain("sr-only");
+  });
+
+  it("draws the message at one weight in both states", async () => {
+    // Clicking a row on this page marks it read in place. A heavier unread
+    // message re-wraps at that moment and every row below it moves.
+    const unread = await mountRow(false);
+    const unreadClassName = unread.message.className;
+    cleanup();
+
+    const read = await mountRow(true);
+
+    expect(read.message.className).toBe(unreadClassName);
+    // Both empty would satisfy the line above and prove nothing.
+    expect(unreadClassName).toContain("text-sm");
+  });
+});
 
 describe("notification page deletions", () => {
   let listener: ((event: NotificationDeletionEvent) => void) | undefined;

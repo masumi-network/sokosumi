@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
@@ -8,14 +8,14 @@ import {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
-
+import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
   type TaskDetailPayload,
   type TaskListItemWithIncludes,
   type TaskWithIncludes,
 } from "@/types/task";
-
 import { unprocessableEntity } from "./error";
 import {
   coworkerSummaryFromLoadedRelation,
@@ -483,6 +483,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
+    // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
+    visibility: task.visibility ?? TaskVisibility.PUBLIC,
     // Grant parking fields are intentional API surface while GRANT_PENDING so
     // coworkers and web can correlate the task with the blocking vendor grant.
     grantResumeStatus:
@@ -522,7 +524,10 @@ function mapTaskBase(task: TaskWithIncludes) {
   };
 }
 
-export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
+export function mapTask(
+  task: TaskWithIncludes | TaskDetailPayload,
+  authContext: AuthenticationContext,
+) {
   const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
   const files = "files" in task && Array.isArray(task.files) ? task.files : [];
 
@@ -531,6 +536,7 @@ export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
     share: task.share,
     links,
     files: files.map(mapTaskFile),
+    selectableStatuses: getSelectableTaskStatuses(task, authContext),
   };
 }
 

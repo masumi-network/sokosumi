@@ -5,7 +5,6 @@ import type { CoreHttpClient } from "../../src/api/http-client.js";
 import {
   createAgentJob,
   fetchAgentInputSchema,
-  fetchAgentJobs,
   fetchAgents,
 } from "../../src/api/services/agent-service.js";
 
@@ -52,43 +51,18 @@ test("fetchAgents maps GET /v1/agents response data to typed agents", async () =
   assert.equal(result.agents[1]?.id, null);
 });
 
-test("fetchAgentJobs encodes agent IDs and maps jobs", async () => {
+test("fetchAgentInputSchema returns the Core schema payload", async () => {
   const calls: string[] = [];
-  const result = await fetchAgentJobs(
-    createClient({ data: [{ id: "job-1", agentId: "agent/1" }] }, calls),
-    "agent/1",
-  );
-
-  assert.deepEqual(calls, ["/v1/agents/agent%2F1/jobs"]);
-  assert.deepEqual(result.jobs, [
-    {
-      id: "job-1",
-      agentId: "agent/1",
-      status: null,
-      name: null,
-      result: null,
-      createdAt: null,
-      updatedAt: null,
-    },
-  ]);
-});
-
-test("fetchAgentInputSchema extracts grouped input fields", async () => {
-  const calls: string[] = [];
+  const schema = {
+    input_groups: [{ input_data: [{ name: "query" }] }],
+  };
   const result = await fetchAgentInputSchema(
-    createClient(
-      {
-        data: {
-          input_groups: [{ input_data: [{ name: "query" }] }],
-        },
-      },
-      calls,
-    ),
+    createClient({ data: schema }, calls),
     "agent/1",
   );
 
   assert.deepEqual(calls, ["/v1/agents/agent%2F1/input-schema"]);
-  assert.deepEqual(result.fields, [{ name: "query" }]);
+  assert.deepEqual(result.schema, schema);
 });
 
 test("createAgentJob validates and posts the typed job payload", async () => {

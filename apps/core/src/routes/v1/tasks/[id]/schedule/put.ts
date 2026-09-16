@@ -29,7 +29,7 @@ import {
 } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireOwnerUserContext } from "@/middleware/auth";
+import { resolveUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -70,7 +70,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireOwnerUserContext(authContext);
+    const userContext = resolveUserContext(authContext);
     const { id } = c.req.valid("param");
     const schedule = c.req.valid("json");
 
@@ -107,11 +107,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             "You can only schedule draft, ready, or queued tasks",
           );
         }
-        await requireAssignedOrganizationSeat(
-          userContext.userId,
-          currentTask.organizationId,
-          tx,
-        );
+        if (userContext) {
+          await requireAssignedOrganizationSeat(
+            userContext.userId,
+            currentTask.organizationId,
+            tx,
+          );
+        }
         const quarantine = await tx.taskScheduleQuarantine.findUnique({
           where: { taskId: id },
           select: { id: true },
@@ -209,6 +211,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw error;
       });
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    return ok(c, taskSchema.parse(mapTask(task, authContext)));
   });
 }

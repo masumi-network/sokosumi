@@ -4553,6 +4553,9 @@ export const TaskSchema = {
                 }
             ]
         },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
         grantResumeStatus: {
             type: [
                 'string',
@@ -4645,6 +4648,18 @@ export const TaskSchema = {
             },
             example: [],
             description: 'Files uploaded to this task (newest first).'
+        },
+        selectableStatuses: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskStatus'
+            },
+            example: [
+                'DRAFT',
+                'RUNNING',
+                'COMPLETED'
+            ],
+            description: 'Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.'
         }
     },
     required: [
@@ -4670,6 +4685,7 @@ export const TaskSchema = {
         'name',
         'description',
         'status',
+        'visibility',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'metadata',
@@ -4680,7 +4696,8 @@ export const TaskSchema = {
         'workspace',
         'share',
         'links',
-        'files'
+        'files',
+        'selectableStatuses'
     ]
 } as const;
 
@@ -4974,6 +4991,16 @@ export const TaskCreatorSokoBotSchema = {
         'id',
         'sokoBot'
     ]
+} as const;
+
+export const TaskVisibilitySchema = {
+    type: 'string',
+    enum: [
+        'PUBLIC',
+        'PRIVATE'
+    ],
+    example: 'PUBLIC',
+    description: 'PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner\'s Soko Bot, and the assigned coworker\'s vendor family. Set at create; immutable.'
 } as const;
 
 export const TaskEventSchema = {
@@ -16213,6 +16240,42 @@ export const MarkAllReadResponseSchema = {
     ]
 } as const;
 
+export const MarkNotificationsReadResponseSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of notifications this request marked as read',
+            example: 3
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const MarkNotificationsReadRequestSchema = {
+    type: 'object',
+    properties: {
+        ids: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            minItems: 1,
+            maxItems: 25,
+            description: 'Notification IDs to mark as read',
+            example: [
+                'cm123456789abcdefghij'
+            ]
+        }
+    },
+    required: [
+        'ids'
+    ]
+} as const;
+
 export const ClearNotificationsResponseSchema = {
     type: 'object',
     properties: {
@@ -18873,6 +18936,9 @@ export const TaskListItemSchema = {
                 }
             ]
         },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
         grantResumeStatus: {
             type: [
                 'string',
@@ -18956,6 +19022,7 @@ export const TaskListItemSchema = {
         'name',
         'description',
         'status',
+        'visibility',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'metadata',

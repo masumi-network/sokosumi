@@ -45,7 +45,7 @@ The app composes these UI-free packages:
 | `SokosumiChat` | Workspace/room/thread state, sends, streaming, parsing, avatar loading and chat persistence | `CoreAPI` |
 | `SokosumiRealtime` | Ably transport and event delivery | `CoreAPI`, `SokosumiChat` |
 
-Views render package state and dispatch user actions through `WorkspaceState`. HTTP operations belong to `ChatService`/`CoreAPI`; token lifecycle belongs to `SokosumiAuth`. The composer owns transient typing state so each keystroke does not invalidate the timeline. Rendering parses into portable models in `SokosumiChat`, then presents those models in SwiftUI.
+Views render package state and dispatch user actions through `WorkspaceState`. HTTP operations belong to `ChatService`/`CoreAPI`; token lifecycle belongs to `SokosumiAuth`. Chat read backoff lives in `SokosumiChat` (`ChatReadCooldown` and its client middleware), shared across clients by app composition and scoped to the OAuth login generation. The composer owns transient typing state so each keystroke does not invalidate the timeline. Rendering parses into portable models in `SokosumiChat`, then presents those models in SwiftUI.
 
 `SokosumiApp` currently shares one auth and workspace coordinator across windows. Each root view reports its own visibility identity. Preserve this ownership during refactors: creating a coordinator per child view would change selection, task lifetime and realtime behavior.
 

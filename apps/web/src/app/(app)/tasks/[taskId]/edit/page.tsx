@@ -110,6 +110,8 @@ export default async function EditTaskPage({
         status: tEdit("status"),
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
+        changeStatus: tEdit("changeStatus"),
+        noStatusMatches: tEdit("noStatusMatches"),
         statusReady: tEdit("statusReady"),
         statusQueued: tStatus("QUEUED"),
         untitledTask: tEdit("untitledTask"),
@@ -143,6 +145,7 @@ export default async function EditTaskPage({
         assigneeUserId: taskResult.assigneeUserId ?? null,
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
+        selectableStatuses: taskResult.selectableStatuses,
         metadata: taskResult.metadata,
         nextRunAt: taskResult.nextRunAt?.toISOString() ?? null,
       }}

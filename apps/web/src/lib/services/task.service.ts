@@ -27,6 +27,7 @@ interface ListTasksParams {
   projectId?: string;
   q?: string;
   scope?: "workspace" | "owned";
+  visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
   sort?: "nextRunAt";
@@ -50,6 +51,7 @@ interface CreateTaskInput {
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 interface PatchTaskInput {
@@ -147,6 +149,7 @@ export const taskService = (() => {
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
+      ...(params.visibility ? { visibility: params.visibility } : {}),
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       sort: params.sort,

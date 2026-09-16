@@ -54,12 +54,7 @@ export async function TurnActivity({
     getTranslations("Components.SokoBot.Activity"),
     getFormatter(),
   ]);
-  const time = (date: Date) =>
-    format.dateTime(date, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+  const time = (date: Date) => format.dateTime(date, "timeWithSeconds");
 
   const isEmpty =
     events.length === 0 &&
@@ -214,10 +209,7 @@ export async function TurnActivity({
                   <DecisionStatusBadge status={decision.status} />
                   <span className="text-muted-foreground text-xs">
                     {t("expires")}{" "}
-                    {format.dateTime(decision.expiresAt, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
+                    {format.dateTime(decision.expiresAt, "dateTimeMedium")}
                   </span>
                 </div>
                 <p className="text-foreground">{decision.reason}</p>

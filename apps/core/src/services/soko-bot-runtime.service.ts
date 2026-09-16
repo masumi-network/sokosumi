@@ -60,9 +60,16 @@ import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import {
+  buildSokoBotAudienceJobParentTaskWhere,
+  buildSokoBotAudienceTaskVisibilityWhere,
+  readSokoBotPacketAudience,
+  type SokoBotPacketAudience,
+} from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
@@ -296,6 +303,7 @@ export interface SokoBotActionContext {
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   grant: SokoBotTurnGrantClaims;
+  askedByKind?: SokoBotPacketAudience;
 }
 
 export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
@@ -473,16 +481,6 @@ function buildTurnGrant(
     capabilities: turn.capabilityNames.filter(isSokoBotCapability),
     issuedAt: 0,
     expiresAt: 0,
-  };
-}
-
-function sokoBotWorkspaceAccessWhere(
-  userId: string,
-  workspaceId: string,
-): Prisma.WorkspaceWhereInput {
-  return {
-    id: workspaceId,
-    OR: [{ userId }, { organization: { members: { some: { userId } } } }],
   };
 }
 
@@ -699,6 +697,7 @@ export class SokoBotRuntimeService {
 
     return {
       grant,
+      askedByKind: readSokoBotPacketAudience(turn.contextSnapshot?.packet),
       turn: {
         id: turn.id,
         sokoBotId: turn.sokoBotId,
@@ -1397,6 +1396,10 @@ export class SokoBotRuntimeService {
         id: taskId,
         workspaceId: authorized.turn.workspaceId,
         archivedAt: null,
+        ...buildSokoBotAudienceTaskVisibilityWhere(
+          authorized.turn.userId,
+          authorized.askedByKind,
+        ),
       },
       select: {
         id: true,
@@ -2491,9 +2494,17 @@ export class SokoBotRuntimeService {
         const { jobId } = jobIdInputSchema.parse(input.input);
         return prisma.job.findFirst({
           where: {
-            id: jobId,
-            ownerId: authorized.turn.userId,
-            workspaceId: authorized.turn.workspaceId,
+            AND: [
+              {
+                id: jobId,
+                ownerId: authorized.turn.userId,
+                workspaceId: authorized.turn.workspaceId,
+              },
+              buildSokoBotAudienceJobParentTaskWhere(
+                authorized.turn.userId,
+                authorized.askedByKind,
+              ),
+            ],
           },
           select: {
             id: true,

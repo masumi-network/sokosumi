@@ -40,9 +40,7 @@ export async function AdminActionsLog({ actions }: AdminActionsLogProps) {
   ]);
   const operations = groupAuditOperations(actions);
   const dateTime = (date: Date | null) =>
-    date
-      ? format.dateTime(date, { dateStyle: "medium", timeStyle: "medium" })
-      : null;
+    date ? format.dateTime(date, "dateTimeWithSeconds") : null;
 
   return (
     <Panel

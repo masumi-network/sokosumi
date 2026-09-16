@@ -27,7 +27,10 @@ import {
 import { toast } from "sonner";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
-import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
+import {
+  isOtherHumanAssignee,
+  resolveTaskAssigneeFields,
+} from "@/app/tasks/utils/coworker-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -46,6 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
   FileUploadDropzone,
@@ -69,6 +73,7 @@ import {
   type TaskContextSelectionInput,
   updateTask,
 } from "@/lib/actions/task/action";
+import { useSession } from "@/lib/auth/auth.client";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Project } from "@/lib/clients/generated/core/types.gen";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
@@ -90,7 +95,7 @@ import {
 import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 import {
   canSelectQueuedTaskStatus,
-  getManualTaskStatusSelectOptions,
+  TASK_STATUS_DISPLAY_ORDER,
 } from "@/lib/utils/task-status-order";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
@@ -103,7 +108,7 @@ import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskScheduleModal } from "./task-schedule-modal";
-import { TaskStatusPillSelectTrigger } from "./task-status-pill-select-trigger";
+import { TaskStatusPicker } from "./task-status-picker";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -141,6 +146,8 @@ export interface TaskFormLabels {
   statusQueued: string;
   statusReady: string;
   statusLabels?: Record<TaskStatus, string>;
+  changeStatus: string;
+  noStatusMatches: string;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -159,6 +166,8 @@ export interface TaskFormLabels {
   createAnother?: string;
   untitledTask: string;
   saveError: string;
+  privateLabel?: string;
+  privateDescription?: string;
 }
 
 interface TaskFormInitialValues {
@@ -169,6 +178,8 @@ interface TaskFormInitialValues {
   assigneeUserId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
+  /** Statuses Core lets this viewer move the Task to; edit mode only (ADR 0029). */
+  selectableStatuses?: readonly TaskStatus[];
   metadata?: string | null;
   nextRunAt?: string | null;
   schedule?: TaskScheduleSelection;
@@ -245,6 +256,7 @@ export interface TaskFormCreateInput {
   context: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   schedule?: TaskScheduleSelection;
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 export type TaskFormCreateHandler = (
@@ -308,6 +320,8 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const tSeries = useTranslations("App.Tasks.Schedule.series");
@@ -319,7 +333,8 @@ export function TaskForm({
       (initialValues?.nextRunAt && initialValues.nextRunAt.length > 0),
   );
   // A live series owns the Task's status and Calendar source: Core rejects
-  // status changes with `schedule_active`, and moving the source is SOK-887.
+  // status changes with `schedule_active` (except Ready → Queued, which is
+  // how a scheduled Task is normalized), and moving the source is SOK-887.
   const hasActiveSeries = mode === "edit" && hadSchedule;
   const hasProjectSelection = projectOptions !== undefined && !hasActiveSeries;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
@@ -327,6 +342,7 @@ export function TaskForm({
   const [name, setName] = useState(initialValues?.name ?? "");
   const initialDescription = initialValues?.description ?? "";
   const [description, setDescription] = useState(initialDescription);
+  const [isPrivate, setIsPrivate] = useState(false);
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
   const initialProjectId =
@@ -695,10 +711,16 @@ export function TaskForm({
   const canUseSubmitShortcut =
     showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
-  const statusOptions =
-    mode === "create"
-      ? CREATE_STATUS_OPTIONS
-      : getManualTaskStatusSelectOptions(status);
+  const statusPickerLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        TASK_STATUS_DISPLAY_ORDER.map((option) => [
+          option,
+          getTaskFormStatusLabel(option, labels),
+        ]),
+      ) as Record<TaskStatus, string>,
+    [labels],
+  );
 
   /**
    * What a save would do to a live series. Replacing the rule always retires
@@ -758,14 +780,28 @@ export function TaskForm({
             desiredStatus === TaskStatus.QUEUED)
         ) {
           const createTaskHandler = onCreateTask ?? createTask;
+          const assigneeFields = resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownSokoBotId,
+            initialValues?.assigneeUserId,
+          );
+          const createPrivateUnassigned =
+            canCreatePrivateTask &&
+            isPrivate &&
+            !isOtherHumanAssignee(
+              assigneeFields.assigneeUserId,
+              session?.user.id,
+            );
           const result = await createTaskHandler({
             description: trimmedDescription,
-            ...resolveTaskAssigneeFields(
-              assigneeId,
-              coworkerOptions,
-              knownSokoBotId,
-              initialValues?.assigneeUserId,
-            ),
+            ...assigneeFields,
+            ...(createPrivateUnassigned
+              ? {
+                  visibility: "PRIVATE" as const,
+                  assigneeUserId: null,
+                }
+              : {}),
             context: {
               brand: {
                 enabled: contextSelection.brand.enabled,
@@ -801,12 +837,6 @@ export function TaskForm({
           const createdTask = result.value;
           // Confirm success in place and let the user choose when to navigate;
           // the redirect target is prefetched so it lands fast.
-          const assigneeFields = resolveTaskAssigneeFields(
-            assigneeId,
-            coworkerOptions,
-            knownSokoBotId,
-            initialValues?.assigneeUserId,
-          );
           const createdStatus = resolveCelebrationStatus({
             desiredStatus,
             isAgent: isAgentAssigneeFields(assigneeFields),
@@ -924,6 +954,9 @@ export function TaskForm({
       scheduleLabel,
       hadSchedule,
       contextSelection,
+      canCreatePrivateTask,
+      isPrivate,
+      session?.user.id,
       labels.projectRequired,
       labels.statusDraft,
       labels.statusQueued,
@@ -1030,8 +1063,35 @@ export function TaskForm({
     isAgent: isAgentAssignee,
     hasSchedule,
   });
+  // Edit mode offers what Core marked selectable for the saved Task plus the
+  // saved status itself, so an unsaved pick can be undone before saving. A
+  // schedule staged in this form makes Queued pickable before Core knows.
+  const statusOptions = useMemo<readonly TaskStatus[]>(
+    () =>
+      mode === "create"
+        ? CREATE_STATUS_OPTIONS
+        : [
+            ...(initialValues?.status ? [initialValues.status] : []),
+            ...(initialValues?.selectableStatuses ?? []),
+            ...(isQueuedSelectable ? [TaskStatus.QUEUED] : []),
+          ],
+    [
+      mode,
+      initialValues?.status,
+      initialValues?.selectableStatuses,
+      isQueuedSelectable,
+    ],
+  );
   const isSchedulableAssignee =
     isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
+  const showPrivateControl =
+    mode === "create" &&
+    canCreatePrivateTask &&
+    Boolean(labels.privateLabel) &&
+    !isOtherHumanAssignee(
+      selectedAssigneeFields.assigneeUserId,
+      session?.user.id,
+    );
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
@@ -1425,6 +1485,30 @@ export function TaskForm({
                     onSelectionChange={setContextSelection}
                   />
                 ) : null}
+                {showPrivateControl ? (
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="task-private"
+                      checked={isPrivate}
+                      onCheckedChange={(checked) =>
+                        setIsPrivate(checked === true)
+                      }
+                    />
+                    <div className="grid gap-1">
+                      <Label
+                        htmlFor="task-private"
+                        className="cursor-pointer font-normal"
+                      >
+                        {labels.privateLabel}
+                      </Label>
+                      {labels.privateDescription ? (
+                        <p className="text-muted-foreground text-sm">
+                          {labels.privateDescription}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
                 {attachmentUrls.length > 0 ? (
                   <div className="flex flex-wrap gap-3">
                     {attachmentUrls.map((url) => (
@@ -1520,32 +1604,22 @@ export function TaskForm({
                   <span>{seriesError}</span>
                 </p>
               ) : null}
-              <Select
+              <TaskStatusPicker
                 value={status}
-                onValueChange={(value) =>
-                  handleStatusSelect(value as TaskStatus)
+                options={statusOptions}
+                labels={{
+                  statusLabels: statusPickerLabels,
+                  ariaLabel: labels.status,
+                  searchPlaceholder: labels.changeStatus,
+                  noResults: labels.noStatusMatches,
+                }}
+                onSelect={handleStatusSelect}
+                isOptionDisabled={(option) =>
+                  (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
+                  (option === TaskStatus.QUEUED && !isQueuedSelectable)
                 }
-              >
-                <TaskStatusPillSelectTrigger
-                  status={status}
-                  label={getTaskFormStatusLabel(status, labels)}
-                  ariaLabel={labels.status}
-                />
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem
-                      key={option}
-                      value={option}
-                      disabled={
-                        (isAgentOnlyTaskStatus(option) && !isAgentAssignee) ||
-                        (option === TaskStatus.QUEUED && !isQueuedSelectable)
-                      }
-                    >
-                      {getTaskFormStatusLabel(option, labels)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                align="start"
+              />
               {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
                 <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
                   <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />

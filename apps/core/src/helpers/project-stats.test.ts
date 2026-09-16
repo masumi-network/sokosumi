@@ -2,8 +2,12 @@ import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { humanProjectReaderVisibility } from "@/types/project";
 import { getProjectStatsByProjectIds } from "./project-stats";
+import {
+  buildHumanJobParentVisibilityWhere,
+  buildHumanTaskVisibilityWhere,
+} from "./task-visibility";
 
 const { jobFindManyMock, taskGroupByMock } = vi.hoisted(() => ({
   jobFindManyMock: vi.fn(),
@@ -50,11 +54,14 @@ describe("getProjectStatsByProjectIds", () => {
     jobFindManyMock.mockResolvedValue([]);
   });
 
+  const READER_VISIBILITY = humanProjectReaderVisibility("user_123");
+
   it("returns zero stats for every requested project when no rows match", async () => {
-    const stats = await getProjectStatsByProjectIds(WORKSPACE_ID, [
-      PROJECT_A_ID,
-      PROJECT_B_ID,
-    ]);
+    const stats = await getProjectStatsByProjectIds(
+      WORKSPACE_ID,
+      [PROJECT_A_ID, PROJECT_B_ID],
+      READER_VISIBILITY,
+    );
 
     expect(stats).toEqual([
       {
@@ -94,10 +101,11 @@ describe("getProjectStatsByProjectIds", () => {
       createFreeJob(PROJECT_B_ID, AgentJobStatus.AWAITING_INPUT, null),
     ]);
 
-    const stats = await getProjectStatsByProjectIds(WORKSPACE_ID, [
-      PROJECT_A_ID,
-      PROJECT_B_ID,
-    ]);
+    const stats = await getProjectStatsByProjectIds(
+      WORKSPACE_ID,
+      [PROJECT_A_ID, PROJECT_B_ID],
+      READER_VISIBILITY,
+    );
 
     expect(stats).toEqual([
       {
@@ -132,10 +140,11 @@ describe("getProjectStatsByProjectIds", () => {
   });
 
   it("filters task and job queries by workspace and requested projects", async () => {
-    await getProjectStatsByProjectIds(WORKSPACE_ID, [
-      PROJECT_A_ID,
-      PROJECT_B_ID,
-    ]);
+    await getProjectStatsByProjectIds(
+      WORKSPACE_ID,
+      [PROJECT_A_ID, PROJECT_B_ID],
+      READER_VISIBILITY,
+    );
 
     expect(taskGroupByMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -143,6 +152,7 @@ describe("getProjectStatsByProjectIds", () => {
           archivedAt: null,
           workspaceId: WORKSPACE_ID,
           projectId: { in: [PROJECT_A_ID, PROJECT_B_ID] },
+          ...buildHumanTaskVisibilityWhere("user_123"),
         },
       }),
     );
@@ -150,6 +160,7 @@ describe("getProjectStatsByProjectIds", () => {
       where: {
         workspaceId: WORKSPACE_ID,
         projectId: { in: [PROJECT_A_ID, PROJECT_B_ID] },
+        ...buildHumanJobParentVisibilityWhere("user_123"),
       },
       select: jobForStatusComputeSelect,
     });

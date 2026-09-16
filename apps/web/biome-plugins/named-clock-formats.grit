@@ -1,0 +1,21 @@
+language js
+
+// A clock time formatted from ad-hoc options skips the viewer's hour cycle.
+// Name a format from `createFormats` (src/i18n/time-format.ts) instead; a
+// third-argument override may add fields such as `year` or `timeZone`.
+or {
+  `$formatter.dateTime($value, $options)`,
+  `$formatter.dateTime($value, $format, $options)`,
+  `const $name = $options as const`,
+  `const $name = $options`
+} where {
+  $options <: object($properties),
+  $properties <: contains or {
+    `timeStyle: $_`,
+    `hour: "numeric"`,
+    `hour: "2-digit"`,
+    `hour12: $_`,
+    `hourCycle: $_`
+  },
+  register_diagnostic(span=$options, message="Clock times need a named dateTime format so the time format preference applies. See createFormats in src/i18n/time-format.ts.")
+}

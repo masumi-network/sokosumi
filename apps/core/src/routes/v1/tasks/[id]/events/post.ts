@@ -39,6 +39,7 @@ import {
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
+import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
@@ -46,17 +47,11 @@ import {
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
+import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  type AuthenticationContext,
-  isAgentAuthContext,
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
-  isUserAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
 import { sourceImportService } from "@/services/source-import.service";
@@ -74,76 +69,6 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
-
-function getStatusEventActorData(authContext: AuthenticationContext) {
-  if (isUserAuthContext(authContext)) {
-    return {
-      userId: authContext.userId,
-      coworkerId: null,
-      sokoBotId: null,
-    };
-  }
-
-  if (isSokoBotAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      sokoBotId: authContext.sokoBotId,
-    };
-  }
-
-  // Status transitions from a delegated coworker are attributed to the acting
-  // coworker only. Context userId is workspace context, not a second actor FK.
-  return {
-    userId: null,
-    coworkerId: authContext.coworkerId,
-    sokoBotId: null,
-  };
-}
-
-function getCommentEventActorData(authContext: AuthenticationContext) {
-  if (isUserAuthContext(authContext)) {
-    return {
-      userId: authContext.userId,
-      coworkerId: null,
-      sokoBotId: null,
-    };
-  }
-
-  if (isSokoBotAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      sokoBotId: authContext.sokoBotId,
-    };
-  }
-
-  // Coworker comments are shown by coworkerId in the UI; userId is not used.
-  return {
-    userId: null,
-    coworkerId: authContext.coworkerId,
-    sokoBotId: null,
-  };
-}
-
-function getAgentActorData(authContext: AuthenticationContext) {
-  if (isSokoBotAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      sokoBotId: authContext.sokoBotId,
-    };
-  }
-
-  if (!isCoworkerAuthContext(authContext)) {
-    throw new Error("getAgentActorData called without agent auth context");
-  }
-  return {
-    userId: null,
-    coworkerId: authContext.coworkerId,
-    sokoBotId: null,
-  };
-}
 
 interface SettleTaskEventChargeParams {
   task: {
@@ -433,6 +358,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           nextRunAt: task.nextRunAt,
         });
 
+        // A person may only set what the status picker offered (ADR 0029).
+        if (
+          !isAgent &&
+          !getSelectableTaskStatuses(task, authContext).includes(status)
+        ) {
+          throw unprocessableEntity(
+            "This status is not selectable for this task",
+            { kind: CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE },
+          );
+        }
+
         if (
           !isAgent &&
           userTaskStatusTransitionRequiresComment(task.status, status)
@@ -473,12 +409,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      const actorData =
-        status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
-          ? await getStatusEventActorData(authContext)
-          : credits != null || masumiPayment != null
-            ? getAgentActorData(authContext)
-            : await getCommentEventActorData(authContext);
+      const actorData = resolveTaskEventActorFields(authContext);
 
       const createdEvent = await tx.taskEvent.create({
         data: {

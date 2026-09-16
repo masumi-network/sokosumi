@@ -782,6 +782,12 @@
       "markAllRead": "Alle als gelesen markieren",
       "markAllReadError": "Alle Benachrichtigungen konnten nicht als gelesen markiert werden",
       "delete": "Benachrichtigung löschen: {message}",
+      "deleteTooltip": "Löschen",
+      "markRead": "Benachrichtigung als gelesen markieren: {message}",
+      "markReadTooltip": "Als gelesen markieren",
+      "markUnread": "Benachrichtigung als ungelesen markieren: {message}",
+      "markUnreadTooltip": "Als ungelesen markieren",
+      "unreadIndicator": "Ungelesen",
       "deleteError": "Benachrichtigung konnte nicht gelöscht werden",
       "clearAll": "Alle löschen",
       "clearAllError": "Benachrichtigungen konnten nicht gelöscht werden",
@@ -1583,7 +1589,9 @@
           "COMPLETED": "Abgeschlossen",
           "FAILED": "Fehlgeschlagen",
           "CANCELED": "Abgebrochen"
-        }
+        },
+        "visibilityLabel": "Sichtbarkeit",
+        "visibilityPrivate": "Privat"
       },
       "ProjectSwitcher": {
         "ariaLabel": "Projekt",
@@ -1613,6 +1621,8 @@
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "privateBadge": "Privat",
+        "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",
@@ -1701,6 +1711,8 @@
           "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
+          "changeStatus": "Status ändern…",
+          "noStatusMatches": "Kein Status passt",
           "moveToWorkspace": "In anderen Arbeitsbereich verschieben",
           "moveToWorkspaceTitle": "Task in einen anderen Arbeitsbereich verschieben",
           "moveToWorkspaceDescription": "Wählen Sie den Arbeitsbereich, in den Sie diese Aufgabe verschieben möchten.",
@@ -1876,6 +1888,8 @@
         "statusDraft": "Entwurf",
         "statusQueued": "In Warteschlange",
         "statusReady": "Bereit",
+        "changeStatus": "Status ändern…",
+        "noStatusMatches": "Kein Status passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
         "back": "Zurück",
@@ -1904,7 +1918,9 @@
         "taskCreatedHint": "Alles ist eingerichtet und bereit.",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
-        "close": "Schließen"
+        "close": "Schließen",
+        "privateLabel": "Privater Task",
+        "privateDescription": "Nur du, dein Soko Bot und der Vendor des zugewiesenen Coworkers können diesen Task sehen."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -1925,6 +1941,8 @@
         "statusDescription": "Wähle den Status für diesen Task",
         "statusDraft": "Entwurf",
         "statusReady": "Bereit",
+        "changeStatus": "Status ändern…",
+        "noStatusMatches": "Kein Status passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
         "back": "Zurück",
@@ -3999,6 +4017,17 @@
           "en": "English",
           "de": "Deutsch",
           "es": "Español"
+        }
+      },
+      "TimeFormat": {
+        "title": "Zeitformat",
+        "description": "Wähle, wie Uhrzeiten angezeigt werden. Automatisch folgt deinem Browser.",
+        "selectAriaLabel": "Zeitformat auswählen",
+        "auto": "Automatisch",
+        "autoResolved": "Automatisch ({timeFormat})",
+        "options": {
+          "12h": "12-Stunden",
+          "24h": "24-Stunden"
         }
       },
       "SocialAccounts": {

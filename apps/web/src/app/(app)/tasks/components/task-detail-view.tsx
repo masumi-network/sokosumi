@@ -5,7 +5,7 @@ import {
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
-import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
@@ -51,7 +51,6 @@ import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigne
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
-import { formatShortDateTime } from "@/lib/utils/datetime";
 import {
   buildVendorGrantReviewHref,
   canApproveVendorGrants,
@@ -100,7 +99,6 @@ export async function TaskDetailView({
   const membersPromise = userService.getMyMembersWithOrganizations();
   const workspaceAccessPromise = userService.getWorkspaceAccess();
   const sessionPromise = getSession();
-  const localePromise = getLocale();
   // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
   // org subscription call that used to 403 → auth-redirect bounce.
   const currentPlanPromise = sessionPromise.then((session) =>
@@ -239,7 +237,6 @@ export async function TaskDetailView({
                   task={task}
                   agentsPromise={agentsPromise}
                   sessionPromise={sessionPromise}
-                  localePromise={localePromise}
                 />
               </Suspense>
             )}
@@ -409,25 +406,16 @@ async function TaskMetadataSection({
   sessionPromise: Promise<SessionResult>;
   projectPromise: Promise<ProjectResult>;
 }) {
-  const [
-    project,
-    session,
-    hasAssignedSeat,
-    t,
-    tTasks,
-    tStatus,
-    locale,
-    timeZone,
-  ] = await Promise.all([
-    projectPromise,
-    sessionPromise,
-    hasAssignedSeatPromise,
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("App.Tasks"),
-    getTranslations("App.Tasks.Filters.statusOptions"),
-    getLocale(),
-    getTimeZone(),
-  ]);
+  const [project, session, hasAssignedSeat, t, tTasks, tStatus, formatter] =
+    await Promise.all([
+      projectPromise,
+      sessionPromise,
+      hasAssignedSeatPromise,
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("App.Tasks"),
+      getTranslations("App.Tasks.Filters.statusOptions"),
+      getFormatter(),
+    ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
@@ -445,6 +433,8 @@ async function TaskMetadataSection({
       editable={!isReadOnly}
       task={{
         status: task.status,
+        visibility: task.visibility,
+        selectableStatuses: task.selectableStatuses,
         owner: task.owner,
         organization: task.organization,
         assignee: task.assignee,
@@ -454,9 +444,11 @@ async function TaskMetadataSection({
         nextRunAt: task.nextRunAt,
       }}
       project={project ? { id: project.id, name: project.name } : null}
-      createdAtLabel={formatShortDateTime(task.createdAt, locale, timeZone)}
-      updatedAtLabel={formatShortDateTime(task.updatedAt, locale, timeZone)}
+      createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
+      updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
       labels={{
+        visibility: t("visibility"),
+        privateBadge: t("privateBadge"),
         status: t("status"),
         statusLabels,
         owner: t("owner"),
@@ -474,6 +466,8 @@ async function TaskMetadataSection({
       }}
       statusFieldLabels={{
         statusLabels,
+        changeStatus: t("actions.changeStatus"),
+        noStatusMatches: t("actions.noStatusMatches"),
         reopenToReadyTitle: t("actions.reopenToReadyTitle"),
         reopenToReadyDescription: t("actions.reopenToReadyDescription"),
         reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
@@ -585,6 +579,7 @@ async function TaskDetailActionsSlot({
       share={taskWithCoworker.share ?? null}
       taskId={taskId}
       status={taskWithCoworker.status}
+      taskVisibility={taskWithCoworker.visibility}
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
@@ -635,17 +630,14 @@ async function TaskJobsSection({
   task,
   agentsPromise,
   sessionPromise,
-  localePromise,
 }: {
   task: Task;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
-  localePromise: Promise<string>;
 }) {
-  const [agents, session, locale, t] = await Promise.all([
+  const [agents, session, t] = await Promise.all([
     agentsPromise,
     sessionPromise,
-    localePromise,
     getTranslations("App.Tasks.Detail"),
   ]);
 
@@ -655,7 +647,6 @@ async function TaskJobsSection({
       agents={agents}
       jobs={task.jobs}
       userId={session?.user.id ?? null}
-      locale={locale}
       emptyLabel={t("jobsEmpty")}
       untitledLabel={t("jobsUntitled")}
       unknownAgentLabel={t("jobsUnknownAgent")}

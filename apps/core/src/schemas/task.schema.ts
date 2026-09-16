@@ -1,10 +1,19 @@
 import { z } from "@hono/zod-openapi";
-import { Channel, TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  TaskScheduleEventKind,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
-import { channelSchema, taskStatusSchema } from "@/schemas/domain-enums.schema";
+import {
+  channelSchema,
+  taskStatusSchema,
+  taskVisibilitySchema,
+} from "@/schemas/domain-enums.schema";
 import {
   createJobRequestSchema,
   jobSummariesSchema,
@@ -310,6 +319,11 @@ const taskBaseSchema = z.object({
     description:
       "GRANT_PENDING: blocked until vendor workspace access is granted.",
   }),
+  visibility: taskVisibilitySchema.openapi({
+    example: TaskVisibility.PUBLIC,
+    description:
+      "PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.",
+  }),
   grantResumeStatus: z.enum(["DRAFT", "READY"]).nullable().openapi({
     description:
       "Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.",
@@ -359,6 +373,11 @@ export const taskSchema = taskBaseSchema
     files: z.array(taskFileSchema).openapi({
       example: [],
       description: "Files uploaded to this task (newest first).",
+    }),
+    selectableStatuses: z.array(taskStatusSchema).openapi({
+      example: [TaskStatus.DRAFT, TaskStatus.RUNNING, TaskStatus.COMPLETED],
+      description:
+        "Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.",
     }),
   })
   .openapi("Task");

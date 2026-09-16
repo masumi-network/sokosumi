@@ -130,7 +130,8 @@ let package = Package(
         .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types")
-      ]
+      ],
+      exclude: ["Fixtures/chat-message-preview.json"]
     )
   ]
 )

@@ -1,4 +1,9 @@
-import { TaskFileOrigin, TaskFileStatus, TaskStatus } from "@sokosumi/database";
+import {
+  TaskFileOrigin,
+  TaskFileStatus,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
@@ -27,25 +32,61 @@ export type FetchProjectTasksPageResult =
       reason: "invalid_cursor";
     };
 
-function buildCoworkerTaskAccessSql(
-  params: CoworkerTaskAccessSqlParams,
+function buildCoworkerVendorFamilySql(
+  coworkerId: string,
+  vendorId: string,
 ): PrismaRaw.Sql {
-  if (params.hasWorkspaceGrant) {
-    return PrismaRaw.sql`AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`;
-  }
-
   return PrismaRaw.sql`
-    AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
-    AND (
-      t."assigneeId" = ${params.coworkerId}
+    (
+      t."assigneeId" = ${coworkerId}
       OR (
-        t."assigneeId" IS DISTINCT FROM ${params.coworkerId}
+        t."assigneeId" IS DISTINCT FROM ${coworkerId}
         AND EXISTS (
           SELECT 1
           FROM coworker c
           WHERE c.id = t."assigneeId"
-            AND c."vendorId" = ${params.vendorId}::uuid
+            AND c."vendorId" = ${vendorId}::uuid
         )
+      )
+    )
+  `;
+}
+
+function buildCoworkerTaskAccessSql(
+  params: CoworkerTaskAccessSqlParams,
+): PrismaRaw.Sql {
+  const vendorFamily = buildCoworkerVendorFamilySql(
+    params.coworkerId,
+    params.vendorId,
+  );
+
+  if (params.hasWorkspaceGrant) {
+    // GRANTED opens public non-draft Tasks, but private stays on vendor family.
+    return PrismaRaw.sql`
+      AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+      AND (
+        t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+        OR (
+          t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+          AND ${vendorFamily}
+        )
+      )
+    `;
+  }
+
+  return PrismaRaw.sql`
+    AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+    AND ${vendorFamily}
+  `;
+}
+
+function buildHumanTaskVisibilitySql(userId: string): PrismaRaw.Sql {
+  return PrismaRaw.sql`
+    AND (
+      t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+      OR (
+        t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+        AND t."ownerId" = ${userId}
       )
     )
   `;
@@ -57,11 +98,14 @@ function buildProjectTaskFilters(params: {
   assigneeId?: string;
   assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
+  readerUserId?: string;
+  sokoBotOwnerUserId?: string;
 }): {
   assigneeFilter: PrismaRaw.Sql;
   projectFilter: PrismaRaw.Sql;
   coworkerFilter: PrismaRaw.Sql;
   sokoBotFilter: PrismaRaw.Sql;
+  humanVisibilityFilter: PrismaRaw.Sql;
   baseWhere: PrismaRaw.Sql;
 } {
   const assigneeFilter = params.assigneeId
@@ -76,6 +120,14 @@ function buildProjectTaskFilters(params: {
     : PrismaRaw.empty;
   const sokoBotFilter = params.assigneeSokoBotId
     ? PrismaRaw.sql`AND t."assigneeSokoBotId" = ${params.assigneeSokoBotId}::uuid AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`
+    : PrismaRaw.empty;
+  const visibilityOwnerUserId =
+    params.sokoBotOwnerUserId ??
+    (params.readerUserId && !params.coworkerAccess
+      ? params.readerUserId
+      : undefined);
+  const humanVisibilityFilter = visibilityOwnerUserId
+    ? buildHumanTaskVisibilitySql(visibilityOwnerUserId)
     : PrismaRaw.empty;
 
   const baseWhere = PrismaRaw.sql`
@@ -96,6 +148,7 @@ function buildProjectTaskFilters(params: {
       ${assigneeFilter}
       ${coworkerFilter}
       ${sokoBotFilter}
+      ${humanVisibilityFilter}
   `;
 
   return {
@@ -103,6 +156,7 @@ function buildProjectTaskFilters(params: {
     projectFilter,
     coworkerFilter,
     sokoBotFilter,
+    humanVisibilityFilter,
     baseWhere,
   };
 }
@@ -147,6 +201,8 @@ export async function fetchProjectTasksPage(params: {
   assigneeId?: string;
   assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
+  readerUserId?: string;
+  sokoBotOwnerUserId?: string;
   cursor?: string;
   take: number;
   sort?: DriveListSort | null;

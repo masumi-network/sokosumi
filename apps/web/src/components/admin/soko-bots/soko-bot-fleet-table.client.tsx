@@ -174,10 +174,7 @@ export function SokoBotFleetTable({
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs tabular-nums">
                     {item.lastActivityAt
-                      ? format.dateTime(item.lastActivityAt, {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })
+                      ? format.dateTime(item.lastActivityAt, "dateTimeShort")
                       : "—"}
                   </TableCell>
                 </TableRow>

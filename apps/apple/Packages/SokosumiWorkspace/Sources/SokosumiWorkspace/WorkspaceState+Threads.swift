@@ -62,6 +62,7 @@ public extension WorkspaceState {
     do {
       guard try await thread.markLooked(client: client, organizationSlug: selection?.workspace.organizationSlug),
             readAttention.isVisible else { return }
+      threadAttentionRevision += 1
       guard let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
       try await readAttention.readAfterThreadLook(
         room: room, client: client, organizationSlug: selection?.workspace.organizationSlug

@@ -35,7 +35,6 @@ import {
   createScheduledTaskInTransaction,
   findScheduledTaskCreateOperation,
   requireScheduledTaskCreator,
-  requireScheduledTaskCreatorOrRequestGrant,
 } from "@/services/task-schedule-create.service";
 import { taskInclude } from "@/types/task";
 
@@ -100,9 +99,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       workspaceContext.organizationId,
     );
-    const preflightCreator = await requireScheduledTaskCreatorOrRequestGrant(
+    const preflightCreator = await requireScheduledTaskCreator(
       c.var.authContext,
-      workspaceContext.workspaceId,
     );
     const scheduledTaskInput = {
       creator: preflightCreator,
@@ -137,7 +135,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       taskId = await serializableTransaction(async (tx) => {
         const creator = await requireScheduledTaskCreator(
           c.var.authContext,
-          workspaceContext.workspaceId,
           tx,
         );
         await requireAssignedOrganizationSeat(
@@ -181,6 +178,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include: taskInclude,
     });
 
-    return created(c, taskSchema.parse(mapTask(task)));
+    return created(c, taskSchema.parse(mapTask(task, c.var.authContext)));
   });
 }

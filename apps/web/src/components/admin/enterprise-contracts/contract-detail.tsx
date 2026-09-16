@@ -12,17 +12,12 @@ import { Separator } from "@/components/ui/separator";
 import type { EnterpriseContract } from "@/lib/clients/generated/core/types.gen";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
-const dateTimeOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-} as const;
-
 function formatDateTime(
   formatter: Awaited<ReturnType<typeof getFormatter>>,
   value: Date | null,
 ): string {
   if (!value) return "—";
-  return formatter.dateTime(value, dateTimeOptions);
+  return formatter.dateTime(value, "dateTimeMedium");
 }
 
 function formatOneTimeExpiresAt(
@@ -38,7 +33,7 @@ function formatOneTimeExpiresAt(
     return noExpiryLabel;
   }
 
-  return formatter.dateTime(contract.oneTimeExpiresAt, dateTimeOptions);
+  return formatter.dateTime(contract.oneTimeExpiresAt, "dateTimeMedium");
 }
 
 interface ContractDetailProps {

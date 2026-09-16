@@ -1,11 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskVisibility } from "@sokosumi/database";
 import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
-import { conflict } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
@@ -81,6 +82,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ownedTask.workspaceId,
           ),
         });
+      }
+
+      if (
+        targetOrganizationId === null &&
+        ownedTask.visibility === TaskVisibility.PRIVATE
+      ) {
+        throw badRequest("Private Tasks cannot move to a personal workspace");
       }
 
       // Moving a Calendar source between workspaces belongs to SOK-887; while
@@ -193,6 +201,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }, "Task changed by a concurrent request. Please retry.");
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    return ok(c, taskSchema.parse(mapTask(task, authContext)));
   });
 }

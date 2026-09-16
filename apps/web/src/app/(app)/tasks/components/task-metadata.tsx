@@ -1,10 +1,11 @@
-import { hasActiveTaskSchedule, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
@@ -17,6 +18,8 @@ import {
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
+  visibility: string;
+  privateBadge: string;
   status: string;
   statusLabels: Record<TaskStatus, string>;
   owner: string;
@@ -35,6 +38,8 @@ interface TaskMetadataLabels {
 
 interface TaskMetadataTask {
   status: Task["status"];
+  visibility?: Task["visibility"];
+  selectableStatuses: Task["selectableStatuses"];
   owner: Task["owner"];
   organization: Task["organization"];
   assignee: Task["assignee"];
@@ -192,13 +197,17 @@ export function TaskMetadata({
     labels.personalAssistantFallback,
   );
   const creator = resolveTaskCreatorDisplay(task, labels);
-  const hasSchedule = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
-  const isAgentAssignee =
-    task.assignee?.type === "coworker" || task.assignee?.type === "sokoBot";
-
   return (
     <section className="space-y-3">
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+      {task.visibility === "PRIVATE" ? (
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground text-sm">
+            {labels.visibility}
+          </span>
+          <Badge variant="secondary">{labels.privateBadge}</Badge>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.status}</span>
         {editable ? (
@@ -206,8 +215,7 @@ export function TaskMetadata({
             key={`${taskId}-${task.status}`}
             taskId={taskId}
             status={task.status}
-            hasSchedule={hasSchedule}
-            isAgentAssignee={isAgentAssignee}
+            selectableStatuses={task.selectableStatuses}
             labels={statusFieldLabels}
           />
         ) : (

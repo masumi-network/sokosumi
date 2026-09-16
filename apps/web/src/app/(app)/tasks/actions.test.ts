@@ -120,6 +120,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      visibility: null,
     });
 
     expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
@@ -135,6 +136,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      visibility: null,
     });
     expect(callArg.coworkersById).toBeInstanceOf(Map);
     expect(callArg.coworkersById.get(coworker.id)).toEqual(coworker);
@@ -161,6 +163,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
@@ -187,6 +190,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
     });
 
     // Default session has an active org (org-1), so the fallback is now
@@ -215,6 +219,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
@@ -238,6 +243,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: "malicious" as never,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
@@ -261,6 +267,7 @@ describe("loadMoreTasksColumn", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
@@ -301,6 +308,7 @@ describe("loadMoreTasksList", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      visibility: null,
     });
 
     expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
@@ -315,6 +323,7 @@ describe("loadMoreTasksList", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      visibility: null,
     });
     expect(callArg.coworkersById).toBeInstanceOf(Map);
     expect(callArg.coworkersById.get(coworker.id)).toEqual(coworker);
@@ -340,6 +349,7 @@ describe("loadMoreTasksList", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
@@ -365,6 +375,7 @@ describe("loadMoreTasksList", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
@@ -390,6 +401,7 @@ describe("loadMoreTasksList", () => {
       assigneeUserId: null,
       status: null,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
@@ -412,6 +424,7 @@ describe("loadMoreTasksList", () => {
       assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: null,
+      visibility: null,
     });
 
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
