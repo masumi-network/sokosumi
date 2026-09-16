@@ -3,7 +3,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const { organizationFindUniqueMock, memberFindUniqueMock } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
@@ -15,17 +14,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
   authMiddleware: (await import("@/test-fixtures/auth-middleware"))
     .stubAuthMiddleware,
   requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (authContext?.actor === "user") {
-      return { source: "session" as const, ...authContext };
+    if (!authContext || authContext.actor !== "user") {
+      throw new HTTPException(403, { message: "User authentication required" });
     }
-    if (authContext?.actor === "coworker" && authContext.context) {
-      return {
-        source: "context" as const,
-        userId: authContext.context.userId,
-        organizationId: authContext.context.organizationId,
-      };
-    }
-    throw new HTTPException(403, { message: "User authentication required" });
+    return { source: "session" as const, ...authContext };
   },
 }));
 
@@ -35,37 +27,6 @@ vi.mock("@/lib/db/prisma", () => ({
     member: { findUnique: memberFindUniqueMock },
   },
 }));
-
-// Let a coworker past the vendor grant gate so these cases exercise the
-// organization binding, not grant policy (grant policy lives in
-// coworker-user-context-binding.test.ts).
-vi.mock("@/helpers/personal-workspace-error", () => ({
-  resolveWorkspaceForContextOrNotFound: async () => ({ id: "workspace_a" }),
-}));
-
-vi.mock("@/helpers/vendor-grants", () => ({
-  getWorkspaceGrant: async () => ({ status: "GRANTED" }),
-  isGrantDeniedOrRevoked: () => false,
-  throwGrantAccessError: () => {
-    throw new Error("unexpected grant rejection");
-  },
-}));
-
-/** A Serviceplan-style coworker key bound to org_123 by context headers. */
-const COWORKER_IN_ORG_123: AuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "cow_123",
-  vendorId: TEST_VENDOR_ID,
-  context: { userId: "user_123", organizationId: "org_123" },
-};
-
-/** The same key, bound to a different organization the user also belongs to. */
-const COWORKER_IN_OTHER_ORG: AuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "cow_123",
-  vendorId: TEST_VENDOR_ID,
-  context: { userId: "user_123", organizationId: "org_other" },
-};
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
@@ -153,29 +114,5 @@ describe("GET /organizations/{id}/design-md", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.designMd).toBeNull();
-  });
-});
-
-describe("GET /organizations/{id}/design-md organization scope", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    setMembership("member", { designMd: "# Acme" });
-  });
-
-  it("serves the organization the coworker context is bound to", async () => {
-    const app = createApp(COWORKER_IN_ORG_123);
-
-    const response = await app.request("http://localhost/org_123/design-md");
-
-    expect(response.status).toBe(200);
-  });
-
-  it("refuses an organization outside the coworker context", async () => {
-    const app = createApp(COWORKER_IN_OTHER_ORG);
-
-    const response = await app.request("http://localhost/org_123/design-md");
-
-    expect(response.status).toBe(403);
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
   });
 });

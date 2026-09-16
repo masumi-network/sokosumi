@@ -315,6 +315,47 @@ describe("ably-push-sw display", () => {
     expect(worker.shown[0]?.options.body).toBe("");
   });
 
+  /**
+   * A reminder about a mention in a room of two is named the same way the
+   * mention was. Without the swap the banner renders the room-name line, and
+   * that room is named after the author, so it would say one name twice.
+   */
+  it("reads a reminder about a mention in a room of two as a direct one", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.mentionedFollowUp",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Ada",
+        isDirect: true,
+      }),
+    });
+
+    expect(worker.shown[0]?.options.body).toBe(
+      "Ada is still waiting for your reply",
+    );
+  });
+
+  /** The same reminder in a named room keeps the room in the line. */
+  it("keeps the room in a reminder about a mention in a named room", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.mentionedFollowUp",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "General",
+      }),
+    });
+
+    expect(worker.shown[0]?.options.body).toBe(
+      "Ada is still waiting for you in General",
+    );
+  });
+
   /** `sokosumi.locale` is client-writable, so its value is not trusted. */
   it("ignores a cookie naming a prototype member", async () => {
     const worker = loadServiceWorker({

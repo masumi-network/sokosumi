@@ -791,6 +791,7 @@
       "title": "Notifications",
       "pageTitle": "Notifications",
       "emptyState": "No notifications yet",
+      "emptyUnreadState": "You're all caught up",
       "viewAll": "View all notifications",
       "justNow": "Just now",
       "loading": "Loading...",
@@ -807,6 +808,9 @@
       "retry": "Try again",
       "accept": "Accept",
       "view": "View",
+      "filterAll": "All",
+      "filterUnread": "Unread",
+      "filterLabel": "Notification view",
       "browserNotificationTitle": "Sokosumi",
       "browserPermissionTitle": "Get alerts when Sokosumi is closed",
       "browserPermissionDescription": "In your account settings, turn Push on for the updates you want, and get them while Sokosumi is closed.",
@@ -1142,7 +1146,6 @@
         "Form": {
           "submit": "Login",
           "lastUsed": "Last used",
-          "success": "Login successful",
           "error": "Invalid email or password",
           "Fields": {
             "Email": {
@@ -1189,7 +1192,6 @@
         },
         "Form": {
           "submit": "Register",
-          "success": "Register successful",
           "error": "Register failed",
           "Fields": {
             "Email": {
@@ -1876,7 +1878,10 @@
         "projectCreate": "Create project...",
         "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee",
+        "changeCoworker": "Change coworker…",
+        "noCoworkerMatches": "No coworker matches",
         "defaultBadge": "Default",
         "modelLabel": "Model",
         "hostingLabel": "Hosted in",
@@ -1930,13 +1935,14 @@
         "projectCreate": "Create project...",
         "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
         "status": "Status",
         "statusDescription": "Choose the status for this task",
         "statusDraft": "Draft",
         "statusReady": "Ready",
         "changeStatus": "Change status…",
         "noStatusMatches": "No status matches",
+        "changeCoworker": "Change coworker…",
+        "noCoworkerMatches": "No coworker matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "back": "Back",
@@ -1949,7 +1955,8 @@
         "openSchedule": "Set schedule",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
-        "unassigned": "Unassigned"
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee"
       },
       "Schedule": {
         "title": "Schedule",
@@ -4181,7 +4188,7 @@
         "channelPush": "Push",
         "channelPushHint": "On your device, even when Sokosumi is closed.",
         "channelEmail": "Email",
-        "channelEmailHint": "One switch behind every job email: an email when a job completes, resolves, or waits on your input.",
+        "channelEmailHint": "Where Sokosumi emails you. Reminders carry their own cell. Every job email shares one switch: an email when a job completes, resolves, or waits on your input.",
         "channelsKindLabel": "Notification",
         "channelsLegendLabel": "What the columns mean",
         "channelEmailFallbackHint": "An email when a job completes, resolves, or waits on your input.",
@@ -4193,7 +4200,9 @@
         "channelEmailSoonLabel": "Email, not sent for {kind} yet",
         "channelEmailSoonHint": "Sokosumi does not send an email for this notification yet.",
         "deliveryAriaLabel": "Delivery for {kind}",
-        "newsDeliveryAriaLabel": "Delivery for marketing emails"
+        "newsDeliveryAriaLabel": "Delivery for marketing emails",
+        "kindFollowUp": "Reminders",
+        "kindFollowUpHint": "One reminder a day later when you have not opened something that is waiting for you."
       },
       "ChatDisplay": {
         "title": "Chat display",
@@ -5666,9 +5675,6 @@
         }
       }
     },
-    "WorkspaceAccess": {
-      "checking": "Checking workspace access"
-    },
     "Drive": {
       "breadcrumb": "Files",
       "breadcrumbNavLabel": "Files folder navigation",
@@ -6206,10 +6212,12 @@
         "skipOccurrence": "Skip occurrence",
         "restoreOccurrence": "Restore occurrence",
         "mutationError": "Unable to change this occurrence. Please try again.",
-        "openTask": "Open task"
+        "openTask": "Open task",
+        "moveNotAllowed": "Only the task owner can reschedule it."
       },
       "create": {
-        "title": "Schedule a task"
+        "title": "Schedule a task",
+        "fab": "Schedule a task"
       },
       "edit": {
         "title": "Edit schedule",
@@ -6263,6 +6271,10 @@
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",
         "retry": "Try again"
+      },
+      "agenda": {
+        "backToTop": "Back to top",
+        "today": "Today"
       }
     },
     "You": {
@@ -6433,7 +6445,8 @@
         "paymentFailed": "Payment failed for {jobName}",
         "inputRequired": "{agentName} needs your input for {jobName}",
         "refundResolved": "{jobName} was refunded",
-        "disputeResolved": "Dispute resolved for {jobName}"
+        "disputeResolved": "Dispute resolved for {jobName}",
+        "followUp": "{jobName} is still waiting for you"
       },
       "Task": {
         "inputRequired": "{coworkerName} needs your input for {taskName}",
@@ -6445,7 +6458,8 @@
         "canceled": "{taskName} was canceled",
         "scheduleRepaired": "The schedule for {taskName} was repaired",
         "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review",
-        "assigned": "You were assigned {taskName}"
+        "assigned": "You were assigned {taskName}",
+        "followUp": "{taskName} is still waiting for you"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
@@ -6458,7 +6472,10 @@
         "roomMessagesGroup": "{count} messages in group {roomName}",
         "roomMessageTitle": "{authorName} in channel {roomName}",
         "roomMessageGroupTitle": "{authorName} in group {roomName}",
-        "mentionAll": "Everyone"
+        "mentionAll": "Everyone",
+        "mentionedFollowUp": "{authorName} is still waiting for you in {roomName}",
+        "mentionedDirectFollowUp": "{authorName} is still waiting for your reply",
+        "directMessageFollowUp": "{authorName} is still waiting for your reply"
       }
     }
   },

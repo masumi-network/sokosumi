@@ -12907,7 +12907,8 @@ export const NotificationPreferenceSchema = {
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
-                'SYSTEM'
+                'SYSTEM',
+                'FOLLOW_UP'
             ],
             description: 'What the notification is about',
             example: 'CHAT_MENTION'
@@ -12916,9 +12917,10 @@ export const NotificationPreferenceSchema = {
             type: 'string',
             enum: [
                 'IN_APP',
-                'OS_BANNER'
+                'OS_BANNER',
+                'EMAIL'
             ],
-            description: 'Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)',
+            description: 'Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)',
             example: 'OS_BANNER'
         },
         enabled: {
@@ -16291,6 +16293,17 @@ export const MarkNotificationsReadResponseSchema = {
 } as const;
 
 export const MarkNotificationsReadRequestSchema = {
+    anyOf: [
+        {
+            $ref: '#/components/schemas/MarkNotificationsReadByIdsRequest'
+        },
+        {
+            $ref: '#/components/schemas/MarkNotificationsReadByReferenceRequest'
+        }
+    ]
+} as const;
+
+export const MarkNotificationsReadByIdsRequestSchema = {
     type: 'object',
     properties: {
         ids: {
@@ -16308,7 +16321,34 @@ export const MarkNotificationsReadRequestSchema = {
     },
     required: [
         'ids'
-    ]
+    ],
+    additionalProperties: false
+} as const;
+
+export const MarkNotificationsReadByReferenceRequestSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'TASK',
+                'JOB'
+            ],
+            description: 'Kind of the notifications to mark read.',
+            example: 'TASK'
+        },
+        referenceId: {
+            type: 'string',
+            minLength: 1,
+            description: 'The task or job the notifications point at. Required and non-empty, so this can never read a kind in bulk.',
+            example: 'cm123456789abcdefghij'
+        }
+    },
+    required: [
+        'kind',
+        'referenceId'
+    ],
+    additionalProperties: false
 } as const;
 
 export const GetInvitationResultSchema = {

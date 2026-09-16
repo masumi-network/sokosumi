@@ -9,6 +9,10 @@ import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   isBrowserOnlyNotification,
 } from "./notification-feed-kinds";
+import {
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+} from "./notification-follow-up-message-keys";
 
 describe("isBrowserOnlyNotification", () => {
   it("keeps a direct message out of the feed", () => {
@@ -28,6 +32,24 @@ describe("isBrowserOnlyNotification", () => {
     );
     expect(
       isBrowserOnlyNotification("CHAT", CHAT_ROOM_MESSAGE_MESSAGE_KEY),
+    ).toBe(false);
+  });
+
+  /**
+   * Both of them, the direct one included. A reminder arrives once, a day after
+   * the room went quiet, so a list of them is a list of what is still waiting
+   * rather than a second copy of a conversation. A reminder the reader cannot
+   * find again would be the one notification most worth finding.
+   */
+  it("lets both chat reminders into the feed", () => {
+    expect(
+      isBrowserOnlyNotification("CHAT", CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY),
+    ).toBe(false);
+    expect(
+      isBrowserOnlyNotification(
+        "CHAT",
+        CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+      ),
     ).toBe(false);
   });
 

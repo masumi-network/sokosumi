@@ -1,7 +1,10 @@
 import {
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_DIRECT_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
@@ -17,6 +20,50 @@ describe("getNotificationMessageTranslationKey", () => {
     expect(
       getNotificationMessageTranslationKey("Notifications.Job.completed"),
     ).toBe("Library.Notifications.Job.completed");
+  });
+
+  it("names the room a mention reminder is about", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY, {
+        authorName: "Ada",
+        roomName: "Design",
+      }),
+    ).toBe(`Library.${CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY}`);
+  });
+
+  /**
+   * A room of two is named after the other person, who in a mention is whoever
+   * wrote it. Naming the room would name them twice.
+   */
+  it("does not name the room when it is the person who wrote", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY, {
+        authorName: "Ada",
+        isDirect: true,
+        roomName: "Ada",
+      }),
+    ).toBe(`Library.${CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY}`);
+  });
+
+  /**
+   * A reminder stands for one notification, however many messages that
+   * notification had already taken. Counted, it would say a day-old number
+   * rather than that something is still waiting.
+   */
+  it("never counts a reminder", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY, {
+        authorName: "Ada",
+        count: 4,
+        roomName: "Design",
+      }),
+    ).toBe(`Library.${CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY}`);
+    expect(
+      getNotificationMessageTranslationKey(
+        CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+        { authorName: "Ada", count: 4 },
+      ),
+    ).toBe(`Library.${CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY}`);
   });
 
   it("leaves a key from another namespace where it is", () => {

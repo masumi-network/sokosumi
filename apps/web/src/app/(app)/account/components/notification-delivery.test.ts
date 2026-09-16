@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+// The generated index re-exports types only, and this needs the category list
+// at runtime. Deep into the generated output on purpose: it is still what Core
+// emitted, and a list retyped here would pass while Core and this page
+// disagreed.
+import { NotificationPreferenceSchema } from "@/lib/clients/generated/core/schemas.gen";
+
 import {
   categoryChannels,
   cellsFor,
@@ -21,7 +27,7 @@ const MENTION: KindSpec = {
   category: "CHAT_MENTION",
   labelKey: "kindChatMention",
   hintKey: "kindChatMentionHint",
-  email: false,
+  email: "NONE",
 };
 
 /** The group as the page holds it: these pin the table the reader presses. */
@@ -187,6 +193,28 @@ describe("NOTIFICATION_GROUPS", () => {
    * preset would sit outside every word on the rail, and the group would say
    * Custom for a reader who never set anything by hand.
    */
+  /**
+   * A category Core knows and this page does not draw is a switch the reader
+   * cannot reach: their notifications arrive on the defaults forever, and the
+   * page says nothing about them. Read from the generated client rather than
+   * listed here, so adding a category to Core is what fails this, in the one
+   * place that has to answer for it.
+   */
+  it("draws a row for every category Core knows", () => {
+    const drawn = NOTIFICATION_GROUPS.flatMap((spec) => categories(spec.kinds));
+    const known = NotificationPreferenceSchema.properties.category
+      .enum as readonly string[];
+
+    expect([...known].sort()).toEqual([...drawn].sort());
+  });
+
+  /** A category drawn twice is two switches writing over one another. */
+  it("draws each category once", () => {
+    const drawn = NOTIFICATION_GROUPS.flatMap((spec) => categories(spec.kinds));
+
+    expect(drawn).toEqual([...new Set(drawn)]);
+  });
+
   it("gives every situation a place for every kind of its group", () => {
     const missing = NOTIFICATION_GROUPS.flatMap((spec) =>
       spec.presets.flatMap((one) =>
@@ -438,5 +466,26 @@ describe("presetStops", () => {
   /** Off stops every kind, and the word Off already says that. */
   it("names none where the situation stops them all", () => {
     expect(presetStops(preset("JOB", "OFF"), group("JOB").kinds)).toEqual([]);
+  });
+});
+
+describe("NOTIFICATION_GROUPS", () => {
+  /**
+   * A preset writes the reaches it names and nothing else, and `REACH_CHANNELS`
+   * names no email. So a group that both offers presets and stores an email
+   * cell would switch that cell off on every press of a situation, silently.
+   *
+   * Today the reminder row is the only one that stores email and its group
+   * offers no presets. This is what makes adding a preset there fail here
+   * rather than in somebody's inbox (SOK-916).
+   */
+  it("offers no preset over a row that stores its own email cell", () => {
+    const offending = NOTIFICATION_GROUPS.filter(
+      (group) =>
+        group.presets.length > 0 &&
+        group.kinds.some((kind) => kind.email === "CHANNEL"),
+    ).map((group) => group.id);
+
+    expect(offending).toEqual([]);
   });
 });

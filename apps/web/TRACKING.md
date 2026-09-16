@@ -77,8 +77,8 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 
 | Event                 | Fires when…                                    | Where |
 |-----------------------|------------------------------------------------|-------|
-| `sign_up` `{provider}`| account created (`credential` from the form; social from the callback page) | `signup/components/form.tsx`, `components/social-auth-callback.tsx` |
-| `login` `{provider}`  | signed in. Credential, social and magic-link fire on `/auth/callback/signin` after the full page load. Passkey fires in `social-buttons.tsx` before `router.replace` | `components/social-auth-callback.tsx`, `components/social-buttons.tsx` |
+| `sign_up` `{provider}`| account created. Credential fires in place, before the full-document leave in `lib/auth/finish-auth.client.ts`; social fires on the callback page | `signup/components/form.tsx`, `components/social-auth-callback.tsx` |
+| `login` `{provider}`  | signed in. Social and magic-link fire on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`) and passkey (`social-buttons.tsx`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx` |
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
 | `purchase` `{transaction_id, value, currency, items}` | **a credit / coupon purchase succeeds** (Stripe returns with `session_id`). Subscription checkouts return with `status=success` only and do **not** fire `purchase` yet — see below | `components/billing/purchase-tracker.tsx` |
@@ -103,17 +103,24 @@ Drop any GTM conversion that still keys on `agent_hired`.
 
 Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
 
-- **Better Auth hard-redirects on credential success.** `signIn.email` with a
-  `callbackURL` makes the Better Auth client set `window.location.href` inside
-  its fetch hook, *before* the caller's code after `await` runs. A
-  `fireGTMEvent.*` placed after such a call is dead code (GA4 showed 0
-  credential logins against 145 `login_area_form_start`). Magic-link submit
-  only sends the email — the user stays on the form. The hard navigation is
-  the verify GET → `callbackURL`. Fire success events on the page that
-  full-page load lands on — that is what `/auth/callback/signin?provider=…`
-  is for. Social sign-in already worked this way; credential and magic-link
-  now use it too. Passkey has no Better Auth hard redirect, so it fires in
-  place before `router.replace`.
+- **Better Auth hard-redirects whenever `callbackURL` is set.** `signIn.email`
+  and `signUp.email` with a `callbackURL` make the Better Auth client set
+  `window.location.href` inside its fetch hook, *before* the caller's code
+  after `await` runs. A `fireGTMEvent.*` placed after such a call is dead code
+  (GA4 showed 0 credential logins against 145 `login_area_form_start`, and
+  credential `sign_up` lost the same race until Sept 2026, along with the
+  signup UTM conversion call). Credential sign-in, credential sign-up and
+  passkey therefore pass **no** `callbackURL`: they wait for the session, fire
+  in place, then leave with `window.location.replace`
+  (`lib/auth/finish-auth.client.ts`).
+- **That leave must be a full document load.** `router.replace` is served the
+  pre-login middleware result still sitting in the Next client router cache
+  (anonymous `/` → `/signin`), so it bounces back to the form. Social and
+  magic-link have no choice about the hop (the provider / verify GET must land
+  somewhere), so they fire on the page that full-page load lands on:
+  `/auth/callback/signin?provider=…`. That page lives outside the `(auth)`
+  marketing layout so the hard nav does not re-render the hero, and its own
+  `router.replace` is fine because it runs in a fresh document.
 - **Hard navigations after a push are a race.** `begin_checkout` is pushed and
   then `window.location.href = stripeUrl` runs on the next line. GA4 sends via
   `sendBeacon`, so it mostly survives, but push *before* navigating, never after.

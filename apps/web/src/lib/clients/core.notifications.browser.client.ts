@@ -18,6 +18,10 @@ import type {
   PatchNotificationsReadAllErrors,
   PatchNotificationsReadAllResponse,
   PatchNotificationsReadAllResponses,
+  PatchNotificationsReadData,
+  PatchNotificationsReadErrors,
+  PatchNotificationsReadResponse,
+  PatchNotificationsReadResponses,
 } from "@/lib/clients/generated/core/types.gen";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
@@ -156,6 +160,34 @@ export const notificationsBrowserClient = {
           responseTransformer: transformMetaTimestampResponse,
         }),
       "Failed to mark all notifications as read",
+    );
+  },
+
+  /**
+   * Mark notifications read, either named ids or every unread row about one
+   * task or job.
+   *
+   * The reference form is sent when the reader opens the thing itself, so that
+   * dealing with a task from its own page counts as reading what it was
+   * notified about. Without this the row stays unread and the follow-up sync reminds them a day later
+   * about work they already finished (SOK-916).
+   */
+  async patchNotificationsRead(
+    body: PatchNotificationsReadData["body"],
+  ): Promise<PatchNotificationsReadResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.patch<
+          PatchNotificationsReadResponses,
+          PatchNotificationsReadErrors
+        >({
+          url: "/notifications/read",
+          body,
+          cache: "no-store",
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to mark notifications as read",
     );
   },
 };

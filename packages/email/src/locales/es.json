@@ -96,5 +96,61 @@
       "output": "Output:",
       "footer": "Esta es una notificación automática de Sōkosumi."
     }
+  },
+  "notifications": {
+    "followUp": {
+      "linkInstructions": "O copia y pega esta URL en tu navegador:",
+      "footer": "Recibes este correo porque los recordatorios están activados en tus preferencias de notificaciones.",
+      "greeting": "Hola {name}",
+      "greetingWithoutName": "Hola",
+      "fallbackAuthorName": "Alguien",
+      "fallbackRoomName": "una conversación",
+      "fallbackTaskName": "Tu tarea",
+      "fallbackJobName": "Tu trabajo",
+      "mention": {
+        "subject": "Sokosumi - {authorName} sigue esperándote en {roomName}",
+        "preview": "{authorName} te mencionó en {roomName} hace un día.",
+        "title": "Sigue esperándote",
+        "body": "{authorName} te mencionó en {roomName} hace un día y todavía no lo has abierto.",
+        "button": "Abrir la conversación"
+      },
+      "directMessage": {
+        "subject": "Sokosumi - {authorName} sigue esperando tu respuesta",
+        "preview": "{authorName} te envió un mensaje hace un día.",
+        "title": "Sigue esperando tu respuesta",
+        "body": "{authorName} te envió un mensaje directo hace un día y todavía no lo has abierto.",
+        "button": "Abrir la conversación"
+      },
+      "task": {
+        "subject": "Sokosumi - {taskName} sigue esperándote",
+        "preview": "{taskName} se detuvo y te necesita desde hace un día.",
+        "title": "Sigue esperándote",
+        "body": "{taskName} se detuvo hace un día porque te necesita. Sigue esperando.",
+        "button": "Abrir la tarea",
+        "projectLabel": "Proyecto",
+        "reasons": {
+          "assigned": "{taskName} se te asignó hace un día y todavía no la has abierto.",
+          "inputRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita tu input. Sigue esperando.",
+          "approvalRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita tu aprobación. Sigue esperando.",
+          "authenticationRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita que inicies sesión en algún sitio. Sigue esperando.",
+          "outOfCredits": "{taskName} se detuvo hace un día porque se quedó sin créditos. Sigue esperando.",
+          "scheduleRemovedByOperator": "La programación de {taskName} se eliminó tras una revisión hace un día y todavía no has abierto el aviso."
+        }
+      },
+      "job": {
+        "subject": "Sokosumi - {jobName} sigue esperándote",
+        "preview": "{jobName} se detuvo y te necesita desde hace un día.",
+        "title": "Sigue esperándote",
+        "body": "{jobName} se detuvo hace un día porque te necesita. Sigue esperando.",
+        "button": "Abrir el trabajo",
+        "agentLabel": "Agente",
+        "reasons": {
+          "inputRequired": "{jobName} se detuvo hace un día porque {agentName} necesita tu input. Sigue esperando.",
+          "paymentFailed": "El pago de {jobName} falló hace un día y todavía no lo has abierto."
+        }
+      },
+      "fallbackCoworkerName": "un coworker",
+      "fallbackAgentName": "el agente"
+    }
   }
 }

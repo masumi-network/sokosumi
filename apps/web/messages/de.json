@@ -775,6 +775,7 @@
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
       "emptyState": "Noch keine Benachrichtigungen",
+      "emptyUnreadState": "Du bist auf dem Laufenden",
       "viewAll": "Alle Benachrichtigungen anzeigen",
       "justNow": "Gerade eben",
       "loading": "Lädt...",
@@ -791,6 +792,9 @@
       "retry": "Erneut versuchen",
       "accept": "Akzeptieren",
       "view": "Ansehen",
+      "filterAll": "Alle",
+      "filterUnread": "Ungelesen",
+      "filterLabel": "Benachrichtigungsansicht",
       "browserNotificationTitle": "Sokosumi",
       "browserPermissionTitle": "Erhalte Meldungen, wenn Sokosumi geschlossen ist",
       "browserPermissionDescription": "Schalte in deinen Kontoeinstellungen Push für die gewünschten Updates ein. Dann bekommst du sie auch, wenn Sokosumi geschlossen ist.",
@@ -1142,7 +1146,6 @@
         "Form": {
           "submit": "Anmelden",
           "lastUsed": "Zuletzt verwendet",
-          "success": "Anmeldung erfolgreich",
           "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
           "Fields": {
             "Email": {
@@ -1189,7 +1192,6 @@
         },
         "Form": {
           "submit": "Registrieren",
-          "success": "Registrierung erfolgreich",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
             "Email": {
@@ -1876,7 +1878,10 @@
         "projectCreate": "Projekt erstellen...",
         "projectCreateNamed": "Erstelle \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Wähle einen KI-Coworker, der diesen Task für dich übernimmt",
+        "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Zuweisung nicht verfügbar",
+        "changeCoworker": "Coworker ändern…",
+        "noCoworkerMatches": "Kein Coworker passt",
         "status": "Status",
         "statusDescription": "Wähle den Anfangsstatus für diesen Task",
         "statusDraft": "Entwurf",
@@ -1930,13 +1935,14 @@
         "projectCreate": "Projekt erstellen...",
         "projectCreateNamed": "Erstelle \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Wähle einen KI-Coworker, der diesen Task für dich übernimmt",
         "status": "Status",
         "statusDescription": "Wähle den Status für diesen Task",
         "statusDraft": "Entwurf",
         "statusReady": "Bereit",
         "changeStatus": "Status ändern…",
         "noStatusMatches": "Kein Status passt",
+        "changeCoworker": "Coworker ändern…",
+        "noCoworkerMatches": "Kein Coworker passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
         "back": "Zurück",
@@ -1949,7 +1955,8 @@
         "openSchedule": "Zeitplan festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
-        "unassigned": "Nicht zugewiesen"
+        "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Zuweisung nicht verfügbar"
       },
       "Schedule": {
         "title": "Zeitplan",
@@ -4145,7 +4152,7 @@
         "channelPush": "Push",
         "channelPushHint": "Auf deinem Gerät, auch wenn Sokosumi geschlossen ist.",
         "channelEmail": "E-Mail",
-        "channelEmailHint": "Ein Schalter hinter jeder Job-E-Mail: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
+        "channelEmailHint": "Wohin Sokosumi dir E-Mails schickt. Erinnerungen haben eine eigene Zelle. Alle Job-E-Mails teilen sich einen Schalter: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
         "channelsKindLabel": "Benachrichtigung",
         "channelsLegendLabel": "Was die Spalten bedeuten",
         "channelEmailFallbackHint": "Eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
@@ -4157,7 +4164,9 @@
         "channelEmailSoonLabel": "E-Mail, noch nicht für {kind}",
         "channelEmailSoonHint": "Sokosumi sendet für diese Benachrichtigung noch keine E-Mail.",
         "deliveryAriaLabel": "Zustellung für {kind}",
-        "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails"
+        "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails",
+        "kindFollowUp": "Erinnerungen",
+        "kindFollowUpHint": "Eine Erinnerung einen Tag später, wenn du etwas nicht geöffnet hast, das auf dich wartet."
       },
       "ChatDisplay": {
         "title": "Chat-Anzeige",
@@ -5666,9 +5675,6 @@
         }
       }
     },
-    "WorkspaceAccess": {
-      "checking": "Workspace-Zugriff wird geprüft"
-    },
     "Drive": {
       "breadcrumb": "Dateien",
       "breadcrumbNavLabel": "Dateien-Ordner-Navigation",
@@ -6206,10 +6212,12 @@
         "skipOccurrence": "Vorkommen überspringen",
         "restoreOccurrence": "Vorkommen wiederherstellen",
         "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
-        "openTask": "Task öffnen"
+        "openTask": "Task öffnen",
+        "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
       },
       "create": {
-        "title": "Task planen"
+        "title": "Task planen",
+        "fab": "Task planen"
       },
       "edit": {
         "title": "Zeitplan bearbeiten",
@@ -6263,6 +6271,10 @@
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
+      },
+      "agenda": {
+        "backToTop": "Nach oben",
+        "today": "Heute"
       }
     },
     "You": {
@@ -6433,7 +6445,8 @@
         "paymentFailed": "Zahlung für {jobName} fehlgeschlagen",
         "inputRequired": "{agentName} benötigt deinen Input für {jobName}",
         "refundResolved": "{jobName} wurde erstattet",
-        "disputeResolved": "Einspruch für {jobName} gelöst"
+        "disputeResolved": "Einspruch für {jobName} gelöst",
+        "followUp": "{jobName} wartet weiterhin auf dich"
       },
       "Task": {
         "inputRequired": "{coworkerName} benötigt deinen Input für {taskName}",
@@ -6445,7 +6458,8 @@
         "canceled": "{taskName} wurde abgebrochen",
         "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
-        "assigned": "Dir wurde {taskName} zugewiesen"
+        "assigned": "Dir wurde {taskName} zugewiesen",
+        "followUp": "{taskName} wartet weiterhin auf dich"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
@@ -6458,7 +6472,10 @@
         "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}",
         "roomMessageTitle": "{authorName} im Kanal {roomName}",
         "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}",
-        "mentionAll": "Alle"
+        "mentionAll": "Alle",
+        "mentionedFollowUp": "{authorName} wartet weiterhin auf dich in {roomName}",
+        "mentionedDirectFollowUp": "{authorName} wartet weiterhin auf deine Antwort",
+        "directMessageFollowUp": "{authorName} wartet weiterhin auf deine Antwort"
       }
     }
   },
