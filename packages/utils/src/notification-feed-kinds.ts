@@ -2,6 +2,10 @@ import {
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "./chat-notification-message-keys.js";
+import {
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+} from "./notification-follow-up-message-keys.js";
 
 /**
  * Notification kinds that still create rows + realtime events (browser OS
@@ -36,12 +40,20 @@ function isBrowserOnlyNotificationKind(
  * addressed to the reader, so keeping them would make the center a second copy
  * of the room.
  *
+ * Both chat follow-ups are here, the direct one included. The reason direct
+ * messages stay off does not reach them: a follow-up arrives once, a day after
+ * the room went quiet, so a list of them is a list of what is still waiting
+ * rather than a second copy of anything. A reminder the reader cannot find
+ * afterwards would also be the one notification most worth finding.
+ *
  * Whether either actually arrives is still the reader's own setting: the row
  * carries the in-app answer its category resolved to, and the feed reads that.
  */
 export const CHAT_FEED_MESSAGE_KEYS: readonly string[] = [
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
 ];
 
 /**

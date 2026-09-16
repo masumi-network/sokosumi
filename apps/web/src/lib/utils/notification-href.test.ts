@@ -1,3 +1,8 @@
+import {
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+  JOB_FOLLOW_UP_MESSAGE_KEY,
+  TASK_FOLLOW_UP_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access-notification";
@@ -43,6 +48,61 @@ describe("getNotificationHref", () => {
         metadata: { messageId: "msg-1", workspaceId: "ws-1" },
       }),
     ).toBe("/chat/rooms/room-1?message=msg-1");
+  });
+
+  /**
+   * A reminder is one press from the thing it reminds of, or it is worth less
+   * than the notification the reader already missed. Core writes the follow-up
+   * with the original's kind, reference and metadata, so these three say that
+   * carrying those across is enough and no routing of its own is needed.
+   *
+   * Each names the destination outright. Asserting only that the reminder and
+   * the original agree would pass just as well if both resolved to the same
+   * wrong page.
+   */
+  it("sends a chat reminder exactly where the mention went", () => {
+    const original = {
+      kind: "CHAT",
+      referenceId: "room-1",
+      metadata: { messageId: "msg-1", workspaceId: "ws-1" },
+    } as const;
+
+    expect(
+      getNotificationHref({
+        ...original,
+        messageKey: CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+      }),
+    ).toBe("/chat/rooms/room-1?message=msg-1");
+  });
+
+  it("sends a task reminder exactly where the task notification went", () => {
+    const original = {
+      kind: "TASK",
+      referenceId: "task-1",
+      metadata: null,
+    } as const;
+
+    expect(
+      getNotificationHref({
+        ...original,
+        messageKey: TASK_FOLLOW_UP_MESSAGE_KEY,
+      }),
+    ).toBe("/tasks/task-1");
+  });
+
+  it("sends a job reminder exactly where the job notification went", () => {
+    const original = {
+      kind: "JOB",
+      referenceId: "job-1",
+      metadata: { agentId: "agent-1" },
+    } as const;
+
+    expect(
+      getNotificationHref({
+        ...original,
+        messageKey: JOB_FOLLOW_UP_MESSAGE_KEY,
+      }),
+    ).toBe("/agents/agent-1/jobs/job-1");
   });
 
   it("deep-links CHAT notifications to the room when no message is named", () => {

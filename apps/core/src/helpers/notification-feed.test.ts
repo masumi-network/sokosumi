@@ -4,6 +4,8 @@ import {
   VendorGrantStatus,
 } from "@sokosumi/database";
 import {
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "@sokosumi/utils";
@@ -39,12 +41,23 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+/**
+ * Written out rather than read from `CHAT_FEED_MESSAGE_KEYS`, so a key added to
+ * that list has to be admitted here too. The feed is where a reader looks for
+ * what is waiting on them, and a chat key that quietly joins it is a room's
+ * traffic arriving in the one place that was not traffic.
+ */
 const FEED_OR = [
   { kind: { notIn: [NotificationKind.CHAT] } },
   {
     kind: { in: [NotificationKind.CHAT] },
     messageKey: {
-      in: [CHAT_MENTION_MESSAGE_KEY, CHAT_ROOM_MESSAGE_MESSAGE_KEY],
+      in: [
+        CHAT_MENTION_MESSAGE_KEY,
+        CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+        CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+      ],
     },
   },
 ];

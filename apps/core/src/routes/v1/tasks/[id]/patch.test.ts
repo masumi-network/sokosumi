@@ -18,6 +18,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   mapTaskMock,
+  markTaskAssignedReadMock,
   notifyTaskHumanAssigneeMock,
   prismaTransactionMock,
   projectFindFirstMock,
@@ -29,6 +30,7 @@ const {
   taskUpdateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
+  markTaskAssignedReadMock: vi.fn(),
   notifyTaskHumanAssigneeMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -62,6 +64,7 @@ vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
 }));
 
 vi.mock("@/helpers/task-notifications", () => ({
+  markTaskAssignedRead: markTaskAssignedReadMock,
   notifyTaskHumanAssignee: notifyTaskHumanAssigneeMock,
 }));
 
@@ -652,6 +655,37 @@ describe("PATCH /tasks/{id}", () => {
 
       expect(response.status).toBe(200);
       expect(notifyTaskHumanAssigneeMock).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The `assigned` row says the task is yours, and clearing the assignee
+     * makes that false. Nobody else clears it, so without this the previous
+     * holder keeps an unread row and the follow-up sync reminds them about a
+     * task they no longer have (SOK-916).
+     */
+    it("marks the previous holder's assigned row read", async () => {
+      requireTaskOwnershipMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "user_assignee",
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeUserId: null }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(markTaskAssignedReadMock).toHaveBeenCalledWith(
+        "user_assignee",
+        "tsk_123",
+      );
     });
 
     it("does not notify when the task is assigned to a coworker", async () => {

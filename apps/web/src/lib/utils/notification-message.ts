@@ -3,7 +3,9 @@
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_DIRECT_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
@@ -40,6 +42,15 @@ function countedMessageKey(
   messageKey: string,
   messageParams: Record<string, unknown>,
 ): string {
+  // Asked first, and never counted. A follow-up stands for one notification
+  // however many messages that notification had already taken, so "3 messages"
+  // would say a day-old count rather than what is waiting.
+  if (messageKey === CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY) {
+    return messageParams.isDirect === true
+      ? CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY
+      : messageKey;
+  }
+
   const group = messageParams.isGroup === true;
   const pair =
     messageKey === CHAT_MENTION_MESSAGE_KEY && messageParams.isDirect === true;
