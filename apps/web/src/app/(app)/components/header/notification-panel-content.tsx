@@ -38,10 +38,13 @@ export function NotificationPanelContent({
           <Separator />
         </>
       ) : null}
-      {/* One height with or without Mark all read, which is taller than
-          the title. The header used to grow and shrink as the last unread
-          row changed, and move the whole list with it. */}
-      <div className="flex min-h-9 items-center justify-between gap-2 py-1 pr-1 pl-3">
+      {/* The Unread chip is always drawn and is the tallest thing in the
+          row, so the header keeps one height with or without Mark all
+          read. It used to grow and shrink as the last unread row changed,
+          and move the whole list with it. The popover's own 16px inset
+          carries on here, so the title, the primer, and the chip's outer
+          edge share one line. */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
         <p className="text-sm font-medium">{t("title")}</p>
         <div className="flex items-center gap-2">
           <NotificationCenterViewFilter />
@@ -61,7 +64,7 @@ export function NotificationPanelContent({
       </div>
       <Separator />
       <NotificationBrowserPermissionPrimer
-        className="mx-2 my-2"
+        className="mx-4 my-3"
         onNavigate={onClose}
       />
       {/* The scroll container the boundary row watches: reaching the end of
