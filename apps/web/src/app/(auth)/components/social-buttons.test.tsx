@@ -377,6 +377,8 @@ describe("SocialButtons", () => {
 
     await waitFor(() => {
       expect(mockLocationReplace).toHaveBeenCalledWith("/jobs");
+      // A soft nav would be served the pre-login middleware redirect.
+      expect(mockRouterReplace).not.toHaveBeenCalled();
     });
     expect(mockSignInEvent).toHaveBeenCalledWith("passkey");
   });
