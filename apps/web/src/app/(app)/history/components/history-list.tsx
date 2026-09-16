@@ -65,7 +65,7 @@ export function HistoryList({
     <div key={filterResetKey} className="flex flex-col gap-5">
       {hasHistory ? (
         <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
-          <ul className="divide-border divide-y px-2">
+          <ul className="divide-border divide-y">
             {items.map((item) => (
               <li key={`${item.kind}:${item.id}`}>
                 <HistoryListItem
