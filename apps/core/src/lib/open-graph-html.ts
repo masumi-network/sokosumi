@@ -135,15 +135,26 @@ export function tweetTextFromOembedHtml(html: string): string | null {
   if (paragraph === undefined) {
     return null;
   }
-  let text = paragraph.replace(/<br\s*\/?>/gi, "\n");
-  // Strip to a fixpoint so a tag left behind by a removed one goes too.
-  let stripped = text.replace(/<[^>]*>/g, "");
-  while (stripped !== text) {
-    text = stripped;
-    stripped = text.replace(/<[^>]*>/g, "");
-  }
-  text = decodeEntities(text).trim();
+  const text = decodeEntities(
+    stripTags(paragraph.replace(/<br\s*\/?>/gi, "\n")),
+  ).trim();
   return text.length > 0 ? text : null;
+}
+
+/** Drop everything from a `<` to the next `>`; a `<` inside a tag stays in it. */
+function stripTags(html: string): string {
+  let out = "";
+  let inTag = false;
+  for (const char of html) {
+    if (char === "<") {
+      inTag = true;
+    } else if (char === ">") {
+      inTag = false;
+    } else if (!inTag) {
+      out += char;
+    }
+  }
+  return out;
 }
 
 function resolveHttpUrl(candidate: string, baseUrl: string): string | null {
