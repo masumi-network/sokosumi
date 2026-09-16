@@ -1256,7 +1256,7 @@ export function WorkspaceCalendar({
         >
           <ChevronLeft aria-hidden />
         </Button>
-        <span className="min-w-40 text-center text-sm font-medium">
+        <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
           {getRangeLabel(formatDate, date, view)}
         </span>
         <Button
@@ -1271,9 +1271,13 @@ export function WorkspaceCalendar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1" data-testid="calendar-views">
+        <div
+          className="flex flex-1 gap-1 md:flex-none"
+          data-testid="calendar-views"
+        >
           {CALENDAR_VIEWS.map((calendarView) => (
             <Button
+              className="flex-1 md:flex-none"
               key={calendarView}
               size="sm"
               variant={view === calendarView ? "primary" : "outline"}
@@ -1298,7 +1302,7 @@ export function WorkspaceCalendar({
         />
         {canCreate ? (
           <Button
-            className="ml-auto"
+            className="ml-auto basis-full md:basis-auto"
             size="sm"
             variant="primary"
             onClick={handleAgendaCreate}
