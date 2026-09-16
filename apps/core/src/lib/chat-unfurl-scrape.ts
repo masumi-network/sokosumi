@@ -4,6 +4,7 @@ import {
   type ChatRoomMessageUnfurlCard,
   parseOpenGraphFields,
   toUnfurlCard,
+  tweetTextFromOembedHtml,
 } from "@/lib/open-graph-html";
 
 /** Transfer cap for unfurl pages (abuse bound; marketing pages can be large). */
@@ -18,12 +19,83 @@ const SCRAPE_CONCURRENCY = 2;
  * Plain SokosumiBot alone gets bot interstitials without og:title.
  * Keep SokosumiBot in the string so operators can still identify us.
  */
+export const UNFURL_USER_AGENT =
+  "facebookexternalhit/1.1; SokosumiBot/1.0 (+https://sokosumi.com)";
+
 const REQUEST_HEADERS = {
-  "User-Agent":
-    "facebookexternalhit/1.1; SokosumiBot/1.0 (+https://sokosumi.com)",
+  "User-Agent": UNFURL_USER_AGENT,
   Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
   "Accept-Language": "en",
 } as const;
+
+/** oEmbed payloads are a few KB; anything larger is not one. */
+const MAX_OEMBED_BYTES = 64 * 1024;
+
+const X_STATUS_HOSTS = new Set([
+  "x.com",
+  "www.x.com",
+  "mobile.x.com",
+  "twitter.com",
+  "www.twitter.com",
+  "mobile.twitter.com",
+]);
+
+/**
+ * Canonical `https://x.com/<user>/status/<id>` for an X / Twitter status
+ * URL (query, host variants, and `/photo/1`-style sub-paths dropped), or
+ * null for anything else.
+ */
+function xStatusCanonicalUrl(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!X_STATUS_HOSTS.has(parsed.hostname.toLowerCase())) return null;
+  const match = parsed.pathname.match(
+    /^\/([A-Za-z0-9_]{1,15})\/status\/(\d+)(?:\/|$)/,
+  );
+  if (!match) return null;
+  return `https://x.com/${match[1]}/status/${match[2]}`;
+}
+
+/**
+ * Tweet text via X's public oEmbed endpoint. X serves an empty
+ * `og:description`, and its `og:image` host returns 403 to browsers that
+ * carry an X login cookie, so without this the card is image-only and
+ * vanishes client-side for exactly the people who share X links.
+ * Silent on any failure.
+ */
+async function fetchXStatusText(statusUrl: string): Promise<string | null> {
+  const oembedUrl = new URL("https://publish.x.com/oembed");
+  oembedUrl.searchParams.set("url", statusUrl);
+  oembedUrl.searchParams.set("omit_script", "1");
+
+  let response: Response;
+  try {
+    response = await ssrfSafeFetch(oembedUrl.toString(), {
+      headers: { ...REQUEST_HEADERS, Accept: "application/json" },
+      signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+      maxResponseBytes: MAX_OEMBED_BYTES,
+    });
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    return null;
+  }
+  const html =
+    payload && typeof payload === "object" && "html" in payload
+      ? (payload as { html?: unknown }).html
+      : null;
+  return typeof html === "string" ? tweetTextFromOembedHtml(html) : null;
+}
 
 function isHtmlContentType(contentType: string | null): boolean {
   if (!contentType) return false;
@@ -60,6 +132,10 @@ export async function scrapeOneUnfurlCard(
   }
 
   const fields = parseOpenGraphFields(html);
+  const xStatusUrl = xStatusCanonicalUrl(url);
+  if (xStatusUrl && !fields.description) {
+    fields.description = await fetchXStatusText(xStatusUrl);
+  }
   return toUnfurlCard(fields, url, url);
 }
 

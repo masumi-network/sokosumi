@@ -6,12 +6,21 @@ const {
   deleteMetadataKeysMock,
   ssrfSafeFetchMock,
   publishByIdMock,
+  snapshotImageMock,
+  deleteSnapshotsMock,
 } = vi.hoisted(() => ({
   messageFindUniqueMock: vi.fn(),
   mergeMetadataKeysMock: vi.fn(),
   deleteMetadataKeysMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
   publishByIdMock: vi.fn(),
+  snapshotImageMock: vi.fn(),
+  deleteSnapshotsMock: vi.fn(),
+}));
+
+vi.mock("@/lib/chat-unfurl-snapshot", () => ({
+  snapshotChatRoomUnfurlImage: snapshotImageMock,
+  deleteChatRoomUnfurlSnapshotsIfOwned: deleteSnapshotsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -51,6 +60,9 @@ describe("scheduleChatRoomMessageUnfurls", () => {
     publishByIdMock.mockResolvedValue(undefined);
     mergeMetadataKeysMock.mockResolvedValue(1);
     deleteMetadataKeysMock.mockResolvedValue(1);
+    // Default: Blob not configured, so cards keep the source image URL.
+    snapshotImageMock.mockResolvedValue(null);
+    deleteSnapshotsMock.mockResolvedValue(undefined);
   });
 
   it("no-ops when message is missing", async () => {
@@ -413,6 +425,151 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       messageId: MESSAGE_ID,
       attempted: 1,
       persisted: 0,
+    });
+  });
+
+  describe("unfurl snapshots (ADR 0030)", () => {
+    const ROOM_ID = "019fa92e-3818-707e-86ea-2db89f35cc23";
+    const STORED = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-x1.png`;
+    const PREVIOUS = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-old.png`;
+
+    function messageRow(metadata: unknown) {
+      return {
+        id: MESSAGE_ID,
+        roomId: ROOM_ID,
+        content: "check https://example.com/page",
+        deletedAt: null,
+        editedAt: null,
+        metadata,
+      };
+    }
+
+    it("persists the stored snapshot URL and drops the previous snapshot", async () => {
+      messageFindUniqueMock
+        .mockResolvedValueOnce(messageRow(null))
+        .mockResolvedValueOnce(
+          messageRow({
+            unfurls: [
+              {
+                url: "https://example.com/page",
+                title: "Old",
+                description: "Desc",
+                imageUrl: PREVIOUS,
+                siteName: "Ex",
+              },
+            ],
+          }),
+        );
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response(htmlPage("Page Title"), {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
+      snapshotImageMock.mockResolvedValue(STORED);
+
+      const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+      expect(result.persisted).toBe(1);
+      expect(snapshotImageMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+        imageUrl: "https://cdn.example/i.png",
+      });
+      expect(mergeMetadataKeysMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patch: {
+            unfurls: [expect.objectContaining({ imageUrl: STORED })],
+          },
+        }),
+      );
+      expect(deleteSnapshotsMock).toHaveBeenCalledWith(
+        [PREVIOUS],
+        ROOM_ID,
+        MESSAGE_ID,
+      );
+    });
+
+    it("keeps the source image URL when the snapshot fails", async () => {
+      messageFindUniqueMock
+        .mockResolvedValueOnce(messageRow(null))
+        .mockResolvedValueOnce(messageRow(null));
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response(htmlPage("Page Title"), {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
+      snapshotImageMock.mockResolvedValue(null);
+
+      await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+      expect(mergeMetadataKeysMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patch: {
+            unfurls: [
+              expect.objectContaining({
+                imageUrl: "https://cdn.example/i.png",
+              }),
+            ],
+          },
+        }),
+      );
+    });
+
+    it("deletes the fresh snapshot of a card removed while the scrape ran", async () => {
+      messageFindUniqueMock
+        .mockResolvedValueOnce(messageRow(null))
+        .mockResolvedValueOnce(
+          messageRow({ removedUnfurlUrls: ["https://example.com/page"] }),
+        );
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response(htmlPage("Page Title"), {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
+      snapshotImageMock.mockResolvedValue(STORED);
+
+      const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+      expect(result.persisted).toBe(0);
+      expect(mergeMetadataKeysMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          patch: expect.objectContaining({ unfurls: expect.anything() }),
+        }),
+      );
+      expect(deleteSnapshotsMock).toHaveBeenCalledWith(
+        [STORED],
+        ROOM_ID,
+        MESSAGE_ID,
+      );
+    });
+
+    it("deletes a fresh snapshot when the message changed during the scrape", async () => {
+      messageFindUniqueMock
+        .mockResolvedValueOnce(messageRow(null))
+        .mockResolvedValueOnce({
+          ...messageRow(null),
+          content: "check https://example.com/other",
+        });
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response(htmlPage("Page Title"), {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
+      snapshotImageMock.mockResolvedValue(STORED);
+
+      const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+      expect(result.persisted).toBe(0);
+      expect(mergeMetadataKeysMock).not.toHaveBeenCalled();
+      expect(deleteSnapshotsMock).toHaveBeenCalledWith(
+        [STORED],
+        ROOM_ID,
+        MESSAGE_ID,
+      );
     });
   });
 });

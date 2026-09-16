@@ -308,6 +308,10 @@ _Avoid_: Metadata preview, embed when meaning this card, treating the body link 
 An unfurl the message's human author took off the message. Gone for everyone. The body URL stays. It stays gone while that URL remains in the body. Not a body edit. Not a personal hide.
 _Avoid_: Hidden unfurl, dismissed Quote, edited message, composer opt-out
 
+**Unfurl snapshot**:
+Sokosumi's own stored copy of an unfurl's preview image, taken when the unfurl is scraped. The card shows the snapshot, never the source image.
+_Avoid_: Cached image, proxied image, hotlinked image, og:image (when meaning the copy)
+
 ### Chat outbound delivery
 
 **Outbound delivery status**:

@@ -5,12 +5,19 @@ import {
 } from "@/helpers/chat-room-message-metadata-patch";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import {
+  asMetadataRecord,
   pruneRemovedUnfurlUrls,
   REMOVED_UNFURL_URLS_METADATA_KEY,
   readRemovedUnfurlUrlsFromMetadata,
+  readUnfurlsFromMetadata,
 } from "@/helpers/chat-room-message-unfurl-metadata";
 import { scrapeUnfurlCards } from "@/lib/chat-unfurl-scrape";
+import {
+  deleteChatRoomUnfurlSnapshotsIfOwned,
+  snapshotChatRoomUnfurlImage,
+} from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
+import type { ChatRoomMessageUnfurlCard } from "@/lib/open-graph-html";
 
 export interface ScheduleChatRoomMessageUnfurlsResult {
   messageId: string;
@@ -35,12 +42,24 @@ export async function scheduleChatRoomMessageUnfurls(
     attempted: 0,
     persisted: 0,
   };
+  // Snapshots uploaded by this run; deleted again on every abandon path.
+  let roomId: string | null = null;
+  let freshSnapshots: Array<string | null> = [];
+  const discardFreshSnapshots = async () => {
+    if (roomId === null) return;
+    await deleteChatRoomUnfurlSnapshotsIfOwned(
+      freshSnapshots,
+      roomId,
+      messageId,
+    );
+  };
 
   try {
     const message = await prisma.chatRoomMessage.findUnique({
       where: { id: messageId },
       select: {
         id: true,
+        roomId: true,
         content: true,
         deletedAt: true,
         editedAt: true,
@@ -51,6 +70,7 @@ export async function scheduleChatRoomMessageUnfurls(
     if (!message || message.deletedAt != null) {
       return empty;
     }
+    roomId = message.roomId;
 
     const contentSnapshot = message.content;
     const candidateUrls = selectUnfurlCandidateUrls(contentSnapshot);
@@ -79,7 +99,12 @@ export async function scheduleChatRoomMessageUnfurls(
     const urlsToScrape = candidateUrls.filter(
       (url) => !removedBeforeScrape.includes(url),
     );
-    const cards = await scrapeUnfurlCards(urlsToScrape);
+    const cards = await snapshotCardImages(
+      await scrapeUnfurlCards(urlsToScrape),
+      roomId,
+      messageId,
+    );
+    freshSnapshots = cards.map((card) => card.imageUrl);
 
     const latest = await prisma.chatRoomMessage.findUnique({
       where: { id: messageId },
@@ -92,12 +117,18 @@ export async function scheduleChatRoomMessageUnfurls(
     });
 
     if (!latest || latest.deletedAt != null) {
+      await discardFreshSnapshots();
       return { messageId, attempted: urlsToScrape.length, persisted: 0 };
     }
 
     if (latest.content !== contentSnapshot) {
+      await discardFreshSnapshots();
       return { messageId, attempted: urlsToScrape.length, persisted: 0 };
     }
+
+    const previousSnapshots = (
+      readUnfurlsFromMetadata(asMetadataRecord(latest.metadata)) ?? []
+    ).map((card) => card.imageUrl);
 
     const removedUrls = pruneRemovedUnfurlUrls(
       readRemovedUnfurlUrlsFromMetadata(asMetadataRecord(latest.metadata)),
@@ -105,6 +136,15 @@ export async function scheduleChatRoomMessageUnfurls(
     );
     const visibleCards = cards.filter(
       (card) => !removedUrls.includes(card.url),
+    );
+    // A card removed while the scrape ran never reaches metadata, so its
+    // snapshot goes now; the remove route cannot see it.
+    await deleteChatRoomUnfurlSnapshotsIfOwned(
+      cards
+        .filter((card) => !visibleCards.includes(card))
+        .map((card) => card.imageUrl),
+      roomId,
+      messageId,
     );
     const existingRemovedAtPersist = readRemovedUnfurlUrlsFromMetadata(
       asMetadataRecord(latest.metadata),
@@ -142,10 +182,16 @@ export async function scheduleChatRoomMessageUnfurls(
     }
 
     if (updated === 0) {
+      await discardFreshSnapshots();
       return { messageId, attempted: urlsToScrape.length, persisted: 0 };
     }
 
     await publishChatRoomMessageRealtimeById(messageId, "unfurl");
+    await deleteChatRoomUnfurlSnapshotsIfOwned(
+      previousSnapshots.filter((url) => !freshSnapshots.includes(url)),
+      roomId,
+      messageId,
+    );
 
     return {
       messageId,
@@ -157,13 +203,30 @@ export async function scheduleChatRoomMessageUnfurls(
       `[chat-unfurl] scheduleChatRoomMessageUnfurls failed for ${messageId}`,
       error,
     );
+    await discardFreshSnapshots().catch(() => undefined);
     return empty;
   }
 }
 
-function asMetadataRecord(value: unknown): Record<string, unknown> | null {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  return null;
+/**
+ * Store each card's preview image under the message (ADR 0030). A card whose
+ * snapshot fails keeps its source URL.
+ */
+function snapshotCardImages(
+  cards: ChatRoomMessageUnfurlCard[],
+  roomId: string,
+  messageId: string,
+): Promise<ChatRoomMessageUnfurlCard[]> {
+  // In parallel so the message stays within one download budget, not one per card.
+  return Promise.all(
+    cards.map(async (card) => {
+      if (!card.imageUrl) return card;
+      const stored = await snapshotChatRoomUnfurlImage({
+        roomId,
+        messageId,
+        imageUrl: card.imageUrl,
+      });
+      return stored ? { ...card, imageUrl: stored } : card;
+    }),
+  );
 }
