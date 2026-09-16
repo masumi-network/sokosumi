@@ -109,11 +109,11 @@ public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) 
 }
 
 /// Initials for avatar fallbacks: first letters of the first two words,
-/// "?" when there is nothing to take them from.
+/// uppercased; "?" when there is nothing to take them from.
 public func initials(for name: String) -> String {
   let words = name.split(separator: " ")
   let first = words.first?.first.map(String.init) ?? ""
   let second = words.dropFirst().first?.first.map(String.init) ?? ""
-  let result = first + second
+  let result = (first + second).uppercased()
   return result.isEmpty ? "?" : result
 }

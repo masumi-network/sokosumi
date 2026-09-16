@@ -907,6 +907,40 @@ describe("ChatMessageRow", () => {
     expect(article.className).not.toContain("pr-64");
   });
 
+  it("gives the hover pill the pointer only while it shows", async () => {
+    const user = userEvent.setup();
+    renderRow();
+    await user.hover(screen.getByRole("article"));
+
+    // The pill hangs over the row above, so a hidden one must not take that
+    // row's pointer. Hit testing across rows needs real CSS, so this locks
+    // the class combination; the behaviour itself was checked in a browser.
+    const pillClasses = hoverPill()?.className.split(/\s+/);
+    expect(pillClasses).toContain("[@media(hover:hover)]:pointer-events-none");
+    expect(pillClasses).toContain(
+      "[@media(hover:hover)]:group-hover:pointer-events-auto",
+    );
+    expect(pillClasses).toContain("focus-within:pointer-events-auto");
+  });
+
+  it("keeps the hover pill inert while its More menu is open", async () => {
+    const user = userEvent.setup();
+    renderRow();
+    await user.hover(screen.getByRole("article"));
+    const pill = hoverPill() as HTMLElement;
+    await user.click(
+      within(pill).getByRole("button", { name: "Actions.overflow" }),
+    );
+    await screen.findByRole("menuitem", { name: "Copy.action" });
+
+    const pillClasses = pill.className.split(/\s+/);
+    expect(pillClasses).toContain("[@media(hover:hover)]:pointer-events-none");
+    expect(pillClasses).not.toContain(
+      "[@media(hover:hover)]:group-hover:pointer-events-auto",
+    );
+    expect(pillClasses).not.toContain("focus-within:pointer-events-auto");
+  });
+
   it("renders quote snapshot from DTO and hands a jump to the transcript", async () => {
     const user = userEvent.setup();
     const onJumpToQuotedMessage = vi.fn();
