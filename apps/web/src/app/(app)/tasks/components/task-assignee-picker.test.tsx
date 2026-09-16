@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
@@ -149,5 +149,54 @@ describe("TaskAssigneePicker", () => {
       trigger.compareDocumentPosition(vendor) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("keeps the option list scrollable under touch", async () => {
+    const user = userEvent.setup();
+    renderPicker();
+
+    await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(listbox.className).toContain("touch-pan-y");
+    expect(listbox.className).toContain("overflow-y-auto");
+  });
+
+  it("portals the list into the owning dialog so scroll stays allowlisted", async () => {
+    const user = userEvent.setup();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("data-slot", "dialog-content");
+    dialog.setAttribute("data-testid", "assignee-dialog-host");
+    document.body.append(dialog);
+
+    try {
+      const onSelect = vi.fn();
+      render(
+        <TaskAssigneePicker
+          value="coworker-1"
+          options={options}
+          labels={labels}
+          onSelect={onSelect}
+        />,
+        { container: dialog },
+      );
+
+      await user.click(screen.getByRole("combobox", { name: "Coworker" }));
+
+      await waitFor(() => {
+        expect(
+          dialog.querySelector('[data-slot="popover-content"]'),
+        ).toBeTruthy();
+      });
+
+      expect(
+        document.body.querySelector(
+          ':scope > [data-radix-popper-content-wrapper] [data-slot="popover-content"]',
+        ),
+      ).toBeNull();
+      expect(dialog.contains(screen.getByRole("listbox"))).toBe(true);
+    } finally {
+      dialog.remove();
+    }
   });
 });

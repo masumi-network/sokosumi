@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -23,6 +23,7 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 
 const UNASSIGNED_VALUE = "__unassigned__";
+const DIALOG_CONTENT_SELECTOR = '[data-slot="dialog-content"]';
 
 export interface TaskAssigneePickerLabels {
   ariaLabel: string;
@@ -116,6 +117,8 @@ export function TaskAssigneePicker({
 }: TaskAssigneePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [portalContainer, setPortalContainer] = useState<HTMLElement>();
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = useMemo(() => {
     if (!value) return null;
@@ -139,7 +142,15 @@ export function TaskAssigneePicker({
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (!nextOpen) setSearch("");
+    if (!nextOpen) {
+      setSearch("");
+      setPortalContainer(undefined);
+      return;
+    }
+    // Body-portaled lists sit outside the dialog scroll-lock allowlist, so
+    // wheel/touch scroll dies. Portal into the dialog when one owns the trigger.
+    const dialog = triggerRef.current?.closest(DIALOG_CONTENT_SELECTOR);
+    setPortalContainer(dialog instanceof HTMLElement ? dialog : undefined);
   }
 
   function handleSelect(nextValue: string) {
@@ -178,6 +189,7 @@ export function TaskAssigneePicker({
         <AssigneeAvatar option={selectedOption} />
         <PopoverTrigger asChild>
           <button
+            ref={triggerRef}
             type="button"
             role="combobox"
             aria-expanded={open}
@@ -216,7 +228,11 @@ export function TaskAssigneePicker({
           </span>
         ) : null}
       </div>
-      <PopoverContent align={align} className="w-72 p-0">
+      <PopoverContent
+        align={align}
+        container={portalContainer}
+        className="w-72 p-0"
+      >
         <Command>
           <CommandInput
             autoFocus
@@ -225,7 +241,7 @@ export function TaskAssigneePicker({
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList className="p-1">
+          <CommandList className="touch-pan-y p-1">
             <CommandEmpty>{labels.noResults}</CommandEmpty>
             <CommandItem
               value={UNASSIGNED_VALUE}
