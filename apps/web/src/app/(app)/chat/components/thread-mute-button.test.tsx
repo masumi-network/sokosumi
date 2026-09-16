@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThreadMuteButton } from "./thread-mute-button";
@@ -168,5 +174,49 @@ describe("ThreadMuteButton", () => {
       );
     });
     expect(onChanged).not.toHaveBeenCalled();
+  });
+  it("blocks opposite toggles until the pending write settles", async () => {
+    let finish: (value: unknown) => void = () => {};
+    setThreadMutedActionMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderButton();
+    const button = await screen.findByTestId("thread-panel-mute");
+
+    fireEvent.click(button);
+    fireEvent.click(button);
+    const callsWhilePending = setThreadMutedActionMock.mock.calls.length;
+    const disabledWhilePending = button.hasAttribute("disabled");
+    await act(async () => {
+      finish({ ok: false, error: { message: "unavailable" } });
+    });
+
+    expect(callsWhilePending).toBe(1);
+    expect(disabledWhilePending).toBe(true);
+    expect(button).toHaveAttribute("aria-pressed", "false");
+    expect(button).toBeEnabled();
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it("restores the state and enables retry after a transport failure", async () => {
+    setThreadMutedActionMock.mockRejectedValueOnce(new Error("offline"));
+    renderButton();
+    const button = await screen.findByTestId("thread-panel-mute");
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(button).toHaveAttribute("aria-pressed", "false");
+    expect(button).toBeEnabled();
+    expect(onChanged).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    expect(onChanged).toHaveBeenCalledTimes(1);
   });
 });

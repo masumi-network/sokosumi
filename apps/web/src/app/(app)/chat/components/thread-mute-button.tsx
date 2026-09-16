@@ -41,7 +41,7 @@ export function ThreadMuteButton({
   });
   // Another thread's answer says nothing about this one.
   const muted = known.key === threadKey ? known.muted : null;
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     // Only read while the state is unknown. A reply landing mid-toggle must
@@ -68,22 +68,25 @@ export function ThreadMuteButton({
   const label = muted ? t("unmute") : t("mute");
 
   function handleClick() {
-    // Stays enabled while the write runs: disabling it fades the icon out and
-    // back on every click, and both directions are idempotent anyway.
     const next = !muted;
     // Answer the click now; the request only confirms it.
     setKnown({ key: threadKey, muted: next });
     startTransition(async () => {
-      const result = await setThreadMutedAction(roomId, parentMessageId, next);
-      if (!result.ok) {
+      try {
+        const result = await setThreadMutedAction(
+          roomId,
+          parentMessageId,
+          next,
+        );
+        if (!result.ok) {
+          setKnown({ key: threadKey, muted: !next });
+          return;
+        }
+        setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
+        onChanged?.();
+      } catch {
         setKnown({ key: threadKey, muted: !next });
-        return;
       }
-      // Settle on what the write answered, not on what the click assumed.
-      // Next serialises these actions per session, so the last answer is the
-      // current one even when the reader toggles twice in a round trip.
-      setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
-      onChanged?.();
     });
   }
 
@@ -92,11 +95,12 @@ export function ThreadMuteButton({
       type="button"
       variant="ghost"
       size="icon"
-      className="size-8 rounded-full"
+      className="size-8 rounded-full disabled:opacity-100"
       aria-label={label}
       aria-pressed={muted}
       title={label}
       onClick={handleClick}
+      disabled={isPending}
       data-testid="thread-panel-mute"
     >
       {muted ? (
