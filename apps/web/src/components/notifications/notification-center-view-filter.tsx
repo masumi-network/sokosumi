@@ -32,17 +32,17 @@ export function NotificationCenterViewFilter() {
       value={view}
       aria-label={t("filterLabel")}
       onValueChange={handleValueChange}
-      className="bg-muted/50 shrink-0 gap-0.5 rounded-lg p-0.5"
+      className="bg-card-background shrink-0 gap-1 rounded-lg p-1"
     >
       <ToggleGroupItem
         value="all"
-        className="text-muted-foreground h-auto rounded-md px-2 py-px text-xs first:rounded-md last:rounded-md hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm dark:data-[state=on]:bg-background"
+        className="text-muted-foreground h-auto rounded px-2 text-xs first:rounded last:rounded hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm dark:data-[state=on]:bg-background"
       >
         {t("filterAll")}
       </ToggleGroupItem>
       <ToggleGroupItem
         value="unread"
-        className="text-muted-foreground h-auto rounded-md px-2 py-px text-xs first:rounded-md last:rounded-md hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm dark:data-[state=on]:bg-background"
+        className="text-muted-foreground h-auto rounded px-2 text-xs first:rounded last:rounded hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm dark:data-[state=on]:bg-background"
       >
         {t("filterUnread")}
       </ToggleGroupItem>

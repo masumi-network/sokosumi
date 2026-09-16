@@ -33,7 +33,7 @@ export function NotificationsPageContent() {
       {notifications.length > 0 || view === "unread" ? (
         <div
           data-testid="notifications-page-actions"
-          className="flex min-h-8 items-center justify-end gap-1.5"
+          className="flex min-h-8 items-center justify-end gap-2"
         >
           <NotificationCenterViewFilter />
           {unreadCount > 0 ? (
