@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -64,9 +65,14 @@ interface TasksPageProps {
   }>;
 }
 
-export const metadata = {
-  title: "Task Manager",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Tasks.Page");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
