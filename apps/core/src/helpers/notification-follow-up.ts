@@ -71,20 +71,34 @@ export function followUpMessageKeyFor(sourceMessageKey: string): string | null {
  * enforces is what stops a second reminder. A re-run writes nothing and needs
  * no record of its own that it ran.
  *
- * Derived from the thing being reminded about rather than from the row that
- * triggered the reminder, which is what makes SOK-916 user story 26 true:
- * twenty unread mentions in one room are twenty rows, and a per-row id would
- * be twenty reminders. The table is unique on
- * `(userId, kind, referenceId, eventId, messageKey)`, so with the reference in
- * here the reader gets one reminder per room, per task or per job, whichever
- * of its rows the run reaches first. The run goes oldest first, so that is the
- * oldest one still in the window.
+ * Two parts, and each is there to stop a different failure.
  *
- * The consequence to know about: two task attention notifications for the same
- * task share a follow-up key, so they collapse into one reminder as well. A
- * mention and a direct message in the same room do not, because their
- * reminders are stored under different message keys.
+ * The reference is what makes SOK-916 user story 26 true: twenty unread
+ * mentions in one room are twenty rows, and a per-row id would be twenty
+ * reminders. The table is unique on
+ * `(userId, kind, referenceId, eventId, messageKey)`, so with the reference in
+ * here the reader gets one reminder per room, per task or per job.
+ *
+ * The day is what stops that from muting the room for good. A follow-up row is
+ * never cleaned up: the only deletes are the reader's own and two unrelated
+ * SYSTEM ones. So a key that named only the room would be held for the life of
+ * the account, and a mention next year would be refused as a duplicate of a
+ * reminder sent this one. The day is taken from the source row rather than
+ * from the clock, because consecutive runs overlap by an hour and must derive
+ * the same key for the same row.
+ *
+ * The seam to know about: a room whose unread rows straddle midnight UTC gets
+ * two reminders rather than one. The window a run examines is two hours wide,
+ * so that is the only way one room's rows land in two days, and two is the
+ * most it can ever be.
+ *
+ * The other consequence: the task attention keys all share one follow-up
+ * message key, so a task that asked for input and then for approval on the
+ * same day gets one reminder. A mention and a direct message in one room stay
+ * two, because their reminders are stored under different message keys.
  */
-export function followUpEventId(referenceId: string): string {
-  return `follow-up:${referenceId}`;
+export function followUpEventId(referenceId: string, waitedFrom: Date): string {
+  const day = waitedFrom.toISOString().slice(0, "YYYY-MM-DD".length);
+
+  return `follow-up:${referenceId}:${day}`;
 }

@@ -47,6 +47,19 @@ const now = new Date("2026-09-15T12:00:00.000Z");
 
 /** Inside the window: a day old, and less than two hours past the mark. */
 const WAITING = new Date("2026-09-14T11:00:00.000Z");
+
+/**
+ * The event id a reminder about `reference` takes for a row seeded at
+ * `WAITING`.
+ *
+ * Spelled out through the same two parts the source does, the reference and
+ * the day the row arrived, rather than by calling the helper: a test that
+ * builds its expectation with the code under test agrees with any change to
+ * it, including a wrong one.
+ */
+function followUpId(reference: string): string {
+  return `follow-up:${reference}:2026-09-14`;
+}
 /** Not yet a day old. */
 const TOO_YOUNG = new Date("2026-09-15T06:00:00.000Z");
 /** A day old before this run's window opened. */
@@ -347,7 +360,7 @@ describe("NotificationFollowUpSyncService", () => {
       userId: "reader-1",
       kind: NotificationKind.CHAT,
       referenceId: "room-1",
-      eventId: "follow-up:room-1",
+      eventId: followUpId("room-1"),
       messageKey: CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
       messageParams: { authorName: "Ada", roomName: "Design" },
       metadata: { messageId: "message-1" },
@@ -570,7 +583,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(resolveDeliveryMock).toHaveBeenCalledTimes(1);
     expect(firstFollowUpInput()).toEqual(
-      expect.objectContaining({ eventId: "follow-up:room-1" }),
+      expect.objectContaining({ eventId: followUpId("room-1") }),
     );
     // The answer itself, not one that looks like it. Which client the write
     // goes through is left alone on purpose: the parameter has a default, so
@@ -677,6 +690,52 @@ describe("NotificationFollowUpSyncService", () => {
     expect(result.examined).toBe(0);
   });
 
+  /**
+   * A damaged row costs its own reminder and not the room's.
+   *
+   * The reminder for a room is keyed on the room and the day, so whichever
+   * row the run reaches first takes that key. If a row whose parameters will
+   * not read could take it, one damaged row would leave the room with a
+   * wordless reminder and no way to get a correct one, because the healthy
+   * rows behind it would be refused as duplicates. So such a row is skipped
+   * and the next one is reminded about instead.
+   *
+   * The damaged row is still reported, and still counted as examined: it was
+   * looked at and passed over, not left behind by a run that stopped.
+   */
+  it("skips a row whose words will not read and reminds from the next", async () => {
+    seed([
+      {
+        ...row({ id: "notification-1", createdAt: WAITING }),
+        messageParams: "{",
+      },
+      row({
+        id: "notification-2",
+        createdAt: new Date(WAITING.getTime() + 1),
+        messageParams: { authorName: "Grace", roomName: "Design" },
+      }),
+    ]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
+    expect(firstFollowUpInput()).toEqual(
+      expect.objectContaining({
+        eventId: followUpId("room-1"),
+        messageParams: { authorName: "Grace", roomName: "Design" },
+      }),
+    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          field: "messageParams",
+          rowId: "notification-1",
+        }),
+      }),
+    );
+  });
+
   /** One reminder, ever. The run may repeat; the reminder may not. */
   it("writes no second reminder however often the run repeats", async () => {
     seed([row()]);
@@ -755,7 +814,7 @@ describe("NotificationFollowUpSyncService", () => {
     // The oldest row still in the window wins, because the run goes oldest
     // first and the two after it are refused as duplicates. All three were
     // still examined.
-    expect(written[0]?.eventId).toBe("follow-up:room-1");
+    expect(written[0]?.eventId).toBe(followUpId("room-1"));
     expect(result).toEqual({ examined: 3, sent: 1, reachedEnd: true });
   });
 
@@ -772,8 +831,8 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written.map((followUp) => followUp.eventId)).toEqual([
-      "follow-up:room-1",
-      "follow-up:room-2",
+      followUpId("room-1"),
+      followUpId("room-2"),
     ]);
     expect(result).toEqual({ examined: 2, sent: 2, reachedEnd: true });
   });
@@ -813,7 +872,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
-    expect(written.map((one) => one.eventId)).toEqual(["follow-up:room-2"]);
+    expect(written.map((one) => one.eventId)).toEqual([followUpId("room-2")]);
     // Survived is not enough. `reachedEnd` stays true through this, so the
     // report is the only place the lost reminder is named.
     expect(captureExceptionMock).toHaveBeenCalledWith(
@@ -846,7 +905,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
-    expect(written.map((one) => one.eventId)).toEqual(["follow-up:room-2"]);
+    expect(written.map((one) => one.eventId)).toEqual([followUpId("room-2")]);
     // As with a failed write, the report is the only place this one is named.
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
@@ -902,7 +961,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
-    expect(written.map((one) => one.eventId)).toEqual(["follow-up:room-2"]);
+    expect(written.map((one) => one.eventId)).toEqual([followUpId("room-2")]);
   });
 
   /**
@@ -931,7 +990,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(result.sent).toBe(waitingCount);
     expect(written.map((one) => one.eventId)).toContain(
-      `follow-up:room-${waitingCount - 1}`,
+      followUpId(`room-${waitingCount - 1}`),
     );
     expect(notificationFindManyMock).toHaveBeenCalledTimes(3);
     // The bound on the read itself, not only on what the run does with the
@@ -979,7 +1038,9 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
     expect(written.map((one) => one.eventId)).toContain(
-      `follow-up:room-${String(NOTIFICATION_FOLLOW_UP_PAGE_SIZE).padStart(4, "0")}`,
+      followUpId(
+        `room-${String(NOTIFICATION_FOLLOW_UP_PAGE_SIZE).padStart(4, "0")}`,
+      ),
     );
   });
 

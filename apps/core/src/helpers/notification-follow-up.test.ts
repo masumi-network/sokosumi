@@ -78,13 +78,38 @@ describe("followUpMessageKeyFor", () => {
 });
 
 describe("followUpEventId", () => {
+  const MORNING = new Date("2026-09-14T09:00:00.000Z");
+  const EVENING = new Date("2026-09-14T22:00:00.000Z");
+  const NEXT_DAY = new Date("2026-09-15T09:00:00.000Z");
+
   /**
-   * The whole of the idempotency. Same reference, same event id, and the
-   * notification table's own uniqueness refuses the second row.
+   * The whole of the idempotency. Same room and same day, same event id, and
+   * the notification table's own uniqueness refuses the second row. Two rows
+   * hours apart still land on one reminder, which is user story 26.
    */
-  it("gives one reference one event id, every run", () => {
-    expect(followUpEventId("room-1")).toBe("follow-up:room-1");
-    expect(followUpEventId("room-1")).toBe(followUpEventId("room-1"));
-    expect(followUpEventId("room-2")).not.toBe(followUpEventId("room-1"));
+  it("gives one room's day one event id, every run", () => {
+    expect(followUpEventId("room-1", MORNING)).toBe(
+      "follow-up:room-1:2026-09-14",
+    );
+    expect(followUpEventId("room-1", EVENING)).toBe(
+      followUpEventId("room-1", MORNING),
+    );
+    expect(followUpEventId("room-2", MORNING)).not.toBe(
+      followUpEventId("room-1", MORNING),
+    );
+  });
+
+  /**
+   * The half that stops the room being muted for good.
+   *
+   * A follow-up row is never cleaned up, so an id naming only the room would
+   * be held for the life of the account and every later mention in it would be
+   * refused as a duplicate. A new day is a new id, so the room can be reminded
+   * about again.
+   */
+  it("gives the same room a new event id on a new day", () => {
+    expect(followUpEventId("room-1", NEXT_DAY)).not.toBe(
+      followUpEventId("room-1", MORNING),
+    );
   });
 });

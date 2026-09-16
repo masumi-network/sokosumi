@@ -124,8 +124,9 @@ export interface SendFollowUpsResult {
  */
 const FOLLOW_UP_SOURCE_COLUMNS = {
   id: true,
-  // Not built into the follow-up. Read because the next page continues after
-  // this row's position, and the position is (createdAt, id).
+  // Two jobs. The next page continues after this row's position, and the
+  // position is (createdAt, id). It is also the day the follow-up's event id
+  // is scoped to, so that one room's reminder does not mute the room for good.
   createdAt: true,
   userId: true,
   kind: true,
@@ -143,8 +144,10 @@ type FollowUpSource = Prisma.NotificationGetPayload<{
  * The follow-up this notification would be, or null when it is not one to send.
  *
  * A source key with no mapping is skipped rather than guessed at. The query
- * already asks only for mapped keys, so this answers for the type rather than
- * for anything that path produces.
+ * already asks only for mapped keys, so that half answers for the type rather
+ * than for anything that path produces. A row whose message parameters will
+ * not read is skipped for a reason that is not about types at all, and that
+ * one does happen.
  */
 function toFollowUpInput(
   source: FollowUpSource,
@@ -157,11 +160,28 @@ function toFollowUpInput(
 
   // The reminder says what the original said, so it carries what the original
   // carried: the same parameters for the words, the same metadata for the
-  // destination. A column that will not read leaves the reminder without it
-  // rather than costing the reader the reminder.
-  const messageParams =
-    readNotificationRowJson(source.messageParams, source.id, "messageParams") ??
-    {};
+  // destination.
+  //
+  // A row whose parameters will not read is skipped rather than reminded
+  // about without them. It used to be reminded about with an empty object, on
+  // the grounds that a reminder missing a name beats no reminder. That stopped
+  // being true when reminders started sharing one event id per room and day: a
+  // wordless reminder built from the oldest row would take the key, and the
+  // healthy rows behind it could no longer produce a correct one. The damaged
+  // row is already reported by `readNotificationRowJson`.
+  const messageParams = readNotificationRowJson(
+    source.messageParams,
+    source.id,
+    "messageParams",
+  );
+
+  if (!messageParams) {
+    return null;
+  }
+  // Metadata is not held to the same bar. It decides where the reminder opens
+  // rather than what it says, and a row that legitimately carries none is
+  // indistinguishable here from one whose metadata will not read, so refusing
+  // on it would refuse reminders that are fine.
   const metadata = source.metadata
     ? readNotificationRowJson(source.metadata, source.id, "metadata")
     : null;
@@ -170,7 +190,7 @@ function toFollowUpInput(
     userId: source.userId,
     kind: source.kind,
     referenceId: source.referenceId,
-    eventId: followUpEventId(source.referenceId),
+    eventId: followUpEventId(source.referenceId, source.createdAt),
     messageKey,
     messageParams,
     metadata,
@@ -190,11 +210,12 @@ function toFollowUpInput(
  * reminding someone of what they switched off would be the feature working
  * against them.
  *
- * One follow-up per thing, ever. The event id is derived from what is being
- * reminded about rather than from the row that triggered it, so the uniqueness
- * the notification table already enforces is what stops the second, and this
- * needs no record of its own that a run happened. Twenty unread mentions in
- * one room are twenty rows and one reminder.
+ * One follow-up per thing per day. The event id is derived from what is being
+ * reminded about and the day it arrived, rather than from the row that
+ * triggered it, so the uniqueness the notification table already enforces is
+ * what stops the second, and this needs no record of its own that a run
+ * happened. Twenty unread mentions in one room are twenty rows and one
+ * reminder; a mention in the same room next week is a reminder again.
  *
  * A row whose write throws costs that one reminder and nothing else: the run
  * carries on through the rest. The preference read sits inside the same try,
