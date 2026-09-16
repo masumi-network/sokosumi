@@ -1,0 +1,199 @@
+import CoreAPI
+import Foundation
+import HTTPTypes
+import OpenAPIRuntime
+import SokosumiChat
+import Testing
+
+private func actionRoomJSON(pinned: Bool = false, muted: Bool = false) -> String {
+  let pin = pinned ? "\"\(testTimestamp)\"" : "null"
+  let mute = muted ? "\"\(testTimestamp)\"" : "null"
+  return """
+  {"id":"\(testRoomId)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":4,"unreadMentionCount":1,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":\(mute),"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  """
+}
+
+private func actionBody(pinned: Bool = false, muted: Bool = false) -> String {
+  """
+  {"data":\(actionRoomJSON(pinned: pinned, muted: muted)),"meta":{"timestamp":"\(testTimestamp)","requestId":"action"}}
+  """
+}
+
+private let actionFailureBody = """
+{"error":"Request failed","message":"Refused","meta":{"timestamp":"\(testTimestamp)","requestId":"action","path":"/chats/rooms/room/star","method":"POST"}}
+"""
+
+private actor PausedSidebarTransport: ClientTransport {
+  let status: Int
+  let response: String
+  private var waiter: CheckedContinuation<Void, Never>?
+  private var observer: CheckedContinuation<Void, Never>?
+
+  init(status: Int = 200, response: String = actionBody(pinned: true)) {
+    self.status = status
+    self.response = response
+  }
+
+  func waitForRequest() async {
+    if waiter == nil {
+      await withCheckedContinuation { observer = $0 }
+    }
+  }
+
+  func release() {
+    waiter?.resume()
+    waiter = nil
+  }
+
+  func send(_: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID _: String) async throws -> (HTTPResponse, HTTPBody?) {
+    await withCheckedContinuation {
+      waiter = $0
+      observer?.resume()
+      observer = nil
+    }
+    return (HTTPResponse(status: .init(code: status)), HTTPBody(response))
+  }
+}
+
+@MainActor
+struct ConversationActionsTests {
+  private func sidebar(pinned: Bool = false, muted: Bool = false) async throws -> ConversationSidebar {
+    let sidebar = ConversationSidebar()
+    let transport = TestTransport([(200, testMessagesPageBody(messages: [actionRoomJSON(pinned: pinned, muted: muted)], nextCursor: nil))])
+    try await sidebar.refresh(client: makeTestClient(transport), organizationSlug: nil)
+    return sidebar
+  }
+
+  @Test func actionsUseExistingRoutesAndPreserveNewerAttention() async throws {
+    let state = try await sidebar()
+    let transport = TestTransport([
+      (200, actionBody(pinned: true)), (200, actionBody()),
+      (200, actionBody(muted: true)), (200, actionBody())
+    ])
+    let client = try makeTestClient(transport)
+    state.rooms[0].unreadCount = 9
+    for action: ConversationSidebar.Action in [.pin, .unpin, .mute, .unmute] {
+      try await state.perform(action, roomId: testRoomId, client: client, organizationSlug: "acme")
+      #expect(state.rooms[0].unreadCount == 9)
+    }
+    #expect(transport.requests.map(\.operationID) == [
+      "post/chats/rooms/{id}/star", "delete/chats/rooms/{id}/star",
+      "post/chats/rooms/{id}/mute", "delete/chats/rooms/{id}/mute"
+    ])
+    #expect(transport.requests.allSatisfy { testOrgSlugHeader($0.request) == "acme" })
+    #expect(state.rooms[0].starredAt == nil)
+    #expect(state.rooms[0].mutedAt == nil)
+  }
+
+  @Test func availabilityMatchesWeb() async throws {
+    let state = try await sidebar()
+    #expect(state.canPerform(.pin, roomId: testRoomId))
+    #expect(state.canPerform(.mute, roomId: testRoomId))
+    state.selectedRoomId = testRoomId
+    #expect(!state.canPerform(.markUnread, roomId: testRoomId))
+    state.selectedRoomId = nil
+    state.rooms[0].mutedAt = Date()
+    #expect(!state.canPerform(.pin, roomId: testRoomId))
+    #expect(!state.canPerform(.markUnread, roomId: testRoomId))
+    #expect(state.canPerform(.unmute, roomId: testRoomId))
+    state.rooms[0].mutedAt = nil
+    state.rooms[0].starredAt = Date()
+    #expect(!state.canPerform(.mute, roomId: testRoomId))
+    #expect(state.canPerform(.unpin, roomId: testRoomId))
+    #expect(!state.canPerform(.pin, roomId: "missing"))
+  }
+
+  @Test func pendingPinSurvivesRefreshAndPreventsOtherActions() async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    #expect(state.rooms[0].starredAt != nil)
+    for action: ConversationSidebar.Action in [.pin, .unpin, .mute, .unmute, .markUnread] {
+      #expect(!state.canPerform(action, roomId: testRoomId))
+    }
+    let refresh = TestTransport([(200, testMessagesPageBody(messages: [actionRoomJSON()], nextCursor: nil))])
+    try await state.refresh(client: makeTestClient(refresh), organizationSlug: nil)
+    #expect(state.rooms[0].starredAt != nil)
+    state.rooms[0].name = "Renamed during pin"
+    await transport.release()
+    try await task.value
+    #expect(state.rooms[0].name == "Renamed during pin")
+    #expect(state.canPerform(.unpin, roomId: testRoomId))
+  }
+
+  @Test(arguments: [401, 403, 404, 422, 500])
+  func failedPinRollsBackOnlyPin(status: Int) async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport(status: status, response: actionFailureBody)
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    state.rooms[0].unreadCount = 8
+    await transport.release()
+    let expected: ChatServiceError = status == 401 ? .unauthorized("Refused") : .unprocessable(statusCode: status, message: "Refused")
+    await #expect(throws: expected) { try await task.value }
+    #expect(state.rooms[0].starredAt == nil)
+    #expect(state.rooms[0].unreadCount == 8)
+    #expect(state.actionError != nil)
+    #expect(state.canPerform(.pin, roomId: testRoomId))
+  }
+
+  @Test(arguments: [200, 401])
+  func workspaceResetDiscardsOldAction(status: Int) async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport(status: status, response: status == 200 ? actionBody(pinned: true) : actionFailureBody)
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    let original = try #require(state.rooms.first)
+    state.reset()
+    var replacement = original
+    replacement.starredAt = nil
+    state.rooms = [replacement]
+    await transport.release()
+    try await task.value
+    #expect(state.rooms[0].starredAt == nil)
+    #expect(state.actionError == nil)
+  }
+
+  @Test func markUnreadUsesSharedOverlayAndRestoresOnFailure() async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport(status: 403, response: actionFailureBody)
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.markUnread, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    #expect(state.partitioned.channels.first?.markedUnread == true)
+    #expect(!state.canPerform(.pin, roomId: testRoomId))
+    await transport.release()
+    await #expect(throws: ChatServiceError.self) { try await task.value }
+    #expect(state.partitioned.channels.first?.markedUnread == false)
+    #expect(state.readAttention.errorMessage != nil)
+    #expect(state.actionError == nil)
+  }
+
+  @Test func removedRoomIsNotReinsertedWhenPinCompletes() async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    state.rooms = []
+    await transport.release()
+    try await task.value
+    #expect(state.rooms.isEmpty)
+  }
+
+  @Test func refreshStartedBeforeSettlementCannotUndoPin() async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport(response: testMessagesPageBody(messages: [actionRoomJSON()], nextCursor: nil))
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let refresh = Task { try await state.refresh(client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    try await state.perform(.pin, roomId: testRoomId, client: makeTestClient(TestTransport([(200, actionBody(pinned: true))])), organizationSlug: nil)
+    await transport.release()
+    #expect(try await !refresh.value)
+    #expect(state.rooms[0].starredAt != nil)
+  }
+}

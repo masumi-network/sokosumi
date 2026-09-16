@@ -712,7 +712,7 @@ public final class WorkspaceState: ObservableObject {
   /// room that is gone. Remints the token when one exists so caps drop.
   func applyMembershipRevoked(roomId revokedRoomId: String) {
     workspaceSession.applyMembershipRevoked(roomId: revokedRoomId)
-    sidebar.invalidateRefresh()
+    sidebar.invalidateRequests()
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
@@ -809,14 +809,15 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
-  public func markRoomUnread(_ room: Components.Schemas.ChatRoom, auth: AuthState) async {
+  public func performSidebarAction(_ action: ConversationSidebar.Action, roomId: String, auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
     do {
-      try await readAttention.markUnread(room: room, activeRoomId: selectedRoomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
+      try await sidebar.perform(action, roomId: roomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
     } catch {
       if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
         // The auth card takes over; the modal alert would double-surface.
         readAttention.clearError()
+        sidebar.clearActionError()
       }
     }
   }
@@ -917,7 +918,7 @@ public final class WorkspaceState: ObservableObject {
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
-    sidebar.invalidateRefresh()
+    sidebar.invalidateRequests()
     let generation = workspaceGeneration
     roomsLoading = true
     defer {
