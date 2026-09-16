@@ -334,7 +334,7 @@ const baseLabels = {
   createAnother: "Create another task",
   uploadingFile: "Uploading {fileName}",
   uploadingFiles: "Uploading {count} files",
-  privateLabel: "Private task",
+  privateLabel: "Private",
   privateDescription: "Only you can see this.",
 };
 
@@ -686,7 +686,7 @@ describe("TaskForm", () => {
     );
 
     await user.type(screen.getByTestId("markdown-editor"), "Secret work");
-    await user.click(screen.getByLabelText("Private task"));
+    await user.click(screen.getByLabelText("Private"));
     await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -716,7 +716,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.queryByLabelText("Private task")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Private")).not.toBeInTheDocument();
   });
 
   it("shows the private checkbox for the current user, a coworker, and a bot", () => {
@@ -738,7 +738,7 @@ describe("TaskForm", () => {
         onSuccess={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("Private task")).toBeInTheDocument();
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
     unmountSelf();
 
     const { unmount: unmountCoworker } = render(
@@ -751,7 +751,7 @@ describe("TaskForm", () => {
         onSuccess={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("Private task")).toBeInTheDocument();
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
     unmountCoworker();
 
     render(
@@ -771,7 +771,7 @@ describe("TaskForm", () => {
         onSuccess={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("Private task")).toBeInTheDocument();
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
   });
 
   it("submits Ready when the dropdown is set to Ready", async () => {

@@ -8,7 +8,7 @@ import {
   createReadinessRow,
   PAY_TO,
   USDC_ADDRESS,
-} from "./get.fixtures";
+} from "./__tests__/fixtures/get.fixtures";
 
 /**
  * How the listing ASKS Postgres for its page: pagination bounds, the cursor

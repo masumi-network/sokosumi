@@ -26,7 +26,7 @@ import {
   storedRecord,
   USDC,
   verificationInput,
-} from "./task-x402-payment.replay.fixtures";
+} from "./__tests__/fixtures/task-x402-payment.replay.fixtures";
 import {
   assertReplayMatchesStoredDemand,
   findListedX402Agent,

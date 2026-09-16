@@ -1921,8 +1921,8 @@
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
-        "privateLabel": "Privater Task",
-        "privateDescription": "Nur du, dein Soko Bot und der Vendor des zugewiesenen Coworkers können diesen Task sehen."
+        "privateLabel": "Privat",
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
       },
       "EditTask": {
         "title": "Task bearbeiten",
