@@ -17,6 +17,16 @@ struct ChatLinkTests {
   }
 
   @Test(arguments: [
+    "https://APP.SOKOSUMI.COM/chat/rooms/room?message=old",
+    "https://app.sokosumi.com/chat/rooms/room/?message=old"
+  ]) func equivalentChatURLsStayInApp(_ value: String) throws {
+    let url = try #require(URL(string: value))
+    let link = ChatLink(url: url, webBaseURL: base)
+    #expect(link?.roomId == "room")
+    #expect(link?.messageId == "old")
+  }
+
+  @Test(arguments: [
     "https://app.sokosumi.com.evil.test/chat/rooms/room",
     "http://app.sokosumi.com/chat/rooms/room",
     "https://app.sokosumi.com:8443/chat/rooms/room",
@@ -24,6 +34,7 @@ struct ChatLinkTests {
     "https://app.sokosumi.com/tasks/room",
     "https://app.sokosumi.com/chat/rooms/",
     "https://app.sokosumi.com/chat/rooms/room/extra",
+    "https://app.sokosumi.com/chat/rooms/room//",
     "https://app.sokosumi.com/chat/rooms/room%2Fextra"
   ]) func unrelatedOrInvalidURLsStayExternal(_ value: String) throws {
     let url = try #require(URL(string: value))

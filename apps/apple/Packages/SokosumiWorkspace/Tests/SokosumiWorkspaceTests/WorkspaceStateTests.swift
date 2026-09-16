@@ -1863,9 +1863,9 @@ extension WorkspaceStateTests {
     #expect(state.messageJump == nil)
   }
 
-  @Test func unreadableMessageLinkStopsWithoutContextRequest() async throws {
+  @Test(arguments: [403, 404]) func unreadableMessageLinkStopsWithoutContextRequest(status: Int) async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (404, #"{"error":"Not Found","message":"Not found","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#)
+      (status, #"{"error":"Not Found","message":"Not found","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#)
     ], visible: false)
     defer { state.reset() }
     state.timeline.reset(roomId: "room")
