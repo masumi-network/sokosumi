@@ -4,7 +4,14 @@ import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { type ReactNode, useEffect } from "react";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 type ConnectionsTabValue = "connected-apps" | "mcp";
 
@@ -14,9 +21,6 @@ interface ConnectionsTabsProps {
 }
 
 const ENABLED_TABS: ConnectionsTabValue[] = ["connected-apps", "mcp"];
-
-const TAB_TRIGGER_CLASS_NAME =
-  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm";
 
 export function ConnectionsTabs({
   connectedAppsContent,
@@ -45,11 +49,14 @@ export function ConnectionsTabs({
       }}
       className="flex flex-col gap-5"
     >
-      <TabsList className="bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1">
-        <TabsTrigger value="connected-apps" className={TAB_TRIGGER_CLASS_NAME}>
+      <TabsList className={SEGMENTED_TABS_LIST_CLASS_NAME}>
+        <TabsTrigger
+          value="connected-apps"
+          className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+        >
           {t("tabs.connectedApps")}
         </TabsTrigger>
-        <TabsTrigger value="mcp" className={TAB_TRIGGER_CLASS_NAME}>
+        <TabsTrigger value="mcp" className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}>
           {t("tabs.mcp")}
         </TabsTrigger>
       </TabsList>

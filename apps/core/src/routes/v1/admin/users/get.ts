@@ -86,6 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
       createdAt: user.createdAt,
       credits: credits[index] ?? 0,
       subscriptionPlan: subscriptions[index]?.plan ?? null,

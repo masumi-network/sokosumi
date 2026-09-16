@@ -92,7 +92,7 @@ export const userRepository = {
     },
     tx: Prisma.TransactionClient,
   ): Promise<{
-    users: Array<Pick<User, "id" | "name" | "email" | "createdAt">>;
+    users: Array<Pick<User, "id" | "name" | "email" | "createdAt" | "role">>;
     total: number;
   }> => {
     const trimmed = params.query?.trim();
@@ -103,7 +103,13 @@ export const userRepository = {
     const [users, total] = await Promise.all([
       tx.user.findMany({
         where,
-        select: { id: true, name: true, email: true, createdAt: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+          role: true,
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: params.take,
         skip: params.skip,

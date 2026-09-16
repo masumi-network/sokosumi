@@ -39,7 +39,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
@@ -75,6 +75,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
@@ -478,7 +479,7 @@ function CalendarView({
 
   return (
     <div
-      className="workspace-calendar-theme overflow-x-auto rounded-xl border border-border bg-background"
+      className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
@@ -839,8 +840,13 @@ export function WorkspaceCalendar({
   const [state, setState] = useQueryStates(calendarParsers);
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  // The page already requested, keyed on the server items too so a refreshed
+  // server page that reuses a cursor string drains again.
+  const requestedPageRef = useRef<{
+    cursor: string;
+    items: WorkspaceCalendarItem[];
+  } | null>(null);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
   const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
@@ -863,6 +869,7 @@ export function WorkspaceCalendar({
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
+    setLoadMoreError(false);
   }
 
   useMountEffect(() => {
@@ -1094,13 +1101,11 @@ export function WorkspaceCalendar({
     }
   }
 
-  async function handleLoadMore() {
+  async function loadNextPage() {
     if (!nextCursor || !range) {
       return;
     }
 
-    setIsLoadingMore(true);
-    setLoadMoreError(false);
     try {
       const query = {
         from: range.from,
@@ -1129,10 +1134,23 @@ export function WorkspaceCalendar({
       setNextCursor(result.meta?.pagination?.nextCursor ?? null);
     } catch {
       setLoadMoreError(true);
-    } finally {
-      setIsLoadingMore(false);
     }
   }
+
+  // A calendar cannot show "load more": a day holding three of its five
+  // events looks complete. Drain the remaining pages as soon as one appears.
+  useEffect(() => {
+    const requested = requestedPageRef.current;
+    if (
+      !nextCursor ||
+      loadMoreError ||
+      (requested?.cursor === nextCursor && requested.items === items)
+    ) {
+      return;
+    }
+    requestedPageRef.current = { cursor: nextCursor, items };
+    void loadNextPage();
+  }, [items, nextCursor, loadMoreError, loadNextPage]);
 
   const filterSections: FilterDropdownMenuSection[] = [
     ...(activeOrganizationId
@@ -1252,7 +1270,7 @@ export function WorkspaceCalendar({
         >
           <ChevronLeft aria-hidden />
         </Button>
-        <span className="min-w-40 text-center text-sm font-medium">
+        <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
           {getRangeLabel(formatDate, date, view)}
         </span>
         <Button
@@ -1267,18 +1285,26 @@ export function WorkspaceCalendar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1" data-testid="calendar-views">
-          {CALENDAR_VIEWS.map((calendarView) => (
-            <Button
-              key={calendarView}
-              size="sm"
-              variant={view === calendarView ? "primary" : "outline"}
-              onClick={() => handleViewChange(calendarView)}
-            >
-              {t(`view.${calendarView}`)}
-            </Button>
-          ))}
-        </div>
+        <Tabs
+          className="flex-1 md:flex-none"
+          value={view}
+          onValueChange={(value) => {
+            const nextView = CALENDAR_VIEWS.find(
+              (candidate) => candidate === value,
+            );
+            if (nextView) {
+              handleViewChange(nextView);
+            }
+          }}
+        >
+          <TabsList className="w-full md:w-fit" data-testid="calendar-views">
+            {CALENDAR_VIEWS.map((calendarView) => (
+              <TabsTrigger key={calendarView} value={calendarView}>
+                {t(`view.${calendarView}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <FilterDropdownMenu
           buttonLabel={tFilters("title")}
           emptyResultsLabel={tFilters("emptyResults")}
@@ -1294,7 +1320,7 @@ export function WorkspaceCalendar({
         />
         {canCreate ? (
           <Button
-            className="ml-auto"
+            className="ml-auto basis-full md:basis-auto"
             size="sm"
             variant="primary"
             onClick={handleAgendaCreate}
@@ -1310,60 +1336,30 @@ export function WorkspaceCalendar({
           {t("empty.title")}
         </div>
       ) : null}
-      <div className="hidden md:block">
-        <CalendarView
-          key={`desktop-${calendarRenderEpoch}`}
-          canCreate={canCreate}
-          date={date}
-          items={visibleItems}
-          onDateClick={handleDateClick}
-          onEventEdit={(taskId) => void handleEventEdit(taskId)}
-          onMoveOccurrence={handleMoveOccurrence}
-          onRestoreOccurrence={handleRestoreOccurrence}
-          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-          onOpenTask={handleOpenTask}
-          sources={sources}
-          timeZone={timeZone}
-          view={view}
-        />
-      </div>
-      <div className="md:hidden">
-        <CalendarView
-          key={`mobile-${calendarRenderEpoch}`}
-          canCreate={canCreate}
-          date={date}
-          items={visibleItems}
-          onDateClick={handleDateClick}
-          onEventEdit={(taskId) => void handleEventEdit(taskId)}
-          onMoveOccurrence={handleMoveOccurrence}
-          onRestoreOccurrence={handleRestoreOccurrence}
-          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-          onOpenTask={handleOpenTask}
-          sources={sources}
-          timeZone={timeZone}
-          view={view}
-        />
-      </div>
+      <CalendarView
+        key={calendarRenderEpoch}
+        canCreate={canCreate}
+        date={date}
+        items={visibleItems}
+        onDateClick={handleDateClick}
+        onEventEdit={(taskId) => void handleEventEdit(taskId)}
+        onMoveOccurrence={handleMoveOccurrence}
+        onRestoreOccurrence={handleRestoreOccurrence}
+        onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
+        onOpenTask={handleOpenTask}
+        sources={sources}
+        timeZone={timeZone}
+        view={view}
+      />
       {eventLoadError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("edit.loadError")}
         </p>
       ) : null}
-      {nextCursor ? (
-        <div className="flex flex-col items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleLoadMore}
-            disabled={isLoadingMore || !range}
-          >
-            {isLoadingMore ? t("pagination.loading") : t("pagination.loadMore")}
-          </Button>
-          {loadMoreError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {t("pagination.error")}
-            </p>
-          ) : null}
-        </div>
+      {loadMoreError ? (
+        <p className="text-destructive text-sm" role="alert">
+          {t("pagination.error")}
+        </p>
       ) : null}
       {editState ? (
         <CalendarEditDialog

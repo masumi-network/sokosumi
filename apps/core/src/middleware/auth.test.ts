@@ -5,6 +5,7 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { AuthVariables } from "./auth";
 import {
   authMiddleware,
+  denialAuditActor,
   forbidAgentActor,
   requireAdminAuthContext,
   requireInteractiveAdminAuthContext,
@@ -995,6 +996,32 @@ describe("authMiddleware", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
+  it("carries the impersonation marker from an impersonated session", async () => {
+    getSessionMock.mockResolvedValue({
+      session: {
+        activeOrganizationId: null,
+        impersonatedBy: "user_admin",
+      },
+      user: {
+        id: "user_target",
+        role: "user",
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_target",
+      organizationId: null,
+      role: "user",
+      authenticationMethod: "session",
+      impersonatedBy: "user_admin",
+    });
+  });
+
   it("returns 401 when the session belongs to a banned user", async () => {
     // Better Auth's own ban path revokes the sessions too, so what this
     // covers is a ban written straight to the column.
@@ -1185,6 +1212,41 @@ describe("forbidAgentActor", () => {
         context: { userId: "user_123", organizationId: null },
       }),
     ).toThrowError("Agent authentication cannot perform this owner action");
+  });
+});
+
+describe("denialAuditActor", () => {
+  it("audits coworker callers as agents", () => {
+    expect(
+      denialAuditActor({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+      }),
+    ).toEqual({ actorId: "cow_123", actorType: "agent" });
+  });
+
+  it("audits Soko Bot callers as agents", () => {
+    expect(
+      denialAuditActor({
+        actor: "sokoBot",
+        sokoBotId: "sokobot_123",
+        userId: "user_123",
+        workspaceId: "ws_123",
+        organizationId: null,
+      }),
+    ).toEqual({ actorId: "sokobot_123", actorType: "agent" });
+  });
+
+  it("keeps the historical user shape for anything else", () => {
+    expect(
+      denialAuditActor({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      }),
+    ).toEqual({ actorId: "unknown", actorType: "user" });
   });
 });
 
