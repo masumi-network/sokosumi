@@ -279,8 +279,9 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 
 ## Motion
 
-- **Library:** `motion` v12 (framer-motion successor) is used **only** in two primitives
-  (`motion-tabs`, `motion-highlight`). Everything else is **CSS Tailwind transitions** +
+- **Library:** `motion` 13.3.0 (framer-motion successor) is used in `motion-tabs`,
+  `motion-highlight`, `purchase-success-modal`, `confetti-burst`, and
+  `task-created-celebration`. Everything else is **CSS Tailwind transitions** +
   `tw-animate-css` overlay animations + `@theme` keyframes.
 - **Durations & easing:** `duration-200` is the default (also 300/500); standard easing is
   **`ease-out` at 0.2–0.25s** for UI transitions. `transition-colors` is the hover workhorse;
