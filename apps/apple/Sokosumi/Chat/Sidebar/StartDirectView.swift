@@ -2,7 +2,7 @@ import SokosumiChat
 import SwiftUI
 
 struct StartDirectView: View {
-  let load: () async throws -> DirectRecipientRoster
+  let load: () async throws -> ChatRecipientRoster
   let open: (DirectConversationSelection) async throws -> Bool
   @Environment(\.dismiss) private var dismiss
   @StateObject private var picker: DirectRecipientPicker
@@ -11,7 +11,7 @@ struct StartDirectView: View {
 
   init(
     hasOrganization: Bool,
-    load: @escaping () async throws -> DirectRecipientRoster,
+    load: @escaping () async throws -> ChatRecipientRoster,
     open: @escaping (DirectConversationSelection) async throws -> Bool
   ) {
     self.load = load
@@ -97,7 +97,7 @@ struct StartDirectView: View {
     }
   }
 
-  private func sectionTitle(_ kind: DirectRecipientSection.Kind) -> LocalizedStringKey {
+  private func sectionTitle(_ kind: ChatRecipientSection.Kind) -> LocalizedStringKey {
     switch kind {
     case .coworkers: "AI coworkers"
     case .people: "People"
@@ -180,7 +180,7 @@ struct StartDirectView: View {
 }
 
 private struct DirectRecipientRow: View {
-  let target: DirectRecipientTarget
+  let target: ChatRecipientTarget
   let disabledReason: String?
   let select: () -> Void
   @State private var hovering = false
