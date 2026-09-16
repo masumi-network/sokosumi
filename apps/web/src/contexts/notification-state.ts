@@ -1,7 +1,8 @@
 import { isBrowserOnlyNotification } from "@sokosumi/utils";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
-export const NOTIFICATION_LIST_LIMIT = 10;
+/** Rows per request, in the panel and on the page alike. Core's own default. */
+export const NOTIFICATION_PAGE_SIZE = 20;
 
 /** The order the feed reads in: newest first, and by id when they tie. */
 function byNewestFirst(a: NotificationItem, b: NotificationItem): number {
@@ -24,6 +25,7 @@ function isFeedExcluded(notification: NotificationItem): boolean {
 function mergeNotificationList(
   current: NotificationItem[],
   fetched: NotificationItem[],
+  kept: NotificationItem[],
 ): NotificationItem[] {
   const fetchedIds = new Set(fetched.map((notification) => notification.id));
   const pendingRealtime = current.filter(
@@ -38,9 +40,8 @@ function mergeNotificationList(
     ...fetched.map(
       (notification) => currentById.get(notification.id) ?? notification,
     ),
-  ]
-    .sort(byNewestFirst)
-    .slice(0, NOTIFICATION_LIST_LIMIT);
+    ...kept.filter((notification) => !fetchedIds.has(notification.id)),
+  ].sort(byNewestFirst);
 }
 
 function mergeUnreadCount(
@@ -75,7 +76,11 @@ export type NotificationAction =
       fetched: NotificationItem[];
       serverUnreadCount: number;
       realtimeIds: ReadonlySet<string>;
+      /** Whether Core has rows older than this page, which decides what the
+          page is allowed to speak for. */
+      hasMore: boolean;
     }
+  | { type: "load_older_success"; fetched: NotificationItem[] }
   | { type: "realtime"; notification: NotificationItem; created: boolean }
   | {
       type: "mark_read_success";
@@ -90,9 +95,7 @@ export type NotificationAction =
       updated: NotificationItem;
     }
   | { type: "mark_all_read" }
-  | { type: "remove"; id: string }
-  | { type: "unread_deleted"; id: string }
-  | { type: "clear_all" };
+  | { type: "remove"; id: string };
 
 export function notificationReducer(
   state: NotificationState,
@@ -111,6 +114,31 @@ export function notificationReducer(
         (notification) => !isFeedExcluded(notification),
       );
 
+      // The page speaks for the range it covers and nothing beyond it. Rows
+      // older than its last row came from pages the reader scrolled to, and
+      // are still there; rows inside the range that it did not return are
+      // gone from the feed, which is how a resolved access request leaves.
+      //
+      // Only when the page reaches them, though. A page whose last row this
+      // list never held ends above everything loaded, because more rows
+      // arrived than a page holds while nothing was listening, and keeping
+      // the old rows would leave the ones between out for good. The list
+      // starts over from the page instead, and scrolling brings the rest.
+      // A page with nothing after it covers the feed to its end, so there is
+      // no "beyond" left to keep either way.
+      const oldestFetched = fetched.at(-1);
+      const reachesLoadedRows =
+        oldestFetched !== undefined &&
+        state.notifications.some((row) => row.id === oldestFetched.id);
+      const kept =
+        action.hasMore && oldestFetched && reachesLoadedRows
+          ? state.notifications.filter(
+              (notification) =>
+                !isFeedExcluded(notification) &&
+                byNewestFirst(notification, oldestFetched) > 0,
+            )
+          : [];
+
       const readStateChanged = current.some((notification) =>
         fetched.some(
           (row) =>
@@ -119,12 +147,33 @@ export function notificationReducer(
       );
 
       return {
-        notifications: mergeNotificationList(current, fetched),
+        notifications: mergeNotificationList(current, fetched, kept),
         unreadCount: mergeUnreadCount(
           current,
           fetched,
           readStateChanged ? state.unreadCount : action.serverUnreadCount,
         ),
+      };
+    }
+    case "load_older_success": {
+      // The badge counts the whole feed already, so reaching further back
+      // into it adds nothing. A row the list holds wins over its older copy:
+      // it may carry a read the reader has just made.
+      const held = new Set(
+        state.notifications.map((notification) => notification.id),
+      );
+      const older = action.fetched.filter(
+        (notification) =>
+          !held.has(notification.id) && !isFeedExcluded(notification),
+      );
+
+      if (older.length === 0) {
+        return state;
+      }
+
+      return {
+        notifications: [...state.notifications, ...older].sort(byNewestFirst),
+        unreadCount: state.unreadCount,
       };
     }
     case "realtime": {
@@ -173,15 +222,27 @@ export function notificationReducer(
         return state;
       }
 
+      // A row put back to unread elsewhere keeps its own time, which can sort
+      // it past the end of what this list has loaded. Held there, it would be
+      // the row the next page starts from, and every row between would never
+      // load. Paging reaches it in its turn, with its state as it is then.
+      const oldestLoaded = state.notifications.at(-1);
+      if (
+        !action.created &&
+        oldestLoaded &&
+        byNewestFirst(convertedNotification, oldestLoaded) > 0
+      ) {
+        return state;
+      }
+
       // A row this list does not hold is either new, or one the list never
       // reached: the reader has more unread rows than the window keeps, and a
       // room's later messages arrive as changes to a row written earlier.
       // Counting the second kind would put the badge one ahead of the server
       // for the rest of the session.
       return {
-        notifications: [convertedNotification, ...state.notifications].slice(
-          0,
-          NOTIFICATION_LIST_LIMIT,
+        notifications: [convertedNotification, ...state.notifications].sort(
+          byNewestFirst,
         ),
         unreadCount:
           convertedNotification.isRead || !action.created
@@ -291,17 +352,6 @@ export function notificationReducer(
           ? state.unreadCount
           : Math.max(0, state.unreadCount - 1),
       };
-    }
-    case "unread_deleted": {
-      // An unread row this list never held is gone. The badge counted it, so
-      // take it off without touching the rows that are here.
-      return {
-        notifications: state.notifications,
-        unreadCount: Math.max(0, state.unreadCount - 1),
-      };
-    }
-    case "clear_all": {
-      return { notifications: [], unreadCount: 0 };
     }
     case "mark_all_read": {
       const readAt = new Date();

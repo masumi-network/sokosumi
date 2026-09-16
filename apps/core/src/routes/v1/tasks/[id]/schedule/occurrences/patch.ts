@@ -10,7 +10,7 @@ import {
   parseTaskScheduleMetadata,
 } from "@sokosumi/utils";
 
-import { requireTaskCollaboration } from "@/helpers/access-control";
+import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
@@ -147,7 +147,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scheduledAt: requestedScheduledAt?.toISOString() ?? null,
     });
 
-    const existingTask = await requireTaskCollaboration(
+    const existingTask = await requireTaskScheduleWriteAccess(
       authContext,
       id,
       prisma,
@@ -163,7 +163,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Task changed during occurrence mutation");
       }
 
-      const currentTask = await requireTaskCollaboration(authContext, id, tx);
+      const currentTask = await requireTaskScheduleWriteAccess(
+        authContext,
+        id,
+        tx,
+      );
       if (
         currentTask.workspaceId !== existingTask.workspaceId ||
         currentTask.projectId !== existingTask.projectId
