@@ -6206,10 +6206,12 @@
         "skipOccurrence": "Skip occurrence",
         "restoreOccurrence": "Restore occurrence",
         "mutationError": "Unable to change this occurrence. Please try again.",
-        "openTask": "Open task"
+        "openTask": "Open task",
+        "moveNotAllowed": "Only the task owner can reschedule it."
       },
       "create": {
-        "title": "Schedule a task"
+        "title": "Schedule a task",
+        "fab": "Schedule a task"
       },
       "edit": {
         "title": "Edit schedule",

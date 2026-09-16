@@ -773,7 +773,7 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("defaults the mobile Calendar to the week view so empty dates can create tasks", async () => {
+  it("defaults the mobile Calendar to the agenda view", async () => {
     const mediaQuery: MediaQueryList = {
       matches: true,
       media: "(max-width: 767px)",
@@ -798,8 +798,9 @@ describe("WorkspaceCalendar", () => {
       );
 
       await waitFor(() =>
-        expect(screen.getByTestId("calendar-week")).toBeInTheDocument(),
+        expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument(),
       );
+      expect(screen.queryByTestId("calendar-week")).not.toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }

@@ -43,6 +43,7 @@ import {
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
+import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
@@ -80,6 +81,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
@@ -322,6 +324,8 @@ function CalendarEvent({
   const t = useTranslations("App.Calendar");
   const peopleId = useId();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Where a mouse drag began on a card FullCalendar will not move.
+  const dragAttemptOrigin = useRef<{ x: number; y: number } | null>(null);
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -396,11 +400,38 @@ function CalendarEvent({
       */}
       <div
         className={cn(
-          "bg-primary-quinary text-foreground hover:bg-primary-quaternary flex w-full min-w-0 cursor-pointer flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+          "bg-primary-quinary text-foreground hover:bg-primary-quaternary flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
           item.state === "SKIPPED" && "text-muted-foreground line-through",
         )}
         data-testid="calendar-event"
         onClick={() => setMenuOpen(true)}
+        // FullCalendar silently ignores a drag on a card the caller cannot
+        // move; say why once the mouse has clearly started dragging.
+        onPointerDown={(event) => {
+          dragAttemptOrigin.current =
+            event.pointerType === "mouse" && !isMovableCalendarItem(item)
+              ? { x: event.clientX, y: event.clientY }
+              : null;
+        }}
+        onPointerLeave={() => {
+          dragAttemptOrigin.current = null;
+        }}
+        onPointerMove={(event) => {
+          const origin = dragAttemptOrigin.current;
+          if (
+            !origin ||
+            Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
+          ) {
+            return;
+          }
+          dragAttemptOrigin.current = null;
+          if (!item.canEditSchedule) {
+            toast.info(t("event.moveNotAllowed"));
+          }
+        }}
+        onPointerUp={() => {
+          dragAttemptOrigin.current = null;
+        }}
       >
         <span className="flex w-full min-w-0 items-center gap-1">
           {sourceMarker}
@@ -972,7 +1003,9 @@ export function WorkspaceCalendar({
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
-  const view = state.view ?? "week";
+  const isMobile = useIsMobile();
+  // Phones open on the agenda list; a seven-column grid is a desktop default.
+  const view = state.view ?? (isMobile ? "agenda" : "week");
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -1393,7 +1426,7 @@ export function WorkspaceCalendar({
         />
         {canCreate ? (
           <Button
-            className="ml-auto basis-full md:basis-auto"
+            className="ml-auto hidden md:inline-flex"
             size="sm"
             variant="primary"
             onClick={handleAgendaCreate}
@@ -1403,6 +1436,12 @@ export function WorkspaceCalendar({
           </Button>
         ) : null}
       </div>
+      {canCreate ? (
+        <ListMobileCreateFab
+          ariaLabel={t("create.fab")}
+          onOpen={handleAgendaCreate}
+        />
+      ) : null}
 
       {visibleItems.length === 0 ? (
         <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
