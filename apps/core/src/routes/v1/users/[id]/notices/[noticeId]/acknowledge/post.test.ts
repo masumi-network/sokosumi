@@ -6,7 +6,7 @@ import {
 } from "@/routes/v1/users/user-route-context";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
-import mountPostNoticeAcknowledge from "../../[id]/notices/[noticeId]/acknowledge/post";
+import mountPostNoticeAcknowledge from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
