@@ -133,12 +133,6 @@
   --color-status-done-quaternary: var(--status-done-quaternary);
   --color-status-done-tertiary: var(--status-done-tertiary);
 
-  --color-semantic-info: var(--semantic-info);
-  --color-semantic-info-tertiary: var(--semantic-info-tertiary);
-  --color-semantic-info-quaternary: var(--semantic-info-quaternary);
-  --color-semantic-info-quinary: var(--semantic-info-quinary);
-  --color-semantic-info-foreground: var(--semantic-info-foreground);
-
   /* Custom Colors */
   /* Duplicated the success ramp verbatim and, declared here, could not follow
      the theme: 3.90:1 in dark. Alias the themed tokens instead. */
@@ -439,12 +433,6 @@
      --muted-foreground is a text role. Measured: 4.85 on white. */
   --presence-offline: hsla(220, 9%, 46%, 1);
 
-  --semantic-info: hsla(193, 82%, 31%, 1);
-  --semantic-info-tertiary: hsla(193, 36.8%, 80.7%, 1);
-  --semantic-info-quaternary: hsla(193, 36.8%, 87.6%, 1);
-  --semantic-info-quinary: hsla(193, 36.8%, 93.8%, 1);
-  --semantic-info-foreground: hsla(183, 100%, 96%, 1);
-
   /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
      only extra value, solid with a near-black label at 7.88:1. Same in both
      themes: a solid fill is its own ground. */
@@ -459,12 +447,28 @@
      grey carries the states nobody owes anything on. The two blues sit 35
      degrees apart.
 
-     Stale as of the move to #2B5C78: the separation above was measured
-     against a brand at hue 263.5. The brand is now 201.8, so working at 205
-     sits 3.2 degrees from it and --semantic-info at 193 sits 8.8. Anything
-     inside 15 degrees reads as one colour, so brand, "working" and "info"
-     now collide. Left as is on purpose: moving a status hue is a separate
-     decision, tracked in Linear.
+     Resolved after the move to #2B5C78. The separation above was measured
+     against a brand at hue 263.5. The brand is now 201.8, which put working
+     at 205 only 3.2 degrees from it and the retired --semantic-info at 193
+     only 8.8 away. Anything inside 15 degrees reads as one colour, so brand,
+     "working" and "info" had become one.
+
+     Two things fixed it. --semantic-info is gone: every one of its five
+     consumers meant "in flight right now", never "here is information", so
+     it was the working role under a second name. They all read
+     --status-working now. And working moved from 205 to 300.
+
+     300 is not a taste call. Sweeping all 360 hues against both the task
+     tints and the Soko Bot badge tones at once, it is the only hue whose
+     nearest neighbour in either set stays above 7: 7.08 in each. Violet 272
+     scores better against the badge alone and fails here, landing 3.76 from
+     --status-external at 240.
+
+     Magenta carries less luminance than blue at the same HSL lightness, so
+     --status-working-label drops from 35.4% to 33.4%. At 35.4% it measured
+     4.39:1 on its own fill and missed the 4.5:1 that 12px badge text needs.
+     33.4% measures 4.80:1. The glyph reads 4.86:1 and the bare dot 6.37:1 on
+     --card-background, both past the 3:1 of SC 1.4.11.
 
      The badge fill is a tint step, and -quaternary rather than -quinary: the
      quinary steps sit at OKLab dE 4.4 to 6.6 from the light page, too close
@@ -476,14 +480,14 @@
      rather than on lightness: they sit at OKLab dE 7.1 to 15.5 from the light
      page, and the label on top still clears 4.5:1. A grey at that luminance
      would be invisible. */
-  --status-working: hsla(205, 60.0%, 38.0%, 1);
+  --status-working: hsla(300, 60.0%, 38.0%, 1);
   --status-external: hsla(240, 60.0%, 40.0%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
-  --status-working-tertiary: hsla(205, 41.2%, 81.5%, 1);
-  --status-working-quaternary: hsla(205, 100.0%, 90.0%, 1);
+  --status-working-tertiary: hsla(300, 41.2%, 81.5%, 1);
+  --status-working-quaternary: hsla(300, 100.0%, 90.0%, 1);
   --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
-  --status-working-label: hsla(205, 95.0%, 35.4%, 1);
+  --status-working-label: hsla(300, 95.0%, 33.4%, 1);
   --status-external-label: hsla(240, 95.0%, 58.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 90.1%, 1);
 }
@@ -616,24 +620,18 @@
   /* Measured against the dark ground: 5.61. */
   --presence-offline: hsla(215, 14%, 55%, 1);
 
-  --semantic-info: hsla(189, 94%, 43%, 1);
-  --semantic-info-tertiary: hsla(189, 82.5%, 19.6%, 1);
-  --semantic-info-quaternary: hsla(189, 74.3%, 14.1%, 1);
-  --semantic-info-quinary: hsla(189, 59.8%, 9.5%, 1);
-  --semantic-info-foreground: hsla(0, 0%, 4%, 1);
-
   /* Status roles, dark. Same vocabulary as light: colour says what the reader
      must do, the glyph says which status it is. The -label steps are badge
      text and clear 4.5:1 on their own fill; the plain step is the glyph and
      clears 3:1. */
-  --status-working: hsla(205, 95.0%, 70.0%, 1);
+  --status-working: hsla(300, 95.0%, 70.0%, 1);
   --status-external: hsla(240, 95.0%, 70.0%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
-  --status-working-tertiary: hsla(205, 37.5%, 30.4%, 1);
-  --status-working-quaternary: hsla(205, 35.0%, 21.2%, 1);
+  --status-working-tertiary: hsla(300, 37.5%, 30.4%, 1);
+  --status-working-quaternary: hsla(300, 35.0%, 21.2%, 1);
   --status-external-quaternary: hsla(240, 35.0%, 21.2%, 1);
-  --status-working-label: hsla(205, 95.0%, 70.0%, 1);
+  --status-working-label: hsla(300, 95.0%, 70.0%, 1);
   --status-external-label: hsla(240, 95.0%, 74.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 19.6%, 1);
 
