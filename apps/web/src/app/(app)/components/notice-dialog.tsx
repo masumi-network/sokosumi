@@ -170,7 +170,7 @@ export function NoticeDialog({
           </div>
         </DialogHeader>
 
-        <div className="max-h-[45vh] overflow-y-auto pr-1">
+        <div className="max-h-[45dvh] overflow-y-auto pr-1">
           <Markdown>{parsedTemplate.bodyMarkdown}</Markdown>
         </div>
 

@@ -629,7 +629,7 @@ function OfferDetailBody({
             ))}
           </div>
         ) : null}
-        <div className="h-[46vh] md:h-auto md:min-h-0 md:flex-1">
+        <div className="h-[46dvh] md:h-auto md:min-h-0 md:flex-1">
           <OfferEmbed
             output={active}
             title={offer.title}

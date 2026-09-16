@@ -156,14 +156,14 @@ export function FilterDropdownMenu({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
-          className="h-[80vh] w-full max-w-[100vw] overflow-x-hidden"
+          className="h-[80dvh] w-full max-w-[100vw] overflow-x-hidden"
         >
           <SheetHeader>
             <SheetTitle>{buttonLabel}</SheetTitle>
           </SheetHeader>
           <ScrollArea
             shrinkContent
-            className="h-[calc(80vh-5rem)] min-w-0 w-full px-4"
+            className="h-[calc(80dvh-5rem)] min-w-0 w-full px-4"
           >
             <div className="mt-4 w-full min-w-0 space-y-4">
               {sections.map((section) => (
@@ -399,7 +399,7 @@ function FilterDropdownMenuSectionMobile({
       {expanded ? (
         <div className="mt-2 w-full min-w-0 overflow-hidden rounded-md border bg-card p-2">
           <Command
-            className="min-w-0 w-full overflow-hidden **:data-[slot=command-list]:max-h-[40vh]"
+            className="min-w-0 w-full overflow-hidden **:data-[slot=command-list]:max-h-[40dvh]"
             shouldFilter
           >
             <CommandInput autoFocus placeholder={searchPlaceholder} />
