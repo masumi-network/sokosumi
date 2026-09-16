@@ -1127,8 +1127,10 @@ function MessageActionControls({
   );
 }
 
-const messageActionsPillClassName =
-  "border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+// Centred on the row's top edge, as in Slack and the Apple client: the same
+// spot at every row height, instead of hanging below a one-line row.
+const MESSAGE_ACTIONS_PILL_CLASS =
+  "border-border bg-background absolute top-0 right-2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
 
 function MessageActions({
   message,
@@ -1183,9 +1185,15 @@ function MessageActions({
     <div
       data-message-actions="hover"
       className={cn(
-        messageActionsPillClassName,
-        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
-        moreOpen && "[@media(hover:hover)]:opacity-100",
+        MESSAGE_ACTIONS_PILL_CLASS,
+        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        // The upper half covers the row above, and an opacity-0 pill still
+        // takes clicks, so it takes the pointer only on row hover or focus.
+        // Not while More is open: Radix makes the page inert, and an explicit
+        // auto would let the click that closes the menu also hit the pill.
+        moreOpen
+          ? "[@media(hover:hover)]:opacity-100"
+          : "focus-within:pointer-events-auto [@media(hover:hover)]:group-hover:pointer-events-auto",
       )}
       onPointerEnter={holdQuickReactionOrder}
       onPointerLeave={() => {

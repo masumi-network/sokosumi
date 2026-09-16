@@ -83,6 +83,7 @@ struct MessagePresentationTests {
 
   @Test func initialsFallback() {
     #expect(initials(for: "Ada Lovelace") == "AL")
+    #expect(initials(for: "ada lovelace") == "AL")
     #expect(initials(for: "Ada") == "A")
     #expect(initials(for: "") == "?")
     #expect(initials(for: "  ") == "?")
