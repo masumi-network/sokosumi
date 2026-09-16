@@ -1,4 +1,7 @@
-import { isBrowserOnlyNotification } from "@sokosumi/utils";
+import {
+  isBrowserOnlyNotification,
+  isNeedsActionNotification,
+} from "@sokosumi/utils";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
 /** Rows per request, in the panel and on the page alike. Core's own default. */
@@ -65,9 +68,44 @@ function mergeUnreadCount(
   return Math.max(serverCount, localKnownUnread);
 }
 
+/**
+ * Which rows the Notification Center shows: everything, only what is still
+ * unread, or only what still needs the reader. A lens over the shared list,
+ * held for the session: it never marks anything read and goes back to All
+ * on reload.
+ */
+export type NotificationCenterView = "all" | "unread" | "needs-action";
+
+/**
+ * Whether a row the list already holds still belongs under `view`, as far as
+ * the list can tell on its own. All keeps everything; Unread keeps unread
+ * rows; Needs you keeps rows that asked, because whether they are still
+ * asking is Core's to say on the next fetch.
+ */
+function belongsToView(
+  view: NotificationCenterView,
+  notification: NotificationItem,
+): boolean {
+  switch (view) {
+    case "all":
+      return true;
+    case "unread":
+      return !notification.isRead;
+    case "needs-action":
+      return isNeedsActionNotification(notification.messageKey);
+    default: {
+      const _exhaustive: never = view;
+      void _exhaustive;
+      return true;
+    }
+  }
+}
+
 export interface NotificationState {
   notifications: NotificationItem[];
   unreadCount: number;
+  /** Rows whose request still waits on the reader. Core's number, as of the last fetch. */
+  needsActionCount: number;
 }
 
 export type NotificationAction =
@@ -75,13 +113,14 @@ export type NotificationAction =
       type: "fetch_success";
       fetched: NotificationItem[];
       serverUnreadCount: number;
+      serverNeedsActionCount: number;
       realtimeIds: ReadonlySet<string>;
       /** Whether Core has rows older than this page, which decides what the
           page is allowed to speak for. */
       hasMore: boolean;
-      /** When the page was fetched for the Unread view: rows kept below it
-          must still be unread. */
-      unreadOnly?: boolean;
+      /** The view the page was fetched for: rows kept below it must still
+          belong to it. */
+      view: NotificationCenterView;
     }
   | { type: "load_older_success"; fetched: NotificationItem[] }
   | { type: "realtime"; notification: NotificationItem; created: boolean }
@@ -139,7 +178,7 @@ export function notificationReducer(
           ? state.notifications.filter(
               (notification) =>
                 !isFeedExcluded(notification) &&
-                (!action.unreadOnly || !notification.isRead) &&
+                belongsToView(action.view, notification) &&
                 byNewestFirst(notification, oldestFetched) > 0,
             )
           : [];
@@ -158,6 +197,7 @@ export function notificationReducer(
           fetched,
           readStateChanged ? state.unreadCount : action.serverUnreadCount,
         ),
+        needsActionCount: action.serverNeedsActionCount,
       };
     }
     case "load_older_success": {
@@ -177,8 +217,8 @@ export function notificationReducer(
       }
 
       return {
+        ...state,
         notifications: [...state.notifications, ...older].sort(byNewestFirst),
-        unreadCount: state.unreadCount,
       };
     }
     case "realtime": {
@@ -210,6 +250,7 @@ export function notificationReducer(
         // returns: the same rows, in a different order, for no reason the
         // reader can see.
         return {
+          ...state,
           notifications: state.notifications
             .map((notification) =>
               notification.id === convertedNotification.id
@@ -246,6 +287,7 @@ export function notificationReducer(
       // Counting the second kind would put the badge one ahead of the server
       // for the rest of the session.
       return {
+        ...state,
         notifications: [convertedNotification, ...state.notifications].sort(
           byNewestFirst,
         ),
@@ -267,6 +309,7 @@ export function notificationReducer(
       const readAt = new Date();
 
       return {
+        ...state,
         notifications: state.notifications.map((notification) =>
           notification.id === action.id
             ? { ...notification, isRead: true, readAt }
@@ -285,6 +328,7 @@ export function notificationReducer(
       }
 
       return {
+        ...state,
         notifications: state.notifications.map((notification) =>
           notification.id === action.id
             ? { ...notification, isRead: false, readAt: null }
@@ -309,6 +353,7 @@ export function notificationReducer(
       const shouldIncrementUnread = existing ? existing.isRead : false;
 
       return {
+        ...state,
         notifications: state.notifications.map((notification) =>
           notification.id === action.id ? action.updated : notification,
         ),
@@ -331,6 +376,7 @@ export function notificationReducer(
       const shouldDecrementUnread = existing ? !existing.isRead : true;
 
       return {
+        ...state,
         notifications: state.notifications.map((notification) =>
           notification.id === action.id ? action.updated : notification,
         ),
@@ -349,13 +395,20 @@ export function notificationReducer(
         return state;
       }
 
+      // A grant or access request answered in place leaves the feed. The
+      // Needs you number is that view's live count, so it drops here the
+      // same way unread does, rather than waiting for the next fetch.
       return {
+        ...state,
         notifications: state.notifications.filter(
           (notification) => notification.id !== action.id,
         ),
         unreadCount: existing.isRead
           ? state.unreadCount
           : Math.max(0, state.unreadCount - 1),
+        needsActionCount: isNeedsActionNotification(existing.messageKey)
+          ? Math.max(0, state.needsActionCount - 1)
+          : state.needsActionCount,
       };
     }
     case "reset_list": {
@@ -363,12 +416,13 @@ export function notificationReducer(
         return state;
       }
 
-      return { notifications: [], unreadCount: state.unreadCount };
+      return { ...state, notifications: [] };
     }
     case "mark_all_read": {
       const readAt = new Date();
 
       return {
+        ...state,
         notifications: state.notifications.map((notification) =>
           notification.isRead
             ? notification

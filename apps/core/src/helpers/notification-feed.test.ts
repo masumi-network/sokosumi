@@ -8,18 +8,18 @@ import {
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   excludeResolvedCoworkerAccessNotificationsWhere,
   excludeResolvedVendorGrantNotificationsWhere,
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
   notificationFeedWhere,
-  VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed";
 
 const notificationFindManyMock = vi.fn();

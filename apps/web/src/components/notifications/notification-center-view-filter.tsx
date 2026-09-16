@@ -13,30 +13,35 @@ const TRIGGER_CLASS_NAME = cn(
   "dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent",
 );
 
+const COUNT_CLASS_NAME =
+  "bg-primary-quinary text-primary rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums";
+
 interface NotificationCenterViewFilterProps {
   className?: string;
 }
 
 /**
  * The Notification Center's view strip, drawn once and used by both frames:
- * All or Unread, with the live count on Unread. A lens, not a write:
- * switching refetches under the new view and never marks anything read.
+ * All, Unread or Needs you, with a live count on the two narrowed views. A
+ * lens, not a write: switching refetches under the new view and never marks
+ * anything read.
  *
  * A strip of tabs rather than a segmented pill, because it sits directly on
  * the list it narrows and its bottom edge is the line above the first row.
  * The active tab's underline takes the unread colour, the same purple as
  * the rail on an unread row, so the strip and the rows say "unread" in one
- * voice. A single-choice control on purpose: each view is a different list,
- * and a later view (rows that need the reader) joins as a third tab.
+ * voice. A single-choice control on purpose: each view is a different list.
+ * Needs you is not "unread": a row stays there, read or not, until the
+ * request it stands for is answered.
  */
 export function NotificationCenterViewFilter({
   className,
 }: NotificationCenterViewFilterProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const { view, setView, unreadCount } = useNotifications();
+  const { view, setView, unreadCount, needsActionCount } = useNotifications();
 
   function handleValueChange(next: string): void {
-    if (next === "all" || next === "unread") {
+    if (next === "all" || next === "unread" || next === "needs-action") {
       setView(next);
     }
   }
@@ -53,9 +58,13 @@ export function NotificationCenterViewFilter({
         <TabsTrigger value="unread" className={TRIGGER_CLASS_NAME}>
           {t("filterUnread")}
           {unreadCount > 0 ? (
-            <span className="bg-primary-quinary text-primary rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums">
-              {unreadCount}
-            </span>
+            <span className={COUNT_CLASS_NAME}>{unreadCount}</span>
+          ) : null}
+        </TabsTrigger>
+        <TabsTrigger value="needs-action" className={TRIGGER_CLASS_NAME}>
+          {t("filterNeedsYou")}
+          {needsActionCount > 0 ? (
+            <span className={COUNT_CLASS_NAME}>{needsActionCount}</span>
           ) : null}
         </TabsTrigger>
       </TabsList>
