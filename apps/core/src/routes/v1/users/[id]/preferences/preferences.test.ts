@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
+  NOTIFICATION_EMAIL_CATEGORIES,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -267,8 +268,12 @@ describe("user preferences routes", () => {
     const body = await response.json();
     // Every cell, not just the stored rows: the client renders the matrix it is
     // given rather than filling in the defaults itself.
+    // Two channels on every category, and an email cell only on the categories
+    // that mail. A count of every channel on every category would pass while
+    // the matrix offered email on rows Core never mails (SOK-916).
     expect(body.data.notificationPreferences).toHaveLength(
-      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+      NOTIFICATION_CATEGORIES.length * (NOTIFICATION_CHANNELS.length - 1) +
+        NOTIFICATION_EMAIL_CATEGORIES.length,
     );
     expect(body.data.notificationPreferences).toContainEqual({
       category: "CHAT_MENTION",
@@ -280,6 +285,19 @@ describe("user preferences routes", () => {
       channel: "IN_APP",
       enabled: false,
     });
+    // The one email cell, on by default and stored by nobody yet.
+    expect(body.data.notificationPreferences).toContainEqual({
+      category: "FOLLOW_UP",
+      channel: "EMAIL",
+      enabled: true,
+    });
+    // And no email cell where Core mails nothing, or the settings page would
+    // draw a switch that changes nothing.
+    expect(
+      body.data.notificationPreferences.filter(
+        (cell: { channel: string }) => cell.channel === "EMAIL",
+      ),
+    ).toHaveLength(NOTIFICATION_EMAIL_CATEGORIES.length);
   });
 
   it("writes one matrix cell on PATCH without touching the account flags", async () => {

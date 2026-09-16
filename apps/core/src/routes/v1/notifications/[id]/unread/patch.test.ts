@@ -132,7 +132,9 @@ describe("PATCH /notifications/{id}/unread", () => {
     await Promise.all(waitUntilPromises);
     expect(publishNotificationRowMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "notif_123", isRead: false }),
-      { inApp: true, osBanner: false },
+      // No email: the reader is putting a row back in their own feed, which
+      // sends nothing.
+      { email: false, inApp: true, osBanner: false },
       false,
     );
   });
