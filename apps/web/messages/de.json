@@ -1142,7 +1142,6 @@
         "Form": {
           "submit": "Anmelden",
           "lastUsed": "Zuletzt verwendet",
-          "success": "Anmeldung erfolgreich",
           "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
           "Fields": {
             "Email": {
@@ -1189,7 +1188,6 @@
         },
         "Form": {
           "submit": "Registrieren",
-          "success": "Registrierung erfolgreich",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
             "Email": {
@@ -5672,9 +5670,6 @@
           "back": "Zurück zum Chat"
         }
       }
-    },
-    "WorkspaceAccess": {
-      "checking": "Workspace-Zugriff wird geprüft"
     },
     "Drive": {
       "breadcrumb": "Dateien",

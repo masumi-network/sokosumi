@@ -39,13 +39,12 @@ export default async function AuthLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Pathname from proxy (`x-pathname`). Callback/OAuth pages never redirect
+  // Pathname from proxy (`x-pathname`). OAuth consent pages never redirect
   // away on an existing session, so skip the Core session read entirely.
   await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
-  const shouldSkipSessionCheck =
-    pathname.startsWith("/auth/callback/") || pathname.startsWith("/oauth");
+  const shouldSkipSessionCheck = pathname.startsWith("/oauth");
 
   if (!shouldSkipSessionCheck) {
     // Cookie-cache session is enough for "already signed in → leave auth UI".
