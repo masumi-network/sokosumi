@@ -26,23 +26,28 @@ export const APP_MAIN_MOBILE_PT_CLASS =
 
 /**
  * Viewport height below fixed header (`h-16` / 4rem content row + top inset).
- * Replaces bare `100svh-4rem` under cover.
+ * Replaces bare `100dvh-4rem` under cover.
+ *
+ * `dvh`, not `svh`: iOS home-screen web apps report `svh` off by the
+ * status-bar height, which sized the shell past the screen and let the whole
+ * room scroll. `dvh` tracks the real layout viewport there. Guarded by
+ * `lib/utils/__tests__/shell-height-class-guards.test.ts`.
  */
 export const APP_SHELL_BELOW_HEADER_HEIGHT_CLASS =
-  "h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
+  "h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
 
 export const APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS =
-  "min-h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
+  "min-h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
 
 export const APP_SHELL_BELOW_HEADER_MAX_HEIGHT_CLASS =
-  "max-h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
+  "max-h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
 
 /** Sticky desktop main column: same below-header calc (header is in-flow). */
 export const APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS =
-  "md:min-h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
+  "md:min-h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
 
 export const APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS =
-  "md:max-h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
+  "md:max-h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
 
 /** Auth shell: keep ≥1.5rem (p-6) while clearing all four insets. */
 export const AUTH_SHELL_SAFE_AREA_PADDING_CLASS =

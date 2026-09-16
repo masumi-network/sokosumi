@@ -15206,6 +15206,11 @@ export const WorkspaceCalendarItemSchema = {
             ],
             example: 'user_123'
         },
+        taskOwnerId: {
+            type: 'string',
+            description: 'User who owns the Task and put it on the Calendar',
+            example: 'user_123'
+        },
         scheduledAt: {
             type: 'string',
             format: 'date-time',
@@ -15285,6 +15290,7 @@ export const WorkspaceCalendarItemSchema = {
         'taskName',
         'taskStatus',
         'taskAssigneeId',
+        'taskOwnerId',
         'scheduledAt',
         'originalScheduledAt',
         'state',
@@ -16305,21 +16311,6 @@ export const MarkNotificationsReadRequestSchema = {
     ]
 } as const;
 
-export const ClearNotificationsResponseSchema = {
-    type: 'object',
-    properties: {
-        count: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Number of notifications deleted',
-            example: 10
-        }
-    },
-    required: [
-        'count'
-    ]
-} as const;
-
 export const GetInvitationResultSchema = {
     oneOf: [
         {
@@ -16940,13 +16931,185 @@ export const SokoBotStateSchema = {
     type: 'object',
     properties: {
         sokoBot: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/SokoBot'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
                 },
-                {
-                    type: 'null'
+                userId: {
+                    type: 'string'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                personalityTone: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                },
+                personalityDetail: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                },
+                personalityStyle: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                },
+                status: {
+                    $ref: '#/components/schemas/SokoBotStatus'
+                },
+                runtimeVersion: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                lastSandboxStatus: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                memoryVersion: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                memoryHash: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                lastActivityAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                lastTurnAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                lastSucceededAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                lastFailedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                consecutiveTurnFailures: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                memory: {
+                    $ref: '#/components/schemas/SokoBotMemory'
+                },
+                legacyMessages: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotLegacyMessage'
+                    }
+                },
+                pendingDecisions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotPendingDecision'
+                    }
+                },
+                schedules: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotSchedule'
+                    }
+                },
+                avatarImageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                versionId: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                followWholeBoard: {
+                    type: 'boolean'
+                },
+                ingestTimezone: {
+                    type: 'string'
+                },
+                proactivePaused: {
+                    type: 'boolean'
+                },
+                proactiveDailyLimit: {
+                    type: 'integer'
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                updatedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
                 }
+            },
+            required: [
+                'id',
+                'userId',
+                'name',
+                'avatarSeed',
+                'personalityTone',
+                'personalityDetail',
+                'personalityStyle',
+                'status',
+                'runtimeVersion',
+                'lastSandboxStatus',
+                'memoryVersion',
+                'memoryHash',
+                'lastActivityAt',
+                'lastTurnAt',
+                'lastSucceededAt',
+                'lastFailedAt',
+                'consecutiveTurnFailures',
+                'createdAt',
+                'updatedAt'
             ]
         }
     },

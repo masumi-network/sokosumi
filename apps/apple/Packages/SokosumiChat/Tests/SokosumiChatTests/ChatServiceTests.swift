@@ -85,8 +85,10 @@ struct ChatServiceTests {
     {"error":"Forbidden","message":"No shared channel","meta":{"timestamp":"\(timestamp)","requestId":"request","path":"/v1/chats/rooms","method":"POST"}}
     """
     let transport = ScriptedTransport([(403, response)])
+    var selection = DirectConversationSelection(hasOrganization: true)
+    selection.add(.human("peer"))
     do {
-      _ = try await ChatService().openDirect(client: makeClient(transport), recipient: .human("peer"), organizationSlug: "team")
+      _ = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
       Issue.record("Expected permission failure")
     } catch let ChatServiceError.unprocessable(statusCode, message) {
       #expect(statusCode == 403)
@@ -101,7 +103,9 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(201, response), (200, response), (201, response)])
     let client = try makeClient(transport)
     for recipient in [DirectRecipient.human("human"), .coworker("coworker"), .sokoBot("01960001-0001-7001-8001-000000000099")] {
-      let result = try await ChatService().openDirect(client: client, recipient: recipient, organizationSlug: nil)
+      var selection = DirectConversationSelection(hasOrganization: false)
+      selection.add(recipient)
+      let result = try await ChatService().openDirect(client: client, selection: selection, organizationSlug: nil)
       #expect(result.id == "direct")
     }
     for (index, field) in ["memberUserIds", "coworkerIds", "sokoBotIds"].enumerated() {
@@ -112,6 +116,25 @@ struct ChatServiceTests {
       #expect(transport.requests[index].request.method == .post)
       #expect(orgSlugHeader(transport.requests[index].request) == nil)
     }
+  }
+
+  @Test func groupDirectUsesExistingCreateRoute() async throws {
+    let room = roomJSON(id: "group", name: "Team", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let transport = ScriptedTransport([(200, response)])
+    var selection = DirectConversationSelection(hasOrganization: true)
+    selection.add(.human("alice"))
+    selection.add(.human("bob"))
+    let result = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
+    #expect(result.id == "group")
+    let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(body["memberUserIds"] as? [String] == ["alice", "bob"])
+    #expect(try orgSlugHeader(#require(transport.requests.first).request) == "team")
+    do {
+      _ = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: nil)
+      Issue.record("Expected personal group rejection")
+    } catch ChatServiceError.unexpectedResponse {}
+    #expect(transport.requests.count == 1)
   }
 
   @Test func personalRoomsOmitOrgHeader() async throws {

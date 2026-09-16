@@ -200,7 +200,7 @@ export function CreateDirectDialog() {
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden shadow-none sm:max-w-lg">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-none sm:max-w-lg">
         <DialogHeader className="shrink-0 gap-1">
           <DialogTitle>{t("Draft.title")}</DialogTitle>
           <DialogDescription>{t("Draft.empty")}</DialogDescription>
@@ -274,7 +274,7 @@ export function CreateDirectDialog() {
             spellCheck={false}
           />
         </div>
-        <div className="relative min-h-0 flex-1 basis-[min(20rem,45svh)]">
+        <div className="relative min-h-0 flex-1 basis-[min(20rem,45dvh)]">
           <div
             ref={rosterScrollRef}
             data-testid="direct-roster-scrollport"

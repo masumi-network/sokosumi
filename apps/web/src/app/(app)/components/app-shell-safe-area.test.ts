@@ -40,24 +40,24 @@ describe("app-shell-safe-area", () => {
     );
   });
 
-  it("subtracts header row + top inset from svh shells", () => {
+  it("subtracts header row + top inset from dvh shells", () => {
     expect(APP_SHELL_BELOW_HEADER_HEIGHT_CLASS).toBe(
-      "h-[calc(100svh-4rem-env(safe-area-inset-top))]",
+      "h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
     expect(APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS).toBe(
-      "min-h-[calc(100svh-4rem-env(safe-area-inset-top))]",
+      "min-h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
     expect(APP_SHELL_BELOW_HEADER_MAX_HEIGHT_CLASS).toBe(
-      "max-h-[calc(100svh-4rem-env(safe-area-inset-top))]",
+      "max-h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
   });
 
   it("uses the same below-header calc for sticky md main heights", () => {
     expect(APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS).toBe(
-      "md:min-h-[calc(100svh-4rem-env(safe-area-inset-top))]",
+      "md:min-h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
     expect(APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS).toBe(
-      "md:max-h-[calc(100svh-4rem-env(safe-area-inset-top))]",
+      "md:max-h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
   });
 

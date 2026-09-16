@@ -134,7 +134,7 @@ export default async function AuthenticatedAppFrame({
                           />
                           <main
                             className={cn(
-                              "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
+                              "relative flex max-h-dvh min-h-dvh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
                               APP_MAIN_MOBILE_PT_CLASS,
                               APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
                               APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,

@@ -10,7 +10,14 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { SokoBotsHero } from "./components/soko-bots-hero";
 import { TeamChart } from "./components/team-chart";
 
-export const metadata: Metadata = { title: "Soko Bots" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.SokoBots");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 /**
  * What a Soko Bot is and the one action that matters, then the workspace:
@@ -18,8 +25,7 @@ export const metadata: Metadata = { title: "Soko Bots" };
  */
 export default async function SokoBotsPage() {
   const session = await getSessionOrRedirect();
-  // Same beta gate as the assistant route: while Soko Bot is limited to the
-  // whitelisted domains, this page must not exist for anyone else either.
+  // Same beta gate as the assistant route.
   if (!hasSokoBotBetaAccess(session.user)) {
     notFound();
   }

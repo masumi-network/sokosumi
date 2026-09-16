@@ -84,7 +84,7 @@ export function TaskFormModal({
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
         <TaskFormModalHeaderContext value={headerContextValue}>
-          <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
+          <div className="bg-background flex h-dvh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90dvh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
             <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 py-3 md:px-8">
               <div className="justify-self-start">{headerStart}</div>
               <h3 className="text-base font-semibold">{title}</h3>
