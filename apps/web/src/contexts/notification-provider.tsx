@@ -289,10 +289,11 @@ export function NotificationProvider({
       setHasMore(nextCursor !== null);
       olderCursorOverride.current = null;
       // A failed older page waits for the reader, whatever a refresh finds.
-      // Only a feed that now ends inside the first page makes it moot.
-      // An in-flight older page is dropped with the generation bump; do not
-      // leave its loading state on the list that replaced it.
-      if (nextCursor === null || olderInFlight.current) setOlderStatus("idle");
+      // Only a feed that now ends inside the first page makes it moot. An
+      // older page still in the air keeps its loading state until it lands
+      // and is dropped: going idle now would re-arm the boundary while that
+      // request still blocks a new one, and the boundary would not arm again.
+      if (nextCursor === null) setOlderStatus("idle");
       setHasFetchError(false);
       if (readStateChanged) void fetchNotifications();
     } catch (error) {

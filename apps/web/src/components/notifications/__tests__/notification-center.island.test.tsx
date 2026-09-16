@@ -447,6 +447,75 @@ describe("Notification Center, both frames", () => {
     expect(messages).toEqual(["arrived", "loaded", "paged"]);
   });
 
+  it("keeps loading older rows after a refresh starts the list over mid-page", async () => {
+    const newest = row("newest", {
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+    });
+    const oldestLoaded = row("oldest-loaded", {
+      createdAt: new Date("2026-06-17T09:00:00.000Z"),
+    });
+    getNotificationsMock.mockResolvedValue(
+      page([newest, oldestLoaded], "oldest-loaded"),
+    );
+    await renderPage();
+
+    const stale = Promise.withResolvers<unknown>();
+    getNotificationsMock.mockReturnValueOnce(stale.promise);
+    await act(async () => {
+      intersect(screen.getByTestId("notification-older-boundary"));
+      await Promise.resolve();
+    });
+
+    // More than a page of rows arrived while nothing was listening, so the
+    // refresh a state-only event asks for starts the list over.
+    getNotificationsMock.mockResolvedValue(
+      page(
+        [
+          row("arrived", { createdAt: new Date("2026-06-19T10:00:00.000Z") }),
+          row("arrived-oldest", {
+            createdAt: new Date("2026-06-19T09:00:00.000Z"),
+          }),
+        ],
+        "arrived-oldest",
+      ),
+    );
+    await act(async () => {
+      deliverRealtime({
+        ...newest,
+        isRead: false,
+        readAt: null,
+        createdAt: newest.createdAt.toISOString(),
+        inApp: true,
+        osBanner: false,
+        created: false,
+      } as NotificationEventData);
+      await Promise.resolve();
+    });
+    await settle();
+    // The boundary is still on screen while the old page is in the air.
+    await act(async () => {
+      intersect(screen.getByTestId("notification-older-boundary"));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      stale.resolve(page([row("stale-older")]));
+      await Promise.resolve();
+    });
+    await settle();
+    getNotificationsMock.mockResolvedValue(page([]));
+    await act(async () => {
+      intersect(screen.getByTestId("notification-older-boundary"));
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText("stale-older")).toBeNull();
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      cursor: "arrived-oldest",
+    });
+  });
+
   it("keeps a failed page on the row and loads it when the reader retries", async () => {
     const consoleError = vi
       .spyOn(console, "error")
