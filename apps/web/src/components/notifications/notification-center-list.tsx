@@ -130,7 +130,7 @@ export function NotificationCenterList({
 
   return (
     <>
-      <div className="divide-border/50 divide-y">
+      <div className="divide-border divide-y">
         {notifications.map((notification) => (
           <NotificationCenterRow
             key={notification.id}
