@@ -15,6 +15,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
+  isCoworkerAuthContext,
   isSokoBotAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
@@ -736,6 +737,55 @@ export async function requireTaskCollaboration(
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+}
+
+/**
+ * Schedule write access. Humans and Soko Bots follow
+ * {@link requireTaskCollaboration}. Coworkers may also act as the task's
+ * creator with user context (the legacy create-then-`PUT /schedule` flow,
+ * including DRAFT, matching what `POST /tasks/scheduled` allows in one call)
+ * or on a non-DRAFT task assigned to a same-vendor sibling. Bare coworker
+ * keys exclude DRAFT before the creator check. Schedules are the only
+ * mutation with this wider scope; status, jobs, and files stay assignee-only.
+ */
+export async function requireTaskScheduleWriteAccess(
+  authContext: AuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  if (!isCoworkerAuthContext(authContext)) {
+    return await requireTaskCollaboration(authContext, taskId, tx);
+  }
+
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+  const found = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      archivedAt: null,
+      ...(authContext.context
+        ? { ownerId: authContext.context.userId }
+        : { status: { not: TaskStatus.DRAFT } }),
+    },
+    include: { assignee: { select: { vendorId: true } } },
+  });
+  if (!found) {
+    throw notFound("Task not found");
+  }
+
+  const { assignee, ...task } = found;
+  const isAssignee = task.assigneeId === authContext.coworkerId;
+  const isCreator = task.creatorCoworkerId === authContext.coworkerId;
+  const isVendorSibling =
+    assignee?.vendorId === authContext.vendorId &&
+    task.status !== TaskStatus.DRAFT;
+  if (!isAssignee && !isCreator && !isVendorSibling) {
+    throw forbidden(
+      "You can only schedule tasks your coworker created, is assigned to, or that are assigned to its vendor siblings",
+    );
+  }
+
+  requireTaskNotParked(task);
+  return task;
 }
 
 export async function requireTaskCommentAccess(
