@@ -98,7 +98,7 @@ struct WorkspaceSessionTests {
     let task = Task { try await sidebar.refresh(client: client(transport), organizationSlug: "acme") }
     await transport.waitForPause()
     #expect(sidebar.isLoading)
-    sidebar.invalidateRequests()
+    sidebar.invalidateRefresh()
     await transport.release()
     #expect(try await task.value == false)
     #expect(sidebar.rooms.map(\.id) == [seededRoomID])

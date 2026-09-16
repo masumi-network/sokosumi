@@ -64,15 +64,33 @@ public final class ConversationSidebar: ObservableObject {
     collapsedSections = []
   }
 
-  /// Workspace and membership changes invalidate list responses and pending actions.
+  /// Workspace reset rolls back optimistic pin/mute so a stale HTTP
+  /// completion cannot commit on a later workspace.
   public func invalidateRequests() {
     for (id, pending) in pendingActions {
       patchDate(roomId: id, action: pending.action, date: pending.previousDate)
     }
-    pendingActions = [:]
-    actionError = nil
+    dropPendingActions()
+    invalidateRefresh()
+  }
+
+  /// A workspace transition invalidates any in-flight list response.
+  /// Pending pin/mute stay until a successful switch or an explicit rollback.
+  public func invalidateRefresh() {
     invalidateListResponse()
     errorMessage = nil
+  }
+
+  /// Successful workspace switch: drop tokens so completions cannot patch the new list.
+  public func dropPendingActions() {
+    pendingActions = [:]
+    actionError = nil
+  }
+
+  /// Membership revoke of this room. Other in-flight pin/mute stay.
+  public func rollbackPendingAction(roomId: String) {
+    guard let pending = pendingActions.removeValue(forKey: roomId) else { return }
+    patchDate(roomId: roomId, action: pending.action, date: pending.previousDate)
   }
 
   public func select(_ id: String?, userId: String, organizationId: String?) {

@@ -5,11 +5,18 @@ import OpenAPIRuntime
 import SokosumiChat
 import Testing
 
-private func actionRoomJSON(pinned: Bool = false, muted: Bool = false) -> String {
+private let peerRoomId = "550e8400-e29b-41d4-a716-446655440101"
+
+private func actionRoomJSON(
+  id: String = testRoomId,
+  name: String = "general",
+  pinned: Bool = false,
+  muted: Bool = false
+) -> String {
   let pin = pinned ? "\"\(testTimestamp)\"" : "null"
   let mute = muted ? "\"\(testTimestamp)\"" : "null"
   return """
-  {"id":"\(testRoomId)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":4,"unreadMentionCount":1,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":\(mute),"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":4,"unreadMentionCount":1,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":\(mute),"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -64,6 +71,16 @@ struct ConversationActionsTests {
     return sidebar
   }
 
+  private func twoRoomSidebar() async throws -> ConversationSidebar {
+    let sidebar = ConversationSidebar()
+    let transport = TestTransport([(200, testMessagesPageBody(messages: [
+      actionRoomJSON(id: testRoomId, name: "target"),
+      actionRoomJSON(id: peerRoomId, name: "peer")
+    ], nextCursor: nil))])
+    try await sidebar.refresh(client: makeTestClient(transport), organizationSlug: nil)
+    return sidebar
+  }
+
   @Test func actionsUseExistingRoutesAndPreserveNewerAttention() async throws {
     let state = try await sidebar()
     let transport = TestTransport([
@@ -100,6 +117,7 @@ struct ConversationActionsTests {
     state.rooms[0].starredAt = Date()
     #expect(!state.canPerform(.mute, roomId: testRoomId))
     #expect(state.canPerform(.unpin, roomId: testRoomId))
+    #expect(state.canPerform(.markUnread, roomId: testRoomId))
     #expect(!state.canPerform(.pin, roomId: "missing"))
   }
 
@@ -171,6 +189,59 @@ struct ConversationActionsTests {
     #expect(state.partitioned.channels.first?.markedUnread == false)
     #expect(state.readAttention.errorMessage != nil)
     #expect(state.actionError == nil)
+  }
+
+  @Test func failedWorkspaceSwitchKeepsInFlightPin() async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    state.invalidateRefresh()
+    #expect(state.isPending(roomId: testRoomId))
+    #expect(state.rooms[0].starredAt != nil)
+    await transport.release()
+    try await task.value
+    #expect(state.rooms[0].starredAt != nil)
+    #expect(state.canPerform(.unpin, roomId: testRoomId))
+  }
+
+  @Test func otherRoomRevokeKeepsInFlightPin() async throws {
+    let state = try await twoRoomSidebar()
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    state.rollbackPendingAction(roomId: peerRoomId)
+    #expect(state.isPending(roomId: testRoomId))
+    #expect(state.rooms[0].starredAt != nil)
+    await transport.release()
+    try await task.value
+    #expect(state.rooms[0].starredAt != nil)
+    #expect(state.canPerform(.unpin, roomId: testRoomId))
+  }
+
+  @Test func optimisticPinAndMuteReorderPartitioned() async throws {
+    let pinned = try await twoRoomSidebar()
+    #expect(pinned.partitioned.channels.map(\.id) == [testRoomId, peerRoomId])
+    let pinTransport = PausedSidebarTransport()
+    let pinClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: pinTransport)
+    let pinTask = Task { try await pinned.perform(.pin, roomId: peerRoomId, client: pinClient, organizationSlug: nil) }
+    await pinTransport.waitForRequest()
+    #expect(pinned.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+    await pinTransport.release()
+    try await pinTask.value
+    #expect(pinned.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+
+    let muted = try await twoRoomSidebar()
+    let muteTransport = PausedSidebarTransport(response: actionBody(muted: true))
+    let muteClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: muteTransport)
+    let muteTask = Task { try await muted.perform(.mute, roomId: testRoomId, client: muteClient, organizationSlug: nil) }
+    await muteTransport.waitForRequest()
+    #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+    await muteTransport.release()
+    try await muteTask.value
+    #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
   }
 
   @Test func removedRoomIsNotReinsertedWhenPinCompletes() async throws {

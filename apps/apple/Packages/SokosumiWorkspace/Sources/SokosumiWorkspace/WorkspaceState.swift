@@ -712,7 +712,8 @@ public final class WorkspaceState: ObservableObject {
   /// room that is gone. Remints the token when one exists so caps drop.
   func applyMembershipRevoked(roomId revokedRoomId: String) {
     workspaceSession.applyMembershipRevoked(roomId: revokedRoomId)
-    sidebar.invalidateRequests()
+    sidebar.invalidateRefresh()
+    sidebar.rollbackPendingAction(roomId: revokedRoomId)
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
@@ -918,7 +919,7 @@ public final class WorkspaceState: ObservableObject {
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
-    sidebar.invalidateRequests()
+    sidebar.invalidateRefresh()
     let generation = workspaceGeneration
     roomsLoading = true
     defer {
@@ -929,6 +930,7 @@ public final class WorkspaceState: ObservableObject {
     guard let client = resolveClient(auth: auth) else { return }
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
+      sidebar.dropPendingActions()
       readAttention.reset()
       clearTranscript()
       selectedRoomId = nil
