@@ -2161,7 +2161,9 @@ describe("ChatMessageRow", () => {
     );
   });
 
-  it("hides the unfurl card when the preview image fails and there is no description", () => {
+  it("keeps a title-only card when the preview image fails and there is no description", () => {
+    // Some image hosts (X) answer 403 to browsers that carry their login
+    // cookie; the link is still worth a labelled card.
     renderRow({
       message: userMessage({
         content: "https://youtube.com/watch?v=1",
@@ -2181,7 +2183,11 @@ describe("ChatMessageRow", () => {
       screen.getByRole("img", { name: "Preview image for Watch" }),
     );
 
-    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+    const card = screen.getByTestId("room-message-unfurl");
+    expect(card).toHaveAttribute("href", "https://youtube.com/watch?v=1");
+    expect(card).toHaveTextContent("YouTube");
+    expect(card).toHaveTextContent("Watch");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("shows a replacement thumbnail after a later scrape when the first image failed", () => {
@@ -2212,7 +2218,10 @@ describe("ChatMessageRow", () => {
     fireEvent.error(
       screen.getByRole("img", { name: "Preview image for Watch" }),
     );
-    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+    expect(screen.getByTestId("room-message-unfurl")).toHaveTextContent(
+      "Watch",
+    );
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
 
     rerender(
       <ChatMessageRow

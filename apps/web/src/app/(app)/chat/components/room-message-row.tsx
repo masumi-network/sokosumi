@@ -460,11 +460,10 @@ function MessageUnfurlCard({
   const siteLabel = unfurl.siteName?.trim() || null;
   const description = unfurl.description?.trim() || null;
   const imageUrl = unfurl.imageUrl?.trim() || null;
+  // A failed image drops to text only; the server already filters
+  // title-only cards, and a link whose host blocks hotlinks (X with a
+  // login cookie) still deserves its labelled card.
   const showImage = Boolean(imageUrl) && !imageFailed;
-
-  if (!description && !showImage) {
-    return null;
-  }
 
   return (
     <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-[min(100%,25rem)]">
