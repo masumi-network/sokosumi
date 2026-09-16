@@ -1770,6 +1770,12 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       }),
     );
+    // And before the outcome write, not after it. `createNotification`
+    // rethrows any write error that is not a unique violation, so clearing
+    // afterwards would be skipped on the one run that settled the job.
+    expect(
+      notificationUpdateManyAndReturnMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(createNotificationMock.mock.invocationCallOrder[0]);
   });
 
   it("still notifies an owner who turned the account-wide emails off", async () => {
