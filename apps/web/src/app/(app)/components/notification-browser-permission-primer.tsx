@@ -42,14 +42,14 @@ function readCapability(): PrimerCapability {
 
 interface NotificationBrowserPermissionPrimerProps {
   className?: string;
-  variant?: "menu" | "page";
-  /** Closes the surrounding dropdown, which navigation does not unmount. */
+  variant?: "panel" | "page";
+  /** Closes the surrounding panel, which navigation does not unmount. */
   onNavigate?: () => void;
 }
 
 export function NotificationBrowserPermissionPrimer({
   className,
-  variant = "menu",
+  variant = "panel",
   onNavigate,
 }: NotificationBrowserPermissionPrimerProps) {
   const t = useTranslations("Components.NotificationCenter");
@@ -142,8 +142,8 @@ export function NotificationBrowserPermissionPrimer({
           variant="outline"
           className="shrink-0 self-start sm:self-center"
           onPointerDown={(event) => {
-            // Keep the dropdown open while the OS permission dialog runs.
-            if (variant === "menu") {
+            // Keep the panel open while the OS permission dialog runs.
+            if (variant === "panel") {
               event.preventDefault();
             }
           }}
