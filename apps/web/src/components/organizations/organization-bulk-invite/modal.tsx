@@ -109,7 +109,7 @@ export default function OrganizationBulkInviteModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[80svh] w-[calc(100vw-2rem)] max-w-lg! overflow-hidden">
+      <DialogContent className="max-h-[80dvh] w-[calc(100vw-2rem)] max-w-lg! overflow-hidden">
         <DialogTitle className="text-center">{t("title")}</DialogTitle>
         <DialogDescription className="text-center">
           {t("description")}

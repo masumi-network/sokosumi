@@ -45,7 +45,7 @@ export default function Error({
   }, [error]);
 
   return renderIfAuthenticated(
-    <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
+    <div className="container mx-auto flex min-h-[80dvh] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{copy.title}</CardTitle>

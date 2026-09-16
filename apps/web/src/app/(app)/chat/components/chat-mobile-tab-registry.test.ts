@@ -56,11 +56,11 @@ describe("chatMobileHeightShellClass", () => {
 
   it("uses rem header offset + top safe-area (not fixed 64px)", () => {
     expect(CHAT_MOBILE_HEIGHT_SHELL_CLASS).toContain(
-      "100svh-4rem-env(safe-area-inset-top)",
+      "100dvh-4rem-env(safe-area-inset-top)",
     );
     expect(CHAT_MOBILE_HEIGHT_SHELL_CLASS).not.toContain("64px");
     expect(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS).toBe(
-      "h-[calc(100svh-4rem-env(safe-area-inset-top))]",
+      "h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
     expect(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS).not.toContain("64px");
   });

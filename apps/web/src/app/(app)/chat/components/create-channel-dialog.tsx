@@ -235,7 +235,7 @@ export function CreateChannelDialog() {
         </button>
       </DialogTrigger>
       <DialogContent
-        className="max-h-[calc(100svh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
+        className="max-h-[calc(100dvh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
         {...(wizard.slug ? {} : { "aria-describedby": undefined })}
       >
         <DialogHeader className={cn(isCreateStep && "gap-1.5")}>

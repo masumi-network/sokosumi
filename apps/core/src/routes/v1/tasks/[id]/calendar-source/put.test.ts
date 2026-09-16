@@ -25,7 +25,7 @@ const {
   projectFindManyMock,
   quarantineFindUniqueMock,
   requireAssignedOrganizationSeatMock,
-  requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccessMock,
   retireTaskScheduleFutureOccurrencesMock,
   serializableTransactionMock,
   taskEventCreateMock,
@@ -46,7 +46,7 @@ const {
     projectFindManyMock,
     quarantineFindUniqueMock: vi.fn(),
     requireAssignedOrganizationSeatMock: vi.fn(),
-    requireTaskCollaborationMock: vi.fn(),
+    requireTaskScheduleWriteAccessMock: vi.fn(),
     retireTaskScheduleFutureOccurrencesMock: vi.fn(),
     serializableTransactionMock: vi.fn(),
     taskEventCreateMock: vi.fn(),
@@ -56,7 +56,7 @@ const {
 });
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccess: requireTaskScheduleWriteAccessMock,
 }));
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
@@ -101,7 +101,7 @@ function createMetadata() {
 }
 
 function mockCurrentTask(overrides: Record<string, unknown> = {}) {
-  requireTaskCollaborationMock.mockResolvedValue({
+  requireTaskScheduleWriteAccessMock.mockResolvedValue({
     id: TASK_ID,
     status: TaskStatus.QUEUED,
     assigneeId: "coworker-1",
@@ -360,7 +360,7 @@ describe("PUT /tasks/{id}/calendar-source", () => {
   });
 
   it("rejects when the source changes between preflight and the locked read", async () => {
-    requireTaskCollaborationMock
+    requireTaskScheduleWriteAccessMock
       .mockResolvedValueOnce({
         id: TASK_ID,
         status: TaskStatus.QUEUED,

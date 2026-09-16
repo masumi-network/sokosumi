@@ -58,6 +58,7 @@ describe("notificationReducer", () => {
         type: "fetch_success",
         realtimeIds: new Set(["notification-realtime"]),
         fetched: [job],
+        hasMore: false,
         serverUnreadCount: 1,
       },
     );
@@ -137,6 +138,7 @@ describe("notificationReducer", () => {
       type: "fetch_success",
       realtimeIds: new Set(["notification-realtime"]),
       fetched: [fetchedNotification],
+      hasMore: false,
       serverUnreadCount: 0,
     });
 
@@ -265,6 +267,7 @@ describe("notificationReducer", () => {
       type: "fetch_success",
       realtimeIds: new Set(["notification-realtime"]),
       fetched: [],
+      hasMore: false,
       serverUnreadCount: 1,
     });
 
@@ -378,6 +381,7 @@ describe("notificationReducer", () => {
         type: "fetch_success",
         realtimeIds: new Set([current.id]),
         fetched: [{ ...current, isRead: true }],
+        hasMore: false,
         serverUnreadCount: 0,
       },
     );
@@ -393,10 +397,267 @@ describe("notificationReducer", () => {
         type: "fetch_success",
         realtimeIds: new Set([current.id]),
         fetched: [{ ...current, isRead: false }],
+        hasMore: false,
         serverUnreadCount: 10,
       },
     );
     expect(state.notifications[0]?.isRead).toBe(true);
     expect(state.unreadCount).toBe(10);
+  });
+
+  /**
+   * The list is one growing window now: the reader scrolls, older pages
+   * arrive, and a refresh of the newest page must not throw the rest away.
+   */
+  it("keeps rows older than the refreshed page", () => {
+    const newest = createNotification({
+      id: "newest",
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      isRead: true,
+    });
+    const older = createNotification({
+      id: "older",
+      createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      isRead: true,
+    });
+
+    const state = notificationReducer(
+      { notifications: [newest, older], unreadCount: 0 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set<string>(),
+        fetched: [newest],
+        hasMore: true,
+        serverUnreadCount: 0,
+      },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual([
+      "newest",
+      "older",
+    ]);
+  });
+
+  it("drops a held row the refreshed page covers but no longer lists", () => {
+    const newest = createNotification({
+      id: "newest",
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      isRead: true,
+    });
+    const resolved = createNotification({
+      id: "resolved",
+      createdAt: new Date("2026-06-18T08:00:00.000Z"),
+      isRead: true,
+    });
+    const oldest = createNotification({
+      id: "oldest",
+      createdAt: new Date("2026-06-18T07:00:00.000Z"),
+      isRead: true,
+    });
+
+    const state = notificationReducer(
+      { notifications: [newest, resolved, oldest], unreadCount: 0 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set<string>(),
+        fetched: [newest, oldest],
+        hasMore: true,
+        serverUnreadCount: 0,
+      },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual([
+      "newest",
+      "oldest",
+    ]);
+  });
+
+  it("drops rows past the end when the refreshed page is the whole feed", () => {
+    const newest = createNotification({ id: "newest", isRead: true });
+    const stale = createNotification({
+      id: "stale",
+      createdAt: new Date("2026-06-10T09:00:00.000Z"),
+      isRead: true,
+    });
+
+    const state = notificationReducer(
+      { notifications: [newest, stale], unreadCount: 0 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set<string>(),
+        fetched: [newest],
+        hasMore: false,
+        serverUnreadCount: 0,
+      },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual(["newest"]);
+  });
+
+  it("keeps every row the reader has loaded, past the old ten-row window", () => {
+    const rows = Array.from({ length: 12 }, (_, index) =>
+      createNotification({
+        id: `row-${index}`,
+        isRead: true,
+        createdAt: new Date(Date.UTC(2026, 5, 18, 12 - index)),
+      }),
+    );
+
+    const state = notificationReducer(
+      { notifications: [], unreadCount: 0 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set<string>(),
+        fetched: rows,
+        hasMore: false,
+        serverUnreadCount: 0,
+      },
+    );
+
+    expect(state.notifications).toHaveLength(12);
+  });
+
+  it("appends an older page under the rows already loaded", () => {
+    const loaded = createNotification({
+      id: "loaded",
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      isRead: true,
+    });
+    const older = createNotification({
+      id: "older",
+      createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      isRead: true,
+    });
+
+    const state = notificationReducer(
+      { notifications: [loaded], unreadCount: 3 },
+      { type: "load_older_success", fetched: [older] },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual([
+      "loaded",
+      "older",
+    ]);
+    // The badge is the server's whole-feed count; reaching further back into
+    // the same feed cannot add to it.
+    expect(state.unreadCount).toBe(3);
+  });
+
+  it("keeps the row it already holds when an older page repeats it", () => {
+    const held = createNotification({ id: "held", isRead: true });
+
+    const state = notificationReducer(
+      { notifications: [held], unreadCount: 0 },
+      {
+        type: "load_older_success",
+        fetched: [{ ...held, isRead: false, readAt: null }],
+      },
+    );
+
+    expect(state.notifications).toHaveLength(1);
+    expect(state.notifications[0]?.isRead).toBe(true);
+  });
+
+  it("leaves a browser-only row out of an older page", () => {
+    const directMessage = createNotification({
+      id: "direct-message",
+      kind: "CHAT",
+      messageKey: "Notifications.Chat.directMessage",
+    });
+
+    const state = notificationReducer(
+      { notifications: [], unreadCount: 0 },
+      { type: "load_older_success", fetched: [directMessage] },
+    );
+
+    expect(state.notifications).toEqual([]);
+  });
+
+  /**
+   * Another tab put an old row back to unread. The event carries the row's
+   * own time, which sorts it past the end of what this list has loaded, and
+   * holding it there would make it the row the next page is fetched from:
+   * everything between would never load.
+   */
+  it("leaves an unloaded row out when an event places it past the end", () => {
+    const loaded = createNotification({
+      id: "loaded",
+      isRead: true,
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+    });
+    const farBack = createNotification({
+      id: "far-back",
+      isRead: false,
+      readAt: null,
+      createdAt: new Date("2026-05-01T09:00:00.000Z"),
+    });
+
+    const state = notificationReducer(
+      { notifications: [loaded], unreadCount: 0 },
+      { type: "realtime", notification: farBack, created: false },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual(["loaded"]);
+  });
+
+  it("still takes a changed row that sorts inside the loaded range", () => {
+    const newest = createNotification({
+      id: "newest",
+      isRead: true,
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+    });
+    const oldest = createNotification({
+      id: "oldest",
+      isRead: true,
+      createdAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    const room = createNotification({
+      id: "room",
+      isRead: false,
+      readAt: null,
+      createdAt: new Date("2026-06-19T09:00:00.000Z"),
+    });
+
+    const state = notificationReducer(
+      { notifications: [newest, oldest], unreadCount: 0 },
+      { type: "realtime", notification: room, created: false },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual([
+      "room",
+      "newest",
+      "oldest",
+    ]);
+  });
+
+  /**
+   * More rows arrived than one page holds while the list was not listening.
+   * The refreshed page then ends above everything that was loaded, and
+   * keeping those rows would leave the ones between them out for good.
+   */
+  it("starts over from the refreshed page when it does not reach the loaded rows", () => {
+    const loaded = createNotification({
+      id: "loaded",
+      isRead: true,
+      createdAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    const arrived = createNotification({
+      id: "arrived",
+      isRead: true,
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+    });
+
+    const state = notificationReducer(
+      { notifications: [loaded], unreadCount: 0 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set<string>(),
+        fetched: [arrived],
+        hasMore: true,
+        serverUnreadCount: 0,
+      },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual(["arrived"]);
   });
 });

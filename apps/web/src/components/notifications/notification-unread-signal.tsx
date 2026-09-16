@@ -9,7 +9,7 @@ interface NotificationUnreadRailProps {
 /**
  * The bar on a notification row's leading edge that marks the row unread.
  *
- * Shared by the bell dropdown and the notifications page, because the two
+ * Shared by the header panel and the notifications page, because the two
  * list the same rows and a reader moving between them should not have to
  * learn the signal twice.
  *

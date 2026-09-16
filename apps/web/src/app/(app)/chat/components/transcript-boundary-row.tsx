@@ -2,9 +2,10 @@
 
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 
 export type TranscriptBoundaryStatus = "idle" | "loading" | "failed";
 
@@ -32,32 +33,11 @@ export function TranscriptBoundaryRow({
 }: TranscriptBoundaryRowProps) {
   const t = useTranslations("App.Channels");
   const rowRef = useRef<HTMLDivElement | null>(null);
-  const onLoadRef = useRef(onLoad);
-  onLoadRef.current = onLoad;
-
-  // Syncs with the viewport, which is an external system: the row cannot
-  // know it has scrolled into view any other way.
-  useEffect(() => {
-    const row = rowRef.current;
-    if (
-      status !== "idle" ||
-      !row ||
-      typeof IntersectionObserver === "undefined"
-    ) {
-      return;
-    }
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) {
-        return;
-      }
-      observer.disconnect();
-      onLoadRef.current(cursorMessageId);
-    });
-    observer.observe(row);
-    return () => {
-      observer.disconnect();
-    };
-  }, [status, cursorMessageId]);
+  useLoadWhenVisible(rowRef, {
+    armed: status === "idle",
+    boundaryKey: cursorMessageId,
+    onVisible: () => onLoad(cursorMessageId),
+  });
 
   const isLoading = status === "loading";
   const actionLabel = isGap

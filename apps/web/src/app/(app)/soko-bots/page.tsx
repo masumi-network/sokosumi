@@ -25,8 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function SokoBotsPage() {
   const session = await getSessionOrRedirect();
-  // Same beta gate as the assistant route: while Soko Bot is limited to the
-  // whitelisted domains, this page must not exist for anyone else either.
+  // Same beta gate as the assistant route.
   if (!hasSokoBotBetaAccess(session.user)) {
     notFound();
   }
