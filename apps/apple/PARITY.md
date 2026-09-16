@@ -935,3 +935,5 @@ Sidebar placement follow-up: Browse channels now sits beside the Channels sectio
 Channels header refinement: collapse chevron sits directly after the title; Browse occupies the trailing room-status column instead of sharing it with the native disclosure indicator. Keeps native List and the existing persisted collapse state.
 
 Alignment correction: macOS section headers ignore the row inset used by channel rows. Channels controls now occupy a non-selectable native List row with the same explicit insets as room rows; Browse and room status use 20-point centered slots. A standalone native List fixture reproduced the offset and visually verified the corrected icon centerline; live workspace interaction remains unverified. The fixture app exited after capture.
+
+Section consistency follow-up: Channels, External, and Directs now share the same non-selectable header row, title inset, typography, and adjacent disclosure button. Removed the obsolete native-section expansion binding. Rendered all three sections together in a native List fixture and verified matching title edges plus Browse/pin alignment; macOS build and strict lint pass.

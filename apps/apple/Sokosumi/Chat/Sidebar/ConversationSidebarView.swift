@@ -42,36 +42,7 @@ struct ConversationSidebarView: View {
           // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
             Section {
-              HStack {
-                Button {
-                  workspaces.sidebar.setExpanded(
-                    workspaces.sidebar.collapsedSections.contains(.channels), section: .channels
-                  )
-                } label: {
-                  HStack(spacing: 4) {
-                    Text("Channels")
-                    Image(systemName: workspaces.sidebar.collapsedSections.contains(.channels) ? "chevron.right" : "chevron.down")
-                      .font(.caption)
-                  }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Channels")
-                .accessibilityValue(workspaces.sidebar.collapsedSections.contains(.channels) ? "Collapsed" : "Expanded")
-                .help(workspaces.sidebar.collapsedSections.contains(.channels) ? "Expand channels" : "Collapse channels")
-                Spacer()
-                Button("Browse channels", systemImage: "list.bullet") {
-                  browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .frame(width: 20)
-                .disabled(workspaces.phase != .ready || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
-                .help("Browse channels")
-              }
-              .font(.subheadline.weight(.semibold))
-              .foregroundStyle(.secondary)
-              .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-              .selectionDisabled()
+              sectionHeader("Channels", section: .channels)
               if !workspaces.sidebar.collapsedSections.contains(.channels) {
                 if partitioned.channels.isEmpty {
                   Text("No channels yet.")
@@ -84,19 +55,25 @@ struct ConversationSidebarView: View {
             }
           }
           if !partitioned.external.isEmpty {
-            Section("External", isExpanded: sectionExpansion(.external)) {
-              ForEach(partitioned.external, id: \.id) { room in
-                roomRow(room, icon: "globe")
+            Section {
+              sectionHeader("External", section: .external)
+              if !workspaces.sidebar.collapsedSections.contains(.external) {
+                ForEach(partitioned.external, id: \.id) { room in
+                  roomRow(room, icon: "globe")
+                }
               }
             }
           }
-          Section("Directs", isExpanded: sectionExpansion(.directs)) {
-            if partitioned.directMessages.isEmpty {
-              Text("No direct messages yet.")
-                .foregroundStyle(.secondary)
-            }
-            ForEach(partitioned.directMessages, id: \.id) { room in
-              roomRow(room, icon: "person", showsDirectAvatars: true)
+          Section {
+            sectionHeader("Directs", section: .directs)
+            if !workspaces.sidebar.collapsedSections.contains(.directs) {
+              if partitioned.directMessages.isEmpty {
+                Text("No direct messages yet.")
+                  .foregroundStyle(.secondary)
+              }
+              ForEach(partitioned.directMessages, id: \.id) { room in
+                roomRow(room, icon: "person", showsDirectAvatars: true)
+              }
             }
           }
         }
@@ -190,13 +167,40 @@ struct ConversationSidebarView: View {
     }
   }
 
-  private func sectionExpansion(_ section: ConversationSidebar.Section) -> Binding<Bool> {
-    Binding(
-      get: { !workspaces.sidebar.collapsedSections.contains(section) },
-      set: { expanded in
-        Task { @MainActor in workspaces.sidebar.setExpanded(expanded, section: section) }
+  private func sectionHeader(_ title: String, section: ConversationSidebar.Section) -> some View {
+    HStack {
+      Button {
+        workspaces.sidebar.setExpanded(
+          workspaces.sidebar.collapsedSections.contains(section), section: section
+        )
+      } label: {
+        HStack(spacing: 4) {
+          Text(title)
+          Image(systemName: workspaces.sidebar.collapsedSections.contains(section) ? "chevron.right" : "chevron.down")
+            .font(.caption)
+        }
       }
-    )
+      .buttonStyle(.plain)
+      .accessibilityLabel(title)
+      .accessibilityAddTraits(.isHeader)
+      .accessibilityValue(workspaces.sidebar.collapsedSections.contains(section) ? "Collapsed" : "Expanded")
+      .help(workspaces.sidebar.collapsedSections.contains(section) ? "Expand \(title)" : "Collapse \(title)")
+      Spacer()
+      if section == .channels {
+        Button("Browse channels", systemImage: "list.bullet") {
+          browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.borderless)
+        .frame(width: 20)
+        .disabled(workspaces.phase != .ready || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
+        .help("Browse channels")
+      }
+    }
+    .font(.subheadline.weight(.semibold))
+    .foregroundStyle(.secondary)
+    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+    .selectionDisabled()
   }
 
   /// Workspace switcher pinned to the top of the sidebar.
