@@ -13,10 +13,10 @@ export const STICK_TO_BOTTOM_NEAR_PX = 200;
 const DEFAULT_ROW_HEIGHT_PX = 80;
 
 /**
- * Site, title, description, padding, card margin. Overestimate so a
- * history row shrinks, not grows.
+ * Site, title, description, padding, card margin (~7.5rem) at the 1.25×
+ * Dynamic Type cap (20px root). Default 16px root is 120px.
  */
-const UNFURL_CARD_CHROME_PX = 120;
+const UNFURL_CARD_CHROME_PX = 150;
 
 /**
  * Unfurl image `h-50` (12.5rem) at the 1.25× Dynamic Type cap (20px root).

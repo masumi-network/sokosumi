@@ -126,7 +126,7 @@ describe("estimateTranscriptRowHeight", () => {
       estimateTranscriptRowHeight(
         row(1, [unfurl({ url: "https://example.com/a" })]),
       ),
-    ).toBe(200);
+    ).toBe(230);
   });
 
   it("adds the 250px image cap plus card chrome for an image unfurl", () => {
@@ -139,7 +139,7 @@ describe("estimateTranscriptRowHeight", () => {
           }),
         ]),
       ),
-    ).toBe(450);
+    ).toBe(480);
   });
 
   it("stacks extras for each visible unfurl", () => {
@@ -156,7 +156,7 @@ describe("estimateTranscriptRowHeight", () => {
           }),
         ]),
       ),
-    ).toBe(820);
+    ).toBe(880);
   });
 
   it("ignores a title-only card the UI would not render", () => {
@@ -178,6 +178,6 @@ describe("estimateTranscriptRowHeight", () => {
       estimateTranscriptRowHeight(
         row(1, [unfurl({ url: "https://example.com/a", imageUrl: "  " })]),
       ),
-    ).toBe(200);
+    ).toBe(230);
   });
 });
