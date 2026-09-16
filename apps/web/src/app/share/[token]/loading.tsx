@@ -14,7 +14,7 @@ export default function SharePageLoading() {
       <div className="mb-4 w-full space-y-4">
         <Skeleton className="h-8 w-48" />
       </div>
-      <DefaultLoading className="bg-muted/50 h-full min-h-[300px] w-full flex-1 rounded-xl border p-8" />
+      <DefaultLoading className="bg-card-background h-full min-h-[300px] w-full flex-1 rounded-xl border p-8" />
     </div>
   );
 }

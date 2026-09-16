@@ -60,7 +60,7 @@ function RosterMemberAvatar({
           seed={participant.avatarSeed}
           size={64}
           alt=""
-          className="ring-border/40 size-8 ring-1"
+          className="ring-border size-8 ring-1"
         />
       ) : (
         <Avatar className="size-8">
@@ -69,7 +69,7 @@ function RosterMemberAvatar({
             className={cn(
               "text-[0.625rem]",
               isAi
-                ? "bg-primary/10 text-primary"
+                ? "bg-primary-quinary text-primary"
                 : "bg-muted text-muted-foreground",
             )}
           >

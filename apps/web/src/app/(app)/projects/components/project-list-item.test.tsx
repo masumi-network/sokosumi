@@ -65,11 +65,17 @@ describe("ProjectListItem", () => {
     expect(link.className).toContain("flex-row");
     expect(link.className).toContain("items-center");
     expect(link.className).toContain("gap-4");
-    expect(link.className).toContain("hover:bg-muted/50");
+    // The row sits inside PROJECTS_BROWSE_LAYOUT_CLASS, which is
+    // --card-background, so the hover has to be the step past it. Pinned
+    // exactly: "hover:bg-card-background" is a substring of the correct
+    // class, so a toContain on the shorter name passes either way.
+    expect(link.className.split(/\s+/)).toContain(
+      "hover:bg-card-background-hover",
+    );
     expect(link.className).toContain("rounded-none");
     expect(link.className).toContain("md:rounded-lg");
-    expect(link.className).not.toContain("border-border/50");
-    expect(link.className).not.toContain("bg-background/60");
+    expect(link.className).not.toContain("border-border");
+    expect(link.className).not.toContain("bg-overlay");
     expect(link.className.split(/\s+/)).not.toContain("border");
 
     const article = link.closest("article");

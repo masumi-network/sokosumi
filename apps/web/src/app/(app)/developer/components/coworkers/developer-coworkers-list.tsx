@@ -41,7 +41,7 @@ export async function DeveloperCoworkersList({
                 {imageUrl ? (
                   <AvatarImage src={imageUrl} alt={coworker.name} />
                 ) : null}
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                <AvatarFallback className="bg-primary-solid text-primary-solid-foreground text-sm">
                   {coworker.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>

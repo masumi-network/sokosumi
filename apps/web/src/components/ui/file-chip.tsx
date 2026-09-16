@@ -69,7 +69,7 @@ function FileChipVideoFrame({
   return (
     <div
       data-testid="file-chip-video-frame"
-      className="relative min-w-0 max-w-full overflow-hidden rounded-lg bg-black/20"
+      className="relative min-w-0 max-w-full overflow-hidden rounded-lg bg-scrim-soft"
       style={{
         aspectRatio: resolvedAspectRatio,
         width: `${frameWidthRem}rem`,
@@ -135,7 +135,7 @@ export function FileChip(props: FileChipProps) {
     <>
       <div
         className={cn(
-          "bg-accent/50 relative shrink-0 rounded",
+          "bg-card-background relative shrink-0 rounded",
           containerSizeClass,
         )}
       >
@@ -277,7 +277,7 @@ export function FileChip(props: FileChipProps) {
         <div className="flex w-0 min-w-full items-center gap-3">
           <div
             className={cn(
-              "bg-accent/50 relative flex shrink-0 items-center justify-center rounded",
+              "bg-card-background relative flex shrink-0 items-center justify-center rounded",
               containerSizeClass,
               shouldApplyIconPadding && "p-1",
             )}

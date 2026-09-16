@@ -268,7 +268,7 @@ export default function SocialButtons({
             {isLastUsed && (
               <span
                 aria-hidden="true"
-                className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
               >
                 {t("lastUsed")}
               </span>
@@ -278,7 +278,7 @@ export default function SocialButtons({
               className={cn(
                 "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
                 isLastUsed
-                  ? "border-primary/60! bg-primary/10! hover:bg-primary/15! dark:bg-primary/15! dark:hover:bg-primary/20!"
+                  ? "border-primary-tertiary! bg-primary-quinary! hover:bg-primary-quaternary!"
                   : "bg-senary! hover:bg-quinary! border-transparent!",
               )}
               align="center"
@@ -292,7 +292,7 @@ export default function SocialButtons({
           {lastUsedMethod === "passkey" && (
             <span
               aria-hidden="true"
-              className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
             >
               {t("lastUsed")}
             </span>
@@ -303,7 +303,7 @@ export default function SocialButtons({
             className={cn(
               "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
               lastUsedMethod === "passkey"
-                ? "border-primary/60 bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
             disabled={isSigningInWithPasskey}
@@ -325,7 +325,7 @@ export default function SocialButtons({
           {lastUsedMethod === "magic-link" && (
             <span
               aria-hidden="true"
-              className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
             >
               {t("lastUsed")}
             </span>
@@ -336,7 +336,7 @@ export default function SocialButtons({
             className={cn(
               "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
               lastUsedMethod === "magic-link"
-                ? "border-primary/60 bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
             onClick={handleMagicLinkClick}
@@ -348,7 +348,7 @@ export default function SocialButtons({
       )}
       {showMagicLink && isMagicLinkVisible && (
         <form
-          className="bg-muted/30 flex flex-col gap-2 rounded-md border p-4"
+          className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
           onSubmit={handleMagicLinkSubmit}
         >
           {hasMagicLinkSuccess && (

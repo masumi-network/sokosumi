@@ -164,7 +164,7 @@ export function OrganizationDetailPanel({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="bg-muted/40 space-y-2 rounded-lg border p-4">
+        <section className="bg-card-background space-y-2 rounded-lg border p-4">
           <h2 className="font-medium">{t("billing.title")}</h2>
           <p className="text-sm">
             {t("billing.plan", { plan: detail.billingPlan.plan })}
@@ -200,7 +200,7 @@ export function OrganizationDetailPanel({
           ) : null}
         </section>
 
-        <section className="bg-muted/40 space-y-2 rounded-lg border p-4">
+        <section className="bg-card-background space-y-2 rounded-lg border p-4">
           <h2 className="font-medium">{t("credits.title")}</h2>
           <p className="text-2xl font-semibold tabular-nums">
             {formatter.number(formatCreditsForDisplay(detail.totalCredits))}
@@ -280,7 +280,7 @@ export function OrganizationDetailPanel({
             aria-busy={isPending}
           >
             <Table>
-              <TableHeader className="bg-muted/50">
+              <TableHeader className="bg-card-background">
                 <TableRow>
                   <TableHead className="pl-4">{t("members.user")}</TableHead>
                   <TableHead>{t("members.role")}</TableHead>

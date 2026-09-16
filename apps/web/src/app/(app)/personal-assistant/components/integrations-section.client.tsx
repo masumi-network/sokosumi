@@ -229,10 +229,10 @@ function Tile({
       className={cn(
         "group focus-visible:ring-ring relative flex h-full w-full flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60",
         broken
-          ? "border-semantic-destructive/40 bg-semantic-destructive/5 hover:bg-semantic-destructive/10"
+          ? "border-semantic-destructive-tertiary bg-semantic-destructive-quinary hover:bg-semantic-destructive-quaternary"
           : active
-            ? "border-primary/30 bg-primary/5 hover:bg-primary/10"
-            : "hover:border-primary/40 hover:bg-primary/5",
+            ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
+            : "hover:border-primary-tertiary hover:bg-primary-quinary",
       )}
     >
       <StatusDot
@@ -242,7 +242,7 @@ function Tile({
       {logoUrl ? (
         <img src={logoUrl} alt="" className="size-8 rounded object-contain" />
       ) : (
-        <span className="bg-primary/10 text-primary inline-flex size-8 items-center justify-center rounded text-sm font-medium">
+        <span className="bg-primary-quinary text-primary inline-flex size-8 items-center justify-center rounded text-sm font-medium">
           {name.slice(0, 1).toUpperCase()}
         </span>
       )}

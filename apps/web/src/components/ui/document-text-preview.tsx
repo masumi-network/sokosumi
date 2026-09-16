@@ -17,11 +17,11 @@ export function DocumentTextPreview({
   content: string;
 }) {
   return (
-    <div className="bg-muted/40 h-full w-full overflow-y-auto p-4 md:p-6">
-      <article className="bg-background border-border/70 mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
+    <div className="bg-card-background h-full w-full overflow-y-auto p-4 md:p-6">
+      <article className="bg-background border-border mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
         {/* Document letterhead */}
-        <div className="border-border/60 flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
-          <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
+        <div className="border-border flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
+          <span className="bg-primary-quinary text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
             <FileText className="size-4" aria-hidden />
           </span>
           <p className="text-foreground truncate text-sm font-medium">
@@ -34,8 +34,8 @@ export function DocumentTextPreview({
             className={cn(
               "prose-h2:text-xl prose-h2:mb-3 prose-h2:tracking-tight",
               "prose-h3:text-foreground prose-h3:mt-7 prose-h3:mb-2 prose-h3:text-base",
-              "prose-p:text-foreground/90 prose-p:text-[0.9375rem] prose-p:leading-7",
-              "prose-li:text-foreground/90 prose-li:my-1.5 prose-li:text-[0.9375rem] prose-li:leading-7",
+              "prose-p:text-foreground prose-p:text-[0.9375rem] prose-p:leading-7",
+              "prose-li:text-foreground prose-li:my-1.5 prose-li:text-[0.9375rem] prose-li:leading-7",
               "prose-ul:my-3 prose-ol:my-3 prose-strong:text-foreground",
             )}
           >

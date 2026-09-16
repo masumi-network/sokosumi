@@ -261,7 +261,7 @@ export function InvoiceList({ initialInvoices }: InvoiceListProps) {
           aria-busy={isPending}
         >
           <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="bg-card-background">
               <TableRow>
                 <TableHead className="pl-4">{t("recipient")}</TableHead>
                 <TableHead className="text-right">{t("credits")}</TableHead>

@@ -33,7 +33,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
       : rating.comment;
 
   return (
-    <div className="bg-muted/20 border-border/50 rounded-lg border px-3 py-3">
+    <div className="bg-card-background border-border rounded-lg border px-3 py-3">
       <div className="flex items-start gap-4">
         <Avatar className="size-6 shrink-0 self-start">
           <AvatarImage src={rating.user.image ?? undefined} />
@@ -46,7 +46,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
             <span className="text-sm font-medium">{rating.user.name}</span>
             <TimeAgo
               date={rating.createdAt}
-              className="text-muted-foreground/40 text-xs whitespace-nowrap"
+              className="text-muted-foreground text-xs whitespace-nowrap"
             />
           </div>
           <div className="mt-1">
@@ -55,7 +55,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
           {rating.comment ? (
             <div className="mt-2">
               <p
-                className="text-foreground/70 text-sm"
+                className="text-foreground text-sm"
                 style={{
                   wordBreak: "break-all",
                   overflowWrap: "anywhere",

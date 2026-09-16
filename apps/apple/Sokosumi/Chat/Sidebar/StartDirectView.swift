@@ -22,7 +22,7 @@ struct StartDirectView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       VStack(alignment: .leading, spacing: 4) {
-        Text("Start Direct").font(.title2).fontWeight(.semibold)
+        Text("New chat").font(.title2).fontWeight(.semibold)
         Text("Choose people or an AI coworker to start a conversation.")
           .foregroundStyle(.secondary)
       }
@@ -73,7 +73,7 @@ struct StartDirectView: View {
             if picker.creating {
               ProgressView().controlSize(.small)
             }
-            Text(picker.creating ? "Opening…" : "Start Direct")
+            Text(picker.creating ? "Opening…" : "New chat")
           }
         }
         .keyboardShortcut(.defaultAction)
@@ -94,6 +94,14 @@ struct StartDirectView: View {
       if await picker.create(using: open) {
         dismiss()
       }
+    }
+  }
+
+  private func sectionTitle(_ kind: DirectRecipientSection.Kind) -> LocalizedStringKey {
+    switch kind {
+    case .coworkers: "AI coworkers"
+    case .people: "People"
+    case .assistant: "Personal assistant"
     }
   }
 
@@ -133,26 +141,34 @@ struct StartDirectView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
           ScrollViewReader { proxy in
-            List(picker.candidates) { target in
-              HStack {
-                DirectRecipientRow(target: target, disabledReason: picker.selection.disabledReason(for: target.id)) {
-                  picker.add(target)
-                  searchFocused = true
+            List {
+              ForEach(picker.sections) { section in
+                Section {
+                  ForEach(section.targets) { target in
+                    HStack {
+                      DirectRecipientRow(target: target, disabledReason: picker.selection.disabledReason(for: target.id)) {
+                        picker.add(target)
+                        searchFocused = true
+                      }
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
+                  }
+                } header: {
+                  Text(sectionTitle(section.id)).id(section.id)
                 }
               }
-              .listRowSeparator(.hidden)
-              .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
             }
             .listStyle(.plain)
             .contentMargins(0, for: .scrollContent)
             .disabled(picker.creating)
             .onChange(of: picker.selection) { _, _ in
-              if let first = picker.candidates.first {
+              if let first = picker.sections.first {
                 proxy.scrollTo(first.id, anchor: .top)
               }
             }
             .onChange(of: picker.query) { _, _ in
-              if let first = picker.candidates.first {
+              if let first = picker.sections.first {
                 proxy.scrollTo(first.id, anchor: .top)
               }
             }
@@ -208,7 +224,7 @@ private struct DirectRecipientRow: View {
   }
 }
 
-#Preview("Start Direct") {
+#Preview("New chat") {
   StartDirectView(hasOrganization: true, load: {
     .init(targets: [
       .init(id: .human("one"), name: "Alexandra Long Recipient Name", detail: "alexandra@example.com"),

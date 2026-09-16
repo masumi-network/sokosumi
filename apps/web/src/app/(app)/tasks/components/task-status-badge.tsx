@@ -1,20 +1,9 @@
 import {
-  Circle,
-  CircleAlert,
-  CircleCheck,
-  CircleDashed,
-  CircleDollarSign,
-  CircleDotDashed,
-  CircleEllipsis,
-  CircleFadingPlus,
-  CirclePause,
-  CirclePlay,
-  CircleQuestionMark,
-  CircleUserRound,
-  CircleX,
-  type LucideIcon,
-  OctagonAlert,
-} from "lucide-react";
+  MARKER_ICONS,
+  STATUS_ROLE_STYLES,
+  StatusMarker,
+  type StatusMarkerSpec,
+} from "@/components/ui/status-marker";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
@@ -36,124 +25,64 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.CANCELED]: "Canceled",
 };
 
-const STATUS_PILL_STYLES: Partial<
-  Record<TaskStatus, { bg: string; text: string; dot: string }>
-> = {
-  [TaskStatus.DRAFT]: {
-    bg: "bg-muted",
-    text: "text-muted-foreground",
-    dot: "bg-gray-400",
-  },
-  [TaskStatus.QUEUED]: {
-    bg: "bg-primary/10",
-    text: "text-primary",
-    dot: "bg-primary",
-  },
-  [TaskStatus.READY]: {
-    bg: "bg-blue-500/10",
-    text: "text-blue-600 dark:text-blue-400",
-    dot: "bg-blue-500",
-  },
-  [TaskStatus.INPUT_REQUIRED]: {
-    bg: "bg-destructive/10",
-    text: "text-destructive",
-    dot: "bg-orange-500",
-  },
+/**
+ * One role per status for colour, one glyph per status for identity. The role
+ * table and the glyph vocabulary live in `status-marker.tsx`, so the job,
+ * file and risk badges say the same thing the same way.
+ */
+const TASK_STATUS_MARKERS: Record<TaskStatus, StatusMarkerSpec> = {
+  [TaskStatus.DRAFT]: { role: "inert", icon: MARKER_ICONS.draft },
+  [TaskStatus.QUEUED]: { role: "working", icon: MARKER_ICONS.queued },
+  [TaskStatus.READY]: { role: "working", icon: MARKER_ICONS.ready },
+  [TaskStatus.GRANT_PENDING]: { role: "external", icon: MARKER_ICONS.grant },
+  [TaskStatus.INPUT_REQUIRED]: { role: "action", icon: MARKER_ICONS.input },
   [TaskStatus.APPROVAL_REQUIRED]: {
-    bg: "bg-amber-500/10",
-    text: "text-amber-600 dark:text-amber-400",
-    dot: "bg-amber-500",
-  },
-  [TaskStatus.GRANT_PENDING]: {
-    bg: "bg-amber-500/10",
-    text: "text-amber-600 dark:text-amber-400",
-    dot: "bg-amber-500",
+    role: "action",
+    icon: MARKER_ICONS.approval,
   },
   [TaskStatus.AUTHENTICATION_REQUIRED]: {
-    bg: "bg-purple-500/10",
-    text: "text-purple-600 dark:text-purple-400",
-    dot: "bg-purple-500",
+    role: "action",
+    icon: MARKER_ICONS.auth,
   },
   [TaskStatus.OUT_OF_CREDITS]: {
-    bg: "bg-destructive/10",
-    text: "text-destructive",
-    dot: "bg-rose-500",
+    role: "action",
+    icon: MARKER_ICONS.credits,
   },
   [TaskStatus.CREDITS_TOPPED_UP]: {
-    bg: "bg-cyan-500/10",
-    text: "text-cyan-600 dark:text-cyan-400",
-    dot: "bg-cyan-500",
+    role: "working",
+    icon: MARKER_ICONS.toppedUp,
   },
   [TaskStatus.RUNNING]: {
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-600 dark:text-emerald-400",
-    dot: "bg-emerald-500",
+    role: "working",
+    icon: MARKER_ICONS.running,
+    spin: true,
   },
   [TaskStatus.AWAITING_EXTERNAL]: {
-    bg: "bg-sky-500/10",
-    text: "text-sky-600 dark:text-sky-400",
-    dot: "bg-sky-500",
+    role: "external",
+    icon: MARKER_ICONS.awaiting,
   },
-  [TaskStatus.COMPLETED]: {
-    bg: "bg-stone-500/10",
-    text: "text-stone-600 dark:text-stone-400",
-    dot: "bg-stone-500",
-  },
-  [TaskStatus.FAILED]: {
-    bg: "bg-destructive/10",
-    text: "text-destructive",
-    dot: "bg-red-500",
-  },
-  [TaskStatus.CANCELED]: {
-    bg: "bg-muted",
-    text: "text-muted-foreground",
-    dot: "bg-muted-foreground",
-  },
+  [TaskStatus.COMPLETED]: { role: "success", icon: MARKER_ICONS.completed },
+  [TaskStatus.FAILED]: { role: "failure", icon: MARKER_ICONS.failed },
+  [TaskStatus.CANCELED]: { role: "inert", icon: MARKER_ICONS.canceled },
 };
 
-/** One glyph per status so the picker and badges can be read without color. */
-const STATUS_ICONS: Record<TaskStatus, LucideIcon> = {
-  [TaskStatus.DRAFT]: CircleDashed,
-  [TaskStatus.QUEUED]: CircleDotDashed,
-  [TaskStatus.READY]: Circle,
-  [TaskStatus.GRANT_PENDING]: CirclePause,
-  [TaskStatus.INPUT_REQUIRED]: CircleQuestionMark,
-  [TaskStatus.APPROVAL_REQUIRED]: CircleAlert,
-  [TaskStatus.AUTHENTICATION_REQUIRED]: CircleUserRound,
-  [TaskStatus.OUT_OF_CREDITS]: CircleDollarSign,
-  [TaskStatus.CREDITS_TOPPED_UP]: CircleFadingPlus,
-  [TaskStatus.RUNNING]: CirclePlay,
-  [TaskStatus.AWAITING_EXTERNAL]: CircleEllipsis,
-  [TaskStatus.COMPLETED]: CircleCheck,
-  [TaskStatus.FAILED]: OctagonAlert,
-  [TaskStatus.CANCELED]: CircleX,
+const DEFAULT_MARKER: StatusMarkerSpec = {
+  role: "inert",
+  icon: MARKER_ICONS.queued,
 };
 
-export function getTaskStatusIcon(status: TaskStatus): LucideIcon {
-  return STATUS_ICONS[status];
+export function getTaskStatusMarker(status: TaskStatus): StatusMarkerSpec {
+  return TASK_STATUS_MARKERS[status] ?? DEFAULT_MARKER;
 }
 
-export function getTaskStatusPillTone(status: TaskStatus): {
-  bg: string;
-  text: string;
-  dot: string;
-} {
-  return (
-    STATUS_PILL_STYLES[status] ?? {
-      bg: "bg-muted",
-      text: "text-muted-foreground",
-      dot: "bg-muted-foreground",
-    }
-  );
-}
-
+/** Kept for callers that paint a bare dot outside a badge. */
 export function getTaskStatusDotColorClass(status: TaskStatus): string {
-  return getTaskStatusPillTone(status).dot;
+  return STATUS_ROLE_STYLES[getTaskStatusMarker(status).role].dot;
 }
 
 export function getTaskStatusBorderColorClass(status: TaskStatus): string {
   if (status === TaskStatus.COMPLETED) {
-    return "border-stone-500/30";
+    return "border-semantic-success-tertiary";
   }
 
   return "border-border";
@@ -163,28 +92,11 @@ function getTaskStatusLabel(status: TaskStatus): string {
   return STATUS_LABELS[status] ?? "Unknown";
 }
 
-function shouldShowWarningIcon(status: TaskStatus): boolean {
-  return (
-    status === TaskStatus.INPUT_REQUIRED ||
-    status === TaskStatus.APPROVAL_REQUIRED ||
-    status === TaskStatus.OUT_OF_CREDITS
-  );
-}
-
-function shouldShowStatusDot(showDot: boolean | undefined): boolean {
-  return showDot === true;
-}
-
-function getBadgeShapeClasses(): string {
-  return "rounded-sm py-1";
-}
-
 interface TaskStatusBadgeProps {
   status: TaskStatus;
   /** When set, overrides the default English label (e.g. from next-intl). */
   label?: string;
   className?: string;
-  showDot?: boolean;
   showLabel?: boolean;
 }
 
@@ -192,35 +104,20 @@ export function TaskStatusBadge({
   status,
   label,
   className,
-  showDot,
   showLabel = true,
 }: TaskStatusBadgeProps) {
-  const styles = getTaskStatusPillTone(status);
-  const showIcon = shouldShowWarningIcon(status);
-  const showStatusDot = shouldShowStatusDot(showDot);
+  const marker = getTaskStatusMarker(status);
 
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium",
-        getBadgeShapeClasses(),
-        styles.bg,
-        styles.text,
+        "inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
+        STATUS_ROLE_STYLES[marker.role].bg,
+        STATUS_ROLE_STYLES[marker.role].text,
         className,
       )}
     >
-      {showStatusDot && !showIcon ? (
-        <span
-          className={cn("size-1.5 shrink-0 rounded-full", styles.dot)}
-          aria-hidden
-        />
-      ) : null}
-      {showIcon ? (
-        <CircleAlert
-          className={cn("size-3 shrink-0", styles.text)}
-          aria-hidden
-        />
-      ) : null}
+      <StatusMarker spec={marker} />
       {showLabel && <span>{label ?? getTaskStatusLabel(status)}</span>}
     </span>
   );
