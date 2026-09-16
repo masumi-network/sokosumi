@@ -267,3 +267,60 @@ test("coworkers update omits an empty name", async () => {
   assert.equal("name" in (body ?? {}), false);
   assert.equal(body?.description, "kept");
 });
+
+test("coworkers api-key text output masks the token", async () => {
+  const output: string[] = [];
+  await runCoworkersCommand({
+    client: clientWith({
+      data: { id: "key-1", name: "ci", token: "soko_secret_value" },
+    }),
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "api-key",
+    positionalId: "cw-1",
+    options: { name: "ci" },
+  });
+  const text = output.join("");
+  assert.doesNotMatch(text, /soko_secret_value/);
+  assert.match(text, /soko_sec\.\.alue/);
+});
+
+test("coworkers register --create-api-key mints and returns the key", async () => {
+  const calls: { path: string; body: unknown }[] = [];
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: {} }) as T,
+    post: async <T>(path: string, body: unknown) => {
+      calls.push({ path, body });
+      if (path.endsWith("/api-keys"))
+        return {
+          data: { id: "key-1", name: "deploy", token: "soko_secret_value" },
+        } as T;
+      return {
+        data: { id: "cw-1", name: "Ops", capabilities: ["tasks"] },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+  const output: string[] = [];
+  await runCoworkersCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "register",
+    options: {
+      name: "Ops",
+      "vendor-id": "vendor-1",
+      "create-api-key": true,
+      "api-key-name": "deploy",
+    },
+  });
+  assert.equal(calls[0]?.path, "/v1/coworkers");
+  assert.equal(calls[1]?.path, "/v1/coworkers/cw-1/api-keys");
+  const keyBody = calls[1]?.body;
+  if (!keyBody || typeof keyBody !== "object" || !("name" in keyBody))
+    throw new Error("api-key request body missing name");
+  assert.equal(keyBody.name, "deploy");
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.coworker.id, "cw-1");
+  assert.equal(parsed.apiKey.token, "soko_secret_value");
+});
