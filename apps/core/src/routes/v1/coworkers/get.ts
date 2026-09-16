@@ -50,30 +50,32 @@ const querySchema = z.object({
   capability: capabilityQuerySchema,
 });
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: "List available coworkers",
-  tags: ["Coworkers"],
-  request: {
-    query: querySchema,
-  },
-  responses: {
-    200: jsonSuccessResponse(z.array(coworkerSchema), "Retrieve coworkers", {
-      data: [],
-      meta: {
-        timestamp: "2025-01-01T00:00:00.000Z",
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-      },
-    }),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+const route = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: "List available coworkers",
+    tags: ["Coworkers"],
+    request: {
+      query: querySchema,
+    },
+    responses: {
+      200: jsonSuccessResponse(z.array(coworkerSchema), "Retrieve coworkers", {
+        data: [],
+        meta: {
+          timestamp: "2025-01-01T00:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+      }),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(withOrganizationSlugHeaderParameter(route), async (c) => {
+  app.openapi(route, async (c) => {
     const { scope, capability } = c.req.valid("query");
     const { authContext } = c.var;
 

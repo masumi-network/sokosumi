@@ -340,7 +340,8 @@ export const sokoBotActivitySchema = z
 
 export const sokoBotStateSchema = z
   .object({
-    // Keep nullability local without a standalone null schema in generated clients.
+    // hey-api supports a named-schema union with null, but Swift codegen drops it.
+    // Inline the nullable object to keep the named SokoBot schema non-nullable.
     sokoBot: z.object(sokoBotSchema.shape).nullable(),
   })
   .openapi("SokoBotState");

@@ -136,6 +136,9 @@ describe("sokoBotStateSchema", () => {
           },
         },
       });
+      expect(doc.components?.schemas?.SokoBotState).not.toHaveProperty(
+        "properties.sokoBot.anyOf",
+      );
       expect(sokoBotSchema.safeParse(null).success).toBe(false);
     },
   );
