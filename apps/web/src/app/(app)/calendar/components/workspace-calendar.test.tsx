@@ -828,7 +828,11 @@ describe("WorkspaceCalendar", () => {
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
 
-  it("shows Load More when pagination.nextCursor changes on the same items reference", () => {
+  it("fetches the next page when pagination.nextCursor changes on the same items reference", async () => {
+    getWorkspaceCalendarMock.mockResolvedValue({
+      data: [],
+      meta: { pagination: { nextCursor: null } },
+    });
     const { rerender } = render(
       <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
         <WorkspaceCalendar
@@ -836,13 +840,12 @@ describe("WorkspaceCalendar", () => {
           initialDate="2026-08-18"
           sources={SOURCES}
           pagination={{ limit: 100, nextCursor: null }}
+          range={CALENDAR_PAGE.range}
         />
       </NuqsTestingAdapter>,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "pagination.loadMore" }),
-    ).not.toBeInTheDocument();
+    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
 
     // Same `items` reference, but a fresh `pagination` object reporting more
     // pages are now available — the render-time guard must react to this
@@ -854,17 +857,19 @@ describe("WorkspaceCalendar", () => {
           initialDate="2026-08-18"
           sources={SOURCES}
           pagination={{ limit: 100, nextCursor: "cursor-2" }}
+          range={CALENDAR_PAGE.range}
         />
       </NuqsTestingAdapter>,
     );
 
-    expect(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: "cursor-2" }),
+      ),
+    );
   });
 
-  it("loads and renders the next calendar page", async () => {
-    const user = userEvent.setup();
+  it("loads and renders the next calendar page without being asked", async () => {
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [
         {
@@ -894,10 +899,6 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    );
-
     expect(
       await screen.findAllByRole("button", { name: /Publish release notes/ }),
     ).toHaveLength(1);
@@ -914,7 +915,6 @@ describe("WorkspaceCalendar", () => {
   });
 
   it("loads more Project Calendar items through the Project endpoint", async () => {
-    const user = userEvent.setup();
     getProjectCalendarMock.mockResolvedValue({
       data: [],
       meta: { pagination: { nextCursor: null } },
@@ -931,19 +931,17 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
+    await waitFor(() =>
+      expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
+        from: new Date("2026-08-01T00:00:00.000Z"),
+        to: new Date("2026-09-01T00:00:00.000Z"),
+        cursor: "cursor-2",
+        limit: 100,
+        scope: "owned",
+        assigneeId: "coworker-1",
+        status: "QUEUED",
+      }),
     );
-
-    expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
-      from: new Date("2026-08-01T00:00:00.000Z"),
-      to: new Date("2026-09-01T00:00:00.000Z"),
-      cursor: "cursor-2",
-      limit: 100,
-      scope: "owned",
-      assigneeId: "coworker-1",
-      status: "QUEUED",
-    });
   });
 
   it("shows an empty state after filters exclude all calendar items", () => {

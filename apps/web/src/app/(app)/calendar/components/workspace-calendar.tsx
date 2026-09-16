@@ -39,7 +39,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
@@ -844,8 +844,13 @@ export function WorkspaceCalendar({
   const [state, setState] = useQueryStates(calendarParsers);
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  // The page already requested, keyed on the server items too so a refreshed
+  // server page that reuses a cursor string drains again.
+  const requestedPageRef = useRef<{
+    cursor: string;
+    items: WorkspaceCalendarItem[];
+  } | null>(null);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
   const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
@@ -868,6 +873,7 @@ export function WorkspaceCalendar({
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
+    setLoadMoreError(false);
   }
 
   useMountEffect(() => {
@@ -1099,13 +1105,11 @@ export function WorkspaceCalendar({
     }
   }
 
-  async function handleLoadMore() {
+  async function loadNextPage() {
     if (!nextCursor || !range) {
       return;
     }
 
-    setIsLoadingMore(true);
-    setLoadMoreError(false);
     try {
       const query = {
         from: range.from,
@@ -1134,10 +1138,23 @@ export function WorkspaceCalendar({
       setNextCursor(result.meta?.pagination?.nextCursor ?? null);
     } catch {
       setLoadMoreError(true);
-    } finally {
-      setIsLoadingMore(false);
     }
   }
+
+  // A calendar cannot show "load more": a day holding three of its five
+  // events looks complete. Drain the remaining pages as soon as one appears.
+  useEffect(() => {
+    const requested = requestedPageRef.current;
+    if (
+      !nextCursor ||
+      loadMoreError ||
+      (requested?.cursor === nextCursor && requested.items === items)
+    ) {
+      return;
+    }
+    requestedPageRef.current = { cursor: nextCursor, items };
+    void loadNextPage();
+  }, [items, nextCursor, loadMoreError, loadNextPage]);
 
   const filterSections: FilterDropdownMenuSection[] = [
     ...(activeOrganizationId
@@ -1343,21 +1360,10 @@ export function WorkspaceCalendar({
           {t("edit.loadError")}
         </p>
       ) : null}
-      {nextCursor ? (
-        <div className="flex flex-col items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleLoadMore}
-            disabled={isLoadingMore || !range}
-          >
-            {isLoadingMore ? t("pagination.loading") : t("pagination.loadMore")}
-          </Button>
-          {loadMoreError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {t("pagination.error")}
-            </p>
-          ) : null}
-        </div>
+      {loadMoreError ? (
+        <p className="text-destructive text-sm" role="alert">
+          {t("pagination.error")}
+        </p>
       ) : null}
       {editState ? (
         <CalendarEditDialog
