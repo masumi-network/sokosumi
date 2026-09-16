@@ -19,7 +19,7 @@ struct RoomDetailsView: View {
         Text("Members").font(.headline)
         Spacer()
         Button("Close", systemImage: "xmark", action: close)
-          .labelStyle(.iconOnly).buttonStyle(.borderless)
+          .labelStyle(.iconOnly).buttonStyle(.borderless).help("Close members")
       }.padding()
       List {
         if room.kind == .channel {
@@ -31,7 +31,7 @@ struct RoomDetailsView: View {
             }
           }
         }
-        Section("Members") {
+        Section {
           let members = RoomRoster.members(in: room)
           if members.isEmpty {
             Text("No members.").foregroundStyle(.secondary)
