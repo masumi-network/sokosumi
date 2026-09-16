@@ -24,7 +24,7 @@ const {
   prismaMock,
   quarantineFindUniqueMock,
   requireAssignedOrganizationSeatMock,
-  requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccessMock,
   retireTaskScheduleFutureOccurrencesMock,
   serializableTransactionMock,
   taskEventCreateMock,
@@ -41,7 +41,7 @@ const {
     prismaMock: { member: { findFirst: memberFindFirstMock } },
     quarantineFindUniqueMock: vi.fn(),
     requireAssignedOrganizationSeatMock: vi.fn(),
-    requireTaskCollaborationMock: vi.fn(),
+    requireTaskScheduleWriteAccessMock: vi.fn(),
     retireTaskScheduleFutureOccurrencesMock: vi.fn(),
     serializableTransactionMock: vi.fn(),
     taskEventCreateMock: vi.fn(),
@@ -52,7 +52,7 @@ const {
 });
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccess: requireTaskScheduleWriteAccessMock,
 }));
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
@@ -128,7 +128,7 @@ function mockCurrentTask(
   metadata: string,
   overrides: Record<string, unknown> = {},
 ) {
-  requireTaskCollaborationMock.mockResolvedValue({
+  requireTaskScheduleWriteAccessMock.mockResolvedValue({
     id: TASK_ID,
     status: TaskStatus.QUEUED,
     assigneeId: "coworker-1",
@@ -344,7 +344,7 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(requireTaskScheduleWriteAccessMock).not.toHaveBeenCalled();
   });
 
   it("updates for a standalone coworker agent without Calendar beta or organization seat", async () => {

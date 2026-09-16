@@ -22,14 +22,11 @@ interface CoworkerAccessNotificationActionsProps {
     "id" | "messageKey" | "referenceId" | "metadata" | "isRead"
   >;
   layout: "toast" | "inline";
-  /** Called after accept succeeds so parent lists can drop the row. */
-  onAccepted?: () => void;
 }
 
 export function CoworkerAccessNotificationActions({
   notification,
   layout,
-  onAccepted,
 }: CoworkerAccessNotificationActionsProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { removeNotification } = useNotifications();
@@ -72,7 +69,6 @@ export function CoworkerAccessNotificationActions({
 
       setAccepted(true);
       removeNotification(notification.id);
-      onAccepted?.();
       toast.success(t("coworkerAccessAcceptSuccess"));
     } catch {
       toast.error(t("coworkerAccessAcceptError"));

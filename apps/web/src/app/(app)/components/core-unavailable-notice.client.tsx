@@ -23,7 +23,7 @@ export function CoreUnavailableNotice() {
   const t = useTranslations("App.Error");
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-4xl items-center justify-center px-4 py-6">
+    <div className="mx-auto flex min-h-[80dvh] max-w-4xl items-center justify-center px-4 py-6">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{t("unavailableTitle")}</CardTitle>

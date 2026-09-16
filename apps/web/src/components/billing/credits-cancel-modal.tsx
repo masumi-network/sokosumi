@@ -34,8 +34,8 @@ function CreditsCancelModalInner() {
       <DialogContent className="w-svw max-w-xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
-        <ScrollArea className="max-h-svh md:max-h-[90svh]">
-          <CancelCard className="bg-background flex min-h-svh w-svw flex-col rounded-none p-2 md:min-h-auto md:w-auto md:rounded-xl md:p-4" />
+        <ScrollArea className="max-h-dvh md:max-h-[90dvh]">
+          <CancelCard className="bg-background flex min-h-dvh w-svw flex-col rounded-none p-2 md:min-h-auto md:w-auto md:rounded-xl md:p-4" />
         </ScrollArea>
       </DialogContent>
     </Dialog>

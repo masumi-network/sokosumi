@@ -1378,7 +1378,7 @@ export function TasksView({
         value="tasks"
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-4",
-          viewMode === "board" ? "max-h-[calc(100vh-150px)]" : "max-h-full",
+          viewMode === "board" ? "max-h-[calc(100dvh-150px)]" : "max-h-full",
         )}
       >
         <div className="flex min-h-0 flex-1 flex-col gap-4">

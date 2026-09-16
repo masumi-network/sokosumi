@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, hasActiveTaskSchedule } from "@sokosumi/utils";
 
-import { requireTaskCollaboration } from "@/helpers/access-control";
+import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -94,7 +94,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       taskId: id,
     });
 
-    const existingTask = await requireTaskCollaboration(
+    const existingTask = await requireTaskScheduleWriteAccess(
       authContext,
       id,
       prisma,
@@ -110,7 +110,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Task changed during schedule removal");
       }
 
-      const currentTask = await requireTaskCollaboration(authContext, id, tx);
+      const currentTask = await requireTaskScheduleWriteAccess(
+        authContext,
+        id,
+        tx,
+      );
       if (
         currentTask.workspaceId !== existingTask.workspaceId ||
         currentTask.projectId !== existingTask.projectId

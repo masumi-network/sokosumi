@@ -13,7 +13,7 @@ const nextErrorLayoutStyles = {
   error: {
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: "100vh",
+    height: "100dvh",
     textAlign: "center" as const,
     display: "flex",
     flexDirection: "column" as const,

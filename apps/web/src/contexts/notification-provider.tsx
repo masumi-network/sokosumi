@@ -19,30 +19,32 @@ import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-noti
 import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import { createNotificationReadQueue } from "./notification-read-queue";
 import {
-  NOTIFICATION_LIST_LIMIT,
+  NOTIFICATION_PAGE_SIZE,
   type NotificationAction,
   type NotificationState,
   notificationReducer,
 } from "./notification-state";
 
-export type NotificationDeletionEvent = {
-  operationId: number;
-  phase: "start" | "success" | "failure";
-} & ({ kind: "delete"; id: string } | { kind: "clear" });
+/**
+ * Where the next page of older rows stands.
+ *
+ * `failed` is a stop, not a retry loop: the boundary row keeps the failure on
+ * screen and waits for the reader rather than asking the server again.
+ */
+export type NotificationOlderStatus = "idle" | "loading" | "failed";
 
-type NotificationDeletionListener = (event: NotificationDeletionEvent) => void;
-
-interface PendingDeletion {
-  event: NotificationDeletionEvent;
-  coveredByClear?: boolean;
-  isRead?: boolean;
-  initialIds?: Set<string>;
-  createdIds?: Set<string>;
-  newerState?: NotificationState;
+/**
+ * Whether Core refused a page because the row it starts from is not in the
+ * feed any more. The limit is fixed, so the cursor is the only thing in an
+ * older-page request that can be bad.
+ */
+function isRejectedCursor(error: unknown): boolean {
+  return error instanceof CoreApiRequestError && error.status === 400;
 }
 
 function dismissNotificationToast(notificationId: string) {
@@ -69,19 +71,16 @@ interface NotificationContextValue {
   markUnread: (id: string) => Promise<void>;
   /** Mark several rows read in one write, for a surface the reader has seen. */
   markAllRead: () => Promise<void>;
-  /** Delete one notification for good, in Core and in local feed state. */
-  deleteNotification: (
-    id: string,
-    options?: { isRead: boolean },
-  ) => Promise<void>;
-  /** Delete every notification-center row for good, in Core and locally. */
-  clearNotifications: () => Promise<void>;
-  subscribeToDeletion: (listener: NotificationDeletionListener) => () => void;
   /** Drop a notification from local feed state (e.g. resolved vendor grant). */
   removeNotification: (id: string) => void;
   refetch: () => Promise<void>;
   isLoading: boolean;
   hasFetchError: boolean;
+  /** Whether Core holds rows older than the ones loaded here. */
+  hasMore: boolean;
+  olderStatus: NotificationOlderStatus;
+  /** Ask for the page of rows older than the oldest one loaded. */
+  loadOlder: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(
@@ -108,13 +107,13 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   markRead: noopAsync,
   markUnread: noopAsync,
   markAllRead: noopAsync,
-  deleteNotification: noopAsync,
-  clearNotifications: noopAsync,
-  subscribeToDeletion: () => () => {},
   removeNotification: noopRemove,
   refetch: noopAsync,
   isLoading: true,
   hasFetchError: false,
+  hasMore: false,
+  olderStatus: "idle",
+  loadOlder: () => {},
 };
 
 interface NotificationFallbackProviderProps {
@@ -168,6 +167,11 @@ function NotificationRealtimeBridge({
  * Immediate path: reducer + REST fetch/mark-read + context + children.
  * Sibling island: LazyAbly → ChannelProvider → realtime bridge + toast listener
  * that dispatch into the same reducer. Children never wait on Ably.
+ *
+ * One state owner for the whole Notification Center: the header panel and the
+ * notifications page render the same rows, in the same order, from here. A
+ * second list that fetched for itself would answer the same questions twice
+ * and could answer them differently.
  */
 export function NotificationProvider({
   userId,
@@ -192,117 +196,41 @@ export function NotificationProvider({
   });
   const confirmedState = useRef(state);
   const readQueue = useRef(createNotificationReadQueue());
-  const pendingDeletions = useRef(new Map<number, PendingDeletion>());
-  const deletionListeners = useRef(new Set<NotificationDeletionListener>());
-  const nextDeletionId = useRef(0);
-  const deletedIds = useRef(new Set<string>());
-  const clearGeneration = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [olderStatus, setOlderStatus] =
+    useState<NotificationOlderStatus>("idle");
+  const olderInFlight = useRef(false);
+  // Where to page from when the oldest row loaded cannot say: a page that
+  // added nothing leaves that row where it was, and asking from it again
+  // would return the same page forever. Core's own cursor always moves on.
+  const olderCursorOverride = useRef<string | null>(null);
+  const rejectedCursorDropped = useRef(false);
   const fetchGenerationRef = useRef(0);
   const latestFetchGeneration = useRef(0);
   const latestReadGeneration = useRef(0);
+  // Bumped when a fetch lands, so an older page that took off before it
+  // cannot append under a list that fetch just started over.
+  const pagingGeneration = useRef(0);
   const realtimeDuringFetch = useRef(new Set<string>());
-  const refreshAfterDeletion = useRef(false);
 
-  const publishState = useCallback(() => {
-    const pendingClear = [...pendingDeletions.current.values()].find(
-      (pending) => pending.event.kind === "clear",
-    );
-    let visible = pendingClear?.newerState ?? confirmedState.current;
-    for (const pending of pendingDeletions.current.values()) {
-      const { event } = pending;
-      if (event.kind !== "delete" || pending.coveredByClear) continue;
-      if (pendingClear && !pendingClear.createdIds?.has(event.id)) continue;
-      const held = visible.notifications.some((row) => row.id === event.id);
-      visible = notificationReducer(visible, {
-        type: !held && pending.isRead === false ? "unread_deleted" : "remove",
-        id: event.id,
-      });
-    }
-    setState(visible);
-  }, []);
-
-  const dispatch = useCallback(
-    (action: NotificationAction) => {
-      if (
-        action.type === "mark_read_optimistic" ||
-        action.type === "mark_unread_optimistic" ||
-        action.type === "mark_all_read"
-      ) {
-        // A fetch started before this intent cannot restore its old read state.
-        latestReadGeneration.current = ++fetchGenerationRef.current;
-        setIsLoading(false);
-      }
-      for (const pending of pendingDeletions.current.values()) {
-        if (pending.event.kind !== "delete") continue;
-        const id = pending.event.id;
-        if (action.type === "mark_all_read") pending.isRead = true;
-        if (action.type === "mark_read_success" && action.id === id)
-          pending.isRead = action.updated.isRead;
-        if (
-          action.type === "mark_read_optimistic" &&
-          action.id === id &&
-          confirmedState.current.notifications.some((row) => row.id === id)
-        )
-          pending.isRead = true;
-        if (
-          action.type === "realtime" &&
-          action.notification.id === id &&
-          confirmedState.current.notifications.some((row) => row.id === id)
-        )
-          pending.isRead = action.notification.isRead;
-      }
-      confirmedState.current = notificationReducer(
-        confirmedState.current,
-        action,
-      );
-      for (const pending of pendingDeletions.current.values()) {
-        if (!pending.newerState || !pending.createdIds) continue;
-        if (action.type === "realtime") {
-          if (
-            action.created &&
-            !pending.initialIds?.has(action.notification.id)
-          )
-            pending.createdIds.add(action.notification.id);
-          if (!pending.createdIds.has(action.notification.id)) continue;
-        }
-        if (
-          (action.type === "mark_read_success" ||
-            action.type === "unread_deleted") &&
-          !pending.createdIds.has(action.id)
-        )
-          continue;
-        if (action.type === "fetch_success" || action.type === "clear_all")
-          continue;
-        pending.newerState = notificationReducer(pending.newerState, action);
-      }
-      publishState();
-    },
-    [publishState],
-  );
-
-  const subscribeToDeletion = useCallback(
-    (listener: NotificationDeletionListener) => {
-      deletionListeners.current.add(listener);
-      for (const pending of pendingDeletions.current.values())
-        listener(pending.event);
-      return () => {
-        deletionListeners.current.delete(listener);
-      };
-    },
-    [],
-  );
-
-  const emitDeletion = useCallback(
-    (event: NotificationDeletionEvent) => {
-      ++fetchGenerationRef.current;
+  const dispatch = useCallback((action: NotificationAction) => {
+    if (
+      action.type === "mark_read_optimistic" ||
+      action.type === "mark_unread_optimistic" ||
+      action.type === "mark_all_read"
+    ) {
+      // A fetch started before this intent cannot restore its old read state.
+      latestReadGeneration.current = ++fetchGenerationRef.current;
       setIsLoading(false);
-      publishState();
-      for (const listener of deletionListeners.current) listener(event);
-    },
-    [publishState],
-  );
+    }
+    confirmedState.current = notificationReducer(
+      confirmedState.current,
+      action,
+    );
+    setState(confirmedState.current);
+  }, []);
 
   const fetchNotifications = useCallback(async (): Promise<void> => {
     const generation = ++fetchGenerationRef.current;
@@ -316,10 +244,6 @@ export function NotificationProvider({
         void fetchNotifications();
       return;
     }
-    if (pendingDeletions.current.size) {
-      refreshAfterDeletion.current = true;
-      return;
-    }
     const realtimeIds = new Set<string>();
     realtimeDuringFetch.current = realtimeIds;
     setIsLoading(true);
@@ -327,7 +251,7 @@ export function NotificationProvider({
     try {
       const [listResponse, countResponse] = await Promise.all([
         notificationsBrowserClient.getNotifications({
-          limit: NOTIFICATION_LIST_LIMIT,
+          limit: NOTIFICATION_PAGE_SIZE,
         }),
         notificationsBrowserClient.getNotificationsUnreadCount(),
       ]);
@@ -349,12 +273,27 @@ export function NotificationProvider({
               row.id === notification.id && row.isRead !== notification.isRead,
           ),
       );
+      const nextCursor = listResponse.meta.pagination.nextCursor;
       dispatch({
         type: "fetch_success",
         fetched: listResponse.data,
         serverUnreadCount: countResponse.data.count,
         realtimeIds,
+        hasMore: nextCursor !== null,
       });
+      pagingGeneration.current += 1;
+      // A refresh reads the newest page only. When it reports nothing after
+      // it, the feed ends inside that page and the rows below went with it;
+      // otherwise there is more to reach, whether or not the reader has
+      // already paged past this point.
+      setHasMore(nextCursor !== null);
+      olderCursorOverride.current = null;
+      // A failed older page waits for the reader, whatever a refresh finds.
+      // Only a feed that now ends inside the first page makes it moot. An
+      // older page still in the air keeps its loading state until it lands
+      // and is dropped: going idle now would re-arm the boundary while that
+      // request still blocks a new one, and the boundary would not arm again.
+      if (nextCursor === null) setOlderStatus("idle");
       setHasFetchError(false);
       if (readStateChanged) void fetchNotifications();
     } catch (error) {
@@ -367,6 +306,67 @@ export function NotificationProvider({
         setIsLoading(false);
       }
     }
+  }, [dispatch]);
+
+  const loadOlder = useCallback(() => {
+    if (olderInFlight.current) return;
+    const oldest = confirmedState.current.notifications.at(-1);
+    const cursor = olderCursorOverride.current ?? oldest?.id;
+    if (!cursor) return;
+
+    olderInFlight.current = true;
+    setOlderStatus("loading");
+    const generation = pagingGeneration.current;
+
+    void (async () => {
+      try {
+        const response = await notificationsBrowserClient.getNotifications({
+          limit: NOTIFICATION_PAGE_SIZE,
+          cursor,
+        });
+        if (generation !== pagingGeneration.current) {
+          // The list this page was fetched for started over while it was in
+          // the air: more than a page of newer rows arrived, and applying
+          // these rows under the new first page would leave the ones
+          // between them out for good. The refresh already said whether
+          // there is more.
+          setOlderStatus("idle");
+          return;
+        }
+        dispatch({ type: "load_older_success", fetched: response.data });
+        const nextCursor = response.meta.pagination.nextCursor;
+        const movedOn =
+          confirmedState.current.notifications.at(-1)?.id !== oldest?.id;
+        olderCursorOverride.current = movedOn ? null : nextCursor;
+        rejectedCursorDropped.current = false;
+        setHasMore(nextCursor !== null);
+        setOlderStatus("idle");
+      } catch (error) {
+        if (generation !== pagingGeneration.current) {
+          setOlderStatus("idle");
+          return;
+        }
+        console.error("Failed to load older notifications:", error);
+        olderCursorOverride.current = null;
+        if (isRejectedCursor(error) && !rejectedCursorDropped.current) {
+          // The row the page started from has left the feed, which is how a
+          // request resolved in another tab goes. Drop it here too and page
+          // from the row above it. Once per attempt: a second refusal in a
+          // row waits for the reader, because draining the list one request
+          // at a time would be worse than asking.
+          rejectedCursorDropped.current = true;
+          dispatch({ type: "remove", id: cursor });
+          setOlderStatus("idle");
+        } else {
+          // Only the reader starts a load from here, and their retry may
+          // drop one more refused row.
+          rejectedCursorDropped.current = false;
+          setOlderStatus("failed");
+        }
+      } finally {
+        olderInFlight.current = false;
+      }
+    })();
   }, [dispatch]);
 
   const markAllRead = useCallback(async () => {
@@ -387,7 +387,9 @@ export function NotificationProvider({
 
   const markRead = useCallback(
     async (id: string) => {
-      const generation = clearGeneration.current;
+      const wasUnread = confirmedState.current.notifications.some(
+        (row) => row.id === id && !row.isRead,
+      );
       // Optimistic update paints before the network round-trip, which keeps
       // notification clicks from blocking Interaction to Next Paint.
       dispatch({ type: "mark_read_optimistic", id });
@@ -395,16 +397,18 @@ export function NotificationProvider({
 
       try {
         await readQueue.current.enqueue([id], async (isCurrent) => {
-          const response =
-            await notificationsBrowserClient.patchNotificationRead({ id });
+          const response = await notificationsBrowserClient
+            .patchNotificationRead({ id })
+            .catch((error: unknown) => {
+              // Back to the state the reader can see is true. The refetch
+              // below reconciles when Core is reachable; offline, this is
+              // the only thing that undoes the optimistic read.
+              if (wasUnread && isCurrent(id))
+                dispatch({ type: "mark_unread_optimistic", id });
+              throw error;
+            });
 
-          if (!isCurrent(id) || deletedIds.current.has(id)) return;
-          if (generation !== clearGeneration.current) {
-            // The row may have survived clear. Reconcile its read state without
-            // charging a deleted row's response against the new unread count.
-            void fetchNotifications();
-            return;
-          }
+          if (!isCurrent(id)) return;
           dispatch({
             type: "mark_read_success",
             id,
@@ -422,21 +426,24 @@ export function NotificationProvider({
 
   const markUnread = useCallback(
     async (id: string) => {
-      const generation = clearGeneration.current;
+      const wasRead = confirmedState.current.notifications.some(
+        (row) => row.id === id && row.isRead,
+      );
       // Optimistic, like the read path, so the row and the badge answer the
       // click before the round-trip.
       dispatch({ type: "mark_unread_optimistic", id });
 
       try {
         await readQueue.current.enqueue([id], async (isCurrent) => {
-          const response =
-            await notificationsBrowserClient.patchNotificationUnread({ id });
+          const response = await notificationsBrowserClient
+            .patchNotificationUnread({ id })
+            .catch((error: unknown) => {
+              if (wasRead && isCurrent(id))
+                dispatch({ type: "mark_read_optimistic", id });
+              throw error;
+            });
 
-          if (!isCurrent(id) || deletedIds.current.has(id)) return;
-          if (generation !== clearGeneration.current) {
-            void fetchNotifications();
-            return;
-          }
+          if (!isCurrent(id)) return;
           dispatch({
             type: "mark_unread_success",
             id,
@@ -452,119 +459,6 @@ export function NotificationProvider({
     [dispatch, fetchNotifications],
   );
 
-  const deleteNotification = useCallback(
-    async (id: string, options?: { isRead: boolean }) => {
-      if (
-        [...pendingDeletions.current.values()].some(
-          ({ event }) => event.kind === "delete" && event.id === id,
-        )
-      )
-        return;
-      const event: NotificationDeletionEvent = {
-        operationId: ++nextDeletionId.current,
-        phase: "start",
-        kind: "delete",
-        id,
-      };
-      const pending: PendingDeletion = {
-        event,
-        isRead:
-          confirmedState.current.notifications.find((row) => row.id === id)
-            ?.isRead ?? options?.isRead,
-      };
-      pendingDeletions.current.set(event.operationId, pending);
-      emitDeletion(event);
-      dismissNotificationToast(id);
-
-      try {
-        const response = await notificationsBrowserClient.deleteNotification({
-          id,
-        });
-        deletedIds.current.add(id);
-        pendingDeletions.current.delete(event.operationId);
-        if (!pending.coveredByClear) {
-          const held = confirmedState.current.notifications.some(
-            (notification) => notification.id === id,
-          );
-          dispatch({ type: "remove", id });
-          if (!held && !(pending.isRead ?? response.data.isRead))
-            dispatch({ type: "unread_deleted", id });
-        }
-        emitDeletion({ ...event, phase: "success" });
-      } catch (error) {
-        pendingDeletions.current.delete(event.operationId);
-        emitDeletion({ ...event, phase: "failure" });
-        console.error("Failed to delete notification:", error);
-        refreshAfterDeletion.current = true;
-        throw error;
-      } finally {
-        if (!pendingDeletions.current.size && refreshAfterDeletion.current) {
-          refreshAfterDeletion.current = false;
-          void fetchNotifications();
-        }
-      }
-    },
-    [dispatch, emitDeletion, fetchNotifications],
-  );
-
-  const clearNotifications = useCallback(async () => {
-    if (
-      [...pendingDeletions.current.values()].some(
-        ({ event }) => event.kind === "clear",
-      )
-    )
-      return;
-    const event: NotificationDeletionEvent = {
-      operationId: ++nextDeletionId.current,
-      phase: "start",
-      kind: "clear",
-    };
-    const pendingClear: PendingDeletion = {
-      event,
-      initialIds: new Set(
-        confirmedState.current.notifications.map(
-          (notification) => notification.id,
-        ),
-      ),
-      createdIds: new Set(),
-      newerState: { notifications: [], unreadCount: 0 },
-    };
-    pendingDeletions.current.set(event.operationId, pendingClear);
-    emitDeletion(event);
-    dismissAllNotificationToasts();
-
-    try {
-      await notificationsBrowserClient.deleteNotifications();
-      ++clearGeneration.current;
-      for (const id of pendingClear.initialIds ?? [])
-        deletedIds.current.add(id);
-      for (const pending of pendingDeletions.current.values()) {
-        if (
-          pending.event.kind === "delete" &&
-          !pendingClear.createdIds?.has(pending.event.id)
-        )
-          pending.coveredByClear = true;
-      }
-      confirmedState.current = pendingClear.newerState ?? {
-        notifications: [],
-        unreadCount: 0,
-      };
-      pendingDeletions.current.delete(event.operationId);
-      emitDeletion({ ...event, phase: "success" });
-    } catch (error) {
-      pendingDeletions.current.delete(event.operationId);
-      emitDeletion({ ...event, phase: "failure" });
-      console.error("Failed to clear notifications:", error);
-      throw error;
-    } finally {
-      refreshAfterDeletion.current = true;
-      if (!pendingDeletions.current.size) {
-        refreshAfterDeletion.current = false;
-        void fetchNotifications();
-      }
-    }
-  }, [dispatch, emitDeletion, fetchNotifications]);
-
   const removeNotification = useCallback(
     (id: string) => {
       dispatch({ type: "remove", id });
@@ -577,7 +471,7 @@ export function NotificationProvider({
     (notification: NotificationEventData) => {
       // Silenced in the app by the reader's preference matrix. It still arrives,
       // because an OS banner rides the same event.
-      if (!notification.inApp || deletedIds.current.has(notification.id)) {
+      if (!notification.inApp) {
         return;
       }
 
@@ -622,13 +516,13 @@ export function NotificationProvider({
     markRead,
     markUnread,
     markAllRead,
-    deleteNotification,
-    clearNotifications,
-    subscribeToDeletion,
     removeNotification,
     refetch: fetchNotifications,
     isLoading,
     hasFetchError,
+    hasMore,
+    olderStatus,
+    loadOlder,
   };
 
   return (

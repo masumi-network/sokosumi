@@ -304,7 +304,7 @@ function DocumentViewerContent({
         </div>
       </div>
       <DialogDescription className="sr-only">{t("title")}</DialogDescription>
-      <div className="h-[70vh] min-h-0">
+      <div className="h-[70dvh] min-h-0">
         <DocumentViewerBody
           key={url}
           url={url}

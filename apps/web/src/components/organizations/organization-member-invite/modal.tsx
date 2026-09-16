@@ -35,7 +35,7 @@ export default function OrganizationMemberInviteModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[80svh] w-[80vw] max-w-md!">
+      <DialogContent className="max-h-[80dvh] w-[80vw] max-w-md!">
         <DialogTitle className="text-center">{t("title")}</DialogTitle>
         <DialogDescription className="hidden" />
         <OrganizationMemberInviteForm
