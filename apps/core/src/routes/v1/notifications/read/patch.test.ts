@@ -194,4 +194,116 @@ describe("PATCH /notifications/read", () => {
     expect(response.status).toBe(422);
     expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
   });
+
+  it("refuses a body naming both ids and a reference", async () => {
+    const response = await patchRead(createApp(), {
+      ids: ["notif_1"],
+      kind: NotificationKind.TASK,
+      referenceId: "task_123",
+    });
+
+    expect(response.status).toBe(422);
+    expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
+  });
+
+  describe("by reference", () => {
+    /**
+     * The point of the reference variant. A reader who opens the task page
+     * has dealt with what the notification was about, so the row must not
+     * survive to be reminded about a day later (SOK-916).
+     */
+    it.each([
+      [NotificationKind.TASK, "task_123"],
+      [NotificationKind.JOB, "job_123"],
+    ])(
+      "marks the reader's unread rows for one %s read",
+      async (kind, referenceId) => {
+        notificationUpdateManyAndReturnMock.mockResolvedValue([
+          {
+            id: "notif_1",
+            kind,
+            messageKey: "Notifications.Task.inputRequired",
+          },
+          {
+            id: "notif_2",
+            kind,
+            messageKey: "Notifications.Task.inputRequired",
+          },
+        ]);
+
+        const response = await patchRead(createApp(), { kind, referenceId });
+
+        expect(response.status).toBe(200);
+        // Asserted exactly, so the reference cannot widen into an id list or
+        // lose the reader, unread and feed guards of the shared write.
+        expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith({
+          where: {
+            kind,
+            referenceId,
+            userId: "user_123",
+            isRead: false,
+            ...notificationFeedWhere(),
+          },
+          data: {
+            isRead: true,
+            readAt: expect.any(Date),
+          },
+          select: { id: true, kind: true, messageKey: true },
+        });
+
+        const body = (await response.json()) as { data: { count: number } };
+        expect(body.data.count).toBe(2);
+      },
+    );
+
+    it("publishes no clear, since a task or job row has no banner", async () => {
+      const response = await patchRead(createApp(), {
+        kind: NotificationKind.TASK,
+        referenceId: "task_123",
+      });
+
+      expect(response.status).toBe(200);
+      await Promise.all(waitUntilPromises);
+      expect(waitUntilPromises).toHaveLength(0);
+      expect(publishClearedNotificationsMock).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Chat is refused rather than supported. Opening a room does more than
+     * mark notifications read: it moves the membership's `lastReadAt` and
+     * republishes the cleared rows so other tabs and the sidebar badge agree.
+     * A second path that did only half of that would leave the room's own
+     * surfaces disagreeing about the same rows.
+     */
+    it("refuses chat, which has a room-read route that does more", async () => {
+      const response = await patchRead(createApp(), {
+        kind: NotificationKind.CHAT,
+        referenceId: "room_123",
+      });
+
+      expect(response.status).toBe(422);
+      expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses a blank reference rather than reading everything", async () => {
+      const response = await patchRead(createApp(), {
+        kind: NotificationKind.TASK,
+        referenceId: "",
+      });
+
+      expect(response.status).toBe(422);
+      expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
+    });
+
+    it("says nothing was read when nothing was unread", async () => {
+      const response = await patchRead(createApp(), {
+        kind: NotificationKind.TASK,
+        referenceId: "task_123",
+      });
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { data: { count: number } };
+      expect(body.data.count).toBe(0);
+    });
+  });
 });
