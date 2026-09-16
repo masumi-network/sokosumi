@@ -290,7 +290,7 @@ describe("SignInForm", () => {
     await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
 
-  it("fires login in place and soft-navigates to returnUrl without a callback page", async () => {
+  it("fires login in place and leaves for returnUrl without a callback page", async () => {
     mockSignInEmail.mockResolvedValue({
       data: {},
       error: null,
