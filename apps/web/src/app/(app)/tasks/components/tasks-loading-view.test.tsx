@@ -42,7 +42,7 @@ describe("TasksLoadingView", () => {
     );
 
     const listShell = container.querySelector(
-      ".bg-muted\\/30.border-border\\/50",
+      ".bg-card-background.border-border",
     );
     expect(listShell).toBeTruthy();
     expect(listShell?.className).toContain("-mx-6");

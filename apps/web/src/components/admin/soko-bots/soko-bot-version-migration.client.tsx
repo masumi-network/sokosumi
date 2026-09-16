@@ -160,7 +160,7 @@ export function SokoBotVersionMigration({
       </div>
 
       {result && (
-        <div className="space-y-1 rounded-md bg-muted/40 p-3 text-xs">
+        <div className="space-y-1 rounded-md bg-card-background p-3 text-xs">
           <p>
             {t("result", {
               moved: result.moved,

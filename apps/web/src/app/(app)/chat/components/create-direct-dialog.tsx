@@ -207,7 +207,7 @@ export function CreateDirectDialog() {
         </DialogHeader>
         <div
           data-testid="direct-recipient-composer"
-          className="border-input focus-within:border-ring focus-within:ring-ring/50 flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
+          className="border-input focus-within:border-ring focus-within:ring-ring-halo flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
           onClick={() => searchInputRef.current?.focus()}
         >
           <Search
@@ -240,7 +240,7 @@ export function CreateDirectDialog() {
               </span>
               <button
                 type="button"
-                className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
+                className="hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeTarget(target.key);

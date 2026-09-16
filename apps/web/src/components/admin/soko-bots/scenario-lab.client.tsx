@@ -164,7 +164,7 @@ function LiveRunPanel({ live }: { live: LiveRun }) {
           : t("phaseRunning");
 
   return (
-    <div className="border-primary/40 bg-primary/5 mt-3 rounded-md border px-3 py-2">
+    <div className="border-primary-tertiary bg-primary-quinary mt-3 rounded-md border px-3 py-2">
       <p className="flex items-center gap-2 text-xs font-medium">
         <span
           className="bg-primary size-1.5 shrink-0 animate-pulse rounded-full"
@@ -498,7 +498,7 @@ export function ScenarioLab({
             className={cn(
               "rounded-md border px-2 py-1 text-xs transition-colors",
               activeVersion === version.id
-                ? "border-primary bg-primary/5 text-foreground"
+                ? "border-primary bg-primary-quinary text-foreground"
                 : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
@@ -507,7 +507,7 @@ export function ScenarioLab({
         ))}
       </div>
       {current ? (
-        <div className="bg-muted/30 rounded-lg border px-4 py-3 text-xs">
+        <div className="bg-card-background rounded-lg border px-4 py-3 text-xs">
           <p className="text-foreground text-sm font-medium">
             {current.name}
             <span className="text-muted-foreground ml-2 font-normal tabular-nums">
@@ -759,10 +759,10 @@ function ScenarioRow({
                   className={cn(
                     "rounded-md border px-3 py-2 text-xs",
                     latest.judge.verdict === "pass"
-                      ? "border-semantic-success/40"
+                      ? "border-semantic-success-tertiary"
                       : latest.judge.verdict === "weak"
-                        ? "border-semantic-warning/40"
-                        : "border-semantic-destructive/40",
+                        ? "border-semantic-warning-tertiary"
+                        : "border-semantic-destructive-tertiary",
                   )}
                 >
                   <p className="font-medium">

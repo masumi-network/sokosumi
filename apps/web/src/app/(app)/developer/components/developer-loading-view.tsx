@@ -28,7 +28,7 @@ export function DeveloperSectionRowsSkeleton({
       {Array.from({ length: rows }, (_, index) => (
         <div
           key={index}
-          className="flex items-center gap-3 rounded-lg border border-border/40 p-3"
+          className="flex items-center gap-3 rounded-lg border border-border p-3"
         >
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-44" />
@@ -142,7 +142,7 @@ export function DeveloperTaskDetailPageSkeleton(): React.ReactElement {
       className="min-h-full w-full"
     >
       <div className={TASK_DETAIL_CONTEXT_STRIP_CLASS}>
-        <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
+        <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <Skeleton className="h-4 w-28" />
             <Skeleton className="h-4 w-40" />

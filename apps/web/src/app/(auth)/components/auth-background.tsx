@@ -55,7 +55,7 @@ export default function AuthBackground() {
         />
         <AuthAside />
         <div className="pointer-events-none absolute top-10 right-10 z-10 xl:top-12 xl:right-12">
-          <KanjiLogo className="h-9 fill-white/90" />
+          <KanjiLogo className="h-9 fill-on-media" />
         </div>
       </div>
     </aside>
