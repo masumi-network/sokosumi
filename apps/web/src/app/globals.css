@@ -811,8 +811,12 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 .chat-input-border-anchor {
   --chat-input-border-angle: 0deg;
   position: relative;
-  padding: 1.5px;
-  border: 1.5px solid transparent;
+  /* Whole pixels. 1.5px is 3 device pixels on a 2x Mac and an ambiguous
+     round on a 1x display, where the ring lands at 1px on one edge and 2px
+     on another. 2px keeps the author's intent of a ring heavier than a
+     hairline and renders the same everywhere. */
+  padding: 2px;
+  border: 2px solid transparent;
   background:
     linear-gradient(var(--background), var(--background)) padding-box,
     linear-gradient(

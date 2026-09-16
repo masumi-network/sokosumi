@@ -261,6 +261,11 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
   to define sections and delineate cards. In-app these are **full-bleed**
   (`-mx-6 border-t border-border`) between major blocks and company groups.
 - Avatars are **circular** for people; square source art is shown **whole** (no crop).
+- **Whole pixels:** every layout and border length is a whole number of CSS pixels. A 1x
+  display, which is most Windows hardware, has no half pixel, so a `1.5px` border rounds to
+  1px on one edge of a box and 2px on the opposite one, and a `0.2px` border rounds away to
+  nothing. Blur radii, keyframe translations and unitless scale factors are continuous and
+  stay fractional. See [Whole pixels](.cursor/rules/whole-pixels.mdc).
 
 ## Components
 
