@@ -37,7 +37,7 @@ export default async function FlowsLayout({
         />
       ) : null}
       <div
-        className="flex h-svh gap-6 p-6"
+        className="flex h-dvh gap-6 p-6"
         {...(isWorkspaceGate ? { "data-workspace-gate-shell": true } : {})}
       >
         <div className="flex h-full flex-1 flex-col gap-6">

@@ -14,10 +14,18 @@ const ROOT = path.resolve(SRC, "..");
 /**
  * Header-offset shells must use rem (`4rem` / `6rem`), not fixed px.
  * Match Tailwind tight form, CSS-spaced calc, and Tailwind underscore-space form.
+ *
+ * Viewport-height shells must use `dvh`, never `svh`. In iOS home-screen web
+ * apps WebKit reports `svh` off by the status-bar height in both status-bar
+ * styles (874 vs an 812 layout viewport with the default style, 812 vs 874
+ * with black-translucent), which made the document 62px taller than the
+ * screen and let the whole room, composer included, scroll. `dvh` matched
+ * the layout viewport in every mode measured (Safari, both standalone styles).
  */
 const FORBIDDEN_PATTERNS = [
-  { label: "100svh-64px", re: /100svh[\s_]*-[\s_]*64px/ },
-  { label: "100svh-96px", re: /100svh[\s_]*-[\s_]*96px/ },
+  { label: "100dvh-64px", re: /100dvh[\s_]*-[\s_]*64px/ },
+  { label: "100dvh-96px", re: /100dvh[\s_]*-[\s_]*96px/ },
+  { label: "svh unit", re: /(\d|-)svh\b/ },
 ] as const;
 
 const EXTENSIONS = new Set([".ts", ".tsx", ".css"]);
@@ -47,7 +55,7 @@ function findForbiddenHeaderOffsetHits(files: ScanFile[]): string[] {
   const hits: string[] = [];
   for (const { rel, text } of files) {
     // Self documents the banned patterns; skip.
-    if (rel.endsWith("no-header-offset-px-shell.test.ts")) continue;
+    if (rel.endsWith("shell-height-class-guards.test.ts")) continue;
 
     for (const { label, re } of FORBIDDEN_PATTERNS) {
       if (!re.test(text)) continue;
@@ -64,41 +72,48 @@ function loadSrcTree(): ScanFile[] {
   }));
 }
 
-describe("no header-offset px shells", () => {
+describe("shell height class guards", () => {
   it("detects tight, spaced, and underscore calc forms", () => {
     const hits = findForbiddenHeaderOffsetHits([
-      { rel: "clean.tsx", text: 'className="h-[calc(100svh-4rem)]"' },
+      { rel: "clean.tsx", text: 'className="h-[calc(100dvh-4rem)]"' },
       {
         rel: "tight.tsx",
-        text: 'className="h-[calc(100svh-64px)]"',
+        text: 'className="h-[calc(100dvh-64px)]"',
       },
       {
         rel: "spaced.css",
-        text: "height: calc(100svh - 64px);",
+        text: "height: calc(100dvh - 64px);",
       },
       {
         rel: "underscore.tsx",
-        text: 'className="h-[calc(100svh_-_96px)]"',
+        text: 'className="h-[calc(100dvh_-_96px)]"',
       },
+      { rel: "svh-bare.tsx", text: 'className="min-h-svh max-h-svh"' },
+      { rel: "svh-calc.tsx", text: 'className="h-[calc(100svh-4rem)]"' },
+      { rel: "svh-percent.tsx", text: 'className="max-h-[90svh]"' },
     ]);
 
     expect(hits).toEqual([
-      "tight.tsx: contains 100svh-64px",
-      "spaced.css: contains 100svh-64px",
-      "underscore.tsx: contains 100svh-96px",
+      "tight.tsx: contains 100dvh-64px",
+      "spaced.css: contains 100dvh-64px",
+      "underscore.tsx: contains 100dvh-96px",
+      "svh-bare.tsx: contains svh unit",
+      "svh-calc.tsx: contains svh unit",
+      "svh-percent.tsx: contains svh unit",
     ]);
   });
 
   it("returns no hits for clean fixtures", () => {
     expect(
       findForbiddenHeaderOffsetHits([
-        { rel: "a.tsx", text: "h-[calc(100svh-4rem)]" },
-        { rel: "b.tsx", text: "lg:h-[calc(100svh-6rem)]" },
+        { rel: "a.tsx", text: "h-[calc(100dvh-4rem)]" },
+        { rel: "b.tsx", text: "lg:h-[calc(100dvh-6rem)]" },
+        { rel: "c.tsx", text: "w-svw max-w-dvw" },
       ]),
     ).toEqual([]);
   });
 
-  it("bans product 100svh-64px / 100svh-96px (use 4rem / 6rem for Header h-16)", () => {
+  it("bans px header offsets and svh units in product shells", () => {
     const hits = findForbiddenHeaderOffsetHits(loadSrcTree());
     expect(hits, hits.join("\n")).toEqual([]);
   });

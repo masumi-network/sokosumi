@@ -73,11 +73,11 @@ export default function RootLayout({
       {analyticsEnabled && <ConsentModeInit />}
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
-      <body className="bg-background min-h-svh max-w-dvw antialiased">
+      <body className="bg-background min-h-dvh max-w-dvw antialiased">
         <DynamicTypeRootCap />
         <NuqsAdapter>
           <ThemeProvider>
-            <Suspense fallback={<div className="bg-background min-h-svh" />}>
+            <Suspense fallback={<div className="bg-background min-h-dvh" />}>
               <RootIntlTree>
                 {children}
                 {analyticsEnabled && <CookieBanner />}

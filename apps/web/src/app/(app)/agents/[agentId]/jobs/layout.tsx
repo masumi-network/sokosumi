@@ -89,7 +89,7 @@ async function JobLayoutInner({
     >
       <div className="flex w-full flex-col">
         <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
-          <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-4rem)] lg:w-72 lg:flex-none">
+          <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] lg:w-72 lg:flex-none">
             <JobsList
               key={agentId}
               jobs={agentJobsPage.jobs}
@@ -115,7 +115,7 @@ async function JobLayoutInner({
 
 function JobLayoutSkeleton() {
   return (
-    <div className="flex flex-col lg:h-[calc(100svh-6rem)]">
+    <div className="flex flex-col lg:h-[calc(100dvh-6rem)]">
       <div className="mt-6 flex flex-1">
         <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />
       </div>
