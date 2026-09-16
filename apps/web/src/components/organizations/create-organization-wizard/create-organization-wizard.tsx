@@ -126,7 +126,7 @@ function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
           {name.charAt(0).toUpperCase()}
         </span>
       ) : (
-        <Building2 className="text-muted-foreground/50 size-8" />
+        <Building2 className="text-muted-foreground size-8" />
       )}
     </div>
   );
@@ -628,7 +628,7 @@ export function CreateOrganizationWizard({
               </span>
             ))}
           </div>
-          <span className="text-muted-foreground/60 text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
+          <span className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
             {String(step + 1).padStart(2, "0")} /{" "}
             {String(TOTAL_STEPS).padStart(2, "0")}
           </span>
@@ -665,7 +665,7 @@ export function CreateOrganizationWizard({
                         control={form.control}
                         name="name"
                         render={({ field }) => (
-                          <FormItem className="focus-within:bg-accent/40 grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
+                          <FormItem className="focus-within:bg-card-background grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
                             <FormLabel className="text-muted-foreground text-[0.8125rem] font-normal">
                               {t("Details.nameLabel")}
                             </FormLabel>
@@ -679,7 +679,7 @@ export function CreateOrganizationWizard({
                               <Input
                                 autoFocus
                                 placeholder={t("Details.namePlaceholder")}
-                                className="placeholder:text-muted-foreground/50 h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
+                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
                                 {...field}
                               />
                             </FormControl>
@@ -690,7 +690,7 @@ export function CreateOrganizationWizard({
                         control={form.control}
                         name="url"
                         render={({ field }) => (
-                          <FormItem className="focus-within:bg-accent/40 grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
+                          <FormItem className="focus-within:bg-card-background grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
                             <FormLabel className="text-muted-foreground text-[0.8125rem] font-normal">
                               {t("Details.urlLabel")}
                             </FormLabel>
@@ -704,7 +704,7 @@ export function CreateOrganizationWizard({
                               <Input
                                 inputMode="url"
                                 placeholder={t("Details.urlPlaceholder")}
-                                className="placeholder:text-muted-foreground/50 h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
+                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
                                 {...field}
                               />
                             </FormControl>
@@ -727,7 +727,7 @@ export function CreateOrganizationWizard({
                           form.formState.errors.url?.message}
                       </p>
                     </div>
-                    <p className="text-muted-foreground/70 text-left text-[0.8125rem]">
+                    <p className="text-muted-foreground text-left text-[0.8125rem]">
                       {t("Details.urlHint")}
                     </p>
                   </div>
@@ -802,7 +802,7 @@ export function CreateOrganizationWizard({
                         </Button>
                       </FileUploadTrigger>
                     </FileUpload>
-                    <p className="text-muted-foreground/70 text-[0.8125rem]">
+                    <p className="text-muted-foreground text-[0.8125rem]">
                       {t("Logo.uploadHint")}
                     </p>
                   </div>
@@ -814,7 +814,7 @@ export function CreateOrganizationWizard({
               <>
                 <div className="flex min-h-24 flex-none items-center justify-center">
                   {brand.status === "completed" ? (
-                    <div className="bg-primary/10 border-primary/20 flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
+                    <div className="bg-primary-quinary border-primary-tertiary flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
                       <Check className="text-primary animate-in fade-in-0 size-7 duration-200" />
                     </div>
                   ) : brand.status === "failed" ? (
@@ -849,7 +849,7 @@ export function CreateOrganizationWizard({
                         aria-label={t("Brand.title")}
                         className="focus-visible:ring-ring ml-1.5 inline-flex size-5 translate-y-[3px] items-center justify-center rounded-md outline-none focus-visible:ring-2"
                       >
-                        <Info className="text-muted-foreground/60 hover:text-foreground size-3.5 transition-colors duration-200" />
+                        <Info className="text-muted-foreground hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
@@ -859,7 +859,7 @@ export function CreateOrganizationWizard({
                 </p>
 
                 {brand.status !== "completed" && (
-                  <p className="text-muted-foreground/70 mt-3 text-[0.8125rem]">
+                  <p className="text-muted-foreground mt-3 text-[0.8125rem]">
                     {brand.status === "failed"
                       ? t("Brand.failedSubtitle")
                       : t("Brand.skipHint")}
@@ -868,13 +868,13 @@ export function CreateOrganizationWizard({
 
                 {brand.status === "completed" && (
                   <div className="mt-10">
-                    <div className="bg-muted/60 text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
+                    <div className="bg-card-background text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
                       <FileText className="size-4" />
                       <span className="font-mono text-[0.8125rem]">
                         DESIGN.md
                       </span>
                     </div>
-                    <p className="text-muted-foreground/70 mt-4 text-[0.8125rem]">
+                    <p className="text-muted-foreground mt-4 text-[0.8125rem]">
                       {t("Brand.editHint")}
                     </p>
                   </div>
@@ -909,7 +909,7 @@ export function CreateOrganizationWizard({
                     row AND the email box, and with a two-line title it must
                     still fit the stage without scrolling. */}
                 <div className="flex min-h-14 flex-none items-center justify-center">
-                  <div className="bg-primary/10 border-primary/20 flex size-14 items-center justify-center rounded-lg border">
+                  <div className="bg-primary-quinary border-primary-tertiary flex size-14 items-center justify-center rounded-lg border">
                     <Check className="text-primary animate-in fade-in-0 size-6 duration-200" />
                   </div>
                 </div>
@@ -923,7 +923,7 @@ export function CreateOrganizationWizard({
                 </p>
 
                 <div className="mx-auto mt-5 w-full max-w-md">
-                  <div className="bg-muted/60 has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
+                  <div className="bg-card-background has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
                     <Link2 className="text-muted-foreground size-4 shrink-0" />
                     {isCreatingLink ? (
                       <Skeleton className="h-4 w-56 rounded-sm" />
@@ -972,7 +972,7 @@ export function CreateOrganizationWizard({
                       </Button>
                     )}
                   </div>
-                  <p className="text-muted-foreground/70 mt-2 text-left text-[0.8125rem]">
+                  <p className="text-muted-foreground mt-2 text-left text-[0.8125rem]">
                     {t("Invite.linkHint")}
                   </p>
 
@@ -983,10 +983,10 @@ export function CreateOrganizationWizard({
                     value={emails}
                     onChange={(event) => setEmails(event.target.value)}
                     placeholder={t("Invite.emailsPlaceholder")}
-                    className="bg-muted/60 dark:bg-muted/60 min-h-14 resize-none rounded-xl border px-4 py-3 text-[0.9375rem] shadow-none"
+                    className="bg-card-background dark:bg-card-background min-h-14 resize-none rounded-xl border px-4 py-3 text-[0.9375rem] shadow-none"
                   />
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="text-muted-foreground/70 text-left text-[0.8125rem]">
+                    <p className="text-muted-foreground text-left text-[0.8125rem]">
                       {t("Invite.emailsHint")}
                     </p>
                     <Button

@@ -76,7 +76,7 @@ propagate to the generated web client via `pnpm --filter web generate:core:snaps
 **Unchanged:**
 
 - **`tasks` capability** required on all task/job routes.
-- **DRAFT** tasks invisible to coworkers (404 / excluded from list).
+- **DRAFT** tasks invisible to coworkers on list/read (404 / excluded from list). Contextual assignee or creator may still write a schedule on a DRAFT (see Schedule routes below).
 - **Bare coworker auth** (no user context headers): no delegated create; list uses
   baseline filter only.
 
@@ -175,16 +175,28 @@ returns the original Task without creating another occurrence ledger.
 | POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
 | POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |
 | PATCH | `/v1/tasks/{id}` (+ schedule, etc.) | Collaborators cannot mutate parked tasks. |
-| PUT | `/v1/tasks/{id}/schedule` | Coworker collaborators may edit the series. No Calendar beta gate; organization seat applies to the effective user. |
-| DELETE | `/v1/tasks/{id}/schedule` | Coworker collaborators may remove the series. Deliberately no Calendar beta or seat gate (escape hatch). |
-| PUT | `/v1/tasks/{id}/calendar-schedule`, `/calendar-source` | Coworker collaborators may replace or move the series. Calendar beta follows the effective user, and so does their organization seat. |
-| PATCH/GET | `/v1/tasks/{id}/schedule/occurrences*` | Coworker collaborators may mutate or read occurrences. Calendar beta follows the effective user; no seat gate. |
+| PUT | `/v1/tasks/{id}/schedule` | Assignee, creator, or same-vendor sibling Coworker may edit the series. No Calendar beta gate; organization seat applies to the effective user. |
+| DELETE | `/v1/tasks/{id}/schedule` | Assignee, creator, or same-vendor sibling Coworker may remove the series. Deliberately no Calendar beta or seat gate (escape hatch). |
+| PUT | `/v1/tasks/{id}/calendar-schedule`, `/calendar-source` | Assignee, creator, or same-vendor sibling Coworker may replace or move the series. Calendar beta follows the effective user, and so does their organization seat. |
+| PATCH | `/v1/tasks/{id}/schedule/occurrences/{occurrenceId}` | Assignee, creator, or same-vendor sibling Coworker may mutate an occurrence. Calendar beta follows the effective user; no seat gate. |
+| GET | `/v1/tasks/{id}/schedule/occurrences` | Same read gate as `GET /v1/tasks/{id}` (assignee / sibling, not creator). Calendar beta follows the effective user; no seat gate. |
 | GET | `/v1/jobs/{id}` | Sibling read uses workspace grant gate; writes blocked if parent task parked. |
 
 On these Task-collaboration routes, a standalone Coworker key (no
 `X-Context-*` headers) skips the user-scoped gates and is scoped by the Task
-relationship: mutations require the Task to be assigned to the calling
-Coworker, and reads may also use the vendor-sibling baseline.
+relationship: mutations other than the schedule routes below require the Task
+to be assigned to the calling Coworker, and reads may also use the
+vendor-sibling baseline.
+
+**Schedule routes are wider than assignment.** The five schedule mutations
+above accept the assignee, the Coworker that created the Task
+(`creatorCoworkerId`, so the legacy `POST /v1/tasks` then
+`PUT /v1/tasks/{id}/schedule` flow can target any assignee exactly like
+`POST /v1/tasks/scheduled`), *or* any Coworker from the same vendor as the
+assignee (non-DRAFT Task). With `X-Context-*` the Task must also belong to the
+contextual user (that is how creator-on-DRAFT is visible). A standalone key
+404s DRAFT before the creator check. Status transitions, jobs, and files stay
+assignee-only.
 
 ---
 

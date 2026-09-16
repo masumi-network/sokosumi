@@ -130,8 +130,8 @@ export function MoveJobToWorkspaceDialog({
               className={cn(
                 "flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors",
                 selectedValue === option.id
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-muted/50",
+                  ? "border-primary bg-primary-quinary"
+                  : "border-border hover:bg-card-background",
               )}
             >
               <RadioGroupItem

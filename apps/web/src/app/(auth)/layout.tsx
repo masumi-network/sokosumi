@@ -61,7 +61,7 @@ export default async function AuthLayout({
   return (
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
       <div
-        className={cn("flex h-svh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
+        className={cn("flex h-dvh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
       >
         <div className="flex h-full flex-1 flex-col gap-6">
           <Link href="/" className="inline-flex min-h-6 items-center">
@@ -92,7 +92,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.TERMS_OF_SERVICE}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("termsOfServices")}
       </Link>
@@ -100,7 +100,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.PRIVACY_POLICY}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("privacyPolicy")}
       </Link>
@@ -108,7 +108,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.IMPRINT}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("imprint")}
       </Link>
@@ -116,7 +116,7 @@ function AuthLayoutFooter() {
         href={LEGAL_URLS.ACCEPTABLE_USE}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm hover:text-gray-300"
+        className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("acceptableUse")}
       </Link>

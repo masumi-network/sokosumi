@@ -300,7 +300,7 @@ describe("ChatMobileBottomNav", () => {
       "rounded-full",
     );
     expect(screen.getByRole("link", { name: "chats" }).className).toContain(
-      "bg-foreground/10",
+      "bg-quinary",
     );
   });
 

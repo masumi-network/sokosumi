@@ -24,13 +24,13 @@ export function ProjectLatestUpdate({
 
   return (
     <section className="space-y-2" data-testid="project-latest-update">
-      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       <div className="space-y-2">
         <div
           id="project-latest-update-content"
           data-testid="project-latest-update-content"
           className={cn(
-            "text-foreground/80",
+            "text-foreground",
             isLong && !expanded && "max-h-64 overflow-hidden",
           )}
         >
@@ -41,7 +41,7 @@ export function ProjectLatestUpdate({
             type="button"
             aria-expanded={expanded}
             aria-controls="project-latest-update-content"
-            className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+            className="text-primary hover:text-primary-hover text-xs font-medium transition-colors"
             onClick={() => setExpanded((current) => !current)}
           >
             {expanded ? showLessLabel : showMoreLabel}

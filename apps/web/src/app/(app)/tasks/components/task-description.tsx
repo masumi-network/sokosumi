@@ -31,7 +31,7 @@ export function TaskDescription({
         <div className="space-y-2">
           <ExpandableMarkdown
             content={content}
-            className="text-foreground/80"
+            className="text-foreground"
             expandLabel={expandLabel}
             collapseLabel={collapseLabel}
             fadeClassName="to-background"
@@ -45,7 +45,7 @@ export function TaskDescription({
           ) : null}
         </div>
       ) : (
-        <p className="text-muted-foreground/40 text-sm">—</p>
+        <p className="text-muted-foreground text-sm">—</p>
       )}
     </section>
   );

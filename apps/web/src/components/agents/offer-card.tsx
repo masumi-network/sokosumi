@@ -130,16 +130,36 @@ interface CategoryColor {
   ring: string;
 }
 const NEUTRAL_COLOR: CategoryColor = {
-  chip: "bg-background/90",
-  accent: "bg-foreground/30",
-  ring: "border-muted-foreground/30",
+  chip: "bg-surface-glass",
+  accent: "bg-tertiary",
+  ring: "border-input",
 };
 const CHART_COLOR: Record<number, CategoryColor> = {
-  1: { chip: "bg-chart-1/15", accent: "bg-chart-1", ring: "border-chart-1" },
-  2: { chip: "bg-chart-2/15", accent: "bg-chart-2", ring: "border-chart-2" },
-  3: { chip: "bg-chart-3/15", accent: "bg-chart-3", ring: "border-chart-3" },
-  4: { chip: "bg-chart-4/15", accent: "bg-chart-4", ring: "border-chart-4" },
-  5: { chip: "bg-chart-5/15", accent: "bg-chart-5", ring: "border-chart-5" },
+  1: {
+    chip: "bg-chart-1-quinary",
+    accent: "bg-chart-1",
+    ring: "border-chart-1",
+  },
+  2: {
+    chip: "bg-chart-2-quinary",
+    accent: "bg-chart-2",
+    ring: "border-chart-2",
+  },
+  3: {
+    chip: "bg-chart-3-quinary",
+    accent: "bg-chart-3",
+    ring: "border-chart-3",
+  },
+  4: {
+    chip: "bg-chart-4-quinary",
+    accent: "bg-chart-4",
+    ring: "border-chart-4",
+  },
+  5: {
+    chip: "bg-chart-5-quinary",
+    accent: "bg-chart-5",
+    ring: "border-chart-5",
+  },
 };
 const CATEGORY_CHART: Record<string, number> = {
   Research: 1,
@@ -206,10 +226,10 @@ function OfferMock({
         <div className="ring-border w-full max-w-[82%] overflow-hidden rounded-md bg-card shadow-sm ring-1">
           <div className={cn("h-2.5", accent)} />
           <div className="space-y-2 p-3">
-            <div className="bg-foreground/15 h-2 w-2/3 rounded" />
-            <div className="bg-muted-foreground/25 h-1.5 w-full rounded" />
-            <div className="bg-muted-foreground/25 h-1.5 w-5/6 rounded" />
-            <div className="bg-muted-foreground/25 h-1.5 w-3/4 rounded" />
+            <div className="bg-quinary h-2 w-2/3 rounded" />
+            <div className="bg-quaternary h-1.5 w-full rounded" />
+            <div className="bg-quaternary h-1.5 w-5/6 rounded" />
+            <div className="bg-quaternary h-1.5 w-3/4 rounded" />
           </div>
         </div>
       </div>
@@ -221,11 +241,11 @@ function OfferMock({
         <div className="ring-border h-full w-1/2 overflow-hidden rounded-sm bg-card p-3 shadow-sm ring-1">
           <div className={cn("mb-2 h-2 w-3/4 rounded", accent)} />
           <div className="space-y-1.5">
-            <div className="bg-muted-foreground/25 h-1 w-full rounded" />
-            <div className="bg-muted-foreground/25 h-1 w-full rounded" />
-            <div className="bg-muted-foreground/25 h-1 w-5/6 rounded" />
-            <div className="bg-muted-foreground/25 h-1 w-full rounded" />
-            <div className="bg-muted-foreground/25 h-1 w-2/3 rounded" />
+            <div className="bg-quaternary h-1 w-full rounded" />
+            <div className="bg-quaternary h-1 w-full rounded" />
+            <div className="bg-quaternary h-1 w-5/6 rounded" />
+            <div className="bg-quaternary h-1 w-full rounded" />
+            <div className="bg-quaternary h-1 w-2/3 rounded" />
           </div>
         </div>
       </div>
@@ -235,13 +255,13 @@ function OfferMock({
     return (
       <div className="flex h-full items-center justify-center p-5">
         <div className="ring-border w-full max-w-[82%] overflow-hidden rounded-md bg-card p-3 shadow-sm ring-1">
-          <div className="bg-foreground/15 mb-3 h-2 w-1/2 rounded" />
+          <div className="bg-quinary mb-3 h-2 w-1/2 rounded" />
           <div className="flex h-12 items-end gap-1.5">
-            <div className="bg-muted-foreground/30 h-[40%] flex-1 rounded-sm" />
-            <div className="bg-muted-foreground/30 h-[70%] flex-1 rounded-sm" />
-            <div className="bg-muted-foreground/30 h-[55%] flex-1 rounded-sm" />
+            <div className="bg-quaternary h-[40%] flex-1 rounded-sm" />
+            <div className="bg-quaternary h-[70%] flex-1 rounded-sm" />
+            <div className="bg-quaternary h-[55%] flex-1 rounded-sm" />
             <div className={cn("h-[90%] flex-1 rounded-sm", accent)} />
-            <div className="bg-muted-foreground/30 h-[60%] flex-1 rounded-sm" />
+            <div className="bg-quaternary h-[60%] flex-1 rounded-sm" />
           </div>
         </div>
       </div>
@@ -255,9 +275,7 @@ function OfferMock({
             <div
               className={cn("size-3 shrink-0 rounded-full border-2", ring)}
             />
-            <div
-              className={cn("bg-muted-foreground/25 h-1.5 rounded", width)}
-            />
+            <div className={cn("bg-quaternary h-1.5 rounded", width)} />
           </div>
         ))}
       </div>
@@ -268,10 +286,10 @@ function OfferMock({
       <div className="flex h-full items-center justify-center p-5">
         <div className="ring-border w-full max-w-[82%] space-y-1.5 overflow-hidden rounded-md bg-card p-3 shadow-sm ring-1">
           <div className={cn("h-1.5 w-2/5 rounded", accent)} />
-          <div className="bg-muted-foreground/25 ml-3 h-1.5 w-3/5 rounded" />
-          <div className="bg-muted-foreground/25 ml-3 h-1.5 w-1/2 rounded" />
-          <div className="bg-muted-foreground/25 ml-6 h-1.5 w-2/5 rounded" />
-          <div className="bg-muted-foreground/25 h-1.5 w-1/4 rounded" />
+          <div className="bg-quaternary ml-3 h-1.5 w-3/5 rounded" />
+          <div className="bg-quaternary ml-3 h-1.5 w-1/2 rounded" />
+          <div className="bg-quaternary ml-6 h-1.5 w-2/5 rounded" />
+          <div className="bg-quaternary h-1.5 w-1/4 rounded" />
         </div>
       </div>
     );
@@ -282,10 +300,10 @@ function OfferMock({
         <div className="ring-border w-full max-w-[82%] space-y-2 overflow-hidden rounded-md bg-card p-3 shadow-sm ring-1">
           <div className={cn("h-3 w-full rounded", accent)} />
           <div className="flex gap-2">
-            <div className="bg-muted-foreground/20 h-10 flex-1 rounded" />
-            <div className="bg-muted-foreground/20 h-10 flex-1 rounded" />
+            <div className="bg-quaternary h-10 flex-1 rounded" />
+            <div className="bg-quaternary h-10 flex-1 rounded" />
           </div>
-          <div className="bg-muted-foreground/15 h-2 w-3/4 rounded" />
+          <div className="bg-quinary h-2 w-3/4 rounded" />
         </div>
       </div>
     );
@@ -293,9 +311,9 @@ function OfferMock({
   if (kind === "video") {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="ring-border bg-muted-foreground/15 relative h-[82%] w-[34%] overflow-hidden rounded-lg shadow-sm ring-1">
+        <div className="ring-border bg-quinary relative h-[82%] w-[34%] overflow-hidden rounded-lg shadow-sm ring-1">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-background/90 flex size-7 items-center justify-center rounded-full">
+            <div className="bg-surface-glass flex size-7 items-center justify-center rounded-full">
               <Play
                 aria-hidden
                 className="text-foreground ml-0.5 size-3 fill-current"
@@ -310,15 +328,15 @@ function OfferMock({
     return (
       <div className="flex h-full items-center justify-center p-5">
         <div className="ring-border w-full max-w-[82%] overflow-hidden rounded-md bg-card shadow-sm ring-1">
-          <div className="bg-muted/60 flex items-center gap-1 border-b px-2 py-1.5">
-            <span className="bg-muted-foreground/30 size-1.5 rounded-full" />
-            <span className="bg-muted-foreground/30 size-1.5 rounded-full" />
-            <span className="bg-muted-foreground/30 size-1.5 rounded-full" />
+          <div className="bg-card-background flex items-center gap-1 border-b px-2 py-1.5">
+            <span className="bg-quaternary size-1.5 rounded-full" />
+            <span className="bg-quaternary size-1.5 rounded-full" />
+            <span className="bg-quaternary size-1.5 rounded-full" />
           </div>
           <div className="space-y-2 p-3">
             <div className={cn("h-6 w-full rounded", accent)} />
-            <div className="bg-muted-foreground/20 h-1.5 w-2/3 rounded" />
-            <div className="bg-muted-foreground/20 h-1.5 w-1/2 rounded" />
+            <div className="bg-quaternary h-1.5 w-2/3 rounded" />
+            <div className="bg-quaternary h-1.5 w-1/2 rounded" />
           </div>
         </div>
       </div>
@@ -333,7 +351,7 @@ function OfferMock({
             {SHEET_CELLS.map((cell) => (
               <div
                 key={cell}
-                className="border-border/60 h-3.5 border-r border-b last:border-r-0"
+                className="border-border h-3.5 border-r border-b last:border-r-0"
               />
             ))}
           </div>
@@ -344,10 +362,10 @@ function OfferMock({
   return (
     <div className="flex h-full flex-col justify-center gap-2 px-7">
       <div className={cn("h-1.5 w-2/5 rounded", accent)} />
-      <div className="bg-muted-foreground/25 h-1.5 w-full rounded" />
-      <div className="bg-muted-foreground/25 h-1.5 w-5/6 rounded" />
-      <div className="bg-muted-foreground/25 h-1.5 w-full rounded" />
-      <div className="bg-muted-foreground/25 h-1.5 w-2/3 rounded" />
+      <div className="bg-quaternary h-1.5 w-full rounded" />
+      <div className="bg-quaternary h-1.5 w-5/6 rounded" />
+      <div className="bg-quaternary h-1.5 w-full rounded" />
+      <div className="bg-quaternary h-1.5 w-2/3 rounded" />
     </div>
   );
 }
@@ -370,7 +388,7 @@ function OfferThumb({
   const mock = mockKind(offer);
   const color = categoryColor(offer.category);
   return (
-    <div className="bg-muted/40 relative aspect-[16/10] overflow-hidden">
+    <div className="bg-card-background relative aspect-[16/10] overflow-hidden">
       {mock === "image" && primary.url ? (
         // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote example host
         <img
@@ -382,7 +400,7 @@ function OfferThumb({
       ) : (
         <OfferMock kind={mock} accent={color.accent} ring={color.ring} />
       )}
-      <div className="bg-background/90 text-foreground absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur">
+      <div className="bg-surface-glass text-foreground absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur">
         <Icon aria-hidden className="size-3" />
         {chipLabel}
       </div>
@@ -391,7 +409,7 @@ function OfferThumb({
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/40 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 interface OfferCardProps {
   offer: CoworkerOffer;
@@ -415,7 +433,7 @@ export function OfferCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group bg-card border-border/60 flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]",
+        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]",
         FOCUS_RING,
       )}
     >
@@ -481,7 +499,7 @@ function OfferEmbed({
       <img
         src={url}
         alt={title}
-        className="bg-muted/40 h-full w-full object-contain"
+        className="bg-card-background h-full w-full object-contain"
         loading="lazy"
       />
     );
@@ -508,7 +526,11 @@ function OfferEmbed({
         ? officeViewerUrl(url, OFFICE_EXT[type])
         : `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
     return (
-      <iframe src={src} title={title} className="bg-muted/40 h-full w-full" />
+      <iframe
+        src={src}
+        title={title}
+        className="bg-card-background h-full w-full"
+      />
     );
   }
   // Text outputs render their inline example as a real document "page" — a
@@ -517,13 +539,13 @@ function OfferEmbed({
     return <DocumentTextPreview title={output.label ?? title} content={text} />;
   }
   return (
-    <div className="bg-muted/40 flex h-full flex-col items-center justify-center gap-3 px-10">
-      <AlignLeft aria-hidden className="text-muted-foreground/50 size-9" />
+    <div className="bg-card-background flex h-full flex-col items-center justify-center gap-3 px-10">
+      <AlignLeft aria-hidden className="text-muted-foreground size-9" />
       <div className="w-full max-w-md space-y-2">
-        <div className="bg-muted-foreground/20 h-1.5 w-full rounded" />
-        <div className="bg-muted-foreground/20 h-1.5 w-11/12 rounded" />
-        <div className="bg-muted-foreground/20 h-1.5 w-4/5 rounded" />
-        <div className="bg-muted-foreground/20 h-1.5 w-2/3 rounded" />
+        <div className="bg-quaternary h-1.5 w-full rounded" />
+        <div className="bg-quaternary h-1.5 w-11/12 rounded" />
+        <div className="bg-quaternary h-1.5 w-4/5 rounded" />
+        <div className="bg-quaternary h-1.5 w-2/3 rounded" />
       </div>
       <span className="text-muted-foreground text-xs">{pendingLabel}</span>
     </div>
@@ -607,9 +629,9 @@ function OfferDetailBody({
   return (
     <div className="flex max-h-[92dvh] flex-col overflow-y-auto md:grid md:h-[86dvh] md:max-h-none md:grid-cols-[1.7fr_1fr] md:overflow-hidden">
       {/* Preview */}
-      <div className="bg-muted/30 md:border-border flex flex-col md:min-h-0 md:border-r">
+      <div className="bg-card-background md:border-border flex flex-col md:min-h-0 md:border-r">
         {outputs.length > 1 ? (
-          <div className="border-border bg-background/70 flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
+          <div className="border-border bg-surface-glass flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
             {outputs.map((output, index) => (
               <button
                 key={output.url ?? output.label ?? output.type}
@@ -620,7 +642,7 @@ function OfferDetailBody({
                   FOCUS_RING,
                   index === activeIdx
                     ? "bg-foreground text-background"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    : "bg-card-background text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <OutputTypeIcon type={output.type} className="size-3.5" />
@@ -629,7 +651,7 @@ function OfferDetailBody({
             ))}
           </div>
         ) : null}
-        <div className="h-[46vh] md:h-auto md:min-h-0 md:flex-1">
+        <div className="h-[46dvh] md:h-auto md:min-h-0 md:flex-1">
           <OfferEmbed
             output={active}
             title={offer.title}
@@ -648,7 +670,7 @@ function OfferDetailBody({
                   {offer.category}
                 </span>
               ) : null}
-              <span className="border-border/60 text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium">
+              <span className="border-border text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium">
                 <OutputTypeIcon type={active.type} className="size-3" />
                 {active.label ?? typeLabel(active.type)}
               </span>
@@ -656,13 +678,13 @@ function OfferDetailBody({
             <DialogTitle className="text-foreground text-xl font-semibold text-balance">
               {offer.title}
             </DialogTitle>
-            <DialogDescription className="text-foreground/80 text-sm leading-relaxed text-pretty">
+            <DialogDescription className="text-foreground text-sm leading-relaxed text-pretty">
               {offer.description ?? labels.fallbackTitle ?? offer.title}
             </DialogDescription>
           </div>
 
           {offer.deliverable ? (
-            <div className="border-border/60 rounded-xl border p-4">
+            <div className="border-border rounded-xl border p-4">
               <p className="text-muted-foreground mb-1 text-xs font-medium">
                 {labels.deliverable ?? "Deliverable"}
               </p>

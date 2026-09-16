@@ -1,8 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import mountDeleteNotification from "./[id]/delete.js";
 import mountMarkNotificationRead from "./[id]/read/patch.js";
 import mountMarkNotificationUnread from "./[id]/unread/patch.js";
-import mountClearNotifications from "./delete.js";
 import mountGetNotifications from "./get.js";
 import mountMarkNotificationsRead from "./read/patch.js";
 import mountMarkAllRead from "./read-all/patch.js";
@@ -16,7 +14,5 @@ mountMarkNotificationRead(app);
 mountMarkNotificationUnread(app);
 mountMarkAllRead(app);
 mountMarkNotificationsRead(app);
-mountDeleteNotification(app);
-mountClearNotifications(app);
 
 export default app;

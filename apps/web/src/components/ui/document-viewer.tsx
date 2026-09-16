@@ -90,7 +90,7 @@ function DocumentTextBody({
   if (state.status === "error" || state.content === undefined) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-10 text-center">
-        <FileText aria-hidden className="text-muted-foreground/50 size-9" />
+        <FileText aria-hidden className="text-muted-foreground size-9" />
         <p className="text-muted-foreground text-sm">{t("fetchError")}</p>
       </div>
     );
@@ -191,7 +191,7 @@ function DocumentPdfBody({
     <iframe
       src={pdfEmbedUrl(state.embedUrl)}
       title={fileName}
-      className="bg-muted/40 h-full w-full"
+      className="bg-card-background h-full w-full"
     />
   );
 }
@@ -214,7 +214,7 @@ function DocumentViewerBody({
       <iframe
         src={officeViewerUrl(url, extensionHint)}
         title={fileName}
-        className="bg-muted/40 h-full w-full"
+        className="bg-card-background h-full w-full"
       />
     );
   }
@@ -245,7 +245,7 @@ function DocumentViewerContent({
 
   return (
     <>
-      <div className="border-border/60 flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:gap-3 sm:py-4 sm:pr-6 sm:pl-6">
+      <div className="border-border flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:gap-3 sm:py-4 sm:pr-6 sm:pl-6">
         <div className="flex min-w-0 items-center gap-2">
           <FileText
             className="text-muted-foreground size-4 shrink-0"
@@ -304,7 +304,7 @@ function DocumentViewerContent({
         </div>
       </div>
       <DialogDescription className="sr-only">{t("title")}</DialogDescription>
-      <div className="h-[70vh] min-h-0">
+      <div className="h-[70dvh] min-h-0">
         <DocumentViewerBody
           key={url}
           url={url}

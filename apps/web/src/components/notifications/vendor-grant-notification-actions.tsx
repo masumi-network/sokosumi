@@ -22,14 +22,11 @@ interface VendorGrantNotificationActionsProps {
     "id" | "messageKey" | "referenceId" | "metadata" | "isRead"
   >;
   layout: "toast" | "inline";
-  /** Called after accept succeeds so parent lists can drop the row. */
-  onAccepted?: () => void;
 }
 
 export function VendorGrantNotificationActions({
   notification,
   layout,
-  onAccepted,
 }: VendorGrantNotificationActionsProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { removeNotification } = useNotifications();
@@ -68,7 +65,6 @@ export function VendorGrantNotificationActions({
 
       setAccepted(true);
       removeNotification(notification.id);
-      onAccepted?.();
       toast.success(t("vendorGrantAcceptSuccess"));
     } catch {
       toast.error(t("vendorGrantAcceptError"));

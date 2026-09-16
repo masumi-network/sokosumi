@@ -126,7 +126,7 @@ export function ComposerFormatToolbar({
       role="toolbar"
       aria-label={t("format")}
       className={cn(
-        "border-border bg-muted/20 flex max-w-full items-center gap-0.5 overflow-x-auto border-b px-2 py-1.5",
+        "border-border bg-card-background flex max-w-full items-center gap-0.5 overflow-x-auto border-b px-2 py-1.5",
         className,
       )}
     >

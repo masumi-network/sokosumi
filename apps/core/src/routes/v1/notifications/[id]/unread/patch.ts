@@ -28,7 +28,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}/unread",
     description:
-      "Mark a single notification as unread for the interactive session user. The reader's way back from a read they did not mean, including one the notification center wrote for them when they closed it. A chat mention put back here is unread everywhere, including the room's sidebar badge, which counts the same rows.",
+      "Mark a single notification as unread for the interactive session user. The reader's way back from a read they did not mean. A chat mention put back here is unread everywhere, including the room's sidebar badge, which counts the same rows.",
     tags: ["Notifications"],
     request: {
       params: paramsSchema,

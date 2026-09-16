@@ -190,13 +190,13 @@ export function TaskShareModal({
       <DialogContent className="w-svw max-w-lg! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
-        <ScrollArea className="max-h-svh md:max-h-[90svh]">
-          <div className="bg-background min-h-svh w-svw space-y-4 rounded-none p-4 md:min-h-auto md:w-lg md:rounded-xl md:p-8">
+        <ScrollArea className="max-h-dvh md:max-h-[90dvh]">
+          <div className="bg-background min-h-dvh w-svw space-y-4 rounded-none p-4 md:min-h-auto md:w-lg md:rounded-xl md:p-8">
             <h1 className="text-xl font-light">{t("title")}</h1>
             <div className="divide-y rounded-md border">
               <div
                 className={cn(
-                  "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
+                  "hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -216,7 +216,7 @@ export function TaskShareModal({
               </div>
               <div
                 className={cn(
-                  "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
+                  "hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },

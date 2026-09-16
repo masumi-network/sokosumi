@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { STATUS_ROLE_STYLES } from "@/components/ui/status-marker";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { TaskStatusPicker } from "./task-status-picker";
@@ -74,6 +75,19 @@ describe("TaskStatusPicker", () => {
     expect(
       screen.queryByRole("option", { name: /Input required/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("uses the surface tone for an unfilled Failed menu marker", async () => {
+    const user = userEvent.setup();
+    renderPicker({ options: [TaskStatus.FAILED] });
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+
+    const marker = screen
+      .getByRole("option", { name: /Failed/ })
+      .querySelector("svg");
+    expect(marker).toHaveClass(STATUS_ROLE_STYLES.failure.onSurface);
+    expect(marker).not.toHaveClass(STATUS_ROLE_STYLES.failure.marker);
   });
 
   it("picks an option with its number key while the list is open", async () => {
@@ -157,5 +171,59 @@ describe("TaskStatusPicker", () => {
     // The digits skip the disabled row, so 3 is Completed.
     await user.keyboard("3");
     expect(onSelect).toHaveBeenCalledWith(TaskStatus.COMPLETED);
+  });
+});
+
+/**
+ * COMPLETED, not RUNNING. The running marker is lucide's `LoaderCircle`, which
+ * is the component the pending spinner also uses, and it already spins, so on
+ * that one status the two branches render byte-identical markup and every
+ * assertion below would hold with the swap deleted.
+ */
+describe("TaskStatusPicker pending spinner", () => {
+  const ROLE = STATUS_ROLE_STYLES.success;
+
+  /** The glyph is the only element inside the pill that carries a role colour. */
+  function glyphOfTrigger(): SVGElement {
+    const glyph = screen
+      .getByRole("combobox", { name: "Status" })
+      .querySelector("svg");
+    if (!glyph) throw new Error("the pill rendered no glyph");
+    return glyph;
+  }
+
+  it("marks the resting pill with the role glyph, and does not spin it", () => {
+    renderPicker({ value: TaskStatus.COMPLETED });
+
+    const glyph = glyphOfTrigger();
+
+    expect(glyph).toHaveClass(ROLE.marker);
+    expect(glyph).not.toHaveClass("animate-spin");
+  });
+
+  /**
+   * The spinner replaces the glyph rather than joining it, so it has to occupy
+   * the same box, carry the same colour and hold the same stroke. A lighter
+   * 2px stroke erodes on the dark fills, which is why StatusMarker sets 2.25.
+   */
+  it("hands the pending spinner the glyph's box, colour and stroke", () => {
+    renderPicker({ value: TaskStatus.COMPLETED, isPending: true });
+
+    const spinner = glyphOfTrigger();
+
+    expect(spinner).toHaveClass(
+      "size-3.5",
+      "shrink-0",
+      "animate-spin",
+      ROLE.marker,
+    );
+    expect(spinner).toHaveAttribute("stroke-width", "2.25");
+  });
+
+  /** The spin is decoration; it stops when the reader asks for less motion. */
+  it("stops the spinner under prefers-reduced-motion", () => {
+    renderPicker({ value: TaskStatus.COMPLETED, isPending: true });
+
+    expect(glyphOfTrigger()).toHaveClass("motion-reduce:animate-none");
   });
 });

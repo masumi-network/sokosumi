@@ -505,7 +505,7 @@ export function TranscriptViewport({
             type="button"
             variant="outline"
             size="sm"
-            className="text-primary border-primary/30 bg-background hover:bg-primary/5 hover:text-primary dark:bg-background dark:border-primary/30 dark:hover:bg-primary/10 pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
+            className="text-primary border-primary-tertiary bg-background hover:bg-primary-quaternary hover:text-foreground dark:bg-background dark:hover:bg-primary-quaternary pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
             onClick={() => {
               setHeld(false);
               virtualizer.scrollToEnd();
