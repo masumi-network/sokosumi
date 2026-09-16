@@ -180,7 +180,45 @@ private func waitForOutboundIdle(_ state: WorkspaceState) async {
 }
 
 struct WorkspaceStateTests {
-  @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {
+  @Test(arguments: [false, true]) func welcomeSurvivesRoomRefreshAndOpensDirect(reenter: Bool) async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440009"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomsBody(names: ["general"])),
+      (201, roomReadBody(id: target, unread: 0)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.showChatStart()
+    #expect(state.showingChatStart)
+    #expect(state.transcriptRoomId == nil)
+    await state.refreshRooms(auth: auth)
+    #expect(state.showingChatStart)
+    #expect(state.selectedRoomId == nil)
+    var recipients = DirectConversationSelection(hasOrganization: false)
+    recipients.add(.coworker("peer"))
+    transport.pauseDirect = true
+    let request = Task { try await state.openDirect(recipients, context: state.directContext, auth: auth) }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms") {
+      await Task.yield()
+    }
+    #expect(state.openingDirect == .coworker("peer"))
+    if reenter {
+      state.showChatStart()
+    }
+    transport.releasePausedRequest()
+    #expect(try await request.value)
+    await waitForTranscriptIdle(state)
+    #expect(state.showingChatStart == reenter)
+    #expect(state.selectedRoomId == (reenter ? nil : target))
+    state.reset()
+  }
+
+  @Test(arguments: ["stay", "leave", "reset", "welcome"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
@@ -214,6 +252,8 @@ struct WorkspaceStateTests {
       state.reset()
     } else if action == "leave" {
       state.clearTranscript()
+    } else if action == "welcome" {
+      state.showChatStart()
     }
     transport.releasePausedRequest()
     #expect(try await request.value == (action != "reset"))

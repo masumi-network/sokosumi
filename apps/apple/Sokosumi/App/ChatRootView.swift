@@ -156,10 +156,13 @@ struct ChatRootView: View {
             }.value
           }
         } else {
-          Text("Pick a room to read it.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle(workspaces.selection?.title ?? "")
+          let context = workspaces.directContext
+          ChatStartView(load: {
+            try await workspaces.loadDirectRecipients(context: context, auth: auth, coworkersOnly: true)
+          }, open: {
+            try await workspaces.openDirect($0, context: context, auth: auth)
+          })
+          .id(context)
         }
       }
     }

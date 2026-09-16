@@ -34,6 +34,10 @@ struct ConversationSidebarView: View {
         }
       )) {
         workspaceMenu
+        Button("Start a chat", systemImage: "sparkles") {
+          workspaces.showChatStart()
+        }
+        .disabled(workspaces.roomsLoading)
         if workspaces.roomsLoading, workspaces.rooms.isEmpty {
           ProgressView("Loading rooms…")
         } else if workspaces.rooms.isEmpty {

@@ -44,6 +44,28 @@ private func memberFixture(id: String, name: String) -> String {
 }
 
 struct DirectRecipientRosterTests {
+  @Test func welcomeRanksOnlyCoworkersByPriorityThenSlug() {
+    let roster = DirectRecipientRoster(targets: [
+      .init(id: .human("human"), name: "Human", priority: 100),
+      .init(id: .coworker("z"), name: "Z", slug: "zebra", priority: 2),
+      .init(id: .coworker("low"), name: "Low", slug: "aaa"),
+      .init(id: .sokoBot("bot"), name: "Assistant", priority: 100),
+      .init(id: .coworker("a"), name: "A", slug: "alpha", priority: 2)
+    ])
+    #expect(roster.rankedCoworkers.map(\.id) == [.coworker("a"), .coworker("z"), .coworker("low")])
+    #expect(DirectRecipientRoster(targets: []).rankedCoworkers.isEmpty)
+  }
+
+  @Test func welcomeLoadsOnlyAvailableCoworkers() async throws {
+    let transport = RosterTransport(["get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]"))])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let targets = try await ChatService().chatCoworkers(client: client, organizationSlug: "team")
+    #expect(targets.map(\.id) == [.coworker("ai")])
+    let requests = await transport.requests
+    #expect(requests.count == 1)
+    #expect(try requests.first?.headerFields[#require(HTTPField.Name("X-Organization-Slug"))] == "team")
+  }
+
   @Test func rosterMatchesWebFilteringAndWorkspace() async throws {
     let transport = RosterTransport([
       "get/coworkers": (200, rosterEnvelope("[" + [
