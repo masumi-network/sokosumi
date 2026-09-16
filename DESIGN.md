@@ -259,7 +259,18 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
   Use `rounded-sm/md/lg/xl` — don't hardcode px radii.
 - **Segmented lines:** a thin line anchors content to the grid and acts as **separator** — used
   to define sections and delineate cards. In-app these are **full-bleed**
-  (`-mx-6 border-t border-border`) between major blocks and company groups.
+  (`-mx-4 border-t border-border`) between major blocks and company groups.
+- **One gutter, one bleed.** The app has exactly one horizontal gutter: `p-4` on
+  `main[data-app-main]`. A page must not add a second one, because a rule can only escape
+  padding it knows about, and a rule that escapes 16px inside a page that adds another 16px
+  still stops 16px short. So the bleed is always `-mx-4`, never `-mx-6`. `-mx-6` was the old
+  habit, correct only on the two pages that added `px-2` of their own and 8px too wide
+  everywhere else. `main` also sets `scrollbar-gutter: stable`: it is the scroll container, so
+  without that the scrollbar takes its width out of the content box on the right only and
+  every rule stops further from the right edge than the left. Guard:
+  `apps/web/src/lib/utils/__tests__/full-bleed-rules.test.ts`.
+  A centred column inside a `max-w-*` wrapper keeps its own padding and is out of scope: no
+  rule crosses the view there.
 - Avatars are **circular** for people; square source art is shown **whole** (no crop).
 - **Whole pixels:** every layout and border length is a whole number of CSS pixels. A 1x
   display, which is most Windows hardware, has no half pixel, so a `1.5px` border rounds to
