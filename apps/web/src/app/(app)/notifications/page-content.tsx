@@ -27,15 +27,12 @@ export function NotificationsPageContent() {
       <NotificationBrowserPermissionPrimer variant="page" />
       {/* The row outlives its button. Reading the last unread row takes the
           button away, and a row that went with it would pull the whole list
-          up under the reader's pointer. It also outlives the rows in the
-          Unread view, so the reader can always switch back from an empty
-          narrowed list. */}
+          up under the reader's pointer. */}
       {notifications.length > 0 || view === "unread" ? (
         <div
           data-testid="notifications-page-actions"
           className="flex min-h-8 items-center justify-end gap-2"
         >
-          <NotificationCenterViewFilter />
           {unreadCount > 0 ? (
             <Button
               type="button"
@@ -48,11 +45,16 @@ export function NotificationsPageContent() {
           ) : null}
         </div>
       ) : null}
-      {/* Empty only when the list has nothing to say under an account notice,
-          and then there is no card to draw either. */}
-      <div className="bg-card-background border-border overflow-hidden rounded-xl border empty:hidden">
-        <NotificationCenterList />
-      </div>
+      {/* The strip is the card's top edge, so it reads as this card's own
+          control and not as page navigation. The card stays out only when
+          the list has nothing to say under an account notice, and then
+          there is nothing to narrow either. */}
+      {notifications.length > 0 || view === "unread" || notice === null ? (
+        <div className="bg-card-background border-border overflow-hidden rounded-xl border">
+          <NotificationCenterViewFilter />
+          <NotificationCenterList />
+        </div>
+      ) : null}
     </div>
   );
 }

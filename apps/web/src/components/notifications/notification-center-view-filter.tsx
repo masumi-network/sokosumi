@@ -1,47 +1,64 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNotifications } from "@/contexts/notification-provider";
+import { cn } from "@/lib/utils";
+
+// The underline hangs one pixel below the strip, over the strip's own border,
+// so the active tab's line and the list's top edge are one line.
+const TRIGGER_CLASS_NAME = cn(
+  "text-muted-foreground hover:text-foreground -mb-px h-auto flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-1 pt-2 pb-2.5 text-sm font-medium shadow-none",
+  "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none",
+  "dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent",
+);
+
+interface NotificationCenterViewFilterProps {
+  className?: string;
+}
 
 /**
- * The Notification Center's Unread lens, drawn once and used by both frames.
- * A lens, not a write: pressing it refetches under the narrowed view and
- * never marks anything read.
+ * The Notification Center's view strip, drawn once and used by both frames:
+ * All or Unread, with the live count on Unread. A lens, not a write:
+ * switching refetches under the new view and never marks anything read.
  *
- * One pressed chip rather than an All/Unread pair. All is the resting state
- * of the list, so it needs no button of its own, and the header row keeps
- * room for Mark all read beside it. The dot and the pressed fill take the
- * unread colour, the same purple as the rail on an unread row, so the chip
- * and the rows it narrows to say "unread" in one voice. The count is the
- * reason to press it, and it leaves with the last unread row.
+ * A strip of tabs rather than a segmented pill, because it sits directly on
+ * the list it narrows and its bottom edge is the line above the first row.
+ * The active tab's underline takes the unread colour, the same purple as
+ * the rail on an unread row, so the strip and the rows say "unread" in one
+ * voice. A single-choice control on purpose: each view is a different list,
+ * and a later view (rows that need the reader) joins as a third tab.
  */
-export function NotificationCenterViewFilter() {
+export function NotificationCenterViewFilter({
+  className,
+}: NotificationCenterViewFilterProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { view, setView, unreadCount } = useNotifications();
-  const isPressed = view === "unread";
 
-  function handleClick(): void {
-    setView(isPressed ? "all" : "unread");
+  function handleValueChange(next: string): void {
+    if (next === "all" || next === "unread") {
+      setView(next);
+    }
   }
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      aria-pressed={isPressed}
-      onClick={handleClick}
-      className="group/filter text-muted-foreground hover:text-foreground aria-pressed:border-primary-quaternary aria-pressed:bg-primary-quinary aria-pressed:text-primary aria-pressed:hover:bg-primary-quaternary aria-pressed:hover:text-primary h-7 shrink-0 gap-1.5 rounded-full px-2.5 text-xs"
-    >
-      <span
-        aria-hidden
-        className="bg-quaternary group-aria-pressed/filter:bg-primary size-2 rounded-full"
-      />
-      {t("filterUnread")}
-      {unreadCount > 0 ? (
-        <span className="tabular-nums">{unreadCount}</span>
-      ) : null}
-    </Button>
+    <Tabs value={view} onValueChange={handleValueChange} className={className}>
+      <TabsList
+        aria-label={t("filterLabel")}
+        className="border-border h-auto w-full justify-start gap-4 rounded-none border-b bg-transparent p-0 px-4"
+      >
+        <TabsTrigger value="all" className={TRIGGER_CLASS_NAME}>
+          {t("filterAll")}
+        </TabsTrigger>
+        <TabsTrigger value="unread" className={TRIGGER_CLASS_NAME}>
+          {t("filterUnread")}
+          {unreadCount > 0 ? (
+            <span className="bg-primary-quinary text-primary rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums">
+              {unreadCount}
+            </span>
+          ) : null}
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }

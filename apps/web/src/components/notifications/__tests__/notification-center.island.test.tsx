@@ -606,7 +606,7 @@ describe("Notification Center, both frames", () => {
     // behind them.
     const user = userEvent.setup();
     await user.tab();
-    expect(document.activeElement?.textContent).toContain("filterUnread");
+    expect(document.activeElement?.textContent).toContain("filterAll");
     await user.tab();
     expect(document.activeElement?.textContent).toContain("first");
   });
@@ -696,9 +696,7 @@ describe("Notification Center view filter", () => {
 
     getNotificationsMock.mockResolvedValue(page([waiting]));
     await user.click(
-      within(panel as HTMLElement).getByRole("button", {
-        name: /filterUnread/,
-      }),
+      within(panel as HTMLElement).getByRole("tab", { name: /^filterUnread/ }),
     );
     await settle();
 
@@ -710,10 +708,10 @@ describe("Notification Center view filter", () => {
     });
     expect(screen.getAllByText("waiting")).toHaveLength(2);
     expect(screen.queryByText("handled")).toBeNull();
-    for (const option of screen.getAllByRole("button", {
-      name: /filterUnread/,
+    for (const option of screen.getAllByRole("tab", {
+      name: /^filterUnread/,
     })) {
-      expect(option.getAttribute("aria-pressed")).toBe("true");
+      expect(option.getAttribute("aria-selected")).toBe("true");
     }
   });
 
@@ -735,17 +733,17 @@ describe("Notification Center view filter", () => {
       await mount();
       const user = userEvent.setup();
 
-      // The default view is all notifications: the lens is not pressed.
+      // The default view is all notifications.
       expect(
         screen
-          .getByRole("button", { name: /filterUnread/ })
-          .getAttribute("aria-pressed"),
-      ).toBe("false");
+          .getByRole("tab", { name: "filterAll" })
+          .getAttribute("aria-selected"),
+      ).toBe("true");
       expect(screen.getByText("waiting")).toBeTruthy();
       expect(screen.getByText("handled")).toBeTruthy();
 
       getNotificationsMock.mockResolvedValue(page([waiting]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
       expect(getNotificationsMock).toHaveBeenLastCalledWith({
@@ -756,7 +754,7 @@ describe("Notification Center view filter", () => {
       expect(screen.queryByText("handled")).toBeNull();
 
       getNotificationsMock.mockResolvedValue(page([waiting, handled]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: "filterAll" }));
       await settle();
 
       expect(getNotificationsMock).toHaveBeenLastCalledWith({ limit: 20 });
@@ -780,7 +778,7 @@ describe("Notification Center view filter", () => {
       const user = userEvent.setup();
 
       getNotificationsMock.mockResolvedValue(page([first], "first"));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
       getNotificationsMock.mockResolvedValue(
@@ -821,7 +819,7 @@ describe("Notification Center view filter", () => {
       const user = userEvent.setup();
 
       getNotificationsMock.mockResolvedValue(page([unread]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
       // Reading in the Unread view leaves the row where it is, with its way
@@ -847,11 +845,11 @@ describe("Notification Center view filter", () => {
       await user.click(screen.getByRole("button", { name: "markRead: mine" }));
       await settle();
       getNotificationsMock.mockResolvedValue(page([unread]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: "filterAll" }));
       await settle();
       expect(screen.getByText("mine")).toBeTruthy();
       getNotificationsMock.mockResolvedValue(page([]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
       expect(screen.queryByText("mine")).toBeNull();
     },
@@ -870,7 +868,7 @@ describe("Notification Center view filter", () => {
       const user = userEvent.setup();
 
       getNotificationsMock.mockResolvedValue(page([first, second]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
       await user.click(screen.getByRole("button", { name: "markAllRead" }));
@@ -924,7 +922,7 @@ describe("Notification Center view filter", () => {
       getNotificationsMock.mockResolvedValue(page([waiting]));
       await userEvent
         .setup()
-        .click(screen.getByRole("button", { name: /filterUnread/ }));
+        .click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
       await act(async () => {
@@ -960,13 +958,13 @@ describe("Notification Center view filter", () => {
       const user = userEvent.setup();
 
       getNotificationsMock.mockResolvedValue(page([]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
       expect(screen.getByText("emptyUnreadState")).toBeTruthy();
       expect(screen.queryByText("emptyState")).toBeNull();
 
       getNotificationsMock.mockResolvedValue(page([]));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: "filterAll" }));
       await settle();
       expect(screen.getByText("emptyState")).toBeTruthy();
       expect(screen.queryByText("emptyUnreadState")).toBeNull();
@@ -985,14 +983,14 @@ describe("Notification Center view filter", () => {
     getNotificationsMock.mockResolvedValue(page([]));
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: /filterUnread/ }));
+      .click(screen.getByRole("tab", { name: /^filterUnread/ }));
     await settle();
 
     expect(screen.getByText("account notice")).toBeTruthy();
     expect(screen.queryByText("emptyUnreadState")).toBeNull();
     expect(screen.queryByText("emptyState")).toBeNull();
     // ...and the way back stays on screen.
-    expect(screen.getByRole("button", { name: /filterUnread/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "filterAll" })).toBeTruthy();
   });
 
   it.each(FRAMES)(
@@ -1009,7 +1007,7 @@ describe("Notification Center view filter", () => {
       const user = userEvent.setup();
 
       getNotificationsMock.mockRejectedValue(new Error("offline"));
-      await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
       expect(screen.getByText("fetchError")).toBeTruthy();
@@ -1041,12 +1039,12 @@ describe("Notification Center view filter", () => {
     expect(badge()).toBe("5");
 
     getNotificationsMock.mockResolvedValue(page([waiting]));
-    await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
     await settle();
     expect(badge()).toBe("5");
 
     getNotificationsMock.mockResolvedValue(page([waiting, handled]));
-    await user.click(screen.getByRole("button", { name: /filterUnread/ }));
+    await user.click(screen.getByRole("tab", { name: "filterAll" }));
     await settle();
     expect(badge()).toBe("5");
   });
@@ -1059,15 +1057,19 @@ describe("Notification Center view filter", () => {
     await renderPage();
     const user = userEvent.setup();
 
-    const lens = screen.getByRole("button", { name: /filterUnread/ });
-    for (let step = 0; step < 5 && document.activeElement !== lens; step++) {
+    expect(screen.getByRole("tablist", { name: "filterLabel" })).toBeTruthy();
+    const all = screen.getByRole("tab", { name: "filterAll" });
+    for (let step = 0; step < 5 && document.activeElement !== all; step++) {
       await user.tab();
     }
-    expect(document.activeElement).toBe(lens);
-    expect(lens.getAttribute("aria-pressed")).toBe("false");
+    expect(document.activeElement).toBe(all);
 
     const waiting = row("waiting", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: /^filterUnread/ }),
+    );
     await user.keyboard("{Enter}");
     await settle();
 
@@ -1076,9 +1078,11 @@ describe("Notification Center view filter", () => {
       isRead: "false",
     });
     expect(screen.getByText("waiting")).toBeTruthy();
-    expect(lens.getAttribute("aria-pressed")).toBe("true");
-    // Focus stays on the lens, so a second press turns it back off.
-    expect(document.activeElement).toBe(lens);
+    expect(
+      screen
+        .getByRole("tab", { name: /^filterUnread/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
   });
 
   it("shows the loading rows while the narrowed page is fetched", async () => {
@@ -1092,7 +1096,7 @@ describe("Notification Center view filter", () => {
     getNotificationsMock.mockReturnValueOnce(narrowed.promise);
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: /filterUnread/ }));
+      .click(screen.getByRole("tab", { name: /^filterUnread/ }));
 
     expect(screen.getByTestId("notifications-loading-list")).toBeTruthy();
     expect(screen.queryByText("mine")).toBeNull();

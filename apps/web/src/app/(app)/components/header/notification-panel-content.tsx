@@ -38,16 +38,30 @@ export function NotificationPanelContent({
           <Separator />
         </>
       ) : null}
-      {/* Title and the Unread lens, and nothing that comes and goes: the
-          chip is anchored to the right edge and never moves. Mark all read
-          lives in the footer, where it shares a row with the link to the
-          page. The popover's own 16px inset carries on here, so the title,
-          the primer, and the chip's outer edge share one line. */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
+      {/* One height with or without Mark all read, which is taller than
+          the title. The header used to grow and shrink as the last unread
+          row changed, and move the whole list with it. Nothing else shares
+          the row, so the button can leave without moving a thing. The
+          popover's own 16px inset carries on here, so the title, the
+          strip, the primer, and the button's outer edge share one line. */}
+      <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
         <p className="text-sm font-medium">{t("title")}</p>
-        <NotificationCenterViewFilter />
+        {unreadCount > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground -mr-3"
+            onClick={handleMarkAllRead}
+            disabled={isMarkingAllRead}
+          >
+            {isMarkingAllRead ? t("loading") : t("markAllRead")}
+          </Button>
+        ) : null}
       </div>
-      <Separator />
+      {/* The strip carries the line under it, so it stands in for the
+          separator between the header and the list. */}
+      <NotificationCenterViewFilter />
       <NotificationBrowserPermissionPrimer
         className="mx-4 my-3"
         onNavigate={onClose}
@@ -59,28 +73,12 @@ export function NotificationPanelContent({
       <div className="max-h-96 overflow-y-auto border-b empty:hidden">
         <NotificationCenterList onNavigate={onClose} />
       </div>
-      {/* Mark all read on the left, the page on the right. The left
-          button leaves with the last unread row; the link is pinned to
-          the right edge, so nothing moves when it does. The ghost buttons'
-          own padding puts their labels on the header's 16px line. */}
-      <div className="flex items-center gap-2 px-1 py-2">
-        {unreadCount > 0 ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-          >
-            {isMarkingAllRead ? t("loading") : t("markAllRead")}
-          </Button>
-        ) : null}
+      <div className="flex justify-end px-1 py-2">
         <Button
           asChild
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-foreground ml-auto"
+          className="text-muted-foreground hover:text-foreground"
         >
           <Link href="/notifications" onClick={onClose}>
             {t("viewAll")}
