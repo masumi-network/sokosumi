@@ -92,9 +92,9 @@ describe("core.notifications.browser.client", () => {
     expect(response.meta.timestamp).toBeInstanceOf(Date);
   });
 
-  it("fetches unread count, marks one read, and marks all read", async () => {
+  it("fetches counts, marks one read, and marks all read", async () => {
     await withTransformer(getMock, {
-      data: { count: 3 },
+      data: { unread: 3, needsAction: 1 },
       meta: {
         timestamp: "2026-04-02T12:00:00.000Z",
         requestId: "req_count",
@@ -151,12 +151,11 @@ describe("core.notifications.browser.client", () => {
       "./core.notifications.browser.client"
     );
 
-    const count =
-      await notificationsBrowserClient.getNotificationsUnreadCount();
-    expect(count.data.count).toBe(3);
+    const counts = await notificationsBrowserClient.getNotificationsCounts();
+    expect(counts.data).toEqual({ unread: 3, needsAction: 1 });
     expect(getMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        url: "/notifications/unread-count",
+        url: "/notifications/counts",
         cache: "no-store",
       }),
     );

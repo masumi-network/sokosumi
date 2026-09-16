@@ -1,0 +1,115 @@
+import CoreAPI
+import SokosumiAuth
+import SokosumiChat
+import SokosumiWorkspace
+import SwiftUI
+
+struct RoomDetailsView: View {
+  let room: Components.Schemas.ChatRoom
+  let close: () -> Void
+  @EnvironmentObject private var workspaces: WorkspaceState
+  @EnvironmentObject private var auth: AuthState
+  @State private var errorMessage: String?
+  @State private var directRequestId: UUID?
+  @State private var selectedProfile: ChatParticipantProfile?
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack {
+        Text("Members").font(.headline)
+        Spacer()
+        Button("Close", systemImage: "xmark", action: close)
+          .labelStyle(.iconOnly).buttonStyle(.borderless).help("Close members")
+      }.padding()
+      List {
+        if room.kind == .channel {
+          Section("Channel") {
+            Text(room.name).font(.headline)
+            Text(visibility).foregroundStyle(.secondary)
+            if let topic = room.topic?.trimmingCharacters(in: .whitespacesAndNewlines), !topic.isEmpty {
+              Text(topic).textSelection(.enabled)
+            }
+          }
+        }
+        Section {
+          let members = RoomRoster.members(in: room)
+          if members.isEmpty {
+            Text("No members.").foregroundStyle(.secondary)
+          }
+          ForEach(members) { member in
+            memberRow(member)
+          }
+        }
+      }.listStyle(.plain)
+      if let errorMessage {
+        Text(errorMessage).font(.callout).foregroundStyle(.red).padding()
+      }
+    }
+    .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
+    .onDisappear { directRequestId = nil }
+    .onChange(of: room.id) { _, _ in
+      directRequestId = nil
+      errorMessage = nil
+      selectedProfile = nil
+    }
+  }
+
+  private var visibility: String {
+    switch room.discoverability {
+    case ._private: "Private channel"
+    case .external: "External channel"
+    default: "Public channel"
+    }
+  }
+
+  private func memberRow(_ member: RoomRosterMember) -> some View {
+    HStack(spacing: 8) {
+      Button { selectedProfile = member.profile } label: {
+        ParticipantAvatar(imageURL: member.profile.image, name: member.profile.name, size: 32)
+      }.buttonStyle(.plain).help("Show participant details")
+      VStack(alignment: .leading, spacing: 2) {
+        Text(member.profile.name).lineLimit(1)
+        if let subtitle = member.subtitle, !subtitle.isEmpty {
+          CopyTextButton(text: subtitle).font(.caption).foregroundStyle(.secondary)
+        }
+        Text(roleAndPresence(member.profile)).font(.caption).foregroundStyle(.secondary)
+      }
+      Spacer(minLength: 0)
+      if workspaces.canOpenDirect(member.id) {
+        Button {
+          errorMessage = nil
+          let requestId = UUID()
+          directRequestId = requestId
+          Task { @MainActor in
+            do {
+              _ = try await workspaces.openParticipantDirect(member.id, auth: auth)
+            } catch {
+              if directRequestId == requestId {
+                errorMessage = friendlyMessage(for: error)
+              }
+            }
+          }
+        } label: {
+          if workspaces.openingDirect == member.id {
+            ProgressView().controlSize(.mini)
+          } else {
+            Image(systemName: "bubble.left")
+          }
+        }
+        .buttonStyle(.borderless)
+        .disabled(workspaces.openingDirect != nil)
+        .help("Message \(member.profile.name)")
+        .accessibilityLabel("Message \(member.profile.name)")
+      }
+    }.padding(.vertical, 2)
+  }
+
+  private func roleAndPresence(_ profile: ChatParticipantProfile) -> String {
+    let presence = profile.presence == "online" ? "Online" : profile.presence == "afk" ? "Away" : "Offline"
+    switch profile.recipient {
+    case .human: return presence
+    case .coworker: return "Coworker · \(presence)"
+    case .sokoBot: return "Personal assistant · \(presence)"
+    }
+  }
+}

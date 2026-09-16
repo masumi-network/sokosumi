@@ -50,7 +50,7 @@ export function NotificationsPageContent() {
           control and not as page navigation. The card stays out only when
           the list has nothing to say under an account notice, and then
           there is nothing to narrow either. */}
-      {notifications.length > 0 || view === "unread" || notice === null ? (
+      {notifications.length > 0 || view !== "all" || notice === null ? (
         <div className="bg-card-background border-border overflow-hidden rounded-xl border">
           <NotificationCenterViewFilter />
           <NotificationCenterList />

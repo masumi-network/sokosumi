@@ -62,8 +62,11 @@ export function NotificationPanelContent({
       {/* The strip carries the line under it, so it stands in for the
           separator between the header and the list. */}
       <NotificationCenterViewFilter />
+      {/* No margin below: the list's first row and the empty state bring
+          their own padding, and a gap on top of that sat the empty state's
+          text above the middle of the space it had. */}
       <NotificationBrowserPermissionPrimer
-        className="mx-4 my-3"
+        className="mx-4 mt-3"
         onNavigate={onClose}
       />
       {/* The scroll container the boundary row watches: reaching the end of

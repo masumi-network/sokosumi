@@ -4,17 +4,17 @@ import {
   NotificationKind,
   type Prisma,
 } from "@sokosumi/database";
-import { isFollowUpMessageKey } from "@sokosumi/utils";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  isFollowUpMessageKey,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@sokosumi/utils";
 
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
   resolveNotificationDelivery,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
-import {
-  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
-  VENDOR_GRANT_PENDING_MESSAGE_KEY,
-} from "@/helpers/notification-feed";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";

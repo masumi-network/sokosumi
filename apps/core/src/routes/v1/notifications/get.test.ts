@@ -23,6 +23,8 @@ const {
   prismaTransactionMock,
   vendorGrantFindManyMock,
   coworkerWorkspaceAccessFindManyMock,
+  taskFindManyMock,
+  jobFindManyMock,
 } = vi.hoisted(() => ({
   notificationCountMock: vi.fn(),
   notificationFindFirstMock: vi.fn(),
@@ -30,6 +32,8 @@ const {
   prismaTransactionMock: vi.fn(),
   vendorGrantFindManyMock: vi.fn(),
   coworkerWorkspaceAccessFindManyMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  jobFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -45,6 +49,12 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     coworkerWorkspaceAccess: {
       findMany: coworkerWorkspaceAccessFindManyMock,
+    },
+    task: {
+      findMany: taskFindManyMock,
+    },
+    job: {
+      findMany: jobFindManyMock,
     },
   },
 }));
@@ -101,6 +111,8 @@ describe("GET /notifications", () => {
     notificationCountMock.mockResolvedValue(0);
     vendorGrantFindManyMock.mockResolvedValue([]);
     coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    jobFindManyMock.mockResolvedValue([]);
     prismaTransactionMock.mockImplementation(
       async (operations: Array<Promise<unknown>>) =>
         await Promise.all(operations),
@@ -331,6 +343,241 @@ describe("GET /notifications", () => {
             ],
           },
         },
+      }),
+    );
+  });
+});
+
+/**
+ * A minimal job row for the status helper: a free job whose latest event
+ * decides everything. Waiting means the agent asked for input and none came.
+ */
+function jobRow(id: string, waiting: boolean): Record<string, unknown> {
+  return {
+    id,
+    projectId: null,
+    jobType: "FREE",
+    refundedTransactionId: null,
+    createdAt: new Date("2026-06-16T15:00:00.000Z"),
+    payByTime: null,
+    submitResultTime: null,
+    externalDisputeUnlockTime: null,
+    purchase: null,
+    events: [
+      waiting
+        ? { status: "AWAITING_INPUT", input: null }
+        : { status: "COMPLETED", input: null },
+    ],
+  };
+}
+
+/**
+ * The rows that asked something of the reader, by key and record. Answered
+ * by the notification findMany mock when the route asks for the actionable
+ * keys, so the stale access lookups (one key each) keep their own answers.
+ */
+function answerNotificationLookups(
+  actionable: Array<{ id: string; messageKey: string; referenceId: string }>,
+) {
+  notificationFindManyMock.mockImplementation(
+    async ({ where }: { where: { messageKey?: unknown } }) => {
+      const key = where.messageKey;
+      if (typeof key === "object" && key !== null && "in" in key) {
+        return actionable;
+      }
+      return [];
+    },
+  );
+}
+
+describe("GET /notifications?needsAction=true", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationFindFirstMock.mockResolvedValue(null);
+    notificationFindManyMock.mockResolvedValue([]);
+    notificationCountMock.mockResolvedValue(0);
+    vendorGrantFindManyMock.mockResolvedValue([]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    jobFindManyMock.mockResolvedValue([]);
+    prismaTransactionMock.mockImplementation(
+      async (operations: Array<Promise<unknown>>) =>
+        await Promise.all(operations),
+    );
+  });
+
+  /**
+   * SOK-1097 user stories 5 to 8 and 12 to 15. The key says a row asked; the
+   * record says whether it is still asking. Reading the row changes neither.
+   */
+  it("narrows the feed to the newest row of each request still waiting", async () => {
+    answerNotificationLookups([
+      // Newest first, as the lookup orders them.
+      {
+        id: "n_task_asked_again",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+      {
+        id: "n_task_asked_first",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+      {
+        id: "n_task_moved_on",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_resumed",
+      },
+      {
+        id: "n_job_waiting",
+        messageKey: "Notifications.Job.inputRequired",
+        referenceId: "job_waiting",
+      },
+      {
+        id: "n_job_done",
+        messageKey: "Notifications.Job.inputRequired",
+        referenceId: "job_done",
+      },
+      {
+        id: "n_grant_pending",
+        messageKey: "notifications.vendorGrant.pending",
+        referenceId: "grant_pending",
+      },
+      {
+        id: "n_access_denied",
+        messageKey: "notifications.coworkerAccess.pending",
+        referenceId: "access_denied",
+      },
+    ]);
+    taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+    jobFindManyMock.mockResolvedValue([
+      jobRow("job_waiting", true),
+      jobRow("job_done", false),
+    ]);
+    vendorGrantFindManyMock.mockResolvedValue([{ id: "grant_pending" }]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?needsAction=true");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["task_waiting", "task_resumed"] },
+        status: "INPUT_REQUIRED",
+      },
+      select: { id: true },
+    });
+    expect(vendorGrantFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["grant_pending"] }, status: "PENDING" },
+      select: { id: true },
+    });
+    expect(coworkerWorkspaceAccessFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["access_denied"] }, status: "PENDING" },
+      select: { id: true },
+    });
+    const expectedWhere = {
+      userId: "user_123",
+      ...notificationFeedWhere(),
+      id: { in: ["n_task_asked_again", "n_job_waiting", "n_grant_pending"] },
+    };
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: expectedWhere }),
+    );
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: expectedWhere,
+    });
+  });
+
+  it("asks no record anything when nothing ever asked the reader", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?needsAction=true");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+    expect(jobFindManyMock).not.toHaveBeenCalled();
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user_123",
+          ...notificationFeedWhere(),
+          id: { in: [] },
+        },
+      }),
+    );
+  });
+
+  it("narrows on top of the kind filter", async () => {
+    answerNotificationLookups([
+      {
+        id: "n_task",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+    ]);
+    taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?needsAction=true&kind=TASK",
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user_123",
+          ...notificationFeedWhere([NotificationKind.TASK]),
+          id: { in: ["n_task"] },
+        },
+      }),
+    );
+  });
+
+  it("pages older rows inside the narrowed feed", async () => {
+    answerNotificationLookups([
+      {
+        id: "n_task",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+    ]);
+    taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+    notificationFindFirstMock.mockResolvedValue({ id: "n_task" });
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?needsAction=true&cursor=n_task",
+    );
+
+    expect(response.status).toBe(200);
+    // The cursor must be a row of this view, not just a row of the feed.
+    expect(notificationFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            userId: "user_123",
+            ...notificationFeedWhere(),
+            id: { in: ["n_task"] },
+          },
+          { id: "n_task" },
+        ],
+      },
+      select: { id: true },
+    });
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: { id: "n_task" }, skip: 1 }),
+    );
+  });
+
+  it("leaves the feed whole when the flag is false", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?needsAction=false");
+
+    expect(response.status).toBe(200);
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123", ...notificationFeedWhere() },
       }),
     );
   });

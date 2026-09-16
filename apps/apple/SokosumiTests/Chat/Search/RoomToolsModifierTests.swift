@@ -14,6 +14,11 @@
       #expect(roomThreadsAccessibilityLabel(unreadCount: example.0) == example.1)
     }
 
+    @Test func membersInspectorYieldsToReplyThread() {
+      #expect(roomToolsInspectorPresented(showsPins: false, showsMembers: true, showsSearch: false, showsThreads: false, threadParentId: nil))
+      #expect(!roomToolsInspectorPresented(showsPins: false, showsMembers: true, showsSearch: false, showsThreads: false, threadParentId: "parent"))
+    }
+
     @Test func inspectorHidesWhileAThreadIsOpenAndKeepsThreadsRequested() {
       #expect(roomToolsInspectorPresented(showsPins: false, showsSearch: false, showsThreads: true, threadParentId: nil))
       #expect(!roomToolsInspectorPresented(showsPins: false, showsSearch: false, showsThreads: true, threadParentId: "parent"))
