@@ -140,8 +140,7 @@ struct StartDirectView: View {
                 }
               }
               .listRowSeparator(.hidden)
-              .listRowInsets(.horizontal, 0)
-              .listRowInsets(.vertical, 2)
+              .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
             }
             .listStyle(.plain)
             .contentMargins(0, for: .scrollContent)
