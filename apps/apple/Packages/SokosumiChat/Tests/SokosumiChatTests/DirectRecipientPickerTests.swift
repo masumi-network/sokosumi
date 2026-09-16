@@ -3,8 +3,30 @@ import Testing
 
 @MainActor
 struct DirectRecipientPickerTests {
-  private let person = DirectRecipientTarget(id: .human("person"), name: "Person")
+  private let person = DirectRecipientTarget(id: .human("person"), name: "Person", detail: "human@example.com")
   private let coworker = DirectRecipientTarget(id: .coworker("coworker"), name: "AI")
+
+  @Test func groupedRecipientsPutCoworkersFirstAndOmitEmptySections() async {
+    let picker = DirectRecipientPicker(hasOrganization: true)
+    let assistant = DirectRecipientTarget(id: .sokoBot("bot"), name: "Personal assistant")
+    await picker.load { .init(targets: [person, assistant, coworker]) }
+    #expect(picker.sections.map(\.id) == [.coworkers, .people, .assistant])
+    #expect(picker.candidates.map(\.id) == [coworker.id, person.id, assistant.id])
+    picker.query = "Person"
+    #expect(picker.sections.map(\.id) == [.people, .assistant])
+    picker.query = "human@example.com"
+    #expect(picker.sections.map(\.id) == [.people])
+    #expect(picker.sections.first?.targets == [person])
+    picker.query = "no match"
+    #expect(picker.sections.isEmpty)
+    picker.query = ""
+    picker.add(coworker)
+    #expect(picker.sections.map(\.id) == [.people, .assistant])
+    #expect(picker.selection.disabledReason(for: person.id) != nil)
+    #expect(picker.selection.disabledReason(for: assistant.id) != nil)
+    picker.remove(coworker.id)
+    #expect(picker.sections.first?.targets == [coworker])
+  }
 
   @Test func selectionAndRetryPreserveOnlyAvailableRecipients() async {
     let picker = DirectRecipientPicker(hasOrganization: true)
