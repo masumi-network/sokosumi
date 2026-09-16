@@ -2744,8 +2744,19 @@
           "subscription": "Abonnement",
           "startedTasks": "Gestartete Aufgaben",
           "registered": "Registriert",
+          "actions": "Aktionen",
           "loadMore": "Mehr laden",
           "loadError": "Benutzer konnten nicht geladen werden."
+        },
+        "Impersonate": {
+          "trigger": "Nutzer impersonieren",
+          "title": "Nutzer impersonieren",
+          "description": "Du handelst als {name} ({email}) mit vollem Zugriff auf dieses Konto, einschließlich Schreibzugriff. Die Sitzung läuft nach einer Stunde ab.",
+          "reasonLabel": "Grund",
+          "reasonPlaceholder": "SOK-123: Warum du Zugriff brauchst",
+          "cancel": "Abbrechen",
+          "start": "Impersonierung starten",
+          "startError": "Impersonierung konnte nicht gestartet werden."
         }
       },
       "Organizations": {
@@ -4920,6 +4931,11 @@
         },
         "button": "Abrechnung öffnen"
       }
+    },
+    "Impersonation": {
+      "banner": "Du handelst als {name} ({email})",
+      "exit": "Beenden",
+      "stopError": "Impersonierung konnte nicht beendet werden."
     },
     "DesignMd": {
       "adHocDialogTitle": "Eine andere Marke verwenden",

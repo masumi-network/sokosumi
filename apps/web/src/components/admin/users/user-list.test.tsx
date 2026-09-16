@@ -46,6 +46,7 @@ function createUser(
     subscriptionPlan: "free",
     subscriptionStatus: "active",
     startedTaskCount: 1,
+    isAdmin: false,
     ...overrides,
   };
 }
@@ -64,5 +65,44 @@ describe("UserList credits", () => {
 
     expect(screen.getByText("2,807")).toBeInTheDocument();
     expect(screen.queryByText("2,807.025")).not.toBeInTheDocument();
+  });
+});
+
+describe("UserList impersonation", () => {
+  it("renders one Impersonate action per row", () => {
+    render(
+      <UserList
+        initialPage={{
+          users: [
+            createUser({ id: "user-1" }),
+            createUser({ id: "user-2", email: "bob@example.com" }),
+          ],
+          total: 2,
+          nextCursor: null,
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("columnheader", { name: "actions" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "trigger" })).toHaveLength(2);
+  });
+
+  it("hides the Impersonate action on admin rows", () => {
+    render(
+      <UserList
+        initialPage={{
+          users: [
+            createUser({ id: "user-1" }),
+            createUser({ id: "user-admin", isAdmin: true }),
+          ],
+          total: 2,
+          nextCursor: null,
+        }}
+      />,
+    );
+
+    expect(screen.getAllByRole("button", { name: "trigger" })).toHaveLength(1);
   });
 });

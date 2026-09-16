@@ -150,6 +150,10 @@ _Avoid_: Profile menu (unless a separate account menu is introduced), notificati
 The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
 
+**Impersonation**:
+A platform admin acting as a non-admin user in a full one-hour session, started from the admin user overview with a required reason. Badged by a persistent "Acting as {name} ({email})" banner with an Exit control on every app page; every start is audit-logged with actor, target, and reason, and every stop with actor and target (stopping takes no reason by design).
+_Avoid_: Login as, switch user, mask
+
 ### Workspaces
 
 **Personal workspace**:
