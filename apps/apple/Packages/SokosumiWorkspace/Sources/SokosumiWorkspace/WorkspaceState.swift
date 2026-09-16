@@ -30,7 +30,6 @@ public final class WorkspaceState: ObservableObject {
   public let directStream = DirectStreamSession()
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
-  @Published public private(set) var showingChatStart = false
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var directContext = UUID()
   public var phase: Phase {
@@ -253,7 +252,6 @@ public final class WorkspaceState: ObservableObject {
     workspaceGeneration += 1
     directContext = UUID()
     openingDirect = nil
-    showingChatStart = false
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -272,33 +270,20 @@ public final class WorkspaceState: ObservableObject {
     applyRoomSelection(id, auth: auth)
   }
 
-  public func showChatStart() {
-    guard phase == .ready, !workspaceSession.isSwitching else { return }
-    showingChatStart = true
-    selectedRoomId = nil
-    clearTranscript()
-  }
-
   public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
     guard phase == .ready, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return false }
     return recipient.canOpen(from: room, currentUserId: currentUserId, hasActiveOrganization: selection?.workspace.organizationId != nil)
   }
 
-  public func loadDirectRecipients(context: UUID, auth: AuthState, coworkersOnly: Bool = false) async throws -> DirectRecipientRoster {
+  public func loadDirectRecipients(context: UUID, auth: AuthState) async throws -> DirectRecipientRoster {
     guard phase == .ready, context == directContext, !workspaceSession.isSwitching,
           let client = resolveClient(auth: auth) else { throw CancellationError() }
     do {
-      let roster: DirectRecipientRoster = if coworkersOnly {
-        try await DirectRecipientRoster(targets: ChatService().chatCoworkers(
-          client: client, organizationSlug: selection?.workspace.organizationSlug
-        ))
-      } else {
-        try await ChatService().directRecipients(
-          client: client, currentUserId: currentUserId,
-          organizationId: selection?.workspace.organizationId,
-          organizationSlug: selection?.workspace.organizationSlug
-        )
-      }
+      let roster = try await ChatService().directRecipients(
+        client: client, currentUserId: currentUserId,
+        organizationId: selection?.workspace.organizationId,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
       guard context == directContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
       return roster
     } catch {
@@ -323,7 +308,6 @@ public final class WorkspaceState: ObservableObject {
     guard context == directContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil,
           let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
-    let sourceNavigation = messageNavigationRequest
     openingDirect = first
     defer {
       if context == directContext {
@@ -340,7 +324,7 @@ public final class WorkspaceState: ObservableObject {
       }
       realtime?.setMembershipRooms(Set(rooms.map(\.id)))
       // A completed request must not pull the user away from a room they selected meanwhile.
-      if transcriptRoomId == sourceRoom, messageNavigationRequest == sourceNavigation {
+      if transcriptRoomId == sourceRoom {
         selectRoom(room.id, auth: auth)
       }
       return true
@@ -354,7 +338,6 @@ public final class WorkspaceState: ObservableObject {
   }
 
   private func applyRoomSelection(_ id: String?, auth: AuthState) {
-    showingChatStart = false
     sidebar.select(id, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     guard let id = selectedRoomId, let room = rooms.first(where: { $0.id == id }) else {
       clearTranscript()
@@ -363,12 +346,10 @@ public final class WorkspaceState: ObservableObject {
     openRoom(room, auth: auth)
   }
 
-  /// Restore the saved room or the first room unless Welcome was explicitly opened.
-  /// Empty workspaces stay on Welcome when rooms later arrive in the background.
+  /// Keep a room selected whenever rooms exist: the saved room when it is
+  /// still listed, else the first room. Runs after every rooms load.
   private func ensureRoomSelection(auth: AuthState) {
-    guard !showingChatStart else { return }
     applyRoomSelection(sidebar.restoredSelection(userId: currentUserId, organizationId: selection?.workspace.organizationId), auth: auth)
-    showingChatStart = selectedRoomId == nil
   }
 
   /// Forget the transcript without touching rooms or selection.

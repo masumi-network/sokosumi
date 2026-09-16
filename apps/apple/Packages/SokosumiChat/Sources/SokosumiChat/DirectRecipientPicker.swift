@@ -16,8 +16,12 @@ public final class DirectRecipientPicker: ObservableObject {
     selection = DirectConversationSelection(hasOrganization: hasOrganization)
   }
 
+  public var sections: [DirectRecipientSection] {
+    roster.sections(query: query, selection: selection)
+  }
+
   public var candidates: [DirectRecipientTarget] {
-    roster.candidates(query: query, selection: selection)
+    sections.flatMap(\.targets)
   }
 
   public var selectedTargets: [DirectRecipientTarget] {

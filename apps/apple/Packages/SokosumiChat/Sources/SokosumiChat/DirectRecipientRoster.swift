@@ -7,18 +7,23 @@ public struct DirectRecipientTarget: Identifiable, Equatable, Sendable {
   public let detail: String
   public let imageURL: String?
   public let slug: String
-  public let priority: Int
-  public let caption: String?
 
-  public init(id: DirectRecipient, name: String, detail: String = "", imageURL: String? = nil, slug: String = "", priority: Int = 0, caption: String? = nil) {
+  public init(id: DirectRecipient, name: String, detail: String = "", imageURL: String? = nil, slug: String = "") {
     self.id = id
     self.name = name
     self.detail = detail
     self.imageURL = imageURL
     self.slug = slug
-    self.priority = priority
-    self.caption = caption?.trimmingCharacters(in: .whitespacesAndNewlines)
   }
+}
+
+public struct DirectRecipientSection: Identifiable, Equatable, Sendable {
+  public enum Kind: CaseIterable, Sendable {
+    case coworkers, people, assistant
+  }
+
+  public let id: Kind
+  public let targets: [DirectRecipientTarget]
 }
 
 public struct DirectRecipientRoster: Equatable, Sendable {
@@ -30,17 +35,16 @@ public struct DirectRecipientRoster: Equatable, Sendable {
     self.membersLoadFailed = membersLoadFailed
   }
 
-  public var rankedCoworkers: [DirectRecipientTarget] {
-    targets.filter {
-      if case .coworker = $0.id {
-        return true
+  public func sections(query: String, selection: DirectConversationSelection) -> [DirectRecipientSection] {
+    let matches = candidates(query: query, selection: selection)
+    return DirectRecipientSection.Kind.allCases.compactMap { kind in
+      let targets = matches.filter { target in
+        switch (kind, target.id) {
+        case (.coworkers, .coworker), (.people, .human), (.assistant, .sokoBot): true
+        default: false
+        }
       }
-      return false
-    }.sorted {
-      if $0.priority != $1.priority {
-        return $0.priority > $1.priority
-      }
-      return $0.slug.localizedCompare($1.slug) == .orderedAscending
+      return targets.isEmpty ? nil : DirectRecipientSection(id: kind, targets: targets)
     }
   }
 
@@ -55,7 +59,7 @@ public struct DirectRecipientRoster: Equatable, Sendable {
 
 public extension ChatService {
   func directRecipients(client: Client, currentUserId: String, organizationId: String?, organizationSlug: String?) async throws -> DirectRecipientRoster {
-    async let coworkers = chatCoworkers(client: client, organizationSlug: organizationSlug)
+    async let coworkers = directCoworkers(client: client, organizationSlug: organizationSlug)
     async let bot = directAssistant(client: client, organizationSlug: organizationSlug)
     async let members = directMembers(client: client, organizationId: organizationId, currentUserId: currentUserId)
     let (people, agents, assistant) = try await (members, coworkers, bot)
@@ -63,7 +67,7 @@ public extension ChatService {
     return DirectRecipientRoster(targets: people.targets + agents + assistant, membersLoadFailed: people.membersLoadFailed)
   }
 
-  func chatCoworkers(client: Client, organizationSlug: String?) async throws -> [DirectRecipientTarget] {
+  private func directCoworkers(client: Client, organizationSlug: String?) async throws -> [DirectRecipientTarget] {
     let response = try await client.getCoworkers(.init(
       query: .init(scope: .available, capability: [.chat]),
       headers: .init(xOrganizationSlug: organizationSlug)
@@ -74,7 +78,7 @@ public extension ChatService {
         $0.archivedAt == nil && $0.capabilities.contains(.chat)
           && !($0.baseURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       }.map {
-        DirectRecipientTarget(id: .coworker($0.id), name: $0.name, detail: $0.caption ?? "@\($0.slug)", imageURL: $0.image, slug: $0.slug, priority: $0.priority, caption: $0.caption)
+        DirectRecipientTarget(id: .coworker($0.id), name: $0.name, detail: $0.caption ?? "@\($0.slug)", imageURL: $0.image, slug: $0.slug)
       }
     case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
     case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)

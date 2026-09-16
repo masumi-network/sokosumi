@@ -34,10 +34,6 @@ struct ConversationSidebarView: View {
         }
       )) {
         workspaceMenu
-        Button("Start a chat", systemImage: "sparkles") {
-          workspaces.showChatStart()
-        }
-        .disabled(workspaces.roomsLoading)
         if workspaces.roomsLoading, workspaces.rooms.isEmpty {
           ProgressView("Loading rooms…")
         } else if workspaces.rooms.isEmpty {
@@ -77,11 +73,11 @@ struct ConversationSidebarView: View {
       .listStyle(.sidebar)
       .toolbar {
         ToolbarItem {
-          Button("Start Direct", systemImage: "square.and.pencil") {
+          Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.directContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
           .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil)
-          .help("Start Direct")
+          .help("New chat")
         }
         ToolbarItem {
           Button("Refresh conversations", systemImage: "arrow.clockwise") {
