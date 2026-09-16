@@ -4,7 +4,7 @@ import { vi } from "vitest";
 
 import { createX402DemandFingerprint } from "@/services/task-x402-payment.replay-demand";
 
-import type { StoredTaskX402Payment } from "./task-x402-payment.replay";
+import type { StoredTaskX402Payment } from "../../task-x402-payment.replay";
 
 /**
  * Shared test fixtures for the replay resolver and its demand-verification

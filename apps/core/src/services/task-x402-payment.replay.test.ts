@@ -16,15 +16,6 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 
 import {
-  buildStoredSignedResponse,
-  normalizeWithSourcesOrThrow,
-  resolveExistingPayment,
-  TASK_X402_MAX_SIGN_ATTEMPTS,
-  TASK_X402_SIGN_LEASE_MS,
-  TASK_X402_SIGN_REQUEST_TIMEOUT_MS,
-  X402_MIN_REMAINING_VALIDITY_MS,
-} from "./task-x402-payment.replay";
-import {
   AGENT_ID,
   BASE_MAINNET,
   BASE_SEPOLIA,
@@ -39,7 +30,16 @@ import {
   storedRecord,
   TASK_OWNER_ID,
   USDC,
-} from "./task-x402-payment.replay.fixtures";
+} from "./__tests__/fixtures/task-x402-payment.replay.fixtures";
+import {
+  buildStoredSignedResponse,
+  normalizeWithSourcesOrThrow,
+  resolveExistingPayment,
+  TASK_X402_MAX_SIGN_ATTEMPTS,
+  TASK_X402_SIGN_LEASE_MS,
+  TASK_X402_SIGN_REQUEST_TIMEOUT_MS,
+  X402_MIN_REMAINING_VALIDITY_MS,
+} from "./task-x402-payment.replay";
 
 describe("normalizeWithSourcesOrThrow", () => {
   it("returns the normalized v2 shape with paired sources for a valid 402", () => {
