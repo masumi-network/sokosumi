@@ -19,9 +19,11 @@ const SCRAPE_CONCURRENCY = 2;
  * Plain SokosumiBot alone gets bot interstitials without og:title.
  * Keep SokosumiBot in the string so operators can still identify us.
  */
+export const UNFURL_USER_AGENT =
+  "facebookexternalhit/1.1; SokosumiBot/1.0 (+https://sokosumi.com)";
+
 const REQUEST_HEADERS = {
-  "User-Agent":
-    "facebookexternalhit/1.1; SokosumiBot/1.0 (+https://sokosumi.com)",
+  "User-Agent": UNFURL_USER_AGENT,
   Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
   "Accept-Language": "en",
 } as const;
