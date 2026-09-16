@@ -62,3 +62,35 @@ export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   result: null | string;
   resultHash: null | string;
 }
+
+/**
+ * What every reminder email needs (SOK-916).
+ *
+ * `actionUrl` is the same destination the in-app reminder opens, so the two
+ * surfaces cannot disagree about where the thing lives. The name is optional
+ * because the account may not carry one, and each renderer greets without it
+ * rather than greeting a blank.
+ */
+export interface NotificationFollowUpEmailProps extends LocalizedEmailProps {
+  actionUrl: string;
+  recipientName?: null | string;
+}
+
+export interface ChatMentionFollowUpEmailProps
+  extends NotificationFollowUpEmailProps {
+  authorName?: null | string;
+  roomName?: null | string;
+}
+
+export interface ChatDirectMessageFollowUpEmailProps
+  extends NotificationFollowUpEmailProps {
+  authorName?: null | string;
+}
+
+export interface TaskFollowUpEmailProps extends NotificationFollowUpEmailProps {
+  taskName?: null | string;
+}
+
+export interface JobFollowUpEmailProps extends NotificationFollowUpEmailProps {
+  jobName?: null | string;
+}

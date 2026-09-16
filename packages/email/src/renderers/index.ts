@@ -10,3 +10,9 @@ export {
   renderJobFinalStatusEmail,
   renderJobInputRequiredEmail,
 } from "./jobs.js";
+export {
+  renderChatDirectMessageFollowUpEmail,
+  renderChatMentionFollowUpEmail,
+  renderJobFollowUpEmail,
+  renderTaskFollowUpEmail,
+} from "./notification-follow-ups.js";
