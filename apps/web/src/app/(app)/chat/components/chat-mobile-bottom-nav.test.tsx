@@ -91,6 +91,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/drive")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/calendar")).toBe("home");
     expect(resolveChatMobileActiveTabId("/notifications/n1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/account")).toBeNull();

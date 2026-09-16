@@ -6210,10 +6210,12 @@
         "skipOccurrence": "Skip occurrence",
         "restoreOccurrence": "Restore occurrence",
         "mutationError": "Unable to change this occurrence. Please try again.",
-        "openTask": "Open task"
+        "openTask": "Open task",
+        "moveNotAllowed": "Only the task owner can reschedule it."
       },
       "create": {
-        "title": "Schedule a task"
+        "title": "Schedule a task",
+        "fab": "Schedule a task"
       },
       "edit": {
         "title": "Edit schedule",
@@ -6267,6 +6269,10 @@
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",
         "retry": "Try again"
+      },
+      "agenda": {
+        "backToTop": "Back to top",
+        "today": "Today"
       }
     },
     "You": {
