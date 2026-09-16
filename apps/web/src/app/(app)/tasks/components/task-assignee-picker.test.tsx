@@ -130,9 +130,12 @@ describe("TaskAssigneePicker", () => {
   it("shows the unassigned label when no assignee is selected", () => {
     renderPicker({ value: "" });
 
-    expect(
-      screen.getByRole("combobox", { name: "Coworker: Unassigned" }),
-    ).toHaveTextContent("Unassigned");
+    const trigger = screen.getByRole("combobox", {
+      name: "Coworker: Unassigned",
+    });
+    expect(trigger).toHaveTextContent("Unassigned");
+    // Single-line labels need an explicit floor; text-sm alone is under 24px.
+    expect(trigger.className).toMatch(/\bmin-h-6\b/);
     expect(screen.queryByAltText("Serviceplan")).not.toBeInTheDocument();
   });
 
